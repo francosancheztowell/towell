@@ -641,7 +641,12 @@ class DividirTejido
                 'registro_original' => [ // ⚡ MEJORA: Datos del registro original actualizado (cantidad, fecha, fórmulas)
                     'TotalPedido' => $registroOriginal->TotalPedido,
                     'SaldoPedido' => $registroOriginal->SaldoPedido,
+                    'FechaInicio' => $registroOriginal->FechaInicio,
                     'FechaFinal' => $registroOriginal->FechaFinal,
+                    'EntregaProduc' => $registroOriginal->EntregaProduc,
+                    'EntregaPT' => $registroOriginal->EntregaPT,
+                    'EntregaCte' => $registroOriginal->EntregaCte,
+                    'ProgramarProd' => $registroOriginal->ProgramarProd,
                     'HorasProd' => $registroOriginal->HorasProd ?? null,
                     'DiasJornada' => $registroOriginal->DiasJornada ?? null,
                     'StdDia' => $registroOriginal->StdDia ?? null,

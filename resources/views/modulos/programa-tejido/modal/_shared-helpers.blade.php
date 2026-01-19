@@ -38,6 +38,264 @@ function getCsrfToken() {
 	return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
+function normalizeSqlDateValue(value) {
+	if (value === null || value === undefined) return null;
+	const raw = String(value).trim();
+	if (!raw) return null;
+	const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+	const dt = new Date(normalized);
+	if (Number.isNaN(dt.getTime()) || dt.getFullYear() <= 1970) return null;
+	return dt;
+}
+
+function formatDateCellValue(value, type) {
+	const dt = normalizeSqlDateValue(value);
+	if (!dt) return '';
+	const day = String(dt.getDate()).padStart(2, '0');
+	const month = String(dt.getMonth() + 1).padStart(2, '0');
+	const year = dt.getFullYear();
+	if (type === 'datetime') {
+		const hours = String(dt.getHours()).padStart(2, '0');
+		const minutes = String(dt.getMinutes()).padStart(2, '0');
+		return `${day}/${month}/${year} ${hours}:${minutes}`;
+	}
+	return `${day}/${month}/${year}`;
+}
+
+function updateDateCell(cell, value, type) {
+	if (!cell || value === undefined) return;
+	cell.textContent = formatDateCellValue(value, type);
+	cell.setAttribute('data-value', value || '');
+}
+
+function getRowCellValue(row, column, fallback = '') {
+	if (!row) return fallback;
+	const cell = row.querySelector(`[data-column="${column}"]`);
+	if (!cell) return fallback;
+	const dataValue = cell.getAttribute('data-value');
+	if (dataValue !== null && String(dataValue).trim() !== '') {
+		return String(dataValue).trim();
+	}
+	const textValue = cell.textContent?.trim();
+	return textValue || fallback;
+}
+
+function buildTelarKey(salon, telar) {
+	const s = String(salon || '').trim().toUpperCase();
+	const t = String(telar || '').trim();
+	return `${s}::${t}`;
+}
+
+async function actualizarRegistrosPorIds(registrosIds) {
+	const ids = Array.from(new Set(registrosIds || [])).filter(Boolean);
+	if (ids.length === 0) return;
+
+	if (typeof actualizarRegistrosVinculados === 'function') {
+		await actualizarRegistrosVinculados(ids, null);
+		return;
+	}
+
+	const tb = document.querySelector('#mainTable tbody');
+	if (!tb) return;
+
+	const columns = (typeof columnsData !== 'undefined' && columnsData && columnsData.length > 0)
+		? columnsData
+		: (window.columns || Array.from(document.querySelectorAll('#mainTable thead th[data-column]')).map(th => ({
+			field: th.getAttribute('data-column'),
+			label: th.textContent.trim(),
+			dateType: null
+		})));
+
+	if (!columns || columns.length === 0) return;
+
+	const getDateType = (field) => {
+		const col = columns.find(c => c.field === field);
+		return col?.dateType || null;
+	};
+
+	const formatearValor = (registro, field, value) => {
+		if (typeof formatearValorCelda === 'function') {
+			return formatearValorCelda(registro, field, value, getDateType(field));
+		}
+		if (value === null || value === undefined || value === '') return '';
+		const dateType = getDateType(field);
+		if (dateType === 'date' || dateType === 'datetime') {
+			return formatDateCellValue(value, dateType);
+		}
+		if (!isNaN(value) && !Number.isInteger(parseFloat(value))) {
+			return parseFloat(value).toFixed(2);
+		}
+		return String(value);
+	};
+
+	for (const registroId of ids) {
+		try {
+			const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
+				headers: {
+					'Accept': 'application/json',
+					'X-CSRF-TOKEN': getCsrfToken(),
+					'Cache-Control': 'no-cache'
+				}
+			});
+
+			if (!response.ok) continue;
+
+			const result = await response.json();
+			if (!result.success || !result.registro) continue;
+
+			const registro = result.registro;
+			const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
+			if (!fila) continue;
+
+			if (registro.OrdCompartida) {
+				fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
+			} else {
+				fila.removeAttribute('data-ord-compartida');
+			}
+
+			columns.forEach(col => {
+				const field = col.field;
+				const value = registro[field] !== undefined ? registro[field] : null;
+				const celda = fila.querySelector(`td[data-column="${field}"]`);
+				if (!celda) return;
+				celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
+				celda.innerHTML = formatearValor(registro, field, value);
+			});
+
+			await new Promise(resolve => setTimeout(resolve, 40));
+		} catch (error) {
+			console.warn(`Error al actualizar registro ${registroId}:`, error);
+		}
+	}
+}
+
+async function actualizarTelaresAfectadosDespuesDividir({ salonOrigen, telarOrigen, destinos }) {
+	const telarKeys = new Set();
+	if (salonOrigen || telarOrigen) {
+		telarKeys.add(buildTelarKey(salonOrigen, telarOrigen));
+	}
+
+	(destinos || []).forEach(destino => {
+		const salonDestino = destino?.salon_destino || destino?.salon || '';
+		const telarDestino = destino?.telar || destino?.no_telar_id || '';
+		if (salonDestino || telarDestino) {
+			telarKeys.add(buildTelarKey(salonDestino, telarDestino));
+		}
+	});
+
+	if (telarKeys.size === 0) return;
+
+	const tb = document.querySelector('#mainTable tbody');
+	if (!tb) return;
+
+	const registrosIds = [];
+	tb.querySelectorAll('tr.selectable-row').forEach(row => {
+		const salonVal = getRowCellValue(row, 'SalonTejidoId');
+		const telarVal = getRowCellValue(row, 'NoTelarId');
+		const key = buildTelarKey(salonVal, telarVal);
+		if (telarKeys.has(key)) {
+			const id = row.getAttribute('data-id');
+			if (id) registrosIds.push(id);
+		}
+	});
+
+	await actualizarRegistrosPorIds(registrosIds);
+}
+
+async function actualizarRegistroOriginalDividir(data, tableBody) {
+	if (!data?.registro_id_original) return;
+	const tb = tableBody || document.querySelector('#mainTable tbody');
+	if (!tb) return;
+
+	const aplicarActualizacion = (filaOriginal, regOriginal) => {
+		const totalPedidoCell = filaOriginal.querySelector('[data-column="TotalPedido"]');
+		const saldoPedidoCell = filaOriginal.querySelector('[data-column="SaldoPedido"]');
+		const fechaFinalCell = filaOriginal.querySelector('[data-column="FechaFinal"]');
+		const fechaInicioCell = filaOriginal.querySelector('[data-column="FechaInicio"]');
+		const entregaProducCell = filaOriginal.querySelector('[data-column="EntregaProduc"]');
+		const entregaPTCell = filaOriginal.querySelector('[data-column="EntregaPT"]');
+		const entregaCteCell = filaOriginal.querySelector('[data-column="EntregaCte"]');
+		const programarProdCell = filaOriginal.querySelector('[data-column="ProgramarProd"]');
+		const horasProdCell = filaOriginal.querySelector('[data-column="HorasProd"]');
+		const diasJornadaCell = filaOriginal.querySelector('[data-column="DiasJornada"]');
+		const stdDiaCell = filaOriginal.querySelector('[data-column="StdDia"]');
+		const prodKgDiaCell = filaOriginal.querySelector('[data-column="ProdKgDia"]');
+		const horasNecesariasCell = filaOriginal.querySelector('[data-column="HorasNecesarias"]');
+		const eficienciaCell = filaOriginal.querySelector('[data-column="Eficiencia"]');
+
+		if (totalPedidoCell && regOriginal.TotalPedido !== undefined) {
+			totalPedidoCell.textContent = regOriginal.TotalPedido || '0';
+			totalPedidoCell.setAttribute('data-value', regOriginal.TotalPedido || '0');
+		}
+		if (saldoPedidoCell && regOriginal.SaldoPedido !== undefined) {
+			saldoPedidoCell.textContent = regOriginal.SaldoPedido || '0';
+			saldoPedidoCell.setAttribute('data-value', regOriginal.SaldoPedido || '0');
+		}
+
+		updateDateCell(fechaFinalCell, regOriginal.FechaFinal, 'datetime');
+		updateDateCell(fechaInicioCell, regOriginal.FechaInicio, 'datetime');
+		updateDateCell(entregaProducCell, regOriginal.EntregaProduc, 'date');
+		updateDateCell(entregaPTCell, regOriginal.EntregaPT, 'date');
+		updateDateCell(entregaCteCell, regOriginal.EntregaCte, 'datetime');
+		updateDateCell(programarProdCell, regOriginal.ProgramarProd, 'date');
+
+		if (horasProdCell && regOriginal.HorasProd !== undefined) {
+			horasProdCell.textContent = regOriginal.HorasProd ? parseFloat(regOriginal.HorasProd).toFixed(2) : '0';
+			horasProdCell.setAttribute('data-value', regOriginal.HorasProd || '0');
+		}
+		if (diasJornadaCell && regOriginal.DiasJornada !== undefined) {
+			diasJornadaCell.textContent = regOriginal.DiasJornada ? parseFloat(regOriginal.DiasJornada).toFixed(2) : '0';
+			diasJornadaCell.setAttribute('data-value', regOriginal.DiasJornada || '0');
+		}
+		if (stdDiaCell && regOriginal.StdDia !== undefined) {
+			stdDiaCell.textContent = regOriginal.StdDia ? parseFloat(regOriginal.StdDia).toFixed(2) : '0';
+			stdDiaCell.setAttribute('data-value', regOriginal.StdDia || '0');
+		}
+		if (prodKgDiaCell && regOriginal.ProdKgDia !== undefined) {
+			prodKgDiaCell.textContent = regOriginal.ProdKgDia ? parseFloat(regOriginal.ProdKgDia).toFixed(2) : '0';
+			prodKgDiaCell.setAttribute('data-value', regOriginal.ProdKgDia || '0');
+		}
+		if (horasNecesariasCell && regOriginal.HorasNecesarias !== undefined) {
+			horasNecesariasCell.textContent = regOriginal.HorasNecesarias ? parseFloat(regOriginal.HorasNecesarias).toFixed(2) : '0';
+			horasNecesariasCell.setAttribute('data-value', regOriginal.HorasNecesarias || '0');
+		}
+		if (eficienciaCell && regOriginal.Eficiencia !== undefined) {
+			eficienciaCell.textContent = regOriginal.Eficiencia ? parseFloat(regOriginal.Eficiencia).toFixed(2) + '%' : '0%';
+			eficienciaCell.setAttribute('data-value', regOriginal.Eficiencia || '0');
+		}
+	};
+
+	try {
+		if (data?.registro_original) {
+			const filaOriginal = tb.querySelector(`tr.selectable-row[data-id="${data.registro_id_original}"]`);
+			if (filaOriginal) {
+				aplicarActualizacion(filaOriginal, data.registro_original);
+			}
+			return;
+		}
+
+		const responseOriginal = await fetch(`/planeacion/programa-tejido/${data.registro_id_original}/detalles-balanceo?t=${Date.now()}`, {
+			headers: {
+				'Accept': 'application/json',
+				'X-CSRF-TOKEN': getCsrfToken(),
+				'Cache-Control': 'no-cache'
+			}
+		});
+
+		if (responseOriginal.ok) {
+			const resultOriginal = await responseOriginal.json();
+			if (resultOriginal.success && resultOriginal.registro) {
+				const filaOriginal = tb.querySelector(`tr.selectable-row[data-id="${data.registro_id_original}"]`);
+				if (filaOriginal) {
+					aplicarActualizacion(filaOriginal, resultOriginal.registro);
+				}
+			}
+		}
+	} catch (e) {
+		console.warn('[DEBUG] Error al actualizar registro original:', e);
+	}
+}
+
 function buildCalendarErrorHtml(data) {
 	const calendarioHtml = (data.calendario_id && data.fecha_inicio && data.fecha_fin)
 		? `<div class="mt-3 text-xs text-red-600"><p><strong>Calendario:</strong> ${data.calendario_id}</p></div>`
@@ -173,122 +431,8 @@ async function redirectToRegistro(data) {
 					}
 				}
 
-				// ⚡ MEJORA: Actualizar el registro original después de dividir
-				// Si es dividir, actualizar el registro original con los nuevos valores de TotalPedido y SaldoPedido
 				if (data?.modo === 'dividir' && data?.registro_id_original) {
-					try {
-						// Usar datos del registro original de la respuesta si están disponibles (más rápido)
-						if (data?.registro_original) {
-							const filaOriginal = tb.querySelector(`tr.selectable-row[data-id="${data.registro_id_original}"]`);
-							if (filaOriginal) {
-								const regOriginal = data.registro_original;
-								
-								// Actualizar TotalPedido y SaldoPedido en el DOM directamente
-								const totalPedidoCell = filaOriginal.querySelector('[data-column="TotalPedido"]');
-								const saldoPedidoCell = filaOriginal.querySelector('[data-column="SaldoPedido"]');
-								const fechaFinalCell = filaOriginal.querySelector('[data-column="FechaFinal"]');
-								const horasCell = filaOriginal.querySelector('[data-column="HorasProd"]');
-								
-								if (totalPedidoCell && regOriginal.TotalPedido !== undefined) {
-									totalPedidoCell.textContent = regOriginal.TotalPedido || '0';
-									totalPedidoCell.setAttribute('data-value', regOriginal.TotalPedido || '0');
-								}
-								if (saldoPedidoCell && regOriginal.SaldoPedido !== undefined) {
-									saldoPedidoCell.textContent = regOriginal.SaldoPedido || '0';
-									saldoPedidoCell.setAttribute('data-value', regOriginal.SaldoPedido || '0');
-								}
-								// ⚡ MEJORA: Actualizar FechaFinal si está disponible
-								if (fechaFinalCell && regOriginal.FechaFinal) {
-									const fechaFinal = new Date(regOriginal.FechaFinal);
-									const fechaFormateada = fechaFinal.toLocaleDateString('es-ES', {
-										day: '2-digit',
-										month: '2-digit',
-										year: 'numeric'
-									});
-									fechaFinalCell.textContent = fechaFormateada;
-									fechaFinalCell.setAttribute('data-value', regOriginal.FechaFinal);
-								}
-								// ⚡ MEJORA: Actualizar campos de fórmulas si están disponibles
-								if (horasCell && regOriginal.HorasProd !== undefined) {
-									horasCell.textContent = regOriginal.HorasProd ? parseFloat(regOriginal.HorasProd).toFixed(2) : '0';
-									horasCell.setAttribute('data-value', regOriginal.HorasProd || '0');
-								}
-								// Actualizar DiasJornada si está disponible
-								const diasJornadaCell = filaOriginal.querySelector('[data-column="DiasJornada"]');
-								if (diasJornadaCell && regOriginal.DiasJornada !== undefined) {
-									diasJornadaCell.textContent = regOriginal.DiasJornada ? parseFloat(regOriginal.DiasJornada).toFixed(2) : '0';
-									diasJornadaCell.setAttribute('data-value', regOriginal.DiasJornada || '0');
-								}
-								// Actualizar StdDia si está disponible
-								const stdDiaCell = filaOriginal.querySelector('[data-column="StdDia"]');
-								if (stdDiaCell && regOriginal.StdDia !== undefined) {
-									stdDiaCell.textContent = regOriginal.StdDia ? parseFloat(regOriginal.StdDia).toFixed(2) : '0';
-									stdDiaCell.setAttribute('data-value', regOriginal.StdDia || '0');
-								}
-								// Actualizar ProdKgDia si está disponible
-								const prodKgDiaCell = filaOriginal.querySelector('[data-column="ProdKgDia"]');
-								if (prodKgDiaCell && regOriginal.ProdKgDia !== undefined) {
-									prodKgDiaCell.textContent = regOriginal.ProdKgDia ? parseFloat(regOriginal.ProdKgDia).toFixed(2) : '0';
-									prodKgDiaCell.setAttribute('data-value', regOriginal.ProdKgDia || '0');
-								}
-							}
-						} else {
-							// Fallback: obtener datos del endpoint si no están en la respuesta (sin setTimeout para mayor velocidad)
-							const responseOriginal = await fetch(`/planeacion/programa-tejido/${data.registro_id_original}/detalles-balanceo?t=${Date.now()}`, {
-								headers: {
-									'Accept': 'application/json',
-									'X-CSRF-TOKEN': getCsrfToken(),
-									'Cache-Control': 'no-cache'
-								}
-							});
-							
-							if (responseOriginal.ok) {
-								const resultOriginal = await responseOriginal.json();
-								if (resultOriginal.success && resultOriginal.registro) {
-									const filaOriginal = tb.querySelector(`tr.selectable-row[data-id="${data.registro_id_original}"]`);
-									if (filaOriginal) {
-										const regOriginal = resultOriginal.registro;
-										const totalPedidoCell = filaOriginal.querySelector('[data-column="TotalPedido"]');
-										const saldoPedidoCell = filaOriginal.querySelector('[data-column="SaldoPedido"]');
-										const fechaFinalCell = filaOriginal.querySelector('[data-column="FechaFinal"]');
-										const horasCell = filaOriginal.querySelector('[data-column="HorasNecesarias"]');
-										const eficienciaCell = filaOriginal.querySelector('[data-column="Eficiencia"]');
-										
-										if (totalPedidoCell && regOriginal.TotalPedido !== undefined) {
-											totalPedidoCell.textContent = regOriginal.TotalPedido || '0';
-											totalPedidoCell.setAttribute('data-value', regOriginal.TotalPedido || '0');
-										}
-										if (saldoPedidoCell && regOriginal.SaldoPedido !== undefined) {
-											saldoPedidoCell.textContent = regOriginal.SaldoPedido || '0';
-											saldoPedidoCell.setAttribute('data-value', regOriginal.SaldoPedido || '0');
-										}
-										// ⚡ MEJORA: Actualizar FechaFinal si está disponible
-										if (fechaFinalCell && regOriginal.FechaFinal) {
-											const fechaFinal = new Date(regOriginal.FechaFinal);
-											const fechaFormateada = fechaFinal.toLocaleDateString('es-ES', {
-												day: '2-digit',
-												month: '2-digit',
-												year: 'numeric'
-											});
-											fechaFinalCell.textContent = fechaFormateada;
-											fechaFinalCell.setAttribute('data-value', regOriginal.FechaFinal);
-										}
-										// ⚡ MEJORA: Actualizar campos de fórmulas si están disponibles
-										if (horasCell && regOriginal.HorasNecesarias !== undefined) {
-											horasCell.textContent = regOriginal.HorasNecesarias ? parseFloat(regOriginal.HorasNecesarias).toFixed(2) : '0';
-											horasCell.setAttribute('data-value', regOriginal.HorasNecesarias || '0');
-										}
-										if (eficienciaCell && regOriginal.Eficiencia !== undefined) {
-											eficienciaCell.textContent = regOriginal.Eficiencia ? parseFloat(regOriginal.Eficiencia).toFixed(2) + '%' : '0%';
-											eficienciaCell.setAttribute('data-value', regOriginal.Eficiencia || '0');
-										}
-									}
-								}
-							}
-						}
-					} catch (e) {
-						console.warn(`[DEBUG] ⚠️ Error al actualizar registro original:`, e);
-					}
+					await actualizarRegistroOriginalDividir(data, tb);
 				}
 
 				// Verificar si se agregaron todos los registros
@@ -461,6 +605,9 @@ async function redirectToRegistro(data) {
 	// Si solo hay un registro, agregarlo sin recargar
 	if (data?.registro_id) {
 		await agregarRegistroSinRecargar(data);
+		if (data?.modo === 'dividir' && data?.registro_id_original) {
+			await actualizarRegistroOriginalDividir(data);
+		}
 	} else if (data?.salon_destino && data?.telar_destino) {
 		// Si no hay registro_id pero hay destino, recargar con filtros
 		const url = new URL(window.location.href);

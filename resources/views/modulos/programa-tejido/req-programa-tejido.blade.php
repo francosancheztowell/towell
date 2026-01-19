@@ -125,6 +125,8 @@
                 @php
                   $producto = $registro->NombreProducto ?? '';
                   $esRepaso = !empty($producto) && strtoupper(substr(trim($producto), 0, 6)) === 'REPASO';
+                  $noExisteBase = $registro->NoExisteBase ?? null;
+                  $tieneNoExisteBase = !empty($noExisteBase) && ($noExisteBase !== '0' && $noExisteBase !== 0 && $noExisteBase !== false);
                   $rowId = $getRegistroId($registro);
                 @endphp
                 <tr
@@ -134,6 +136,7 @@
                   data-posicion="{{ e($registro->Posicion ?? '') }}"
                   @if(!empty($registro->OrdCompartida)) data-ord-compartida="{{ $registro->OrdCompartida }}" @endif
                   @if($esRepaso) data-es-repaso="1" @endif
+                  @if($tieneNoExisteBase) data-no-existe-base="1" @endif
                 >
                   @foreach($columns as $colIndex => $col)
                     @php
@@ -281,6 +284,44 @@
 
   .pinned-column { position: sticky !important; background-color: #3a6faf !important; color: #fff !important; }
 
+  /* Estilos para fila seleccionada - color más fuerte y mate */
+  .selectable-row.bg-blue-700 {
+    background-color: #1e3a5f !important;
+  }
+  .selectable-row.bg-blue-700 td {
+    background-color: #1e3a5f !important;
+    color: #fff !important;
+  }
+
+  /* Columnas amarillas más fuertes cuando la fila está seleccionada */
+  .selectable-row.bg-blue-700 td[data-column="EficienciaSTD"],
+  .selectable-row.bg-blue-700 td[data-column="VelocidadSTD"],
+  .selectable-row.bg-blue-700 td[data-column="FibraRizo"],
+  .selectable-row.bg-blue-700 td[data-column="CalibrePie2"],
+  .selectable-row.bg-blue-700 td[data-column="TotalPedido"],
+  .selectable-row.bg-blue-700 td[data-column="PorcentajeSegundos"],
+  .selectable-row.bg-blue-700 td[data-column="Produccion"],
+  .selectable-row.bg-blue-700 td[data-column="SaldoPedido"],
+  .selectable-row.bg-blue-700 td[data-column="SaldoMarbete"],
+  .selectable-row.bg-blue-700 td[data-column="ProgramarProd"],
+  .selectable-row.bg-blue-700 td[data-column="NoProduccion"],
+  .selectable-row.bg-blue-700 td[data-column="NombreProyecto"],
+  .selectable-row.bg-blue-700 td[data-column="CustName"],
+  .selectable-row.bg-blue-700 td[data-column="AplicacionId"],
+  .selectable-row.bg-blue-700 td[data-column="Observaciones"],
+  .selectable-row.bg-blue-700 td[data-column="TipoPedido"],
+  .selectable-row.bg-blue-700 td[data-column="EntregaProduc"],
+  .selectable-row.bg-blue-700 td[data-column="EntregaPT"] {
+    background-color: #ffd700 !important;
+    color: #000 !important;
+  }
+
+  /* Columnas fijadas más fuertes cuando la fila está seleccionada */
+  .selectable-row.bg-blue-700 td.pinned-column {
+    background-color: #2d5aa0 !important;
+    color: #fff !important;
+  }
+
   /* Asegurar que el thead completo se mantenga visible */
   thead {
     z-index: 10 !important; /* Base para todos los encabezados */
@@ -302,6 +343,12 @@
 
   /* Estilo para columnas fijadas en filas REPASO - rojo pastel */
   tr[data-es-repaso="1"] .pinned-column {
+    background-color: #ff9090 !important;
+    color: #000 !important;
+  }
+
+  /* Estilo para columnas fijadas en filas con NoExisteBase (Usar cuando no existe en base) - rojo pastel */
+  tr[data-no-existe-base="1"] .pinned-column {
     background-color: #ff9090 !important;
     color: #000 !important;
   }
