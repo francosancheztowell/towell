@@ -3,7 +3,9 @@ const getSelectableRows = () => (allRows.length > 0 ? allRows : $$('.selectable-
 const isInlineEditActive = () => inlineEditMode || window.inlineEditMode;
 
 function updateRowSelectionStyles(row, isSelected, inlineActive) {
-	row.classList.toggle('bg-blue-700', isSelected);
+	const esRepaso = row.dataset.esRepaso === '1';
+	row.classList.toggle('bg-blue-700', isSelected && !esRepaso);
+	row.classList.toggle('bg-blue-400', isSelected && esRepaso);
 	row.classList.toggle('text-white', isSelected);
 	row.classList.toggle('hover:bg-blue-50', !isSelected);
 
@@ -127,4 +129,3 @@ function deselectRow() {
 // Exponer funciones globalmente
 window.selectRow = selectRow;
 window.deselectRow = deselectRow;
-

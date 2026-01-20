@@ -135,6 +135,7 @@ class EditarOrdenesProgramadasController extends Controller
                     'FechaProg',
                     'TipoAtado',
                     'LoteProveedor',
+                    'FolioConsumo',
                     'Observaciones',
                 ])],
                 'valor' => 'nullable|string|max:500',

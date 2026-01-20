@@ -1342,9 +1342,30 @@
           // La columna está fijada - mostrar icono blanco
           if (!pinIcon) {
             pinIcon = document.createElement('i');
-            pinIcon.className = 'fas fa-thumbtack column-pin-icon text-white ml-1 text-xs';
-            pinIcon.title = 'Columna fijada';
+            pinIcon.className = 'fas fa-thumbtack column-pin-icon text-white ml-1 text-xs cursor-pointer';
+            pinIcon.title = 'Desfijar columna';
+            pinIcon.dataset.columnIndex = String(columnIndex);
             th.appendChild(pinIcon);
+          }
+          pinIcon.classList.add('cursor-pointer');
+          pinIcon.title = 'Desfijar columna';
+          if (!pinIcon.dataset.pinBound) {
+            pinIcon.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const idx = parseInt(pinIcon.dataset.columnIndex || String(columnIndex), 10);
+              if (!Number.isNaN(idx)) {
+                if (typeof window.unpinColumn === 'function') {
+                  window.unpinColumn(idx);
+                } else if (typeof window.togglePinColumn === 'function') {
+                  window.togglePinColumn(idx);
+                }
+                if (typeof window.updateColumnPinIcons === 'function') {
+                  window.updateColumnPinIcons();
+                }
+              }
+            });
+            pinIcon.dataset.pinBound = '1';
           }
           pinIcon.style.display = 'inline-block';
         } else {
