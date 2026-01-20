@@ -227,8 +227,8 @@
                 <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4">
                     <i class="fas fa-exclamation-triangle text-3xl text-yellow-600"></i>
                 </div>
-                <h3 class="text-2xl font-bold text-gray-900 mb-2">Ya tiene tela reservada</h3>
-                <p class="text-gray-600">Este telar tiene tela reservada. ¿Qué desea hacer?</p>
+                <h3 class="text-2xl font-bold text-gray-900 mb-2" id="modalTelaReservadaTitulo">Ya tiene tela reservada</h3>
+                <p class="text-gray-600" id="modalTelaReservadaDescripcion">Este telar tiene tela reservada. ¿Qué desea hacer?</p>
             </div>
 
             <!-- Botones de acción -->
@@ -242,7 +242,7 @@
                 >
                     <div class="flex flex-col items-center">
                         <span class="text-base mb-1">Eliminar</span>
-                        <span class="text-xs opacity-90">Si elimina el registro elimina la reserva</span>
+                        <span class="text-xs opacity-90" id="modalTelaReservadaEliminarTexto">Si elimina el registro elimina la reserva</span>
                     </div>
                 </button>
 
@@ -1888,6 +1888,8 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
             // Si faltan datos críticos, mostrar modal por seguridad
             window.datosEliminacionPendiente = datosEliminar;
             window.checkboxEliminacionPendiente = checkbox;
+            // Por defecto, asumir reservado por seguridad
+            window.estadoModalTela = 'reservado';
             if (telarData) {
                 window.telarDataCompleto = telarData;
             }
@@ -1964,6 +1966,8 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
             if (result.reservado === true || result.reservado === 1 || result.reservado === '1') {
                 window.datosEliminacionPendiente = datosEliminar;
                 window.checkboxEliminacionPendiente = checkbox;
+                // Guardar el tipo de estado: reservado
+                window.estadoModalTela = 'reservado';
                 // Guardar el ID del registro si está disponible en la respuesta
                 if (result.registro_id) {
                     window.registroIdPendienteCalendario = result.registro_id;
@@ -1984,6 +1988,8 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 // Si solo está programado (sin reservado), también mostrar modal
                 window.datosEliminacionPendiente = datosEliminar;
                 window.checkboxEliminacionPendiente = checkbox;
+                // Guardar el tipo de estado: programado
+                window.estadoModalTela = 'programado';
                 // Guardar el ID del registro si está disponible en la respuesta
                 if (result.registro_id) {
                     window.registroIdPendienteCalendario = result.registro_id;
@@ -2015,6 +2021,8 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 // El backend es la única fuente de verdad confiable
                 window.datosEliminacionPendiente = datosEliminar;
                 window.checkboxEliminacionPendiente = checkbox;
+                // Por defecto, asumir reservado por seguridad
+                window.estadoModalTela = 'reservado';
                 if (telarData) {
                     window.telarDataCompleto = telarData;
                 }
@@ -2034,6 +2042,8 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
         // El backend es la única fuente de verdad confiable
         window.datosEliminacionPendiente = datosEliminar;
         window.checkboxEliminacionPendiente = checkbox;
+        // Por defecto, asumir reservado por seguridad
+        window.estadoModalTela = 'reservado';
         if (telarData) {
             window.telarDataCompleto = telarData;
         }
@@ -2069,6 +2079,64 @@ window.mostrarModalTelaReservada = function() {
         document.body.appendChild(modal);
     }
 
+    // IMPORTANTE: Cambiar el texto ANTES de mostrar el modal para evitar parpadeo
+    // Cambiar el texto según el estado (reservado o programado)
+    // Buscar los elementos DENTRO del modal encontrado para evitar conflictos con múltiples instancias
+    const estadoTela = window.estadoModalTela || 'reservado'; // Por defecto reservado
+    console.log('Mostrando modal con estado:', estadoTela); // Debug
+    const tituloModal = modal.querySelector('#modalTelaReservadaTitulo');
+    const descripcionModal = modal.querySelector('#modalTelaReservadaDescripcion');
+    const textoEliminar = modal.querySelector('#modalTelaReservadaEliminarTexto');
+
+    // Debug: verificar si los elementos se encuentran
+    console.log('Elementos encontrados:', {
+        tituloModal: !!tituloModal,
+        descripcionModal: !!descripcionModal,
+        textoEliminar: !!textoEliminar,
+        tituloTextoActual: tituloModal ? tituloModal.textContent : 'NO ENCONTRADO',
+        descripcionTextoActual: descripcionModal ? descripcionModal.textContent : 'NO ENCONTRADO'
+    });
+
+    // Verificar y cambiar el texto según el estado
+    if (estadoTela === 'programado') {
+        console.log('Cambiando textos a: programado'); // Debug
+        // Si está solo programado (sin reservado), cambiar textos
+        if (tituloModal) {
+            tituloModal.textContent = 'Ya está programado';
+            tituloModal.innerHTML = 'Ya está programado'; // Asegurar también innerHTML
+            console.log('Título actualizado a:', tituloModal.textContent, 'innerHTML:', tituloModal.innerHTML);
+        } else {
+            console.error('Error: No se encontró el elemento modalTelaReservadaTitulo en el modal');
+        }
+        if (descripcionModal) {
+            descripcionModal.textContent = 'Este telar tiene tela programada. ¿Qué desea hacer?';
+            descripcionModal.innerHTML = 'Este telar tiene tela programada. ¿Qué desea hacer?'; // Asegurar también innerHTML
+            console.log('Descripción actualizada a:', descripcionModal.textContent);
+        } else {
+            console.error('Error: No se encontró el elemento modalTelaReservadaDescripcion en el modal');
+        }
+        if (textoEliminar) {
+            textoEliminar.textContent = 'Si elimina el registro elimina la programación';
+            textoEliminar.innerHTML = 'Si elimina el registro elimina la programación'; // Asegurar también innerHTML
+            console.log('Texto eliminar actualizado a:', textoEliminar.textContent);
+        } else {
+            console.error('Error: No se encontró el elemento modalTelaReservadaEliminarTexto en el modal');
+        }
+    } else {
+        // Si está reservado (o por defecto), usar textos de reservado
+        console.log('Cambiando textos a: reservado');
+        if (tituloModal) {
+            tituloModal.textContent = 'Ya tiene tela reservada';
+        }
+        if (descripcionModal) {
+            descripcionModal.textContent = 'Este telar tiene tela reservada. ¿Qué desea hacer?';
+        }
+        if (textoEliminar) {
+            textoEliminar.textContent = 'Si elimina el registro elimina la reserva';
+        }
+    }
+
+    // Ahora sí, mostrar el modal después de cambiar el texto
     // Asegurar que el modal cubra toda la pantalla con z-index muy alto
     modal.style.position = 'fixed';
     modal.style.top = '0';
