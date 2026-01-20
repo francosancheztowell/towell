@@ -405,6 +405,7 @@ class AtadoresController extends Controller
             $data = $request->validate([
                 'calidad' => ['required','integer','min:1','max:10'],
                 'limpieza' => ['required','integer','min:5','max:10'],
+                'comentarios' => ['nullable','string','max:500'],
             ]);
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
@@ -413,6 +414,7 @@ class AtadoresController extends Controller
                 ->update([
                     'Calidad' => (int) $data['calidad'],
                     'Limpieza' => (int) $data['limpieza'],
+                    'ComentariosSupervisor' => $data['comentarios'] ?? null,
                     'CveTejedor' => $user->numero_empleado,
                     'NomTejedor' => $user->nombre,
                     'Estatus' => 'Calificado'

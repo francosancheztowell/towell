@@ -442,7 +442,7 @@ function terminarAtado(){
 
     // Validar que la merma (Merma Kg) esté capturada
     const mergaInput = document.getElementById('mergaKg');
-    const xmergaValorStr = mergaInput ? mergaInput.value.trim() : '';
+    const mergaValorStr = mergaInput ? mergaInput.value.trim() : '';
     const mergaValor = mergaValorStr !== '' ? parseFloat(mergaValorStr) : NaN;
     if (!mergaInput || mergaValorStr === '' || isNaN(mergaValor)) {
         Swal.fire({
@@ -518,31 +518,35 @@ async function calificarTejedor(){
     const { value: formValues } = await Swal.fire({
         title: 'Calificar Tejedor',
         html: `
-            <div class="text-left">
-                <label class="block text-sm mb-1">Calidad de Atado</label>
-                <select id="swCalidad" class="swal2-input" style="width:100%">
+            <div style="text-align:left; padding:0 10px;">
+                <label style="display:block; font-size:14px; margin-bottom:4px;">Calidad de Atado (1-10)</label>
+                <select id="swCalidad" class="swal2-input" style="width:100%; margin:0 0 12px 0;">
                     <option value="">Seleccione</option>
                     ${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}
                 </select>
-                <label class="block text-sm mb-1 mt-3">Orden y Limpieza (5-10)</label>
-                <select id="swLimpieza" class="swal2-input" style="width:100%">
+                <label style="display:block; font-size:14px; margin-bottom:4px;">Orden y Limpieza (5-10)</label>
+                <select id="swLimpieza" class="swal2-input" style="width:100%; margin:0 0 12px 0;">
                     <option value="">Seleccione</option>
                     ${Array.from({length:6}, (_,i)=>`<option value="${i+5}">${i+5}</option>`).join('')}
                 </select>
+                <label style="display:block; font-size:14px; margin-bottom:4px;">Comentarios del Supervisor</label>
+                <textarea id="swComentarios" style="width:100%; min-height:80px; padding:10px; border:1px solid #d9d9d9; border-radius:4px; resize:vertical; font-size:14px; box-sizing:border-box;" placeholder="Escriba sus comentarios aquí (opcional)..."></textarea>
             </div>
         `,
         focusConfirm: false,
         preConfirm: () => {
             const calidad = document.getElementById('swCalidad').value;
             const limpieza = document.getElementById('swLimpieza').value;
+            const comentarios = document.getElementById('swComentarios').value.trim();
             if(!calidad || !limpieza){
                 Swal.showValidationMessage('Seleccione calidad y limpieza');
                 return false;
             }
-            return { calidad, limpieza };
+            return { calidad, limpieza, comentarios };
         },
         showCancelButton: true,
-        confirmButtonText: 'Guardar'
+        confirmButtonText: 'Guardar',
+        width: '450px'
     });
 
     if(!formValues) return;
@@ -558,6 +562,7 @@ async function calificarTejedor(){
             action: 'calificacion',
             calidad: Number(formValues.calidad),
             limpieza: Number(formValues.limpieza),
+            comentarios: formValues.comentarios || '',
             no_julio: currentNoJulio,
             no_orden: currentNoOrden
         })
