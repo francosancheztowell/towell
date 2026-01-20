@@ -292,26 +292,51 @@
     background-color: #1e3a5f !important;
     color: #fff !important;
   }
+  .selectable-row.bg-blue-400 {
+    background-color: #60a5fa !important;
+  }
+  .selectable-row.bg-blue-400 td {
+    background-color: #60a5fa !important;
+    color: #fff !important;
+  }
 
   /* Columnas amarillas más fuertes cuando la fila está seleccionada */
   .selectable-row.bg-blue-700 td[data-column="EficienciaSTD"],
+  .selectable-row.bg-blue-400 td[data-column="EficienciaSTD"],
   .selectable-row.bg-blue-700 td[data-column="VelocidadSTD"],
+  .selectable-row.bg-blue-400 td[data-column="VelocidadSTD"],
   .selectable-row.bg-blue-700 td[data-column="FibraRizo"],
+  .selectable-row.bg-blue-400 td[data-column="FibraRizo"],
   .selectable-row.bg-blue-700 td[data-column="CalibrePie2"],
+  .selectable-row.bg-blue-400 td[data-column="CalibrePie2"],
   .selectable-row.bg-blue-700 td[data-column="TotalPedido"],
+  .selectable-row.bg-blue-400 td[data-column="TotalPedido"],
   .selectable-row.bg-blue-700 td[data-column="PorcentajeSegundos"],
+  .selectable-row.bg-blue-400 td[data-column="PorcentajeSegundos"],
   .selectable-row.bg-blue-700 td[data-column="Produccion"],
+  .selectable-row.bg-blue-400 td[data-column="Produccion"],
   .selectable-row.bg-blue-700 td[data-column="SaldoPedido"],
+  .selectable-row.bg-blue-400 td[data-column="SaldoPedido"],
   .selectable-row.bg-blue-700 td[data-column="SaldoMarbete"],
+  .selectable-row.bg-blue-400 td[data-column="SaldoMarbete"],
   .selectable-row.bg-blue-700 td[data-column="ProgramarProd"],
+  .selectable-row.bg-blue-400 td[data-column="ProgramarProd"],
   .selectable-row.bg-blue-700 td[data-column="NoProduccion"],
+  .selectable-row.bg-blue-400 td[data-column="NoProduccion"],
   .selectable-row.bg-blue-700 td[data-column="NombreProyecto"],
+  .selectable-row.bg-blue-400 td[data-column="NombreProyecto"],
   .selectable-row.bg-blue-700 td[data-column="CustName"],
+  .selectable-row.bg-blue-400 td[data-column="CustName"],
   .selectable-row.bg-blue-700 td[data-column="AplicacionId"],
+  .selectable-row.bg-blue-400 td[data-column="AplicacionId"],
   .selectable-row.bg-blue-700 td[data-column="Observaciones"],
+  .selectable-row.bg-blue-400 td[data-column="Observaciones"],
   .selectable-row.bg-blue-700 td[data-column="TipoPedido"],
+  .selectable-row.bg-blue-400 td[data-column="TipoPedido"],
   .selectable-row.bg-blue-700 td[data-column="EntregaProduc"],
-  .selectable-row.bg-blue-700 td[data-column="EntregaPT"] {
+  .selectable-row.bg-blue-400 td[data-column="EntregaProduc"],
+  .selectable-row.bg-blue-700 td[data-column="EntregaPT"],
+  .selectable-row.bg-blue-400 td[data-column="EntregaPT"] {
     background-color: #ffd700 !important;
     color: #000 !important;
   }
@@ -319,6 +344,10 @@
   /* Columnas fijadas más fuertes cuando la fila está seleccionada */
   .selectable-row.bg-blue-700 td.pinned-column {
     background-color: #2d5aa0 !important;
+    color: #fff !important;
+  }
+  .selectable-row.bg-blue-400 td.pinned-column {
+    background-color: #3b82f6 !important;
     color: #fff !important;
   }
 

@@ -39,30 +39,42 @@
         @endif
 
         <!-- Información de la Orden -->
-        <div class="bg-white shadow-md rounded-lg p-4 mb-4">
+        <div class="bg-white  p-3 mb-4">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div class="grid gap-1.5" style="display: grid; grid-template-columns: 0.7fr 1.6fr 0.7fr 0.7fr 0.7fr 0.7fr;">
                 <!-- Folio (solo lectura - NO EDITABLE) -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Folio <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Folio <span class="text-red-500">*</span></label>
                     <input
                         type="text"
                         value="{{ $orden->Folio }}"
                         readonly
                         disabled
-                        class="w-full px-2 py-1.5 border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed"
+                        class="w-full px-1.5 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed"
                         title="El folio no se puede editar"
                     >
                 </div>
 
+                <!-- Folio Consumo -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Folio Consumo</label>
+                    <input
+                        type="text"
+                        id="campo_FolioConsumo"
+                        data-campo="FolioConsumo"
+                        value="{{ $orden->FolioConsumo ?? '' }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        {{ !$puedeEditar ? 'readonly' : '' }}
+                    >
+                </div>
 
                 <!-- Rizo/Pie -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tipo (Rizo/Pie)</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Tipo (Rizo/Pie)</label>
                     <select
                         id="campo_RizoPie"
                         data-campo="RizoPie"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'disabled' : '' }}
                     >
                         <option value="">Seleccionar...</option>
@@ -73,66 +85,69 @@
 
                 <!-- Cuenta -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Cuenta</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Cuenta</label>
                     <input
                         type="text"
                         id="campo_Cuenta"
                         data-campo="Cuenta"
                         value="{{ $orden->Cuenta ?? '' }}"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'readonly' : '' }}
                     >
                 </div>
 
                 <!-- Calibre -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Calibre</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Calibre</label>
                     <input
                         type="number"
                         step="0.01"
                         id="campo_Calibre"
                         data-campo="Calibre"
                         value="{{ $orden->Calibre ?? '' }}"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'readonly' : '' }}
                     >
                 </div>
 
                 <!-- Metros -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Metros</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Metros</label>
                     <input
                         type="number"
                         step="0.01"
                         id="campo_Metros"
                         data-campo="Metros"
                         value="{{ $orden->Metros ?? '' }}"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'readonly' : '' }}
                     >
                 </div>
+            </div>
+
+            <div class="mt-1.5 grid gap-1.5" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));">
 
                 <!-- Kilos -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Kilos</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Kilos</label>
                     <input
                         type="number"
                         step="0.01"
                         id="campo_Kilos"
                         data-campo="Kilos"
                         value="{{ $orden->Kilos ?? '' }}"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'readonly' : '' }}
                     >
                 </div>
 
                 <!-- Fibra -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Fibra</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Fibra</label>
                     <select
                         id="campo_Fibra"
                         data-campo="Fibra"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'disabled' : '' }}
                     >
                         <option value="">Seleccionar...</option>
@@ -166,11 +181,11 @@
 
                 <!-- Salón de Tejido -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Salón de Tejido</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Salón de Tejido</label>
                     <select
                         id="campo_SalonTejidoId"
                         data-campo="SalonTejidoId"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'disabled' : '' }}
                     >
                         <option value="">Seleccionar...</option>
@@ -181,11 +196,11 @@
 
                 <!-- Máquina -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Máquina</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Máquina</label>
                     <select
                         id="campo_MaquinaId"
                         data-campo="MaquinaId"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'disabled' : '' }}
                     >
                         <option value="">Seleccionar...</option>
@@ -205,24 +220,24 @@
 
                 <!-- Fecha Programada -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Fecha Programada</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Fecha Programada</label>
                     <input
                         type="date"
                         id="campo_FechaProg"
                         data-campo="FechaProg"
                         value="{{ $orden->FechaProg ? $orden->FechaProg->format('Y-m-d') : '' }}"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'readonly' : '' }}
                     >
                 </div>
 
                 <!-- Tipo Atado -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tipo Atado</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Tipo Atado</label>
                     <select
                         id="campo_TipoAtado"
                         data-campo="TipoAtado"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'disabled' : '' }}
                     >
                         <option value="">Seleccionar...</option>
@@ -236,74 +251,77 @@
 
                 <!-- Lote Proveedor -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Lote Proveedor</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Lote Proveedor</label>
                     <input
                         type="text"
                         id="campo_LoteProveedor"
                         data-campo="LoteProveedor"
                         value="{{ $orden->LoteProveedor ?? '' }}"
-                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         {{ !$puedeEditar ? 'readonly' : '' }}
                     >
                 </div>
             </div>
 
-            <!-- Julios y Hilos -->
-            <div class="mt-2">
-                <div class="overflow-x-auto border border-gray-200 rounded">
-                    <table class="min-w-full text-xs">
-                        <thead class="bg-blue-500 text-white">
-                            <tr>
-                                <th class="px-2 py-1.5 text-center font-semibold">No. Julio</th>
-                                <th class="px-2 py-1.5 text-center font-semibold">Hilos</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @php $juliosRows = $julios->values(); @endphp
-                            @for ($i = 0; $i < 4; $i++)
-                                @php
-                                    $row = $juliosRows[$i] ?? null;
-                                @endphp
-                                <tr data-julio-row="{{ $i }}" data-julio-id="{{ $row->Id ?? '' }}">
-                                    <td class="px-2 py-1.5 text-center">
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            step="1"
-                                            data-field="no_julio"
-                                            value="{{ $row->Julios ?? '' }}"
-                                            class="campo-julio w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                            {{ !$puedeEditar ? 'readonly' : '' }}
-                                        >
-                                    </td>
-                                    <td class="px-2 py-1.5 text-center">
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            step="1"
-                                            data-field="hilos"
-                                            value="{{ $row->Hilos ?? '' }}"
-                                            class="campo-julio w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                            {{ !$puedeEditar ? 'readonly' : '' }}
-                                        >
-                                    </td>
+            <div class="mt-2 grid gap-2" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));">
+                <!-- Julios y Hilos -->
+                <div>
+                    <div class="overflow-x-auto border border-gray-200 rounded">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-blue-500 text-white">
+                                <tr>
+                                    <th class="px-2 py-1.5 text-center font-semibold">No. Julio</th>
+                                    <th class="px-2 py-1.5 text-center font-semibold">Hilos</th>
                                 </tr>
-                            @endfor
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                @php $juliosRows = $julios->values(); @endphp
+                                @for ($i = 0; $i < 4; $i++)
+                                    @php
+                                        $row = $juliosRows[$i] ?? null;
+                                    @endphp
+                                    <tr data-julio-row="{{ $i }}" data-julio-id="{{ $row->Id ?? '' }}">
+                                        <td class="px-2 py-1.5 text-center">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                step="1"
+                                                data-field="no_julio"
+                                                value="{{ $row->Julios ?? '' }}"
+                                                class="campo-julio w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                {{ !$puedeEditar ? 'readonly' : '' }}
+                                            >
+                                        </td>
+                                        <td class="px-2 py-1.5 text-center">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                step="1"
+                                                data-field="hilos"
+                                                value="{{ $row->Hilos ?? '' }}"
+                                                class="campo-julio w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                {{ !$puedeEditar ? 'readonly' : '' }}
+                                            >
+                                        </td>
+                                    </tr>
+                                @endfor
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Observaciones -->
-            <div class="mt-2">
-                <label class="block text-xs font-semibold text-gray-700 mb-1">Observaciones</label>
-                <textarea
-                    id="campo_Observaciones"
-                    data-campo="Observaciones"
-                    rows="3"
-                    class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    {{ !$puedeEditar ? 'readonly' : '' }}
-                >{{ $orden->Observaciones ?? '' }}</textarea>
+                <!-- Observaciones -->
+                <div style="height: 100%; display: flex; flex-direction: column;">
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Observaciones</label>
+                    <textarea
+                        id="campo_Observaciones"
+                        data-campo="Observaciones"
+                        rows="3"
+                        class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        style="flex: 1 1 auto; resize: none;"
+                        {{ !$puedeEditar ? 'readonly' : '' }}
+                    >{{ $orden->Observaciones ?? '' }}</textarea>
+                </div>
             </div>
         </div>
 
