@@ -20,6 +20,7 @@ use App\Models\Inventario\InvSecuenciaCorteEf;
 use App\Models\Tejido\TejEficienciaLine;
 use App\Models\Tejido\TejEficiencia;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Tejido\TejeFallasCeModel;
 class CortesEficienciaController extends Controller
 {
     /**
@@ -627,6 +628,30 @@ class CortesEficienciaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener datos de programa tejido: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Listado de fallas de Cortes de Eficiencia (Clave y Descripción)
+     */
+    public function getFallasCe()
+    {
+        try {
+            $fallas = TejeFallasCeModel::query()
+                ->select(['Clave', 'Descripcion'])
+                ->orderBy('Clave')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $fallas,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Error al obtener fallas CE: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudieron obtener las fallas',
             ], 500);
         }
     }
