@@ -36,7 +36,7 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
-     * Mostrar ordenes finalizadas para reimpresion
+     * Mostrar todas las ordenes para reimpresion (sin filtrar por status)
      */
     public function reimpresionFinalizadas(Request $request)
     {
@@ -52,8 +52,8 @@ class ProgramarUrdidoController extends Controller
             'MaquinaId',
             'FechaProg',
             'Status',
-        ])
-        ->where('Status', 'Finalizado');
+        ]);
+        // Sin filtro de status - mostrar todas las órdenes
 
         if ($busqueda !== '') {
             $query->where(function ($sub) use ($busqueda) {
@@ -64,8 +64,8 @@ class ProgramarUrdidoController extends Controller
         }
 
         $ordenes = $query
-            ->orderBy('FechaProg', 'desc')
-            ->orderBy('Id', 'desc')
+            ->orderBy('FechaProg', 'asc')
+            ->orderBy('Id', 'asc')
             ->limit(200)
             ->get();
 
