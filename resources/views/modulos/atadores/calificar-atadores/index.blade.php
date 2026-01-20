@@ -440,6 +440,20 @@ function terminarAtado(){
         return;
     }
 
+    // Validar que la merma (Merma Kg) esté capturada
+    const mergaInput = document.getElementById('mergaKg');
+    const xmergaValorStr = mergaInput ? mergaInput.value.trim() : '';
+    const mergaValor = mergaValorStr !== '' ? parseFloat(mergaValorStr) : NaN;
+    if (!mergaInput || mergaValorStr === '' || isNaN(mergaValor)) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Merma pendiente',
+            text: 'Captura la merma (Kg) antes de terminar el atado.',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+
     Swal.fire({
         title: '¿Terminar Atado?',
         text: 'Se registrará la hora de arranque con la hora actual y el estatus cambiará a "Terminado"',
