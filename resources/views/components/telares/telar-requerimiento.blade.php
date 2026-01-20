@@ -2118,8 +2118,9 @@ window.mostrarModalTelaReservada = function() {
         descripcionTextoActual: descripcionModal ? descripcionModal.textContent : 'NO ENCONTRADO'
     });
 
-    // Obtener el botón de eliminar
+    // Obtener los botones de eliminar y actualizar
     const btnEliminar = modal.querySelector('#btnEliminarReservado');
+    const btnActualizar = modal.querySelector('#btnActualizarReservado');
     // Obtener valores de las variables globales - convertir explícitamente a booleano
     const puedeEliminar = window.puedeEliminar === false ? false : (window.puedeEliminar === true ? true : true);
     const statusUrdido = window.statusUrdido || null;
@@ -2171,8 +2172,8 @@ window.mostrarModalTelaReservada = function() {
             }
             
             if (descripcionModal) {
-                descripcionModal.textContent = mensajeEstado + '. No se puede eliminar.';
-                descripcionModal.innerHTML = mensajeEstado + '. No se puede eliminar.'; // Asegurar también innerHTML
+                descripcionModal.textContent = mensajeEstado + '. No se puede eliminar ni actualizar.';
+                descripcionModal.innerHTML = mensajeEstado + '. No se puede eliminar ni actualizar.'; // Asegurar también innerHTML
             }
             
             if (textoEliminar) {
@@ -2209,6 +2210,29 @@ window.mostrarModalTelaReservada = function() {
                     }
                 }
             }
+            
+            // Bloquear también el botón de actualizar y cambiar a estilo gris
+            if (btnActualizar) {
+                btnActualizar.disabled = true;
+                // Remover clases de amarillo y agregar clases grises
+                btnActualizar.classList.remove('bg-yellow-600', 'hover:bg-yellow-700', 'focus:ring-yellow-500', 'hover:shadow-lg');
+                btnActualizar.classList.add('bg-gray-400', 'cursor-not-allowed', 'opacity-75');
+                btnActualizar.style.pointerEvents = 'none';
+                btnActualizar.style.backgroundColor = '#9ca3af'; // Gris-400
+                btnActualizar.onclick = null; // Remover el onclick para evitar que se ejecute
+                
+                // Cambiar el texto del botón
+                const spanActualizar = btnActualizar.querySelector('span.text-base');
+                if (spanActualizar) {
+                    if (statusUrdido === 'En Proceso') {
+                        spanActualizar.textContent = 'En Proceso';
+                    } else if (statusUrdido === 'Finalizado') {
+                        spanActualizar.textContent = 'Finalizado';
+                    } else {
+                        spanActualizar.textContent = 'No Actualizable';
+                    }
+                }
+            }
         } else {
             // Si se puede eliminar (Status es "Programado"), usar mensajes normales
             if (descripcionModal) {
@@ -2226,7 +2250,7 @@ window.mostrarModalTelaReservada = function() {
                 console.error('Error: No se encontró el elemento modalTelaReservadaEliminarTexto en el modal');
             }
             
-            // Asegurar que el botón esté habilitado
+            // Asegurar que los botones estén habilitados
             if (btnEliminar) {
                 btnEliminar.disabled = false;
                 // Restaurar clases de rojo y remover clases grises
@@ -2249,6 +2273,23 @@ window.mostrarModalTelaReservada = function() {
                     }
                 }
             }
+            
+            // Asegurar que el botón de actualizar esté habilitado
+            if (btnActualizar) {
+                btnActualizar.disabled = false;
+                // Restaurar clases de amarillo y remover clases grises
+                btnActualizar.classList.remove('bg-gray-400', 'opacity-75', 'cursor-not-allowed');
+                btnActualizar.classList.add('bg-yellow-600', 'hover:bg-yellow-700', 'focus:ring-yellow-500', 'hover:shadow-lg');
+                btnActualizar.style.pointerEvents = 'auto';
+                btnActualizar.style.backgroundColor = ''; // Resetear estilo inline
+                btnActualizar.onclick = mostrarCalendarioParaActualizar; // Restaurar onclick
+                
+                // Restaurar el texto del botón
+                const spanActualizar = btnActualizar.querySelector('span.text-base');
+                if (spanActualizar) {
+                    spanActualizar.textContent = 'Actualizar';
+                }
+            }
         }
     } else {
         // Si está reservado (o por defecto), usar textos de reservado
@@ -2263,7 +2304,7 @@ window.mostrarModalTelaReservada = function() {
             textoEliminar.textContent = 'Si elimina el registro elimina la reserva';
         }
         
-        // Asegurar que el botón esté habilitado para reservado
+        // Asegurar que los botones estén habilitados para reservado
         if (btnEliminar) {
             btnEliminar.disabled = false;
             // Restaurar clases de rojo y remover clases grises
@@ -2284,6 +2325,23 @@ window.mostrarModalTelaReservada = function() {
                 if (spanTexto) {
                     spanTexto.textContent = 'Si elimina el registro elimina la reserva';
                 }
+            }
+        }
+        
+        // Asegurar que el botón de actualizar esté habilitado para reservado
+        if (btnActualizar) {
+            btnActualizar.disabled = false;
+            // Restaurar clases de amarillo y remover clases grises
+            btnActualizar.classList.remove('bg-gray-400', 'opacity-75', 'cursor-not-allowed');
+            btnActualizar.classList.add('bg-yellow-600', 'hover:bg-yellow-700', 'focus:ring-yellow-500', 'hover:shadow-lg');
+            btnActualizar.style.pointerEvents = 'auto';
+            btnActualizar.style.backgroundColor = ''; // Resetear estilo inline
+            btnActualizar.onclick = mostrarCalendarioParaActualizar; // Restaurar onclick
+            
+            // Restaurar el texto del botón
+            const spanActualizar = btnActualizar.querySelector('span.text-base');
+            if (spanActualizar) {
+                spanActualizar.textContent = 'Actualizar';
             }
         }
     }
@@ -2334,16 +2392,12 @@ window.mostrarModalCalendarioSemanal = function() {
         cont.innerHTML = '';
     });
 
-    // Obtener el lunes de la semana actual
+    // Obtener la fecha de hoy
     const hoy = new Date();
-    const diaSemana = hoy.getDay(); // 0 = domingo, 1 = lunes, etc.
-    const diff = diaSemana === 0 ? -6 : 1 - diaSemana; // Ajustar para que el lunes sea el primer día
-    const lunes = new Date(hoy);
-    lunes.setDate(hoy.getDate() + diff);
-    lunes.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
 
     // Nombres de los días
-    const nombresDias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const nombresDias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
     // Limpiar grid
     grid.innerHTML = '';
@@ -2351,16 +2405,20 @@ window.mostrarModalCalendarioSemanal = function() {
     // Obtener la fecha original para resaltarla en azul
     const fechaOriginalISO = window.fechaOriginalPendienteCalendario;
 
-    // Generar los 7 días de la semana
+    // Generar los próximos 7 días a partir de hoy (hoy + 6 días más)
     for (let i = 0; i < 7; i++) {
-        const fecha = new Date(lunes);
-        fecha.setDate(lunes.getDate() + i);
+        const fecha = new Date(hoy);
+        fecha.setDate(hoy.getDate() + i);
 
         const dia = fecha.getDate();
         const mes = fecha.getMonth() + 1;
         const año = fecha.getFullYear();
         const fechaISO = `${año}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
         const fechaFormato = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
+        
+        // Obtener el día de la semana (0 = domingo, 1 = lunes, etc.)
+        const diaSemanaNum = fecha.getDay();
+        const nombreDia = nombresDias[diaSemanaNum];
 
         const esHoy = fecha.toDateString() === hoy.toDateString();
         // Verificar si es la fecha original (la que se está actualizando)
@@ -2388,7 +2446,9 @@ window.mostrarModalCalendarioSemanal = function() {
         diaElement.style.display = 'flex';
         diaElement.style.flexDirection = 'column';
         diaElement.innerHTML = `
+            <div class="text-xs md:text-sm font-medium mb-1 ${esFechaOriginal ? 'text-white opacity-90' : 'text-gray-600'}">${nombreDia}</div>
             <div class="text-2xl md:text-3xl lg:text-4xl font-bold ${esFechaOriginal ? 'text-white' : 'text-gray-900'}">${dia}</div>
+            <div class="text-xs md:text-sm font-normal mt-1 ${esFechaOriginal ? 'text-white opacity-75' : 'text-gray-500'}">${fechaFormato}</div>
         `;
         diaElement.setAttribute('data-fecha', fechaISO);
         diaElement.onclick = function(e) {

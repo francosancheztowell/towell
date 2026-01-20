@@ -14,11 +14,14 @@ class InventarioTelaresController extends Controller
 {
     /**
      * Obtener todos los registros de inventario de telares
+     * Solo muestra registros con status 'Activo'
      */
     public function index(): JsonResponse
     {
         try {
-            $inventario = TejInventarioTelares::orderBy('created_at', 'desc')->get();
+            $inventario = TejInventarioTelares::where('status', 'Activo')
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             return response()->json([
                 'success' => true,
@@ -826,6 +829,67 @@ class InventarioTelaresController extends Controller
                 }
             }
 
+            // Validar que no exista un registro en UrdProgramaUrdido con Status diferente a "Programado"
+            // antes de permitir actualizar la fecha
+            $calibreRegistro = $registro->calibre ?? null;
+            $fechaOriginalFormato = \Carbon\Carbon::parse($fechaOriginal)->format('Y-m-d');
+            $noTelarNormalizado = (string)trim($noTelar);
+            
+            if ($calibreRegistro !== null) {
+                $calibreFloat = (float)$calibreRegistro;
+                
+                // Buscar en UrdProgramaUrdido con los mismos datos (fecha original)
+                $programasUrdido = UrdProgramaUrdido::where('Calibre', $calibreFloat)
+                    ->where('FechaReq', $fechaOriginalFormato)
+                    ->get();
+
+                // Filtrar los registros donde el telar esté incluido en NoTelarId
+                $registrosEncontrados = [];
+                foreach ($programasUrdido as $programaUrdido) {
+                    $noTelarId = $programaUrdido->NoTelarId ?? '';
+                    $noTelarIdStr = (string)trim($noTelarId);
+                    
+                    // Si NoTelarId contiene múltiples telares separados por coma, verificar si el telar actual está incluido
+                    $telaresEnPrograma = array_map(function($t) {
+                        return (string)trim($t);
+                    }, explode(',', $noTelarIdStr));
+                    
+                    // Comparar tanto como string como número
+                    $telarIncluido = in_array($noTelarNormalizado, $telaresEnPrograma) || 
+                                   in_array((string)(int)$noTelarNormalizado, $telaresEnPrograma) ||
+                                   $noTelarIdStr === $noTelarNormalizado ||
+                                   (string)(int)$noTelarIdStr === $noTelarNormalizado;
+                    
+                    if ($telarIncluido) {
+                        $registrosEncontrados[] = $programaUrdido;
+                    }
+                }
+                
+                // Si se encontraron registros, verificar el Status
+                if (!empty($registrosEncontrados)) {
+                    foreach ($registrosEncontrados as $programaUrdido) {
+                        if ($programaUrdido->Status !== 'Programado') {
+                            // No se puede actualizar si el Status es diferente de "Programado"
+                            $statusEncontrado = $programaUrdido->Status;
+                            $mensajeEstado = '';
+                            if ($statusEncontrado === 'En Proceso') {
+                                $mensajeEstado = 'Este registro ya está en proceso en urdido';
+                            } else if ($statusEncontrado === 'Finalizado') {
+                                $mensajeEstado = 'Este registro ya está finalizado en urdido';
+                            } else {
+                                $mensajeEstado = "Este registro tiene Status \"{$statusEncontrado}\" en urdido";
+                            }
+                            
+                            return response()->json([
+                                'success' => false,
+                                'message' => $mensajeEstado . '. No se puede actualizar la fecha.',
+                                'status_urdido' => $statusEncontrado
+                            ], 400);
+                        }
+                    }
+                }
+            }
+
             // Si se proporciona turno_nuevo, validar que no esté ocupado
             // Excluir el registro actual de la verificación
             if ($turnoNuevo) {
@@ -844,6 +908,44 @@ class InventarioTelaresController extends Controller
                 $registro->turno = (int)$turnoNuevo;
             }
             $registro->save();
+
+            // 2) Actualizar FechaReq en UrdProgramaUrdido si existe registro
+            if ($calibreRegistro !== null) {
+                $fechaNuevaFormato = \Carbon\Carbon::parse($fechaNueva)->format('Y-m-d');
+                
+                // Buscar y actualizar en UrdProgramaUrdido
+                $programasUrdido = UrdProgramaUrdido::where('Calibre', (float)$calibreRegistro)
+                    ->where('FechaReq', $fechaOriginalFormato)
+                    ->get();
+
+                foreach ($programasUrdido as $programaUrdido) {
+                    $noTelarId = $programaUrdido->NoTelarId ?? '';
+                    $noTelarIdStr = (string)trim($noTelarId);
+                    
+                    // Verificar si el telar está incluido en NoTelarId
+                    $telaresEnPrograma = array_map(function($t) {
+                        return (string)trim($t);
+                    }, explode(',', $noTelarIdStr));
+                    
+                    $telarIncluido = in_array($noTelarNormalizado, $telaresEnPrograma) || 
+                                   in_array((string)(int)$noTelarNormalizado, $telaresEnPrograma) ||
+                                   $noTelarIdStr === $noTelarNormalizado ||
+                                   (string)(int)$noTelarIdStr === $noTelarNormalizado;
+                    
+                    if ($telarIncluido && $programaUrdido->Status === 'Programado') {
+                        // Actualizar FechaReq en UrdProgramaUrdido
+                        $programaUrdido->FechaReq = $fechaNuevaFormato;
+                        $programaUrdido->save();
+                        
+                        Log::info('FechaReq actualizada en UrdProgramaUrdido', [
+                            'Id' => $programaUrdido->Id,
+                            'Folio' => $programaUrdido->Folio,
+                            'FechaReq_anterior' => $fechaOriginalFormato,
+                            'FechaReq_nueva' => $fechaNuevaFormato
+                        ]);
+                    }
+                }
+            }
 
             // 2) Actualizar ProdDate, Fecha y Turno en InvTelasReservadas para este registro específico
             // Convertir fecha nueva a formato datetime para ProdDate
