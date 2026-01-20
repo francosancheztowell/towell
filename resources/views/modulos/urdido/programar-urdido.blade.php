@@ -4,7 +4,6 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-
         <x-navbar.button-create
              onclick="return irProduccion(event)"
             title="Cargar Información"
@@ -13,17 +12,6 @@
             hoverBg="hover:bg-blue-600"
             text="Cargar"
             bg="bg-blue-500"
-        />
-        <x-navbar.button-edit
-            id="btnEditarOrdenes"
-            onclick="editarOrdenes()"
-            title="Editar Órdenes"
-            icon="fa-pen-to-square"
-            iconColor="text-white"
-            hoverBg="hover:bg-yellow-600"
-            text="Editar"
-            bg="bg-yellow-600"
-            module="Reservar y Programar"
         />
         <x-navbar.button-create
             onclick="abrirModalEditarPrioridad()"
@@ -1114,31 +1102,10 @@
             };
 
             // ==========================
-            // Editar Ordenes
-            // ==========================
-            const editarOrdenes = () => {
-                if (!state.ordenSeleccionada) {
-                    showToast('warning', 'Seleccione una orden para editar');
-                    return;
-                }
-
-                // Verificar que la orden NO esté en proceso
-                if (state.ordenSeleccionada.status === 'En Proceso') {
-                    showError('No se pueden editar órdenes con status "En Proceso"', 'Orden en Proceso');
-                    return;
-                }
-
-                // Redirigir a la vista de edición
-                const url = '{{ route('urdido.editar.ordenes.programadas') }}?orden_id=' + state.ordenSeleccionada.id;
-                window.location.href = url;
-            };
-
-            // ==========================
             // API pública (para onclick del Blade)
             // ==========================
             window.cargarOrdenes = cargarOrdenes;
             window.irProduccion = irProduccion;
-            window.editarOrdenes = editarOrdenes;
             window.guardarObservaciones = guardarObservaciones;
             window.actualizarStatus = actualizarStatus;
             window.abrirModalEditarPrioridad = abrirModalEditarPrioridad;
@@ -1149,9 +1116,10 @@
             // Init
             // ==========================
             document.addEventListener('DOMContentLoaded', () => {
-                // Verificar si el botón de editar existe (el componente solo lo renderiza si hay permisos)
-                const btnEditar = document.getElementById('btnEditarOrdenes');
-                canEdit = btnEditar !== null && btnEditar !== undefined;
+                // Verificar permisos de edición (el componente button-edit verifica permisos con module="Reservar y Programar")
+                // Buscar cualquier botón de editar en el navbar para determinar permisos
+                const navbarButtons = document.querySelectorAll('[data-module="Reservar y Programar"]');
+                canEdit = navbarButtons.length > 0;
 
                 setButtonsEnabled(false);
                 setupRowClickDelegates();
