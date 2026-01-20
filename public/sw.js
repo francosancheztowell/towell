@@ -60,7 +60,11 @@ self.addEventListener("fetch", (e) => {
   const noCachePaths = [
     '/login', '/logout', '/register', '/auth',
     '/guardar', '/eliminar', '/editar', '/crear',
-    '/api/auth', '/sanctum'
+    '/api/auth', '/sanctum',
+    '/tejido/', '/inventario-telas/', '/inventario-telares/',
+    '/programa-urd-eng/', '/urdido/', '/engomado/',
+    '/atadores/', '/tejedores/', '/mantenimiento/',
+    '/configuracion/', '/planeacion/'
   ];
   if (noCachePaths.some(path => url.pathname.includes(path))) {
     return; // Dejar pasar sin interceptar
@@ -75,27 +79,60 @@ self.addEventListener("fetch", (e) => {
         // Solo cachear si es exitosa y no requiere autenticación
         if (res.ok && res.status !== 419 && res.status !== 401 && res.status !== 403) {
           const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(req, clone));
+          caches.open(CACHE).then(c => c.put(req, clone)).catch(() => {});
         }
         return res;
-      }).catch(() => caches.match(req))
+      }).catch(() => {
+        // Si falla el fetch, intentar obtener del caché
+        return caches.match(req).then(cached => {
+          // Si hay caché, retornarlo; si no, dejar que la petición pase sin interceptar
+          if (cached) {
+            return cached;
+          }
+          // Si no hay caché, hacer fetch directo sin interceptar
+          return fetch(req);
+        }).catch(() => {
+          // Si todo falla, retornar una respuesta de error válida
+          return new Response('Network error', { 
+            status: 408, 
+            statusText: 'Request Timeout',
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
+      })
     );
     return;
   }
 
   // Static assets: Cache-first strategy
   e.respondWith(
-    caches.match(req).then(cached =>
-      cached ||
-      fetch(req).then(res => {
+    caches.match(req).then(cached => {
+      if (cached) {
+        return cached;
+      }
+      // Si no hay caché, intentar fetch
+      return fetch(req).then(res => {
         // Solo cachear assets estáticos exitosos
         if (res.ok && res.status !== 419) {
           const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(req, clone));
+          caches.open(CACHE).then(c => c.put(req, clone)).catch(() => {});
         }
         return res;
-      }).catch(() => caches.match("/offline"))
-    )
+      }).catch(() => {
+        // Si falla, intentar obtener página offline del caché
+        return caches.match("/offline").then(offlinePage => {
+          if (offlinePage) {
+            return offlinePage;
+          }
+          // Si no hay página offline, retornar una respuesta de error válida
+          return new Response('Offline', { 
+            status: 503, 
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
+      });
+    })
   );
 });
 

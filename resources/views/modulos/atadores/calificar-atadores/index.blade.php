@@ -174,12 +174,7 @@
                         placeholder="Escriba aquí las observaciones sobre el atado..."
                         oninput="handleObservacionesChange()"
                         @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>{{ $item->Obs }}</textarea>
-                    <div class="mt-3 flex justify-end">
-                        <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
-                            @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>
-                            <i class="fas fa-save mr-1"></i> Guardar Observaciones
-                        </button>
-                    </div>
+                    
                 </form>
             </div>
         </div>
@@ -445,6 +440,20 @@ function terminarAtado(){
         return;
     }
 
+    // Validar que la merma (Merma Kg) esté capturada
+    const mergaInput = document.getElementById('mergaKg');
+    const mergaValorStr = mergaInput ? mergaInput.value.trim() : '';
+    const mergaValor = mergaValorStr !== '' ? parseFloat(mergaValorStr) : NaN;
+    if (!mergaInput || mergaValorStr === '' || isNaN(mergaValor)) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Merma pendiente',
+            text: 'Captura la merma (Kg) antes de terminar el atado.',
+            confirmButtonText: 'Entendido'
+        });
+        return;
+    }
+
     Swal.fire({
         title: '¿Terminar Atado?',
         text: 'Se registrará la hora de arranque con la hora actual y el estatus cambiará a "Terminado"',
@@ -509,31 +518,35 @@ async function calificarTejedor(){
     const { value: formValues } = await Swal.fire({
         title: 'Calificar Tejedor',
         html: `
-            <div class="text-left">
-                <label class="block text-sm mb-1">Calidad de Atado</label>
-                <select id="swCalidad" class="swal2-input" style="width:100%">
+            <div style="text-align:left; padding:0 10px;">
+                <label style="display:block; font-size:14px; margin-bottom:4px;">Calidad de Atado (1-10)</label>
+                <select id="swCalidad" class="swal2-input" style="width:100%; margin:0 0 12px 0;">
                     <option value="">Seleccione</option>
                     ${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}
                 </select>
-                <label class="block text-sm mb-1 mt-3">Orden y Limpieza (5-10)</label>
-                <select id="swLimpieza" class="swal2-input" style="width:100%">
+                <label style="display:block; font-size:14px; margin-bottom:4px;">Orden y Limpieza (5-10)</label>
+                <select id="swLimpieza" class="swal2-input" style="width:100%; margin:0 0 12px 0;">
                     <option value="">Seleccione</option>
                     ${Array.from({length:6}, (_,i)=>`<option value="${i+5}">${i+5}</option>`).join('')}
                 </select>
+                <label style="display:block; font-size:14px; margin-bottom:4px;">Comentarios del Supervisor</label>
+                <textarea id="swComentarios" style="width:100%; min-height:80px; padding:10px; border:1px solid #d9d9d9; border-radius:4px; resize:vertical; font-size:14px; box-sizing:border-box;" placeholder="Escriba sus comentarios aquí (opcional)..."></textarea>
             </div>
         `,
         focusConfirm: false,
         preConfirm: () => {
             const calidad = document.getElementById('swCalidad').value;
             const limpieza = document.getElementById('swLimpieza').value;
+            const comentarios = document.getElementById('swComentarios').value.trim();
             if(!calidad || !limpieza){
                 Swal.showValidationMessage('Seleccione calidad y limpieza');
                 return false;
             }
-            return { calidad, limpieza };
+            return { calidad, limpieza, comentarios };
         },
         showCancelButton: true,
-        confirmButtonText: 'Guardar'
+        confirmButtonText: 'Guardar',
+        width: '450px'
     });
 
     if(!formValues) return;
@@ -549,6 +562,7 @@ async function calificarTejedor(){
             action: 'calificacion',
             calidad: Number(formValues.calidad),
             limpieza: Number(formValues.limpieza),
+            comentarios: formValues.comentarios || '',
             no_julio: currentNoJulio,
             no_orden: currentNoOrden
         })
@@ -773,6 +787,38 @@ function toggleMaquina(maquinaId, checked){
 
 // Toggle estado de actividad y guardar en DB
 function toggleActividad(actividadId, checked){
+    // Regla: solo el usuario que marcó puede desmarcar su propia actividad
+    try {
+        if (!checked) {
+            const fila = document.getElementById('actividad-' + actividadId);
+            const celdaOperador = fila ? fila.querySelector('.operador-cell') : null;
+            const operadorTexto = (celdaOperador ? (celdaOperador.textContent || '').trim() : '');
+
+            // Extraer la clave de empleado del texto (formato esperado: "111 - Nombre" o "111 Nombre")
+            let operadorId = null;
+            if (operadorTexto && operadorTexto !== '-') {
+                const match = operadorTexto.match(/^(\d{1,10})\b/);
+                operadorId = match ? match[1] : null;
+            }
+
+            if (operadorId && currentUser && String(operadorId) !== String(currentUser.numero_empleado)) {
+                // Revertir cambio en UI y alertar
+                const checkbox = document.querySelector(`input[onchange*="toggleActividad('${actividadId}'"]`);
+                if (checkbox) checkbox.checked = true;
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No permitido',
+                    text: 'No puedes desmarcar una actividad realizada por otro usuario. Por favor, consúltalo con tu supervisor.',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+        }
+    } catch (e) {
+        // Si hay algún error en la validación, continuamos con el flujo normal
+        console.warn('Validación de propietario de actividad falló:', e);
+    }
+
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
         headers: {
@@ -792,10 +838,17 @@ function toggleActividad(actividadId, checked){
         if(res.ok){
             // Actualizar el operador en la tabla dinámicamente
             const fila = document.getElementById('actividad-' + actividadId);
-            if (fila && res.operador) {
-                const celdaOperador = fila.querySelector('.operador-cell');
-                if (celdaOperador) {
-                    celdaOperador.textContent = res.operador;
+            const celdaOperador = fila ? fila.querySelector('.operador-cell') : null;
+            if (fila && celdaOperador) {
+                if (checked) {
+                    // Si el backend provee operador, úsalo; si no, refleja usuario actual
+                    const operadorTexto = res.operador
+                        ? String(res.operador)
+                        : (currentUser ? `${currentUser.numero_empleado} - ${currentUser.nombre || ''}` : '-');
+                    celdaOperador.textContent = operadorTexto.trim();
+                } else {
+                    // Al desmarcar, limpiar operador
+                    celdaOperador.textContent = '-';
                 }
             }
 

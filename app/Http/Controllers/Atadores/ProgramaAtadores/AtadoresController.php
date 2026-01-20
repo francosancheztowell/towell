@@ -51,7 +51,6 @@ class AtadoresController extends Controller
             $join->on('tej_inventario_telares.no_julio', '=', 'AtaMontadoTelas.NoJulio')
                  ->on('tej_inventario_telares.no_orden', '=', 'AtaMontadoTelas.NoProduccion');
         })
-        ->whereIn('tej_inventario_telares.status', ['activo', 'En Proceso']) // Mostrar activos y en proceso
         ->whereNotNull('tej_inventario_telares.no_julio')
         ->where('tej_inventario_telares.no_julio', '!=', '') // No_julio debe estar lleno
         ->orderBy('tej_inventario_telares.fecha', 'desc')
@@ -406,6 +405,7 @@ class AtadoresController extends Controller
             $data = $request->validate([
                 'calidad' => ['required','integer','min:1','max:10'],
                 'limpieza' => ['required','integer','min:5','max:10'],
+                'comentarios' => ['nullable','string','max:500'],
             ]);
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
@@ -414,6 +414,7 @@ class AtadoresController extends Controller
                 ->update([
                     'Calidad' => (int) $data['calidad'],
                     'Limpieza' => (int) $data['limpieza'],
+                    'ComentariosSupervisor' => $data['comentarios'] ?? null,
                     'CveTejedor' => $user->numero_empleado,
                     'NomTejedor' => $user->nombre,
                     'Estatus' => 'Calificado'
@@ -515,6 +516,14 @@ class AtadoresController extends Controller
                 return response()->json([
                     'ok' => false,
                     'message' => 'Debe marcar todas las actividades antes de terminar el atado. (' . $actividadesCompletadas . '/' . $totalActividades . ' completadas)'
+                ], 422);
+            }
+
+            // Validar que la merma (MergaKg) esté capturada antes de terminar
+            if (is_null($montado->MergaKg) || $montado->MergaKg === '') {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Debe capturar la merma (Kg) antes de terminar el atado.'
                 ], 422);
             }
 

@@ -65,12 +65,6 @@ class EditarOrdenesProgramadasController extends Controller
                 ->with('error', 'Orden no encontrada');
         }
 
-        // Verificar que la orden NO esté en proceso
-        if ($orden->Status === 'En Proceso') {
-            return redirect()->route('urdido.programar.urdido')
-                ->with('error', 'No se pueden editar órdenes con status "En Proceso". Solo se pueden editar órdenes con status "Programado".');
-        }
-
         // Verificar permisos
         if (!$this->usuarioPuedeEditar()) {
             return redirect()->route('urdido.programar.urdido')
@@ -161,14 +155,6 @@ class EditarOrdenesProgramadasController extends Controller
                 return response()->json([
                     'success' => false,
                     'error' => 'No se encontro un folio relacionado en Engomado para esta orden.',
-                ], 422);
-            }
-
-            // Verificar que la orden NO esté en proceso
-            if ($orden->Status === 'En Proceso') {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se pueden editar órdenes con status "En Proceso"',
                 ], 422);
             }
 
@@ -291,14 +277,6 @@ class EditarOrdenesProgramadasController extends Controller
                 ], 404);
             }
 
-            // Verificar que la orden NO esté en proceso
-            if ($orden->Status === 'En Proceso') {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se pueden editar órdenes con status "En Proceso"',
-                ], 422);
-            }
-
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -355,13 +333,6 @@ class EditarOrdenesProgramadasController extends Controller
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->orden_id);
-
-            if ($orden->Status === 'En Proceso') {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se pueden editar órdenes con status "En Proceso"',
-                ], 422);
-            }
 
             $noJulio = $request->input('no_julio');
             $hilos = $request->input('hilos');
