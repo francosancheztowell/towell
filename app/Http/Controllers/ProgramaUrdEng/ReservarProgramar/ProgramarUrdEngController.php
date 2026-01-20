@@ -97,15 +97,87 @@ class ProgramarUrdEngController extends Controller
                 }
             }
 
+            // Obtener FechaReq desde el campo fecha de tej_inventario_telares
+            $fechaReq = null;
+            $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
+            $tipo = $grupo['tipo'] ?? null;
+            
+            if ($telaresStr) {
+                // Normalizar tipo (Rizo/Pie)
+                if ($tipo) {
+                    $tipoUpper = strtoupper(trim($tipo));
+                    if ($tipoUpper === 'RIZO') {
+                        $tipo = 'Rizo';
+                    } elseif ($tipoUpper === 'PIE') {
+                        $tipo = 'Pie';
+                    }
+                }
+
+                // Si hay múltiples telares separados por coma, buscar todos
+                $telaresArray = explode(',', $telaresStr);
+                $fechasEncontradas = [];
+                
+                foreach ($telaresArray as $noTelar) {
+                    $noTelar = trim($noTelar);
+                    if (empty($noTelar)) continue;
+
+                    // Buscar el telar por no_telar y tipo si está disponible
+                    $query = TejInventarioTelares::where('no_telar', $noTelar)
+                        ->where('status', 'Activo');
+
+                    if ($tipo) {
+                        $query->where('tipo', $tipo);
+                    }
+
+                    $telar = $query->first();
+                    if ($telar && $telar->fecha) {
+                        // Guardar la fecha encontrada
+                        $fechasEncontradas[] = $telar->fecha;
+                    }
+                }
+
+                // Si se encontraron fechas, usar la más antigua (mínima)
+                if (!empty($fechasEncontradas)) {
+                    // Convertir todas las fechas a Carbon para compararlas correctamente
+                    $fechasCarbon = [];
+                    foreach ($fechasEncontradas as $fecha) {
+                        try {
+                            if ($fecha instanceof Carbon) {
+                                $fechasCarbon[] = $fecha;
+                            } elseif (is_string($fecha)) {
+                                $fechasCarbon[] = Carbon::parse($fecha);
+                            } else {
+                                // Intentar convertir usando Carbon
+                                $fechasCarbon[] = Carbon::parse($fecha);
+                            }
+                        } catch (\Exception $e) {
+                            // Si falla el parseo, ignorar esta fecha
+                            continue;
+                        }
+                    }
+                    
+                    // Si hay fechas válidas, obtener la mínima
+                    if (!empty($fechasCarbon)) {
+                        $fechaMinima = min($fechasCarbon);
+                        $fechaReq = $fechaMinima->format('Y-m-d');
+                    }
+                }
+            }
+
+            // Si no se encontró fecha en inventario, usar la del grupo como fallback
+            if (!$fechaReq && isset($grupo['fechaReq']) && $grupo['fechaReq']) {
+                $fechaReq = $grupo['fechaReq'];
+            }
+
             // Necesitamos crear Tabla 2 primero para que Tabla 3 pueda referenciar el Folio
             $programaUrdido = UrdProgramaUrdido::create([
                 'Folio' => $folio,
                 'FolioConsumo' => $folioConsumo, // Vinculado con tabla 3 (se guardará después)
-                'NoTelarId' => $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null,
-                'RizoPie' => $grupo['tipo'] ?? null, // Rizo o Pie
+                'NoTelarId' => $telaresStr,
+                'RizoPie' => $tipo, // Rizo o Pie
                 'Cuenta' => $grupo['cuenta'] ?? null,
                 'Calibre' => isset($grupo['calibre']) ? (float)$grupo['calibre'] : null,
-                'FechaReq' => isset($grupo['fechaReq']) ? $grupo['fechaReq'] : null,
+                'FechaReq' => $fechaReq,
                 'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
                 'Metros' => isset($grupo['metros']) ? (float)$grupo['metros'] : null,
                 'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
@@ -186,13 +258,14 @@ class ProgramarUrdEngController extends Controller
             }
 
             // =================== PASO 6: Guardar Tabla 5 (EngProgramaEngomado) ===================
+            // Usar la misma fechaReq obtenida de tej_inventario_telares
             EngProgramaEngomado::create([
                 'Folio' => $folio,
-                'NoTelarId' => $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null,
-                'RizoPie' => $grupo['tipo'] ?? null,
+                'NoTelarId' => $telaresStr,
+                'RizoPie' => $tipo,
                 'Cuenta' => $grupo['cuenta'] ?? null,
                 'Calibre' => isset($grupo['calibre']) ? (float)$grupo['calibre'] : null,
-                'FechaReq' => isset($grupo['fechaReq']) ? $grupo['fechaReq'] : null,
+                'FechaReq' => $fechaReq,
                 'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
                 'Metros' => isset($grupo['metros']) ? (float)$grupo['metros'] : null,
                 'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
@@ -218,24 +291,11 @@ class ProgramarUrdEngController extends Controller
 
             // =================== PASO 7: Actualizar no_orden en TejInventarioTelares ===================
             // IMPORTANTE: El no_orden debe ser el mismo que el Folio generado
-            // Obtener los telares del grupo seleccionado
-            $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
+            // Usar las variables ya normalizadas ($telaresStr y $tipo)
             $telaresActualizados = 0;
             $telaresNoEncontrados = [];
 
-
             if ($telaresStr) {
-                // Normalizar tipo (Rizo/Pie) una sola vez
-                $tipo = $grupo['tipo'] ?? null;
-                if ($tipo) {
-                    $tipoUpper = strtoupper(trim($tipo));
-                    if ($tipoUpper === 'RIZO') {
-                        $tipo = 'Rizo';
-                    } elseif ($tipoUpper === 'PIE') {
-                        $tipo = 'Pie';
-                    }
-                }
-
                 // Si hay múltiples telares separados por coma, actualizar cada uno
                 $telaresArray = explode(',', $telaresStr);
                 foreach ($telaresArray as $noTelar) {

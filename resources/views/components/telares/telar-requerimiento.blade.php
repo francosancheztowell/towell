@@ -1890,6 +1890,8 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
             window.checkboxEliminacionPendiente = checkbox;
             // Por defecto, asumir reservado por seguridad
             window.estadoModalTela = 'reservado';
+            window.statusUrdido = null;
+            window.puedeEliminar = true; // Por defecto se puede eliminar si está reservado
             if (telarData) {
                 window.telarDataCompleto = telarData;
             }
@@ -1968,6 +1970,9 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 window.checkboxEliminacionPendiente = checkbox;
                 // Guardar el tipo de estado: reservado
                 window.estadoModalTela = 'reservado';
+                // Limpiar variables de urdido (no aplican para reservado)
+                window.statusUrdido = null;
+                window.puedeEliminar = true; // Por defecto se puede eliminar si está reservado
                 // Guardar el ID del registro si está disponible en la respuesta
                 if (result.registro_id) {
                     window.registroIdPendienteCalendario = result.registro_id;
@@ -1990,6 +1995,20 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 window.checkboxEliminacionPendiente = checkbox;
                 // Guardar el tipo de estado: programado
                 window.estadoModalTela = 'programado';
+                // Guardar el Status de UrdProgramaUrdido y si se puede eliminar
+                window.statusUrdido = result.status_urdido || null;
+                // Convertir explícitamente a booleano: si viene false, es false; si viene true o undefined, es true
+                window.puedeEliminar = result.puede_eliminar === false ? false : (result.puede_eliminar === true ? true : true);
+                
+                // Debug: mostrar los valores recibidos
+                console.log('Valores recibidos del servidor:', {
+                    status_urdido: result.status_urdido,
+                    puede_eliminar: result.puede_eliminar,
+                    puede_eliminar_type: typeof result.puede_eliminar,
+                    statusUrdido: window.statusUrdido,
+                    puedeEliminar: window.puedeEliminar,
+                    puedeEliminarType: typeof window.puedeEliminar
+                });
                 // Guardar el ID del registro si está disponible en la respuesta
                 if (result.registro_id) {
                     window.registroIdPendienteCalendario = result.registro_id;
@@ -2023,6 +2042,8 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 window.checkboxEliminacionPendiente = checkbox;
                 // Por defecto, asumir reservado por seguridad
                 window.estadoModalTela = 'reservado';
+                window.statusUrdido = null;
+                window.puedeEliminar = true; // Por defecto se puede eliminar si está reservado
                 if (telarData) {
                     window.telarDataCompleto = telarData;
                 }
@@ -2097,6 +2118,21 @@ window.mostrarModalTelaReservada = function() {
         descripcionTextoActual: descripcionModal ? descripcionModal.textContent : 'NO ENCONTRADO'
     });
 
+    // Obtener el botón de eliminar
+    const btnEliminar = modal.querySelector('#btnEliminarReservado');
+    // Obtener valores de las variables globales - convertir explícitamente a booleano
+    const puedeEliminar = window.puedeEliminar === false ? false : (window.puedeEliminar === true ? true : true);
+    const statusUrdido = window.statusUrdido || null;
+
+    // Debug: mostrar valores antes de evaluar
+    console.log('Valores en mostrarModalTelaReservada:', {
+        estadoTela: estadoTela,
+        puedeEliminar: puedeEliminar,
+        statusUrdido: statusUrdido,
+        puedeEliminarType: typeof puedeEliminar,
+        statusUrdidoType: typeof statusUrdido
+    });
+
     // Verificar y cambiar el texto según el estado
     if (estadoTela === 'programado') {
         console.log('Cambiando textos a: programado'); // Debug
@@ -2108,19 +2144,111 @@ window.mostrarModalTelaReservada = function() {
         } else {
             console.error('Error: No se encontró el elemento modalTelaReservadaTitulo en el modal');
         }
-        if (descripcionModal) {
-            descripcionModal.textContent = 'Este telar tiene tela programada. ¿Qué desea hacer?';
-            descripcionModal.innerHTML = 'Este telar tiene tela programada. ¿Qué desea hacer?'; // Asegurar también innerHTML
-            console.log('Descripción actualizada a:', descripcionModal.textContent);
+        
+        // Si no se puede eliminar (Status diferente a "Programado"), cambiar mensajes
+        // Verificar explícitamente: puedeEliminar debe ser false Y statusUrdido debe existir
+        const debeBloquear = (puedeEliminar === false) && (statusUrdido !== null && statusUrdido !== '');
+        
+        console.log('Evaluando condición de bloqueo:', {
+            puedeEliminar: puedeEliminar,
+            puedeEliminarEsFalse: puedeEliminar === false,
+            statusUrdido: statusUrdido,
+            statusUrdidoExiste: !!statusUrdido,
+            debeBloquear: debeBloquear,
+            condicion: !puedeEliminar && statusUrdido
+        });
+        
+        if (debeBloquear) {
+            console.log('BLOQUEANDO BOTÓN - Status diferente de Programado detectado');
+            // Determinar el mensaje según el Status
+            let mensajeEstado = '';
+            if (statusUrdido === 'En Proceso') {
+                mensajeEstado = 'Este registro ya está en proceso en urdido';
+            } else if (statusUrdido === 'Finalizado') {
+                mensajeEstado = 'Este registro ya está finalizado en urdido';
+            } else {
+                mensajeEstado = `Este registro tiene Status "${statusUrdido}" en urdido`;
+            }
+            
+            if (descripcionModal) {
+                descripcionModal.textContent = mensajeEstado + '. No se puede eliminar.';
+                descripcionModal.innerHTML = mensajeEstado + '. No se puede eliminar.'; // Asegurar también innerHTML
+            }
+            
+            if (textoEliminar) {
+                textoEliminar.textContent = mensajeEstado;
+                textoEliminar.innerHTML = mensajeEstado; // Asegurar también innerHTML
+            }
+            
+            // Bloquear el botón de eliminar y cambiar a estilo gris
+            if (btnEliminar) {
+                btnEliminar.disabled = true;
+                // Remover clases de rojo y agregar clases grises
+                btnEliminar.classList.remove('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500', 'hover:shadow-lg');
+                btnEliminar.classList.add('bg-gray-400', 'cursor-not-allowed', 'opacity-75');
+                btnEliminar.style.pointerEvents = 'none';
+                btnEliminar.style.backgroundColor = '#9ca3af'; // Gris-400
+                btnEliminar.onclick = null; // Remover el onclick para evitar que se ejecute
+                
+                // Cambiar el texto del botón para mostrar el mensaje
+                const btnContent = btnEliminar.querySelector('div');
+                if (btnContent) {
+                    const spanTitulo = btnContent.querySelector('span.text-base');
+                    const spanTexto = btnContent.querySelector('span.text-xs');
+                    if (spanTitulo) {
+                        if (statusUrdido === 'En Proceso') {
+                            spanTitulo.textContent = 'En Proceso';
+                        } else if (statusUrdido === 'Finalizado') {
+                            spanTitulo.textContent = 'Finalizado';
+                        } else {
+                            spanTitulo.textContent = 'No Eliminable';
+                        }
+                    }
+                    if (spanTexto) {
+                        spanTexto.textContent = mensajeEstado;
+                    }
+                }
+            }
         } else {
-            console.error('Error: No se encontró el elemento modalTelaReservadaDescripcion en el modal');
-        }
-        if (textoEliminar) {
-            textoEliminar.textContent = 'Si elimina el registro elimina la programación';
-            textoEliminar.innerHTML = 'Si elimina el registro elimina la programación'; // Asegurar también innerHTML
-            console.log('Texto eliminar actualizado a:', textoEliminar.textContent);
-        } else {
-            console.error('Error: No se encontró el elemento modalTelaReservadaEliminarTexto en el modal');
+            // Si se puede eliminar (Status es "Programado"), usar mensajes normales
+            if (descripcionModal) {
+                descripcionModal.textContent = 'Este telar tiene tela programada. ¿Qué desea hacer?';
+                descripcionModal.innerHTML = 'Este telar tiene tela programada. ¿Qué desea hacer?'; // Asegurar también innerHTML
+                console.log('Descripción actualizada a:', descripcionModal.textContent);
+            } else {
+                console.error('Error: No se encontró el elemento modalTelaReservadaDescripcion en el modal');
+            }
+            if (textoEliminar) {
+                textoEliminar.textContent = 'Si elimina el registro elimina la programación';
+                textoEliminar.innerHTML = 'Si elimina el registro elimina la programación'; // Asegurar también innerHTML
+                console.log('Texto eliminar actualizado a:', textoEliminar.textContent);
+            } else {
+                console.error('Error: No se encontró el elemento modalTelaReservadaEliminarTexto en el modal');
+            }
+            
+            // Asegurar que el botón esté habilitado
+            if (btnEliminar) {
+                btnEliminar.disabled = false;
+                // Restaurar clases de rojo y remover clases grises
+                btnEliminar.classList.remove('bg-gray-400', 'opacity-75', 'cursor-not-allowed');
+                btnEliminar.classList.add('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500', 'hover:shadow-lg');
+                btnEliminar.style.pointerEvents = 'auto';
+                btnEliminar.style.backgroundColor = ''; // Resetear estilo inline
+                btnEliminar.onclick = confirmarEliminarConReserva; // Restaurar onclick
+                
+                // Restaurar el texto del botón
+                const btnContent = btnEliminar.querySelector('div');
+                if (btnContent) {
+                    const spanTitulo = btnContent.querySelector('span.text-base');
+                    const spanTexto = btnContent.querySelector('span.text-xs');
+                    if (spanTitulo) {
+                        spanTitulo.textContent = 'Eliminar';
+                    }
+                    if (spanTexto) {
+                        spanTexto.textContent = 'Si elimina el registro elimina la programación';
+                    }
+                }
+            }
         }
     } else {
         // Si está reservado (o por defecto), usar textos de reservado
@@ -2133,6 +2261,30 @@ window.mostrarModalTelaReservada = function() {
         }
         if (textoEliminar) {
             textoEliminar.textContent = 'Si elimina el registro elimina la reserva';
+        }
+        
+        // Asegurar que el botón esté habilitado para reservado
+        if (btnEliminar) {
+            btnEliminar.disabled = false;
+            // Restaurar clases de rojo y remover clases grises
+            btnEliminar.classList.remove('bg-gray-400', 'opacity-75', 'cursor-not-allowed');
+            btnEliminar.classList.add('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500', 'hover:shadow-lg');
+            btnEliminar.style.pointerEvents = 'auto';
+            btnEliminar.style.backgroundColor = ''; // Resetear estilo inline
+            btnEliminar.onclick = confirmarEliminarConReserva; // Restaurar onclick
+            
+            // Restaurar el texto del botón
+            const btnContent = btnEliminar.querySelector('div');
+            if (btnContent) {
+                const spanTitulo = btnContent.querySelector('span.text-base');
+                const spanTexto = btnContent.querySelector('span.text-xs');
+                if (spanTitulo) {
+                    spanTitulo.textContent = 'Eliminar';
+                }
+                if (spanTexto) {
+                    spanTexto.textContent = 'Si elimina el registro elimina la reserva';
+                }
+            }
         }
     }
 

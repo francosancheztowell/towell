@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tejedores;
 use App\Http\Controllers\Controller;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Inventario\InvTelasReservadas;
+use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -321,11 +322,110 @@ class InventarioTelaresController extends Controller
                 // Ejemplo: ID 112 (Reservado=0, no_julio=NULL, no_orden=NULL, metros=NULL) NO está reservado
                 //          ID 115 (Reservado=1, no_julio=S462, no_orden=3869, metros=1000) SÍ está reservado
 
+                // Si está programado, verificar el Status en UrdProgramaUrdido
+                $estaProgramado = (bool)($registro->Programado ?? false);
+                $statusUrdido = null;
+                $puedeEliminar = true;
+
+                if ($estaProgramado) {
+                    $calibreRegistro = $registro->calibre ?? null;
+                    $fechaReqFormato = \Carbon\Carbon::parse($fechaFormato)->format('Y-m-d');
+
+                    // Normalizar noTelar para comparación (puede venir como string o número)
+                    $noTelarNormalizado = (string)trim($noTelar);
+
+                    if ($calibreRegistro !== null) {
+                        // Buscar en UrdProgramaUrdido con los mismos datos
+                        // NoTelarId puede contener múltiples telares separados por coma
+                        $calibreFloat = (float)$calibreRegistro;
+
+                        Log::info('Buscando en UrdProgramaUrdido', [
+                            'no_telar' => $noTelarNormalizado,
+                            'calibre' => $calibreFloat,
+                            'fecha_req' => $fechaReqFormato
+                        ]);
+
+                        $programasUrdido = UrdProgramaUrdido::where('Calibre', $calibreFloat)
+                            ->where('FechaReq', $fechaReqFormato)
+                            ->get();
+
+                        Log::info('Registros encontrados en UrdProgramaUrdido', [
+                            'total' => $programasUrdido->count(),
+                            'registros' => $programasUrdido->map(function($p) {
+                                return [
+                                    'Id' => $p->Id,
+                                    'NoTelarId' => $p->NoTelarId,
+                                    'Calibre' => $p->Calibre,
+                                    'FechaReq' => $p->FechaReq,
+                                    'Status' => $p->Status
+                                ];
+                            })->toArray()
+                        ]);
+
+                        // Filtrar los registros donde el telar esté incluido en NoTelarId
+                        $registrosEncontrados = [];
+                        foreach ($programasUrdido as $programaUrdido) {
+                            $noTelarId = $programaUrdido->NoTelarId ?? '';
+                            $noTelarIdStr = (string)trim($noTelarId);
+
+                            // Si NoTelarId contiene múltiples telares separados por coma, verificar si el telar actual está incluido
+                            $telaresEnPrograma = array_map(function($t) {
+                                return (string)trim($t);
+                            }, explode(',', $noTelarIdStr));
+
+                            // Comparar tanto como string como número
+                            $telarIncluido = in_array($noTelarNormalizado, $telaresEnPrograma) ||
+                                           in_array((string)(int)$noTelarNormalizado, $telaresEnPrograma) ||
+                                           $noTelarIdStr === $noTelarNormalizado ||
+                                           (string)(int)$noTelarIdStr === $noTelarNormalizado;
+
+                            if ($telarIncluido) {
+                                $registrosEncontrados[] = $programaUrdido;
+                                Log::info('Registro coincidente encontrado', [
+                                    'NoTelarId' => $noTelarIdStr,
+                                    'Status' => $programaUrdido->Status,
+                                    'Calibre' => $programaUrdido->Calibre
+                                ]);
+                            }
+                        }
+
+                        // Si se encontraron registros, verificar el Status
+                        if (!empty($registrosEncontrados)) {
+                            // Obtener el primer Status encontrado (para mostrar en el mensaje)
+                            $statusUrdido = $registrosEncontrados[0]->Status;
+
+                            // Solo se puede eliminar si TODOS los registros tienen Status "Programado"
+                            foreach ($registrosEncontrados as $programaUrdido) {
+                                if ($programaUrdido->Status !== 'Programado') {
+                                    $puedeEliminar = false;
+                                    $statusUrdido = $programaUrdido->Status; // Guardar el Status que impide eliminar
+                                    Log::info('Status diferente de Programado encontrado', [
+                                        'Status' => $statusUrdido,
+                                        'puede_eliminar' => false
+                                    ]);
+                                    break; // Salir del loop al encontrar uno que no permite eliminar
+                                }
+                            }
+                        } else {
+                            Log::info('No se encontraron registros coincidentes en UrdProgramaUrdido', [
+                                'no_telar_buscado' => $noTelarNormalizado,
+                                'total_programas' => $programasUrdido->count()
+                            ]);
+                        }
+                    } else {
+                        Log::info('Calibre es null, no se puede buscar en UrdProgramaUrdido', [
+                            'calibre_registro' => $calibreRegistro
+                        ]);
+                    }
+                }
+
                 return response()->json([
                     'success' => true,
                     'reservado' => $estaReservado,
-                    'programado' => (bool)($registro->Programado ?? false),
-                    'registro_id' => $registro->id // Incluir el ID del registro para usar en actualización
+                    'programado' => $estaProgramado,
+                    'registro_id' => $registro->id, // Incluir el ID del registro para usar en actualización
+                    'status_urdido' => $statusUrdido, // Status en UrdProgramaUrdido (si está programado)
+                    'puede_eliminar' => (bool)$puedeEliminar // Si se puede eliminar (solo si Status es "Programado") - forzar booleano
                 ]);
             }
 
@@ -434,6 +534,42 @@ class InventarioTelaresController extends Controller
                     $tipoNormalizado = 'Pie';
                 } else {
                     $tipoNormalizado = $tipo;
+                }
+            }
+
+            // Validar que no exista un registro en UrdProgramaUrdido con Status diferente a "Programado"
+            // que coincida con NoTelarId, Calibre y FechaReq
+            $calibreRegistro = $registro->calibre ?? null;
+            $fechaReqFormato = \Carbon\Carbon::parse($fecha)->format('Y-m-d');
+
+            if ($calibreRegistro !== null) {
+                // Buscar en UrdProgramaUrdido con los mismos datos
+                // NoTelarId puede contener múltiples telares separados por coma, así que buscamos
+                // registros donde el telar esté incluido en NoTelarId
+                $programasUrdido = UrdProgramaUrdido::where('Calibre', (float)$calibreRegistro)
+                    ->where('FechaReq', $fechaReqFormato)
+                    ->get();
+
+                // Filtrar los registros donde el telar esté incluido en NoTelarId
+                foreach ($programasUrdido as $programaUrdido) {
+                    $noTelarId = $programaUrdido->NoTelarId ?? '';
+
+                    // Si NoTelarId contiene múltiples telares separados por coma, verificar si el telar actual está incluido
+                    $telaresEnPrograma = array_map('trim', explode(',', $noTelarId));
+                    $telarIncluido = in_array($noTelar, $telaresEnPrograma) || $noTelarId === $noTelar;
+
+                    if ($telarIncluido) {
+                        // Si existe un registro y el Status es diferente a "Programado", no permitir eliminar
+                        if ($programaUrdido->Status !== 'Programado') {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'No se puede eliminar el registro porque existe una orden en UrdProgramaUrdido con Status "' . $programaUrdido->Status . '". Solo se pueden eliminar registros con Status "Programado".',
+                                'status_urdido' => $programaUrdido->Status,
+                                'folio' => $programaUrdido->Folio ?? null,
+                                'no_telar_id' => $noTelarId
+                            ], 400);
+                        }
+                    }
                 }
             }
 
