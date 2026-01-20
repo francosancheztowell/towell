@@ -155,6 +155,7 @@
         turnoInfo: '/modulo-cortes-de-eficiencia/turno-info',
         datosPrograma: '/modulo-cortes-de-eficiencia/datos-programa-tejido',
         datosTelares: '/modulo-cortes-de-eficiencia/datos-telares',
+        fallasCe: '/modulo-cortes-de-eficiencia/fallas',
         generarFolio: '/modulo-cortes-de-eficiencia/generar-folio',
         getCorte: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}`,
         guardarHora: '/modulo-cortes-de-eficiencia/guardar-hora',
@@ -554,7 +555,51 @@
         if (PAGE_MODE.soloLectura) return;
         const telar = checkbox.dataset.telar; const horario = checkbox.dataset.horario; const key = `${telar}-${horario}`; const cur = state.observaciones[key] || '';
         if (!requireHorario(parseInt(horario,10))) { checkbox.checked = !!cur; return; }
-        const r = await Swal.fire({ title:'Observaciones', html:`<div class='text-left mb-4'><p class='text-sm text-gray-600 mb-2'>Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong></p></div><textarea id='swal-textarea' class='w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none' rows='4' placeholder='Escriba sus observaciones aquí...'>${cur}</textarea>`, width:500, showCancelButton:true, confirmButtonText:'Guardar', cancelButtonText:'Cancelar', confirmButtonColor:'#2563eb', cancelButtonColor:'#6b7280', focusConfirm:false, didOpen:()=>document.getElementById('swal-textarea')?.focus(), preConfirm:()=>document.getElementById('swal-textarea')?.value || '' });
+        // Cargar catálogo de fallas
+        let fallas = [];
+        try {
+            const res = await fetchJSON(routes.fallasCe, { headers: { 'X-CSRF-TOKEN': csrf(), 'Accept':'application/json' } });
+            if (res.success && Array.isArray(res.data)) fallas = res.data;
+        } catch {}
+
+        const html = `
+            <div class='text-left mb-4'>
+                <p class='text-sm text-gray-600 mb-2'>Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong></p>
+                <label class='block text-xs text-gray-700 mb-1'>Falla (Clave)</label>
+                <select id='swal-select-falla' class='w-full p-2 border border-gray-300 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+                    <option value=''>-- Seleccione una clave --</option>
+                    ${fallas.map(f => `<option value="${String(f.Clave).replace(/"/g,'&quot;')}" data-desc="${String(f.Descripcion ?? '').replace(/"/g,'&quot;')}">${String(f.Clave)}</option>`).join('')}
+                </select>
+            </div>
+            <textarea id='swal-textarea' class='w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none' rows='4' placeholder='Escriba sus observaciones aquí...'>${cur}</textarea>
+        `;
+
+        const r = await Swal.fire({
+            title:'Observaciones',
+            html,
+            width:520,
+            showCancelButton:true,
+            confirmButtonText:'Guardar',
+            cancelButtonText:'Cancelar',
+            confirmButtonColor:'#2563eb',
+            cancelButtonColor:'#6b7280',
+            focusConfirm:false,
+            didOpen:()=>{
+                const ta = document.getElementById('swal-textarea');
+                const sel = document.getElementById('swal-select-falla');
+                if (ta) ta.focus();
+                if (sel) sel.addEventListener('change', (e)=>{
+                    const opt = sel.options[sel.selectedIndex];
+                    const desc = opt?.getAttribute('data-desc') || '';
+                    if (desc) {
+                        // Autocompletar la descripción en el textarea
+                        const area = document.getElementById('swal-textarea');
+                        if (area) area.value = desc;
+                    }
+                });
+            },
+            preConfirm:()=>document.getElementById('swal-textarea')?.value || ''
+        });
         if (!r.isConfirmed) { checkbox.checked = !!cur; return; }
         state.observaciones[key] = r.value; checkbox.checked = r.value.trim() !== ''; guardarAutomatico(); showToast({ title:'Observación guardada', text:`Telar ${telar} - Horario ${horario}` });
     }
