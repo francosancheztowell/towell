@@ -4,10 +4,11 @@
     Botón de editar para navbar-right con estilo consistente y verificación de permisos.
 
     Props:
-        @param string $onclick - Función JavaScript a ejecutar al hacer clic
+        @param string $onclick - Función JavaScript a ejecutar al hacer clic (no se aplica si type="submit")
         @param string $title - Texto del tooltip (default: 'Editar')
         @param string $id - ID del botón (opcional, recomendado para controlar estado)
         @param bool $disabled - Si el botón está deshabilitado (default: true)
+        @param string $type - Tipo de botón: 'button' (default) o 'submit' para enviar formularios
         @param string $module - Nombre del módulo para verificar permisos (opcional)
         @param int $moduleId - ID del módulo (idrol) para verificar permisos (opcional, preferido sobre $module)
         @param bool $checkPermission - Si debe verificar permisos (default: true si se proporciona $module o $moduleId)
@@ -24,6 +25,7 @@
         <x-navbar.button-edit onclick="handleEdit()" module="Marcas Finales" title="Editar Registro" id="btn-top-edit" :disabled="false" />
         <x-navbar.button-edit onclick="subir()" title="Subir Prioridad" icon="fa-arrow-up" />
         <x-navbar.button-edit onclick="bajar()" title="Bajar Prioridad" icon="fa-arrow-down" iconColor="text-blue-500" hoverBg="hover:bg-blue-100" />
+        <x-navbar.button-edit type="submit" title="Guardar" text="Guardar" module="Usuarios" />
 --}}
 
 @props([
@@ -31,6 +33,7 @@
     'title' => 'Editar',
     'id' => null,
     'disabled' => true,
+    'type' => 'button',
     'module' => null,
     'moduleId' => null,
     'checkPermission' => null,
@@ -99,9 +102,9 @@
 
 @if($hasPermission)
 <button
-    type="button"
+    type="{{ $type }}"
     @if($id) id="{{ $id }}" @endif
-    onclick="{{ $onclick }}"
+    @if($onclick && $type !== 'submit') onclick="{{ $onclick }}" @endif
     class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg }} {{ !$text ? 'w-9 h-9' : '' }} {{ $class }}"
     @if($disabled) disabled @endif
     title="{{ $title }}">
