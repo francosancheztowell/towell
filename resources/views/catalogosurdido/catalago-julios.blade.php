@@ -27,7 +27,7 @@
                         <th class="py-2 px-2 font-bold tracking-wider text-center">Departamento</th>
                     </tr>
                 </thead>
-                <tbody id="julios-body" class="bg-white text-black">
+                <tbody id="julios-body" class="bg-white">
                     @forelse ($julios as $julio)
                         @php
                             $uid = $julio->Id ?? uniqid();
@@ -38,7 +38,7 @@
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-gray-100 text-gray-700');
                         @endphp
-                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
+                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer text-black"
                             onclick="selectRow(this)"
                             data-uid="{{ $uid }}"
                             data-no-julio="{{ $julio->NoJulio }}"
@@ -85,8 +85,6 @@
   }
 </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
     <script>
     // Variables globales
@@ -110,21 +108,25 @@
     window.selectRow = function(row) {
         // Deseleccionar fila anterior
         if (selectedRow) {
-            selectedRow.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
+            selectedRow.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600');
+            selectedRow.classList.add('text-black', 'hover:bg-blue-50');
         }
-        
+
         // Si es la misma fila, deseleccionar
         if (selectedRow === row) {
             selectedRow = null;
             currentJulioId = null;
+            row.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600');
+            row.classList.add('text-black', 'hover:bg-blue-50');
             disableButtons();
             return;
         }
-        
+
         // Seleccionar nueva fila
         selectedRow = row;
         currentJulioId = (row.dataset.id || row.dataset.noJulio || '').trim() || null;
-        row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
+        row.classList.remove('text-black', 'hover:bg-blue-50');
+        row.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600');
         if (currentJulioId) {
             enableButtons();
         } else {
@@ -136,7 +138,7 @@
     window.enableButtons = function() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = false;
             btnEdit.removeAttribute('disabled');
@@ -159,7 +161,7 @@
     window.disableButtons = function() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = true;
             btnEdit.setAttribute('disabled', 'disabled');
@@ -364,7 +366,7 @@
         .catch(error => {
             console.error('Error al guardar:', error);
             let errorMessage = 'No se pudo guardar el julio';
-            
+
             if (error.response?.data?.message) {
                 if (typeof error.response.data.message === 'object') {
                     errorMessage = Object.values(error.response.data.message).flat().join(', ');
@@ -372,7 +374,7 @@
                     errorMessage = error.response.data.message;
                 }
             }
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -417,7 +419,7 @@
                     currentJulioId = null;
                     disableButtons();
                 }
-                
+
                 Swal.fire({
                     icon: 'success',
                     title: '¡Eliminado!',
@@ -436,7 +438,7 @@
         })
         .catch(error => {
             console.error('Error al eliminar:', error);
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -473,10 +475,10 @@
                 const params = new URLSearchParams();
                 const noJulio = document.getElementById('filter-no-julio').value.trim();
                 const departamento = document.getElementById('filter-departamento').value;
-                
+
                 if (noJulio) params.append('no_julio', noJulio);
                 if (departamento) params.append('departamento', departamento);
-                
+
                 window.location.href = `${window.location.pathname}?${params.toString()}`;
             }
         });

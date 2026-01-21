@@ -66,7 +66,7 @@
             <form id="maquinaForm" onsubmit="handleSubmit(event)">
                 <div class="p-6">
                     <input type="hidden" id="original_maquinaid" name="original_maquinaid">
-                    
+
                     <div class="grid grid-cols-1 gap-4">
                         <div>
                             <label for="MaquinaId" class="block text-sm font-medium text-gray-700 mb-1">
@@ -94,13 +94,13 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="border-t p-4 flex justify-end gap-2 bg-gray-50 rounded-b-lg">
-                    <button type="button" onclick="closeFormModal()" 
+                    <button type="button" onclick="closeFormModal()"
                         class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
                         Cancelar
                     </button>
-                    <button type="submit" 
+                    <button type="submit"
                         class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -137,11 +137,11 @@
                 </div>
             </div>
             <div class="border-t p-4 flex justify-end gap-2 bg-gray-50 rounded-b-lg">
-                <button onclick="closeDeleteModal()" 
+                <button onclick="closeDeleteModal()"
                     class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
                     Cancelar
                 </button>
-                <button onclick="deleteMaquina()" 
+                <button onclick="deleteMaquina()"
                     class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -160,9 +160,6 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
 </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
     <script>
     // Variables globales
     let currentMaquinaId = null;
@@ -174,7 +171,7 @@
         if (selectedRow) {
             selectedRow.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
         }
-        
+
         // Si es la misma fila, deseleccionar
         if (selectedRow === row) {
             selectedRow = null;
@@ -182,7 +179,7 @@
             disableButtons();
             return;
         }
-        
+
         // Seleccionar nueva fila
         selectedRow = row;
         currentMaquinaId = maquinaId;
@@ -194,7 +191,7 @@
     function enableButtons() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = false;
             btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -211,7 +208,7 @@
     function disableButtons() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = true;
             btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
@@ -251,13 +248,13 @@
     // Abrir modal de edición
     function openEditModal(maquinaId) {
         if (!selectedRow) return;
-        
+
         document.getElementById('formModalTitle').textContent = 'Editar Máquina';
         document.getElementById('original_maquinaid').value = maquinaId;
         document.getElementById('MaquinaId').value = selectedRow.dataset.maquinaId || '';
         document.getElementById('Nombre').value = selectedRow.dataset.nombre || '';
         document.getElementById('Departamento').value = selectedRow.dataset.departamento || '';
-        
+
         document.getElementById('formModal').classList.remove('hidden');
         document.getElementById('formModal').classList.add('flex');
     }
@@ -283,10 +280,10 @@
     // Manejar envío del formulario
     function handleSubmit(event) {
         event.preventDefault();
-        
+
         const originalMaquinaId = document.getElementById('original_maquinaid').value;
         const isEdit = originalMaquinaId !== '';
-        
+
         const data = {
             MaquinaId: document.getElementById('MaquinaId').value.trim(),
             Nombre: document.getElementById('Nombre').value.trim() || null,
@@ -303,10 +300,10 @@
             return;
         }
 
-        const url = isEdit 
+        const url = isEdit
             ? `/urdido/catalogo-maquinas/${encodeURIComponent(originalMaquinaId)}`
             : '/urdido/catalogo-maquinas';
-        
+
         const method = isEdit ? 'put' : 'post';
 
         axios({
@@ -335,7 +332,7 @@
         .catch(error => {
             console.error('Error al guardar:', error);
             let errorMessage = 'No se pudo guardar la máquina';
-            
+
             if (error.response?.data?.message) {
                 if (typeof error.response.data.message === 'object') {
                     errorMessage = Object.values(error.response.data.message).flat().join(', ');
@@ -343,7 +340,7 @@
                     errorMessage = error.response.data.message;
                 }
             }
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -371,7 +368,7 @@
                     disableButtons();
                 }
                 closeDeleteModal();
-                
+
                 Swal.fire({
                     icon: 'success',
                     title: '¡Eliminado!',
@@ -384,7 +381,7 @@
         .catch(error => {
             console.error('Error al eliminar:', error);
             closeDeleteModal();
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -397,7 +394,7 @@
     window.onclick = function(event) {
         const formModal = document.getElementById('formModal');
         const deleteModal = document.getElementById('deleteModal');
-        
+
         if (event.target === formModal) {
             closeFormModal();
         }
@@ -443,11 +440,11 @@
                 const maquinaId = document.getElementById('filter-maquina-id').value.trim();
                 const nombre = document.getElementById('filter-nombre').value.trim();
                 const departamento = document.getElementById('filter-departamento').value.trim();
-                
+
                 if (maquinaId) params.append('maquina_id', maquinaId);
                 if (nombre) params.append('nombre', nombre);
                 if (departamento) params.append('departamento', departamento);
-                
+
                 window.location.href = `${window.location.pathname}?${params.toString()}`;
             }
         });
