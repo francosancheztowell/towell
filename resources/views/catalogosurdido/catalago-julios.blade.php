@@ -260,6 +260,11 @@
         const isEdit = mode === 'edit';
         const title = isEdit ? 'Editar Julio' : 'Nuevo Julio';
         const confirmText = isEdit ? 'Actualizar' : 'Guardar';
+        
+        // Detectar departamento según la ruta actual
+        const isEngomado = window.location.pathname.includes('catalogojulioseng');
+        const departamentoFiltro = isEngomado ? 'Engomado' : 'Urdido';
+        const departamentoActual = data.departamento || departamentoFiltro;
 
         Swal.fire({
             title: title,
@@ -277,11 +282,10 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Departamento</label>
-                        <select id="swal-departamento" class="swal2-input">
-                            <option value="">-- Seleccione --</option>
-                            <option value="Urdido">Urdido</option>
-                            <option value="Engomado">Engomado</option>
+                        <select id="swal-departamento" class="swal2-input" disabled>
+                            <option value="${departamentoFiltro}" selected>${departamentoFiltro}</option>
                         </select>
+                        <input type="hidden" id="swal-departamento-hidden" value="${departamentoFiltro}">
                     </div>
                 </div>
             `,
@@ -293,12 +297,13 @@
             didOpen: () => {
                 document.getElementById('swal-no-julio').value = data.noJulio || '';
                 document.getElementById('swal-tara').value = data.tara ?? '';
-                document.getElementById('swal-departamento').value = data.departamento || '';
+                document.getElementById('swal-departamento').value = departamentoFiltro;
             },
             preConfirm: () => {
                 const noJulio = document.getElementById('swal-no-julio').value.trim();
                 const taraValue = document.getElementById('swal-tara').value;
-                const departamento = document.getElementById('swal-departamento').value;
+                const departamentoHidden = document.getElementById('swal-departamento-hidden');
+                const departamento = departamentoHidden ? departamentoHidden.value : (isEngomado ? 'Engomado' : 'Urdido');
 
                 if (!noJulio) {
                     Swal.showValidationMessage('El No. Julio es requerido');
@@ -314,7 +319,7 @@
                 return {
                     NoJulio: noJulio,
                     Tara: tara,
-                    Departamento: departamento || null
+                    Departamento: departamento
                 };
             }
         }).then((result) => {
@@ -328,9 +333,12 @@
 
     function saveJulio(data, julioId) {
         const isEdit = !!julioId;
+        // Detectar si estamos en engomado o urdido
+        const isEngomado = window.location.pathname.includes('catalogojulioseng');
+        const basePath = isEngomado ? '/engomado/configuracion/catalogojulioseng' : '/urdido/catalogos-julios';
         const url = isEdit
-            ? `/urdido/catalogos-julios/${encodeURIComponent(julioId)}`
-            : '/urdido/catalogos-julios';
+            ? `${basePath}/${encodeURIComponent(julioId)}`
+            : basePath;
         const method = isEdit ? 'put' : 'post';
 
         axios({
@@ -405,7 +413,11 @@
             return;
         }
 
-        axios.delete(`/urdido/catalogos-julios/${encodeURIComponent(resolvedId)}`, {
+        // Detectar si estamos en engomado o urdido
+        const isEngomado = window.location.pathname.includes('catalogojulioseng');
+        const basePath = isEngomado ? '/engomado/configuracion/catalogojulioseng' : '/urdido/catalogos-julios';
+        
+        axios.delete(`${basePath}/${encodeURIComponent(resolvedId)}`, {
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
@@ -449,6 +461,10 @@
 
     // Funciones globales para el componente de filtros
     window.filtrarJulios = function() {
+        // Detectar departamento según la ruta actual
+        const isEngomado = window.location.pathname.includes('catalogojulioseng');
+        const departamentoFiltro = isEngomado ? 'Engomado' : 'Urdido';
+        
         Swal.fire({
             title: 'Filtrar Julios',
             html: `
@@ -459,10 +475,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Departamento</label>
-                        <select id="filter-departamento" class="swal2-input">
-                            <option value="">-- Todos --</option>
-                            <option value="Urdido">Urdido</option>
-                            <option value="Engomado">Engomado</option>
+                        <select id="filter-departamento" class="swal2-input" disabled>
+                            <option value="${departamentoFiltro}" selected>${departamentoFiltro}</option>
                         </select>
                     </div>
                 </div>
@@ -474,10 +488,9 @@
             preConfirm: () => {
                 const params = new URLSearchParams();
                 const noJulio = document.getElementById('filter-no-julio').value.trim();
-                const departamento = document.getElementById('filter-departamento').value;
 
                 if (noJulio) params.append('no_julio', noJulio);
-                if (departamento) params.append('departamento', departamento);
+                // El departamento ya está filtrado automáticamente por la ruta
 
                 window.location.href = `${window.location.pathname}?${params.toString()}`;
             }
