@@ -60,14 +60,18 @@
             </thead>
             <tbody>
                 @forelse($items as $item)
+                    @php
+                        $statusClass = match($item->Status) {
+                            'Creado' => 'bg-yellow-100 text-yellow-800',
+                            'Terminado' => 'bg-blue-100 text-blue-800',
+                            'Autorizado' => 'bg-green-100 text-green-800',
+                            default => 'bg-gray-100 text-gray-800'
+                        };
+                    @endphp
                     <tr class="border-b hover:bg-blue-50 cursor-pointer transition-colors" onclick="selectRow(this, '{{ $item->Folio }}', '{{ $item->Id }}')">
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold
-                                @if($item->Status === 'Creado') bg-yellow-100 text-yellow-800
-                                @elseif($item->Status === 'Terminado') bg-blue-100 text-blue-800
-                                @elseif($item->Status === 'Autorizado') bg-green-100 text-green-800
-                                @endif">
+                            <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold {{ $statusClass }}">
                                 {{ $item->Status }}
                             </span>
                         </td>
