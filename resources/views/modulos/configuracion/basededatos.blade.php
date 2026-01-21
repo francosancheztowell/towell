@@ -268,7 +268,7 @@
             header.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
                 currentColumn = this.dataset.column;
-                
+
                 // Posicionar menú
                 contextMenu.style.left = e.pageX + 'px';
                 contextMenu.style.top = e.pageY + 'px';
@@ -287,25 +287,25 @@
         document.querySelectorAll('.context-menu-item').forEach(item => {
             item.addEventListener('click', function() {
                 const action = this.dataset.action;
-                
+
                 if (action === 'filter') {
                     openFilterModal();
                 } else if (action === 'clear') {
                     clearFilters();
                 }
-                
+
                 contextMenu.classList.add('hidden');
             });
         });
 
         function openFilterModal() {
             if (!currentColumn) return;
-            
+
             const columnName = currentColumn.charAt(0).toUpperCase() + currentColumn.slice(1);
             const uniqueValues = getUniqueValues(currentColumn);
             const currentFilter = filters[currentColumn] || { values: [], operator: 'contains', search: '' };
-            
-            // Generar HTML para los checkboxes
+
+            // Generar HTML para los checkboxeseee
             let checkboxesHTML = '';
             uniqueValues.forEach(value => {
                 const isChecked = currentFilter.values.includes(value) ? 'checked' : '';
@@ -316,7 +316,7 @@
                     </label>
                 `;
             });
-            
+
             // HTML del modal
             const modalHTML = `
                 <div style="text-align: left;">
@@ -330,14 +330,14 @@
                             value="${currentFilter.search || ''}"
                         >
                     </div>
-                    
+
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Seleccionar valores</label>
                         <div id="swal-filter-checkboxes" class="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3 space-y-2" style="max-height: 16rem; overflow-y: auto;">
                             ${checkboxesHTML}
                         </div>
                     </div>
-                    
+
                     <div class="flex items-center gap-4 mb-4">
                         <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                             <input type="checkbox" id="swal-select-all" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
@@ -347,7 +347,7 @@
                             Limpiar selección
                         </button>
                     </div>
-                    
+
                     <div class="border-t pt-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Filtros avanzados</label>
                         <select id="swal-filter-operator" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -360,7 +360,7 @@
                     </div>
                 </div>
             `;
-            
+
             Swal.fire({
                 title: `<i class="fas fa-filter"></i> Filtrar: ${columnName}`,
                 html: modalHTML,
@@ -376,24 +376,24 @@
                     const selectAll = document.getElementById('swal-select-all');
                     const clearSelection = document.getElementById('swal-clear-selection');
                     const filterOperator = document.getElementById('swal-filter-operator');
-                    
+
                     // Funcionalidad de búsqueda
                     if (filterSearch) {
                         filterSearch.addEventListener('input', function() {
                             const searchTerm = this.value.toLowerCase();
                             const labels = filterCheckboxes.querySelectorAll('label');
-                            
+
                             labels.forEach(label => {
                                 const text = label.textContent.toLowerCase();
                                 label.style.display = text.includes(searchTerm) ? 'flex' : 'none';
                             });
                         });
                     }
-                    
+
                     // Seleccionar todo
                     if (selectAll) {
                         updateSelectAllState();
-                        
+
                         selectAll.addEventListener('change', function() {
                             const checkboxes = filterCheckboxes.querySelectorAll('.swal-filter-checkbox');
                             checkboxes.forEach(checkbox => {
@@ -401,7 +401,7 @@
                             });
                         });
                     }
-                    
+
                     // Limpiar selección
                     if (clearSelection) {
                         clearSelection.addEventListener('click', function() {
@@ -410,7 +410,7 @@
                             if (selectAll) selectAll.checked = false;
                         });
                     }
-                    
+
                     // Actualizar estado de "Seleccionar todo" cuando cambian los checkboxes
                     if (filterCheckboxes) {
                         filterCheckboxes.addEventListener('change', function(e) {
@@ -419,7 +419,7 @@
                             }
                         });
                     }
-                    
+
                     function updateSelectAllState() {
                         const checkboxes = filterCheckboxes.querySelectorAll('.swal-filter-checkbox');
                         const checked = filterCheckboxes.querySelectorAll('.swal-filter-checkbox:checked');
@@ -432,16 +432,16 @@
                     const filterCheckboxes = document.getElementById('swal-filter-checkboxes');
                     const filterSearch = document.getElementById('swal-filter-search');
                     const filterOperator = document.getElementById('swal-filter-operator');
-                    
+
                     const selectedCheckboxes = filterCheckboxes.querySelectorAll('.swal-filter-checkbox:checked');
                     const selectedValues = Array.from(selectedCheckboxes).map(cb => cb.value);
-                    
+
                     filters[currentColumn] = {
                         values: selectedValues,
                         operator: filterOperator.value,
                         search: filterSearch.value
                     };
-                    
+
                     applyFilters();
                 }
             });
@@ -450,32 +450,32 @@
         function getUniqueValues(column) {
             const rows = document.querySelectorAll('.table-row');
             const values = new Set();
-            
+
             rows.forEach(row => {
                 const value = row.dataset[column] || '';
                 if (value && value !== '-') {
                     values.add(value);
                 }
             });
-            
+
             return Array.from(values).sort();
         }
 
         function applyFilters() {
             const rows = document.querySelectorAll('.table-row');
-            
+
             rows.forEach(row => {
                 let show = true;
-                
+
                 Object.keys(filters).forEach(column => {
                     const filter = filters[column];
                     if (!filter || (!filter.values.length && !filter.search)) {
                         return;
                     }
-                    
+
                     const cellValue = (row.dataset[column] || '').toLowerCase();
                     let matches = true;
-                    
+
                     if (filter.search) {
                         const searchTerm = filter.search.toLowerCase();
                         switch(filter.operator) {
@@ -496,18 +496,18 @@
                                 break;
                         }
                     }
-                    
+
                     if (filter.values.length > 0) {
-                        matches = matches && filter.values.some(val => 
+                        matches = matches && filter.values.some(val =>
                             cellValue.includes(val.toLowerCase())
                         );
                     }
-                    
+
                     if (!matches) {
                         show = false;
                     }
                 });
-                
+
                 if (show) {
                     row.classList.remove('hidden');
                 } else {
@@ -523,7 +523,7 @@
                 puesto: { values: [], operator: 'contains', search: '' },
                 estado: { values: [], operator: 'contains', search: '' }
             };
-            
+
             const rows = document.querySelectorAll('.table-row');
             rows.forEach(row => row.classList.remove('hidden'));
         }
