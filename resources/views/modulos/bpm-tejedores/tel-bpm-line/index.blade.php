@@ -353,7 +353,44 @@
             }).then(r=>{ if(r.isConfirmed) f.submit(); });
         });
     };
-    confirmAndSubmit('btn-finish','form-finish','¿Marcar como Terminado?');
+
+    // Validación especial para Finalizar: verificar actividades sin completar
+    const btnFinish = document.getElementById('btn-finish');
+    const formFinish = document.getElementById('form-finish');
+    if (btnFinish && formFinish) {
+        btnFinish.addEventListener('click', () => {
+            // Contar actividades sin completar (celdas vacías - sin OK ni X)
+            const allCells = document.querySelectorAll('.cell-btn');
+            let incompletas = 0;
+            allCells.forEach(btn => {
+                if ((btn.dataset.valor || '') === '') incompletas++;
+            });
+
+            if (incompletas > 0) {
+                Swal.fire({
+                    title: 'No se han completado todas las actividades',
+                    text: '¿Desea continuar de todos modos?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, Finalizar',
+                    cancelButtonText: 'Cancelar',
+                }).then(r => { 
+                    if (r.isConfirmed) formFinish.submit(); 
+                });
+            } else {
+                Swal.fire({ 
+                    title: '¿Marcar como Terminado?', 
+                    icon: 'question', 
+                    showCancelButton: true,
+                    confirmButtonText: 'Aceptar', 
+                    cancelButtonText: 'Cancelar'
+                }).then(r => { 
+                    if (r.isConfirmed) formFinish.submit(); 
+                });
+            }
+        });
+    }
+
     confirmAndSubmit('btn-authorize','form-authorize','¿Autorizar folio?');
     confirmAndSubmit('btn-reject','form-reject','¿Rechazar y regresar a Creado?');
 
