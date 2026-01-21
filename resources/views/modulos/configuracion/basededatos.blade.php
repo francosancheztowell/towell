@@ -9,21 +9,21 @@
             <table class="min-w-full" id="usuariosTable">
                 <thead class="bg-blue-500 text-white">
                     <tr>
-                        <th class="column-header px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-blue-600 transition-colors relative" data-column="usuario" data-column-index="0">
+                        <th class="column-header px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-blue-600 transition-colors relative" data-column="usuario" data-column-index="0">
                             Usuario
-                            <i class="fas fa-filter ml-2 text-xs opacity-70"></i>
+                            <i class="fas fa-filter ml-2 text-sm opacity-70"></i>
                         </th>
-                        <th class="column-header px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-blue-600 transition-colors relative" data-column="area" data-column-index="1">
+                        <th class="column-header px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-blue-600 transition-colors relative" data-column="area" data-column-index="1">
                             Area
-                            <i class="fas fa-filter ml-2 text-xs opacity-70"></i>
+                            <i class="fas fa-filter ml-2 text-sm opacity-70"></i>
                         </th>
-                        <th class="column-header px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-blue-600 transition-colors relative" data-column="puesto" data-column-index="2">
+                        <th class="column-header px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-blue-600 transition-colors relative" data-column="puesto" data-column-index="2">
                             Puesto
-                            <i class="fas fa-filter ml-2 text-xs opacity-70"></i>
+                            <i class="fas fa-filter ml-2 text-sm opacity-70"></i>
                         </th>
                         <th class="column-header px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-blue-600 transition-colors relative" data-column="estado" data-column-index="3">
                             Estado
-                            <i class="fas fa-filter ml-2 text-xs opacity-70"></i>
+                            <i class="fas fa-filter ml-2 text-sm opacity-70"></i>
                         </th>
                     </tr>
                 </thead>
