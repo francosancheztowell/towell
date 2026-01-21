@@ -9,6 +9,7 @@ Actividades BPM Urdido
     <div class="flex items-center gap-2">
 
             <x-navbar.button-create
+            module="Actividades BPM Urdido"
             onclick="openUrdModal('createModal')"
             id="btn-nuevo"
             title="Nueva Actividad"
@@ -18,7 +19,8 @@ Actividades BPM Urdido
 
         <!-- Botón Editar -->
         <x-navbar.button-edit
-            onclick="handleTopEdit()"
+        module="Actividades BPM Urdido"
+        onclick="handleTopEdit()"
             id="btn-top-edit"
             title="Editar Actividad"
             :disabled="true"
@@ -27,6 +29,7 @@ Actividades BPM Urdido
 
         <!-- Botón Eliminar -->
         <x-navbar.button-delete
+        module="Actividades BPM Urdido"
             onclick="handleTopDelete()"
             id="btn-top-delete"
             title="Eliminar Actividad"
@@ -64,7 +67,7 @@ Actividades BPM Urdido
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
-                <thead class="bg-gradient-to-r bg-blue-500 text-white sticky top-0 z-10">
+                <thead class="bg-blue-600 text-white sticky top-0 z-10">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold w-24">Orden</th>
                         <th class="px-4 py-3 text-left font-semibold">Actividad</th>
@@ -115,15 +118,15 @@ Actividades BPM Urdido
     </form>
 
     <!-- Modal para Nueva Actividad -->
-    <div id="createModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div id="createModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4 transform transition-all">
-            <div class="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-t-lg">
+            <div class="bg-green-600 text-white px-6 py-4 rounded-t-lg">
                 <h2 class="text-xl font-bold flex items-center gap-2">
                     <i class="fa-solid fa-plus-circle"></i>
                     Nueva Actividad BPM
                 </h2>
             </div>
-            
+
             <form action="{{ route('urd-actividades-bpm.store') }}" method="POST" class="p-6">
                 @csrf
                 <div class="space-y-4">
@@ -131,9 +134,9 @@ Actividades BPM Urdido
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Orden <span class="text-gray-400 font-normal">(opcional)</span>
                         </label>
-                        <input 
-                            type="number" 
-                            name="Orden" 
+                        <input
+                            type="number"
+                            name="Orden"
                             min="1"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             placeholder="Ej: 1, 2, 3...">
@@ -143,9 +146,9 @@ Actividades BPM Urdido
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Actividad <span class="text-red-500">*</span>
                         </label>
-                        <input 
-                            type="text" 
-                            name="Actividad" 
+                        <input
+                            type="text"
+                            name="Actividad"
                             maxlength="100"
                             required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
@@ -154,14 +157,14 @@ Actividades BPM Urdido
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                    <button 
-                        type="button" 
-                        onclick="closeUrdModal('createModal')" 
+                    <button
+                        type="button"
+                        onclick="closeUrdModal('createModal')"
                         class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                         <i class="fa-solid fa-times mr-1"></i> Cancelar
                     </button>
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
                         <i class="fa-solid fa-check mr-1"></i> Guardar
                     </button>
@@ -171,15 +174,15 @@ Actividades BPM Urdido
     </div>
 
     <!-- Modal para Editar Actividad -->
-    <div id="editModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div id="editModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4 transform transition-all">
-            <div class="bg-gradient-to-r from-yellow-600 to-yellow-500 text-white px-6 py-4 rounded-t-lg">
+            <div class="bg-yellow-600 text-white px-6 py-4 rounded-t-lg">
                 <h2 class="text-xl font-bold flex items-center gap-2">
                     <i class="fa-solid fa-edit"></i>
                     Editar Actividad BPM
                 </h2>
             </div>
-            
+
             <form id="editForm" action="" method="POST" class="p-6">
                 @csrf
                 @method('PUT')
@@ -188,10 +191,10 @@ Actividades BPM Urdido
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Orden <span class="text-gray-400 font-normal">(opcional)</span>
                         </label>
-                        <input 
-                            type="number" 
+                        <input
+                            type="number"
                             id="editOrden"
-                            name="Orden" 
+                            name="Orden"
                             min="1"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition"
                             placeholder="Ej: 1, 2, 3...">
@@ -201,10 +204,10 @@ Actividades BPM Urdido
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Actividad <span class="text-red-500">*</span>
                         </label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             id="editActividad"
-                            name="Actividad" 
+                            name="Actividad"
                             maxlength="100"
                             required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition"
@@ -213,14 +216,14 @@ Actividades BPM Urdido
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                    <button 
-                        type="button" 
-                        onclick="closeUrdModal('editModal')" 
+                    <button
+                        type="button"
+                        onclick="closeUrdModal('editModal')"
                         class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                         <i class="fa-solid fa-times mr-1"></i> Cancelar
                     </button>
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         class="px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition font-medium">
                         <i class="fa-solid fa-save mr-1"></i> Actualizar
                     </button>
@@ -304,11 +307,11 @@ Actividades BPM Urdido
             clearSelection();
             return;
         }
-        
+
         if (selectedRow) {
             selectedRow.setAttribute('aria-selected', 'false');
         }
-        
+
         selectedRow = row;
         selectedKey = row.dataset.key || null;
         row.setAttribute('aria-selected', 'true');
