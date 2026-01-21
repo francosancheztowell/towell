@@ -4,16 +4,19 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button
+        <x-navbar.button-edit
             id="btnEditarSeleccionado"
             onclick="editarOrdenSeleccionada()"
-            disabled
+            module="Programa Urdido"
+            checkPermission="true"
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
             title="Editar orden seleccionada"
-        >
-            <i class="fas fa-edit"></i>
-            <span>Editar</span>
-        </button>
+            icon="fa-edit"
+            iconColor="text-white"
+            hoverBg="hover:bg-blue-700"
+            bg="bg-blue-600"
+            text="Editar"
+        />
         <button
             id="btnImprimirSeleccionado"
             onclick="imprimirOrdenSeleccionada()"
@@ -84,13 +87,16 @@
                                 {{ $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '-' }}
                             </td>
                             <td class="px-2 py-2 text-center">
-                                <span class="px-2 py-1 text-xs font-medium rounded
-                                    @if($orden->Status === 'Finalizado') bg-green-100 text-green-800
-                                    @elseif($orden->Status === 'En Proceso') bg-yellow-100 text-yellow-800
-                                    @elseif($orden->Status === 'Programado') bg-blue-100 text-blue-800
-                                    @elseif($orden->Status === 'Cancelado') bg-red-100 text-red-800
-                                    @else bg-gray-100 text-gray-800
-                                    @endif" data-value="{{ $orden->Status ?? '' }}">
+                                @php
+                                    $statusClass = match($orden->Status ?? '') {
+                                        'Finalizado' => 'bg-green-100 text-green-800',
+                                        'En Proceso' => 'bg-yellow-100 text-yellow-800',
+                                        'Programado' => 'bg-blue-100 text-blue-800',
+                                        'Cancelado' => 'bg-red-100 text-red-800',
+                                        default => 'bg-gray-100 text-gray-800'
+                                    };
+                                @endphp
+                                <span class="px-2 py-1 text-xs font-medium rounded {{ $statusClass }}" data-value="{{ $orden->Status ?? '' }}">
                                     {{ $orden->Status ?? '-' }}
                                 </span>
                             </td>
