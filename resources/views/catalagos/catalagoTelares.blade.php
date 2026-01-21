@@ -55,7 +55,6 @@
   .swal2-input { width: 100% !important; }
 </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('js/catalogs/CatalogBase.js') }}"></script>
     <script src="{{ asset('js/catalogs/TelaresCatalog.js') }}"></script>
 

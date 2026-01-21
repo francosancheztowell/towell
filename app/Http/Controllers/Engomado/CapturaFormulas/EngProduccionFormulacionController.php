@@ -162,7 +162,7 @@ class EngProduccionFormulacionController extends Controller
                 return response()->json(['error' => 'No se proporcionó el código de fórmula'], 400);
             }
 
-            // Consultar TOW_PRO: BOMVersion + Bom + InventTable + InventDim con filtros especificados
+            // Consultar: BOMVersion + Bom + InventTable + InventDim con filtros especificados
             $componentes = DB::connection('sqlsrv_ti')
                 ->table('BOMVersion as BV')
                 ->join('Bom as B', 'B.BomId', '=', 'BV.BomId')

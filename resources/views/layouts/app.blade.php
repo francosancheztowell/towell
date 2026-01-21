@@ -606,7 +606,7 @@
           }
 
           ordenCortadoActual = dataOrden.orden;
-          mostrarMensajeCortado('Cargando datos de producción desde TOW_PRO...', 'info');
+          mostrarMensajeCortado('Cargando datos de producción...', 'info');
 
           const responseDatos = await fetch(`{{ route('notificar.cortado.rollo.datos.produccion') }}?no_produccion=${encodeURIComponent(ordenCortadoActual.NoProduccion)}&no_telar=${encodeURIComponent(noTelar)}&salon=${encodeURIComponent(ordenCortadoActual.SalonTejidoId || '')}`, {
             method: 'GET',

@@ -238,8 +238,7 @@
             #createModal > div, #editModal > div { animation: modalFadeIn 0.2s ease-out; }
         </style>
 
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script>
+<script>
             const updateUrl = @json(route('configuracion.utileria.modulos.update', 'PLACEHOLDER'));
             const destroyUrl = @json(route('configuracion.utileria.modulos.destroy', 'PLACEHOLDER'));
             const modulosData = @json($modulos);
@@ -252,13 +251,13 @@
                 const select = document.getElementById(selectId);
                 const help = document.getElementById(helpId);
                 select.innerHTML = '<option value="">Seleccionar dependencia</option>';
-                
+
                 if (nivel === '1') {
                     help.textContent = 'Los módulos de Nivel 1 no tienen dependencia';
                     select.disabled = true;
                     return;
                 }
-                
+
                 if (nivel === '2') {
                     // Para Nivel 2: mostrar solo módulos de Nivel 1
                     const nivel1 = modulosData.filter(m => String(m.Nivel) === '1');
@@ -277,7 +276,7 @@
                     select.disabled = false;
                     return;
                 }
-                
+
                 if (nivel === '3') {
                     // Para Nivel 3: mostrar solo módulos de Nivel 2
                     const nivel2 = modulosData.filter(m => String(m.Nivel) === '2');
@@ -304,9 +303,9 @@
             // Función para calcular el orden automáticamente
             function calcularOrden(nivel, dependencia) {
                 if (!nivel) return '';
-                
+
                 nivel = String(nivel);
-                
+
                 // Nivel 1: Buscar el siguiente múltiplo de 100 disponible
                 if (nivel === '1') {
                     let maxOrden = 0;
@@ -320,15 +319,15 @@
                     });
                     return maxOrden === 0 ? 100 : maxOrden + 100;
                 }
-                
+
                 // Nivel 2 o 3: Requiere dependencia
                 if (!dependencia) return '';
-                
+
                 // Nivel 2: orden = dependencia + 1
                 if (nivel === '2') {
                     const depInt = parseInt(dependencia);
                     if (isNaN(depInt)) return '';
-                    
+
                     // Buscar el siguiente orden disponible basado en la dependencia
                     let maxOrden = depInt;
                     modulosData.forEach(m => {
@@ -341,7 +340,7 @@
                     });
                     return maxOrden === depInt ? depInt + 1 : maxOrden + 1;
                 }
-                
+
                 // Nivel 3: orden = dependencia-N (donde N es secuencial)
                 if (nivel === '3') {
                     let maxSubOrden = 0;
@@ -361,7 +360,7 @@
                     });
                     return `${depStr}-${maxSubOrden + 1}`;
                 }
-                
+
                 return '';
             }
 
@@ -370,10 +369,10 @@
                 const nivel = this.value;
                 const dependenciaSelect = document.getElementById('createDependencia');
                 const ordenInput = document.getElementById('createOrden');
-                
+
                 // Poblar el select de dependencia según el nivel
                 poblarDependencias('createDependencia', nivel, 'createDependenciaHelp');
-                
+
                 if (nivel === '1') {
                     ordenInput.value = calcularOrden(nivel, null);
                 } else {
@@ -393,10 +392,10 @@
                 const nivel = this.value;
                 const dependenciaSelect = document.getElementById('editDependencia');
                 const ordenInput = document.getElementById('editOrden');
-                
+
                 // Poblar el select de dependencia según el nivel
                 poblarDependencias('editDependencia', nivel, 'editDependenciaHelp');
-                
+
                 if (nivel === '1') {
                     ordenInput.value = calcularOrden(nivel, null);
                 } else {
@@ -444,16 +443,16 @@
                 }
                 const nivel = selectedRow.dataset.nivel || '1';
                 const dependencia = selectedRow.dataset.dependencia || '';
-                
+
                 document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(selectedKey));
                 document.getElementById('editOrden').value = selectedRow.dataset.orden || '';
                 document.getElementById('editModulo').value = selectedRow.dataset.modulo || '';
                 document.getElementById('editNivel').value = nivel;
-                
+
                 // Poblar dependencias según el nivel y luego establecer el valor
                 poblarDependencias('editDependencia', nivel, 'editDependenciaHelp');
                 document.getElementById('editDependencia').value = dependencia;
-                
+
                 document.getElementById('edit_acceso').checked = (selectedRow.dataset.acceso === '1');
                 document.getElementById('edit_crear').checked = (selectedRow.dataset.crear === '1');
                 document.getElementById('edit_modificar').checked = (selectedRow.dataset.modificar === '1');
@@ -487,7 +486,7 @@
                     Swal.fire({icon: 'warning', title: 'Selecciona un módulo', text: 'Debes seleccionar un módulo de la tabla para sincronizar sus permisos', confirmButtonText: 'Entendido'});
                     return;
                 }
-                
+
                 Swal.fire({
                     title: '¿Sincronizar permisos?',
                     text: 'Se actualizarán los permisos de todos los usuarios para este módulo',

@@ -60,14 +60,18 @@
             </thead>
             <tbody>
                 @forelse($items as $item)
+                    @php
+                        $statusClass = match($item->Status) {
+                            'Creado' => 'bg-yellow-100 text-yellow-800',
+                            'Terminado' => 'bg-blue-100 text-blue-800',
+                            'Autorizado' => 'bg-green-100 text-green-800',
+                            default => 'bg-gray-100 text-gray-800'
+                        };
+                    @endphp
                     <tr class="border-b hover:bg-blue-50 cursor-pointer transition-colors" onclick="selectRow(this, '{{ $item->Folio }}', '{{ $item->Id }}')">
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
-                            <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold
-                                @if($item->Status === 'Creado') bg-yellow-100 text-yellow-800
-                                @elseif($item->Status === 'Terminado') bg-blue-100 text-blue-800
-                                @elseif($item->Status === 'Autorizado') bg-green-100 text-green-800
-                                @endif">
+                            <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold {{ $statusClass }}">
                                 {{ $item->Status }}
                             </span>
                         </td>
@@ -106,7 +110,7 @@
                 @csrf
                 <!-- Status oculto, siempre será "Creado" -->
                 <input type="hidden" name="Status" value="Creado">
-                
+
                 <div class="grid grid-cols-2 gap-3 mb-4">
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
@@ -142,8 +146,8 @@
                             <select id="select_NombreEmplEnt" name="NombreEmplEnt" onchange="fillEntrega(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('NombreEmplEnt') border-red-500 @enderror">
                                 <option value="">Seleccione...</option>
                                 @foreach($usuarios as $usuario)
-                                    <option value="{{ $usuario->nombre }}" 
-                                            data-numero="{{ $usuario->numero_empleado }}" 
+                                    <option value="{{ $usuario->nombre }}"
+                                            data-numero="{{ $usuario->numero_empleado }}"
                                             data-turno="{{ $usuario->turno }}">
                                         {{ $usuario->nombre }}
                                     </option>
@@ -163,13 +167,13 @@
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <div> 
+                        <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Máquina <span class="text-red-600">*</span></label>
                             <select id="select_Maquina" name="MaquinaId" onchange="fillMaquina(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('MaquinaId') border-red-500 @enderror">
                                 <option value="">Seleccione...</option>
                                 @foreach($maquinas as $maquina)
-                                    <option value="{{ $maquina->MaquinaId }}" 
-                                            data-nombre="{{ $maquina->Nombre }}" 
+                                    <option value="{{ $maquina->MaquinaId }}"
+                                            data-nombre="{{ $maquina->Nombre }}"
                                             data-departamento="{{ $maquina->Departamento }}">
                                         {{ $maquina->Nombre }}
                                     </option>
@@ -179,9 +183,9 @@
                                 <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div> 
+                        <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Departamento</label>
-                            <input type="text" id="input_Departamento" name="Departamento" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">                
+                            <input type="text" id="input_Departamento" name="Departamento" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                     </div>
                 </div>
@@ -215,7 +219,7 @@
             <form id="editForm" method="POST" class="p-4">
                 @csrf
                 @method('PUT')
-                
+
                 <input type="hidden" name="Folio" id="edit_folio">
                 <input type="hidden" name="Status" id="edit_status">
                 <input type="hidden" name="NombreEmplEnt" id="edit_nombre_ent">
@@ -237,7 +241,7 @@
                                     class="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Seleccione...</option>
                                 @foreach($usuarios as $usuario)
-                                    <option value="{{ $usuario->nombre }}" 
+                                    <option value="{{ $usuario->nombre }}"
                                             data-numero="{{ $usuario->numero_empleado }}"
                                             data-turno="{{ $usuario->turno }}">
                                         {{ $usuario->nombre }}
@@ -277,7 +281,6 @@
         @method('DELETE')
     </form>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         let selectedRow = null;
         let selectedFolio = null;
@@ -287,12 +290,12 @@
             if (selectedRow) {
                 selectedRow.classList.remove('bg-blue-100');
             }
-            
+
             selectedRow = row;
             selectedFolio = folio;
             selectedId = id;
             row.classList.add('bg-blue-100');
-            
+
             enableButtons();
         }
 
@@ -330,7 +333,7 @@
             }
 
             const cells = selectedRow.cells;
-            
+
             document.getElementById('edit_folio').value = cells[0].textContent;
             document.getElementById('edit_status').value = cells[1].textContent.trim();
             document.getElementById('edit_fecha').value = cells[2].textContent.trim();
@@ -340,7 +343,7 @@
             document.getElementById('edit_nombre_rec').value = cells[7].textContent;
             document.getElementById('edit_cve_rec').value = cells[6].textContent;
             document.getElementById('edit_turno_rec').value = cells[8].textContent;
-            
+
             document.getElementById('editForm').action = `/eng-bpm/${selectedId}`;
             document.getElementById('editModal').classList.remove('hidden');
         }
@@ -377,7 +380,7 @@
             const selectedOption = select.options[select.selectedIndex];
             const numero = selectedOption.getAttribute('data-numero');
             const turno = selectedOption.getAttribute('data-turno');
-            
+
             document.getElementById('input_CveEmplRec').value = numero || '';
             document.getElementById('input_TurnoRecibe').value = turno || '';
         }
@@ -385,7 +388,7 @@
         function fillMaquina(select) {
             const selectedOption = select.options[select.selectedIndex];
             const departamento = selectedOption.getAttribute('data-departamento');
-            
+
             document.getElementById('input_Departamento').value = departamento || '';
         }
 
@@ -393,7 +396,7 @@
             const selectedOption = select.options[select.selectedIndex];
             const numero = selectedOption.getAttribute('data-numero');
             const turno = selectedOption.getAttribute('data-turno');
-            
+
             document.getElementById('input_CveEmplEnt').value = numero || '';
             document.getElementById('input_TurnoEntrega').value = turno || '';
         }

@@ -119,7 +119,7 @@
 
             <form action="{{ route('eng-formulacion.store') }}" method="POST" class="p-6">
                 @csrf
-                
+
                 <!-- Sección 1: Selección de Folio -->
                 <div class="mb-5">
                     <div class="grid grid-cols-1 gap-4">
@@ -128,9 +128,9 @@
                             <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
                                 <option value="">-- Seleccione un Folio --</option>
                                 @foreach($foliosPrograma as $prog)
-                                    <option value="{{ $prog->Folio }}" 
-                                            data-cuenta="{{ $prog->Cuenta }}" 
-                                            data-calibre="{{ $prog->Calibre }}" 
+                                    <option value="{{ $prog->Folio }}"
+                                            data-cuenta="{{ $prog->Cuenta }}"
+                                            data-calibre="{{ $prog->Calibre }}"
                                             data-tipo="{{ $prog->RizoPie }}"
                                             data-formula="{{ $prog->BomFormula }}">
                                         {{ $prog->Folio }} - {{ $prog->Cuenta }}
@@ -213,7 +213,7 @@
             <form id="editForm" method="POST" class="p-6">
                 @csrf
                 @method('PUT')
-                
+
                 <!-- Sección 1: Información General -->
                 <div class="mb-6">
                     <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Información General</h4>
@@ -429,7 +429,6 @@
         @method('DELETE')
     </form>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         let selectedRow = null;
         let selectedFolio = null;
@@ -438,11 +437,11 @@
             if (selectedRow) {
                 selectedRow.classList.remove('bg-purple-100');
             }
-            
+
             selectedRow = row;
             selectedFolio = folio;
             row.classList.add('bg-purple-100');
-            
+
             enableButtons();
         }
 
@@ -467,16 +466,16 @@
             }
 
             const cells = selectedRow.cells;
-            
-            // Orden: cells[0] = Folio (Orden), cells[1] = Hr, cells[2] = Status, cells[3] = Cuenta, 
+
+            // Orden: cells[0] = Folio (Orden), cells[1] = Hr, cells[2] = Status, cells[3] = Cuenta,
             // Calibre: cells[4], Tipo: cells[5], Operador: cells[6], Olla: cells[7],
             // Formula: cells[8], TipoFormula: cells[9], Kg: cells[10], Litros: cells[11],
             // ProdAX: cells[12], Tiempo: cells[13], Solidos: cells[14], Viscocidad: cells[15]
-            
+
             // Usar la Formula (cells[8]) del registro seleccionado para buscar componentes en BOMVersion
             formulaActual = cells[8].textContent.trim(); // La Formula del registro
             const kilosValue = cells[10].textContent.trim().replace(/,/g, '');
-            
+
             // Abrir directamente el modal de componentes usando la Formula como referencia
             abrirModalComponentes(kilosValue);
         }
@@ -511,7 +510,7 @@
 
         function cargarDatosPrograma(select) {
             const option = select.options[select.selectedIndex];
-            
+
             if (!option.value) {
                 // Limpiar campos si no hay selección
                 document.getElementById('create_cuenta').value = '';
@@ -586,20 +585,20 @@
                     const form = document.createElement('form');
                     form.method = 'POST';
                     form.action = `/eng-formulacion/${selectedFolio}/autorizar`;
-                    
+
                     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                     const csrfInput = document.createElement('input');
                     csrfInput.type = 'hidden';
                     csrfInput.name = '_token';
                     csrfInput.value = csrfToken;
                     form.appendChild(csrfInput);
-                    
+
                     const methodInput = document.createElement('input');
                     methodInput.type = 'hidden';
                     methodInput.name = '_method';
                     methodInput.value = 'PATCH';
                     form.appendChild(methodInput);
-                    
+
                     document.body.appendChild(form);
                     form.submit();
                 }
@@ -644,7 +643,7 @@
                         componentesData = data.componentes || [];
                         document.getElementById('componentes_tabla_container').classList.remove('hidden');
                         renderizarTablaComponentes();
-                        
+
                         // Mostrar alerta si está vacío
                         if (data.vacio || componentesData.length === 0) {
                             Swal.fire({
@@ -700,11 +699,11 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-blue-50 transition-colors cursor-pointer';
                 row.onclick = () => seleccionarComponente(index, row);
-                
+
                 // Validar y convertir valores numéricos
                 const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
                 const consumoTotal = calcularConsumoTotal(consumoUnitario);
-                
+
                 row.innerHTML = `
                     <td class="px-4 py-3 text-sm">${selectedFolio || '-'}</td>
                     <td class="px-4 py-3 text-sm font-medium">${comp.ItemId || ''}</td>
