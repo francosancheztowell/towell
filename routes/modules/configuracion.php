@@ -58,6 +58,7 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () {
     Route::get('/modulos', [ModulosController::class, 'index'])->name('modulos.index');
 
     Route::get('/basededatos', [BaseDeDatosController::class, 'index'])->name('basededatos');
+    Route::post('/basededatos/update-productivo', [BaseDeDatosController::class, 'updateProductivo'])->name('basededatos.update-productivo');
 
     Route::get('/ambiente', [ambienteController::class, 'index']) -> name('configuracion.ambiente');
 });

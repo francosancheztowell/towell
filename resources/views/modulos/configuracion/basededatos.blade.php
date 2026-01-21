@@ -33,7 +33,7 @@
                             $nombre = trim($usuario->nombre ?? '');
                             $inicial = $nombre !== '' ? strtoupper(substr($nombre, 0, 1)) : '?';
                         @endphp
-                        <tr class="table-row" data-usuario="{{ strtolower($usuario->nombre ?? '') }}" data-area="{{ strtolower($usuario->area ?? '') }}" data-puesto="{{ strtolower($usuario->puesto ?? '') }}" data-estado="{{ ($usuario->Productivo ?? 1) == 2 ? 'productivo' : 'prueba' }}">
+                        <tr class="table-row" data-usuario="{{ strtolower($usuario->nombre ?? '') }}" data-area="{{ strtolower($usuario->area ?? '') }}" data-puesto="{{ strtolower($usuario->puesto ?? '') }}" data-estado="{{ ($usuario->Productivo ?? 0) == 1 ? 'productivo' : 'prueba' }}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center gap-3">
                                     <div class="h-10 w-10 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
@@ -55,14 +55,14 @@
                                     <input
                                         type="hidden"
                                         name="productivo_{{ $usuario->idusuario }}"
-                                        value="{{ $usuario->Productivo ?? 1 }}"
+                                        value="{{ $usuario->Productivo ?? 0 }}"
                                         class="switch-value"
                                     >
                                     <input
                                         type="checkbox"
                                         class="switch-input"
                                         data-user-id="{{ $usuario->idusuario }}"
-                                        {{ ($usuario->Productivo ?? 1) == 2 ? 'checked' : '' }}
+                                        {{ ($usuario->Productivo ?? 0) == 1 ? 'checked' : '' }}
                                         aria-label="Cambiar estado productivo"
                                     >
                                     <span class="switch-slider"></span>
@@ -252,11 +252,84 @@
         switches.forEach(switchInput => {
             switchInput.addEventListener('change', function() {
                 const userId = this.dataset.userId;
-                const value = this.checked ? 2 : 1;
+                const value = this.checked ? 1 : 0; // 1 = Productivo, 0 = Prueba
                 const hiddenInput = this.parentElement.querySelector('.switch-value');
+                const switchElement = this;
+
                 if (hiddenInput) {
                     hiddenInput.value = value;
                 }
+
+                // Mostrar loading
+                Swal.fire({
+                    title: 'Actualizando...',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Hacer petición AJAX usando axios (ya está configurado en el proyecto)
+                axios.post('{{ route("configuracion.basededatos.update-productivo") }}', {
+                    user_id: userId,
+                    productivo: value
+                })
+                .then(response => {
+                    Swal.close();
+
+                    if (response.data.success) {
+                        // Actualizar el data-estado de la fila
+                        const row = switchElement.closest('.table-row');
+                        if (row) {
+                            row.dataset.estado = value == 1 ? 'productivo' : 'prueba';
+                        }
+
+                        // Mostrar notificación de éxito
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Actualizado!',
+                            text: response.data.message,
+                            timer: 2000,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                    } else {
+                        // Revertir el switch si hay error
+                        switchElement.checked = !switchElement.checked;
+                        if (hiddenInput) {
+                            hiddenInput.value = switchElement.checked ? 1 : 0;
+                        }
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: response.data.message || 'No se pudo actualizar el estado',
+                            confirmButtonColor: '#2563eb'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.close();
+
+                    // Revertir el switch si hay error
+                    switchElement.checked = !switchElement.checked;
+                    if (hiddenInput) {
+                        hiddenInput.value = switchElement.checked ? 1 : 0;
+                    }
+
+                    const errorMessage = error.response?.data?.message ||
+                                       error.message ||
+                                       'Ocurrió un error al actualizar el estado. Por favor, intenta nuevamente.';
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: errorMessage,
+                        confirmButtonColor: '#2563eb'
+                    });
+                });
             });
         });
 
