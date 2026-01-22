@@ -293,7 +293,7 @@ class AtadoresController extends Controller
                 DB::beginTransaction();
 
                 // 1. Actualizar supervisor en AtaMontadoTelas
-                $comentariosSupervisor = $request->input('comentarios_supervisor', '');
+                $comentariosSupervisor = $request->input('comments_sup', $request->input('comentarios_supervisor', ''));
                 
                 DB::connection('sqlsrv')
                     ->table('AtaMontadoTelas')
@@ -309,22 +309,34 @@ class AtadoresController extends Controller
                         'comments_sup' => $comentariosSupervisor,
                     ]);
 
-                // 2. Guardar en TejHistorialInventarioTelares
+                // 2. Obtener el registro original de tej_inventario_telares ANTES de eliminarlo
+                // para capturar campos adicionales (Localidad, Cuenta, Calibre, TipoAtado, etc.)
+                $registroOriginal = TejInventarioTelares::where('no_julio', $montado->NoJulio)
+                    ->where('no_orden', $montado->NoProduccion)
+                    ->first();
+
+                // 3. Guardar en TejHistorialInventarioTelares con todos los campos
                 TejHistorialInventarioTelaresModel::create([
                     'NoTelarId' => $montado->NoTelarId,
                     'Status' => 'Completado',
                     'Tipo' => $montado->Tipo,
+                    'Cuenta' => $registroOriginal?->cuenta,
+                    'Calibre' => $registroOriginal?->calibre,
                     'FechaRequerimiento' => $montado->Fecha,
                     'Turno' => $montado->Turno,
+                    'Fibra' => $registroOriginal?->hilo,
                     'Metros' => $montado->Metros,
                     'NoJulio' => $montado->NoJulio,
                     'NoProduccion' => $montado->NoProduccion,
+                    'TipoAtado' => $registroOriginal?->tipo_atado,
+                    'Localidad' => $registroOriginal?->localidad,
                     'LoteProveedor' => $montado->LoteProveedor,
                     'NoProveedor' => $montado->NoProveedor,
-                    'HoraParo' => $montado->HoraParo
+                    'HoraParo' => $montado->HoraParo,
+                    'FechaAtado' => Carbon::now(),
                 ]);
 
-                // 3. Guardar datos de máquinas y actividades del proceso actual
+                // 4. Guardar datos de máquinas y actividades del proceso actual
                 // Obtener datos actuales de máquinas
                 $maquinasActuales = AtaMontadoMaquinasModel::where('NoJulio', $montado->NoJulio)
                     ->where('NoProduccion', $montado->NoProduccion)
@@ -369,11 +381,7 @@ class AtadoresController extends Controller
                     }
                 }
 
-                // 4. Buscar y eliminar SOLO el registro original de tej_inventario_telares
-                $registroOriginal = TejInventarioTelares::where('no_julio', $montado->NoJulio)
-                    ->where('no_orden', $montado->NoProduccion)
-                    ->first();
-
+                // 5. Eliminar el registro original de tej_inventario_telares
                 if ($registroOriginal) {
                     $registroOriginal->delete();
                 }
