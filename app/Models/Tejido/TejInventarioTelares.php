@@ -29,6 +29,9 @@ class TejInventarioTelares extends Model
         'horaParo',
         'Reservado',
         'Programado',
+        'ConfigId',
+        'InventSizeId',
+        'InventColorId',
     ];
 
     protected $casts = [
