@@ -33,6 +33,9 @@ class AtaMontadoTelasModel extends Model
         'Obs',
         'CveTejedor',
         'NomTejedor',
-        'FechaSupervisor'
+        'FechaSupervisor',
+        'comments_sup',
+        'comments_tej',
+        'comments_ata'
     ];
 }

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @php use Illuminate\Support\Str; @endphp
 
-@section('page-title', 'Formulario de Usuario')
+@section('page-title', 'Editar Usuario')
 
 @section('content')
     <div class="">
@@ -408,17 +408,20 @@
                                class="px-4 sm:px-6 py-2 sm:py-3 bg-red-500 border border-gray-300 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 transition-colors text-center">
                                 Cancelar
                             </a>
-                            <button type="submit"
-                                class="px-6 sm:px-8 py-2 sm:py-3 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    @if($isEdit)
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                    @else
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                    @endif
-                                </svg>
-                                {{ $isEdit ? 'Actualizar Usuario' : 'Registrar Usuario' }}
-                            </button>
+
+                            <x-navbar.button-edit
+                            type="submit"
+                            class="px-6 sm:px-8 py-2 sm:py-3 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center"
+                            title="Actualizar Usuario"
+                            text="Actualizar Usuario"
+                            module="Usuarios"
+                            checkPermission="true"
+                            icon="fa-save"
+                            iconColor="text-white"
+                            hoverBg="hover:bg-blue-700"
+                            bg="bg-blue-600"
+                            :disabled="false"
+                            />
                         </div>
                     </div>
                 </div>

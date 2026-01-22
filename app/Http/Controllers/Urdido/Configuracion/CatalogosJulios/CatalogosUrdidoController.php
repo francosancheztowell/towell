@@ -18,12 +18,16 @@ class CatalogosUrdidoController extends Controller
         try {
             $query = UrdCatJulios::query();
 
-            // Filtros opcionales
+            // Detectar si viene de urdido o engomado por la ruta
+            $isEngomado = $request->route()->getName() === 'engomado.configuracion.catalogos.julios';
+            $departamentoFiltro = $isEngomado ? 'Engomado' : 'Urdido';
+
+            // Filtrar automáticamente por departamento según la ruta
+            $query->where('Departamento', $departamentoFiltro);
+
+            // Filtros opcionales adicionales
             if ($request->filled('no_julio')) {
                 $query->where('NoJulio', 'like', "%{$request->no_julio}%");
-            }
-            if ($request->filled('departamento')) {
-                $query->where('Departamento', 'like', "%{$request->departamento}%");
             }
 
             $julios = $query->whereNotNull('NoJulio')
@@ -32,15 +36,17 @@ class CatalogosUrdidoController extends Controller
 
             $noResults = $julios->isEmpty();
 
-            return view('catalogosurdido.catalago-julios', compact('julios', 'noResults'));
+            return view('catalogosurdido.catalago-julios', compact('julios', 'noResults', 'departamentoFiltro'));
         } catch (\Exception $e) {
             Log::error('Error en CatalogosUrdidoController::catalogosJulios', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            $departamentoFiltro = $request->route()->getName() === 'engomado.configuracion.catalogos.julios' ? 'Engomado' : 'Urdido';
             return view('catalogosurdido.catalago-julios', [
                 'julios' => collect(),
-                'noResults' => true
+                'noResults' => true,
+                'departamentoFiltro' => $departamentoFiltro
             ])->with('error', 'Error al cargar los datos: ' . $e->getMessage());
         }
     }
@@ -213,16 +219,20 @@ class CatalogosUrdidoController extends Controller
     public function storeJulio(Request $request)
     {
         try {
+            // Detectar departamento según la ruta
+            $isEngomado = $request->route()->getName() === 'engomado.configuracion.catalogos.julios.store' 
+                       || str_contains($request->path(), 'catalogojulioseng');
+            $departamento = $isEngomado ? 'Engomado' : 'Urdido';
+
             $request->validate([
                 'NoJulio' => 'required|string|max:50|unique:UrdCatJulios,NoJulio',
                 'Tara' => 'nullable|numeric|min:0',
-                'Departamento' => 'nullable|string|max:50',
             ]);
 
             UrdCatJulios::create([
                 'NoJulio' => $request->NoJulio,
                 'Tara' => $request->Tara ?? 0,
-                'Departamento' => $request->Departamento,
+                'Departamento' => $departamento,
             ]);
 
             return response()->json([
@@ -256,10 +266,14 @@ class CatalogosUrdidoController extends Controller
                 ->orWhere('NoJulio', $id)
                 ->firstOrFail();
 
+            // Detectar departamento según la ruta
+            $isEngomado = $request->route()->getName() === 'engomado.configuracion.catalogos.julios.update' 
+                       || str_contains($request->path(), 'catalogojulioseng');
+            $departamento = $isEngomado ? 'Engomado' : 'Urdido';
+
             $rules = [
                 'NoJulio' => 'required|string|max:50',
                 'Tara' => 'nullable|numeric|min:0',
-                'Departamento' => 'nullable|string|max:50',
             ];
 
             // Si el NoJulio cambió, validar que no exista
@@ -272,7 +286,7 @@ class CatalogosUrdidoController extends Controller
             $julio->update([
                 'NoJulio' => $request->NoJulio,
                 'Tara' => $request->Tara ?? 0,
-                'Departamento' => $request->Departamento,
+                'Departamento' => $departamento,
             ]);
 
             return response()->json([

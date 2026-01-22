@@ -55,9 +55,6 @@
     </div>
     </div>
 
-<!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <style>
     .slider-compact {
         -webkit-appearance: none; appearance: none;

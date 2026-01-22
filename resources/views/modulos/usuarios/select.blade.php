@@ -1,10 +1,16 @@
 @extends('layouts.app')
 @section('navbar-right')
-<button onclick="abrirModalCrearUsuario()"
-class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
- <i class="fas fa-plus mr-2"></i>
- Nuevo Usuario
-</button>
+<x-navbar.button-create
+onclick="abrirModalCrearUsuario()"
+title="Nuevo Usuario"
+icon="fa-plus"
+iconColor="text-white"
+hoverBg="hover:bg-blue-700"
+bg="bg-blue-600"
+text="Nuevo Usuario"
+module="Usuarios"
+checkPermission="true"
+/>
 @endsection
 @section('page-title', 'Lista de Usuarios')
 
@@ -129,11 +135,7 @@ class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-whi
                     <h3 class="mt-2 text-sm font-medium text-gray-900">No hay usuarios</h3>
                     <p class="mt-1 text-sm text-gray-500">Comienza creando un nuevo usuario.</p>
                     <div class="mt-6">
-                        <a href="{{ route('configuracion.usuarios.create') }}"
-                           class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-                            <i class="fas fa-plus mr-2"></i>
-                            Crear primer usuario
-                        </a>
+                        <x-navbar.button-create onclick="abrirModalCrearUsuario()" title="Crear primer usuario"/>
                     </div>
                 </div>
             @endforelse
@@ -313,7 +315,7 @@ class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-whi
                     const doc = parser.parseFromString(html, 'text/html');
                     const selectOriginal = doc.querySelector('select[name="area"]');
                     const selectModal = document.getElementById('area_modal');
-                    
+
                     if (selectOriginal && selectModal) {
                         selectModal.innerHTML = selectOriginal.innerHTML;
                     }
@@ -324,9 +326,9 @@ class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-whi
         // Submit del formulario
         document.getElementById('formCrearUsuario').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const formData = new FormData(this);
-            
+
             fetch('{{ route("configuracion.usuarios.store") }}', {
                 method: 'POST',
                 body: formData,

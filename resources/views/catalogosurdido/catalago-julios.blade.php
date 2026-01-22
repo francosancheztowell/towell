@@ -27,7 +27,7 @@
                         <th class="py-2 px-2 font-bold tracking-wider text-center">Departamento</th>
                     </tr>
                 </thead>
-                <tbody id="julios-body" class="bg-white text-black">
+                <tbody id="julios-body" class="bg-white">
                     @forelse ($julios as $julio)
                         @php
                             $uid = $julio->Id ?? uniqid();
@@ -38,7 +38,7 @@
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-gray-100 text-gray-700');
                         @endphp
-                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
+                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer text-black"
                             onclick="selectRow(this)"
                             data-uid="{{ $uid }}"
                             data-no-julio="{{ $julio->NoJulio }}"
@@ -85,8 +85,6 @@
   }
 </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
     <script>
     // Variables globales
@@ -110,21 +108,25 @@
     window.selectRow = function(row) {
         // Deseleccionar fila anterior
         if (selectedRow) {
-            selectedRow.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
+            selectedRow.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600');
+            selectedRow.classList.add('text-black', 'hover:bg-blue-50');
         }
-        
+
         // Si es la misma fila, deseleccionar
         if (selectedRow === row) {
             selectedRow = null;
             currentJulioId = null;
+            row.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600');
+            row.classList.add('text-black', 'hover:bg-blue-50');
             disableButtons();
             return;
         }
-        
+
         // Seleccionar nueva fila
         selectedRow = row;
         currentJulioId = (row.dataset.id || row.dataset.noJulio || '').trim() || null;
-        row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
+        row.classList.remove('text-black', 'hover:bg-blue-50');
+        row.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600');
         if (currentJulioId) {
             enableButtons();
         } else {
@@ -136,7 +138,7 @@
     window.enableButtons = function() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = false;
             btnEdit.removeAttribute('disabled');
@@ -159,7 +161,7 @@
     window.disableButtons = function() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = true;
             btnEdit.setAttribute('disabled', 'disabled');
@@ -258,6 +260,11 @@
         const isEdit = mode === 'edit';
         const title = isEdit ? 'Editar Julio' : 'Nuevo Julio';
         const confirmText = isEdit ? 'Actualizar' : 'Guardar';
+        
+        // Detectar departamento según la ruta actual
+        const isEngomado = window.location.pathname.includes('catalogojulioseng');
+        const departamentoFiltro = isEngomado ? 'Engomado' : 'Urdido';
+        const departamentoActual = data.departamento || departamentoFiltro;
 
         Swal.fire({
             title: title,
@@ -275,11 +282,10 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Departamento</label>
-                        <select id="swal-departamento" class="swal2-input">
-                            <option value="">-- Seleccione --</option>
-                            <option value="Urdido">Urdido</option>
-                            <option value="Engomado">Engomado</option>
+                        <select id="swal-departamento" class="swal2-input" disabled>
+                            <option value="${departamentoFiltro}" selected>${departamentoFiltro}</option>
                         </select>
+                        <input type="hidden" id="swal-departamento-hidden" value="${departamentoFiltro}">
                     </div>
                 </div>
             `,
@@ -291,12 +297,13 @@
             didOpen: () => {
                 document.getElementById('swal-no-julio').value = data.noJulio || '';
                 document.getElementById('swal-tara').value = data.tara ?? '';
-                document.getElementById('swal-departamento').value = data.departamento || '';
+                document.getElementById('swal-departamento').value = departamentoFiltro;
             },
             preConfirm: () => {
                 const noJulio = document.getElementById('swal-no-julio').value.trim();
                 const taraValue = document.getElementById('swal-tara').value;
-                const departamento = document.getElementById('swal-departamento').value;
+                const departamentoHidden = document.getElementById('swal-departamento-hidden');
+                const departamento = departamentoHidden ? departamentoHidden.value : (isEngomado ? 'Engomado' : 'Urdido');
 
                 if (!noJulio) {
                     Swal.showValidationMessage('El No. Julio es requerido');
@@ -312,7 +319,7 @@
                 return {
                     NoJulio: noJulio,
                     Tara: tara,
-                    Departamento: departamento || null
+                    Departamento: departamento
                 };
             }
         }).then((result) => {
@@ -326,9 +333,12 @@
 
     function saveJulio(data, julioId) {
         const isEdit = !!julioId;
+        // Detectar si estamos en engomado o urdido
+        const isEngomado = window.location.pathname.includes('catalogojulioseng');
+        const basePath = isEngomado ? '/engomado/configuracion/catalogojulioseng' : '/urdido/catalogos-julios';
         const url = isEdit
-            ? `/urdido/catalogos-julios/${encodeURIComponent(julioId)}`
-            : '/urdido/catalogos-julios';
+            ? `${basePath}/${encodeURIComponent(julioId)}`
+            : basePath;
         const method = isEdit ? 'put' : 'post';
 
         axios({
@@ -364,7 +374,7 @@
         .catch(error => {
             console.error('Error al guardar:', error);
             let errorMessage = 'No se pudo guardar el julio';
-            
+
             if (error.response?.data?.message) {
                 if (typeof error.response.data.message === 'object') {
                     errorMessage = Object.values(error.response.data.message).flat().join(', ');
@@ -372,7 +382,7 @@
                     errorMessage = error.response.data.message;
                 }
             }
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -403,7 +413,11 @@
             return;
         }
 
-        axios.delete(`/urdido/catalogos-julios/${encodeURIComponent(resolvedId)}`, {
+        // Detectar si estamos en engomado o urdido
+        const isEngomado = window.location.pathname.includes('catalogojulioseng');
+        const basePath = isEngomado ? '/engomado/configuracion/catalogojulioseng' : '/urdido/catalogos-julios';
+        
+        axios.delete(`${basePath}/${encodeURIComponent(resolvedId)}`, {
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
@@ -417,7 +431,7 @@
                     currentJulioId = null;
                     disableButtons();
                 }
-                
+
                 Swal.fire({
                     icon: 'success',
                     title: '¡Eliminado!',
@@ -436,7 +450,7 @@
         })
         .catch(error => {
             console.error('Error al eliminar:', error);
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -447,6 +461,10 @@
 
     // Funciones globales para el componente de filtros
     window.filtrarJulios = function() {
+        // Detectar departamento según la ruta actual
+        const isEngomado = window.location.pathname.includes('catalogojulioseng');
+        const departamentoFiltro = isEngomado ? 'Engomado' : 'Urdido';
+        
         Swal.fire({
             title: 'Filtrar Julios',
             html: `
@@ -457,10 +475,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Departamento</label>
-                        <select id="filter-departamento" class="swal2-input">
-                            <option value="">-- Todos --</option>
-                            <option value="Urdido">Urdido</option>
-                            <option value="Engomado">Engomado</option>
+                        <select id="filter-departamento" class="swal2-input" disabled>
+                            <option value="${departamentoFiltro}" selected>${departamentoFiltro}</option>
                         </select>
                     </div>
                 </div>
@@ -472,11 +488,10 @@
             preConfirm: () => {
                 const params = new URLSearchParams();
                 const noJulio = document.getElementById('filter-no-julio').value.trim();
-                const departamento = document.getElementById('filter-departamento').value;
-                
+
                 if (noJulio) params.append('no_julio', noJulio);
-                if (departamento) params.append('departamento', departamento);
-                
+                // El departamento ya está filtrado automáticamente por la ruta
+
                 window.location.href = `${window.location.pathname}?${params.toString()}`;
             }
         });

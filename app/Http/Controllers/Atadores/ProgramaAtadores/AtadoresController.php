@@ -293,6 +293,8 @@ class AtadoresController extends Controller
                 DB::beginTransaction();
 
                 // 1. Actualizar supervisor en AtaMontadoTelas
+                $comentariosSupervisor = $request->input('comentarios_supervisor', '');
+                
                 DB::connection('sqlsrv')
                     ->table('AtaMontadoTelas')
                     ->where('NoJulio', $montado->NoJulio)
@@ -304,6 +306,7 @@ class AtadoresController extends Controller
                         'Estatus' => 'Autorizado',
                         'CveTejedor' => $montado->CveTejedor ?: $user->numero_empleado,
                         'NomTejedor' => $montado->NomTejedor ?: $user->nombre,
+                        'comments_sup' => $comentariosSupervisor,
                     ]);
 
                 // 2. Guardar en TejHistorialInventarioTelares
@@ -405,7 +408,7 @@ class AtadoresController extends Controller
             $data = $request->validate([
                 'calidad' => ['required','integer','min:1','max:10'],
                 'limpieza' => ['required','integer','min:5','max:10'],
-                'comentarios' => ['nullable','string','max:500'],
+                'comments_tej' => ['nullable','string','max:500'],
             ]);
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
@@ -414,11 +417,16 @@ class AtadoresController extends Controller
                 ->update([
                     'Calidad' => (int) $data['calidad'],
                     'Limpieza' => (int) $data['limpieza'],
-                    'ComentariosSupervisor' => $data['comentarios'] ?? null,
+                    'comments_tej' => $data['comments_tej'] ?? null,
                     'CveTejedor' => $user->numero_empleado,
                     'NomTejedor' => $user->nombre,
                     'Estatus' => 'Calificado'
                 ]);
+
+            // Actualizar también el status en tej_inventario_telares
+            TejInventarioTelares::where('no_julio', $montado->NoJulio)
+                ->where('no_orden', $montado->NoProduccion)
+                ->update(['status' => 'Calificado']);
 
             return response()->json([
                 'ok' => true,
@@ -528,14 +536,22 @@ class AtadoresController extends Controller
             }
 
             // Register current time as "hora de arranque" y cambiar estatus a 'Terminado'
+            $commentsAta = $request->input('comments_ata', '');
+            
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
                 ->where('NoJulio', $montado->NoJulio)
                 ->where('NoProduccion', $montado->NoProduccion)
                 ->update([
                     'HoraArranque' => Carbon::now()->format('H:i'),
-                    'Estatus' => 'Terminado'
+                    'Estatus' => 'Terminado',
+                    'comments_ata' => $commentsAta,
                 ]);
+
+            // Actualizar también el status en tej_inventario_telares
+            TejInventarioTelares::where('no_julio', $montado->NoJulio)
+                ->where('no_orden', $montado->NoProduccion)
+                ->update(['status' => 'Terminado']);
 
             return response()->json(['ok' => true, 'message' => 'Atado terminado y hora de arranque registrada']);
         }

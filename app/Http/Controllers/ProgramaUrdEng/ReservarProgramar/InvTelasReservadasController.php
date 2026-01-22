@@ -390,6 +390,16 @@ class InvTelasReservadasController extends Controller
                 if ($telar) {
                     // Actualizar SOLO este registro específico
                     $telar->Reservado = true;
+                    // Actualizar campos dimensionales del inventario: fibra -> ConfigId, cuenta -> InventSizeId, codcolor -> InventColorId
+                    if (isset($data['ConfigId'])) {
+                        $telar->ConfigId = $this->normalizeDimValue($data['ConfigId']);
+                    }
+                    if (isset($data['InventSizeId'])) {
+                        $telar->InventSizeId = $this->normalizeDimValue($data['InventSizeId']);
+                    }
+                    if (isset($data['InventColorId'])) {
+                        $telar->InventColorId = $this->normalizeDimValue($data['InventColorId']);
+                    }
                     $telar->save();
                 } else {
                     Log::warning('No se encontró registro específico para reservar por ID', [

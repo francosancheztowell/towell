@@ -245,7 +245,7 @@ class NotificarMontRollosController extends Controller
 
             if ($datosProduccion->isEmpty()) {
                 return response()->json([
-                    'error' => 'No se encontraron datos de producción en TOW_PRO',
+                    'error' => 'No se encontraron datos de producción',
                     'debug' => [
                         'no_produccion' => $noProduccion,
                         'no_telar' => $noTelar,

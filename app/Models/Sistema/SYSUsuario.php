@@ -16,17 +16,20 @@ class SYSUsuario extends Model
         'numero_empleado',
         'nombre',
         'area',
+        'departamento',
         'turno',
         'telefono',
         'correo',
         'contrasenia',
         'enviarMensaje',
         'foto',
-        'puesto'
+        'puesto',
+        'Productivo'
     ];
 
     protected $casts = [
-        'enviarMensaje' => 'boolean'
+        'enviarMensaje' => 'boolean',
+        'Productivo' => 'integer'
     ];
 
     public $timestamps = false;
@@ -39,7 +42,6 @@ class SYSUsuario extends Model
         return $this->hasMany(SYSUsuariosRoles::class, 'idusuario', 'idusuario');
     }
 }
-
 
 
 

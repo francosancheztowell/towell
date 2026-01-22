@@ -421,7 +421,7 @@ function guardarObservacionesAuto() {
 }
 
 
-function terminarAtado(){
+async function terminarAtado(){
     // Validar que todas las actividades estén marcadas
     const total = actividadesData.length;
     const completadas = actividadesData.filter(a => a.estado).length;
@@ -454,64 +454,79 @@ function terminarAtado(){
         return;
     }
 
-    Swal.fire({
+    const { value: formValues } = await Swal.fire({
         title: '¿Terminar Atado?',
-        text: 'Se registrará la hora de arranque con la hora actual y el estatus cambiará a "Terminado"',
-        icon: 'question',
+        html: `
+            <div style="text-align:left; padding:0 10px;">
+                <p style="font-size:14px; color:#666; margin-bottom:16px;">
+                    Se registrará la hora de arranque con la hora actual y el estatus cambiará a "Terminado"
+                </p>
+                <label style="display:block; font-size:14px; margin-bottom:4px; font-weight:500;">Comentarios del Atador</label>
+                <textarea id="swComentariosAtador" style="width:100%; min-height:100px; padding:10px; border:1px solid #d9d9d9; border-radius:4px; resize:vertical; font-size:14px; box-sizing:border-box;" placeholder="Escriba sus comentarios aquí (opcional)..."></textarea>
+            </div>
+        `,
+        focusConfirm: false,
+        preConfirm: () => {
+            const comentarios = document.getElementById('swComentariosAtador').value.trim();
+            return { comentarios };
+        },
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33',
         confirmButtonText: 'Sí, terminar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            fetch('{{ route('atadores.save') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({
-                    action: 'terminar',
-                    no_julio: currentNoJulio,
-                    no_orden: currentNoOrden
-                })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if(res.ok){
-                    Swal.fire({ icon: 'success', title: 'Atado terminado', text: 'El estatus ha cambiado a "Terminado"', timer: 1500, showConfirmButton: false });
-                    // Deshabilitar botón de terminar atado
-                    const btnTerminar = document.getElementById('btnTerminar');
-                    if (btnTerminar) {
-                        btnTerminar.disabled = true;
-                        btnTerminar.classList.add('opacity-50', 'cursor-not-allowed');
-                    }
-                    // Habilitar botón de calificar
-                    const btnCalificar = document.getElementById('btnCalificar');
-                    if (btnCalificar) {
-                        btnCalificar.disabled = false;
-                        btnCalificar.classList.remove('opacity-50', 'cursor-not-allowed');
-                    }
-                    // Deshabilitar todos los checkboxes de máquinas y actividades
-                    document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.disabled = true);
-                    // Deshabilitar campo de observaciones y merga
-                    const obsTextarea = document.getElementById('observaciones');
-                    if (obsTextarea) obsTextarea.disabled = true;
-                    const mergaInput = document.getElementById('mergaKg');
-                    if (mergaInput) mergaInput.disabled = true;
-                    const obsForm = document.getElementById('formObservaciones');
-                    if (obsForm) {
-                        const btnGuardar = obsForm.querySelector('button[type="submit"]');
-                        if (btnGuardar) btnGuardar.disabled = true;
-                    }
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo terminar' });
-                }
-            })
-            .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
-        }
+        cancelButtonText: 'Cancelar',
+        width: '450px'
     });
+
+    if(!formValues) return;
+
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            action: 'terminar',
+            comments_ata: formValues.comentarios || '',
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.ok){
+            Swal.fire({ icon: 'success', title: 'Atado terminado', text: 'El estatus ha cambiado a "Terminado"', timer: 1500, showConfirmButton: false });
+            // Deshabilitar botón de terminar atado
+            const btnTerminar = document.getElementById('btnTerminar');
+            if (btnTerminar) {
+                btnTerminar.disabled = true;
+                btnTerminar.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            // Habilitar botón de calificar
+            const btnCalificar = document.getElementById('btnCalificar');
+            if (btnCalificar) {
+                btnCalificar.disabled = false;
+                btnCalificar.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+            // Deshabilitar todos los checkboxes de máquinas y actividades
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.disabled = true);
+            // Deshabilitar campo de observaciones y merga
+            const obsTextarea = document.getElementById('observaciones');
+            if (obsTextarea) obsTextarea.disabled = true;
+            const mergaInput = document.getElementById('mergaKg');
+            if (mergaInput) mergaInput.disabled = true;
+            const obsForm = document.getElementById('formObservaciones');
+            if (obsForm) {
+                const btnGuardar = obsForm.querySelector('button[type="submit"]');
+                if (btnGuardar) btnGuardar.disabled = true;
+            }
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo terminar' });
+        }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
+}
 }
 
 async function calificarTejedor(){
@@ -529,15 +544,15 @@ async function calificarTejedor(){
                     <option value="">Seleccione</option>
                     ${Array.from({length:6}, (_,i)=>`<option value="${i+5}">${i+5}</option>`).join('')}
                 </select>
-                <label style="display:block; font-size:14px; margin-bottom:4px;">Comentarios del Supervisor</label>
-                <textarea id="swComentarios" style="width:100%; min-height:80px; padding:10px; border:1px solid #d9d9d9; border-radius:4px; resize:vertical; font-size:14px; box-sizing:border-box;" placeholder="Escriba sus comentarios aquí (opcional)..."></textarea>
+                <label style="display:block; font-size:14px; margin-bottom:4px;">Comentarios del Tejedor</label>
+                <textarea id="swComentariosTejedor" style="width:100%; min-height:80px; padding:10px; border:1px solid #d9d9d9; border-radius:4px; resize:vertical; font-size:14px; box-sizing:border-box;" placeholder="Escriba sus comentarios aquí (opcional)..."></textarea>
             </div>
         `,
         focusConfirm: false,
         preConfirm: () => {
             const calidad = document.getElementById('swCalidad').value;
             const limpieza = document.getElementById('swLimpieza').value;
-            const comentarios = document.getElementById('swComentarios').value.trim();
+            const comentarios = document.getElementById('swComentariosTejedor').value.trim();
             if(!calidad || !limpieza){
                 Swal.showValidationMessage('Seleccione calidad y limpieza');
                 return false;
@@ -562,7 +577,7 @@ async function calificarTejedor(){
             action: 'calificacion',
             calidad: Number(formValues.calidad),
             limpieza: Number(formValues.limpieza),
-            comentarios: formValues.comentarios || '',
+            comments_tej: formValues.comentarios || '',
             no_julio: currentNoJulio,
             no_orden: currentNoOrden
         })
@@ -614,60 +629,74 @@ async function calificarTejedor(){
     .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 
-function autorizaSupervisor(){
-    Swal.fire({
-        title: '¿Autorizar Supervisor?',
-        text: 'Esto completará el proceso y regresará al programa de atadores',
-        icon: 'question',
+async function autorizaSupervisor(){
+    const { value: formValues } = await Swal.fire({
+        title: 'Autorizar Supervisor',
+        html: `
+            <div style="text-align:left; padding:0 10px;">
+                <p style="font-size:14px; color:#666; margin-bottom:16px;">
+                    Esto completará el proceso y regresará al programa de atadores
+                </p>
+                <label style="display:block; font-size:14px; margin-bottom:4px; font-weight:500;">Comentarios del Supervisor</label>
+                <textarea id="swComentariosSupervisor" style="width:100%; min-height:100px; padding:10px; border:1px solid #d9d9d9; border-radius:4px; resize:vertical; font-size:14px; box-sizing:border-box;" placeholder="Escriba sus comentarios aquí (opcional)..."></textarea>
+            </div>
+        `,
+        focusConfirm: false,
+        preConfirm: () => {
+            const comentarios = document.getElementById('swComentariosSupervisor').value.trim();
+            return { comentarios };
+        },
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33',
         confirmButtonText: 'Sí, autorizar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Asignar supervisor = usuario en sesión
-            fetch('{{ route('atadores.save') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({
-                    action: 'supervisor',
-                    no_julio: currentNoJulio,
-                    no_orden: currentNoOrden
-                })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if(res.ok){
-                    // Actualizar supervisor en la interfaz antes de redirigir
-                    if (res.supervisor) {
-                        const cveSup = document.getElementById('valCveSupervisor');
-                        const nomSup = document.getElementById('valNomSupervisor');
-                        if (cveSup) cveSup.textContent = res.supervisor.cve || '-';
-                        if (nomSup) nomSup.textContent = res.supervisor.nombre || '-';
-                    }
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Proceso Completado',
-                        text: 'El atado ha sido autorizado y guardado en el historial',
-                        showConfirmButton: false,
-                        timer: 2000
-                    });
-                    setTimeout(() => {
-                        // Redirigir al programa de atadores
-                        window.location.href = res.redirect || '{{ route('atadores.programa') }}';
-                    }, 2100);
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo autorizar el proceso' });
-                }
-            })
-            .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
-        }
+        cancelButtonText: 'Cancelar',
+        width: '450px'
     });
+
+    if(!formValues) return;
+
+    // Asignar supervisor = usuario en sesión
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            action: 'supervisor',
+            comentarios_supervisor: formValues.comentarios || '',
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.ok){
+            // Actualizar supervisor en la interfaz antes de redirigir
+            if (res.supervisor) {
+                const cveSup = document.getElementById('valCveSupervisor');
+                const nomSup = document.getElementById('valNomSupervisor');
+                if (cveSup) cveSup.textContent = res.supervisor.cve || '-';
+                if (nomSup) nomSup.textContent = res.supervisor.nombre || '-';
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Proceso Completado',
+                text: 'El atado ha sido autorizado y guardado en el historial',
+                showConfirmButton: false,
+                timer: 2000
+            });
+            setTimeout(() => {
+                // Redirigir al programa de atadores
+                window.location.href = res.redirect || '{{ route('atadores.programa') }}';
+            }, 2100);
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo autorizar el proceso' });
+        }
+    })
+    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 
 function guardarObservaciones(event){

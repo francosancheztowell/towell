@@ -37,7 +37,7 @@
           </div>
         </div>
         <div class="mt-auto text-sm text-center text-white/70">
-          <p>© 2026 Towell. Todos los derechos reservados.</p>
+          <p>© {{ date('Y') }} Towell. Todos los derechos reservados.</p>
         </div>
       </div>
     </div>

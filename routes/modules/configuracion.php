@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ambienteController;
+use App\Http\Controllers\Configuracion\BaseDeDatosController;
 use App\Http\Controllers\Configuracion\ConfiguracionController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\UsuarioController;
@@ -56,7 +57,8 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () {
 
     Route::get('/modulos', [ModulosController::class, 'index'])->name('modulos.index');
 
-    Route::view('/basededatos', 'modulos.configuracion.basededatos')->name('basededatos');
+    Route::get('/basededatos', [BaseDeDatosController::class, 'index'])->name('basededatos');
+    Route::post('/basededatos/update-productivo', [BaseDeDatosController::class, 'updateProductivo'])->name('basededatos.update-productivo');
 
     Route::get('/ambiente', [ambienteController::class, 'index']) -> name('configuracion.ambiente');
 });

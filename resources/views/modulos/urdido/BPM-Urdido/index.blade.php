@@ -4,10 +4,24 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openCreateModal()"/>
-        <button onclick="openChecklist()" id="btn-checklist" disabled class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Abrir Checklist">
-            <i class="fa-solid fa-clipboard-list text-blue-600 text-lg"></i>
-        </button>
+        <x-navbar.button-create
+        module="BPM (Buenas Practicas Manufactura) Urd"
+        onclick="openCreateModal()"
+        icon="fa-plus"
+        iconColor="text-green-600"
+        hoverBg="hover:bg-green-100"
+        class="p-2 rounded-lg transition"
+        title="Crear Registro"/>
+        <x-navbar.button-edit
+        onclick="openChecklist()"
+        id="btn-checklist"
+        disabled
+        module="BPM (Buenas Practicas Manufactura) Urd"
+        icon="fa-clipboard-list"
+        iconColor="text-blue-600"
+        hoverBg="hover:bg-blue-100"
+        class="p-2 rounded-lg transition  disabled:cursor-not-allowed"
+        title="Abrir Checklist"/>
         {{-- <x-navbar.button-edit onclick="openEditModal()" id="btn-edit" :disabled="true"/> --}}
     </div>
 @endsection
@@ -58,7 +72,7 @@
             </thead>
             <tbody>
                 @forelse($items as $item)
-                    <tr class="border-b hover:bg-blue-300 cursor-pointer" 
+                    <tr class="border-b hover:bg-blue-300 cursor-pointer"
                         onclick="selectRow(this, {{ $item->Id }})"
                         data-id="{{ $item->Id }}"
                         data-folio="{{ $item->Folio }}"
@@ -104,7 +118,7 @@
     </div>
 
     <!-- Modal Crear -->
-    <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+    <div id="createModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 rounded-t-lg">
                 <h3 class="text-lg font-semibold text-white">Crear Nuevo Registro</h3>
@@ -113,33 +127,14 @@
                 @csrf
                 <!-- Status oculto, siempre será "Creado" -->
                 <input type="hidden" name="Status" value="Creado">
-                
+
                 <div class="grid grid-cols-2 gap-3 mb-4">
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
                         <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required readonly class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                     </div>
-                    
-                </div>
 
-                <!-- Sección: Quien Entrega -->
-                {{-- <div class="mb-3">
-                    <h4 class="text-sm font-semibold text-blue-700 mb-2">Quien Entrega</h4>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
-                            <input type="text" id="create_NombreEmplEnt" name="NombreEmplEnt" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" id="create_CveEmplEnt" name="CveEmplEnt" value="{{ auth()->user()->numero_empleado ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Turno</label>
-                            <input type="text" id="create_TurnoEntrega" name="TurnoEntrega" value="{{ auth()->user()->turno ?? '' }}" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
-                        </div>
-                    </div>
-                </div> --}}
+                </div>
 
                     <!-- Sección: Quien Recibe (autollenado con usuario actual) -->
                     <div class="mb-3">
@@ -169,8 +164,8 @@
                                 <select id="select_NombreEmplEnt" name="NombreEmplEnt" onchange="fillEntrega(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('NombreEmplEnt') border-red-500 @enderror">
                                     <option value="">Seleccione...</option>
                                     @foreach($usuarios as $usuario)
-                                        <option value="{{ $usuario->nombre }}" 
-                                                data-numero="{{ $usuario->numero_empleado }}" 
+                                        <option value="{{ $usuario->nombre }}"
+                                                data-numero="{{ $usuario->numero_empleado }}"
                                                 data-turno="{{ $usuario->turno }}">
                                             {{ $usuario->nombre }}
                                         </option>
@@ -190,13 +185,13 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                        <div> 
+                        <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Máquina <span class="text-red-600">*</span></label>
                             <select id="select_Maquina" name="MaquinaId" onchange="fillMaquina(this)" required class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 @error('MaquinaId') border-red-500 @enderror">
                                 <option value="">Seleccione...</option>
                                 @foreach($maquinas as $maquina)
-                                    <option value="{{ $maquina->MaquinaId }}" 
-                                            data-nombre="{{ $maquina->Nombre }}" 
+                                    <option value="{{ $maquina->MaquinaId }}"
+                                            data-nombre="{{ $maquina->Nombre }}"
                                             data-departamento="{{ $maquina->Departamento }}">
                                         {{ $maquina->Nombre }}
                                     </option>
@@ -206,18 +201,18 @@
                                 <div class="text-red-600 text-xs mt-1">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div> 
+                        <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Departamento</label>
-                            <input type="text" id="input_Departamento" name="Departamento" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">                
+                            <input type="text" id="input_Departamento" name="Departamento" readonly class="w-full px-2 py-1.5 text-sm border rounded bg-gray-50">
                         </div>
                     </div>
                 </div>
 
                 <div class="flex justify-end gap-2 mt-4">
-                    <button type="button" onclick="closeCreateModal()" class="px-3 py-1.5 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300">
+                    <button type="button" onclick="closeCreateModal()" class="px-3 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 w-full">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-3 py-1.5 text-sm text-white bg-blue-600 rounded hover:bg-blue-700">
+                    <button type="submit" class="px-3 py-1.5 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 w-full">
                         Guardar
                     </button>
                 </div>
@@ -236,7 +231,7 @@
                 @method('PUT')
                 <!-- Status oculto -->
                 <input type="hidden" id="edit_Status" name="Status">
-                
+
                 <div class="grid grid-cols-2 gap-3 mb-4">
                     <div class="col-span-2 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
                         <label class="block text-sm font-semibold text-yellow-800 mb-1">
@@ -280,8 +275,8 @@
                             <select id="edit_select_NombreEmplRec" name="NombreEmplRec" onchange="fillEditRecibe(this)" class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-yellow-500">
                                 <option value="">Seleccione...</option>
                                 @foreach($usuarios as $usuario)
-                                    <option value="{{ $usuario->nombre }}" 
-                                            data-numero="{{ $usuario->numero_empleado }}" 
+                                    <option value="{{ $usuario->nombre }}"
+                                            data-numero="{{ $usuario->numero_empleado }}"
                                             data-turno="{{ $usuario->turno }}">
                                         {{ $usuario->nombre }}
                                     </option>
@@ -300,10 +295,10 @@
                 </div>
 
                 <div class="flex justify-end gap-2 mt-4">
-                    <button type="button" onclick="closeEditModal()" class="px-3 py-1.5 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300">
+                    <button type="button" onclick="closeEditModal()" class="px-3 py-1.5 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 w-full">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-3 py-1.5 text-sm text-white bg-yellow-600 rounded hover:bg-yellow-700">
+                    <button type="submit" class="px-3 py-1.5 text-sm text-white bg-yellow-600 rounded hover:bg-yellow-700 w-full">
                         Actualizar
                     </button>
                 </div>
@@ -345,7 +340,7 @@
             const selectedOption = select.options[select.selectedIndex];
             const numero = selectedOption.getAttribute('data-numero');
             const turno = selectedOption.getAttribute('data-turno');
-            
+
             document.getElementById('input_CveEmplRec').value = numero || '';
             document.getElementById('input_TurnoRecibe').value = turno || '';
         }
@@ -354,7 +349,7 @@
         function fillMaquina(select) {
             const selectedOption = select.options[select.selectedIndex];
             const departamento = selectedOption.getAttribute('data-departamento');
-            
+
             document.getElementById('input_Departamento').value = departamento || '';
         }
 
@@ -373,7 +368,7 @@
             const selectedOption = select.options[select.selectedIndex];
             const numero = selectedOption.getAttribute('data-numero');
             const turno = selectedOption.getAttribute('data-turno');
-            
+
             document.getElementById('edit_input_CveEmplRec').value = numero || '';
             document.getElementById('edit_input_TurnoRecibe').value = turno || '';
         }
@@ -382,7 +377,7 @@
         function fillAutoriza(select) {
             const selectedOption = select.options[select.selectedIndex];
             const numero = selectedOption.getAttribute('data-numero');
-            
+
             document.getElementById('input_CveEmplAutoriza').value = numero || '';
         }
 
@@ -402,7 +397,7 @@
             row.classList.add('bg-blue-100');
             selectedRowId = id;
             selectedFolio = row.dataset.folio;
-            
+
             // Habilitar botones
             enableButtons();
         }
@@ -416,7 +411,7 @@
                 btnChecklist.classList.remove('opacity-50', 'cursor-not-allowed');
                 btnChecklist.classList.add('hover:bg-green-700');
             }
-            
+
             // Habilitar botón de editar
             const btnEdit = document.getElementById('btn-edit');
             if (btnEdit) {
@@ -424,7 +419,7 @@
                 btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
                 btnEdit.classList.add('hover:bg-yellow-100');
             }
-            
+
             // Habilitar botón de eliminar
             const btnDelete = document.getElementById('btn-delete');
             if (btnDelete) {
@@ -442,14 +437,14 @@
                 btnChecklist.classList.add('opacity-50', 'cursor-not-allowed');
                 btnChecklist.classList.remove('hover:bg-green-700');
             }
-            
+
             const btnEdit = document.getElementById('btn-edit');
             if (btnEdit) {
                 btnEdit.disabled = true;
                 btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
                 btnEdit.classList.remove('hover:bg-yellow-100');
             }
-            
+
             const btnDelete = document.getElementById('btn-delete');
             if (btnDelete) {
                 btnDelete.disabled = true;
@@ -477,7 +472,7 @@
                 });
                 return;
             }
-            
+
             // Redirigir a la vista de checklist
             window.location.href = `/urd-bpm-line/${selectedFolio}`;
         }
@@ -492,7 +487,7 @@
                 });
                 return;
             }
-            
+
             const row = document.querySelector(`tr[data-id="${selectedRowId}"]`);
             if (!row) return;
 
@@ -501,12 +496,12 @@
             document.getElementById('edit_FolioDisplay').textContent = row.dataset.folio || '';
             document.getElementById('edit_Status').value = row.dataset.status || '';
             document.getElementById('edit_Fecha').value = row.dataset.fecha || '';
-            
+
             // Quien Recibe (editable con select)
             document.getElementById('edit_select_NombreEmplRec').value = row.dataset.nombreemplrec || '';
             document.getElementById('edit_input_CveEmplRec').value = row.dataset.cveemplrec || '';
             document.getElementById('edit_input_TurnoRecibe').value = row.dataset.turnorecibe || '';
-            
+
             // Quien Entrega (solo lectura)
             document.getElementById('edit_NombreEmplEnt').value = row.dataset.nombreemplent || '';
             document.getElementById('edit_CveEmplEnt').value = row.dataset.cveemplent || '';
@@ -514,13 +509,13 @@
 
             // Set form action
             document.getElementById('editForm').action = `/urd-bpm/${selectedRowId}`;
-            
+
             document.getElementById('editModal').classList.remove('hidden');
         }
 
         function closeEditModal() {
             document.getElementById('editModal').classList.add('hidden');
-        } 
+        }
 
         function openDeleteModal() {
             if (!selectedRowId) {
@@ -551,17 +546,17 @@
                     const form = document.createElement('form');
                     form.method = 'POST';
                     form.action = `/urd-bpm/${selectedRowId}`;
-                    
+
                     const csrfToken = document.createElement('input');
                     csrfToken.type = 'hidden';
                     csrfToken.name = '_token';
                     csrfToken.value = '{{ csrf_token() }}';
-                    
+
                     const methodField = document.createElement('input');
                     methodField.type = 'hidden';
                     methodField.name = '_method';
                     methodField.value = 'DELETE';
-                    
+
                     form.appendChild(csrfToken);
                     form.appendChild(methodField);
                     document.body.appendChild(form);

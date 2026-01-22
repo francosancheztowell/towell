@@ -29,6 +29,16 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
         ->name('configuracion.catalogos-nucleos');
     Route::get('/configuracion/catalogos-nucleos', [UrdEngNucleosController::class, 'index'])
         ->name('configuracion.catalogos-nucleos.legacy');
+    
+    // Catálogo de Julios para Engomado
+    Route::get('/configuracion/catalogojulioseng', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'catalogosJulios'])
+        ->name('configuracion.catalogos.julios');
+    Route::post('/configuracion/catalogojulioseng', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'storeJulio'])
+        ->name('configuracion.catalogos.julios.store');
+    Route::put('/configuracion/catalogojulioseng/{id}', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'updateJulio'])
+        ->name('configuracion.catalogos.julios.update');
+    Route::delete('/configuracion/catalogojulioseng/{id}', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'destroyJulio'])
+        ->name('configuracion.catalogos.julios.destroy');
 
     Route::get('/programaengomado', [ProgramarEngomadoController::class, 'index'])->name('programa.engomado');
     Route::redirect('/programaengomado/produccionengomado', '/engomado/modulo-produccion-engomado', 301);
