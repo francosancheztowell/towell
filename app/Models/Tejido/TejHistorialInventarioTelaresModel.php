@@ -30,6 +30,7 @@ class TejHistorialInventarioTelaresModel extends Model
         'Localidad',
         'LoteProveedor',
         'NoProveedor',
-        'HoraParo'
+        'HoraParo',
+        'FechaAtado',
     ];
 }

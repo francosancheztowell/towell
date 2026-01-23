@@ -5,15 +5,15 @@ use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ProgramarUrdEngControl
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\RequerimientoController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservarProgramarController;
 use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
-use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/programaurdeng', fn() => app(UsuarioController::class)->showSubModulos('programaurdeng'))
+// Ruta principal: muestra directamente la vista de reservar-programar
+Route::get('/programaurdeng', [ReservarProgramarController::class, 'index'])
     ->name('programa.urd.eng.index');
 
 Route::redirect('/programa-urd-eng', '/programaurdeng', 301);
 
-Route::redirect('/programaurdeng/reservaryprogramar', '/programa-urd-eng/reservar-programar', 301);
+Route::redirect('/programaurdeng/reservaryprogramar', '/programaurdeng', 301);
 
 Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () {
     Route::get('/reservar-programar', [ReservarProgramarController::class, 'index'])->name('reservar.programar');

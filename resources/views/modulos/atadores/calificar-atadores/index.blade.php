@@ -665,7 +665,7 @@ async function autorizaSupervisor(){
         },
         body: JSON.stringify({
             action: 'supervisor',
-            comentarios_supervisor: formValues.comentarios || '',
+            comments_sup: formValues.comentarios || '',
             no_julio: currentNoJulio,
             no_orden: currentNoOrden
         })

@@ -32,14 +32,37 @@ class ReservarProgramarController extends Controller
 
     public function index()
     {
-        $rows = $this->baseQuery()->limit(1000)->get();
+        try {
+            $rows = $this->baseQuery()->limit(1000)->get();
 
-        // Validación rápida de no_orden: sincronizar reservas con telares que tienen no_orden
-        $this->validarYActualizarNoOrden($rows);
+            // Validación rápida de no_orden: sincronizar reservas con telares que tienen no_orden
+            // Se ejecuta en try-catch interno, no debe afectar la carga de la página
+            try {
+                $this->validarYActualizarNoOrden($rows);
+            } catch (\Throwable $e) {
+                Log::warning('Error en validarYActualizarNoOrden (no crítico)', [
+                    'message' => $e->getMessage(),
+                ]);
+            }
 
-        return view('modulos.programa_urd_eng.reservar-programar', [
-            'inventarioTelares' => $this->normalizeTelares($rows),
-        ]);
+            $inventarioTelares = $this->normalizeTelares($rows);
+
+            return view('modulos.programa_urd_eng.reservar-programar', [
+                'inventarioTelares' => $inventarioTelares,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error en ReservarProgramarController::index', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Si hay error, devolver vista vacía para que al menos se muestre algo
+            return view('modulos.programa_urd_eng.reservar-programar', [
+                'inventarioTelares' => collect([]),
+            ]);
+        }
     }
 
     /**
