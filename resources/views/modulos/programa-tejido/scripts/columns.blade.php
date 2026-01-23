@@ -847,15 +847,23 @@ function togglePinColumn(index) {
 let lastPinnedColumnsSet = new Set();
 function clearPinnedStyles(index) {
 	forEachColumnElement(index, el => {
-		if (el.tagName === 'TH') {
-			el.style.top = '0';
-			el.style.position = 'sticky';
-		} else {
-			el.style.position = '';
-			el.style.top = '';
-		}
-		el.style.left = '';
+		// Remover clase pinned-column primero
 		el.classList.remove('pinned-column');
+		
+		// Limpiar TODOS los estilos inline relacionados con pinned
+		// Usar removeProperty para asegurar que se eliminen completamente
+		el.style.removeProperty('left');
+		el.style.removeProperty('position');
+		el.style.removeProperty('top');
+		el.style.removeProperty('background-color');
+		el.style.removeProperty('background');
+		el.style.removeProperty('color');
+		el.style.removeProperty('z-index');
+		el.style.removeProperty('zIndex');
+		
+		// Forzar un reflow para que el navegador aplique los estilos CSS
+		// Esto asegura que los estilos :not(.pinned-column) se apliquen
+		void el.offsetHeight;
 	});
 }
 function applyPinnedStyles(index, left) {

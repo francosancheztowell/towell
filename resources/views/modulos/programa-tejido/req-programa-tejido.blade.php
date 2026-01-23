@@ -283,6 +283,47 @@
   }
 
   .pinned-column { position: sticky !important; background-color: #3a6faf !important; color: #fff !important; }
+  
+  /* Restaurar estilos por defecto del header cuando NO está fijado - forzar reset */
+  thead th:not(.pinned-column) {
+    background-color: #1b4a7b !important;
+    color: #fff !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+  }
+  
+  /* Restaurar estilos por defecto de las celdas cuando NO están fijadas - forzar reset */
+  tbody td:not(.pinned-column) {
+    background-color: transparent !important;
+    color: #374151 !important;
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+  }
+  
+  /* Asegurar que las celdas con estilos especiales se restauren cuando no están fijadas */
+  tbody td:not(.pinned-column)[data-column="EficienciaSTD"],
+  tbody td:not(.pinned-column)[data-column="VelocidadSTD"],
+  tbody td:not(.pinned-column)[data-column="FibraRizo"],
+  tbody td:not(.pinned-column)[data-column="CalibrePie2"],
+  tbody td:not(.pinned-column)[data-column="TotalPedido"],
+  tbody td:not(.pinned-column)[data-column="PorcentajeSegundos"],
+  tbody td:not(.pinned-column)[data-column="Produccion"],
+  tbody td:not(.pinned-column)[data-column="SaldoPedido"],
+  tbody td:not(.pinned-column)[data-column="SaldoMarbete"],
+  tbody td:not(.pinned-column)[data-column="ProgramarProd"],
+  tbody td:not(.pinned-column)[data-column="NoProduccion"],
+  tbody td:not(.pinned-column)[data-column="NombreProyecto"],
+  tbody td:not(.pinned-column)[data-column="CustName"],
+  tbody td:not(.pinned-column)[data-column="AplicacionId"],
+  tbody td:not(.pinned-column)[data-column="Observaciones"],
+  tbody td:not(.pinned-column)[data-column="TipoPedido"],
+  tbody td:not(.pinned-column)[data-column="EntregaProduc"],
+  tbody td:not(.pinned-column)[data-column="EntregaPT"] {
+    background-color: #fff4c2 !important;
+    color: #000 !important;
+  }
 
   /* Estilos para fila seleccionada - color más fuerte y mate */
   .selectable-row.bg-blue-700 {

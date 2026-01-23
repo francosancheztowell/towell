@@ -3296,7 +3296,7 @@
 
           if (!container) return;
 
-          // Verificar si estÃ¡ deshabilitado (no estÃ¡ en proceso)
+          // Verificar si está deshabilitado (no está en proceso)
           if (checkbox.disabled) {
             toast('Solo los registros en proceso pueden tener Reprogramar activo', 'warning');
             return;
@@ -3381,21 +3381,21 @@
             return;
           }
 
-          // Si no estÃ¡ marcado, mostrar modal
+          // Si no está marcado, mostrar modal
           if (typeof Swal === 'undefined') {
-            toast('SweetAlert no estÃ¡ disponible', 'error');
+            toast('SweetAlert no está disponible', 'error');
             checkbox.checked = false;
             return;
           }
 
-          // Asegurar que el checkbox no estÃ© marcado antes de mostrar el modal
+          // Asegurar que el checkbox no está marcado antes de mostrar el modal
           checkbox.checked = false;
 
           const resultado = await Swal.fire({
             title: 'Seleccionar Reprogramar',
             html: `
               <div class="text-left">
-                <p class="mb-4 text-sm text-gray-600">Selecciona una opciÃ³n:</p>
+                <p class="mb-4 text-sm text-gray-600">Selecciona una opción:</p>
                 <div class="space-y-2">
                   <button type="button" id="swal-opcion-1" class="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 font-medium transition-colors">
                     P. Siguiente
@@ -3434,14 +3434,14 @@
             }
           });
 
-          // Si se cancelÃ³ el modal, no hacer nada (el checkbox ya no estarÃ¡ marcado)
+          // Si se canceló el modal, no hacer nada (el checkbox ya no estará marcado)
           if (resultado.dismiss === Swal.DismissReason.cancel || resultado.dismiss === Swal.DismissReason.backdrop) {
             checkbox.checked = false;
           }
         }, true); // Usar capture phase para capturar antes que otros listeners
       }
 
-      // Inicializar listeners - se ejecutarÃ¡ desde el init principal
+      // Inicializar listeners - se ejecutará desde el init principal
       window.initReprogramarListeners = initReprogramarListeners;
     })();
 
