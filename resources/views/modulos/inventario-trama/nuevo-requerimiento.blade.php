@@ -197,19 +197,19 @@
     <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
     <!-- Modal para Agregar Nuevo Requerimiento -->
-    <div id="modal-nuevo-requerimiento" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div class="bg-blue-500 px-6 py-4 rounded-t-lg">
-                <div class="flex justify-center items-center">
+    <div id="modal-nuevo-requerimiento" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="bg-blue-500 px-6 py-4 rounded-t-lg sticky top-0 z-10">
+                <div class="flex justify-between items-center">
                     <h3 class="text-lg font-semibold text-white">Agregar Nuevo Requerimiento</h3>
-                    <button onclick="cerrarModal()" class="text-white hover:text-gray-200 transition-colors">
-                            <i class="fas fa-times"></i>
+                    <button onclick="cerrarModal()" class="text-white hover:text-gray-200 transition-colors ml-4">
+                        <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
             </div>
             <div class="p-6">
                 <form id="form-nuevo-requerimiento">
-                    <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Artículo</label>
                             <input type="number" step="0.01" id="modal-articulo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: 10.5" required>
@@ -236,7 +236,6 @@
                         <button type="button" onclick="agregarCampo()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Agregar</button>
                     </div>
                 </form>
-            </div>
             </div>
         </div>
     </div>
