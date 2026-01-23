@@ -28,9 +28,7 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
         ->where('moduloPadre', '202')
         ->name('marcas.finales');
 
-    Route::get('/invtrama/{moduloPadre?}', [UsuarioController::class, 'showSubModulosNivel3'])
-        ->defaults('moduloPadre', '203')
-        ->where('moduloPadre', '203')
+    Route::get('/invtrama', [ConsultarRequerimientoController::class, 'index'])
         ->name('inventario');
 
     Route::redirect('/inventario', '/tejido/invtrama', 301);
