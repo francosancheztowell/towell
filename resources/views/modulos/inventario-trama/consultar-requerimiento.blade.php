@@ -2,6 +2,21 @@
 
 @section('page-title', 'Consultar requerimientos')
 
+@section('navbar-right')
+    <x-navbar.button-create
+        id="btn-nuevo-requerimiento"
+        onclick="verificarYCrearNuevo()"
+        title="Nuevo Requerimiento"
+        text="Nuevo"
+        module="Inv Trama"
+        icon="fa-plus"
+        iconColor="text-white"
+        bg="bg-blue-500"
+        hoverBg="hover:bg-blue-600"
+        class="rounded-md"
+    />
+@endsection
+
 @section('content')
 <div class="w-full">
     @if($requerimientos && $requerimientos->count() > 0)
@@ -164,7 +179,9 @@
         status:   folio => `/modulo-consultar-requerimiento/${folio}/status`,
         resumen:  folio => `/modulo-consultar-requerimiento/${folio}/resumen`,
         editar:   folio => @json(route('tejido.inventario.trama.nuevo.requerimiento')) + `?folio=${encodeURIComponent(folio)}`,
-        telegram: folio => `/modulo-consultar-requerimiento/${folio}/telegram`
+        telegram: folio => `/modulo-consultar-requerimiento/${folio}/telegram`,
+        enProceso: @json(route('tejido.inventario.trama.nuevo.requerimiento.enproceso')),
+        nuevo: @json(route('tejido.inventario.trama.nuevo.requerimiento'))
     };
 
     const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -174,6 +191,7 @@
         bindFoliosTable();
         bindAcciones();
         autoSelectFromQueryOrFirst();
+        verificarEstadoInicial(); // Verificar si hay requerimiento en proceso al cargar
     });
 
     function bindFoliosTable(){
@@ -299,8 +317,113 @@
         return r.json();
     }
 
+    // --------- Verificar estado inicial al cargar la página ---------
+    async function verificarEstadoInicial(){
+        try {
+            const response = await fetch(Endpoints.enProceso);
+            const data = await response.json();
+            
+            const btnNuevo = $('#btn-nuevo-requerimiento');
+            if (!btnNuevo) return;
+            
+            if (data.exists && data.folio) {
+                // Deshabilitar el botón y cambiar su estilo
+                btnNuevo.disabled = true;
+                btnNuevo.setAttribute('disabled', 'disabled');
+                
+                // Cambiar estilos visuales
+                btnNuevo.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                btnNuevo.classList.add('bg-gray-400', 'cursor-not-allowed', 'opacity-60');
+                
+                // Actualizar el icono y texto si existen
+                const icon = btnNuevo.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('text-white');
+                    icon.classList.add('text-gray-600');
+                }
+                
+                const text = btnNuevo.querySelector('span');
+                if (text) {
+                    text.classList.remove('text-white');
+                    text.classList.add('text-gray-600');
+                }
+                
+                btnNuevo.title = `Ya existe un requerimiento "En Proceso" con el folio ${data.folio}. Debe finalizar o cancelar el requerimiento actual antes de crear uno nuevo.`;
+            }
+        } catch (error) {
+            console.error('Error al verificar estado inicial:', error);
+        }
+    }
+
+    // --------- Verificar y crear nuevo requerimiento ---------
+    async function verificarYCrearNuevo(){
+        const btnNuevo = $('#btn-nuevo-requerimiento');
+        
+        // Si el botón está deshabilitado, mostrar solo alerta informativa
+        if (btnNuevo && btnNuevo.disabled) {
+            try {
+                const response = await fetch(Endpoints.enProceso);
+                const data = await response.json();
+                
+                if (data.exists && data.folio) {
+                    // Mostrar modal informativo (se cierra automáticamente después de 5 segundos o con click fuera/ESC)
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Requerimiento en Proceso',
+                        html: `Ya existe un requerimiento <strong>"En Proceso"</strong> con el folio <strong>${data.folio}</strong>.<br><br>Debe finalizar o cancelar el requerimiento actual antes de crear uno nuevo.`,
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true,
+                        allowOutsideClick: true,
+                        allowEscapeKey: true
+                    });
+                }
+            } catch (error) {
+                console.error('Error al verificar requerimiento en proceso:', error);
+            }
+            return;
+        }
+        
+        // Si no está deshabilitado, proceder normalmente
+        try {
+            // Verificar si hay un registro "En Proceso"
+            const response = await fetch(Endpoints.enProceso);
+            const data = await response.json();
+
+            if (data.exists && data.folio) {
+                // Hay un registro en proceso, mostrar advertencia
+                const result = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Requerimiento en Proceso',
+                    html: `Ya existe un requerimiento <strong>"En Proceso"</strong> con el folio <strong>${data.folio}</strong>.<br><br>¿Desea continuar y editar ese requerimiento?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, continuar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33'
+                });
+
+                if (result.isConfirmed) {
+                    // Redirigir a editar el folio en proceso
+                    location.href = Endpoints.editar(data.folio);
+                }
+            } else {
+                // No hay registro en proceso, redirigir a nuevo requerimiento
+                location.href = Endpoints.nuevo;
+            }
+        } catch (error) {
+            console.error('Error al verificar requerimiento en proceso:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo verificar si hay un requerimiento en proceso. Intente nuevamente.'
+            });
+        }
+    }
+
     // --------- API: funciones públicas (para compatibilidad) ---------
     window.selectFolio = selectFolio; // por si lo invocan externamente
+    window.verificarYCrearNuevo = verificarYCrearNuevo; // función pública para el botón
 
     window.accionStatus = function(nuevoStatus){
         const folio = $('#folio-seleccionado')?.value; if (!folio) return;
