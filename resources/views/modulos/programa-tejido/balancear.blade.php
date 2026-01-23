@@ -1046,7 +1046,6 @@
                   type="date"
                   id="fecha-fin-objetivo-balanceo"
                   class="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                  min=""
                 >
                 <button type="button"
                   onclick="aplicarBalanceoAutomatico(${ordCompartida})"
@@ -1146,7 +1145,7 @@
               if (fechaMaxima) {
                 const fechaFormateada = fechaMaxima.toISOString().split('T')[0];
                 fechaInput.value = fechaFormateada;
-                fechaInput.min = fechaFormateada;
+                // No establecer min para permitir seleccionar cualquier fecha
               }
             }
           }
