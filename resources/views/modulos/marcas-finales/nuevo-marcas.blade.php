@@ -1,12 +1,14 @@
 @extends('layouts.app')
 
 @php
+    use App\Helpers\TurnoHelper;
     $soloLectura = $soloLectura ?? false;
     $folioInicial = $folioInicial ?? request()->query('folio');
     $esModoEdicion = $soloLectura ? true : !empty($folioInicial);
     $tituloPagina = $soloLectura
         ? 'Visualizar Marcas Finales'
         : ($esModoEdicion ? 'Editar Marcas Finales' : 'Nuevas Marcas Finales');
+    $turnoActual = TurnoHelper::getTurnoActual();
 @endphp
 
 @section('page-title', $tituloPagina)
@@ -44,6 +46,37 @@
     </svg>
     <span class="text-sm font-semibold">Folio:</span>
     <span id="folio-text" class="text-sm font-bold ml-1">-</span>
+</div>
+
+<!-- Modal Fecha/Turno para crear folio -->
+<div id="modal-fecha-turno" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/40" data-close="true"></div>
+    <div class="relative w-full max-w-md rounded-lg bg-white shadow-lg">
+        <div class="px-4 py-3 border-b flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-800">Crear nuevo folio</h3>
+            <button id="modal-fecha-turno-close" class="text-gray-500 hover:text-gray-700" aria-label="Cerrar">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="p-4 space-y-3">
+            <div>
+                <label for="select-fecha-folio" class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                <select id="select-fecha-folio" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"></select>
+            </div>
+            <div>
+                <label for="select-turno-folio" class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
+                <select id="select-turno-folio" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="1">Turno 1</option>
+                    <option value="2">Turno 2</option>
+                    <option value="3">Turno 3</option>
+                </select>
+            </div>
+        </div>
+        <div class="px-4 py-3 border-t flex justify-end gap-2">
+            <button id="modal-fecha-turno-cancel" class="px-4 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">Cancelar</button>
+            <button id="modal-fecha-turno-ok" class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">Continuar</button>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -161,10 +194,12 @@
    Estado global + helpers
    ========================= */
 const PAGE_MODE = @json($configVista);
+const TURNO_ACTUAL = @json($turnoActual);
 let currentFolio   = null;
 let isEditing      = false;
 let isNewRecord    = true;
 let guardarTimeout = null;
+let folioMeta      = { fecha: null, turno: null };
 
 const q  = (s, sc=document) => sc.querySelector(s);
 const qa = (s, sc=document) => [...sc.querySelectorAll(s)];
@@ -230,9 +265,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 Swal.fire('Error', 'No se pudo cargar la marca', 'error');
             });
     } else if (!PAGE_MODE.soloLectura) {
-        // Modo nuevo: generar folio y cargar datos STD en paralelo
+        // Modo nuevo: pedir fecha/turno y luego generar folio
         cargarDatosSTD(false);
-        generarNuevoFolio();
+        abrirModalFechaTurno()
+            .then(({ fecha, turno }) => generarNuevoFolio(fecha, turno))
+            .catch(() => {
+                // Si cancelan, regresar a consultar
+                window.location.href = '/modulo-marcas/consultar';
+            });
     } else {
         Swal.fire('Aviso', 'No se pudo determinar el folio a visualizar.', 'warning');
     }
@@ -394,6 +434,14 @@ function guardarDatosTabla() {
     if (PAGE_MODE.soloLectura) return;
     if (!currentFolio) return;
 
+    const fechaPayload = elements.fecha?.value || folioMeta.fecha;
+    const turnoPayload = elements.turno?.value || folioMeta.turno;
+
+    if (!fechaPayload || !turnoPayload) {
+        Swal.fire('Aviso', 'Falta fecha o turno para guardar.', 'warning');
+        return;
+    }
+
     const lineas = [];
     qa('#telares-body tr').forEach(row => {
         const telar = row.querySelector('td:first-child')?.textContent?.trim();
@@ -410,8 +458,8 @@ function guardarDatosTabla() {
 
     const payload = {
         folio:  currentFolio,
-        fecha:  elements.fecha?.value,
-        turno:  elements.turno?.value,
+        fecha:  fechaPayload,
+        turno:  turnoPayload,
         status: elements.status?.value,
         lineas
     };
@@ -440,14 +488,19 @@ function guardarDatosTabla() {
 /* =========================
    Folio + datos STD
    ========================= */
-function generarNuevoFolio() {
+function generarNuevoFolio(fechaSeleccionada, turnoSeleccionado) {
     if (PAGE_MODE.soloLectura) return Promise.resolve();
     return fetch('/modulo-marcas/generar-folio', {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': q('meta[name="csrf-token"]').getAttribute('content'),
-            'Accept': 'application/json'
-        }
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            fecha: fechaSeleccionada,
+            turno: turnoSeleccionado
+        })
     })
     .then(r => r.json().then(data => ({ status: r.status, data })))
     .then(({ status, data }) => {
@@ -486,18 +539,40 @@ function generarNuevoFolio() {
             return Promise.reject('Folio en proceso');
         }
 
+        if (status === 409 && data.folio_existente) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Duplicado',
+                text: data.message || 'Ya existe un folio con la misma fecha y turno.'
+            }).then(() => {
+                return abrirModalFechaTurno()
+                    .then(({ fecha, turno }) => generarNuevoFolio(fecha, turno));
+            });
+            return Promise.reject('Duplicado fecha/turno');
+        }
+
+        if (status === 422) {
+            Swal.fire('Aviso', data.message || 'Debe seleccionar fecha y turno.', 'warning')
+                .then(() => {
+                    return abrirModalFechaTurno()
+                        .then(({ fecha, turno }) => generarNuevoFolio(fecha, turno));
+                });
+            return Promise.reject('Datos inválidos');
+        }
+
         if (!data.success || !data.folio) {
             throw new Error(data.message || 'Error al generar folio');
         }
 
         currentFolio = data.folio;
+        folioMeta = { fecha: data.fecha || fechaSeleccionada, turno: data.turno || turnoSeleccionado };
         isNewRecord  = true;
         isEditing    = true;
         actualizarBadgeFolio();
 
         if (elements.folio) elements.folio.value = data.folio;
-        if (elements.fecha) elements.fecha.value = new Date().toISOString().split('T')[0];
-        if (elements.turno) elements.turno.value = data.turno || '1';
+        if (elements.fecha) elements.fecha.value = folioMeta.fecha;
+        if (elements.turno) elements.turno.value = String(folioMeta.turno || '1');
         if (elements.status) elements.status.value = 'En Proceso';
         if (elements.usuario) elements.usuario.value = data.usuario || '';
         if (elements.noEmpleado) elements.noEmpleado.value = data.numero_empleado || '';
@@ -508,6 +583,83 @@ function generarNuevoFolio() {
         if (err !== 'Folio en proceso' && err !== 'Folio en creación por otro usuario') {
             Swal.fire('Error', typeof err === 'string' ? err : 'No se pudo generar el folio', 'error');
         }
+    });
+}
+
+/* =========================
+   Modal Fecha/Turno
+   ========================= */
+function abrirModalFechaTurno() {
+    return new Promise((resolve, reject) => {
+        const modal = q('#modal-fecha-turno');
+        const btnClose = q('#modal-fecha-turno-close');
+        const btnCancel = q('#modal-fecha-turno-cancel');
+        const btnOk = q('#modal-fecha-turno-ok');
+        const selectFecha = q('#select-fecha-folio');
+        const selectTurno = q('#select-turno-folio');
+
+        if (!modal || !selectFecha || !selectTurno) {
+            reject();
+            return;
+        }
+
+        // Cargar fechas (últimos 7 días incluyendo hoy)
+        selectFecha.innerHTML = '';
+        const hoy = new Date();
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(hoy);
+            d.setDate(hoy.getDate() - i);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const value = `${yyyy}-${mm}-${dd}`;
+            const label = d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = label;
+            selectFecha.appendChild(opt);
+        }
+
+        selectTurno.value = String(TURNO_ACTUAL || 1);
+
+        const cerrar = () => modal.classList.add('hidden');
+        const abrir = () => modal.classList.remove('hidden');
+
+        const onCancel = () => {
+            limpiar();
+            cerrar();
+            reject();
+        };
+
+        const onOk = () => {
+            const fecha = selectFecha.value;
+            const turno = selectTurno.value;
+            if (!fecha || !turno) {
+                Swal.fire('Aviso', 'Selecciona fecha y turno.', 'warning');
+                return;
+            }
+            limpiar();
+            cerrar();
+            resolve({ fecha, turno });
+        };
+
+        const onBackdrop = (e) => {
+            if (e.target?.dataset?.close === 'true') onCancel();
+        };
+
+        function limpiar() {
+            btnClose?.removeEventListener('click', onCancel);
+            btnCancel?.removeEventListener('click', onCancel);
+            btnOk?.removeEventListener('click', onOk);
+            modal?.removeEventListener('click', onBackdrop);
+        }
+
+        btnClose?.addEventListener('click', onCancel);
+        btnCancel?.addEventListener('click', onCancel);
+        btnOk?.addEventListener('click', onOk);
+        modal?.addEventListener('click', onBackdrop);
+
+        abrir();
     });
 }
 
@@ -574,6 +726,11 @@ function cargarMarcaExistente(folio) {
         isNewRecord  = false;
         isEditing    = true;
         actualizarBadgeFolio();
+
+        folioMeta = {
+            fecha: d.marca.Date || null,
+            turno: d.marca.Turno || null
+        };
 
         // Actualizar campos del header si existen
         if (elements.folio)  elements.folio.value  = d.marca.Folio || '';

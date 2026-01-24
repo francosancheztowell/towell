@@ -16,6 +16,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Carbon;
 
 class MarcasController extends Controller
 {
@@ -62,7 +63,7 @@ class MarcasController extends Controller
         }
     }
 
-    public function generarFolio()
+    public function generarFolio(Request $request)
     {
         try {
             $usuario = Auth::user();
@@ -73,8 +74,35 @@ class MarcasController extends Controller
                 ], 401);
             }
 
+            $fechaInput = $request->input('fecha');
+            $turnoInput = $request->input('turno');
+
+            if (empty($fechaInput) || empty($turnoInput)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe seleccionar fecha y turno para crear el folio.'
+                ], 422);
+            }
+
+            try {
+                $fechaNorm = Carbon::parse($fechaInput)->toDateString();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Fecha inválida.'
+                ], 422);
+            }
+
+            $turno = (int)$turnoInput;
+            if (!in_array($turno, [1, 2, 3], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Turno inválido.'
+                ], 422);
+            }
+
             // Usar transacción con bloqueo para prevenir creación simultánea
-            return DB::transaction(function () use ($usuario) {
+            return DB::transaction(function () use ($usuario, $fechaNorm, $turno) {
                 // Bloquear la tabla para lectura/escritura (lock pessimista)
                 // Esto garantiza que solo una solicitud pueda ejecutarse a la vez
                 $folioEnProceso = TejMarcas::where('Status', 'En Proceso')
@@ -88,6 +116,19 @@ class MarcasController extends Controller
                         'folio_existente' => $folioEnProceso->Folio,
                         'creado_por_otro' => true
                     ], 400);
+                }
+
+                $folioMismoTurno = TejMarcas::where('Date', $fechaNorm)
+                    ->where('Turno', $turno)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($folioMismoTurno) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ya existe un folio para la fecha y turno seleccionados: ' . $folioMismoTurno->Folio,
+                        'folio_existente' => $folioMismoTurno->Folio
+                    ], 409);
                 }
 
                 // Obtener el último folio con bloqueo
@@ -106,7 +147,8 @@ class MarcasController extends Controller
                 return response()->json([
                     'success' => true,
                     'folio' => $nuevoFolio,
-                    'turno' => TurnoHelper::getTurnoActual(),
+                    'turno' => $turno,
+                    'fecha' => $fechaNorm,
                     'usuario' => $usuario->nombre ?? 'Usuario',
                     'numero_empleado' => $usuario->numero_empleado ?? ''
                 ]);
@@ -181,16 +223,53 @@ class MarcasController extends Controller
             }
 
             $folio = $request->input('folio');
-            $fecha = $request->input('fecha') ?: now()->toDateString();
-            $turno = $request->input('turno') ?: TurnoHelper::getTurnoActual();
+            $fecha = $request->input('fecha');
+            $turno = $request->input('turno');
             $status = $request->input('status', 'En Proceso');
             $lineas = $request->input('lineas', []);
 
+            if (empty($folio) || empty($fecha) || empty($turno)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Faltan datos requeridos (folio, fecha o turno).'
+                ], 422);
+            }
+
+            try {
+                $fechaNorm = Carbon::parse($fecha)->toDateString();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Fecha inválida.'
+                ], 422);
+            }
+
+            $turno = (int)$turno;
+            if (!in_array($turno, [1, 2, 3], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Turno inválido.'
+                ], 422);
+            }
+
             DB::beginTransaction();
+
+            $existeMismoTurno = TejMarcas::where('Date', $fechaNorm)
+                ->where('Turno', $turno)
+                ->where('Folio', '<>', $folio)
+                ->exists();
+
+            if ($existeMismoTurno) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un folio con la misma fecha y turno.'
+                ], 409);
+            }
 
             $marca = TejMarcas::firstOrNew(['Folio' => $folio]);
             $marca->fill([
-                'Date' => $fecha,
+                'Date' => $fechaNorm,
                 'Turno' => $turno,
                 'Status' => $status,
                 'numero_empleado' => $usuario->numero_empleado ?? null,
@@ -245,7 +324,7 @@ class MarcasController extends Controller
 
                     $lineasParaInsertar[] = [
                         'Folio' => $folio,
-                        'Date' => $fecha,
+                        'Date' => $fechaNorm,
                         'Turno' => $turno,
                         'SalonTejidoId' => $stdSalon,
                         'NoTelarId' => $noTelar,

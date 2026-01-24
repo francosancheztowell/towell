@@ -398,43 +398,7 @@
         }
 
         async accionNuevo() {
-            // Verificar si ya existe un folio en proceso
-            try {
-                const response = await fetch('/modulo-marcas/generar-folio', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
-                    }
-                });
-
-                const data = await response.json();
-
-                if (response.status === 400 && data.folio_existente) {
-                    // Ya existe un folio en proceso
-                    const mensaje = data.creado_por_otro
-                        ? `Otro usuario está creando un folio en este momento (${data.folio_existente}). Por favor, espere unos segundos e intente nuevamente.`
-                        : `Ya existe un folio en proceso: ${data.folio_existente}. Debe finalizarlo antes de crear uno nuevo.`;
-
-                    Swal.fire({
-                        icon: 'warning',
-                        title: data.creado_por_otro ? 'Folio en creación' : 'Folio en proceso',
-                        text: mensaje,
-                        confirmButtonText: 'Entendido',
-                        confirmButtonColor: '#3085d6'
-                    });
-                    return;
-                }
-
-                // Si no hay folio en proceso, redirigir a la página de nuevo
-                window.location.href = '{{ route("marcas.nuevo") }}';
-            } catch (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'No se pudo verificar el estado de los folios. Por favor, intente nuevamente.'
-                });
-            }
+            window.location.href = '{{ route("marcas.nuevo") }}';
         }
 
         accionEditar() {
