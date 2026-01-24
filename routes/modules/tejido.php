@@ -97,6 +97,10 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::get('/inventario/trama/consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('inventario.trama.consultar.requerimiento.resumen');
     Route::get('/inventario/trama/nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('inventario.trama.nuevo.requerimiento.enproceso');
     Route::post('/inventario/trama/nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('inventario.trama.nuevo.requerimiento.actualizar.cantidad');
+    Route::get('/inventario/trama/nuevo-requerimiento/buscar-articulos', [NuevoRequerimientoController::class, 'buscarArticulos'])->name('inventario.trama.nuevo.requerimiento.buscar.articulos');
+    Route::get('/inventario/trama/nuevo-requerimiento/buscar-fibras', [NuevoRequerimientoController::class, 'buscarFibras'])->name('inventario.trama.nuevo.requerimiento.buscar.fibras');
+    Route::get('/inventario/trama/nuevo-requerimiento/buscar-codigos-color', [NuevoRequerimientoController::class, 'buscarCodigosColor'])->name('inventario.trama.nuevo.requerimiento.buscar.codigos.color');
+    Route::get('/inventario/trama/nuevo-requerimiento/buscar-nombres-color', [NuevoRequerimientoController::class, 'buscarNombresColor'])->name('inventario.trama.nuevo.requerimiento.buscar.nombres.color');
 });
 
 Route::get('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaController::class, 'index'])
@@ -148,6 +152,10 @@ Route::post('/modulo-nuevo-requerimiento/guardar', [NuevoRequerimientoController
 Route::get('/modulo-nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('modulo.nuevo.requerimiento.turno.info');
 Route::get('/modulo-nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('modulo.nuevo.requerimiento.enproceso');
 Route::post('/modulo-nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('modulo.nuevo.requerimiento.actualizar.cantidad');
+Route::get('/modulo-nuevo-requerimiento/buscar-articulos', [NuevoRequerimientoController::class, 'buscarArticulos'])->name('modulo.nuevo.requerimiento.buscar.articulos');
+Route::get('/modulo-nuevo-requerimiento/buscar-fibras', [NuevoRequerimientoController::class, 'buscarFibras'])->name('modulo.nuevo.requerimiento.buscar.fibras');
+Route::get('/modulo-nuevo-requerimiento/buscar-codigos-color', [NuevoRequerimientoController::class, 'buscarCodigosColor'])->name('modulo.nuevo.requerimiento.buscar.codigos.color');
+Route::get('/modulo-nuevo-requerimiento/buscar-nombres-color', [NuevoRequerimientoController::class, 'buscarNombresColor'])->name('modulo.nuevo.requerimiento.buscar.nombres.color');
 
 Route::get('/modulo-consultar-requerimiento', [ConsultarRequerimientoController::class, 'index'])->name('modulo.consultar.requerimiento');
 Route::get('/modulo-consultar-requerimiento/{folio}', [ConsultarRequerimientoController::class, 'show'])->name('modulo.consultar.requerimiento.show');
