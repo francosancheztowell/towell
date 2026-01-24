@@ -53,8 +53,7 @@
     </div>
 </div>
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- SweetAlert2 se carga a través de Vite en app.js -->
 
 <script>
 /* ===========================

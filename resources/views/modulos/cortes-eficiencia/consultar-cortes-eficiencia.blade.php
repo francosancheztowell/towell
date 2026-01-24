@@ -184,7 +184,6 @@
     .selected-row .status-badge-proceso { color: #1d4ed8 !important; }
     .selected-row .status-badge-otro { color: #854d0e !important; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 (() => {
     'use strict';

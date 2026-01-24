@@ -269,8 +269,6 @@ Actividades BPM Urdido
         animation: modalFadeIn 0.2s ease-out;
     }
 </style>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     const updateUrl = '{{ route("urd-actividades-bpm.update", ["urdActividadesBpm" => "PLACEHOLDER"]) }}';
     const destroyUrl = '{{ route("urd-actividades-bpm.destroy", ["urdActividadesBpm" => "PLACEHOLDER"]) }}';

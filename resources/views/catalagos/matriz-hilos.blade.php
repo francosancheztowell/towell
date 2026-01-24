@@ -60,8 +60,6 @@
         </div>
     </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="{{ asset('js/catalogs/CatalogBase.js') }}"></script>
 <script src="{{ asset('js/catalogs/MatrizHilosCatalog.js') }}"></script>
 

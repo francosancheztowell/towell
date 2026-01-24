@@ -427,8 +427,6 @@
     }
 </style>
 
-{{-- Cargar SweetAlert2 antes del script principal para que esté disponible en el modal --}}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 {{-- JS principal --}}
 <script>

@@ -87,7 +87,7 @@
                         </th>
                     @endforeach
                 </tr>
-                
+
             </thead>
             <tbody>
                 @php
@@ -107,8 +107,8 @@
                             <td class="px-4 py-3 text-center">
                                 <button
                                     class="cell-btn inline-flex items-center justify-center w-9 h-9 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300
-                                        {{ $val==='OK' ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' : 
-                                           ($val==='X' ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' : 
+                                        {{ $val==='OK' ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' :
+                                           ($val==='X' ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' :
                                            'bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100 hover:border-gray-400') }}"
                                     data-orden="{{ $a['Orden'] }}"
                                     data-actividad="{{ $a['Actividad'] }}"
@@ -144,10 +144,10 @@
             @endif
         </div>
         <div>
-            <textarea 
-                id="comentarios-textarea" 
-                rows="4" 
-                maxlength="1000" 
+            <textarea
+                id="comentarios-textarea"
+                rows="4"
+                maxlength="1000"
                 placeholder="Ingrese comentarios generales sobre este folio..."
                 class="w-full rounded-lg border px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $header->Status !== 'Creado' ? 'bg-gray-50' : '' }}"
                 {{ $header->Status !== 'Creado' ? 'readonly' : '' }}
@@ -169,7 +169,6 @@
     </div> --}}
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 (function(){
     const editable = @json($header->Status === 'Creado');
@@ -184,7 +183,7 @@
     @if(session('success'))
         toast('success', @json(session('success')));
     @endif
-    
+
     @if(session('error'))
         Swal.fire({
             icon: 'error',
@@ -400,7 +399,7 @@
         // Remover event listeners existentes clonando el elemento
         const newBtnBack = btnBack.cloneNode(true);
         btnBack.parentNode.replaceChild(newBtnBack, btnBack);
-        
+
         // Agregar nuevo comportamiento
         newBtnBack.addEventListener('click', function() {
             window.location.href = '{{ route("tel-bpm.index") }}';
@@ -454,7 +453,7 @@
             });
 
             const data = await response.json();
-            
+
             if (response.ok && data.ok) {
                 toast('success', data.msg || 'Comentarios guardados');
             } else {
