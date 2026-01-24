@@ -1,11 +1,30 @@
 @php
     $usuario = Auth::user();
-    $fotoUrl = getFotoUsuarioUrl($usuario->foto ?? null);
+    $fotoUrl = function_exists('getFotoUsuarioUrl') ? getFotoUsuarioUrl($usuario->foto ?? null) : null;
     $usuarioInicial = strtoupper(substr($usuario->nombre, 0, 1));
 
     // Información del dispositivo
-    $deviceInfo = getDeviceInfo();
-    $deviceId = getDeviceIdentifier();
+    $deviceInfo = function_exists('getDeviceInfo') ? getDeviceInfo() : [
+        'tipo' => [
+            'nombre' => 'Dispositivo',
+            'modelo' => '',
+            'icono' => 'fa-desktop',
+            'tipo' => 'desktop'
+        ],
+        'navegador' => [
+            'nombre' => 'Navegador',
+            'version' => '',
+            'icono' => 'fa-globe'
+        ],
+        'sistema' => [
+            'nombre' => 'Sistema',
+            'version' => '',
+            'icono' => 'fa-desktop'
+        ],
+        'ip' => request()->ip(),
+        'user_agent' => request()->userAgent() ?? ''
+    ];
+    $deviceId = function_exists('getDeviceIdentifier') ? getDeviceIdentifier() : 'N/A';
     $deviceModel = $deviceInfo['tipo']['modelo'] ?? '';
 @endphp
 
