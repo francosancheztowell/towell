@@ -156,7 +156,6 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 /* =========================
    Estado global + helpers
@@ -274,7 +273,7 @@ function actualizarBadgeFolio() {
 function mostrarAlerta(mensaje, tipo='success') {
     const tipoSwal = {
         success: 'success',
-        error: 'error', 
+        error: 'error',
         warning: 'warning',
         info: 'info'
     }[tipo] || 'success';
@@ -316,13 +315,13 @@ function toggleValorSelector(btn) {
             if (!Number.isNaN(rec)) currentValue = rec;
         }
         buildNumberOptions(selector, tipo, currentValue);
-        
+
         // Determinar si debe abrir hacia arriba o abajo según la posición en la ventana
         const rect = btn.getBoundingClientRect();
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
         const dropdownHeight = 60; // altura aproximada del dropdown
-        
+
         // Si hay más espacio arriba o no hay suficiente espacio abajo, abrir hacia arriba
         if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
             selector.classList.remove('top-full', 'mt-1');
@@ -331,7 +330,7 @@ function toggleValorSelector(btn) {
             selector.classList.remove('bottom-full', 'mb-1');
             selector.classList.add('top-full', 'mt-1');
         }
-        
+
         selector.classList.remove('hidden');
         scrollToCurrentValue(selector, currentValue);
     } else {
@@ -466,7 +465,7 @@ function generarNuevoFolio() {
                 });
                 return Promise.reject('Folio en creación por otro usuario');
             }
-            
+
             // Ya existe un folio en proceso
             Swal.fire({
                 icon: 'warning',
@@ -486,11 +485,11 @@ function generarNuevoFolio() {
             });
             return Promise.reject('Folio en proceso');
         }
-        
+
         if (!data.success || !data.folio) {
             throw new Error(data.message || 'Error al generar folio');
         }
-        
+
         currentFolio = data.folio;
         isNewRecord  = true;
         isEditing    = true;

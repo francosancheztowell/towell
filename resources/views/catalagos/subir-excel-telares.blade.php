@@ -19,7 +19,7 @@
                                 <i class="fas fa-upload me-1"></i>
                                 Seleccionar archivo Excel
                             </label>
-                            <input type="file" class="form-control" id="excel_file" name="excel_file" 
+                            <input type="file" class="form-control" id="excel_file" name="excel_file"
                                    accept=".xlsx,.xls" required>
                             <div class="form-text">
                                 Formatos permitidos: .xlsx, .xls (Máximo 10MB)
@@ -52,19 +52,18 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.getElementById('excelForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
     const submitBtn = document.getElementById('submitBtn');
     const originalText = submitBtn.innerHTML;
-    
+
     // Deshabilitar botón y mostrar loading
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Subiendo...';
-    
+
     fetch('/telares/excel/upload', {
         method: 'POST',
         body: formData,

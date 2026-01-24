@@ -169,7 +169,6 @@ Catálogo de Núcleos
     }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     const updateUrl = '{{ route("urd-eng-nucleos.update", ["urdEngNucleo" => "PLACEHOLDER"]) }}';
     const destroyUrl = '{{ route("urd-eng-nucleos.destroy", ["urdEngNucleo" => "PLACEHOLDER"]) }}';

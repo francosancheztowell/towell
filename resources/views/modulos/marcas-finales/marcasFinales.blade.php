@@ -175,7 +175,7 @@
         </div>
     </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
 (() => {
     'use strict';
@@ -412,10 +412,10 @@
 
                 if (response.status === 400 && data.folio_existente) {
                     // Ya existe un folio en proceso
-                    const mensaje = data.creado_por_otro 
+                    const mensaje = data.creado_por_otro
                         ? `Otro usuario está creando un folio en este momento (${data.folio_existente}). Por favor, espere unos segundos e intente nuevamente.`
                         : `Ya existe un folio en proceso: ${data.folio_existente}. Debe finalizarlo antes de crear uno nuevo.`;
-                    
+
                     Swal.fire({
                         icon: 'warning',
                         title: data.creado_por_otro ? 'Folio en creación' : 'Folio en proceso',
@@ -578,18 +578,18 @@
 
         // Validar todos los campos críticos: Eficiencia, Marcas, Trama, Pie, Rizo, Otros
         let lineasInvalidas = [];
-        
+
         for (let i = 0; i < lineas.length; i++) {
             const l = lineas[i];
             const camposVacios = [];
-            
+
             if (esVacioOCero(l.Eficiencia)) camposVacios.push('% Efi');
             if (esVacioOCero(l.Marcas)) camposVacios.push('Marcas');
             if (esVacioOCero(l.Trama)) camposVacios.push('Trama');
             if (esVacioOCero(l.Pie)) camposVacios.push('Pie');
             if (esVacioOCero(l.Rizo)) camposVacios.push('Rizo');
             if (esVacioOCero(l.Otros)) camposVacios.push('Otros');
-            
+
             if (camposVacios.length > 0) {
                 lineasInvalidas.push({
                     telar: l.NoTelarId || `Línea ${i + 1}`,

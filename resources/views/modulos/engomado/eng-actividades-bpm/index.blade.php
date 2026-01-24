@@ -116,7 +116,7 @@ Actividades BPM Engomado
                     Nueva Actividad BPM
                 </h2>
             </div>
-            
+
             <form action="{{ route('eng-actividades-bpm.store') }}" method="POST" class="p-6">
                 @csrf
                 <div class="space-y-4">
@@ -124,9 +124,9 @@ Actividades BPM Engomado
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Orden <span class="text-gray-400 font-normal">(opcional)</span>
                         </label>
-                        <input 
-                            type="number" 
-                            name="Orden" 
+                        <input
+                            type="number"
+                            name="Orden"
                             min="1"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             placeholder="Ej: 1, 2, 3...">
@@ -136,9 +136,9 @@ Actividades BPM Engomado
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Actividad <span class="text-red-500">*</span>
                         </label>
-                        <input 
-                            type="text" 
-                            name="Actividad" 
+                        <input
+                            type="text"
+                            name="Actividad"
                             maxlength="100"
                             required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
@@ -147,14 +147,14 @@ Actividades BPM Engomado
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                    <button 
-                        type="button" 
-                        onclick="closeActividadModal('createModal')" 
+                    <button
+                        type="button"
+                        onclick="closeActividadModal('createModal')"
                         class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                         <i class="fa-solid fa-times mr-1"></i> Cancelar
                     </button>
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
                         <i class="fa-solid fa-check mr-1"></i> Guardar
                     </button>
@@ -172,7 +172,7 @@ Actividades BPM Engomado
                     Editar Actividad BPM
                 </h2>
             </div>
-            
+
             <form id="editForm" action="" method="POST" class="p-6">
                 @csrf
                 @method('PUT')
@@ -181,10 +181,10 @@ Actividades BPM Engomado
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Orden <span class="text-gray-400 font-normal">(opcional)</span>
                         </label>
-                        <input 
-                            type="number" 
+                        <input
+                            type="number"
                             id="editOrden"
-                            name="Orden" 
+                            name="Orden"
                             min="1"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition"
                             placeholder="Ej: 1, 2, 3...">
@@ -194,10 +194,10 @@ Actividades BPM Engomado
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Actividad <span class="text-red-500">*</span>
                         </label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             id="editActividad"
-                            name="Actividad" 
+                            name="Actividad"
                             maxlength="100"
                             required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition"
@@ -206,14 +206,14 @@ Actividades BPM Engomado
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                    <button 
-                        type="button" 
-                        onclick="closeActividadModal('editModal')" 
+                    <button
+                        type="button"
+                        onclick="closeActividadModal('editModal')"
                         class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
                         <i class="fa-solid fa-times mr-1"></i> Cancelar
                     </button>
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         class="px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition font-medium">
                         <i class="fa-solid fa-save mr-1"></i> Actualizar
                     </button>
@@ -260,7 +260,7 @@ Actividades BPM Engomado
     }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     const updateUrl = '{{ route("eng-actividades-bpm.update", ["engActividadesBpm" => "PLACEHOLDER"]) }}';
     const destroyUrl = '{{ route("eng-actividades-bpm.destroy", ["engActividadesBpm" => "PLACEHOLDER"]) }}';
@@ -273,7 +273,7 @@ Actividades BPM Engomado
         const btnEdit = document.getElementById('btn-top-edit');
         const btnDelete = document.getElementById('btn-top-delete');
         const hasSelection = !!selectedKey;
-        
+
         [btnEdit, btnDelete].forEach(btn => {
             if (!btn) return;
             if (hasSelection) {
@@ -302,11 +302,11 @@ Actividades BPM Engomado
             clearSelection();
             return;
         }
-        
+
         if (selectedRow) {
             selectedRow.setAttribute('aria-selected', 'false');
         }
-        
+
         selectedRow = row;
         selectedKey = row.dataset.key || null;
         row.setAttribute('aria-selected', 'true');

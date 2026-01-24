@@ -7,8 +7,19 @@
 @endsection
 
 @section('content')
-    <div id="globalLoader">
-        <!-- Grid de módulos usando componente -->
-        <x-layout.module-grid :modulos="$modulos" columns="xl:grid-cols-4" :filterConfig="true" />
-    </div>
+    <div id="produccion-proceso-root"></div>
+    
+    @push('scripts')
+        @php
+            $produccionProcesoData = [
+                'modulos' => $modulos,
+                'columns' => 'xl:grid-cols-4',
+                'filterConfig' => true,
+            ];
+        @endphp
+        <script>
+            window.produccionProcesoData = @json($produccionProcesoData);
+        </script>
+        @vite(['resources/js/produccion-proceso.tsx'])
+    @endpush
 @endsection
