@@ -267,6 +267,135 @@ class NuevoRequerimientoController extends Controller
         }
     }
 
+    /** API: Buscar artículos (calibres) para autocomplete */
+    public function buscarArticulos(Request $request)
+    {
+        try {
+            $search = $request->query('q', '');
+            $search = trim($search);
+
+            $query = DB::table('TejTramaConsumos')
+                ->select('CalibreTrama')
+                ->whereNotNull('CalibreTrama')
+                ->distinct();
+
+            if ($search !== '') {
+                // Buscar por calibre (número)
+                if (is_numeric($search)) {
+                    $calibre = (float)$search;
+                    $query->whereRaw('ABS(CalibreTrama - ?) < 0.01', [$calibre]);
+                } else {
+                    // Si no es numérico, buscar por coincidencia parcial
+                    $query->whereRaw('CAST(CalibreTrama AS VARCHAR) LIKE ?', ['%' . $search . '%']);
+                }
+            }
+
+            $articulos = $query->orderBy('CalibreTrama')
+                ->limit(50)
+                ->get()
+                ->map(function ($item) {
+                    return number_format((float)$item->CalibreTrama, 2, '.', '');
+                })
+                ->unique()
+                ->values();
+
+            return response()->json($articulos->toArray());
+        } catch (\Throwable $e) {
+            Log::error('buscarArticulos fallo', ['error' => $e->getMessage()]);
+            return response()->json([], 500);
+        }
+    }
+
+    /** API: Buscar fibras para autocomplete */
+    public function buscarFibras(Request $request)
+    {
+        try {
+            $search = $request->query('q', '');
+            $search = trim($search);
+
+            $query = DB::table('TejTramaConsumos')
+                ->select('FibraTrama')
+                ->whereNotNull('FibraTrama')
+                ->where('FibraTrama', '!=', '')
+                ->distinct();
+
+            if ($search !== '') {
+                $query->whereRaw('FibraTrama LIKE ?', ['%' . $search . '%']);
+            }
+
+            $fibras = $query->orderBy('FibraTrama')
+                ->limit(50)
+                ->pluck('FibraTrama')
+                ->unique()
+                ->values();
+
+            return response()->json($fibras->toArray());
+        } catch (\Throwable $e) {
+            Log::error('buscarFibras fallo', ['error' => $e->getMessage()]);
+            return response()->json([], 500);
+        }
+    }
+
+    /** API: Buscar códigos de color para autocomplete */
+    public function buscarCodigosColor(Request $request)
+    {
+        try {
+            $search = $request->query('q', '');
+            $search = trim($search);
+
+            $query = DB::table('TejTramaConsumos')
+                ->select('CodColorTrama')
+                ->whereNotNull('CodColorTrama')
+                ->where('CodColorTrama', '!=', '')
+                ->distinct();
+
+            if ($search !== '') {
+                $query->whereRaw('CodColorTrama LIKE ?', ['%' . $search . '%']);
+            }
+
+            $codigos = $query->orderBy('CodColorTrama')
+                ->limit(50)
+                ->pluck('CodColorTrama')
+                ->unique()
+                ->values();
+
+            return response()->json($codigos->toArray());
+        } catch (\Throwable $e) {
+            Log::error('buscarCodigosColor fallo', ['error' => $e->getMessage()]);
+            return response()->json([], 500);
+        }
+    }
+
+    /** API: Buscar nombres de color para autocomplete */
+    public function buscarNombresColor(Request $request)
+    {
+        try {
+            $search = $request->query('q', '');
+            $search = trim($search);
+
+            $query = DB::table('TejTramaConsumos')
+                ->select('ColorTrama')
+                ->whereNotNull('ColorTrama')
+                ->where('ColorTrama', '!=', '')
+                ->distinct();
+
+            if ($search !== '') {
+                $query->whereRaw('ColorTrama LIKE ?', ['%' . $search . '%']);
+            }
+
+            $colores = $query->orderBy('ColorTrama')
+                ->limit(50)
+                ->pluck('ColorTrama')
+                ->unique()
+                ->values();
+
+            return response()->json($colores->toArray());
+        } catch (\Throwable $e) {
+            Log::error('buscarNombresColor fallo', ['error' => $e->getMessage()]);
+            return response()->json([], 500);
+        }
+    }
+
     // =========================================================
     // Helpers de construcción de VM (index)
     // =========================================================

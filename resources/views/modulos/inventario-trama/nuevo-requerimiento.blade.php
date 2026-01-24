@@ -212,19 +212,27 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Artículo</label>
-                            <input type="number" step="0.01" id="modal-articulo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: 10.5" required>
+                            <select id="modal-articulo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Seleccionar o escribir...</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Fibra</label>
-                            <input type="text" id="modal-fibra" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: ALGODÓN" required>
+                            <select id="modal-fibra" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Seleccionar o escribir...</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Cod Color</label>
-                            <input type="text" id="modal-cod-color" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: A8" required>
+                            <select id="modal-cod-color" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Seleccionar o escribir...</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Nombre Color</label>
-                            <input type="text" id="modal-nombre-color" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: BLANCO" required>
+                            <select id="modal-nombre-color" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Seleccionar o escribir...</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
@@ -442,11 +450,182 @@
         modal.classList.remove('hidden'); modal.classList.add('flex');
         document.getElementById('form-nuevo-requerimiento')?.reset();
                     document.getElementById('modal-cantidad').value = 0;
+        // Inicializar autocomplete al abrir el modal
+        initModalAutocomplete();
     }
         function cerrarModal() {
             const modal = document.getElementById('modal-nuevo-requerimiento');
         modal.classList.add('hidden'); modal.classList.remove('flex');
         }
+
+    // --- Autocomplete para modal
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Funciones auxiliares para selects (similar a produccion-reenconado-cabezuela)
+    const setSelectOptions = (select, options, placeholder, selectedValue = '') => {
+        if (!select) return;
+        select.innerHTML = '';
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = placeholder;
+        select.appendChild(placeholderOption);
+
+        options.forEach((opt) => {
+            const option = document.createElement('option');
+            if (typeof opt === 'string') {
+                option.value = opt;
+                option.textContent = opt;
+            } else {
+                option.value = opt.value;
+                option.textContent = opt.label || opt.value;
+                if (opt.name) option.dataset.name = opt.name;
+            }
+            select.appendChild(option);
+        });
+
+        select.value = selectedValue || '';
+        select.disabled = options.length === 0;
+    };
+
+    const ensureOption = (select, value, label) => {
+        if (!select || !value) return;
+        const exists = Array.from(select.options).some(opt => opt.value === value);
+        if (!exists) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label || value;
+            select.appendChild(option);
+        }
+    };
+
+    function initModalAutocomplete() {
+        const articuloSelect = document.getElementById('modal-articulo');
+        const fibraSelect = document.getElementById('modal-fibra');
+        const codColorSelect = document.getElementById('modal-cod-color');
+        const nombreColorSelect = document.getElementById('modal-nombre-color');
+
+        // URLs de las rutas de búsqueda
+        @php
+            try {
+                $buscarArticulosUrl = route('modulo.nuevo.requerimiento.buscar.articulos');
+                $buscarFibrasUrl = route('modulo.nuevo.requerimiento.buscar.fibras');
+                $buscarCodigosColorUrl = route('modulo.nuevo.requerimiento.buscar.codigos.color');
+                $buscarNombresColorUrl = route('modulo.nuevo.requerimiento.buscar.nombres.color');
+            } catch (\Exception $e) {
+                $buscarArticulosUrl = '/modulo-nuevo-requerimiento/buscar-articulos';
+                $buscarFibrasUrl = '/modulo-nuevo-requerimiento/buscar-fibras';
+                $buscarCodigosColorUrl = '/modulo-nuevo-requerimiento/buscar-codigos-color';
+                $buscarNombresColorUrl = '/modulo-nuevo-requerimiento/buscar-nombres-color';
+            }
+        @endphp
+        const buscarArticulosUrl = @json($buscarArticulosUrl);
+        const buscarFibrasUrl = @json($buscarFibrasUrl);
+        const buscarCodigosColorUrl = @json($buscarCodigosColorUrl);
+        const buscarNombresColorUrl = @json($buscarNombresColorUrl);
+
+        // Cargar artículos
+        const cargarArticulos = async (search = '') => {
+            try {
+                const url = search ? `${buscarArticulosUrl}?q=${encodeURIComponent(search)}` : buscarArticulosUrl;
+                const response = await fetch(url);
+                const data = await response.json();
+                const items = Array.isArray(data) ? data : [];
+                setSelectOptions(articuloSelect, items, 'Seleccionar o escribir artículo...');
+            } catch (e) {
+                console.error('Error cargando artículos:', e);
+                setSelectOptions(articuloSelect, [], 'Error al cargar');
+            }
+        };
+
+        // Cargar fibras
+        const cargarFibras = async (search = '') => {
+            try {
+                const url = search ? `${buscarFibrasUrl}?q=${encodeURIComponent(search)}` : buscarFibrasUrl;
+                const response = await fetch(url);
+                const data = await response.json();
+                const items = Array.isArray(data) ? data : [];
+                setSelectOptions(fibraSelect, items, 'Seleccionar o escribir fibra...');
+            } catch (e) {
+                console.error('Error cargando fibras:', e);
+                setSelectOptions(fibraSelect, [], 'Error al cargar');
+            }
+        };
+
+        // Cargar códigos de color
+        const cargarCodigosColor = async (search = '') => {
+            try {
+                const url = search ? `${buscarCodigosColorUrl}?q=${encodeURIComponent(search)}` : buscarCodigosColorUrl;
+                const response = await fetch(url);
+                const data = await response.json();
+                const items = Array.isArray(data) ? data : [];
+                setSelectOptions(codColorSelect, items, 'Seleccionar o escribir código...');
+            } catch (e) {
+                console.error('Error cargando códigos de color:', e);
+                setSelectOptions(codColorSelect, [], 'Error al cargar');
+            }
+        };
+
+        // Cargar nombres de color
+        const cargarNombresColor = async (search = '') => {
+            try {
+                const url = search ? `${buscarNombresColorUrl}?q=${encodeURIComponent(search)}` : buscarNombresColorUrl;
+                const response = await fetch(url);
+                const data = await response.json();
+                const items = Array.isArray(data) ? data : [];
+                setSelectOptions(nombreColorSelect, items, 'Seleccionar o escribir nombre...');
+            } catch (e) {
+                console.error('Error cargando nombres de color:', e);
+                setSelectOptions(nombreColorSelect, [], 'Error al cargar');
+            }
+        };
+
+        // Cargar opciones iniciales para todos los selects
+        if (articuloSelect) {
+            articuloSelect.addEventListener('focus', function() {
+                if (articuloSelect.options.length <= 1) {
+                    cargarArticulos('');
+                }
+            });
+            cargarArticulos(''); // Cargar opciones iniciales
+        }
+
+        if (fibraSelect) {
+            fibraSelect.addEventListener('focus', function() {
+                if (fibraSelect.options.length <= 1) {
+                    cargarFibras('');
+                }
+            });
+            cargarFibras(''); // Cargar opciones iniciales
+        }
+
+        if (codColorSelect) {
+            codColorSelect.addEventListener('focus', function() {
+                if (codColorSelect.options.length <= 1) {
+                    cargarCodigosColor('');
+                }
+            });
+            cargarCodigosColor(''); // Cargar opciones iniciales
+        }
+
+        if (nombreColorSelect) {
+            nombreColorSelect.addEventListener('focus', function() {
+                if (nombreColorSelect.options.length <= 1) {
+                    cargarNombresColor('');
+                }
+            });
+            cargarNombresColor(''); // Cargar opciones iniciales
+        }
+    }
 
         function agregarCampo(){
             const articuloEl = document.getElementById('modal-articulo');
@@ -460,9 +639,26 @@
         const codColor = (codColorEl.value||'').trim();
         const nombreColor = (nombreColorEl.value||'').trim();
             const cantidad = parseInt(cantidadEl.value ?? '0', 10) || 0;
-        if (articulo === '' || isNaN(parseFloat(articulo))) { showToast('Ingrese un artículo válido (número)', 'warning'); return; }
+        
+        // Asegurar que los valores personalizados estén en las opciones de los selects
+        if (articulo) ensureOption(articuloEl, articulo, articulo);
+        if (fibra) ensureOption(fibraEl, fibra, fibra);
+        if (codColor) ensureOption(codColorEl, codColor, codColor);
+        if (nombreColor) ensureOption(nombreColorEl, nombreColor, nombreColor);
+        
+        // Validar artículo: puede ser número o texto (permitir valores personalizados)
+        if (articulo === '') { showToast('Ingrese un artículo', 'warning'); return; }
+        // Validar que sea un número válido si es numérico, pero permitir texto libre
+        const articuloNum = parseFloat(articulo);
+        if (isNaN(articuloNum) && articulo !== '') {
+            // Permitir texto libre si no es número
+            showToast('El artículo debe ser un número válido', 'warning');
+            return;
+        }
         if (fibra === '' || codColor === '' || nombreColor === '') { showToast('Complete fibra, código y color', 'warning'); return; }
-        agregarFilaATabla({ articulo, fibra, codColor, nombreColor, cantidad });
+        // Formatear artículo a 2 decimales si es número
+        const articuloFormateado = articuloNum ? articuloNum.toFixed(2) : articulo;
+        agregarFilaATabla({ articulo: articuloFormateado, fibra, codColor, nombreColor, cantidad });
         cerrarModal(); showToast('Nuevo requerimiento agregado', 'success'); autoGuardarRequerimientos();
     }
 
