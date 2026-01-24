@@ -32,7 +32,13 @@ class NotificarMontadoJulioController extends Controller
                 $detalles = TejInventarioTelares::where('no_telar', $request->no_telar)
                     ->where('tipo', $request->tipo)
                     ->whereIn('no_telar', $telaresOperador)
+                    ->whereNotNull('no_julio')
+                    ->whereNotNull('no_orden')
+                    ->where('no_julio', '<>', '')
+                    ->where('no_orden', '<>', '')
                     ->select('id', 'no_telar', 'cuenta', 'calibre', 'tipo', 'tipo_atado', 'no_orden', 'no_julio', 'metros', 'horaParo')
+                    ->orderByDesc('fecha')
+                    ->orderByDesc('turno')
                     ->first();
                 
                 return response()->json(['detalles' => $detalles]);
