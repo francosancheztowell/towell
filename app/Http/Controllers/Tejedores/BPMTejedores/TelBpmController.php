@@ -170,9 +170,52 @@ class TelBpmController extends Controller
             'Status'           => self::EST_CREADO,
         ]);
 
-        // (Opcional) Inicializar catálogo de actividades como "plantilla"
-        // No creo líneas aquí, se crearán on-demand al ir marcando (toggle/bulk).
-        // Si quieres pre-generarlas, dímelo y lo agregamos.
+
+        // Inicializar líneas del checklist (todas las combinaciones Actividad x Telar)
+        try {
+            $header = \App\Models\Tejedores\TelBpmModel::findOrFail($folio);
+            // Catálogo de actividades
+            $actividades = \App\Models\Tejedores\TelActividadesBPM::orderBy('Orden')->get(['Orden','Actividad'])
+                ->map(fn($a)=>['Orden'=>$a->Orden, 'Actividad'=>$a->Actividad]);
+            // Telares asignados al usuario que recibe
+            $telares = collect();
+            $salonPorTelar = [];
+            try {
+                $asignados = \App\Models\Tejedores\TelTelaresOperador::query()
+                    ->where('numero_empleado', (string)$header->CveEmplRec)
+                    ->get(['NoTelarId','SalonTejidoId']);
+                $telares = $asignados->pluck('NoTelarId')->filter()->unique()->values();
+                $salonPorTelar = $asignados->mapWithKeys(fn($r)=>[$r->NoTelarId => $r->SalonTejidoId])->all();
+            } catch (\Throwable $e) {
+                $telares = collect();
+            }
+            \DB::transaction(function () use ($folio, $header, $actividades, $telares, $salonPorTelar) {
+                foreach ($actividades as $a) {
+                    $orden = (int)$a['Orden'];
+                    $actividad = (string)$a['Actividad'];
+                    foreach ($telares as $t) {
+                        $exists = \DB::table('TelBPMLine')
+                            ->where('Folio', $folio)
+                            ->where('Orden', $orden)
+                            ->where('NoTelarId', (string)$t)
+                            ->exists();
+                        if (!$exists) {
+                            \DB::table('TelBPMLine')->insert([
+                                'Folio'         => $folio,
+                                'Orden'         => $orden,
+                                'NoTelarId'     => (string)$t,
+                                'Actividad'     => $actividad,
+                                'SalonTejidoId' => $salonPorTelar[$t] ?? null,
+                                'TurnoRecibe'   => (string)$header->TurnoRecibe,
+                                'Valor'         => null,
+                            ]);
+                        }
+                    }
+                }
+            });
+        } catch (\Throwable $e) {
+            // Si falla la inicialización, continuar
+        }
 
         return redirect()
             ->route('tel-bpm-line.index', $folio)

@@ -4,6 +4,8 @@
     <x-layout-head />
     <x-layout-styles />
     <x-layout-scripts />
+    <!-- SweetAlert2 CDN para soporte universal de Swal -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.7/dist/sweetalert2.all.min.js"></script>
     <style>
         /* Animación de spin para iconos */
         .fa-spin {
