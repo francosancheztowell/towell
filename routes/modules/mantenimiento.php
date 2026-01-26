@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Mantenimiento\MantenimientoParosController;
+use App\Http\Controllers\Mantenimiento\CatalogosFallasController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,13 +16,19 @@ Route::view('/mantenimiento/nuevo-paro', 'modulos.mantenimiento.nuevo-paro.index
 Route::view('/mantenimiento/finalizar-paro', 'modulos.mantenimiento.finalizar-paro.index')->name('mantenimiento.finalizar-paro');
 Route::view('/mantenimiento/reporte-fallos-paros', 'modulos.mantenimiento.reporte-fallos-paros.index')->name('mantenimiento.reporte-fallos-paros');
 
+// CRUD Catálogo de Fallas
+Route::get('/mantenimiento/catalogodefallas', [CatalogosFallasController::class, 'index'])->name('mantenimiento.catalogos-fallas.index');
+Route::post('/mantenimiento/catalogodefallas', [CatalogosFallasController::class, 'store'])->name('mantenimiento.catalogos-fallas.store');
+Route::put('/mantenimiento/catalogodefallas/{catalogosFalla}', [CatalogosFallasController::class, 'update'])->name('mantenimiento.catalogos-fallas.update');
+Route::delete('/mantenimiento/catalogodefallas/{catalogosFalla}', [CatalogosFallasController::class, 'destroy'])->name('mantenimiento.catalogos-fallas.destroy');
+
 Route::get('/api/mantenimiento/departamentos', [MantenimientoParosController::class, 'departamentos'])
     ->name('api.mantenimiento.departamentos');
 Route::get('/api/mantenimiento/maquinas/{departamento}', [MantenimientoParosController::class, 'maquinas'])
     ->name('api.mantenimiento.maquinas');
 Route::get('/api/mantenimiento/tipos-falla', [MantenimientoParosController::class, 'tiposFalla'])
     ->name('api.mantenimiento.tipos-falla');
-Route::get('/api/mantenimiento/fallas/{departamento}', [MantenimientoParosController::class, 'fallas'])
+Route::get('/api/mantenimiento/fallas/{departamento}/{tipoFallaId?}', [MantenimientoParosController::class, 'fallas'])
     ->name('api.mantenimiento.fallas');
 Route::get('/api/mantenimiento/orden-trabajo/{departamento}/{maquina}', [MantenimientoParosController::class, 'ordenTrabajo'])
     ->name('api.mantenimiento.orden-trabajo');

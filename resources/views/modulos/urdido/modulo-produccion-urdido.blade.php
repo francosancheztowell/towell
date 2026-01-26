@@ -795,6 +795,7 @@
                     });
                 }
 
+                let catalogosJuliosCompleto = []; // Variable global para almacenar todos los julios
                 cargarCatalogosJulios();
                 cargarUsuariosUrdido();
 
@@ -809,37 +810,54 @@
                             const taraInput = row ? row.querySelector('input[data-field="tara"]') : null;
                             const selectedOption = target.options[target.selectedIndex];
                             const noJulioValue = selectedOption ? selectedOption.value : '';
+                            const valorAnterior = target.getAttribute('data-valor-anterior') || '';
 
-                            if (!(taraInput && selectedOption && registroId)) return;
+                            if (!(taraInput && registroId)) return;
 
                             if (!verificarOficialSeleccionado(registroId)) {
                                 if (!target.hasAttribute('data-valor-anterior')) {
                                     const valorInicial = target.getAttribute('data-valor-inicial') || '';
                                     target.setAttribute('data-valor-anterior', valorInicial);
                                 }
-                                const valorAnterior = target.getAttribute('data-valor-anterior') || '';
-                                target.value = valorAnterior;
+                                const valorAnteriorCheck = target.getAttribute('data-valor-anterior') || '';
+                                target.value = valorAnteriorCheck;
                                 mostrarAlertaOficialRequerido();
                                 return;
                             }
 
-                            target.setAttribute('data-valor-anterior', noJulioValue);
+                            // Si se seleccionó un julio, actualizar todos los selects para ocultar el julio seleccionado
+                            if (noJulioValue && noJulioValue !== '') {
+                                // Actualizar todos los selects excluyendo el julio seleccionado
+                                actualizarTodosLosSelectsJulios();
+                                
+                                // Asegurar que el select actual tenga el valor seleccionado
+                                target.value = noJulioValue;
+                                
+                                // Obtener la opción seleccionada después de actualizar
+                                const updatedOption = target.options[target.selectedIndex];
+                                if (updatedOption) {
+                                    const taraStr = updatedOption.getAttribute('data-tara');
+                                    const tara = taraStr !== null && taraStr !== '' ? parseFloat(taraStr) : null;
+                                    taraInput.value = tara !== null ? tara : '';
 
-                            const taraStr = selectedOption.getAttribute('data-tara');
-                            const tara = taraStr !== null && taraStr !== '' ? parseFloat(taraStr) : null;
-                            taraInput.value = tara !== null ? tara : '';
+                                    const brutoInput = row.querySelector('input[data-field="kg_bruto"]');
+                                    const netoInput = row.querySelector('input[data-field="kg_neto"]');
+                                    let kgNeto = null;
+                                    if (brutoInput && netoInput) {
+                                        const bruto = parseFloat(brutoInput.value) || 0;
+                                        const taraVal = tara !== null ? tara : 0;
+                                        kgNeto = bruto - taraVal;
+                                        netoInput.value = kgNeto.toFixed(2);
+                                    }
 
-                            const brutoInput = row.querySelector('input[data-field="kg_bruto"]');
-                            const netoInput = row.querySelector('input[data-field="kg_neto"]');
-                            let kgNeto = null;
-                            if (brutoInput && netoInput) {
-                                const bruto = parseFloat(brutoInput.value) || 0;
-                                const taraVal = tara !== null ? tara : 0;
-                                kgNeto = bruto - taraVal;
-                                netoInput.value = kgNeto.toFixed(2);
+                                    actualizarJulioTara(registroId, noJulioValue, tara, kgNeto);
+                                }
+                            } else {
+                                // Si se deseleccionó (valor vacío), volver a mostrar el julio anterior en otros selects
+                                actualizarTodosLosSelectsJulios();
                             }
 
-                            actualizarJulioTara(registroId, noJulioValue, tara, kgNeto);
+                            target.setAttribute('data-valor-anterior', noJulioValue);
                         }
 
                         // Oficial seleccionado -> actualiza turno
@@ -1273,6 +1291,72 @@
                     }
                 }
 
+                // Función para obtener los julios seleccionados en otras filas
+                function obtenerJuliosSeleccionados(excluirSelect) {
+                    const juliosSeleccionados = new Set();
+                    const todosLosSelects = document.querySelectorAll('.select-julio');
+                    
+                    todosLosSelects.forEach(select => {
+                        if (select !== excluirSelect && select.value && select.value !== '') {
+                            juliosSeleccionados.add(select.value);
+                        }
+                    });
+                    
+                    return juliosSeleccionados;
+                }
+
+                // Función para actualizar un select de julios excluyendo los ya seleccionados
+                function actualizarSelectJulio(select, excluirJulios = new Set()) {
+                    const valorActual = select.value;
+                    const valorInicial = select.getAttribute('data-valor-inicial');
+
+                    // Limpiar opciones excepto la primera
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+
+                    // Agregar opciones disponibles (excluyendo las ya seleccionadas)
+                    catalogosJuliosCompleto.forEach(item => {
+                        const julioValue = String(item.julio);
+                        
+                        // Si el julio está seleccionado en otra fila, no agregarlo
+                        if (excluirJulios.has(julioValue)) {
+                            return;
+                        }
+
+                        const option = document.createElement('option');
+                        option.value = item.julio;
+                        option.setAttribute('data-tara', item.tara || '0');
+                        option.textContent = item.julio;
+
+                        // Si es el valor inicial o el valor actual, seleccionarlo
+                        if ((valorInicial && String(item.julio) === String(valorInicial)) || 
+                            (valorActual && String(item.julio) === String(valorActual))) {
+                            option.selected = true;
+                        }
+
+                        select.appendChild(option);
+                    });
+
+                    // Si el valor actual ya no está disponible, limpiar la selección
+                    if (valorActual && !excluirJulios.has(valorActual)) {
+                        const optionExists = Array.from(select.options).some(opt => opt.value === valorActual);
+                        if (!optionExists && valorActual !== '') {
+                            select.value = '';
+                        }
+                    }
+                }
+
+                // Función para actualizar todos los selects de julios
+                function actualizarTodosLosSelectsJulios() {
+                    const todosLosSelects = document.querySelectorAll('.select-julio');
+                    
+                    todosLosSelects.forEach(select => {
+                        const juliosExcluidos = obtenerJuliosSeleccionados(select);
+                        actualizarSelectJulio(select, juliosExcluidos);
+                    });
+                }
+
                 async function cargarCatalogosJulios() {
                     try {
                         const response = await fetch('{{ route('urdido.modulo.produccion.urdido.catalogos.julios') }}');
@@ -1283,32 +1367,49 @@
                             return;
                         }
 
-                        const catalogosJulios = result.data;
-                        const selectJulios = document.querySelectorAll('.select-julio');
-
-                        selectJulios.forEach(select => {
+                        // Guardar el catálogo completo en la variable global
+                        catalogosJuliosCompleto = result.data;
+                        
+                        // Primero, actualizar todos los selects respetando los valores iniciales
+                        // Necesitamos hacerlo en dos pasos: primero identificar todos los valores iniciales,
+                        // luego actualizar excluyendo esos valores
+                        const todosLosSelects = document.querySelectorAll('.select-julio');
+                        
+                        // Paso 1: Recopilar todos los valores iniciales que deben mantenerse
+                        const valoresIniciales = new Map();
+                        todosLosSelects.forEach(select => {
                             const valorInicial = select.getAttribute('data-valor-inicial');
-
-                            while (select.options.length > 1) {
-                                select.remove(1);
+                            if (valorInicial && valorInicial !== '') {
+                                valoresIniciales.set(select, valorInicial);
                             }
-
-                            catalogosJulios.forEach(item => {
-                                const option = document.createElement('option');
-                                option.value = item.julio;
-                                option.setAttribute('data-tara', item.tara || '0');
-                                option.textContent = item.julio;
-
-                                if (valorInicial && String(item.julio) === String(valorInicial)) {
-                                    option.selected = true;
-                                }
-
-                                select.appendChild(option);
-                            });
-
-                            select.setAttribute('data-valor-anterior', valorInicial || '');
-
-                            if (valorInicial && select.value) {
+                        });
+                        
+                        // Paso 2: Actualizar cada select excluyendo los julios seleccionados en otros
+                        todosLosSelects.forEach(select => {
+                            const valorInicial = valoresIniciales.get(select) || '';
+                            const juliosExcluidos = obtenerJuliosSeleccionados(select);
+                            
+                            // Si este select tiene un valor inicial, excluirlo de los excluidos temporalmente
+                            // para que pueda mantener su valor
+                            const juliosExcluidosParaEste = new Set(juliosExcluidos);
+                            if (valorInicial) {
+                                // No excluir el valor inicial de este select
+                                // pero sí excluir los valores iniciales de otros selects
+                                valoresIniciales.forEach((valIni, otroSelect) => {
+                                    if (otroSelect !== select && valIni && valIni !== '') {
+                                        juliosExcluidosParaEste.add(valIni);
+                                    }
+                                });
+                            }
+                            
+                            actualizarSelectJulio(select, juliosExcluidosParaEste);
+                            
+                            // Restaurar el valor inicial si existe
+                            if (valorInicial && valorInicial !== '') {
+                                select.value = valorInicial;
+                                select.setAttribute('data-valor-anterior', valorInicial);
+                                
+                                // Configurar tara y calcular neto
                                 const row = select.closest('tr');
                                 const taraInput = row ? row.querySelector('input[data-field="tara"]') : null;
                                 const selectedOption = select.options[select.selectedIndex];
@@ -1326,6 +1427,8 @@
                                         netoInput.value = neto.toFixed(2);
                                     }
                                 }
+                            } else {
+                                select.setAttribute('data-valor-anterior', '');
                             }
                         });
                     } catch (error) {
@@ -1950,6 +2053,37 @@
                 return { valido: true };
             }
 
+            // Función para abrir PDF en nueva pestaña y mostrar diálogo de impresión
+            function abrirPDFParaImprimir(url) {
+                const printWindow = window.open(url, '_blank');
+                
+                if (printWindow) {
+                    // Esperar a que el PDF se cargue y luego abrir el diálogo de impresión
+                    printWindow.onload = function() {
+                        setTimeout(() => {
+                            printWindow.print();
+                        }, 500);
+                    };
+                    
+                    // Fallback: si onload no funciona, intentar después de un tiempo
+                    setTimeout(() => {
+                        try {
+                            printWindow.print();
+                        } catch (e) {
+                            console.log('Esperando a que el PDF se cargue...');
+                            // Intentar nuevamente después de más tiempo
+                            setTimeout(() => {
+                                try {
+                                    printWindow.print();
+                                } catch (e2) {
+                                    console.error('No se pudo abrir el diálogo de impresión automáticamente');
+                                }
+                            }, 1000);
+                        }
+                    }, 1000);
+                }
+            }
+
             window.finalizar = async function () {
                 // Validar que todos los registros estén completos
                 const validacion = validarRegistrosCompletos();
@@ -2009,9 +2143,9 @@
                                     const result = await response.json();
 
                                     if (result.success) {
-                                        // Generar PDF automáticamente
+                                        // Generar PDF automáticamente y abrir para imprimir
                                         const url = '{{ route('urdido.modulo.produccion.urdido.pdf') }}?orden_id=' + ordenId + '&tipo=urdido';
-                                        window.open(url, '_blank');
+                                        abrirPDFParaImprimir(url);
 
                                         Swal.fire({
                                             icon: 'success',
@@ -2062,7 +2196,7 @@
 
                                 if (result.success) {
                                     const url = '{{ route('urdido.modulo.produccion.urdido.pdf') }}?orden_id=' + ordenId + '&tipo=urdido';
-                                    window.open(url, '_blank');
+                                    abrirPDFParaImprimir(url);
                                     alert('Registro finalizado');
                                     window.location.href = '/produccionProceso';
                                 } else {

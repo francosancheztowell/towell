@@ -8,6 +8,7 @@ use App\Models\Mantenimiento\CatParosFallas;
 use App\Models\Mantenimiento\CatTipoFalla;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
+use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Http\JsonResponse;
@@ -22,14 +23,21 @@ class MantenimientoParosController extends Controller
 {
     /**
      * Departamentos disponibles para el módulo de mantenimiento.
-     * Fuente: URDCatalogoMaquina.Departamento
+     * Fuente: URDCatalogoMaquina.Departamento + Atadores
      */
     public function departamentos(): JsonResponse
     {
         $departamentos = URDCatalogoMaquina::select('Departamento')
             ->distinct()
             ->orderBy('Departamento')
-            ->pluck('Departamento');
+            ->pluck('Departamento')
+            ->toArray();
+
+        // Agregar "Atadores" si no está en la lista
+        if (!in_array('Atadores', $departamentos, true)) {
+            $departamentos[] = 'Atadores';
+            sort($departamentos);
+        }
 
         return response()->json([
             'success' => true,
@@ -41,6 +49,7 @@ class MantenimientoParosController extends Controller
      * Máquinas por departamento.
      *
      * - Para Urdido / Engomado: catálogo URDCatalogoMaquina (todas las máquinas del depto).
+     * - Para Atadores: catálogo AtaMaquinasModel.
      * - Para Jacquard / Smith / Itema / Karl Mayer: máquinas asignadas al usuario
      *   autenticado en TelTelaresOperador, filtradas por salón.
      */
@@ -54,6 +63,24 @@ class MantenimientoParosController extends Controller
                 $maquinas = URDCatalogoMaquina::where('Departamento', $departamento)
                     ->orderBy('MaquinaId')
                     ->get(['MaquinaId', 'Nombre', 'Departamento']);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $maquinas,
+                ]);
+            }
+
+            // Para Atadores usamos el catálogo AtaMaquinasModel
+            if ($depUpper === 'ATADORES') {
+                $maquinas = AtaMaquinasModel::orderBy('MaquinaId')
+                    ->get()
+                    ->map(function ($item) use ($departamento) {
+                        return [
+                            'MaquinaId'    => $item->MaquinaId,
+                            'Nombre'       => $item->MaquinaId,
+                            'Departamento' => $departamento,
+                        ];
+                    });
 
                 return response()->json([
                     'success' => true,
@@ -130,8 +157,10 @@ class MantenimientoParosController extends Controller
      *
      * Nota: Para Jacquard, Itema, Karl Mayer y Smith, se usa "Tejido" como departamento
      * en CatParosFallas para obtener las fallas.
+     * 
+     * Si se proporciona tipoFallaId, se filtran las fallas por ese tipo.
      */
-    public function fallas(string $departamento): JsonResponse
+    public function fallas(string $departamento, ?string $tipoFallaId = null): JsonResponse
     {
         try {
             $depUpper = strtoupper(trim($departamento));
@@ -142,10 +171,16 @@ class MantenimientoParosController extends Controller
                 $departamentoParaConsulta = 'Tejido';
             }
 
-            $items = CatParosFallas::query()
-                ->where('Departamento', $departamentoParaConsulta)
-                ->orderBy('Falla')
-                ->get(['Falla', 'Descripcion', 'Abreviado', 'Seccion']);
+            $query = CatParosFallas::query()
+                ->where('Departamento', $departamentoParaConsulta);
+
+            // Si se proporciona tipoFallaId, filtrar por ese tipo
+            if (!empty($tipoFallaId)) {
+                $query->where('TipoFallaId', $tipoFallaId);
+            }
+
+            $items = $query->orderBy('Falla')
+                ->get(['Falla', 'Descripcion', 'Abreviado', 'Seccion', 'TipoFallaId']);
 
             return response()->json([
                 'success' => true,
@@ -471,11 +506,24 @@ class MantenimientoParosController extends Controller
 
     /**
      * Obtener lista de paros/fallas activos para el reporte.
+     * Solo muestra los paros creados por el usuario autenticado.
      */
     public function index(): JsonResponse
     {
         try {
+            $usuario = Auth::user();
+            $numeroEmpleado = $usuario->numero_empleado ?? null;
+
+            if (!$numeroEmpleado) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Usuario no autenticado o sin número de empleado',
+                    'data' => [],
+                ], 401);
+            }
+
             $paros = ManFallasParos::where('Estatus', 'Activo')
+                ->where('CveEmpl', $numeroEmpleado)
                 ->orderByDesc('Fecha')
                 ->orderByDesc('Hora')
                 ->get([
@@ -490,6 +538,7 @@ class MantenimientoParosController extends Controller
                     'Falla',
                     'HoraFin',
                     'NomAtendio',
+                    'NomEmpl',
                 ]);
 
             return response()->json([

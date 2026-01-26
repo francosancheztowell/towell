@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'Producción de Urdido')
+@section('page-title', 'Producción BPM de Urdido')
 
 @section('navbar-right')
     <div class="flex items-center gap-2">

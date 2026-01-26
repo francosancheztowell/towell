@@ -158,13 +158,8 @@ class ModuloProduccionUrdidoController extends Controller
                 $totalRegistros += $numeroJulio;
             }
         }
-        
-        Log::info('Julios encontrados para el folio', [
-            'folio' => $orden->Folio,
-            'total_registros_en_urdjuliosorden' => $julios->count(),
-            'total_registros_necesarios' => $totalRegistros,
-            'julios_ids' => $julios->pluck('Id')->toArray(),
-        ]);
+
+
 
         // Obtener registros existentes en UrdProduccionUrdido para este Folio
         // Contar TODOS los registros existentes para este folio (no solo los sin NoJulio)
@@ -185,7 +180,7 @@ class ModuloProduccionUrdidoController extends Controller
                 $registrosExistentesSinNoJulio = UrdProduccionUrdido::where('Folio', $orden->Folio)
                     ->whereNull('NoJulio')
                     ->count();
-                
+
                 // Calcular cuántos registros faltan
                 // Si hay 6 julios y 0 registros sin NoJulio, crear 6
                 // Si hay 6 julios y 2 registros sin NoJulio, crear 4
