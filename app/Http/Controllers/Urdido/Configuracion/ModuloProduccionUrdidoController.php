@@ -147,10 +147,8 @@ class ModuloProduccionUrdidoController extends Controller
             ->orderBy('Julios')
             ->get();
 
-        // Calcular el total de registros (suma de todos los números de julio)
-        // Si hay un julio con número 12, se generan 12 filas
-        // Si hay un julio con número 15, se generan 15 filas
-        // Si hay múltiples julios, se suman todos
+        // Calcular el total de registros basándose en el campo Julios de cada registro
+        // El campo Julios indica cuántos registros de producción se deben crear para ese julio
         $totalRegistros = 0;
         if ($julios->count() > 0) {
             foreach ($julios as $julio) {
@@ -169,15 +167,19 @@ class ModuloProduccionUrdidoController extends Controller
         // Crear registros basándose en los julios de UrdJuliosOrden
         // Para cada julio, crear N registros (donde N = valor de Julios)
         // NoJulio será null al crear, pero Hilos se rellenan desde UrdJuliosOrden
-        if ($julios->count() > 0) {
+        if ($julios->count() > 0 && $totalRegistros > 0) {
             try {
                 $registrosACrear = [];
 
-                // Contar cuántos registros ya existen para este folio
-                $registrosExistentes = $registrosProduccion->count();
-
-                // Calcular cuántos registros faltan
-                $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
+                // Contar cuántos registros ya existen para este folio agrupados por Hilos
+                $registrosPorHilos = [];
+                foreach ($registrosProduccion as $registro) {
+                    $hilosKey = (string)($registro->Hilos ?? 'null');
+                    if (!isset($registrosPorHilos[$hilosKey])) {
+                        $registrosPorHilos[$hilosKey] = 0;
+                    }
+                    $registrosPorHilos[$hilosKey]++;
+                }
 
                 // Obtener datos del usuario actual para asignar automáticamente
                 $usuarioActual = Auth::user();
@@ -193,19 +195,19 @@ class ModuloProduccionUrdidoController extends Controller
                 // Obtener metros de la orden (asignar el total completo a cada registro)
                 $metrosOrden = $orden->Metros ?? 0;
 
-
-
                 // Crear los registros faltantes, distribuyendo los Hilos de los julios
-                // Iterar por los julios y crear N registros para cada uno (donde N = valor de Julios)
-                $indiceRegistro = 0;
+                // Para cada julio, verificar cuántos registros con ese Hilos ya existen y crear solo los faltantes
                 foreach ($julios as $julio) {
                     $numeroJulio = (int) ($julio->Julios ?? 0);
                     $hilos = $julio->Hilos ?? null;
 
-                    if ($numeroJulio > 0) {
-                        // Crear N registros para este julio (donde N = numeroJulio)
-                        // Pero solo crear los que faltan
-                        for ($i = 0; $i < $numeroJulio && $indiceRegistro < $registrosFaltantes; $i++) {
+                    if ($numeroJulio > 0 && $hilos !== null) {
+                        $hilosKey = (string)$hilos;
+                        $registrosExistentesParaEsteHilos = $registrosPorHilos[$hilosKey] ?? 0;
+                        $registrosFaltantesParaEsteHilos = max(0, $numeroJulio - $registrosExistentesParaEsteHilos);
+
+                        // Crear solo los registros faltantes para este Hilos
+                        for ($i = 0; $i < $registrosFaltantesParaEsteHilos; $i++) {
                             // Preparar datos del registro
                             $registroData = [
                                 'Folio' => $orden->Folio,
@@ -230,7 +232,6 @@ class ModuloProduccionUrdidoController extends Controller
                             }
 
                             $registrosACrear[] = $registroData;
-                            $indiceRegistro++;
                         }
                     }
                 }
