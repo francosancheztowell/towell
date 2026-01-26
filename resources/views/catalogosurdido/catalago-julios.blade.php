@@ -4,9 +4,25 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openCreateModal()" title="Nuevo Julio"/>
-        <x-navbar.button-edit id="btnEdit" onclick="editSelected()" title="Editar Julio" :disabled="true"/>
-        <x-navbar.button-delete id="btnDelete" onclick="deleteSelected()" title="Eliminar Julio" :disabled="true" hoverBg="hover:bg-red-600"/>
+        <x-navbar.button-create
+        onclick="openCreateModal()"
+        title="Nuevo Julio"
+        module="Catalogos Julios"
+        />
+        <x-navbar.button-edit
+        id="btnEdit"
+        onclick="editSelected()"
+        title="Editar Julio"
+        :disabled="true"
+        module="Catalogos Julios"
+        />
+        <x-navbar.button-delete
+        id="btnDelete"
+        onclick="deleteSelected()"
+        title="Eliminar Julio"
+        :disabled="true"
+        module="Catalogos Julios"
+        hoverBg="hover:bg-red-600"/>
         <x-buttons.catalog-actions route="julios" :showFilters="true" />
     </div>
 @endsection
@@ -260,7 +276,7 @@
         const isEdit = mode === 'edit';
         const title = isEdit ? 'Editar Julio' : 'Nuevo Julio';
         const confirmText = isEdit ? 'Actualizar' : 'Guardar';
-        
+
         // Detectar departamento según la ruta actual
         const isEngomado = window.location.pathname.includes('catalogojulioseng');
         const departamentoFiltro = isEngomado ? 'Engomado' : 'Urdido';
@@ -416,7 +432,7 @@
         // Detectar si estamos en engomado o urdido
         const isEngomado = window.location.pathname.includes('catalogojulioseng');
         const basePath = isEngomado ? '/engomado/configuracion/catalogojulioseng' : '/urdido/catalogos-julios';
-        
+
         axios.delete(`${basePath}/${encodeURIComponent(resolvedId)}`, {
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -464,7 +480,7 @@
         // Detectar departamento según la ruta actual
         const isEngomado = window.location.pathname.includes('catalogojulioseng');
         const departamentoFiltro = isEngomado ? 'Engomado' : 'Urdido';
-        
+
         Swal.fire({
             title: 'Filtrar Julios',
             html: `

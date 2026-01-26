@@ -26,8 +26,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($maquinas as $maquina)
-                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
-                        onclick="selectRow(this, '{{ $maquina->MaquinaId }}')" 
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+                        onclick="selectRow(this, '{{ $maquina->MaquinaId }}')"
                         data-id="{{ $maquina->MaquinaId }}">
                         <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $maquina->MaquinaId }}</td>
                     </tr>
@@ -80,7 +80,7 @@
         <form id="maquinaForm" onsubmit="handleSubmit(event)">
             <div class="p-6">
                 <input type="hidden" id="original_maquinaid" name="original_maquinaid">
-                
+
                 <div class="grid grid-cols-1 gap-4">
                     <div>
                         <label for="MaquinaId" class="block text-sm font-medium text-gray-700 mb-1">
@@ -92,13 +92,13 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="border-t p-4 flex justify-end gap-2">
-                <button type="button" onclick="closeFormModal()" 
+                <button type="button" onclick="closeFormModal()"
                     class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                     Cancelar
                 </button>
-                <button type="submit" 
+                <button type="submit"
                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
                     <i class="fas fa-save mr-1"></i> Guardar
                 </button>
@@ -128,11 +128,11 @@
             </div>
         </div>
         <div class="border-t p-4 flex justify-end gap-2">
-            <button onclick="closeDeleteModal()" 
+            <button onclick="closeDeleteModal()"
                 class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                 Cancelar
             </button>
-            <button onclick="deleteMaquina()" 
+            <button onclick="deleteMaquina()"
                 class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">
                 <i class="fas fa-trash mr-1"></i> Eliminar
             </button>
@@ -153,7 +153,7 @@
         if (selectedRow) {
             selectedRow.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
         }
-        
+
         // Si se hace clic en la misma fila, deseleccionar
         if (selectedRow === row) {
             selectedRow = null;
@@ -161,12 +161,12 @@
             disableButtons();
             return;
         }
-        
+
         // Seleccionar nueva fila
         selectedRow = row;
         currentMaquinaId = maquinaId;
         row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
-        
+
         // Habilitar botones
         enableButtons();
     }
@@ -175,13 +175,13 @@
     function enableButtons() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = false;
             btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
             btnEdit.classList.add('cursor-pointer');
         }
-        
+
         if (btnDelete) {
             btnDelete.disabled = false;
             btnDelete.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -193,13 +193,13 @@
     function disableButtons() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = true;
             btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
             btnEdit.classList.remove('cursor-pointer');
         }
-        
+
         if (btnDelete) {
             btnDelete.disabled = true;
             btnDelete.classList.add('opacity-50', 'cursor-not-allowed');
@@ -234,7 +234,7 @@
     function openEditModal(maquinaId) {
         currentMaquinaId = maquinaId;
         document.getElementById('formModalTitle').textContent = 'Editar Máquina';
-        
+
         // Cargar datos desde el backend
         axios.get(`/atadores/catalogos/maquinas/${encodeURIComponent(maquinaId)}`)
             .then(response => {
@@ -242,7 +242,7 @@
                     const data = response.data.data;
                     document.getElementById('original_maquinaid').value = data.MaquinaId;
                     document.getElementById('MaquinaId').value = data.MaquinaId;
-                    
+
                     document.getElementById('formModal').classList.remove('hidden');
                     document.getElementById('formModal').classList.add('flex');
                 }
@@ -265,7 +265,7 @@
                 if (response.data.success) {
                     const data = response.data.data;
                     document.getElementById('view_maquinaid').textContent = data.MaquinaId;
-                    
+
                     document.getElementById('viewModal').classList.remove('hidden');
                     document.getElementById('viewModal').classList.add('flex');
                 }
@@ -315,9 +315,9 @@
                         currentMaquinaId = null;
                         disableButtons();
                     }
-                    
+
                     closeDeleteModal();
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: '¡Eliminado!',
@@ -341,26 +341,26 @@
     // Manejar envío del formulario
     function handleSubmit(event) {
         event.preventDefault();
-        
+
         const formData = new FormData(event.target);
         const data = {
             MaquinaId: formData.get('MaquinaId')
         };
-        
+
         const originalMaquinaId = formData.get('original_maquinaid');
         const isEdit = originalMaquinaId !== '';
-        
-        const url = isEdit 
+
+        const url = isEdit
             ? `/atadores/catalogos/maquinas/${encodeURIComponent(originalMaquinaId)}`
             : '/atadores/catalogos/maquinas';
-        
+
         const method = isEdit ? 'put' : 'post';
-        
+
         axios[method](url, data)
             .then(response => {
                 if (response.data.success) {
                     closeFormModal();
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: isEdit ? '¡Actualizado!' : '¡Creado!',
@@ -388,7 +388,7 @@
         const formModal = document.getElementById('formModal');
         const viewModal = document.getElementById('viewModal');
         const deleteModal = document.getElementById('deleteModal');
-        
+
         if (event.target === formModal) {
             closeFormModal();
         }

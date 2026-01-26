@@ -9,23 +9,33 @@ Actividades BPM Engomado
     <div class="flex items-center gap-2">
 
         <!-- Botón Agregar -->
-        <button type="button" onclick="openActividadModal('createModal')" class="p-2 rounded-lg transition hover:bg-green-100" title="Nueva Actividad">
-            <i class="fa-solid fa-plus text-green-600 text-lg"></i>
-        </button>
+        <x-navbar.button-create
+        type="button"
+        onclick="openActividadModal('createModal')"
+        class="p-2 rounded-lg transition hover:bg-green-100"
+        title="Nueva Actividad"
+        icon="fa-plus"
+        iconColor="text-green-600"
+        hoverBg="hover:bg-green-100"
+        module="Actividades BPM Engomado"
+        />
 
-        <!-- Botón Editar -->
-        <button id="btn-top-edit" type="button"
-            class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            onclick="handleTopEdit()" disabled title="Editar Actividad">
-            <i class="fa-solid fa-pen-to-square text-yellow-500 text-lg"></i>
-        </button>
+        <x-navbar.button-edit
+        id="btn-top-edit"
+        onclick="handleTopEdit()"
+        :disabled="true"
+        iconColor="text-yellow-500"
+        module="Actividades BPM Engomado"
+        hoverBg="hover:bg-yellow-100"/>
 
-        <!-- Botón Eliminar -->
-        <button id="btn-top-delete" type="button"
-            class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            onclick="handleTopDelete()" disabled title="Eliminar Actividad">
-            <i class="fa-solid fa-trash text-red-600 text-lg"></i>
-        </button>
+
+        <x-navbar.button-delete
+        id="btn-top-delete"
+        onclick="handleTopDelete()"
+        :disabled="true"
+        iconColor="text-red-500"
+        module="Actividades BPM Engomado"
+        hoverBg="hover:bg-red-100"/>
     </div>
 @endsection
 

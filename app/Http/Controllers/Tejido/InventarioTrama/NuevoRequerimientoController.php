@@ -11,6 +11,7 @@ use App\Models\Tejido\TejTrama;
 use App\Models\Tejido\TejTramaConsumos;
 use App\Helpers\TurnoHelper;
 use App\Helpers\FolioHelper;
+use App\Helpers\AuditoriaHelper;
 use Carbon\Carbon;
 
 class NuevoRequerimientoController extends Controller
@@ -195,6 +196,11 @@ class NuevoRequerimientoController extends Controller
 
             DB::commit();
 
+            // Registrar evento de auditoría
+            $accion = $providedFolio ? 'UPDATE' : 'INSERT';
+            $detalle = "Folio={$folio} | Consumos=" . count($consumos);
+            AuditoriaHelper::logEvento('TejTrama', $accion, $detalle, $request);
+
             return response()->json([
                 'success'  => true,
                 'message'  => 'Requerimientos guardados exitosamente',
@@ -246,6 +252,15 @@ class NuevoRequerimientoController extends Controller
 
             if ($updated > 0) {
                 $consumo = DB::table('TejTramaConsumos')->where('Id', $data['id'])->first();
+                
+                // Registrar evento de auditoría
+                AuditoriaHelper::logEvento(
+                    'TejTramaConsumos',
+                    'UPDATE',
+                    "Id={$data['id']} | Cantidad={$data['cantidad']}",
+                    $request
+                );
+
                 return response()->json([
                     'success'      => true,
                     'message'      => 'Cantidad actualizada correctamente',

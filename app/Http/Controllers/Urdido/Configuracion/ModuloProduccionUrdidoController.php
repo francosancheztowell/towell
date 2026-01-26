@@ -68,10 +68,9 @@ class ModuloProduccionUrdidoController extends Controller
             $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)->count();
             $usuarioActual = Auth::user();
             $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
-            $puedeCrearRegistros = ($usuarioArea === 'Urdido');
 
             return response()->json([
-                'puedeCrear' => $puedeCrearRegistros,
+                'puedeCrear' => true,
                 'tieneRegistros' => $registrosProduccion > 0,
                 'usuarioArea' => $usuarioArea,
             ]);
@@ -167,23 +166,10 @@ class ModuloProduccionUrdidoController extends Controller
             ->orderBy('Id')
             ->get();
 
-        // Verificar área del usuario
-        $usuarioActual = Auth::user();
-        $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
-        $puedeCrearRegistros = ($usuarioArea === 'Urdido');
-        $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
-
-        // Si el usuario no es del área Urdido y no hay registros existentes, no permitir crear
-        if (!$puedeCrearRegistros && !$tieneRegistrosExistentes) {
-            return redirect()->route('urdido.programar.urdido')
-                ->with('error', 'No tienes permisos para crear registros en este módulo. Solo usuarios del área Urdido pueden crear registros.');
-        }
-
         // Crear registros basándose en los julios de UrdJuliosOrden
         // Para cada julio, crear N registros (donde N = valor de Julios)
         // NoJulio será null al crear, pero Hilos se rellenan desde UrdJuliosOrden
-        // SOLO crear si el usuario tiene el área correcta
-        if ($julios->count() > 0 && $puedeCrearRegistros) {
+        if ($julios->count() > 0) {
             try {
                 $registrosACrear = [];
 
@@ -302,8 +288,14 @@ class ModuloProduccionUrdidoController extends Controller
         $loteProveedor = $orden->LoteProveedor ?? null;
 
         // Obtener usuario autenticado para pre-rellenar en el modal
+        $usuarioActual = Auth::user();
         $usuarioNombre = $usuarioActual ? ($usuarioActual->nombre ?? '') : '';
         $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
+        $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
+
+        // Variables para la vista (sin restricción de área)
+        $puedeCrearRegistros = true;
+        $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
 
         return view('modulos.urdido.modulo-produccion-urdido', [
             'orden' => $orden,

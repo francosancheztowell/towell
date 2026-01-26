@@ -136,7 +136,7 @@
     <!-- Sección inferior: Tabla de Producción -->
     <div class="bg-white shadow-md overflow-hidden">
             <div class="overflow-x-auto max-h-[55vh] overflow-y-auto">
-                <table class="divide-y divide-gray-200 text-sm w-full">
+                <table class=" text-sm w-full">
                 <thead class="bg-blue-500 text-white sticky top-0 z-20">
                     <tr>
                         <th class="py-1"></th>
