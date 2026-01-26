@@ -27,12 +27,13 @@
                             <th class="px-2 py-2  font-semibold  ">Maquina</th>
                             <th class="px-2 py-2  font-semibold  ">Tipo Falla</th>
                             <th class="px-2 py-2  font-semibold  ">Falla</th>
+                            <th class="px-2 py-2  font-semibold  ">Usuario</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-paros">
                         <!-- Los datos se cargarán dinámicamente aquí -->
                         <tr>
-                            <td colspan="8" class="border border-gray-300 px-2 py-2 text-center text-gray-500">
+                            <td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-gray-500">
                                 Cargando datos...
                             </td>
                         </tr>
@@ -71,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.data.length === 0) {
                     tbodyParos.innerHTML = `
                         <tr>
-                            <td colspan="8" class="border border-gray-300 px-2 py-2 text-center text-gray-500">
+                            <td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-gray-500">
                                 No hay paros/fallas activos
                             </td>
                         </tr>
@@ -101,6 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td class="px-2 py-2 text-gray-900 text-center">${paro.MaquinaId || ''}</td>
                         <td class="px-2 py-2 text-gray-900 text-center">${paro.TipoFallaId || ''}</td>
                         <td class="px-2 py-2 text-gray-900 text-center">${paro.Falla || ''}</td>
+                        <td class="px-2 py-2 text-gray-900 text-center">${paro.NomEmpl || ''}</td>
                     `;
 
                     // Event listener para seleccionar fila
@@ -132,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 tbodyParos.innerHTML = `
                     <tr>
-                        <td colspan="8" class="border border-gray-300 px-2 py-2 text-center text-red-500">
+                        <td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-red-500">
                             Error al cargar los datos: ${result.error || 'Error desconocido'}
                         </td>
                     </tr>
@@ -142,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error al cargar paros:', error);
             tbodyParos.innerHTML = `
                 <tr>
-                    <td colspan="8" class="border border-gray-300 px-2 py-2 text-center text-red-500">
+                    <td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-red-500">
                         Error de conexión. Por favor, recarga la página.
                     </td>
                 </tr>

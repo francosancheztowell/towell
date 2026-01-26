@@ -248,8 +248,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Cargar fallas/descripcion por departamento (CatParosFallas)
-    async function cargarFallas(departamento) {
+    // Cargar fallas/descripcion por departamento y tipo de falla (CatParosFallas)
+    async function cargarFallas(departamento, tipoFallaId = null) {
         // Reset si no hay depto
         if (!departamento) {
             while (selectFalla.options.length > 1) {
@@ -277,7 +277,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 departamentoParaConsulta = 'Tejido';
             }
 
-            const url = `{{ url('/api/mantenimiento/fallas') }}/${encodeURIComponent(departamentoParaConsulta)}`;
+            // Construir URL con tipo de falla si está seleccionado
+            let url = `{{ url('/api/mantenimiento/fallas') }}/${encodeURIComponent(departamentoParaConsulta)}`;
+            if (tipoFallaId) {
+                url += `/${encodeURIComponent(tipoFallaId)}`;
+            }
+
             const response = await fetch(url);
             const result = await response.json();
 
@@ -321,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event listener para Tipo Falla: auto-marcar/desmarcar "Notificar a Supervisor"
+    // Event listener para Tipo Falla: auto-marcar/desmarcar "Notificar a Supervisor" y recargar fallas
     selectTipoFalla.addEventListener('change', function() {
         const tipoFallaSeleccionado = this.value.toUpperCase().trim();
         // Si es "Electrico" o "Mecanico", marcar automáticamente
@@ -330,6 +335,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // Para cualquier otro tipo, desmarcar
             checkboxNotificarSupervisor.checked = false;
+        }
+
+        // Recargar fallas con el tipo de falla seleccionado
+        const departamentoSeleccionado = selectDepto.value;
+        if (departamentoSeleccionado) {
+            // Limpiar selecciones de falla y descripción antes de recargar
+            selectFalla.value = '';
+            selectDescripcion.value = '';
+            cargarFallas(departamentoSeleccionado, this.value || null);
         }
     });
 
@@ -437,7 +451,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Al cambiar de departamento, limpiamos orden de trabajo (para evitar valores de otro depto)
         inputOrdenTrabajo.value = '';
         cargarMaquinas(departamentoSeleccionado);
-        cargarFallas(departamentoSeleccionado);
+        // Cargar fallas con el tipo de falla seleccionado (si hay uno)
+        const tipoFallaSeleccionado = selectTipoFalla.value || null;
+        cargarFallas(departamentoSeleccionado, tipoFallaSeleccionado);
     });
 
     // Event listener para cambio de máquina → buscar orden de trabajo sugerida
@@ -493,11 +509,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         timer: 2000,
                         showConfirmButton: false
                     }).then(() => {
-                        window.location.href = '{{ route('mantenimiento.solicitudes') }}';
+                        // Volver a la página anterior
+                        if (document.referrer && document.referrer !== window.location.href) {
+                            window.location.href = document.referrer;
+                        } else {
+                            // Si no hay referrer, ir a solicitudes
+                            window.location.href = '{{ route('mantenimiento.solicitudes') }}';
+                        }
                     });
                 } else {
                     alert(result.message || 'Paro reportado correctamente');
-                    window.location.href = '{{ route('mantenimiento.solicitudes') }}';
+                    // Volver a la página anterior
+                    if (document.referrer && document.referrer !== window.location.href) {
+                        window.location.href = document.referrer;
+                    } else {
+                        // Si no hay referrer, ir a solicitudes
+                        window.location.href = '{{ route('mantenimiento.solicitudes') }}';
+                    }
                 }
             } else {
                 // Error del servidor

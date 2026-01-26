@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Página No Encontrada - TOWELL S.A DE C.V</title>
+    <title>Página No Encontrada - TOWEL S.A DE C.V</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -47,7 +47,7 @@
 
         <!-- Información de contacto -->
         <div class="text-gray-400 text-xs">
-            <p>TOWELL S.A DE C.V</p>
+            <p>TOWEL S.A DE C.V</p>
         </div>
     </div>
 </body>
