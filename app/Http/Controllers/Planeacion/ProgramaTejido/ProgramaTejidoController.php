@@ -1210,6 +1210,13 @@ class ProgramaTejidoController extends Controller
 
         $registro = ReqProgramaTejido::findOrFail($id);
 
+        // Guardar valores antes del cambio para auditoría
+        $antes = [
+            'salon' => $registro->SalonTejidoId,
+            'telar' => $registro->NoTelarId,
+            'posicion' => $registro->Posicion ?? 0
+        ];
+
         if ($registro->EnProceso == 1) {
             return response()->json([
                 'success' => false,
@@ -1526,6 +1533,20 @@ class ProgramaTejidoController extends Controller
                     $observer->saved($r); // Disparar Observer para recalcular fórmulas
                 }
             }
+
+            // Registrar evento de auditoría después del commit
+            $despues = [
+                'salon' => $registro->SalonTejidoId,
+                'telar' => $registro->NoTelarId,
+                'posicion' => $registro->Posicion ?? $targetPosition
+            ];
+            \App\Helpers\AuditoriaHelper::logDragDrop(
+                'ReqProgramaTejido',
+                $registro->Id,
+                $antes,
+                $despues,
+                $request
+            );
 
             return response()->json([
                 'success' => true,

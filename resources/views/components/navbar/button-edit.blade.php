@@ -67,7 +67,39 @@
             }
 
             if ($moduleParam) {
-                $hasPermission = function_exists('userCan') ? userCan('modificar', $moduleParam) : true;
+                // Verificar SOLO 'modificar' (no usar 'crear' como fallback)
+                if (function_exists('userCan')) {
+                    $tienePermisoModificar = userCan('modificar', $moduleParam);
+                    
+                    // Además, verificar que el módulo esté activo (acceso = 1)
+                    $tieneAcceso = false;
+                    try {
+                        $userId = auth()->id();
+                        if ($userId) {
+                            $rolId = is_numeric($moduleParam) ? $moduleParam : null;
+                            if (!$rolId && $module) {
+                                $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
+                                $rolId = $rol ? $rol->idrol : null;
+                            }
+                            
+                            if ($rolId) {
+                                $permission = \App\Models\Sistema\SYSUsuariosRoles::where('idusuario', $userId)
+                                    ->where('idrol', $rolId)
+                                    ->first();
+                                
+                                $tieneAcceso = $permission && isset($permission->acceso) && $permission->acceso == 1;
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Si hay error, asumir que no tiene acceso
+                        $tieneAcceso = false;
+                    }
+                    
+                    // El usuario debe tener permiso de modificar Y acceso activo
+                    $hasPermission = $tienePermisoModificar && $tieneAcceso;
+                } else {
+                    $hasPermission = true;
+                }
             }
         }
     }
@@ -105,6 +137,8 @@
     type="{{ $type }}"
     @if($id) id="{{ $id }}" @endif
     @if($onclick && $type !== 'submit') onclick="{{ $onclick }}" @endif
+    @if($module) data-module="{{ $module }}" @endif
+    @if($moduleId) data-module-id="{{ $moduleId }}" @endif
     class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg }} {{ !$text ? 'w-9 h-9' : '' }} {{ $class }}"
     @if($disabled) disabled @endif
     title="{{ $title }}">

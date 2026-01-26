@@ -220,7 +220,7 @@ class CatalogosUrdidoController extends Controller
     {
         try {
             // Detectar departamento según la ruta
-            $isEngomado = $request->route()->getName() === 'engomado.configuracion.catalogos.julios.store' 
+            $isEngomado = $request->route()->getName() === 'engomado.configuracion.catalogos.julios.store'
                        || str_contains($request->path(), 'catalogojulioseng');
             $departamento = $isEngomado ? 'Engomado' : 'Urdido';
 
@@ -267,7 +267,7 @@ class CatalogosUrdidoController extends Controller
                 ->firstOrFail();
 
             // Detectar departamento según la ruta
-            $isEngomado = $request->route()->getName() === 'engomado.configuracion.catalogos.julios.update' 
+            $isEngomado = $request->route()->getName() === 'engomado.configuracion.catalogos.julios.update'
                        || str_contains($request->path(), 'catalogojulioseng');
             $departamento = $isEngomado ? 'Engomado' : 'Urdido';
 

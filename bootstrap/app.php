@@ -16,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Trust all proxies to work behind any proxy or load balancer
         $middleware->trustProxies(at: '*');
+
+        // Middleware para establecer contexto de SQL Server antes de queries
+        // Esto permite que los triggers capturen información del usuario
+        $middleware->web(append: [
+            \App\Http\Middleware\SetSqlContextInfo::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

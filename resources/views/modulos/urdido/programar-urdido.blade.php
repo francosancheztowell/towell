@@ -5,15 +5,16 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
-             onclick="return irProduccion(event)"
+            onclick="return irProduccion(event)"
             title="Cargar Información"
             icon="fa-download"
             iconColor="text-white"
             hoverBg="hover:bg-blue-600"
             text="Cargar"
             bg="bg-blue-500"
+            module="Programa Urdido"
         />
-        <x-navbar.button-create
+        <x-navbar.button-edit
             onclick="abrirModalEditarPrioridad()"
             title="Editar Prioridad"
             icon="fa-sort-numeric-up"
@@ -21,8 +22,9 @@
             hoverBg="hover:bg-purple-600"
             text="Editar Prioridad"
             bg="bg-purple-600"
+            module="Programa Urdido"
         />
-        <x-navbar.button-create
+        <x-navbar.button-edit
             onclick="window.location.href='{{ route('urdido.reimpresion.finalizadas') }}'"
             title="Reimpresion"
             icon="fa-print"
@@ -30,6 +32,7 @@
             hoverBg="hover:bg-green-600"
             text="Reimpresion"
             bg="bg-green-500"
+            module="Programa Urdido"
         />
     </div>
 @endsection

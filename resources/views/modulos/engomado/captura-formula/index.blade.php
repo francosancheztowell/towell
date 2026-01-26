@@ -4,18 +4,38 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button onclick="document.getElementById('createModal').classList.remove('hidden')" class="p-2 rounded-lg transition hover:bg-green-100" title="Crear Nueva Fórmula">
-            <i class="fa-solid fa-plus text-green-600 text-lg"></i>
-        </button>
-        <button onclick="openEditModal()" id="btn-edit" disabled class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Editar">
-            <i class="fa-solid fa-edit text-yellow-600 text-lg"></i>
-        </button>
-        <button onclick="confirmAutorizar()" id="btn-autorizar" disabled class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Autorizar">
-            <i class="fa-solid fa-check-circle text-blue-600 text-lg"></i>
-        </button>
-        <button onclick="confirmDelete()" id="btn-delete" disabled class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Eliminar">
-            <i class="fa-solid fa-trash text-red-600 text-lg"></i>
-        </button>
+        <x-navbar.button-create
+        onclick="document.getElementById('createModal').classList.remove('hidden')"
+        title="Crear Nueva Fórmula"
+        icon="fa-plus"
+        iconColor="text-green-600"
+        hoverBg="hover:bg-green-100"
+        module="Captura de Formula"
+        />
+        <x-navbar.button-edit
+        onclick="openEditModal()"
+        title="Editar Fórmula"
+        icon="fa-edit"
+        iconColor="text-yellow-600"
+        hoverBg="hover:bg-yellow-100"
+        module="Captura de Formula"
+        />
+        <x-navbar.button-delete
+        onclick="confirmDelete()"
+        title="Eliminar Fórmula"
+        icon="fa-trash"
+        iconColor="text-red-600"
+        hoverBg="hover:bg-red-100"
+        module="Captura de Formula"
+        />
+        <x-navbar.button-report
+        onclick="confirmAutorizar()"
+        title="Autorizar"
+        icon="fa-check-circle"
+        iconColor="text-blue-600"
+        hoverBg="hover:bg-blue-100"
+        module="Captura de Formula"
+        />
     </div>
 @endsection
 

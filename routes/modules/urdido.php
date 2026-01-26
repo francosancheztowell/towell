@@ -34,8 +34,7 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
         ->name('configuracion.actividades-bpm.legacy');
     Route::get('/configuracion/catalogosjulios', [CatalogosUrdidoController::class, 'catalogosJulios'])
         ->name('configuracion.catalogos-julios');
-    Route::get('/configuracion/catalogosdeparos', [CatalogosUrdidoController::class, 'catalogosJulios'])
-        ->name('configuracion.catalogos-paros');
+
     Route::get('/configuracion/catalogosmaquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])
         ->name('configuracion.catalogos-maquinas');
 

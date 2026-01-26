@@ -4,9 +4,26 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openCreateModal()" title="Nueva Máquina"/>
-        <x-navbar.button-edit id="btnEdit" onclick="editSelected()" title="Editar Máquina" :disabled="true"/>
-        <x-navbar.button-delete id="btnDelete" onclick="deleteSelected()" title="Eliminar Máquina" :disabled="true" hoverBg="hover:bg-red-200"/>
+        <x-navbar.button-create
+        onclick="openCreateModal()"
+        title="Nueva Máquina"
+        module="Catalogos Maquinas"
+        />
+        <x-navbar.button-edit
+        id="btnEdit"
+        onclick="editSelected()"
+        title="Editar Máquina"
+        :disabled="true"
+        module="Catalogos Maquinas"
+        />
+        <x-navbar.button-delete
+        id="btnDelete"
+        onclick="deleteSelected()"
+        title="Eliminar Máquina"
+        :disabled="true"
+        hoverBg="hover:bg-red-200"
+        module="Catalogos Maquinas"
+        />
         <x-buttons.catalog-actions route="maquinas" :showFilters="true" />
     </div>
 @endsection
@@ -37,9 +54,9 @@
                             data-nombre="{{ $maquina->Nombre ?? '' }}"
                             data-departamento="{{ $maquina->Departamento ?? '' }}"
                             data-id="{{ $maquina->MaquinaId }}">
-                            <td class="py-2 px-4 border-b">{{ $maquina->MaquinaId }}</td>
-                            <td class="py-2 px-4 border-b">{{ $maquina->Nombre ?? 'N/A' }}</td>
-                            <td class="py-2 px-4 border-b">{{ $maquina->Departamento ?? 'N/A' }}</td>
+                            <td class="py-2 px-4 ">{{ $maquina->MaquinaId }}</td>
+                            <td class="py-2 px-4 ">{{ $maquina->Nombre ?? 'N/A' }}</td>
+                            <td class="py-2 px-4 ">{{ $maquina->Departamento ?? 'N/A' }}</td>
                         </tr>
                     @empty
                         <tr>

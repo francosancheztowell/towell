@@ -90,10 +90,9 @@ class ModuloProduccionEngomadoController extends Controller
             $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
             $usuarioActual = Auth::user();
             $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
-            $puedeCrearRegistros = ($usuarioArea === 'Engomado');
 
             return response()->json([
-                'puedeCrear' => $puedeCrearRegistros,
+                'puedeCrear' => true,
                 'tieneRegistros' => $registrosProduccion > 0,
                 'usuarioArea' => $usuarioArea,
             ]);
@@ -180,21 +179,8 @@ class ModuloProduccionEngomadoController extends Controller
             ->orderBy('Id')
             ->get();
 
-        // Verificar área del usuario
-        $usuarioActual = Auth::user();
-        $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
-        $puedeCrearRegistros = ($usuarioArea === 'Engomado');
-        $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
-
-        // Si el usuario no es del área Engomado y no hay registros existentes, no permitir crear
-        if (!$puedeCrearRegistros && !$tieneRegistrosExistentes) {
-            return redirect()->route('engomado.programar.engomado')
-                ->with('error', 'No tienes permisos para crear registros en este módulo. Solo usuarios del área Engomado pueden crear registros.');
-        }
-
         // Crear registros basándose en No. De Telas
-        // SOLO crear si el usuario tiene el área correcta
-        if ($totalRegistros > 0 && $puedeCrearRegistros) {
+        if ($totalRegistros > 0) {
             try {
                 // Contar cuántos registros ya existen para este folio
                 $registrosExistentes = $registrosProduccion->count();
@@ -291,8 +277,14 @@ class ModuloProduccionEngomadoController extends Controller
         $loteProveedor = $orden->LoteProveedor ?? null;
 
         // Obtener usuario autenticado para pre-rellenar en el modal
+        $usuarioActual = Auth::user();
         $usuarioNombre = $usuarioActual ? ($usuarioActual->nombre ?? '') : '';
         $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
+        $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
+        
+        // Variables para la vista (sin restricción de área)
+        $puedeCrearRegistros = true;
+        $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
 
         return view('modulos.engomado.modulo-produccion-engomado', [
             'orden' => $orden,
