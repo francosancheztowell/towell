@@ -527,7 +527,6 @@ async function terminarAtado(){
     })
     .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
-}
 
 async function calificarTejedor(){
     const { value: formValues } = await Swal.fire({
