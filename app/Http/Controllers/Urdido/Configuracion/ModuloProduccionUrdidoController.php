@@ -142,109 +142,175 @@ class ModuloProduccionUrdidoController extends Controller
         }
 
         // Obtener julios asociados al folio
+        // Solo obtener los que tienen Julios no null (el campo Julios indica la cantidad a crear)
         $julios = UrdJuliosOrden::where('Folio', $orden->Folio)
             ->whereNotNull('Julios')
             ->orderBy('Julios')
             ->get();
 
-        // Calcular el total de registros (suma de todos los números de julio)
-        // Si hay un julio con número 12, se generan 12 filas
-        // Si hay un julio con número 15, se generan 15 filas
-        // Si hay múltiples julios, se suman todos
+        // Calcular el total de registros: sumar todos los valores de Julios
+        // Si hay un registro con Julios=6, se generan 6 registros
+        // Si hay 2 registros con Julios=2 cada uno, se generan 4 registros total (2+2)
         $totalRegistros = 0;
-        if ($julios->count() > 0) {
-            foreach ($julios as $julio) {
-                $numeroJulio = (int) ($julio->Julios ?? 0);
-                if ($numeroJulio > 0) {
-                    $totalRegistros += $numeroJulio;
-                }
+        foreach ($julios as $julio) {
+            $numeroJulio = (int) ($julio->Julios ?? 0);
+            if ($numeroJulio > 0) {
+                $totalRegistros += $numeroJulio;
             }
         }
+        
+        Log::info('Julios encontrados para el folio', [
+            'folio' => $orden->Folio,
+            'total_registros_en_urdjuliosorden' => $julios->count(),
+            'total_registros_necesarios' => $totalRegistros,
+            'julios_ids' => $julios->pluck('Id')->toArray(),
+        ]);
 
         // Obtener registros existentes en UrdProduccionUrdido para este Folio
+        // Contar TODOS los registros existentes para este folio (no solo los sin NoJulio)
+        // porque necesitamos saber el total real de registros de producción
         $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)
             ->orderBy('Id')
             ->get();
 
         // Crear registros basándose en los julios de UrdJuliosOrden
-        // Para cada julio, crear N registros (donde N = valor de Julios)
+        // Crear exactamente 1 registro por cada registro en UrdJuliosOrden
         // NoJulio será null al crear, pero Hilos se rellenan desde UrdJuliosOrden
         if ($julios->count() > 0) {
             try {
                 $registrosACrear = [];
 
                 // Contar cuántos registros ya existen para este folio
-                $registrosExistentes = $registrosProduccion->count();
-
+                // Solo contar los que aún no tienen NoJulio asignado (registros iniciales sin asignar)
+                $registrosExistentesSinNoJulio = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                    ->whereNull('NoJulio')
+                    ->count();
+                
                 // Calcular cuántos registros faltan
-                $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
+                // Si hay 6 julios y 0 registros sin NoJulio, crear 6
+                // Si hay 6 julios y 2 registros sin NoJulio, crear 4
+                $registrosFaltantes = max(0, $totalRegistros - $registrosExistentesSinNoJulio);
 
-                // Obtener datos del usuario actual para asignar automáticamente
-                $usuarioActual = Auth::user();
-                $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
-                $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
-                $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
+                // Log temporal para depuración
+                Log::info('Verificando registros de producción Urdido', [
+                    'folio' => $orden->Folio,
+                    'total_julios_en_urdjuliosorden' => $julios->count(),
+                    'total_registros_necesarios' => $totalRegistros,
+                    'registros_existentes_sin_nojulio' => $registrosExistentesSinNoJulio,
+                    'registros_faltantes' => $registrosFaltantes,
+                    'detalle_julios' => $julios->map(function($j) {
+                        return [
+                            'id' => $j->Id,
+                            'julios' => $j->Julios,
+                            'hilos' => $j->Hilos,
+                        ];
+                    })->toArray(),
+                ]);
 
-                // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
-                if (!$turnoUsuario) {
-                    $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
-                }
+                // Si ya existen todos los registros necesarios, no crear más
+                if ($registrosFaltantes > 0) {
+                    // Obtener datos del usuario actual para asignar automáticamente
+                    $usuarioActual = Auth::user();
+                    $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
+                    $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
+                    $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
 
-                // Obtener metros de la orden (asignar el total completo a cada registro)
-                $metrosOrden = $orden->Metros ?? 0;
+                    // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
+                    if (!$turnoUsuario) {
+                        $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
+                    }
 
+                    // Obtener metros de la orden (asignar el total completo a cada registro)
+                    $metrosOrden = $orden->Metros ?? 0;
 
+                    // Crear los registros faltantes, distribuyendo los Hilos de los julios
+                    // Para cada julio, crear N registros (donde N = valor de Julios)
+                    // Verificar cuántos registros con ese Hilos ya existen y crear solo los faltantes
+                    Log::info('Iniciando creación de registros', [
+                        'folio' => $orden->Folio,
+                        'registros_faltantes' => $registrosFaltantes,
+                        'total_julios_en_urdjuliosorden' => $julios->count(),
+                        'total_registros_necesarios' => $totalRegistros,
+                    ]);
 
-                // Crear los registros faltantes, distribuyendo los Hilos de los julios
-                // Iterar por los julios y crear N registros para cada uno (donde N = valor de Julios)
-                $indiceRegistro = 0;
-                foreach ($julios as $julio) {
-                    $numeroJulio = (int) ($julio->Julios ?? 0);
-                    $hilos = $julio->Hilos ?? null;
-
-                    if ($numeroJulio > 0) {
-                        // Crear N registros para este julio (donde N = numeroJulio)
-                        // Pero solo crear los que faltan
-                        for ($i = 0; $i < $numeroJulio && $indiceRegistro < $registrosFaltantes; $i++) {
-                            // Preparar datos del registro
-                            $registroData = [
-                                'Folio' => $orden->Folio,
-                                'TipoAtado' => $orden->TipoAtado ?? null,
-                                'NoJulio' => null, // NoJulio debe ser null al crear los registros
-                                'Hilos' => $hilos, // Rellenar Hilos desde UrdJuliosOrden
-                                'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
-                            ];
-
-                            // Solo agregar campos de oficial si tienen valores
-                            if (!empty($claveUsuario)) {
-                                $registroData['CveEmpl1'] = $claveUsuario;
+                    // Contar registros existentes agrupados por Hilos
+                    $registrosPorHilos = [];
+                    foreach ($registrosProduccion as $registro) {
+                        if ($registro->NoJulio === null) {
+                            $hilosKey = (string)($registro->Hilos ?? 'null');
+                            if (!isset($registrosPorHilos[$hilosKey])) {
+                                $registrosPorHilos[$hilosKey] = 0;
                             }
-                            if (!empty($nombreUsuario)) {
-                                $registroData['NomEmpl1'] = $nombreUsuario;
-                            }
-                            if ($metrosOrden > 0) {
-                                $registroData['Metros1'] = round($metrosOrden, 2);
-                            }
-                            if (!empty($turnoUsuario)) {
-                                $registroData['Turno1'] = (int)$turnoUsuario;
-                            }
+                            $registrosPorHilos[$hilosKey]++;
+                        }
+                    }
 
-                            $registrosACrear[] = $registroData;
-                            $indiceRegistro++;
+                    foreach ($julios as $julio) {
+                        $numeroJulio = (int) ($julio->Julios ?? 0);
+                        $hilos = $julio->Hilos ?? null;
+
+                        if ($numeroJulio > 0 && $hilos !== null) {
+                            $hilosKey = (string)$hilos;
+                            $registrosExistentesParaEsteHilos = $registrosPorHilos[$hilosKey] ?? 0;
+                            $registrosFaltantesParaEsteHilos = max(0, $numeroJulio - $registrosExistentesParaEsteHilos);
+
+                            Log::info('Procesando julio', [
+                                'folio' => $orden->Folio,
+                                'julio_id' => $julio->Id,
+                                'julios' => $numeroJulio,
+                                'hilos' => $hilos,
+                                'existentes_para_este_hilos' => $registrosExistentesParaEsteHilos,
+                                'faltantes_para_este_hilos' => $registrosFaltantesParaEsteHilos,
+                            ]);
+
+                            // Crear solo los registros faltantes para este Hilos
+                            for ($i = 0; $i < $registrosFaltantesParaEsteHilos; $i++) {
+                                $registroData = [
+                                    'Folio' => $orden->Folio,
+                                    'TipoAtado' => $orden->TipoAtado ?? null,
+                                    'NoJulio' => null, // NoJulio debe ser null al crear los registros
+                                    'Hilos' => $hilos, // Rellenar Hilos desde UrdJuliosOrden
+                                    'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
+                                ];
+
+                                // Solo agregar campos de oficial si tienen valores
+                                if (!empty($claveUsuario)) {
+                                    $registroData['CveEmpl1'] = $claveUsuario;
+                                }
+                                if (!empty($nombreUsuario)) {
+                                    $registroData['NomEmpl1'] = $nombreUsuario;
+                                }
+                                if ($metrosOrden > 0) {
+                                    $registroData['Metros1'] = round($metrosOrden, 2);
+                                }
+                                if (!empty($turnoUsuario)) {
+                                    $registroData['Turno1'] = (int)$turnoUsuario;
+                                }
+
+                                $registrosACrear[] = $registroData;
+                            }
                         }
                     }
                 }
 
                 // Crear todos los registros en lote si hay alguno
                 if (count($registrosACrear) > 0) {
+                    Log::info('Creando registros de producción Urdido', [
+                        'folio' => $orden->Folio,
+                        'total_julios' => $julios->count(),
+                        'total_registros_necesarios' => $totalRegistros,
+                        'registros_a_crear' => count($registrosACrear),
+                    ]);
+
                     foreach ($registrosACrear as $index => $registroData) {
-
-
                         $registroCreado = UrdProduccionUrdido::create($registroData);
-
-                                        }
-
-
+                    }
+                } else {
+                    Log::info('No se crearán registros adicionales - ya existen todos los necesarios', [
+                        'folio' => $orden->Folio,
+                        'total_registros_necesarios' => $totalRegistros,
+                        'registros_existentes_sin_nojulio' => $registrosExistentesSinNoJulio,
+                    ]);
                 }
             } catch (\Throwable $e) {
                 Log::error('Error al crear registros en UrdProduccionUrdido', [
@@ -254,7 +320,7 @@ class ModuloProduccionUrdidoController extends Controller
                 ]);
             }
 
-            // Recargar los registros después de crear los faltantes
+            // Recargar los registros después de crear los faltantes (todos los registros, no solo los sin NoJulio)
             $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)
                 ->orderBy('Id')
                 ->get();

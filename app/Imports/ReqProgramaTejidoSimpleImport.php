@@ -33,6 +33,9 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
     /** Cache temporal de posiciones asignadas por telar durante el batch actual (para evitar duplicados) */
     private static array $posicionesCachePorTelar = [];
+    
+    /** Cache para rastrear el primer registro de cada telar en el batch actual */
+    private static array $primerRegistroPorTelar = [];
     public function model(array $rawRow)
 	{
 		try {
@@ -323,11 +326,19 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             $this->enforceSchemaStringLengths($data);
 
             // Asignar posición consecutiva para este telar si no viene en el Excel
+            $salonTejidoId = $data['SalonTejidoId'] ?? null;
+            $noTelarId = $data['NoTelarId'] ?? null;
+            $esPrimerRegistroDelTelar = false;
+            
             if (!isset($data['Posicion']) || $data['Posicion'] === null || $data['Posicion'] === '') {
-                $salonTejidoId = $data['SalonTejidoId'] ?? null;
-                $noTelarId = $data['NoTelarId'] ?? null;
                 if ($salonTejidoId && $noTelarId) {
                     $cacheKey = $salonTejidoId . '|' . $noTelarId;
+                    
+                    // Verificar si es el primer registro de este telar en el batch actual
+                    if (!isset(self::$primerRegistroPorTelar[$cacheKey])) {
+                        self::$primerRegistroPorTelar[$cacheKey] = true;
+                        $esPrimerRegistroDelTelar = true;
+                    }
                     
                     // Obtener siguiente posición disponible desde BD
                     $siguientePosicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonTejidoId, $noTelarId);
@@ -346,6 +357,20 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                     self::$posicionesCachePorTelar[$cacheKey][] = $siguientePosicion;
                     $data['Posicion'] = $siguientePosicion;
                 }
+            } else {
+                // Si la posición viene del Excel, verificar si es el primer registro del telar en el batch
+                if ($salonTejidoId && $noTelarId) {
+                    $cacheKey = $salonTejidoId . '|' . $noTelarId;
+                    if (!isset(self::$primerRegistroPorTelar[$cacheKey])) {
+                        self::$primerRegistroPorTelar[$cacheKey] = true;
+                        $esPrimerRegistroDelTelar = true;
+                    }
+                }
+            }
+
+            // Si es el primer registro del telar en el batch, establecer EnProceso = 1
+            if ($esPrimerRegistroDelTelar) {
+                $data['EnProceso'] = 1;
             }
 
             // Normalizar datos para batch insert: todos los registros deben tener las mismas columnas
