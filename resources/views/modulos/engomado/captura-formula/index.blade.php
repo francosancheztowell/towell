@@ -71,6 +71,7 @@
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Orden</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Fecha</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Hr</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cuenta/Titulo</th>
@@ -79,11 +80,9 @@
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Operador</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Olla</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Formula</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tipo Formula</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Kg.</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Litros</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Prod. AX</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tiempo(Min) Cocinado</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tiempo (Min)</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">% Solidos</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Viscocidad</th>
                 </tr>
@@ -92,7 +91,10 @@
                 @forelse($items as $item)
                     <tr class="border-b hover:bg-blue-100 cursor-pointer transition-colors" onclick="selectRow(this, '{{ $item->Folio }}')">
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Hora }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('d/m/Y') : '' }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Hora ? substr($item->Hora, 0, 5) : '' }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold
                                 @if($item->Status === 'Creado') bg-yellow-100 text-yellow-800
@@ -108,17 +110,15 @@
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->NomEmpl }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->Olla }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">{{ $item->Formula }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->MaquinaId }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Kilos ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Litros ?? 0, 2) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->ProdId }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->TiempoCocinado ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Solidos ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Viscocidad ?? 0, 2) }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="16" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
+                        <td colspan="15" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -160,11 +160,11 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
-                            <input type="date" value="{{ date('Y-m-d') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="date" name="fecha" value="{{ date('Y-m-d') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
-                            <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" step="60" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
@@ -504,13 +504,13 @@
 
             const cells = selectedRow.cells;
 
-            // Orden: cells[0] = Folio (Orden), cells[1] = Hr, cells[2] = Status, cells[3] = Cuenta,
-            // Calibre: cells[4], Tipo: cells[5], Operador: cells[6], Olla: cells[7],
-            // Formula: cells[8], TipoFormula: cells[9], Kg: cells[10], Litros: cells[11],
-            // ProdAX: cells[12], Tiempo: cells[13], Solidos: cells[14], Viscocidad: cells[15]
+            // Orden: cells[0] = Folio (Orden), cells[1] = Fecha, cells[2] = Hr, cells[3] = Status,
+            // Cuenta: cells[4], Calibre: cells[5], Tipo: cells[6], Operador: cells[7], Olla: cells[8],
+            // Formula: cells[9], Kg: cells[10], Litros: cells[11], Tiempo: cells[12],
+            // Solidos: cells[13], Viscocidad: cells[14]
 
-            // Usar la Formula (cells[8]) del registro seleccionado para buscar componentes en BOMVersion
-            formulaActual = cells[8].textContent.trim(); // La Formula del registro
+            // Usar la Formula (cells[9]) del registro seleccionado para buscar componentes en BOMVersion
+            formulaActual = cells[9].textContent.trim(); // La Formula del registro
             const kilosValue = cells[10].textContent.trim().replace(/,/g, '');
 
             // Abrir directamente el modal de componentes usando la Formula como referencia

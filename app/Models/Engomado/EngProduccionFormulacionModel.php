@@ -21,6 +21,7 @@ class EngProduccionFormulacionModel extends Model
 
     protected $fillable = [
         'Folio',
+        'fecha',
         'Hora',           // time -> lo manejamos como string
         'MaquinaId',
         'Cuenta',
@@ -40,6 +41,7 @@ class EngProduccionFormulacionModel extends Model
     ];
 
     protected $casts = [
+        'fecha'          => 'date',
         'Calibre'        => 'float',
         'Kilos'          => 'float',
         'Litros'         => 'float',

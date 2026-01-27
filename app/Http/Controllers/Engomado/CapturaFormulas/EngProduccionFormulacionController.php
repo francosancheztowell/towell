@@ -65,6 +65,7 @@ class EngProduccionFormulacionController extends Controller
         ]);
 
         $validated = $request->validate([
+            'fecha' => 'nullable|date',
             'Hora' => 'nullable|string|max:10',
             'MaquinaId' => 'nullable|string|max:50',
             'Cuenta' => 'nullable|string|max:50',
@@ -83,6 +84,10 @@ class EngProduccionFormulacionController extends Controller
         ]);
 
         try {
+            if (empty($validated['fecha'])) {
+                $validated['fecha'] = date('Y-m-d');
+            }
+
             // Usar el FolioProg seleccionado como Folio principal
             $folio = $request->input('FolioProg');
 
@@ -205,6 +210,7 @@ class EngProduccionFormulacionController extends Controller
     public function update(Request $request, $folio)
     {
         $validated = $request->validate([
+            'fecha' => 'nullable|date',
             'Hora' => 'nullable|string|max:10',
             'MaquinaId' => 'nullable|string|max:50',
             'Cuenta' => 'nullable|string|max:50',
