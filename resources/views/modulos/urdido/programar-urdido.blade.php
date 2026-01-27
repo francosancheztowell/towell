@@ -1119,10 +1119,8 @@
             // Init
             // ==========================
             document.addEventListener('DOMContentLoaded', () => {
-                // Verificar permisos de edición (el componente button-edit verifica permisos con module="Reservar y Programar")
-                // Buscar cualquier botón de editar en el navbar para determinar permisos
-                const navbarButtons = document.querySelectorAll('[data-module="Reservar y Programar"]');
-                canEdit = navbarButtons.length > 0;
+                // Habilitar drag and drop para todos los usuarios
+                canEdit = true;
 
                 setButtonsEnabled(false);
                 setupRowClickDelegates();

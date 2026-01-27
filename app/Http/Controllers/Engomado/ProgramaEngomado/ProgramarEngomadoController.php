@@ -409,13 +409,7 @@ class ProgramarEngomadoController extends Controller
     public function intercambiarPrioridad(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 403);
-            }
-
+            // Habilitado para todos los usuarios
             $request->validate([
                 'source_id' => 'required|integer|exists:EngProgramaEngomado,Id',
                 'target_id' => 'required|integer|exists:EngProgramaEngomado,Id',
@@ -474,13 +468,7 @@ class ProgramarEngomadoController extends Controller
     public function guardarObservaciones(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 403);
-            }
-
+            // Habilitado para todos los usuarios
             $request->validate([
                 'id' => 'required|integer|exists:EngProgramaEngomado,Id',
                 'observaciones' => 'nullable|string|max:60',
@@ -650,13 +638,7 @@ class ProgramarEngomadoController extends Controller
     public function actualizarPrioridades(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 403);
-            }
-
+            // Habilitado para todos los usuarios
             $request->validate([
                 'prioridades' => 'required|array',
                 'prioridades.*.id' => 'required|integer|exists:EngProgramaEngomado,Id',

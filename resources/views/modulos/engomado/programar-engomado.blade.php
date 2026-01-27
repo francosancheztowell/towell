@@ -133,10 +133,8 @@
     </div>
 
     @php
-        $usuario = auth()->user();
-        $area = $usuario ? strtolower($usuario->area ?? '') : '';
-        $puesto = $usuario ? strtolower($usuario->puesto ?? '') : '';
-        $puedeEditar = $area === 'engomado' && str_contains($puesto, 'supervisor');
+        // Habilitar drag and drop para todos los usuarios
+        $puedeEditar = true;
     @endphp
 
     <script>
@@ -270,9 +268,9 @@
                     const isSelected = state.ordenSeleccionada?.id === orden.id;
                     const prioridad = orden.prioridad ?? (index + 1);
 
-                    // Marcar con azul muy leve si urdido está finalizado
+                    // Marcar con azul si urdido está finalizado
                     const urdidoFinalizado = orden.urdido_finalizado === true;
-                    const bgColor = urdidoFinalizado ? 'bg-blue-50' : '';
+                    const bgColor = urdidoFinalizado ? 'bg-blue-200 ' : '';
 
                     const rowClasses = isSelected
                         ? `bg-blue-500 text-white h-9 transition-all duration-200 ${bgColor}`

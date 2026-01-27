@@ -3,6 +3,7 @@
 namespace App\Models\Engomado;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Urdido\UrdProgramaUrdido;
 
 class EngProgramaEngomado extends Model
 {
@@ -45,6 +46,8 @@ class EngProgramaEngomado extends Model
         'LoteProveedor',
         'Prioridad',
         'Observaciones',
+        'MermaGoma',
+        'Merma',
     ];
 
     protected $casts = [
@@ -60,6 +63,8 @@ class EngProgramaEngomado extends Model
         'Cuentados' => 'integer',
         'Prioridad' => 'integer',
         'Observaciones' => 'string',
+        'MermaGoma' => 'float',
+        'Merma' => 'float',
     ];
 
     /**

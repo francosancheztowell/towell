@@ -40,6 +40,16 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::delete('/configuracion/catalogojulioseng/{id}', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'destroyJulio'])
         ->name('configuracion.catalogos.julios.destroy');
 
+    // Catálogo de Ubicaciones
+    Route::get('/configuracion/catalogo-ubicaciones', [\App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController::class, 'index'])
+        ->name('configuracion.catalogo.ubicaciones');
+    Route::post('/configuracion/catalogo-ubicaciones', [\App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController::class, 'store'])
+        ->name('configuracion.catalogo.ubicaciones.store');
+    Route::put('/configuracion/catalogo-ubicaciones/{id}', [\App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController::class, 'update'])
+        ->name('configuracion.catalogo.ubicaciones.update');
+    Route::delete('/configuracion/catalogo-ubicaciones/{id}', [\App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController::class, 'destroy'])
+        ->name('configuracion.catalogo.ubicaciones.destroy');
+
     Route::get('/programaengomado', [ProgramarEngomadoController::class, 'index'])->name('programa.engomado');
     Route::redirect('/programaengomado/produccionengomado', '/engomado/modulo-produccion-engomado', 301);
     Route::redirect('/bpmbuenaspracticasmanufacturaeng', '/eng-bpm', 301);

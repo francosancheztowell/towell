@@ -9,10 +9,10 @@ use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Urdido\UrdCatJulios;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdProgramaUrdido;
+use App\Models\Engomado\CatUbicaciones;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -193,65 +193,74 @@ class ModuloProduccionEngomadoController extends Controller
         // Crear registros basándose en No. De Telas
         if ($totalRegistros > 0) {
             try {
-                // Contar cuántos registros ya existen para este folio
-                $registrosExistentes = $registrosProduccion->count();
+                // Verificar que el Folio existe en EngProgramaEngomado
+                if (!$orden || !$orden->Folio) {
+                    // Folio no válido
+                } else {
+                    // Contar cuántos registros ya existen para este folio
+                    $registrosExistentes = $registrosProduccion->count();
 
-                // Calcular cuántos registros faltan
-                $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
+                    // Calcular cuántos registros faltan
+                    $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
 
-                // Obtener datos del usuario actual para asignar automáticamente
-                $usuarioActual = Auth::user();
-                $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
-                $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
-                $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
+                    // Obtener datos del usuario actual para asignar automáticamente
+                    $usuarioActual = Auth::user();
+                    $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
+                    $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
+                    $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
 
-                // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
-                if (!$turnoUsuario) {
-                    $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
-                }
-
-                // Obtener metros de la orden (asignar el total completo a cada registro)
-                $metrosOrden = $orden->Metros ?? 0;
-
-                // Crear los registros faltantes
-                $registrosACrear = [];
-                for ($i = 0; $i < $registrosFaltantes; $i++) {
-                    // Preparar datos del registro
-                    $registroData = [
-                        'Folio' => $orden->Folio,
-                        'NoJulio' => null, // NoJulio debe ser null al crear los registros
-                        'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
-                        'Canoa1' => null,
-                        'Canoa2' => null,
-                        'Canoa3' => null,
-                        'Tambor' => null,
-                    ];
-
-                    // Solo agregar campos de oficial si tienen valores
-                    if (!empty($claveUsuario)) {
-                        $registroData['CveEmpl1'] = $claveUsuario;
-                    }
-                    if (!empty($nombreUsuario)) {
-                        $registroData['NomEmpl1'] = $nombreUsuario;
-                    }
-                    if ($metrosOrden > 0) {
-                        $registroData['Metros1'] = round($metrosOrden, 2);
-                    }
-                    if (!empty($turnoUsuario)) {
-                        $registroData['Turno1'] = (int)$turnoUsuario;
+                    // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
+                    if (!$turnoUsuario) {
+                        $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
                     }
 
-                    $registrosACrear[] = $registroData;
-                }
+                    // Obtener metros de la orden (asignar el total completo a cada registro)
+                    $metrosOrden = $orden->Metros ?? 0;
 
-                // Crear todos los registros en lote si hay alguno
-                if (count($registrosACrear) > 0) {
-                    foreach ($registrosACrear as $index => $registroData) {
-                        $registroCreado = EngProduccionEngomado::create($registroData);
+                    // Crear los registros faltantes
+                    $registrosACrear = [];
+                    for ($i = 0; $i < $registrosFaltantes; $i++) {
+                        // Preparar datos del registro (solo campos que existen en la tabla)
+                        $registroData = [
+                            'Folio' => $orden->Folio,
+                            'NoJulio' => null, // NoJulio debe ser null al crear los registros
+                            'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
+                        ];
 
+                        // Solo agregar campos de oficial si tienen valores
+                        if (!empty($claveUsuario)) {
+                            $registroData['CveEmpl1'] = $claveUsuario;
+                        }
+                        if (!empty($nombreUsuario)) {
+                            $registroData['NomEmpl1'] = $nombreUsuario;
+                        }
+                        if ($metrosOrden > 0) {
+                            $registroData['Metros1'] = round($metrosOrden, 2);
+                        }
+                        if (!empty($turnoUsuario)) {
+                            $registroData['Turno1'] = (int)$turnoUsuario;
+                        }
+
+                        $registrosACrear[] = $registroData;
+                    }
+
+                    // Crear todos los registros en lote si hay alguno
+                    if (count($registrosACrear) > 0) {
+                        foreach ($registrosACrear as $index => $registroData) {
+                            try {
+                                EngProduccionEngomado::create($registroData);
+                            } catch (\Illuminate\Database\QueryException $e) {
+                                // Continuar con el siguiente registro aunque falle uno
+                                continue;
+                            } catch (\Throwable $e) {
+                                // Continuar con el siguiente registro aunque falle uno
+                                continue;
+                            }
+                        }
                     }
                 }
             } catch (\Throwable $e) {
+                // Error al crear registros
             }
 
             // Recargar los registros después de crear los faltantes
@@ -275,8 +284,8 @@ class ModuloProduccionEngomadoController extends Controller
         // Nombre del empleado que ordenó
         $nomEmpl = $orden->NomEmpl ?? null;
 
-        // Observaciones
-        $observaciones = $orden->Obs ?? '';
+        // Observaciones (usar Observaciones que es el campo que se guarda)
+        $observaciones = $orden->Observaciones ?? '';
 
         // Campos adicionales para la sección superior
         $urdido = $orden->MaquinaUrd ?? null;
@@ -293,14 +302,12 @@ class ModuloProduccionEngomadoController extends Controller
         $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
         $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
 
-        // Obtener valores de merma del primer registro (o null si no hay registros)
-        $mermaGoma = null;
-        $merma = null;
-        if ($registrosProduccion->count() > 0) {
-            $primerRegistro = $registrosProduccion->first();
-            $mermaGoma = $primerRegistro->MermaGoma ?? null;
-            $merma = $primerRegistro->Merma ?? null;
-        }
+        // Obtener valores de merma de la orden
+        $mermaGoma = $orden ? ($orden->MermaGoma ?? null) : null;
+        $merma = $orden ? ($orden->Merma ?? null) : null;
+
+        // Obtener catálogo de ubicaciones
+        $ubicaciones = CatUbicaciones::orderBy('Codigo')->get();
 
         // Variables para la vista (sin restricción de área)
         $puedeCrearRegistros = true;
@@ -331,6 +338,7 @@ class ModuloProduccionEngomadoController extends Controller
             'puedeCrearRegistros' => $puedeCrearRegistros,
             'tieneRegistrosExistentes' => $tieneRegistrosExistentes,
             'usuarioArea' => $usuarioArea,
+            'ubicaciones' => $ubicaciones,
         ]);
     }
 
@@ -363,11 +371,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'data' => $julios,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener catálogo de julios (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al obtener catálogo de julios: ' . $e->getMessage(),
@@ -408,11 +411,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'data' => $usuariosFormateados,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener usuarios de Engomado', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al obtener usuarios: ' . $e->getMessage(),
@@ -534,11 +532,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al guardar oficial (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al guardar oficial: ' . $e->getMessage(),
@@ -598,11 +591,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar turno de oficial (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar turno: ' . $e->getMessage(),
@@ -787,7 +775,7 @@ class ModuloProduccionEngomadoController extends Controller
     }
 
     /**
-     * Actualizar campos de producción (Solidos, Canoa1-3, Tambor, Humedad, Roturas)
+     * Actualizar campos de producción (Solidos, Canoa1-3, Humedad, Ubicacion, Roturas)
      *
      * @param Request $request
      * @return JsonResponse
@@ -797,8 +785,8 @@ class ModuloProduccionEngomadoController extends Controller
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
-                'campo' => 'required|string|in:Solidos,Canoa1,Canoa2,Canoa3,Tambor,Humedad,Roturas',
-                'valor' => 'nullable|numeric',
+                'campo' => 'required|string|in:Solidos,Canoa1,Canoa2,Canoa3,Humedad,Ubicacion,Roturas',
+                'valor' => 'nullable',
             ]);
 
             $registro = EngProduccionEngomado::find($request->registro_id);
@@ -806,20 +794,54 @@ class ModuloProduccionEngomadoController extends Controller
             if (!$registro) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Registro no encontrado',
+                    'error' => 'Registro no encontrado con ID: ' . $request->registro_id,
                 ], 404);
             }
 
             $campo = $request->campo;
-            $valor = $request->valor !== null ? (float)$request->valor : null;
+
+            // Para Ubicacion, mantener como string
+            if ($campo === 'Ubicacion') {
+                $valor = $request->valor !== null && $request->valor !== '' ? (string)$request->valor : null;
+            } else {
+                // Validar que sea numérico si no es Ubicacion
+                if ($request->valor !== null && $request->valor !== '') {
+                    if (!is_numeric($request->valor)) {
+                        return response()->json([
+                            'success' => false,
+                            'error' => 'El valor debe ser numérico para el campo ' . $campo,
+                        ], 422);
+                    }
+                    $valor = (float)$request->valor;
+                } else {
+                    $valor = null;
+                }
+            }
 
             // Para Roturas, convertir a entero
             if ($campo === 'Roturas' && $valor !== null) {
                 $valor = (int)$valor;
             }
 
+            // Verificar que el campo existe en el modelo
+            if (!in_array($campo, $registro->getFillable())) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'El campo ' . $campo . ' no está permitido para actualización',
+                ], 422);
+            }
+
+            // Asignar el valor al campo
             $registro->$campo = $valor;
-            $registro->save();
+
+            // Intentar guardar
+            if (!$registro->save()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se pudo guardar el registro',
+                ], 500);
+            }
+
             $registro->refresh();
 
             return response()->json([
@@ -837,20 +859,16 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar campos de producción (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar campo: ' . $e->getMessage(),
+                'details' => config('app.debug') ? $e->getTraceAsString() : null,
             ], 500);
         }
     }
 
     /**
-     * Actualizar campos de merma en registros de producción (MermaGoma, Merma)
+     * Actualizar campos de merma en la orden (MermaGoma, Merma)
      *
      * @param Request $request
      * @return JsonResponse
@@ -861,7 +879,7 @@ class ModuloProduccionEngomadoController extends Controller
             $request->validate([
                 'orden_id' => 'required|integer',
                 'campo' => 'required|string|in:merma_con_goma,merma_sin_goma',
-                'valor' => 'nullable|numeric',
+                'valor' => 'nullable',
             ]);
 
             $orden = EngProgramaEngomado::find($request->orden_id);
@@ -874,7 +892,18 @@ class ModuloProduccionEngomadoController extends Controller
             }
 
             $campo = $request->campo;
-            $valor = $request->valor !== null ? (float)$request->valor : null;
+
+            // Validar que el valor sea numérico si se proporciona
+            $valor = null;
+            if ($request->has('valor') && $request->valor !== null && $request->valor !== '') {
+                if (!is_numeric($request->valor)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'El valor debe ser numérico',
+                    ], 422);
+                }
+                $valor = (float)$request->valor;
+            }
 
             // Mapear nombres de campos a nombres de columna en BD
             $campoMap = [
@@ -882,19 +911,25 @@ class ModuloProduccionEngomadoController extends Controller
                 'merma_sin_goma' => 'Merma',
             ];
 
-            $campoBD = $campoMap[$campo] ?? $campo;
+            $campoBD = $campoMap[$campo] ?? null;
 
-            // Actualizar todos los registros de producción de esta orden
-            $registrosActualizados = EngProduccionEngomado::where('Folio', $orden->Folio)
-                ->update([$campoBD => $valor]);
+            if (!$campoBD) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Campo no válido',
+                ], 422);
+            }
+
+            $orden->$campoBD = $valor;
+            $orden->save();
+            $orden->refresh();
 
             return response()->json([
                 'success' => true,
-                'message' => ucfirst(str_replace('_', ' ', $campo)) . ' actualizado correctamente en ' . $registrosActualizados . ' registro(s)',
+                'message' => ucfirst(str_replace('_', ' ', $campo)) . ' actualizado correctamente',
                 'data' => [
                     'campo' => $campo,
-                    'valor' => $valor,
-                    'registros_actualizados' => $registrosActualizados,
+                    'valor' => $orden->$campoBD,
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -903,12 +938,21 @@ class ModuloProduccionEngomadoController extends Controller
                 'error' => 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Throwable $e) {
-            Log::error('Error al actualizar campo de merma (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Error específico de SQL Server - columna no existe
+            if (str_contains($e->getMessage(), 'Invalid column name')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Las columnas MermaGoma y Merma no existen en la tabla. Por favor, ejecuta el script SQL para agregarlas.',
+                    'sql_error' => config('app.debug') ? $e->getMessage() : null,
+                ], 500);
+            }
 
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de base de datos al actualizar campo: ' . $e->getMessage(),
+            ], 500);
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar campo: ' . $e->getMessage(),
@@ -962,11 +1006,6 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar horas (Engomado)', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar hora: ' . $e->getMessage(),
