@@ -163,12 +163,17 @@
                 </button>
             </div>
             <div class="p-4">
-                <label for="select-fechas" class="block text-sm font-medium text-gray-700 mb-1">Fechas de folios</label>
-                <select id="select-fechas" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    @foreach($fechasUnicas as $fecha)
-                        <option value="{{ $fecha }}">{{ Carbon::createFromFormat('Y-m-d', $fecha)->format('d/m/Y') }}</option>
-                    @endforeach
-                </select>
+                <label for="input-fecha" class="block text-sm font-medium text-gray-700 mb-1">Fecha de folios</label>
+                <input
+                    id="input-fecha"
+                    type="date"
+                    class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value="{{ Carbon::now()->format('Y-m-d') }}"
+                    @if($fechasUnicas->isNotEmpty())
+                        min="{{ $fechasUnicas->first() }}"
+                        max="{{ $fechasUnicas->last() }}"
+                    @endif
+                />
             </div>
             <div class="px-4 py-3 border-t flex justify-end gap-2">
                 <button id="modal-fechas-ok" class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">Visualizar</button>
@@ -221,7 +226,7 @@
                     fechas: document.getElementById('modal-fechas'),
                     close: document.getElementById('modal-fechas-close'),
                     ok: document.getElementById('modal-fechas-ok'),
-                    select: document.getElementById('select-fechas')
+                    fechaInput: document.getElementById('input-fecha')
                 }
             };
 
@@ -580,30 +585,23 @@
         }
 
         visualizarPorFecha() {
-            const sel = this.dom.modal.select;
-            if (!sel || !sel.value) {
+            const input = this.dom.modal.fechaInput;
+            if (!input || !input.value) {
                 Swal.fire('Fecha requerida', 'Selecciona una fecha para visualizar.', 'warning');
                 return;
             }
 
-            // Buscar el primer folio de esa fecha
-            const fecha = sel.value; // formato YYYY-MM-DD
+            // Buscar el primer folio de esa fecha (el reporte incluye turnos 1, 2 y 3)
+            const fecha = input.value; // formato YYYY-MM-DD
             const rows = document.querySelectorAll('tbody tr[data-folio]');
 
             for (const row of rows) {
-                const fechaCell = row.children[1]?.textContent?.trim();
-                if (!fechaCell) continue;
-
-                // Convertir formato d/m/Y a Y-m-d para comparar
-                const partes = fechaCell.split('/');
-                if (partes.length === 3) {
-                    const fechaRow = `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-                    if (fechaRow === fecha) {
-                        const folio = row.dataset.folio;
-                        this.cerrarModalFechas();
-                        window.location.href = `/modulo-cortes-de-eficiencia/visualizar/${folio}`;
-                        return;
-                    }
+                const fechaRow = row.dataset.fecha;
+                if (fechaRow === fecha) {
+                    const folio = row.dataset.folio;
+                    this.cerrarModalFechas();
+                    window.location.href = `/modulo-cortes-de-eficiencia/visualizar/${folio}`;
+                    return;
                 }
             }
 
