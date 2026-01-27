@@ -1068,6 +1068,23 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 422);
             }
 
+            // Eliminar registros que no tengan HoraInicial o HoraFinal antes de finalizar
+            $registrosEliminados = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                ->where(function ($query) {
+                    $query->whereNull('HoraInicial')
+                        ->orWhereNull('HoraFinal');
+                })
+                ->delete();
+
+            // Log de registros eliminados para auditoría
+            if ($registrosEliminados > 0) {
+                Log::info('Registros eliminados al finalizar orden de urdido', [
+                    'folio' => $orden->Folio,
+                    'orden_id' => $orden->Id,
+                    'registros_eliminados' => $registrosEliminados,
+                ]);
+            }
+
             // Cambiar el status a "Finalizado"
             $orden->Status = 'Finalizado';
             $orden->save();
