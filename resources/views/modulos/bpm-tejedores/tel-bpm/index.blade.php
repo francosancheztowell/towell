@@ -5,7 +5,7 @@
 @section('navbar-right')
 <div class="flex items-center gap-3">
     {{-- Botones icon-only al estilo BPM Engomado --}}
-    <button id="btn-consult" title="Consultar folio"    
+    <button id="btn-consult" title="Consultar folio"
             class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
         <i class="fa-solid fa-eye text-blue-600 text-lg"></i>
     </button>
@@ -104,8 +104,8 @@
 <div id="modal-create" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
   <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-5">
     <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Nuevo folio</h2>
-        <button data-close="#modal-create" class="text-slate-500 hover:text-slate-700">&times;</button>
+        <h2 class="text-lg text-center font-semibold">Nuevo Folio</h2>
+        <button data-close="#modal-create" class="text-slate-500  hover:text-slate-700">&times;</button>
     </div>
 
     <form id="form-create" method="POST" action="{{ route('tel-bpm.store') }}">
@@ -156,8 +156,8 @@
                         <label class="block text-sm font-medium mb-1">Nombre <span class="text-red-600">*</span></label>
                         <select name="CveEmplEnt" id="sel-entrega" class="w-full rounded-lg border px-3 py-2 @error('CveEmplEnt') border-red-500 @enderror @error('NombreEmplEnt') border-red-500 @enderror" required>
                             <option value="">Seleccione…</option>
-                            @php 
-                                $noRecibe = $operadorUsuario->numero_empleado ?? ''; 
+                            @php
+                                $noRecibe = $operadorUsuario->numero_empleado ?? '';
                                 $operadoresUnicos = ($operadoresEntrega ?? collect())->unique('numero_empleado')->filter(function($op) use ($noRecibe) {
                                     return $op->numero_empleado !== $noRecibe;
                                 });
@@ -187,10 +187,10 @@
         </div>
 
         <div class="mt-6 flex items-center gap-2">
-            <button class="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700">
+            <button class="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 w-full p-2">
                 Crear folio
             </button>
-            <button type="button" data-close="#modal-create" class="rounded-lg px-4 py-2 border hover:bg-slate-50">
+            <button type="button" data-close="#modal-create" class="rounded-lg px-4 py-2 border hover:bg-slate-50 w-full p-2">
                 Cancelar
             </button>
         </div>
@@ -245,6 +245,22 @@
   </div>
 </div>
 
+<style>
+    tr.selected a,
+    tr.selected span,
+    tr.selected div {
+        color: white !important;
+    }
+    tr.selected .bg-green-100,
+    tr.selected .bg-amber-100,
+    tr.selected .bg-slate-100 {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+    }
+    tr.selected:hover {
+        background-color: rgb(37, 99, 235) !important; /* bg-blue-600 */
+    }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 (function(){
@@ -298,14 +314,14 @@
     }
 
     function clearSelection() {
-        (tbody?.querySelectorAll('tr.selected') || []).forEach(tr => tr.classList.remove('selected','bg-blue-100'));
+        (tbody?.querySelectorAll('tr.selected') || []).forEach(tr => tr.classList.remove('selected','bg-blue-500','text-white'));
     }
 
     tbody?.addEventListener('click', (e)=>{
         const tr = e.target.closest('tr');
         if (!tr) return;
         clearSelection();
-        tr.classList.add('selected','bg-blue-100');
+        tr.classList.add('selected','bg-blue-500','text-white');
         selected = tr;
         updateActions();
     });
