@@ -83,7 +83,9 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Paro</span>
-                        <span class="text-sm font-semibold text-gray-800">{{ $item->HoraParo ?? '-' }}</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            {{ $item->HoraParo ? \Carbon\Carbon::parse($item->HoraParo)->format('H:i') : '-' }}
+                        </span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">No Julio</span>
@@ -94,10 +96,8 @@
                         <span class="text-sm font-semibold text-gray-800">{{ $item->LoteProveedor ?? '-' }}</span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Arranque</span>
-                        <span class="text-sm font-semibold text-gray-800">
-                            {{ $item->HoraArranque ? \Carbon\Carbon::parse($item->HoraArranque)->format('H:i') : '-' }}
-                        </span>
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Folio Paro</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->LoteProveedor ?? '-' }}</span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">5'S Orden y Limpieza (5-10)</span>
@@ -122,6 +122,12 @@
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Tipo</span>
                         <span class="text-sm font-semibold text-gray-800">{{ $item->Tipo ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Arranque</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            {{ $item->HoraArranque ? \Carbon\Carbon::parse($item->HoraArranque)->format('H:i') : '-' }}
+                        </span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">No Provee</span>
@@ -227,7 +233,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @forelse($actividadesCatalogo as $act)
+                        @forelse($actividadesCatalogo->reverse() as $act)
                             @php
                                 $a = $actividadesMontado->get($act->ActividadId);
                                 $checked = $a && (int)($a->Estado ?? 0) === 1;
