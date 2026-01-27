@@ -36,7 +36,8 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
-     * Mostrar todas las ordenes para reimpresion (sin filtrar por status)
+     * Mostrar todas las ordenes para reimpresion
+     * Ordenadas por las más recientes primero
      */
     public function reimpresionFinalizadas(Request $request)
     {
@@ -53,7 +54,7 @@ class ProgramarUrdidoController extends Controller
             'FechaProg',
             'Status',
         ]);
-        // Sin filtro de status - mostrar todas las órdenes
+        // Mostrar todas las órdenes sin filtrar por status
 
         if ($busqueda !== '') {
             $query->where(function ($sub) use ($busqueda) {
@@ -64,10 +65,9 @@ class ProgramarUrdidoController extends Controller
         }
 
         $ordenes = $query
-            ->orderBy('FechaProg', 'asc')
-            ->orderBy('Id', 'asc')
-            ->limit(200)
-            ->get();
+            ->orderBy('FechaProg', 'desc') // Más recientes primero
+            ->orderBy('Id', 'desc') // Si hay misma fecha, más reciente por ID
+            ->get(); // Sin límite para mostrar todas
 
         return view('modulos.urdido.reimpresion-urdido', [
             'ordenes' => $ordenes,

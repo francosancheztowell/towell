@@ -4,13 +4,18 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button onclick="document.getElementById('createModal').classList.remove('hidden')" class="p-2 rounded-lg transition hover:bg-green-100" title="Crear Nuevo">
-            <i class="fa-solid fa-plus text-green-600 text-lg"></i>
-        </button>
-        <button onclick="openChecklist()" id="btn-checklist" disabled class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" title="Abrir Checklist">
-            <i class="fa-solid fa-clipboard-list text-blue-600 text-lg"></i>
-        </button>
-
+        <x-navbar.button-create
+        onclick="document.getElementById('createModal').classList.remove('hidden')"
+        class="p-2 rounded-lg transition hover:bg-green-100"
+        title="Crear Nuevo"
+        />
+        <x-navbar.button-edit
+        onclick="openChecklist()"
+        id="btn-checklist"
+        disabled
+        class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        title="Abrir Checklist"
+        />
     </div>
 @endsection
 
@@ -68,7 +73,7 @@
                             default => 'bg-gray-100 text-gray-800'
                         };
                     @endphp
-                    <tr class="border-b hover:bg-blue-50 cursor-pointer transition-colors" onclick="selectRow(this, '{{ $item->Folio }}', '{{ $item->Id }}')">
+                    <tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="selectRow(this, '{{ $item->Folio }}', '{{ $item->Id }}')" data-folio="{{ $item->Folio }}">
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold {{ $statusClass }}">
@@ -95,7 +100,7 @@
     </div>
 
     <!-- Modal Crear -->
-    <div id="createModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div id="createModal" class="fixed inset-0 bg-gray-900 bg-opacity-10 z-50 flex items-center justify-center hidden">
         <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-t-lg flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Crear Nuevo Folio BPM Engomado</h3>
@@ -114,7 +119,7 @@
                 <div class="grid grid-cols-2 gap-3 mb-4">
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Fecha *</label>
-                        <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required readonly class="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                        <input type="date" name="Fecha" value="{{ date('Y-m-d') }}" required readonly class="w-full px-2 py-1.5 text-sm  rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                     </div>
                 </div>
 
@@ -191,12 +196,12 @@
                 </div>
 
                 <!-- Botones -->
-                <div class="flex gap-2 justify-end pt-3 border-t">
+                <div class="flex gap-2 justify-end pt-3 ">
                     <button type="button" onclick="document.getElementById('createModal').classList.add('hidden')"
-                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                            class="w-full px-4 py-2.5 text-base border border-gray-300 rounded-lg hover:bg-gray-50">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <button type="submit" class="w-full px-4 py-2.5 text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                         Guardar
                     </button>
                 </div>
@@ -288,13 +293,15 @@
 
         function selectRow(row, folio, id) {
             if (selectedRow) {
-                selectedRow.classList.remove('bg-blue-100');
+                selectedRow.classList.remove('bg-blue-500', 'text-white');
+                selectedRow.classList.add('hover:bg-blue-50');
             }
 
             selectedRow = row;
             selectedFolio = folio;
             selectedId = id;
-            row.classList.add('bg-blue-100');
+            row.classList.remove('hover:bg-blue-50');
+            row.classList.add('bg-blue-500', 'text-white');
 
             enableButtons();
         }

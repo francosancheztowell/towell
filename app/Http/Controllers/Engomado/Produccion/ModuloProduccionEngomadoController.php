@@ -131,9 +131,20 @@ class ModuloProduccionEngomadoController extends Controller
 
         // Actualizar el status a "En Proceso" cuando se carga la p?gina de producci?n
         if ($orden->Status !== 'En Proceso') {
-            // Validar que no haya mas de 2 ordenes con status "En Proceso" en la misma tabla
+            /**
+             * RESTRICCIÓN: Validación de límite de órdenes en proceso por tabla
+             *
+             * Esta función valida que no haya más de 2 órdenes con status "En Proceso"
+             * en la misma tabla (West Point 2 o West Point 3) antes de permitir cargar
+             * una nueva orden en proceso.
+             *
+             * TODO: Revisar si esta restricción sigue siendo necesaria o si debe modificarse.
+             * Actualmente limita a 2 registros en proceso por tabla de engomado.
+             *
+             * @var int $limitePorTabla Límite máximo de órdenes en proceso por tabla (actualmente 2)
+             */
             $tablaActual = $this->extractTablaNumber($orden->MaquinaEng);
-            $limitePorTabla = 2;
+            $limitePorTabla = 15; // TODO: Revisar restricción de 2 registros en proceso por tabla
 
             if ($tablaActual !== null) {
                 $ordenesEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
@@ -281,7 +292,7 @@ class ModuloProduccionEngomadoController extends Controller
         $usuarioNombre = $usuarioActual ? ($usuarioActual->nombre ?? '') : '';
         $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
         $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
-        
+
         // Variables para la vista (sin restricción de área)
         $puedeCrearRegistros = true;
         $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
@@ -816,6 +827,71 @@ class ModuloProduccionEngomadoController extends Controller
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar campos de producción (Engomado)', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al actualizar campo: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar campos de la orden (Merma con Goma, Merma sin Goma)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function actualizarCampoOrden(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'orden_id' => 'required|integer',
+                'campo' => 'required|string|in:merma_con_goma,merma_sin_goma',
+                'valor' => 'nullable|numeric',
+            ]);
+
+            $orden = EngProgramaEngomado::find($request->orden_id);
+
+            if (!$orden) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Orden no encontrada',
+                ], 404);
+            }
+
+            $campo = $request->campo;
+            $valor = $request->valor !== null ? (float)$request->valor : null;
+
+            // Mapear nombres de campos a nombres de columna en BD
+            $campoMap = [
+                'merma_con_goma' => 'MermaConGoma',
+                'merma_sin_goma' => 'MermaSinGoma',
+            ];
+
+            $campoBD = $campoMap[$campo] ?? $campo;
+            $orden->$campoBD = $valor;
+            $orden->save();
+            $orden->refresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => ucfirst(str_replace('_', ' ', $campo)) . ' actualizado correctamente',
+                'data' => [
+                    'campo' => $campo,
+                    'valor' => $orden->$campoBD,
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Error al actualizar campo de orden (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);

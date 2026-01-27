@@ -62,7 +62,13 @@ class ProgramarUrdEngController extends Controller
 
             // =================== PASO 2: Generar Folio (URD/ENG) para tabla 2 ===================
             // IMPORTANTE: Este Folio será usado como no_orden en TejInventarioTelares
-            $folioData = SSYSFoliosSecuencia::nextFolio('URD/ENG', 5);
+            // Intenta primero por módulo 'URD/ENG', si no encuentra o hay error, busca por ID 14
+            try {
+                $folioData = SSYSFoliosSecuencia::nextFolio('URD/ENG', 5);
+            } catch (\Exception $e) {
+                // Si no se encuentra por módulo, intentar por ID 14
+                $folioData = SSYSFoliosSecuencia::nextFolioById(14, 5);
+            }
             $folio = $folioData['folio']; // Ejemplo: "00001" o "URD00001" (dependiendo del prefijo configurado)
 
 
@@ -101,7 +107,7 @@ class ProgramarUrdEngController extends Controller
             $fechaReq = null;
             $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
             $tipo = $grupo['tipo'] ?? null;
-            
+
             if ($telaresStr) {
                 // Normalizar tipo (Rizo/Pie)
                 if ($tipo) {
@@ -116,7 +122,7 @@ class ProgramarUrdEngController extends Controller
                 // Si hay múltiples telares separados por coma, buscar todos
                 $telaresArray = explode(',', $telaresStr);
                 $fechasEncontradas = [];
-                
+
                 foreach ($telaresArray as $noTelar) {
                     $noTelar = trim($noTelar);
                     if (empty($noTelar)) continue;
@@ -155,7 +161,7 @@ class ProgramarUrdEngController extends Controller
                             continue;
                         }
                     }
-                    
+
                     // Si hay fechas válidas, obtener la mínima
                     if (!empty($fechasCarbon)) {
                         $fechaMinima = min($fechasCarbon);

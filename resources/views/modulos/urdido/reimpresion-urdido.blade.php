@@ -44,9 +44,9 @@
                             Folio
                             <i class="fas fa-sort ml-1 text-xs opacity-50"></i>
                         </th>
-                        <th class="px-2 py-2 text-left font-semibold cursor-pointer hover:bg-blue-600 select-none" data-col="fecha" data-order="asc">
+                        <th class="px-2 py-2 text-left font-semibold cursor-pointer hover:bg-blue-600 select-none" data-col="fecha" data-order="desc">
                             Fecha
-                            <i class="fas fa-sort-up ml-1 text-xs"></i>
+                            <i class="fas fa-sort-down ml-1 text-xs"></i>
                         </th>
                         <th class="px-2 py-2 text-left font-semibold cursor-pointer hover:bg-blue-600 select-none" data-col="cuenta" data-order="">
                             Cuenta
@@ -308,13 +308,13 @@
             }
         }
 
-        // Inicializar contador y ordenar por fecha ascendente por defecto
+        // Inicializar contador y ordenar por fecha descendente por defecto (más recientes primero)
         document.addEventListener('DOMContentLoaded', () => {
             actualizarContador();
-            // Ordenar por fecha ascendente al cargar
+            // Ordenar por fecha descendente al cargar (más recientes primero)
             const fechaHeader = document.querySelector('#tablaOrdenes thead th[data-col="fecha"]');
             if (fechaHeader) {
-                ordenarTabla('fecha', 'asc');
+                ordenarTabla('fecha', 'desc');
             }
         });
     })();

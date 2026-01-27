@@ -181,4 +181,45 @@ class SSYSFoliosSecuencia extends Model
             ];
         }, 3);
     }
+
+    /**
+     * Obtiene y aumenta de forma segura el consecutivo para un ID dado,
+     * devolviendo el folio formado como "{prefijo}{consecutivoConPad}".
+     * Útil como fallback cuando no se encuentra por módulo.
+     */
+    public static function nextFolioById(int $id, int $pad = 5): array
+    {
+        return DB::transaction(function () use ($id, $pad) {
+            $c = static::getColumnMap();
+            $table = $c['table'];
+
+            // Bloquear y obtener fila por ID con alias consistentes
+            $row = DB::table($table)
+                ->select([
+                    DB::raw($c['mod']  . ' as mod'),
+                    DB::raw($c['pref'] . ' as pref'),
+                    DB::raw($c['con']  . ' as con'),
+                ])
+                ->where('Id', $id)
+                ->lockForUpdate()
+                ->first();
+            if (!$row) {
+                throw new \RuntimeException("No existe configuración de folio para Id={$id}");
+            }
+
+            $current = (int)($row->con ?? 0);
+            $next = $current + 1;
+            DB::table($table)->where('Id', $id)->update([$c['con'] => $next]);
+
+            $pref = (string)($row->pref ?? '');
+            $num  = str_pad((string)$next, $pad, '0', STR_PAD_LEFT);
+            $folio = $pref . $num;
+
+            return [
+                'folio'       => $folio,
+                'prefijo'     => $pref,
+                'consecutivo' => $next,
+            ];
+        }, 3);
+    }
 }

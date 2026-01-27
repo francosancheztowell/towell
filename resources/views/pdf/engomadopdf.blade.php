@@ -157,7 +157,8 @@
 </head>
 <body>
 @php
-    $produccion = null;
+    // Filtrar registros que tienen información
+    $registrosConInfo = collect();
     if ($registrosProduccion && $registrosProduccion->count() > 0) {
         foreach ($registrosProduccion as $registro) {
             $hasInfo = ($registro->Fecha || $registro->HoraInicial || $registro->HoraFinal ||
@@ -167,11 +168,13 @@
                 $registro->NomEmpl1 || $registro->NomEmpl2 || $registro->NomEmpl3 ||
                 $registro->Turno1 || $registro->Turno2 || $registro->Turno3);
             if ($hasInfo) {
-                $produccion = $registro;
-                break;
+                $registrosConInfo->push($registro);
             }
         }
     }
+
+    // Usar el primer registro para datos del header
+    $produccion = $registrosConInfo->first();
 
     $fechaProd = $produccion && $produccion->Fecha
         ? date('d/m/Y', strtotime($produccion->Fecha))
@@ -289,15 +292,38 @@
         </tr>
     </thead>
     <tbody>
-        <tr>
-            <td>{{ $fechaProd ?: '-' }}</td>
-            <td>{{ $horaInicial ?: '-' }}</td>
-            <td>{{ $horaFinal ?: '-' }}</td>
-            <td>{{ $totalMetros > 0 ? number_format($totalMetros, 0, '.', ',') : '-' }}</td>
-            <td>{{ $produccion && $produccion->Roturas !== null ? $produccion->Roturas : '-' }}</td>
-            <td>{{ $engomador ?: '-' }}</td>
-            <td>{{ $orden->Observaciones ?? '-' }}</td>
-        </tr>
+        @forelse($registrosConInfo as $reg)
+            @php
+                $fechaReg = $reg->Fecha ? date('d/m/Y', strtotime($reg->Fecha)) : '-';
+                $horaIniReg = $reg->HoraInicial ? substr($reg->HoraInicial, 0, 5) : '-';
+                $horaFinReg = $reg->HoraFinal ? substr($reg->HoraFinal, 0, 5) : '-';
+                $metrosReg = 0;
+                $m1 = isset($reg->Metros1) ? (float) $reg->Metros1 : 0;
+                $m2 = isset($reg->Metros2) ? (float) $reg->Metros2 : 0;
+                $m3 = isset($reg->Metros3) ? (float) $reg->Metros3 : 0;
+                $metrosReg = $m1 + $m2 + $m3;
+                $engomadorReg = $reg->NomEmpl1 ?? $reg->NomEmpl2 ?? $reg->NomEmpl3 ?? '-';
+            @endphp
+            <tr>
+                <td>{{ $fechaReg }}</td>
+                <td>{{ $horaIniReg }}</td>
+                <td>{{ $horaFinReg }}</td>
+                <td>{{ $metrosReg > 0 ? number_format($metrosReg, 0, '.', ',') : '-' }}</td>
+                <td>{{ $reg->Roturas !== null ? $reg->Roturas : '-' }}</td>
+                <td>{{ $engomadorReg }}</td>
+                <td>{{ $orden->Observaciones ?? '-' }}</td>
+            </tr>
+        @empty
+            <tr>
+                <td>{{ $fechaProd ?: '-' }}</td>
+                <td>{{ $horaInicial ?: '-' }}</td>
+                <td>{{ $horaFinal ?: '-' }}</td>
+                <td>{{ $totalMetros > 0 ? number_format($totalMetros, 0, '.', ',') : '-' }}</td>
+                <td>{{ $produccion && $produccion->Roturas !== null ? $produccion->Roturas : '-' }}</td>
+                <td>{{ $engomador ?: '-' }}</td>
+                <td>{{ $orden->Observaciones ?? '-' }}</td>
+            </tr>
+        @endforelse
     </tbody>
 </table>
 
@@ -316,17 +342,31 @@
         </tr>
     </thead>
     <tbody>
-        <tr>
-            <td>{{ $produccion->NoJulio ?? '-' }}</td>
-            <td>{{ $produccion && $produccion->KgBruto !== null ? number_format($produccion->KgBruto, 2, '.', '') : '-' }}</td>
-            <td>{{ $produccion && $produccion->Tara !== null ? number_format($produccion->Tara, 1, '.', '') : '-' }}</td>
-            <td>{{ $produccion && $produccion->KgNeto !== null ? number_format($produccion->KgNeto, 2, '.', '') : '-' }}</td>
-            <td>{{ $produccion && $produccion->Solidos !== null ? number_format($produccion->Solidos, 2, '.', '') : '-' }}</td>
-            <td>{{ $produccion && $produccion->Canoa1 !== null ? number_format($produccion->Canoa1, 0, '.', '') : '-' }}</td>
-            <td>{{ $produccion && $produccion->Canoa2 !== null ? number_format($produccion->Canoa2, 0, '.', '') : '-' }}</td>
-            <td>{{ $produccion && $produccion->Tambor !== null ? number_format($produccion->Tambor, 0, '.', '') : '-' }}</td>
-            <td>{{ $produccion && $produccion->Humedad !== null ? number_format($produccion->Humedad, 0, '.', '') : '-' }}</td>
-        </tr>
+        @forelse($registrosConInfo as $reg)
+            <tr>
+                <td>{{ $reg->NoJulio ?? '-' }}</td>
+                <td>{{ $reg->KgBruto !== null ? number_format($reg->KgBruto, 2, '.', '') : '-' }}</td>
+                <td>{{ $reg->Tara !== null ? number_format($reg->Tara, 1, '.', '') : '-' }}</td>
+                <td>{{ $reg->KgNeto !== null ? number_format($reg->KgNeto, 2, '.', '') : '-' }}</td>
+                <td>{{ $reg->Solidos !== null ? number_format($reg->Solidos, 2, '.', '') : '-' }}</td>
+                <td>{{ $reg->Canoa1 !== null ? number_format($reg->Canoa1, 0, '.', '') : '-' }}</td>
+                <td>{{ $reg->Canoa2 !== null ? number_format($reg->Canoa2, 0, '.', '') : '-' }}</td>
+                <td>{{ $reg->Tambor !== null ? number_format($reg->Tambor, 0, '.', '') : '-' }}</td>
+                <td>{{ $reg->Humedad !== null ? number_format($reg->Humedad, 0, '.', '') : '-' }}</td>
+            </tr>
+        @empty
+            <tr>
+                <td>{{ $produccion->NoJulio ?? '-' }}</td>
+                <td>{{ $produccion && $produccion->KgBruto !== null ? number_format($produccion->KgBruto, 2, '.', '') : '-' }}</td>
+                <td>{{ $produccion && $produccion->Tara !== null ? number_format($produccion->Tara, 1, '.', '') : '-' }}</td>
+                <td>{{ $produccion && $produccion->KgNeto !== null ? number_format($produccion->KgNeto, 2, '.', '') : '-' }}</td>
+                <td>{{ $produccion && $produccion->Solidos !== null ? number_format($produccion->Solidos, 2, '.', '') : '-' }}</td>
+                <td>{{ $produccion && $produccion->Canoa1 !== null ? number_format($produccion->Canoa1, 0, '.', '') : '-' }}</td>
+                <td>{{ $produccion && $produccion->Canoa2 !== null ? number_format($produccion->Canoa2, 0, '.', '') : '-' }}</td>
+                <td>{{ $produccion && $produccion->Tambor !== null ? number_format($produccion->Tambor, 0, '.', '') : '-' }}</td>
+                <td>{{ $produccion && $produccion->Humedad !== null ? number_format($produccion->Humedad, 0, '.', '') : '-' }}</td>
+            </tr>
+        @endforelse
     </tbody>
 </table>
 
