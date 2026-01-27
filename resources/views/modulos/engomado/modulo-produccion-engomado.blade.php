@@ -106,8 +106,8 @@
                             type="number"
                             step="0.01"
                             data-field="merma_con_goma"
-                            class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            value="{{ $orden && isset($orden->MermaConGoma) ? $orden->MermaConGoma : '' }}"
+                            class="flex-1 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            value="{{ $mermaGoma ?? '' }}"
                         >
                     </div>
                     <div class="flex items-center gap-2">
@@ -116,8 +116,8 @@
                             type="number"
                             step="0.01"
                             data-field="merma_sin_goma"
-                            class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            value="{{ $orden && isset($orden->MermaSinGoma) ? $orden->MermaSinGoma : '' }}"
+                            class="flex-1 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            value="{{ $merma ?? '' }}"
                         >
                     </div>
                 </div>

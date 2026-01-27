@@ -45,6 +45,8 @@ class EngProduccionEngomado extends Model
         'Metros3',
         'Turno3',
         'Solidos',
+        'MermaGoma',
+        'Merma',
     ];
 
     protected $casts = [
@@ -71,6 +73,8 @@ class EngProduccionEngomado extends Model
         'Turno3' => 'integer',
         'Metros3' => 'float',
         'Solidos' => 'float',
+        'MermaGoma' => 'float',
+        'Merma' => 'float',
     ];
 }
 

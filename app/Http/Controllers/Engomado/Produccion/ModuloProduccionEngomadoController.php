@@ -293,6 +293,15 @@ class ModuloProduccionEngomadoController extends Controller
         $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
         $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
 
+        // Obtener valores de merma del primer registro (o null si no hay registros)
+        $mermaGoma = null;
+        $merma = null;
+        if ($registrosProduccion->count() > 0) {
+            $primerRegistro = $registrosProduccion->first();
+            $mermaGoma = $primerRegistro->MermaGoma ?? null;
+            $merma = $primerRegistro->Merma ?? null;
+        }
+
         // Variables para la vista (sin restricción de área)
         $puedeCrearRegistros = true;
         $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
@@ -317,6 +326,8 @@ class ModuloProduccionEngomadoController extends Controller
             'metrajeTelas' => $metrajeTelas,
             'cuendeadosMin' => $cuendeadosMin,
             'loteProveedor' => $loteProveedor,
+            'mermaGoma' => $mermaGoma,
+            'merma' => $merma,
             'puedeCrearRegistros' => $puedeCrearRegistros,
             'tieneRegistrosExistentes' => $tieneRegistrosExistentes,
             'usuarioArea' => $usuarioArea,
@@ -839,7 +850,7 @@ class ModuloProduccionEngomadoController extends Controller
     }
 
     /**
-     * Actualizar campos de la orden (Merma con Goma, Merma sin Goma)
+     * Actualizar campos de merma en registros de producción (MermaGoma, Merma)
      *
      * @param Request $request
      * @return JsonResponse
@@ -867,21 +878,23 @@ class ModuloProduccionEngomadoController extends Controller
 
             // Mapear nombres de campos a nombres de columna en BD
             $campoMap = [
-                'merma_con_goma' => 'MermaConGoma',
-                'merma_sin_goma' => 'MermaSinGoma',
+                'merma_con_goma' => 'MermaGoma',
+                'merma_sin_goma' => 'Merma',
             ];
 
             $campoBD = $campoMap[$campo] ?? $campo;
-            $orden->$campoBD = $valor;
-            $orden->save();
-            $orden->refresh();
+
+            // Actualizar todos los registros de producción de esta orden
+            $registrosActualizados = EngProduccionEngomado::where('Folio', $orden->Folio)
+                ->update([$campoBD => $valor]);
 
             return response()->json([
                 'success' => true,
-                'message' => ucfirst(str_replace('_', ' ', $campo)) . ' actualizado correctamente',
+                'message' => ucfirst(str_replace('_', ' ', $campo)) . ' actualizado correctamente en ' . $registrosActualizados . ' registro(s)',
                 'data' => [
                     'campo' => $campo,
-                    'valor' => $orden->$campoBD,
+                    'valor' => $valor,
+                    'registros_actualizados' => $registrosActualizados,
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -891,7 +904,7 @@ class ModuloProduccionEngomadoController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar campo de orden (Engomado)', [
+            Log::error('Error al actualizar campo de merma (Engomado)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
