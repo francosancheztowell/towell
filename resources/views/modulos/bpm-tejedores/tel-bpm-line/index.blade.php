@@ -221,15 +221,16 @@
             // Actualiza UI (NULL → OK → X → NULL)
             const next = data.valor; // 'OK' | 'X' | null
             btn.dataset.valor = next || '';
-            btn.classList.remove('bg-green-50','border-green-300','bg-red-50','border-red-300');
+            btn.classList.remove('bg-green-100','border-green-400','text-green-700','hover:bg-green-200','bg-red-100','border-red-400','text-red-700','hover:bg-red-200','bg-gray-50','border-gray-300','text-gray-400','hover:bg-gray-100','hover:border-gray-400');
             if (next === 'OK') {
-                btn.classList.add('bg-green-50','border-green-300');
+                btn.classList.add('bg-green-100','border-green-400','text-green-700','hover:bg-green-200');
                 btn.querySelector('.cell-icon').innerHTML = '✓';
             } else if (next === 'X') {
-                btn.classList.add('bg-red-50','border-red-300');
+                btn.classList.add('bg-red-100','border-red-400','text-red-700','hover:bg-red-200');
                 btn.querySelector('.cell-icon').innerHTML = '✗';
             } else {
-                btn.querySelector('.cell-icon').innerHTML = '&nbsp;';
+                btn.classList.add('bg-gray-50','border-gray-300','text-gray-400','hover:bg-gray-100','hover:border-gray-400');
+                btn.querySelector('.cell-icon').innerHTML = '○';
             }
         });
     });
@@ -319,15 +320,15 @@
                 if (!res.ok || !data.ok){ toast('error', data.msg || 'No se pudo guardar'); return; }
                 const next = data.valor;
                 btn.dataset.valor = next || '';
-                btn.classList.remove('bg-green-100','border-green-400','text-green-700','bg-red-100','border-red-400','text-red-700','bg-gray-50','border-gray-300','text-gray-400');
+                btn.classList.remove('bg-green-100','border-green-400','text-green-700','hover:bg-green-200','bg-red-100','border-red-400','text-red-700','hover:bg-red-200','bg-gray-50','border-gray-300','text-gray-400','hover:bg-gray-100','hover:border-gray-400');
                 if (next === 'OK') {
-                    btn.classList.add('bg-green-100','border-green-400','text-green-700');
+                    btn.classList.add('bg-green-100','border-green-400','text-green-700','hover:bg-green-200');
                     btn.querySelector('.cell-icon').innerHTML = '✓';
                 } else if (next === 'X') {
-                    btn.classList.add('bg-red-100','border-red-400','text-red-700');
+                    btn.classList.add('bg-red-100','border-red-400','text-red-700','hover:bg-red-200');
                     btn.querySelector('.cell-icon').innerHTML = '✗';
                 } else {
-                    btn.classList.add('bg-gray-50','border-gray-300','text-gray-400');
+                    btn.classList.add('bg-gray-50','border-gray-300','text-gray-400','hover:bg-gray-100','hover:border-gray-400');
                     btn.querySelector('.cell-icon').innerHTML = '○';
                 }
             });
