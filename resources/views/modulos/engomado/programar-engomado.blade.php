@@ -659,69 +659,7 @@
                 }
 
 
-                // Verificar si ya hay 2 órdenes con status "En Proceso" en la misma tabla
-                try {
-                    // Obtener el MaquinaEng de la orden seleccionada
-                    let maquinaEng = null;
-                    let tabla = state.ordenSeleccionada.tabla;
-
-                    // Si no está en la orden seleccionada, buscarla en el estado
-                    if (!tabla) {
-                        for (let t = 1; t <= 2; t++) {
-                            const orden = (state.ordenes[t] || []).find(o => o.id === state.ordenSeleccionada.id);
-                            if (orden) {
-                                tabla = orden.tabla || t;
-                                break;
-                            }
-                        }
-                    }
-
-                    // Construir maquinaEng basado en la tabla
-                    if (tabla === 1) {
-                        maquinaEng = 'West Point 2';
-                    } else if (tabla === 2) {
-                        maquinaEng = 'West Point 3';
-                    }
-
-
-                    // Obtener el folio de la orden seleccionada
-                    let folio = state.ordenSeleccionada.folio;
-                    if (!folio) {
-                        for (let t = 1; t <= 2; t++) {
-                            const orden = (state.ordenes[t] || []).find(o => o.id === state.ordenSeleccionada.id);
-                            if (orden && orden.folio) {
-                                folio = orden.folio;
-                                break;
-                            }
-                        }
-                    }
-
-                    const verificarUrl = `${routes.verificarEnProceso}?excluir_id=${state.ordenSeleccionada.id}${maquinaEng ? `&maquina_eng=${encodeURIComponent(maquinaEng)}` : ''}${folio ? `&folio=${encodeURIComponent(folio)}` : ''}`;
-                    const verificarResponse = await fetchJson(verificarUrl);
-
-
-                    if (verificarResponse.success && verificarResponse.tieneOrdenEnProceso) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'No se puede cargar la orden',
-                                html: `
-                                    <p class="mb-2">${verificarResponse.mensaje || 'Ya existen 2 órdenes con status "En Proceso" en esta tabla.'}</p>
-                                    <p class="text-sm text-gray-600">Por favor, finaliza alguna de las órdenes en proceso en esta tabla antes de cargar una nueva.</p>
-                                    <p class="text-sm text-gray-500 mt-2">Cantidad actual: ${verificarResponse.cantidad || 0} / ${verificarResponse.limite || 2}</p>
-                                `,
-                                confirmButtonColor: '#2563eb',
-                            });
-                        } else {
-                            alert(verificarResponse.mensaje || 'Ya existen 2 órdenes con status "En Proceso" en esta tabla. No se puede cargar otra orden.');
-                        }
-                        return;
-                    }
-                } catch (error) {
-                    console.error('Error al verificar órdenes en proceso:', error);
-                    showError('Error al verificar órdenes en proceso. Por favor, intente nuevamente.');
-                    return;
-                }
+                // Verificación de órdenes en proceso eliminada - se permite cualquier cantidad
 
                 // Verificar si el usuario puede crear registros (con timeout)
                 try {

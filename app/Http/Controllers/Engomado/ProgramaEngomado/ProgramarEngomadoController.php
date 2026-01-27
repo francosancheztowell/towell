@@ -376,20 +376,14 @@ class ProgramarEngomadoController extends Controller
 
             $nombreTabla = $tabla == 1 ? 'West Point 2' : 'West Point 3';
 
-            // Permitir hasta 2 órdenes en proceso por tabla
-            // Solo bloquear si ya hay 2 o más órdenes en proceso
-            $limitePorTabla = 2;
-            $tieneOrdenEnProceso = $cantidadEnProceso >= $limitePorTabla;
-
+            // Restricción eliminada - se permite cualquier cantidad de órdenes en proceso
             return response()->json([
                 'success' => true,
-                'tieneOrdenEnProceso' => $tieneOrdenEnProceso,
+                'tieneOrdenEnProceso' => false, // Siempre false para permitir cualquier cantidad
                 'cantidad' => $cantidadEnProceso,
-                'limite' => $limitePorTabla,
+                'limite' => 0, // Sin límite
                 'tabla' => $nombreTabla,
-                'mensaje' => $tieneOrdenEnProceso
-                    ? "Ya existen {$limitePorTabla} órdenes con status 'En Proceso' en {$nombreTabla}. No se puede cargar otra orden en esta tabla hasta finalizar alguna de las actuales."
-                    : "Hay {$cantidadEnProceso} orden(es) en proceso en {$nombreTabla}. Puede cargar hasta {$limitePorTabla} órdenes en proceso por tabla.",
+                'mensaje' => "Hay {$cantidadEnProceso} orden(es) en proceso en {$nombreTabla}.",
             ]);
         } catch (\Throwable $e) {
             return response()->json([

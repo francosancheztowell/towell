@@ -129,50 +129,14 @@ class ModuloProduccionEngomadoController extends Controller
                 ->with('error', "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.");
         }
 
-        // Actualizar el status a "En Proceso" cuando se carga la p?gina de producci?n
+        // Actualizar el status a "En Proceso" cuando se carga la página de producción
         if ($orden->Status !== 'En Proceso') {
-            /**
-             * RESTRICCIÓN: Validación de límite de órdenes en proceso por tabla
-             *
-             * Esta función valida que no haya más de 2 órdenes con status "En Proceso"
-             * en la misma tabla (West Point 2 o West Point 3) antes de permitir cargar
-             * una nueva orden en proceso.
-             *
-             * TODO: Revisar si esta restricción sigue siendo necesaria o si debe modificarse.
-             * Actualmente limita a 2 registros en proceso por tabla de engomado.
-             *
-             * @var int $limitePorTabla Límite máximo de órdenes en proceso por tabla (actualmente 2)
-             */
-            $tablaActual = $this->extractTablaNumber($orden->MaquinaEng);
-            $limitePorTabla = 15; // TODO: Revisar restricción de 2 registros en proceso por tabla
-
-            if ($tablaActual !== null) {
-                $ordenesEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
-                    ->whereNotNull('MaquinaEng')
-                    ->where('Id', '!=', $orden->Id)
-                    ->get()
-                    ->filter(function ($item) use ($tablaActual) {
-                        return $this->extractTablaNumber($item->MaquinaEng) === $tablaActual;
-                    })
-                    ->count();
-
-                if ($ordenesEnProceso >= $limitePorTabla) {
-                    $nombreTabla = $tablaActual === 1 ? 'West Point 2' : 'West Point 3';
-
-                    return redirect()->route('engomado.programar.engomado')
-                        ->with('error', "Ya existen {$limitePorTabla} ordenes con status \"En Proceso\" en {$nombreTabla}. No se puede cargar otra orden hasta finalizar alguna de las actuales.");
-                }
-            } else {
-                return redirect()->route('engomado.programar.engomado')
-                    ->with('error', 'No se pudo determinar la tabla de la maquina. No se puede cargar la orden.');
-            }
-
             try {
                 $statusAnterior = $orden->Status;
                 $orden->Status = 'En Proceso';
                 $orden->save();
-
             } catch (\Throwable $e) {
+                // Error al actualizar status
             }
         }
 
