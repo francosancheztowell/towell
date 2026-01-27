@@ -140,9 +140,9 @@
             <form action="{{ route('eng-formulacion.store') }}" method="POST" class="p-6">
                 @csrf
 
-                <!-- Sección 1: Selección de Folio -->
-                <div class="mb-5">
-                    <div class="grid grid-cols-1 gap-4">
+                <!-- Sección 1: Datos principales (3 columnas) -->
+                <div class="mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Folio (Programa Engomado) <span class="text-red-600">*</span></label>
                             <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
@@ -158,6 +158,31 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
+                            <input type="date" value="{{ date('Y-m-d') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
+                            <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                            <input type="text" value="{{ auth()->user()->numero_empleado ?? (auth()->user()->numero ?? '') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Operador</label>
+                            <input type="text" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
+                            <select name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                                <option value="">Seleccione...</option>
+                                @for($i = 1; $i <= 5; $i++)
+                                    <option value="{{ $i }}">{{ $i }}</option>
+                                @endfor
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -170,17 +195,9 @@
                 <input type="hidden" name="Formula" id="create_formula">
 
                 <!-- Sección 2: Datos de Captura -->
-                <div class="mb-5">
-                    <h4 class="text-sm font-semibold text-purple-700 mb-3 pb-2 border-b border-purple-200">Datos de Captura</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Hora <span class="text-red-600">*</span></label>
-                            <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
-                            <input type="text" name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                        </div>
+                <div class="mb-4">
+                    <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Datos de Captura</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.)</label>
                             <input type="number" step="0.01" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
@@ -206,10 +223,10 @@
 
                 <!-- Botones -->
                 <div class="flex gap-2 justify-end pt-3 border-t border-gray-200 mt-4">
-                    <button type="button" onclick="document.getElementById('createModal').classList.add('hidden')"
+                    {{-- <button type="button" onclick="document.getElementById('createModal').classList.add('hidden')"
                             class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                         <i class="fa-solid fa-times mr-1"></i>Cancelar
-                    </button>
+                    </button> --}}
                     <button type="submit" class="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-lg hover:shadow-xl">
                         <i class="fa-solid fa-save mr-1"></i>Crear Formulación
                     </button>

@@ -88,7 +88,7 @@ class EngBpmLineController extends Controller
 
         $header->update(['Status' => 'Terminado']);
 
-        return redirect()->back()->with('success', 'Registro marcado como Terminado');
+        return redirect()->route('eng-bpm.index')->with('success', 'Registro marcado como Terminado');
     }
 
     public function autorizar($folio)
