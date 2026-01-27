@@ -1,16 +1,25 @@
 @extends('layouts.app')
 @section('navbar-right')
-<x-navbar.button-create
-onclick="abrirModalCrearUsuario()"
-title="Nuevo Usuario"
-icon="fa-plus"
-iconColor="text-white"
-hoverBg="hover:bg-blue-700"
-bg="bg-blue-600"
-text="Nuevo Usuario"
-module="Usuarios"
-checkPermission="true"
-/>
+<div class="flex items-center gap-2">
+    <button
+        onclick="abrirModalFiltros()"
+        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
+        title="Filtrar usuarios">
+        <i class="fas fa-filter mr-2"></i>
+        Filtrar
+    </button>
+    <x-navbar.button-create
+    onclick="abrirModalCrearUsuario()"
+    title="Nuevo Usuario"
+    icon="fa-plus"
+    iconColor="text-white"
+    hoverBg="hover:bg-blue-700"
+    bg="bg-blue-600"
+    text="Nuevo Usuario"
+    module="Usuarios"
+    checkPermission="true"
+    />
+</div>
 @endsection
 @section('page-title', 'Lista de Usuarios')
 
@@ -46,9 +55,12 @@ checkPermission="true"
             </script>
         @endif
 
-        <div class="bg-white ">
+        <div class="bg-white " id="usuarios-container">
             @forelse ($usuarios as $u)
-                <div class="px-4 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors {{ $loop->last ? 'rounded-b-lg' : '' }}">
+                <div class="usuario-item px-4 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors {{ $loop->last ? 'rounded-b-lg' : '' }}"
+                     data-numero-empleado="{{ $u->numero_empleado ?? '' }}"
+                     data-area="{{ $u->area ?? '' }}"
+                     data-turno="{{ $u->turno ?? '' }}">
                     <div class="flex items-start gap-4">
                         <div class="flex-shrink-0">
                             @php
@@ -364,6 +376,203 @@ checkPermission="true"
                     confirmButtonColor: '#2563eb'
                 });
             });
+        });
+
+        // Variables globales para filtros
+        let filtrosActivos = {
+            numero_empleado: '',
+            area: '',
+            turno: ''
+        };
+
+        // Obtener áreas únicas de los usuarios cargados
+        function obtenerAreasDisponibles() {
+            const areas = new Set();
+            document.querySelectorAll('.usuario-item').forEach(item => {
+                const area = item.getAttribute('data-area');
+                if (area && area.trim() !== '') {
+                    areas.add(area);
+                }
+            });
+            return Array.from(areas).sort();
+        }
+
+        // Función para aplicar filtros en el frontend
+        function aplicarFiltros(filtros) {
+            filtrosActivos = filtros;
+            const usuarios = document.querySelectorAll('.usuario-item');
+            let usuariosVisibles = 0;
+
+            usuarios.forEach(usuario => {
+                let mostrar = true;
+
+                // Filtrar por número de empleado
+                if (filtros.numero_empleado && filtros.numero_empleado.trim() !== '') {
+                    const numeroEmpleado = usuario.getAttribute('data-numero-empleado') || '';
+                    if (!numeroEmpleado.includes(filtros.numero_empleado.trim())) {
+                        mostrar = false;
+                    }
+                }
+
+                // Filtrar por área
+                if (filtros.area && filtros.area !== '') {
+                    const area = usuario.getAttribute('data-area') || '';
+                    if (area !== filtros.area) {
+                        mostrar = false;
+                    }
+                }
+
+                // Filtrar por turno
+                if (filtros.turno && filtros.turno !== '') {
+                    const turno = usuario.getAttribute('data-turno') || '';
+                    if (turno !== filtros.turno) {
+                        mostrar = false;
+                    }
+                }
+
+                // Mostrar u ocultar usuario
+                if (mostrar) {
+                    usuario.style.display = '';
+                    usuariosVisibles++;
+                } else {
+                    usuario.style.display = 'none';
+                }
+            });
+
+            // Actualizar badge del botón de filtros
+            actualizarBadgeFiltros();
+
+            // Mostrar mensaje si no hay resultados
+            const container = document.getElementById('usuarios-container');
+            let mensajeNoResultados = container.querySelector('.mensaje-no-resultados');
+            
+            if (usuariosVisibles === 0) {
+                if (!mensajeNoResultados) {
+                    mensajeNoResultados = document.createElement('div');
+                    mensajeNoResultados.className = 'mensaje-no-resultados px-4 py-12 text-center';
+                    mensajeNoResultados.innerHTML = `
+                        <i class="fas fa-search text-gray-400 text-4xl mb-4"></i>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No se encontraron usuarios</h3>
+                        <p class="mt-1 text-sm text-gray-500">Intenta con otros filtros.</p>
+                    `;
+                    container.appendChild(mensajeNoResultados);
+                }
+            } else {
+                if (mensajeNoResultados) {
+                    mensajeNoResultados.remove();
+                }
+            }
+        }
+
+        // Actualizar badge del botón de filtros
+        function actualizarBadgeFiltros() {
+            const botonFiltros = document.querySelector('button[onclick="abrirModalFiltros()"]');
+            if (!botonFiltros) return;
+
+            const tieneFiltros = filtrosActivos.numero_empleado || filtrosActivos.area || filtrosActivos.turno;
+            let badge = botonFiltros.querySelector('.badge-filtros');
+
+            if (tieneFiltros) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge-filtros ml-2 px-2 py-0.5 text-xs font-bold bg-red-500 rounded-full text-white';
+                    badge.textContent = '!';
+                    botonFiltros.appendChild(badge);
+                }
+            } else {
+                if (badge) {
+                    badge.remove();
+                }
+            }
+        }
+
+        // Función para abrir modal de filtros
+        async function abrirModalFiltros() {
+            try {
+                // Obtener áreas disponibles de los usuarios cargados
+                const areas = obtenerAreasDisponibles();
+                let opcionesAreas = '<option value="">Todas las áreas</option>';
+                areas.forEach(area => {
+                    opcionesAreas += `<option value="${area}" ${filtrosActivos.area === area ? 'selected' : ''}>${area}</option>`;
+                });
+
+                Swal.fire({
+                    title: 'Filtrar Usuarios',
+                    html: `
+                        <div class="text-left">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Número de Empleado</label>
+                                <input 
+                                    type="text" 
+                                    id="filtro_numero_empleado" 
+                                    class="swal2-input" 
+                                    placeholder="Ej: 2045"
+                                    value="${filtrosActivos.numero_empleado}"
+                                    pattern="[0-9]*"
+                                >
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Área</label>
+                                <select id="filtro_area" class="swal2-input" style="display: block; width: 100%; padding: 0.5rem;">
+                                    ${opcionesAreas}
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
+                                <select id="filtro_turno" class="swal2-input" style="display: block; width: 100%; padding: 0.5rem;">
+                                    <option value="">Todos los turnos</option>
+                                    <option value="1" ${filtrosActivos.turno === '1' ? 'selected' : ''}>Turno 1</option>
+                                    <option value="2" ${filtrosActivos.turno === '2' ? 'selected' : ''}>Turno 2</option>
+                                    <option value="3" ${filtrosActivos.turno === '3' ? 'selected' : ''}>Turno 3</option>
+                                </select>
+                            </div>
+                        </div>
+                    `,
+                    width: '500px',
+                    showCancelButton: true,
+                    confirmButtonText: 'Aplicar Filtros',
+                    cancelButtonText: 'Limpiar',
+                    confirmButtonColor: '#2563eb',
+                    cancelButtonColor: '#6b7280',
+                    didOpen: () => {
+                        // Asegurar que los inputs tengan el estilo correcto
+                        const inputs = document.querySelectorAll('.swal2-input');
+                        inputs.forEach(input => {
+                            if (input.tagName === 'INPUT') {
+                                input.style.width = '100%';
+                                input.style.margin = '0';
+                            }
+                        });
+                    },
+                    preConfirm: () => {
+                        return {
+                            numero_empleado: document.getElementById('filtro_numero_empleado').value.trim(),
+                            area: document.getElementById('filtro_area').value,
+                            turno: document.getElementById('filtro_turno').value
+                        };
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        aplicarFiltros(result.value);
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        // Limpiar filtros
+                        aplicarFiltros({ numero_empleado: '', area: '', turno: '' });
+                    }
+                });
+            } catch (error) {
+                console.error('Error al abrir modal de filtros:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo cargar el modal de filtros',
+                    confirmButtonColor: '#2563eb'
+                });
+            }
+        }
+
+        // Inicializar badge al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            actualizarBadgeFiltros();
         });
     </script>
 @endsection

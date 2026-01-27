@@ -21,9 +21,9 @@
     <div class="w-full">
         <!-- Sección superior: Información General -->
         <div class="bg-white p-1">
-            <div class="grid grid-cols-12 gap-2 items-stretch">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-1 items-stretch">
                 <!-- Columna 1 -->
-                <div class="col-span-12 md:col-span-3 flex flex-col space-y-2">
+                <div class="flex flex-col space-y-2">
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Folio:</span>
                         <span class="text-sm text-gray-900 flex-1">{{ $orden ? $orden->Folio : '-' }}</span>
@@ -48,7 +48,7 @@
                 </div>
 
                 <!-- Columna 2 -->
-                <div class="col-span-12 md:col-span-3 flex flex-col space-y-2">
+                <div class="flex flex-col space-y-2">
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[90px]">Engomado:</span>
                         <span class="text-sm text-gray-900 flex-1">{{ $orden ? ($orden->MaquinaEng ?? '-') : '-' }}</span>
@@ -79,7 +79,7 @@
                 </div>
 
                 <!-- Columna 3 -->
-                <div class="col-span-12 md:col-span-3 flex flex-col space-y-2">
+                <div class="flex flex-col space-y-2">
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Mts. De Telas:</span>
                         <span class="text-sm text-gray-900 flex-1">{{ $metrajeTelas ?? '-' }}</span>
@@ -98,8 +98,32 @@
                     </div>
                 </div>
 
-                <!-- Columna 4 -->
-                <div class="col-span-12 md:col-span-3 flex flex-col space-y-2">
+                <!-- Columna 4 - Merma -->
+                <div class="flex flex-col space-y-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Merma con Goma:</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            data-field="merma_con_goma"
+                            class="flex-1 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            value="{{ $mermaGoma ?? '' }}"
+                        >
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Merma sin Goma:</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            data-field="merma_sin_goma"
+                            class="flex-1 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            value="{{ $merma ?? '' }}"
+                        >
+                    </div>
+                </div>
+
+                <!-- Columna 5 - Observaciones -->
+                <div class="flex flex-col space-y-2">
                     <div class="flex flex-col gap-1">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Observaciones:</span>
                         <div class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-sm overflow-y-auto h-[50px]">
@@ -217,7 +241,7 @@
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
                                     {{-- Fecha --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-200 w-24 max-w-[60px]">
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-200 w-16 max-w-[60px]">
                                         <div class="flex items-center justify-center gap-0.5 relative">
                                             @php
                                                 $fechaGuardada = $registro && $registro->Fecha ? date('Y-m-d', strtotime($registro->Fecha)) : null;
@@ -234,7 +258,7 @@
                                             >
                                             <button
                                                 type="button"
-                                                class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
+                                                class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-md bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
                                                 data-registro-id="{{ $registroId }}"
                                             >
                                                 <span class="fecha-display-text text-gray-900 font-medium">
@@ -250,7 +274,7 @@
                                             @if($tieneOficiales)
                                                 <select
                                                     data-field="oficial"
-                                                    class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 oficial-select"
+                                                    class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 oficial-select"
                                                     data-registro-id="{{ $registroId }}"
                                                 >
                                                     <option value="">Seleccionar oficial...</option>
@@ -292,10 +316,10 @@
                                     </td>
 
                                     {{-- Turno --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-16 max-w-[50px]">
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-8 max-w-[50px]">
                                         <select
                                             data-field="turno"
-                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             min="1"
                                             max="3"
                                         >
@@ -307,16 +331,16 @@
                                     </td>
 
                                     {{-- H. INICIO --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-32 max-w-[115px]">
-                                        <div class="flex items-center justify-center gap-1">
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-24 max-w-[115px]">
+                                        <div class="flex items-center justify-center">
                                             <input
                                                 type="time"
                                                 data-field="h_inicio"
-                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                class="flex-1 border border-gray-300 rounded px-0.5 py-0.5 text-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-12"
                                                 value="{{ $horaInicio }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-base md:text-lg cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full transition-colors"
+                                                class="fa-solid fa-clock text-gray-400 text-lg md:text-xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-12 h-12 md:w-12 md:h-12 rounded-full transition-colors"
                                                 data-time-target="h_inicio"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -324,16 +348,16 @@
                                     </td>
 
                                     {{-- H. FIN --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-32 max-w-[115px]">
-                                        <div class="flex items-center justify-center gap-1">
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-24 max-w-[115px]">
+                                        <div class="flex items-center justify-center">
                                             <input
                                                 type="time"
                                                 data-field="h_fin"
-                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                class="flex-1 border border-gray-300 rounded px-0.5 py-0.5 text-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-12"
                                                 value="{{ $horaFin }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-base md:text-lg cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full transition-colors"
+                                                class="fa-solid fa-clock text-gray-400 text-lg md:text-xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-12 h-12 md:w-12 md:h-12 rounded-full transition-colors"
                                                 data-time-target="h_fin"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -341,10 +365,10 @@
                                     </td>
 
                                     {{-- No. Julio --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-24 max-w-[90px]">
+                                    <td class="px-0.5 py-1 md:py-1.5 text-center whitespace-nowrap w-16 max-w-[60px]">
                                         <select
                                             data-field="no_julio"
-                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-julio"
+                                            class="w-full border border-gray-300 rounded px-0.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-julio"
                                             data-valor-inicial="{{ $noJulio }}"
                                         >
                                             <option value="">Seleccionar...</option>
@@ -357,7 +381,7 @@
                                             type="number"
                                             step="0.01"
                                             data-field="kg_bruto"
-                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $kgBruto }}"
                                         >
                                     </td>
@@ -369,7 +393,7 @@
                                             step="0.01"
                                             disabled
                                             data-field="tara"
-                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $tara }}"
                                         >
                                     </td>
@@ -380,7 +404,7 @@
                                             type="number"
                                             step="0.01"
                                             data-field="kg_neto"
-                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center bg-gray-50 text-gray-600 cursor-not-allowed"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center bg-gray-50 text-gray-600 cursor-not-allowed"
                                             value="{{ $kgNeto }}"
                                             readonly
                                         >
@@ -392,7 +416,7 @@
                                             type="number"
                                             disabled
                                             data-field="metros"
-                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $metros }}"
                                         >
                                     </td>
@@ -404,7 +428,7 @@
                                             step="0.01"
                                             data-field="solidos"
                                             data-valor-inicial="{{ $solidos }}"
-                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $solidos }}"
                                         >
                                     </td>
@@ -514,7 +538,7 @@
                                             step="1"
                                             min="0"
                                             data-field="roturas"
-                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $roturas }}"
                                         >
                                     </td>
@@ -1232,7 +1256,7 @@
                         </td>
                         <td class="px-3 py-2 border border-gray-300">
                             <select
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-oficial-turno"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-oficial-turno"
                                 data-numero="${i}"
                             >
                                 <option value="">Seleccionar...</option>
@@ -1776,8 +1800,61 @@
                         if (claveInput)  claveInput.value  = '';
                         if (nombreInput) nombreInput.value = '';
                         if (turnoSelect) turnoSelect.value = '';
+                }
+            });
+
+            // Listener para campos de merma (Merma con Goma y Merma sin Goma)
+            document.addEventListener('change', function (e) {
+                if (e.target.dataset.field === 'merma_con_goma' || e.target.dataset.field === 'merma_sin_goma') {
+                    const campo = e.target.dataset.field;
+                    const valor = e.target.value !== '' ? parseFloat(e.target.value) : null;
+
+                    @if(isset($orden) && $orden)
+                        actualizarCampoOrden({{ $orden->Id }}, campo, valor);
+                    @endif
+                }
+            });
+
+            // Función para actualizar campos de la orden (no de producción)
+            async function actualizarCampoOrden(ordenId, campo, valor) {
+                try {
+                    const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.campo.orden') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            orden_id: ordenId,
+                            campo,
+                            valor: valor
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success && typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Actualizado',
+                            text: result.message || 'Campo actualizado correctamente',
+                            timer: 2000,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
                     }
-                });
+                } catch (error) {
+                    console.error('Error al actualizar campo de orden:', error);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Error al actualizar campo. Por favor, intenta nuevamente.'
+                        });
+                    }
+                }
+            }
 
                 // Guardar oficiales
                 if (btnGuardarOficiales) {

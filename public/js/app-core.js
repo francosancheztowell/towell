@@ -59,6 +59,20 @@
                 return;
             }
 
+            // Evitar crear bucles: si la URL que estamos agregando es igual a la penúltima,
+            // significa que estamos yendo y viniendo entre las mismas dos páginas
+            // En ese caso, eliminar la última entrada (que es la página intermedia) y no agregar esta
+            // Esto simula que nunca fuimos a esa página intermedia
+            if (stack.length >= 2) {
+                const penultimaBasePath = getBasePath(stack[stack.length - 2]);
+                if (penultimaBasePath === basePath) {
+                    // Estamos revirtiendo una navegación, eliminar la última entrada del stack
+                    stack.pop();
+                    this.save(stack);
+                    return;
+                }
+            }
+
             stack.push(normalized);
 
             // Limitar tamaño del stack
@@ -78,21 +92,25 @@
                 return HOME_PATH;
             }
 
-            // Buscar la primera página DIFERENTE a la actual (por pathname)
-            // Esto evita volver a estados anteriores de la misma página
-            let prevUrl = null;
-            while (stack.length > 0) {
-                const candidate = stack.pop();
-                const candidateBasePath = getBasePath(candidate);
+            // Primero, eliminar todas las instancias de la página actual del stack
+            // Esto previene bucles cuando se navega hacia atrás y adelante entre las mismas páginas
+            const filteredStack = stack.filter(url => getBasePath(url) !== currentBasePath);
 
-                // Si encontramos una página diferente, usarla
-                if (candidateBasePath !== currentBasePath) {
-                    prevUrl = candidate;
-                    break;
-                }
+            // Si después de filtrar no queda nada, regresar al home
+            if (filteredStack.length === 0) {
+                this.save([]);
+                return HOME_PATH;
             }
 
-            this.save(stack);
+            // Obtener la última URL del stack filtrado (que es la página anterior diferente)
+            const prevUrl = filteredStack[filteredStack.length - 1];
+            
+            // Eliminar la URL que vamos a usar del stack
+            filteredStack.pop();
+            
+            // Guardar el stack actualizado
+            this.save(filteredStack);
+
             return prevUrl || HOME_PATH;
         },
 
