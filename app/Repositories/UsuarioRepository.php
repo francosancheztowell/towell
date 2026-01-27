@@ -10,7 +10,7 @@ class UsuarioRepository
     /**
      * Obtener todos los usuarios con paginación manual
      */
-    public function getAll(int $page = 1, int $perPage = 50): array
+    public function getAll(int $page = 1, int $perPage = 50, array $filtros = []): array
     {
         $offset = ($page - 1) * $perPage;
         $perPage = min($perPage, 100); // Máximo 100 por página
@@ -18,7 +18,22 @@ class UsuarioRepository
         $query = Usuario::select([
             'idusuario', 'numero_empleado', 'nombre', 'area', 
             'turno', 'telefono', 'foto', 'puesto', 'correo', 'enviarMensaje'
-        ])->orderBy('nombre');
+        ]);
+
+        // Aplicar filtros
+        if (!empty($filtros['numero_empleado'])) {
+            $query->where('numero_empleado', 'like', '%' . $filtros['numero_empleado'] . '%');
+        }
+
+        if (!empty($filtros['area'])) {
+            $query->where('area', $filtros['area']);
+        }
+
+        if (!empty($filtros['turno'])) {
+            $query->where('turno', $filtros['turno']);
+        }
+
+        $query->orderBy('nombre');
 
         $total = (clone $query)->count();
         $usuarios = $query->offset($offset)->limit($perPage)->get();
