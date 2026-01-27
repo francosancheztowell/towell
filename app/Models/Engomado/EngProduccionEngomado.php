@@ -31,6 +31,7 @@ class EngProduccionEngomado extends Model
         'Canoa4',
         'Tambor',
         'Humedad',
+        'Ubicacion',
         'Roturas',
         'CveEmpl1',
         'NomEmpl1',
@@ -45,8 +46,6 @@ class EngProduccionEngomado extends Model
         'Metros3',
         'Turno3',
         'Solidos',
-        'MermaGoma',
-        'Merma',
     ];
 
     protected $casts = [
@@ -63,8 +62,8 @@ class EngProduccionEngomado extends Model
         'Canoa2' => 'float',
         'Canoa3' => 'float',
         'Canoa4' => 'float',
-        'Tambor' => 'float',
         'Humedad' => 'float',
+        'Ubicacion' => 'string',
         'Roturas' => 'integer',
         'Turno1' => 'integer',
         'Metros1' => 'float',
@@ -73,8 +72,6 @@ class EngProduccionEngomado extends Model
         'Turno3' => 'integer',
         'Metros3' => 'float',
         'Solidos' => 'float',
-        'MermaGoma' => 'float',
-        'Merma' => 'float',
     ];
 }
 

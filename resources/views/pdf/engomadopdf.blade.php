@@ -13,6 +13,32 @@
             padding: 0;
             color: #000;
         }
+        .page-container {
+            position: relative;
+            width: 100%;
+        }
+        .papeleta {
+            width: 100%;
+            page-break-inside: avoid;
+            margin-bottom: 0;
+            min-height: 45%;
+        }
+        .papeleta-container {
+            width: 100%;
+            position: relative;
+        }
+        .corte-line {
+            width: 100%;
+            border-top: 2px dashed #000;
+            margin: 4mm 0;
+            page-break-inside: avoid;
+            height: 0;
+        }
+        .papeleta-wrapper {
+            width: 100%;
+            position: relative;
+            margin-bottom: 2mm;
+        }
         .header {
             display: table;
             width: 100%;
@@ -157,48 +183,50 @@
 </head>
 <body>
 @php
-    // Filtrar registros que tienen información
-    $registrosConInfo = collect();
-    if ($registrosProduccion && $registrosProduccion->count() > 0) {
-        foreach ($registrosProduccion as $registro) {
-            $hasInfo = ($registro->Fecha || $registro->HoraInicial || $registro->HoraFinal ||
-                $registro->NoJulio || $registro->KgBruto !== null || $registro->KgNeto !== null ||
-                $registro->Canoa1 !== null || $registro->Canoa2 !== null || $registro->Tambor !== null ||
-                $registro->Humedad !== null || $registro->Solidos !== null || $registro->Roturas !== null ||
-                $registro->NomEmpl1 || $registro->NomEmpl2 || $registro->NomEmpl3 ||
-                $registro->Turno1 || $registro->Turno2 || $registro->Turno3);
-            if ($hasInfo) {
-                $registrosConInfo->push($registro);
+    // Agrupar registros por NoJulio para generar una papeleta por julio
+    $papeletasPorJulio = collect();
+    
+    if (isset($registrosPorJulio) && $registrosPorJulio->count() > 0) {
+        // Si hay registros agrupados por julio, usarlos
+        foreach ($registrosPorJulio as $noJulio => $registrosDelJulio) {
+            $registrosConInfo = $registrosDelJulio->filter(function($registro) {
+                return ($registro->Fecha || $registro->HoraInicial || $registro->HoraFinal ||
+                    $registro->NoJulio || $registro->KgBruto !== null || $registro->KgNeto !== null ||
+                    $registro->Canoa1 !== null || $registro->Canoa2 !== null || $registro->Tambor !== null ||
+                    $registro->Humedad !== null || $registro->Solidos !== null || $registro->Roturas !== null ||
+                    $registro->NomEmpl1 || $registro->NomEmpl2 || $registro->NomEmpl3 ||
+                    $registro->Turno1 || $registro->Turno2 || $registro->Turno3);
+            });
+            
+            if ($registrosConInfo->count() > 0) {
+                $papeletasPorJulio->push([
+                    'noJulio' => $noJulio,
+                    'registros' => $registrosConInfo
+                ]);
             }
         }
-    }
-
-    // Usar el primer registro para datos del header
-    $produccion = $registrosConInfo->first();
-
-    $fechaProd = $produccion && $produccion->Fecha
-        ? date('d/m/Y', strtotime($produccion->Fecha))
-        : ($orden->FechaProg ? $orden->FechaProg->format('d/m/Y') : '');
-
-    $horaInicial = $produccion && $produccion->HoraInicial
-        ? substr($produccion->HoraInicial, 0, 5)
-        : '';
-
-    $horaFinal = $produccion && $produccion->HoraFinal
-        ? substr($produccion->HoraFinal, 0, 5)
-        : '';
-
-    $turno = $produccion->Turno1 ?? $produccion->Turno2 ?? $produccion->Turno3 ?? '';
-
-    $engomador = $produccion->NomEmpl1 ?? $produccion->NomEmpl2 ?? $produccion->NomEmpl3 ?? '';
-
-    $totalMetros = 0;
-    if ($registrosProduccion) {
-        foreach ($registrosProduccion as $registro) {
-            $m1 = isset($registro->Metros1) ? (float) $registro->Metros1 : 0;
-            $m2 = isset($registro->Metros2) ? (float) $registro->Metros2 : 0;
-            $m3 = isset($registro->Metros3) ? (float) $registro->Metros3 : 0;
-            $totalMetros += ($m1 + $m2 + $m3);
+    } else {
+        // Si no hay agrupación por julio, usar todos los registros como una sola papeleta
+        $registrosConInfo = collect();
+        if ($registrosProduccion && $registrosProduccion->count() > 0) {
+            foreach ($registrosProduccion as $registro) {
+                $hasInfo = ($registro->Fecha || $registro->HoraInicial || $registro->HoraFinal ||
+                    $registro->NoJulio || $registro->KgBruto !== null || $registro->KgNeto !== null ||
+                    $registro->Canoa1 !== null || $registro->Canoa2 !== null || $registro->Tambor !== null ||
+                    $registro->Humedad !== null || $registro->Solidos !== null || $registro->Roturas !== null ||
+                    $registro->NomEmpl1 || $registro->NomEmpl2 || $registro->NomEmpl3 ||
+                    $registro->Turno1 || $registro->Turno2 || $registro->Turno3);
+                if ($hasInfo) {
+                    $registrosConInfo->push($registro);
+                }
+            }
+        }
+        
+        if ($registrosConInfo->count() > 0) {
+            $papeletasPorJulio->push([
+                'noJulio' => null,
+                'registros' => $registrosConInfo
+            ]);
         }
     }
 
@@ -210,24 +238,58 @@
     $destino = 'JZ JS S15 S IN IV';
 @endphp
 
-<div class="header">
-    <div class="header-cell header-left header-logo">
-        @if(!empty($logoBase64))
-            <img src="{{ $logoBase64 }}" alt="Logo Towell">
-        @endif
-    </div>
-    <div class="header-cell header-center">
-        PAPELETA VIAJERA DE TELA ENGOMADA
-    </div>
-    <div class="header-cell header-right">
-        <span class="folio">No. {{ $ordenNo }}</span>
-        @if(!empty($esReimpresion))
-            <div class="reimpresion">REIMPRESIÓN</div>
-        @endif
-    </div>
-</div>
+@foreach($papeletasPorJulio->chunk(2) as $chunk)
+    @foreach($chunk as $index => $papeletaData)
+        @php
+            $registrosConInfo = $papeletaData['registros'];
+            $noJulio = $papeletaData['noJulio'];
+            $produccion = $registrosConInfo->first();
+            
+            $fechaProd = $produccion && $produccion->Fecha
+                ? date('d/m/Y', strtotime($produccion->Fecha))
+                : ($orden->FechaProg ? $orden->FechaProg->format('d/m/Y') : '');
 
-<div class="row first">
+            $horaInicial = $produccion && $produccion->HoraInicial
+                ? substr($produccion->HoraInicial, 0, 5)
+                : '';
+
+            $horaFinal = $produccion && $produccion->HoraFinal
+                ? substr($produccion->HoraFinal, 0, 5)
+                : '';
+
+            $turno = $produccion->Turno1 ?? $produccion->Turno2 ?? $produccion->Turno3 ?? '';
+
+            $engomador = $produccion->NomEmpl1 ?? $produccion->NomEmpl2 ?? $produccion->NomEmpl3 ?? '';
+
+            $totalMetros = 0;
+            foreach ($registrosConInfo as $registro) {
+                $m1 = isset($registro->Metros1) ? (float) $registro->Metros1 : 0;
+                $m2 = isset($registro->Metros2) ? (float) $registro->Metros2 : 0;
+                $m3 = isset($registro->Metros3) ? (float) $registro->Metros3 : 0;
+                $totalMetros += ($m1 + $m2 + $m3);
+            }
+        @endphp
+        
+        <div class="papeleta-wrapper">
+            <div class="papeleta">
+                <div class="header">
+                    <div class="header-cell header-left header-logo">
+                        @if(!empty($logoBase64))
+                            <img src="{{ $logoBase64 }}" alt="Logo Towell">
+                        @endif
+                    </div>
+                    <div class="header-cell header-center">
+                        PAPELETA VIAJERA DE TELA ENGOMADA
+                    </div>
+                    <div class="header-cell header-right">
+                        <span class="folio">No. {{ $ordenNo }}</span>
+                        @if(!empty($esReimpresion))
+                            <div class="reimpresion">REIMPRESIÓN</div>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="row first">
     <span class="group label">ENGOMADO</span>
     <span class="group line line-md">{{ $orden->MaquinaEng ?? '' }}</span>
 
@@ -240,46 +302,46 @@
     <span class="group label">ORDEN:</span>
     <span class="group line line-md">{{ $ordenOrden }}</span>
 
-    <span class="group label">PAREJA</span>
-    <span class="group line line-sm"></span>
-</div>
+                    <span class="group label">PAREJA</span>
+                    <span class="group line line-sm"></span>
+                </div>
 
-<div class="row second">
-    <span class="group label">URDIDO</span>
-    <span class="group line line-md">{{ $orden->MaquinaUrd ?? '' }}</span>
+                <div class="row second">
+                    <span class="group label">URDIDO</span>
+                    <span class="group line line-md">{{ $orden->MaquinaUrd ?? '' }}</span>
 
-    <span class="group label">URDIDOR</span>
-    <span class="group line line-md">{{ $orden->NomEmpl ?? '' }}</span>
+                    <span class="group label">URDIDOR</span>
+                    <span class="group line line-md">{{ $orden->NomEmpl ?? '' }}</span>
 
-    <span class="group label">Cuenta:</span>
-    <span class="group line line-sm">{{ $orden->Cuenta ?? '' }}</span>
+                    <span class="group label">Cuenta:</span>
+                    <span class="group line line-sm">{{ $orden->Cuenta ?? '' }}</span>
 
-    <span style="float: right;">
-        <span class="group label">Pie</span>
-        <span class="check">{{ $esPie ? 'X' : '' }}</span>
-        <span class="group label">Rizo</span>
-        <span class="check">{{ $esRizo ? 'X' : '' }}</span>
-    </span>
-</div>
+                    <span style="float: right;">
+                        <span class="group label">Pie</span>
+                        <span class="check">{{ $esPie ? 'X' : '' }}</span>
+                        <span class="group label">Rizo</span>
+                        <span class="check">{{ $esRizo ? 'X' : '' }}</span>
+                    </span>
+                </div>
 
-<div class="row">
-    <span class="group label">Ancho Balonas:</span>
-    <span class="group line line-md">{{ $orden->AnchoBalonas ?? '' }}</span>
+                <div class="row">
+                    <span class="group label">Ancho Balonas:</span>
+                    <span class="group line line-md">{{ $orden->AnchoBalonas ?? '' }}</span>
 
-    <span class="group label">Cal.</span>
-    <span class="group line line-sm">{{ $orden->Calibre ?? '' }}</span>
+                    <span class="group label">Cal.</span>
+                    <span class="group line line-sm">{{ $orden->Calibre ?? '' }}</span>
 
-    <span class="group label">Prov.</span>
-    <span class="group line line-md">{{ $orden->LoteProveedor ?? '' }}</span>
+                    <span class="group label">Prov.</span>
+                    <span class="group line line-md">{{ $orden->LoteProveedor ?? '' }}</span>
 
-    <span class="group label">Solidos:</span>
-    <span class="group line line-sm">{{ $produccion && $produccion->Solidos !== null ? number_format($produccion->Solidos, 2, '.', '') : '' }}</span>
+                    <span class="group label">Solidos:</span>
+                    <span class="group line line-sm">{{ $produccion && $produccion->Solidos !== null ? number_format($produccion->Solidos, 2, '.', '') : '' }}</span>
 
-    <span class="group label">Color:</span>
-    <span class="group line line-md"></span>
-</div>
+                    <span class="group label">Color:</span>
+                    <span class="group line line-md"></span>
+                </div>
 
-<table>
+                <table>
     <thead>
         <tr>
             <th>FECHA</th>
@@ -367,74 +429,87 @@
                 <td>{{ $produccion && $produccion->Humedad !== null ? number_format($produccion->Humedad, 0, '.', '') : '-' }}</td>
             </tr>
         @endforelse
-    </tbody>
-</table>
+                </tbody>
+                </table>
 
-<div class="row atador" style="margin-top: 6px;">
-    <div class="clave-atador">
-        <div class="label-box">Clave atador</div>
-        <div class="value-box"></div>
-    </div>
+                <div class="row atador" style="margin-top: 6px;">
+                    <div class="clave-atador">
+                        <div class="label-box">Clave atador</div>
+                        <div class="value-box"></div>
+                    </div>
 
-    <span class="group label">Fecha de atado:</span>
-    <span class="group line line-md"></span>
+                    <span class="group label">Fecha de atado:</span>
+                    <span class="group line line-md"></span>
 
-    <span class="group label">Telar:</span>
-    <span class="group line line-md">{{ $orden->NoTelarId ?? '' }}</span>
+                    <span class="group label">Telar:</span>
+                    <span class="group line line-md">{{ $orden->NoTelarId ?? '' }}</span>
 
-    <span class="group label">Turno:</span>
-    <span class="group line line-sm">{{ $turno }}</span>
-</div>
+                    <span class="group label">Turno:</span>
+                    <span class="group line line-sm">{{ $turno }}</span>
+                </div>
 
-<div class="spacer"></div>
+                <div class="spacer"></div>
 
-<div class="triple-row">
-    <div class="triple-cell triple-left">
-        <span class="group label">Destino:</span>
-        <span class="group">{{ $destino }}</span>
-    </div>
-    <div class="triple-cell triple-middle">
-        <table style="width: 100%; display: inline-table;">
-            <thead>
-                <tr>
-                    <th>H. Paro</th>
-                    <th>H. Inicio</th>
-                    <th>H. Final</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    <div class="triple-cell triple-right">
-        <span class="group label">Merma:</span>
-        <span class="group line line-md"></span>
-    </div>
-</div>
+                <div class="triple-row">
+                    <div class="triple-cell triple-left">
+                        <span class="group label">Destino:</span>
+                        <span class="group">{{ $destino }}</span>
+                    </div>
+                    <div class="triple-cell triple-middle">
+                        <table style="width: 100%; display: inline-table;">
+                            <thead>
+                                <tr>
+                                    <th>H. Paro</th>
+                                    <th>H. Inicio</th>
+                                    <th>H. Final</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>&nbsp;</td>
+                                    <td>&nbsp;</td>
+                                    <td>&nbsp;</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="triple-cell triple-right">
+                        <span class="group label">Merma:</span>
+                        <span class="group line line-md"></span>
+                    </div>
+                </div>
 
-<div class="row" style="margin-top: 6px;">
-    <span class="group label">Firma del Supervisor:</span>
-    <span class="group line line-md"></span>
+                <div class="row" style="margin-top: 6px;">
+                    <span class="group label">Firma del Supervisor:</span>
+                    <span class="group line line-md"></span>
 
-    <span class="group label">Observaciones:</span>
-    <span class="group line line-md">{{ $orden->Observaciones ?? '' }}</span>
+                    <span class="group label">Observaciones:</span>
+                    <span class="group line line-md">{{ $orden->Observaciones ?? '' }}</span>
 
-    <span style="float: right;">
-        <span class="group label">Bajado por:</span>
-        <span class="group line line-md"></span>
-    </span>
-</div>
+                    <span style="float: right;">
+                        <span class="group label">Bajado por:</span>
+                        <span class="group line line-md"></span>
+                    </span>
+                </div>
 
-<div class="footer">
-    <div class="footer-cell footer-left">F-PR-53</div>
-    <div class="footer-cell footer-center">{{ date('d.m.y') }}</div>
-    <div class="footer-cell footer-right">Version 02</div>
-</div>
+                <div class="footer">
+                    <div class="footer-cell footer-left">F-PR-53</div>
+                    <div class="footer-cell footer-center">{{ date('d.m.y') }}</div>
+                    <div class="footer-cell footer-right">Version 02</div>
+                </div>
+            </div>
+            
+            @if($index == 0 && $chunk->count() == 2)
+                {{-- Línea de corte entre las dos papeletas --}}
+                <div class="corte-line"></div>
+            @endif
+        @endforeach
+        
+        @if(!$loop->last)
+            {{-- Salto de página entre grupos de 2 papeletas --}}
+            <div style="page-break-after: always;"></div>
+        @endif
+    @endforeach
 
 </body>
 </html>

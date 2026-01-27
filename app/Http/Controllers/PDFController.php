@@ -78,6 +78,22 @@ class PDFController extends Controller
             $logoBase64 = $this->cargarLogoBase64();
             $esReimpresion = $request->boolean('reimpresion');
 
+            // 6) Para engomado, agrupar registros por NoJulio para generar papeletas (1 papeleta por julio)
+            $registrosPorJulio = collect();
+            if (strtolower($tipo) === 'engomado' && $registrosProduccion && $registrosProduccion->count() > 0) {
+                // Filtrar solo registros que tienen NoJulio asignado
+                $registrosConJulio = $registrosProduccion->filter(function($registro) {
+                    return !empty($registro->NoJulio);
+                });
+                
+                if ($registrosConJulio->count() > 0) {
+                    $registrosPorJulio = $registrosConJulio->groupBy('NoJulio');
+                } else {
+                    // Si no hay registros con NoJulio, usar todos los registros como una sola papeleta
+                    $registrosPorJulio = collect([null => $registrosProduccion]);
+                }
+            }
+
             // 6) Renderizar vista Blade a HTML
             $vistaPdf = strtolower($tipo) === 'engomado'
                 ? 'pdf.engomadopdf'
@@ -87,6 +103,7 @@ class PDFController extends Controller
                 'orden'              => $orden,
                 'ordenEngomado'      => $ordenEngomado, // Datos de engomado para urdido
                 'registrosProduccion'=> $registrosProduccion,
+                'registrosPorJulio'  => $registrosPorJulio, // Agrupados por NoJulio
                 'julios'             => $julios,
                 'tipo'               => $tipo,
                 'logoBase64'         => $logoBase64,

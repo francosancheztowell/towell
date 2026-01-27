@@ -18,10 +18,18 @@
 
 @section('content')
 
+<style>
+    @media (min-width: 768px) {
+        .grid-produccion-columnas {
+            grid-template-columns: 0.75fr 0.75fr 0.75fr 0.9fr 1.2fr !important;
+        }
+    }
+</style>
+
     <div class="w-full">
         <!-- Sección superior: Información General -->
         <div class="bg-white p-1">
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-1 items-stretch">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-1 md:gap-1.5 items-stretch grid-produccion-columnas">
                 <!-- Columna 1 -->
                 <div class="flex flex-col space-y-2">
                     <div class="flex items-center gap-2">
@@ -99,24 +107,24 @@
                 </div>
 
                 <!-- Columna 4 - Merma -->
-                <div class="flex flex-col space-y-2">
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Merma con Goma:</span>
+                <div class="flex flex-col space-y-1">
+                    <div class="flex items-center gap-1">
+                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap shrink-0">Merma con Goma:</span>
                         <input
                             type="number"
                             step="0.01"
                             data-field="merma_con_goma"
-                            class="flex-1 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            class="w-20 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             value="{{ $mermaGoma ?? '' }}"
                         >
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[100px]">Merma sin Goma:</span>
+                    <div class="flex items-center gap-1">
+                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap shrink-0">Merma sin Goma:</span>
                         <input
                             type="number"
                             step="0.01"
                             data-field="merma_sin_goma"
-                            class="flex-1 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            class="w-20 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             value="{{ $merma ?? '' }}"
                         >
                     </div>
@@ -136,8 +144,8 @@
 
         <!-- Sección inferior: Tabla de Producción -->
         <div class="bg-white shadow-md overflow-hidden">
-            <div class="overflow-x-auto max-h-[62vh] overflow-y-auto">
-                <table class="divide-y divide-gray-200 text-sm w-full">
+            <div class="overflow-x-auto max-h-[62vh] overflow-y-auto" style="min-width: 100%;">
+                <table class="divide-y divide-gray-200 text-sm" style="min-width: max-content; width: 100%;">
                     <thead class="bg-blue-500 text-white sticky top-0 z-20">
                         <tr>
                             <th class="py-1"></th>
@@ -151,13 +159,10 @@
                             <th class="py-1"></th>
                             <th class="py-1"></th>
                             <th class="py-1"></th>
-                            <th colspan="2" class="py-1 text-center font-semibold bg-blue-700 text-xs md:text-sm">Temp</th>
-                            <th class="py-1 hidden"></th>
-                            <th class="py-1 hidden"></th>
-                            <th class="py-1"></th>
+                            <th colspan="6" class="py-1 text-center font-semibold bg-blue-700 text-xs md:text-sm">Temp</th>
                         </tr>
                         <tr>
-                            <th class="py-2 px-1 text-center font-semibold sticky left-0 bg-blue-500 z-30 text-xs md:text-sm w-24 max-w-[60px]">Fecha</th>
+                            <th class="py-2 px-1 text-center font-semibold bg-blue-500 text-white text-xs md:text-sm w-24 max-w-[60px]">Fecha</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-32 max-w-[120px]">Oficial</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-16 max-w-[50px]">Turno</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
@@ -176,7 +181,8 @@
                             </th>
                             <th class="py-2 px-1 md:px-2 text-center font-semibold bg-blue-700 text-xs md:text-xs hidden">Tambor</th>
                             <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden">Humedad</th>
-                            <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-24 max-w-[75px]">Roturas</th>
+                            <th class="py-2 px-1 text-center font-semibold bg-blue-500 text-white text-xs md:text-sm w-24 max-w-[75px]">Roturas</th>
+                            <th class="py-2 px-1 text-center font-semibold bg-blue-500 text-white text-xs md:text-sm w-32 max-w-[120px]">Ubicación</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-produccion-body" class="bg-white divide-y divide-gray-200">
@@ -217,8 +223,10 @@
 
                                     $tempCanoa1 = $registro && $registro->Canoa1 !== null ? (int)$registro->Canoa1 : 0;
                                     $tempCanoa2 = $registro && $registro->Canoa2 !== null ? (int)$registro->Canoa2 : 0;
-                                    $tambor = $registro && $registro->Tambor !== null ? (int)$registro->Tambor : 0;
+                                    // $tambor = $registro && $registro->Tambor !== null ? (int)$registro->Tambor : 0; // Columna no existe en la tabla
+                                    $tambor = 0; // Valor por defecto ya que la columna no existe
                                     $humedad = $registro ? ($registro->Humedad ?? '') : '';
+                                    $ubicacion = $registro ? ($registro->Ubicacion ?? '') : '';
                                     $roturas = $registro ? ($registro->Roturas ?? '') : '';
                                     $registroId = $registro ? $registro->Id : null;
 
@@ -241,7 +249,7 @@
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
                                     {{-- Fecha --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-200 w-16 max-w-[60px]">
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap bg-white w-16 max-w-[60px]">
                                         <div class="flex items-center justify-center gap-0.5 relative">
                                             @php
                                                 $fechaGuardada = $registro && $registro->Fecha ? date('Y-m-d', strtotime($registro->Fecha)) : null;
@@ -331,16 +339,16 @@
                                     </td>
 
                                     {{-- H. INICIO --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-24 max-w-[115px]">
-                                        <div class="flex items-center justify-center">
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell">
+                                        <div class="flex items-center justify-center gap-2 md:gap-3">
                                             <input
                                                 type="time"
                                                 data-field="h_inicio"
-                                                class="flex-1 border border-gray-300 rounded px-0.5 py-0.5 text-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-12"
+                                                class="flex-1 border border-gray-300 rounded px-1 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-20 md:w-24"
                                                 value="{{ $horaInicio }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-lg md:text-xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-12 h-12 md:w-12 md:h-12 rounded-full transition-colors"
+                                                class="fa-solid fa-clock text-gray-400 text-2xl md:text-3xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-full transition-colors p-2"
                                                 data-time-target="h_inicio"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -348,16 +356,16 @@
                                     </td>
 
                                     {{-- H. FIN --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-24 max-w-[115px]">
-                                        <div class="flex items-center justify-center">
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell">
+                                        <div class="flex items-center justify-center gap-2 md:gap-3">
                                             <input
                                                 type="time"
                                                 data-field="h_fin"
-                                                class="flex-1 border border-gray-300 rounded px-0.5 py-0.5 text-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-12"
+                                                class="flex-1 border border-gray-300 rounded px-1 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-20 md:w-24"
                                                 value="{{ $horaFin }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-lg md:text-xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-12 h-12 md:w-12 md:h-12 rounded-full transition-colors"
+                                                class="fa-solid fa-clock text-gray-400 text-2xl md:text-3xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-full transition-colors p-2"
                                                 data-time-target="h_fin"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -370,6 +378,7 @@
                                             data-field="no_julio"
                                             class="w-full border border-gray-300 rounded px-0.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-julio"
                                             data-valor-inicial="{{ $noJulio }}"
+                                            data-registro-id="{{ $registroId }}"
                                         >
                                             <option value="">Seleccionar...</option>
                                         </select>
@@ -542,6 +551,21 @@
                                             value="{{ $roturas }}"
                                         >
                                     </td>
+
+                                    {{-- Ubicación --}}
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-32 max-w-[120px]">
+                                        <select
+                                            data-field="ubicacion"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                        >
+                                            <option value="">-</option>
+                                            @foreach($ubicaciones ?? [] as $ubicacionItem)
+                                                <option value="{{ $ubicacionItem->Codigo }}" {{ $ubicacion === $ubicacionItem->Codigo ? 'selected' : '' }}>
+                                                    {{ $ubicacionItem->Codigo }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
                                 </tr>
                             @endfor
                         @else
@@ -623,8 +647,8 @@
                 solidos: 'Solidos',
                 temp_canoa1: 'Canoa1',
                 temp_canoa2: 'Canoa2',
-                tambor: 'Tambor',
                 humedad: 'Humedad',
+                ubicacion: 'Ubicacion',
                 roturas: 'Roturas'
             };
 
@@ -1036,10 +1060,15 @@
                             registro_id: registroId,
                             campo,
                             valor: valor !== null && valor !== ''
-                                ? (campo === 'Roturas' ? parseInt(valor) : parseFloat(valor))
+                                ? (campo === 'Ubicacion' ? valor : (campo === 'Roturas' ? parseInt(valor) : parseFloat(valor)))
                                 : null
                         })
                     });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Error al actualizar campo');
+                    }
 
                     const result = await response.json();
 
@@ -1053,6 +1082,8 @@
                             toast: true,
                             position: 'top-end'
                         });
+                    } else {
+                        throw new Error(result.error || 'Error al actualizar campo');
                     }
                 } catch (error) {
                     console.error('Error al actualizar campo de producción:', error);
@@ -1060,7 +1091,7 @@
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
-                            text: 'Error al actualizar campo. Por favor, intenta nuevamente.'
+                            text: error.message || 'Error al actualizar campo. Por favor, intenta nuevamente.'
                         });
                     }
                 }
@@ -1076,27 +1107,43 @@
                         return;
                     }
 
-                    const catalogosJulios = result.data;
+                    // Obtener todos los valores de NoJulio ya usados en otros registros
+                    const juliosUsados = new Set();
                     const selectJulios = document.querySelectorAll('.select-julio');
+                    selectJulios.forEach(select => {
+                        const valorInicial = select.getAttribute('data-valor-inicial');
+                        if (valorInicial && valorInicial.trim() !== '') {
+                            juliosUsados.add(String(valorInicial).trim());
+                        }
+                    });
+
+                    const catalogosJulios = result.data;
 
                     selectJulios.forEach(select => {
                         const valorInicial = select.getAttribute('data-valor-inicial');
+                        const registroIdActual = select.getAttribute('data-registro-id');
 
                         while (select.options.length > 1) {
                             select.remove(1);
                         }
 
                         catalogosJulios.forEach(item => {
-                            const option = document.createElement('option');
-                            option.value = item.julio;
-                            option.setAttribute('data-tara', item.tara || '0');
-                            option.textContent = item.julio;
+                            const julioValue = String(item.julio).trim();
+                            const esValorInicial = valorInicial && String(valorInicial).trim() === julioValue;
+                            
+                            // Solo mostrar si no está usado en otros registros O es el valor inicial de este registro
+                            if (!juliosUsados.has(julioValue) || esValorInicial) {
+                                const option = document.createElement('option');
+                                option.value = item.julio;
+                                option.setAttribute('data-tara', item.tara || '0');
+                                option.textContent = item.julio;
 
-                            if (valorInicial && String(item.julio) === String(valorInicial)) {
-                                option.selected = true;
+                                if (esValorInicial) {
+                                    option.selected = true;
+                                }
+
+                                select.appendChild(option);
                             }
-
-                            select.appendChild(option);
                         });
 
                         select.setAttribute('data-valor-anterior', valorInicial || '');
@@ -1452,7 +1499,12 @@
                                 netoInput.value = kgNeto.toFixed(2);
                             }
 
-                            actualizarJulioTara(registroId, noJulioValue, tara, kgNeto);
+                            actualizarJulioTara(registroId, noJulioValue, tara, kgNeto)
+                                .then(() => {
+                                    // Actualizar el valor inicial y recargar los selects para filtrar julios usados
+                                    target.setAttribute('data-valor-inicial', noJulioValue);
+                                    cargarCatalogosJulios();
+                                });
                         }
 
                         // Oficial -> actualiza turno y limpia campos
@@ -1476,6 +1528,7 @@
                                 const kgNetoInput = row.querySelector('input[data-field="kg_neto"]');
                                 const solidosInput = row.querySelector('input[data-field="solidos"]');
                                 const roturasInput = row.querySelector('input[data-field="roturas"]');
+                                const ubicacionSelect = row.querySelector('select[data-field="ubicacion"]');
                                 const canoa1Btn = row.querySelector('button[onclick*="temp_canoa1"]');
                                 const canoa2Btn = row.querySelector('button[onclick*="temp_canoa2"]');
 
@@ -1490,6 +1543,7 @@
                                 if (kgNetoInput) kgNetoInput.value = '';
                                 if (solidosInput) solidosInput.value = '';
                                 if (roturasInput) roturasInput.value = '';
+                                if (ubicacionSelect) ubicacionSelect.value = '';
                                 if (canoa1Btn) {
                                     const display1 = canoa1Btn.querySelector('.quantity-display');
                                     if (display1) display1.textContent = '0';
@@ -1602,7 +1656,7 @@
                     }
                 });
 
-                // Click en número (Canoa1, Canoa2, Tambor)
+                // Click en número (Canoa1, Canoa2)
                 document.addEventListener('click', function (e) {
                     const opt = e.target.closest('.number-option');
                     if (!opt) return;
