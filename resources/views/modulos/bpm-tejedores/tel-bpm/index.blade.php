@@ -120,7 +120,7 @@
 
     <form id="form-create" method="POST" action="{{ route('tel-bpm.store') }}">
         @csrf
-        <input type="hidden" name="_mode" value="create">
+        <input type="hidden" name="_mode" value="create"    >
 
         <div class="space-y-6">
             <!-- Fecha y Hora -->

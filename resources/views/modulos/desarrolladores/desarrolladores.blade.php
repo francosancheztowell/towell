@@ -392,13 +392,17 @@
             if (Number.isFinite(numericTelar) && numericTelar >= 200 && numericTelar <= 299) {
                 return 'JC5';
             }
+            if (Number.isFinite(numericTelar) && numericTelar >= 300) {
+                return '';
+            }
             return 'JCS';
         }
 
         function updateCodificacionSuffix(telarId) {
             const suffix = getCodificacionSuffix(telarId);
             if (codificacionSuffixSpan) {
-                codificacionSuffixSpan.textContent = `.${suffix}`;
+                codificacionSuffixSpan.textContent = suffix ? `.${suffix}` : '';
+                codificacionSuffixSpan.classList.toggle('hidden', !suffix);
             }
             return suffix;
         }
@@ -406,7 +410,11 @@
         function updateCodificacionModelo() {
             const fullCode = Array.from(codificacionInputs).map(input => input.value).join('');
             const suffix = updateCodificacionSuffix(inputTelarId?.value || selectTelar?.value);
-            codificacionHidden.value = fullCode ? `${fullCode}.${suffix}` : '';
+            if (!fullCode) {
+                codificacionHidden.value = '';
+            } else {
+                codificacionHidden.value = suffix ? `${fullCode}.${suffix}` : fullCode;
+            }
             updateCodificacionNoDataMessage();
         }
 
