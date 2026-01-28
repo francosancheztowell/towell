@@ -34,6 +34,7 @@ class TejProduccionReenconado extends Model
         'CodColor'         => 'string',
         'Color'            => 'string',
         'Cantidad'         => 'float',
+        'Cabezuela'        => 'float',
         'Conos'            => 'integer',
         'Horas'            => 'float',
         'Eficiencia'       => 'float',

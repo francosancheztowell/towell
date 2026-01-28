@@ -72,6 +72,7 @@
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Cód. Color</th>
                     <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Color</th>
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Cantidad</th>
+                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Cabezuela</th>
                     <th class="w-[72px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Conos</th>
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Hrs</th>
                     <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Eficiencia</th>
@@ -91,6 +92,7 @@
                         data-codcolor="{{ $r->CodColor }}"
                         data-color="{{ $r->Color }}"
                         data-cantidad="{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2, '.', '') }}"
+                        data-cabezuela="{{ is_null($r->Cabezuela) ? '' : number_format($r->Cabezuela, 2, '.', '') }}"
                         data-conos="{{ $r->Conos }}"
                         data-horas="{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2, '.', '') }}"
                         data-eficiencia="{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2, '.', '') }}"
@@ -104,6 +106,7 @@
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->CodColor }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Color }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2) }}</td>
+                        <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Cabezuela) ? '' : number_format($r->Cabezuela, 2) }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Conos }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</td>
                         <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2) }}</td>
@@ -111,7 +114,7 @@
                     </tr>
                 @empty
                     <tr class="odd:bg-white even:bg-gray-50">
-                        <td colspan="13" class="text-center text-gray-500 py-4">Sin registros</td>
+                        <td colspan="14" class="text-center text-gray-500 py-4">Sin registros</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -206,6 +209,10 @@
                 <div class="col-span-6 md:col-span-3">
                     <label class="block text-sm font-medium text-gray-700">Cantidad (kg)</label>
                     <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cantidad">
+                </div>
+                <div class="col-span-6 md:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700">Cabezuela</label>
+                    <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cabezuela">
                 </div>
                 <div class="col-span-6 md:col-span-3">
                     <label class="block text-sm font-medium text-gray-700">Conos</label>
@@ -388,6 +395,7 @@
         CodColor: getFieldValue('f_CodColor'),
         Color: getFieldValue('f_Color'),
         Cantidad: getFieldValue('f_Cantidad'),
+        Cabezuela: getFieldValue('f_Cabezuela'),
         Conos: getFieldValue('f_Conos'),
         Horas: getFieldValue('f_Horas'),
         Eficiencia: getFieldValue('f_Eficiencia'),
@@ -405,6 +413,7 @@
         setFieldValue('f_CodColor', row.dataset.codcolor);
         setFieldValue('f_Color', row.dataset.color);
         setFieldValue('f_Cantidad', row.dataset.cantidad);
+        setFieldValue('f_Cabezuela', row.dataset.cabezuela);
         setFieldValue('f_Conos', row.dataset.conos);
         setFieldValue('f_Horas', row.dataset.horas);
         setFieldValue('f_Eficiencia', row.dataset.eficiencia);
@@ -422,10 +431,11 @@
         cells[6].textContent = data.CodColor ?? '';
         cells[7].textContent = data.Color ?? '';
         cells[8].textContent = formatNumber(data.Cantidad);
-        cells[9].textContent = data.Conos ?? '';
-        cells[10].textContent = formatNumber(data.Horas);
-        cells[11].textContent = formatNumber(data.Eficiencia);
-        cells[12].textContent = data.Obs ?? '';
+        cells[9].textContent = formatNumber(data.Cabezuela);
+        cells[10].textContent = data.Conos ?? '';
+        cells[11].textContent = formatNumber(data.Horas);
+        cells[12].textContent = formatNumber(data.Eficiencia);
+        cells[13].textContent = data.Obs ?? '';
 
         row.dataset.folio = data.Folio ?? '';
         row.dataset.date = data.Date ?? '';
@@ -437,6 +447,7 @@
         row.dataset.codcolor = data.CodColor ?? '';
         row.dataset.color = data.Color ?? '';
         row.dataset.cantidad = formatNumber(data.Cantidad, 2);
+        row.dataset.cabezuela = formatNumber(data.Cabezuela, 2);
         row.dataset.conos = data.Conos ?? '';
         row.dataset.horas = formatNumber(data.Horas, 2);
         row.dataset.eficiencia = formatNumber(data.Eficiencia, 2);
@@ -454,7 +465,8 @@
             data-fibratrama="${r.FibraTrama ?? ''}"
             data-codcolor="${r.CodColor ?? ''}"
             data-color="${r.Color ?? ''}"
-            data-cantidad="${r.Cantidad ?? ''}"
+            data-cantidad="${formatNumber(r.Cantidad, 2)}"
+            data-cabezuela="${formatNumber(r.Cabezuela, 2)}"
             data-conos="${r.Conos ?? ''}"
             data-horas="${r.Horas ?? ''}"
             data-eficiencia="${r.Eficiencia ?? ''}"
@@ -468,6 +480,7 @@
             <td class="text-center whitespace-nowrap px-4 py-3">${r.CodColor ?? ''}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${r.Color ?? ''}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${formatNumber(r.Cantidad)}</td>
+            <td class="text-center whitespace-nowrap px-4 py-3">${formatNumber(r.Cabezuela)}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${r.Conos ?? ''}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${formatNumber(r.Horas)}</td>
             <td class="text-center whitespace-nowrap px-4 py-3">${formatNumber(r.Eficiencia)}</td>
@@ -970,7 +983,7 @@
                 if (!emptyRow) {
                     const tr = document.createElement('tr');
                     tr.className = 'no-results';
-                    tr.innerHTML = `<td colspan="13" class="px-4 py-6 text-center text-slate-500">
+                    tr.innerHTML = `<td colspan="14" class="px-4 py-6 text-center text-slate-500">
                         <div class="flex flex-col items-center gap-2">
                             <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
                             <span class="text-base font-medium">Sin resultados con los filtros aplicados</span>
