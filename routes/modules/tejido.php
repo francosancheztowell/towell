@@ -152,6 +152,9 @@ Route::post('/modulo-nuevo-requerimiento/guardar', [NuevoRequerimientoController
 Route::get('/modulo-nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('modulo.nuevo.requerimiento.turno.info');
 Route::get('/modulo-nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('modulo.nuevo.requerimiento.enproceso');
 Route::post('/modulo-nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('modulo.nuevo.requerimiento.actualizar.cantidad');
+Route::get('/modulo-nuevo-requerimiento/calibres', [NuevoRequerimientoController::class, 'getCalibres'])->name('modulo.nuevo.requerimiento.calibres');
+Route::get('/modulo-nuevo-requerimiento/fibras', [NuevoRequerimientoController::class, 'getFibras'])->name('modulo.nuevo.requerimiento.fibras');
+Route::get('/modulo-nuevo-requerimiento/colores', [NuevoRequerimientoController::class, 'getColores'])->name('modulo.nuevo.requerimiento.colores');
 Route::get('/modulo-nuevo-requerimiento/buscar-articulos', [NuevoRequerimientoController::class, 'buscarArticulos'])->name('modulo.nuevo.requerimiento.buscar.articulos');
 Route::get('/modulo-nuevo-requerimiento/buscar-fibras', [NuevoRequerimientoController::class, 'buscarFibras'])->name('modulo.nuevo.requerimiento.buscar.fibras');
 Route::get('/modulo-nuevo-requerimiento/buscar-codigos-color', [NuevoRequerimientoController::class, 'buscarCodigosColor'])->name('modulo.nuevo.requerimiento.buscar.codigos.color');

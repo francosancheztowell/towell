@@ -209,39 +209,36 @@
             </div>
             <div class="p-6">
                 <form id="form-nuevo-requerimiento">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Artículo</label>
-                            <select id="modal-articulo" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
-                                <option value="">Seleccionar o escribir...</option>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Calibre</label>
+                            <select id="modal-calibre" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Seleccionar calibre...</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Fibra</label>
                             <select id="modal-fibra" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
-                                <option value="">Seleccionar o escribir...</option>
+                                <option value="">Selecciona calibre primero</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Cod Color</label>
                             <select id="modal-cod-color" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
-                                <option value="">Seleccionar o escribir...</option>
+                                <option value="">Selecciona calibre primero</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Nombre Color</label>
-                            <select id="modal-nombre-color" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
-                                <option value="">Seleccionar o escribir...</option>
-                            </select>
+                            <input type="text" id="modal-nombre-color" readonly class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700" placeholder="Se llena automáticamente">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
-                            <input type="number" min="0" max="100" id="modal-cantidad" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="0" value="0" required>
+                        <div class="hidden">
+                            <input type="number" min="0" id="modal-cantidad" value="0">
                         </div>
                     </div>
-                    <div class="flex justify-end space-x-3 mt-6">
-                        <button type="button" onclick="cerrarModal()" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">Cancelar</button>
-                        <button type="button" onclick="agregarCampo()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Agregar</button>
+                    <div class="grid grid-cols-2 gap-3 mt-6">
+                        <button type="button" onclick="cerrarModal()" class="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">Cancelar</button>
+                        <button type="button" onclick="agregarCampo()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Agregar</button>
                     </div>
                 </form>
             </div>
@@ -446,17 +443,45 @@
     let __telarTarget = null;
     function agregarNuevoRequerimiento(btn) {
         try { __telarTarget = btn ? btn.closest('.telar-section') : null; } catch(_) { __telarTarget = null; }
-                    const modal = document.getElementById('modal-nuevo-requerimiento');
-        modal.classList.remove('hidden'); modal.classList.add('flex');
-        document.getElementById('form-nuevo-requerimiento')?.reset();
-                    document.getElementById('modal-cantidad').value = 0;
+        const modal = document.getElementById('modal-nuevo-requerimiento');
+        modal.classList.remove('hidden'); 
+        modal.classList.add('flex');
+        
+        // Resetear campos
+        const calibreEl = document.getElementById('modal-calibre');
+        const fibraEl = document.getElementById('modal-fibra');
+        const codColorEl = document.getElementById('modal-cod-color');
+        const nombreColorEl = document.getElementById('modal-nombre-color');
+        const cantidadEl = document.getElementById('modal-cantidad');
+        
+        if (calibreEl) calibreEl.value = '';
+        if (fibraEl) fibraEl.innerHTML = '<option value="">Selecciona calibre primero</option>';
+        if (codColorEl) codColorEl.innerHTML = '<option value="">Selecciona calibre primero</option>';
+        if (nombreColorEl) nombreColorEl.value = '';
+        if (cantidadEl) cantidadEl.value = '0';
+        
         // Inicializar autocomplete al abrir el modal
         initModalAutocomplete();
     }
-        function cerrarModal() {
-            const modal = document.getElementById('modal-nuevo-requerimiento');
-        modal.classList.add('hidden'); modal.classList.remove('flex');
-        }
+    
+    function cerrarModal() {
+        const modal = document.getElementById('modal-nuevo-requerimiento');
+        modal.classList.add('hidden'); 
+        modal.classList.remove('flex');
+        
+        // Resetear campos al cerrar
+        const calibreEl = document.getElementById('modal-calibre');
+        const fibraEl = document.getElementById('modal-fibra');
+        const codColorEl = document.getElementById('modal-cod-color');
+        const nombreColorEl = document.getElementById('modal-nombre-color');
+        const cantidadEl = document.getElementById('modal-cantidad');
+        
+        if (calibreEl) calibreEl.value = '';
+        if (fibraEl) fibraEl.innerHTML = '<option value="">Selecciona calibre primero</option>';
+        if (codColorEl) codColorEl.innerHTML = '<option value="">Selecciona calibre primero</option>';
+        if (nombreColorEl) nombreColorEl.value = '';
+        if (cantidadEl) cantidadEl.value = '0';
+    }
 
     // --- Autocomplete para modal
     function debounce(func, wait) {
@@ -508,158 +533,191 @@
         }
     };
 
+    // Función global para transformar calibre: reemplazar / por . y quitar letras
+    function transformarCalibre(calibre) {
+        if (!calibre) return '';
+        // Reemplazar / por .
+        let transformado = calibre.replace(/\//g, '.');
+        // Quitar todas las letras (mantener solo números, puntos y guiones)
+        transformado = transformado.replace(/[a-zA-Z]/g, '');
+        return transformado;
+    }
+
     function initModalAutocomplete() {
-        const articuloSelect = document.getElementById('modal-articulo');
+        const calibreSelect = document.getElementById('modal-calibre');
         const fibraSelect = document.getElementById('modal-fibra');
         const codColorSelect = document.getElementById('modal-cod-color');
-        const nombreColorSelect = document.getElementById('modal-nombre-color');
+        const nombreColorInput = document.getElementById('modal-nombre-color');
 
-        // URLs de las rutas de búsqueda
-        @php
-            try {
-                $buscarArticulosUrl = route('modulo.nuevo.requerimiento.buscar.articulos');
-                $buscarFibrasUrl = route('modulo.nuevo.requerimiento.buscar.fibras');
-                $buscarCodigosColorUrl = route('modulo.nuevo.requerimiento.buscar.codigos.color');
-                $buscarNombresColorUrl = route('modulo.nuevo.requerimiento.buscar.nombres.color');
-            } catch (\Exception $e) {
-                $buscarArticulosUrl = '/modulo-nuevo-requerimiento/buscar-articulos';
-                $buscarFibrasUrl = '/modulo-nuevo-requerimiento/buscar-fibras';
-                $buscarCodigosColorUrl = '/modulo-nuevo-requerimiento/buscar-codigos-color';
-                $buscarNombresColorUrl = '/modulo-nuevo-requerimiento/buscar-nombres-color';
-            }
-        @endphp
-        const buscarArticulosUrl = @json($buscarArticulosUrl);
-        const buscarFibrasUrl = @json($buscarFibrasUrl);
-        const buscarCodigosColorUrl = @json($buscarCodigosColorUrl);
-        const buscarNombresColorUrl = @json($buscarNombresColorUrl);
+        // URLs de las rutas (igual que reconocado)
+        const apiRoutes = {
+            calibres: @json(route('modulo.nuevo.requerimiento.calibres')),
+            fibras: @json(route('modulo.nuevo.requerimiento.fibras')),
+            colores: @json(route('modulo.nuevo.requerimiento.colores'))
+        };
 
-        // Cargar artículos
-        const cargarArticulos = async (search = '') => {
+        // Cache para evitar llamadas repetidas
+        const cache = {
+            calibres: null,
+            fibras: new Map(),
+            colores: new Map()
+        };
+
+        // Obtener calibres
+        const getCalibres = async () => {
+            if (cache.calibres) return cache.calibres;
+            setSelectOptions(calibreSelect, [], 'Cargando...');
             try {
-                const url = search ? `${buscarArticulosUrl}?q=${encodeURIComponent(search)}` : buscarArticulosUrl;
-                const response = await fetch(url);
+                const response = await fetch(apiRoutes.calibres);
                 const data = await response.json();
-                const items = Array.isArray(data) ? data : [];
-                setSelectOptions(articuloSelect, items, 'Seleccionar o escribir artículo...');
+                // Mostrar calibres originales en el select (sin transformar)
+                const items = (data?.data || [])
+                    .map(i => i.ItemId)
+                    .filter(Boolean)
+                    .map(original => ({
+                        value: original, // Valor original
+                        label: original // Mostrar original en el select
+                    }));
+                cache.calibres = items;
+                return items;
             } catch (e) {
-                console.error('Error cargando artículos:', e);
-                setSelectOptions(articuloSelect, [], 'Error al cargar');
+                console.error('Error cargando calibres:', e);
+                showToast('No se pudieron cargar calibres', 'error');
+                return [];
             }
         };
 
-        // Cargar fibras
-        const cargarFibras = async (search = '') => {
+        // Obtener fibras por ItemId
+        const getFibras = async (itemId) => {
+            if (cache.fibras.has(itemId)) return cache.fibras.get(itemId);
             try {
-                const url = search ? `${buscarFibrasUrl}?q=${encodeURIComponent(search)}` : buscarFibrasUrl;
-                const response = await fetch(url);
+                const response = await fetch(`${apiRoutes.fibras}?itemId=${encodeURIComponent(itemId)}`);
                 const data = await response.json();
-                const items = Array.isArray(data) ? data : [];
-                setSelectOptions(fibraSelect, items, 'Seleccionar o escribir fibra...');
+                const items = (data?.data || []).map(i => i.ConfigId).filter(Boolean);
+                cache.fibras.set(itemId, items);
+                return items;
             } catch (e) {
                 console.error('Error cargando fibras:', e);
-                setSelectOptions(fibraSelect, [], 'Error al cargar');
+                showToast('No se pudieron cargar fibras', 'error');
+                return [];
             }
         };
 
-        // Cargar códigos de color
-        const cargarCodigosColor = async (search = '') => {
+        // Obtener colores por ItemId
+        const getColores = async (itemId) => {
+            if (cache.colores.has(itemId)) return cache.colores.get(itemId);
             try {
-                const url = search ? `${buscarCodigosColorUrl}?q=${encodeURIComponent(search)}` : buscarCodigosColorUrl;
-                const response = await fetch(url);
+                const response = await fetch(`${apiRoutes.colores}?itemId=${encodeURIComponent(itemId)}`);
                 const data = await response.json();
-                const items = Array.isArray(data) ? data : [];
-                setSelectOptions(codColorSelect, items, 'Seleccionar o escribir código...');
+                const items = (data?.data || []).map(c => ({
+                    value: c.InventColorId,
+                    label: `${c.InventColorId} - ${c.Name}`,
+                    name: c.Name
+                })).filter(c => c.value);
+                cache.colores.set(itemId, items);
+                return items;
             } catch (e) {
-                console.error('Error cargando códigos de color:', e);
-                setSelectOptions(codColorSelect, [], 'Error al cargar');
+                console.error('Error cargando colores:', e);
+                showToast('No se pudieron cargar colores', 'error');
+                return [];
             }
         };
 
-        // Cargar nombres de color
-        const cargarNombresColor = async (search = '') => {
-            try {
-                const url = search ? `${buscarNombresColorUrl}?q=${encodeURIComponent(search)}` : buscarNombresColorUrl;
-                const response = await fetch(url);
-                const data = await response.json();
-                const items = Array.isArray(data) ? data : [];
-                setSelectOptions(nombreColorSelect, items, 'Seleccionar o escribir nombre...');
-            } catch (e) {
-                console.error('Error cargando nombres de color:', e);
-                setSelectOptions(nombreColorSelect, [], 'Error al cargar');
-            }
+        // Resetear dependientes
+        const resetDependents = () => {
+            setSelectOptions(fibraSelect, [], 'Selecciona calibre');
+            setSelectOptions(codColorSelect, [], 'Selecciona calibre');
+            if (nombreColorInput) nombreColorInput.value = '';
         };
 
-        // Cargar opciones iniciales para todos los selects
-        if (articuloSelect) {
-            articuloSelect.addEventListener('focus', function() {
-                if (articuloSelect.options.length <= 1) {
-                    cargarArticulos('');
-                }
+        // Cargar dependientes (fibras y colores) cuando se selecciona un calibre
+        const loadDependents = async (itemId) => {
+            if (!itemId) {
+                resetDependents();
+                return;
+            }
+            setSelectOptions(fibraSelect, [], 'Cargando...');
+            setSelectOptions(codColorSelect, [], 'Cargando...');
+
+            const [fibras, colores] = await Promise.all([
+                getFibras(itemId),
+                getColores(itemId)
+            ]);
+
+            setSelectOptions(fibraSelect, fibras, 'Selecciona fibra');
+            setSelectOptions(codColorSelect, colores, 'Selecciona color');
+        };
+
+        // Inicializar calibres al cargar
+        const initMaterialSelectors = async () => {
+            const calibres = await getCalibres();
+            setSelectOptions(calibreSelect, calibres, 'Selecciona calibre');
+        };
+
+        // Event listener para calibre
+        if (calibreSelect) {
+            calibreSelect.addEventListener('change', function() {
+                loadDependents(this.value);
             });
-            cargarArticulos(''); // Cargar opciones iniciales
+            initMaterialSelectors();
         }
 
-        if (fibraSelect) {
-            fibraSelect.addEventListener('focus', function() {
-                if (fibraSelect.options.length <= 1) {
-                    cargarFibras('');
+        // Event listener para código de color - llenar nombre automáticamente
+        if (codColorSelect && nombreColorInput) {
+            codColorSelect.addEventListener('change', function() {
+                const selected = this.selectedOptions?.[0];
+                if (selected && selected.dataset.name) {
+                    nombreColorInput.value = selected.dataset.name;
+                } else {
+                    nombreColorInput.value = '';
                 }
             });
-            cargarFibras(''); // Cargar opciones iniciales
-        }
-
-        if (codColorSelect) {
-            codColorSelect.addEventListener('focus', function() {
-                if (codColorSelect.options.length <= 1) {
-                    cargarCodigosColor('');
-                }
-            });
-            cargarCodigosColor(''); // Cargar opciones iniciales
-        }
-
-        if (nombreColorSelect) {
-            nombreColorSelect.addEventListener('focus', function() {
-                if (nombreColorSelect.options.length <= 1) {
-                    cargarNombresColor('');
-                }
-            });
-            cargarNombresColor(''); // Cargar opciones iniciales
         }
     }
 
         function agregarCampo(){
-            const articuloEl = document.getElementById('modal-articulo');
+            const calibreEl = document.getElementById('modal-calibre');
             const fibraEl = document.getElementById('modal-fibra');
             const codColorEl = document.getElementById('modal-cod-color');
             const nombreColorEl = document.getElementById('modal-nombre-color');
             const cantidadEl = document.getElementById('modal-cantidad');
-        if (!articuloEl || !fibraEl || !codColorEl || !nombreColorEl || !cantidadEl) { showToast('Faltan campos del modal', 'error'); return; }
-        const articulo = (articuloEl.value||'').trim();
-        const fibra = (fibraEl.value||'').trim();
-        const codColor = (codColorEl.value||'').trim();
-        const nombreColor = (nombreColorEl.value||'').trim();
+            
+            if (!calibreEl || !fibraEl || !codColorEl || !nombreColorEl || !cantidadEl) { 
+                showToast('Faltan campos del modal', 'error'); 
+                return; 
+            }
+            
+            const calibre = (calibreEl.value||'').trim();
+            const fibra = (fibraEl.value||'').trim();
+            const codColor = (codColorEl.value||'').trim();
+            const nombreColor = (nombreColorEl.value||'').trim();
             const cantidad = parseInt(cantidadEl.value ?? '0', 10) || 0;
         
-        // Asegurar que los valores personalizados estén en las opciones de los selects
-        if (articulo) ensureOption(articuloEl, articulo, articulo);
-        if (fibra) ensureOption(fibraEl, fibra, fibra);
-        if (codColor) ensureOption(codColorEl, codColor, codColor);
-        if (nombreColor) ensureOption(nombreColorEl, nombreColor, nombreColor);
-        
-        // Validar artículo: puede ser número o texto (permitir valores personalizados)
-        if (articulo === '') { showToast('Ingrese un artículo', 'warning'); return; }
-        // Validar que sea un número válido si es numérico, pero permitir texto libre
-        const articuloNum = parseFloat(articulo);
-        if (isNaN(articuloNum) && articulo !== '') {
-            // Permitir texto libre si no es número
-            showToast('El artículo debe ser un número válido', 'warning');
-            return;
-        }
-        if (fibra === '' || codColor === '' || nombreColor === '') { showToast('Complete fibra, código y color', 'warning'); return; }
-        // Formatear artículo a 2 decimales si es número
-        const articuloFormateado = articuloNum ? articuloNum.toFixed(2) : articulo;
-        agregarFilaATabla({ articulo: articuloFormateado, fibra, codColor, nombreColor, cantidad });
-        cerrarModal(); showToast('Nuevo requerimiento agregado', 'success'); autoGuardarRequerimientos();
+            // Validaciones
+            if (calibre === '') { 
+                showToast('Selecciona un calibre', 'warning'); 
+                return; 
+            }
+            if (fibra === '') { 
+                showToast('Selecciona una fibra', 'warning'); 
+                return; 
+            }
+            if (codColor === '') { 
+                showToast('Selecciona un código de color', 'warning'); 
+                return; 
+            }
+            if (nombreColor === '') { 
+                showToast('El nombre de color es requerido', 'warning'); 
+                return; 
+            }
+            
+            // Transformar calibre para mostrar (reemplazar / por . y quitar letras)
+            const calibreTransformado = transformarCalibre(calibre);
+            
+            agregarFilaATabla({ articulo: calibreTransformado, fibra, codColor, nombreColor, cantidad });
+            cerrarModal(); 
+            showToast('Nuevo requerimiento agregado', 'success'); 
+            autoGuardarRequerimientos();
     }
 
         function agregarFilaATabla(datos) {

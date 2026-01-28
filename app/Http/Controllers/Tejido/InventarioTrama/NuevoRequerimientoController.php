@@ -282,103 +282,91 @@ class NuevoRequerimientoController extends Controller
         }
     }
 
-    /** API: Buscar artículos (calibres) para autocomplete */
+    /** API: Obtener calibres (igual que reconocado) */
+    public function getCalibres()
+    {
+        try {
+            $items = DB::connection('sqlsrv_ti')
+                ->table('InventTable')
+                ->select('ItemId')
+                ->where('ItemGroupId', 'HILO DIREC')
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('ItemId')
+                ->distinct()
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $items]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo calibres', ['exception' => $e]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /** API: Obtener fibras por ItemId (igual que reconocado) */
+    public function getFibras(Request $request)
+    {
+        $itemId = $request->query('itemId');
+        if (!$itemId) {
+            return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
+        }
+
+        try {
+            $fibras = DB::connection('sqlsrv_ti')
+                ->table('ConfigTable')
+                ->select('ConfigId')
+                ->where('ItemId', $itemId)
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('ConfigId')
+                ->distinct()
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $fibras]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo fibras', ['exception' => $e, 'itemId' => $itemId]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /** API: Obtener colores por ItemId (igual que reconocado) */
+    public function getColores(Request $request)
+    {
+        $itemId = $request->query('itemId');
+        if (!$itemId) {
+            return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
+        }
+
+        try {
+            $colores = DB::connection('sqlsrv_ti')
+                ->table('InventColor')
+                ->select('InventColorId', 'Name')
+                ->where('ItemId', $itemId)
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('InventColorId')
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $colores]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo colores', ['exception' => $e, 'itemId' => $itemId]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /** API: Buscar artículos (calibres) para autocomplete - DEPRECATED, usar getCalibres */
     public function buscarArticulos(Request $request)
     {
-        try {
-            $search = $request->query('q', '');
-            $search = trim($search);
-
-            $query = DB::table('TejTramaConsumos')
-                ->select('CalibreTrama')
-                ->whereNotNull('CalibreTrama')
-                ->distinct();
-
-            if ($search !== '') {
-                // Buscar por calibre (número)
-                if (is_numeric($search)) {
-                    $calibre = (float)$search;
-                    $query->whereRaw('ABS(CalibreTrama - ?) < 0.01', [$calibre]);
-                } else {
-                    // Si no es numérico, buscar por coincidencia parcial
-                    $query->whereRaw('CAST(CalibreTrama AS VARCHAR) LIKE ?', ['%' . $search . '%']);
-                }
-            }
-
-            $articulos = $query->orderBy('CalibreTrama')
-                ->limit(50)
-                ->get()
-                ->map(function ($item) {
-                    return number_format((float)$item->CalibreTrama, 2, '.', '');
-                })
-                ->unique()
-                ->values();
-
-            return response()->json($articulos->toArray());
-        } catch (\Throwable $e) {
-            Log::error('buscarArticulos fallo', ['error' => $e->getMessage()]);
-            return response()->json([], 500);
-        }
+        return $this->getCalibres();
     }
 
-    /** API: Buscar fibras para autocomplete */
+    /** API: Buscar fibras para autocomplete - DEPRECATED, usar getFibras */
     public function buscarFibras(Request $request)
     {
-        try {
-            $search = $request->query('q', '');
-            $search = trim($search);
-
-            $query = DB::table('TejTramaConsumos')
-                ->select('FibraTrama')
-                ->whereNotNull('FibraTrama')
-                ->where('FibraTrama', '!=', '')
-                ->distinct();
-
-            if ($search !== '') {
-                $query->whereRaw('FibraTrama LIKE ?', ['%' . $search . '%']);
-            }
-
-            $fibras = $query->orderBy('FibraTrama')
-                ->limit(50)
-                ->pluck('FibraTrama')
-                ->unique()
-                ->values();
-
-            return response()->json($fibras->toArray());
-        } catch (\Throwable $e) {
-            Log::error('buscarFibras fallo', ['error' => $e->getMessage()]);
-            return response()->json([], 500);
-        }
+        return $this->getFibras($request);
     }
 
-    /** API: Buscar códigos de color para autocomplete */
+    /** API: Buscar códigos de color para autocomplete - DEPRECATED, usar getColores */
     public function buscarCodigosColor(Request $request)
     {
-        try {
-            $search = $request->query('q', '');
-            $search = trim($search);
-
-            $query = DB::table('TejTramaConsumos')
-                ->select('CodColorTrama')
-                ->whereNotNull('CodColorTrama')
-                ->where('CodColorTrama', '!=', '')
-                ->distinct();
-
-            if ($search !== '') {
-                $query->whereRaw('CodColorTrama LIKE ?', ['%' . $search . '%']);
-            }
-
-            $codigos = $query->orderBy('CodColorTrama')
-                ->limit(50)
-                ->pluck('CodColorTrama')
-                ->unique()
-                ->values();
-
-            return response()->json($codigos->toArray());
-        } catch (\Throwable $e) {
-            Log::error('buscarCodigosColor fallo', ['error' => $e->getMessage()]);
-            return response()->json([], 500);
-        }
+        return $this->getColores($request);
     }
 
     /** API: Buscar nombres de color para autocomplete */
