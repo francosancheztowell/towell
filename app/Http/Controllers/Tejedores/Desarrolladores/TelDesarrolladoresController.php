@@ -7,7 +7,7 @@ use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Tejedores\catDesarrolladoresModel;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
-use App\Models\Urdido\UrdCatJulios;
+use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
@@ -27,8 +27,8 @@ class TelDesarrolladoresController extends Controller
     {
 
         $telares = $this->obtenerTelares();
-        $juliosRizo = $this->obtenerJuliosEngomado();
-        $juliosPie = $this->obtenerJuliosEngomado();
+        $juliosRizo = $this->obtenerUltimosJuliosMontados('Rizo');
+        $juliosPie = $this->obtenerUltimosJuliosMontados('Pie');
         $desarrolladores = catDesarrolladoresModel::all();
 
         return view('modulos.desarrolladores.desarrolladores', compact( 'telares', 'juliosRizo', 'juliosPie', 'desarrolladores'));
@@ -43,14 +43,21 @@ class TelDesarrolladoresController extends Controller
             ->get();
     }
 
-    protected function obtenerJuliosEngomado()
+    protected function obtenerUltimosJuliosMontados(string $tipo)
     {
-        return UrdCatJulios::where('Departamento', 'engomado')
+        return AtaMontadoTelasModel::query()
             ->whereNotNull('NoJulio')
-            ->select('NoJulio')
-            ->distinct()
-            ->orderBy('NoJulio')
-            ->get();
+            ->where('NoJulio', '!=', '')
+            ->where(function ($query) use ($tipo) {
+                $query->where('Tipo', $tipo)
+                    ->orWhere('Tipo', strtoupper($tipo))
+                    ->orWhere('Tipo', strtolower($tipo));
+            })
+            ->orderByDesc('Fecha')
+            ->orderByDesc('id')
+            ->get(['NoJulio', 'Fecha', 'id'])
+            ->unique('NoJulio')
+            ->values();
     }
 
     public function obtenerProducciones($telarId)

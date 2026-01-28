@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Engomado\EngProduccionEngomado;
+use App\Models\Engomado\EngProduccionFormulacionModel;
 use App\Models\Urdido\UrdCatJulios;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdProgramaUrdido;
@@ -154,6 +155,13 @@ class ModuloProduccionEngomadoController extends Controller
             ->orderBy('Id')
             ->get();
 
+        // Obtener sólidos desde la última formulación del folio
+        $solidosFormulacion = null;
+        $formulacion = EngProduccionFormulacionModel::where('Folio', $orden->Folio)->first();
+        if ($formulacion && $formulacion->Solidos !== null) {
+            $solidosFormulacion = $formulacion->Solidos;
+        }
+
         // Crear registros basándose en No. De Telas
         if ($totalRegistros > 0) {
             try {
@@ -208,19 +216,26 @@ class ModuloProduccionEngomadoController extends Controller
                         $registrosACrear[] = $registroData;
                     }
 
-                    // Crear todos los registros en lote si hay alguno
-                    if (count($registrosACrear) > 0) {
-                        foreach ($registrosACrear as $index => $registroData) {
-                            try {
-                                EngProduccionEngomado::create($registroData);
-                            } catch (\Illuminate\Database\QueryException $e) {
-                                // Continuar con el siguiente registro aunque falle uno
-                                continue;
-                            } catch (\Throwable $e) {
-                                // Continuar con el siguiente registro aunque falle uno
-                                continue;
-                            }
+<<<<<<< Updated upstream
+                // Crear todos los registros en lote si hay alguno
+                if (count($registrosACrear) > 0) {
+                    foreach ($registrosACrear as $index => $registroData) {
+                        $registroCreado = EngProduccionEngomado::create($registroData);
+=======
+                    // Crear los registros faltantes
+                    $registrosACrear = [];
+                    for ($i = 0; $i < $registrosFaltantes; $i++) {
+                        // Preparar datos del registro (solo campos que existen en la tabla)
+                        $registroData = [
+                            'Folio' => $orden->Folio,
+                            'NoJulio' => null, // NoJulio debe ser null al crear los registros
+                            'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
+                        ];
+                        if ($solidosFormulacion !== null) {
+                            $registroData['Solidos'] = $solidosFormulacion;
                         }
+>>>>>>> Stashed changes
+
                     }
                 }
             } catch (\Throwable $e) {

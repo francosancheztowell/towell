@@ -91,6 +91,13 @@ class EngProduccionFormulacionController extends Controller
             // Usar el FolioProg seleccionado como Folio principal
             $folio = $request->input('FolioProg');
 
+            // Validar que el folio exista en EngProgramaEngomado
+            $programa = EngProgramaEngomado::where('Folio', $folio)->first();
+            if (!$programa) {
+                return redirect()->back()
+                    ->with('error', 'El folio no existe en el programa de engomado: ' . $folio);
+            }
+
             // Verificar si ya existe un registro con ese folio
             $existingRecord = EngProduccionFormulacionModel::where('Folio', $folio)->first();
 
@@ -101,6 +108,8 @@ class EngProduccionFormulacionController extends Controller
 
             $validated['Folio'] = $folio;
             $validated['Status'] = 'Creado';
+            $validated['MaquinaId'] = $programa->MaquinaEng;
+            $validated['CveEmpl'] = $programa->CveEmpl;
 
             $formulacion = EngProduccionFormulacionModel::create($validated);
 
