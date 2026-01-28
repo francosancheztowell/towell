@@ -18,9 +18,28 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
+use App\Models\Sistema\SYSUsuario;
 
 class MantenimientoParosController extends Controller
 {
+    /**
+     * Mostrar vista de nuevo paro con departamento pre-seleccionado del usuario
+     */
+    public function nuevoParo()
+    {
+        $usuario = Auth::user();
+        $areaUsuario = null;
+        
+        // Obtener área del usuario desde SYSUsuario
+        if ($usuario && $usuario->idusuario) {
+            $sysUsuario = SYSUsuario::where('idusuario', $usuario->idusuario)->first();
+            $areaUsuario = $sysUsuario->area ?? null;
+        }
+        
+        return view('modulos.mantenimiento.nuevo-paro.index', [
+            'areaUsuario' => $areaUsuario
+        ]);
+    }
     /**
      * Departamentos disponibles para el módulo de mantenimiento.
      * Fuente: URDCatalogoMaquina.Departamento + Atadores

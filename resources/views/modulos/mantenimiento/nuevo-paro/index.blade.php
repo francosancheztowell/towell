@@ -32,10 +32,13 @@
                         <select
                             id="depto"
                             name="depto"
-                            class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                            disabled
+                            required
                         >
-                            <option value="">Seleccione un departamento</option>
+                            <option value="">Cargando...</option>
                         </select>
+                        <input type="hidden" id="depto-hidden" name="depto" value="">
                     </div>
 
                     <!-- Tipo Falla -->
@@ -221,17 +224,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Cargar departamentos
+    // Cargar departamentos y seleccionar automáticamente el del usuario
     async function cargarDepartamentos() {
         try {
             const response = await fetch('{{ route('api.mantenimiento.departamentos') }}');
             const result = await response.json();
 
             if (result.success && result.data) {
-                // Limpiar opciones existentes excepto la primera
-                while (selectDepto.options.length > 1) {
-                    selectDepto.remove(1);
-                }
+                // Limpiar opciones existentes
+                selectDepto.innerHTML = '';
 
                 // Agregar departamentos
                 result.data.forEach(depto => {
@@ -240,11 +241,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     option.textContent = depto;
                     selectDepto.appendChild(option);
                 });
+
+                // Obtener área del usuario desde el servidor
+                const areaUsuario = @json($areaUsuario ?? null);
+                
+                if (areaUsuario) {
+                    // Buscar departamento que coincida con el área del usuario
+                    // Normalizar para comparación (mayúsculas, sin espacios extra)
+                    const areaNormalizada = areaUsuario.trim().toUpperCase();
+                    const deptoEncontrado = result.data.find(depto => {
+                        const deptoNormalizado = depto.trim().toUpperCase();
+                        return deptoNormalizado === areaNormalizada;
+                    });
+
+                    if (deptoEncontrado) {
+                        selectDepto.value = deptoEncontrado;
+                        // Actualizar el input hidden para que se envíe en el formulario
+                        document.getElementById('depto-hidden').value = deptoEncontrado;
+                        // Cargar máquinas y fallas automáticamente
+                        cargarMaquinas(deptoEncontrado);
+                        const tipoFallaSeleccionado = selectTipoFalla.value || null;
+                        cargarFallas(deptoEncontrado, tipoFallaSeleccionado);
+                    }
+                }
             } else {
                 console.error('Error al cargar departamentos:', result.error);
+                selectDepto.innerHTML = '<option value="">Error al cargar departamentos</option>';
             }
         } catch (error) {
             console.error('Error al cargar departamentos:', error);
+            selectDepto.innerHTML = '<option value="">Error al cargar departamentos</option>';
         }
     }
 
@@ -445,9 +471,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event listener para cambio de departamento
+    // Event listener para cambio de departamento (aunque esté deshabilitado, mantener lógica)
     selectDepto.addEventListener('change', function() {
         const departamentoSeleccionado = this.value;
+        // Actualizar el input hidden
+        document.getElementById('depto-hidden').value = departamentoSeleccionado;
         // Al cambiar de departamento, limpiamos orden de trabajo (para evitar valores de otro depto)
         inputOrdenTrabajo.value = '';
         cargarMaquinas(departamentoSeleccionado);
@@ -473,14 +501,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData(form);
 
-        // Asegurar que los campos deshabilitados (fecha y hora) se incluyan
+        // Asegurar que los campos deshabilitados (fecha, hora y depto) se incluyan
         const fechaInput = document.getElementById('fecha');
         const horaInput = document.getElementById('hora');
+        const deptoHidden = document.getElementById('depto-hidden');
         if (fechaInput.value) {
             formData.set('fecha', fechaInput.value);
         }
         if (horaInput.value) {
             formData.set('hora', horaInput.value);
+        }
+        if (deptoHidden.value) {
+            formData.set('depto', deptoHidden.value);
         }
 
         // Agregar el checkbox

@@ -12,7 +12,7 @@ Route::get('/mantenimiento/{moduloPrincipal?}', [UsuarioController::class, 'show
 
 Route::view('/mantenimiento/solicitudes', 'modulos.mantenimiento.reporte-fallos-paros.index')->name('mantenimiento.solicitudes');
 
-Route::view('/mantenimiento/nuevo-paro', 'modulos.mantenimiento.nuevo-paro.index')->name('mantenimiento.nuevo-paro');
+Route::get('/mantenimiento/nuevo-paro', [MantenimientoParosController::class, 'nuevoParo'])->name('mantenimiento.nuevo-paro');
 Route::view('/mantenimiento/finalizar-paro', 'modulos.mantenimiento.finalizar-paro.index')->name('mantenimiento.finalizar-paro');
 Route::view('/mantenimiento/reporte-fallos-paros', 'modulos.mantenimiento.reporte-fallos-paros.index')->name('mantenimiento.reporte-fallos-paros');
 
