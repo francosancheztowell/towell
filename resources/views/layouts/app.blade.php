@@ -188,7 +188,7 @@
                 </tr>
               </thead>
             </table>
-            <div class="overflow-x-auto overflow-y-auto max-h-full">
+            <div class="overflow-x-auto overflow-y-auto max-h-[300px]">
               <table class="w-full bg-white">
                 <tbody id="tablaProduccionCortadoBody" class="divide-y divide-gray-200">
                   <!-- Los datos se cargarán dinámicamente -->
@@ -204,10 +204,10 @@
 
       <!-- Footer del Modal -->
       <div class="flex justify-end gap-4 p-6 border-t border-gray-200 flex-shrink-0">
-        <button type="button" id="closeModalCortadoBtn" class="px-6 py-3 text-lg bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium">
+        <button type="button" id="closeModalCortadoBtn" class="px-4 py-2 text-base bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors font-medium">
           Cerrar
         </button>
-        <button type="button" id="btnNotificarCortado" class="px-6 py-3 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium" style="display: none;">
+        <button type="button" id="btnNotificarCortado" class="px-4 py-2 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium" style="display: none;">
           Notificar
         </button>
       </div>
