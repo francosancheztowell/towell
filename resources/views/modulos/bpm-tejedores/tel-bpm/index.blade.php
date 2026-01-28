@@ -263,7 +263,7 @@
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-4">
-        {{-- Mostrar Autorizados --}}
+        {{-- Mostrar Autorizados d--}}
         <button type="button" id="btn-filter-authorized"
                 class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
             <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
