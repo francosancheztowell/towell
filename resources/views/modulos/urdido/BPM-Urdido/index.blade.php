@@ -1,9 +1,17 @@
 @extends('layouts.app')
 
-@section('page-title', 'Producción BPM de Urdido')
+@section('page-title', 'BPM Urdido')
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+        {{-- Botón de Filtros --}}
+        <button id="btn-open-filters" title="Filtros"
+                class="p-2 rounded-lg transition hover:bg-purple-100 relative">
+            <i class="fa-solid fa-filter text-purple-600 text-lg"></i>
+            <span id="filter-badge"
+                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">!</span>
+        </button>
+
         <x-navbar.button-create
         module="BPM (Buenas Practicas Manufactura) Urd"
         onclick="openCreateModal()"
@@ -70,9 +78,17 @@
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Autoriza</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tb-body">
                 @forelse($items as $item)
-                    <tr class="border-b hover:bg-blue-300 cursor-pointer"
+                    @php
+                        $statusClass = match($item->Status) {
+                            'Creado' => 'bg-blue-100 text-blue-800',
+                            'Terminado' => 'bg-yellow-100 text-yellow-800',
+                            'Autorizado' => 'bg-green-100 text-green-800',
+                            default => 'bg-gray-100 text-gray-800'
+                        };
+                    @endphp
+                    <tr class="table-row hover:bg-blue-50 cursor-pointer transition-colors"
                         onclick="selectRow(this, {{ $item->Id }})"
                         data-id="{{ $item->Id }}"
                         data-folio="{{ $item->Folio }}"
@@ -85,26 +101,26 @@
                         data-nombreemplent="{{ $item->NombreEmplEnt }}"
                         data-turnoentrega="{{ $item->TurnoEntrega }}"
                         data-cveemplautoriza="{{ $item->CveEmplAutoriza }}"
-                        data-nombreemplautoriza="{{ $item->NombreEmplAutoriza }}">
-                        <td class="px-4 py-2">{{ $item->Folio }}</td>
-                        <td class="px-4 py-2">
-                            <span class="px-2 py-1 rounded text-xs font-semibold
-                                @if($item->Status == 'Creado') bg-blue-100 text-blue-800
-                                @elseif($item->Status == 'Terminado') bg-yellow-100 text-yellow-800
-                                @elseif($item->Status == 'Autorizado') bg-green-100 text-green-800
-                                @endif">
+                        data-nombreemplautoriza="{{ $item->NombreEmplAutoriza }}"
+                        {{-- aliases para el filtro (mismo naming que tejedores) --}}
+                        data-nomrec="{{ $item->NombreEmplRec }}"
+                        data-turnorec="{{ $item->TurnoRecibe }}"
+                        data-turnoent="{{ $item->TurnoEntrega }}">
+                        <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold {{ $statusClass }}">
                                 {{ $item->Status }}
                             </span>
                         </td>
-                        <td class="px-4 py-2">{{ $item->Fecha ? $item->Fecha->format('d/m/Y') : '' }}</td>
-                        <td class="px-4 py-2">{{ $item->CveEmplRec }}</td>
-                        <td class="px-4 py-2">{{ $item->NombreEmplRec }}</td>
-                        <td class="px-4 py-2">{{ $item->TurnoRecibe }}</td>
-                        <td class="px-4 py-2">{{ $item->CveEmplEnt }}</td>
-                        <td class="px-4 py-2">{{ $item->NombreEmplEnt }}</td>
-                        <td class="px-4 py-2">{{ $item->TurnoEntrega }}</td>
-                        <td class="px-4 py-2">{{ $item->CveEmplAutoriza }}</td>
-                        <td class="px-4 py-2">{{ $item->NombreEmplAutoriza }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Fecha ? $item->Fecha->format('d/m/Y') : '' }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplRec }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->NombreEmplRec }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">{{ $item->TurnoRecibe }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplEnt }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->NombreEmplEnt }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">{{ $item->TurnoEntrega }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplAutoriza }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->NombreEmplAutoriza }}</td>
                     </tr>
                 @empty
                     <tr>
@@ -115,6 +131,63 @@
                 @endforelse
             </tbody>
         </table>
+    </div>
+
+    {{-- Modal FILTROS --}}
+    <div id="modal-filters" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">
+                    <i class="fa-solid fa-filter text-purple-600 mr-2"></i>Filtros
+                </h2>
+                <button type="button" data-close="#modal-filters"
+                        class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                {{-- Mostrar Finalizados --}}
+                <button type="button" id="btn-filter-finished"
+                        class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
+                    <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">Finalizados</div>
+                </button>
+
+                {{-- Mis Folios --}}
+                <button type="button" id="btn-filter-my-folios"
+                        class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-blue-100 border-blue-400 text-blue-800">
+                    <i class="fa-solid fa-user text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">Mis Folios</div>
+                </button>
+
+                {{-- Mostrar Todos --}}
+                <button type="button" id="btn-filter-all"
+                        class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
+                    <i class="fa-solid fa-list text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">Todos</div>
+                </button>
+
+                {{-- Turno --}}
+                <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
+                    <label class="block text-xs text-gray-600 mb-2 text-center">
+                        <i class="fa-solid fa-clock mr-1"></i>Turno
+                    </label>
+                    <select id="filter-turno"
+                            class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
+                        <option value="">Todos</option>
+                        <option value="1">Turno 1</option>
+                        <option value="2">Turno 2</option>
+                        <option value="3">Turno 3</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button type="button" id="btn-clear-filters"
+                        class="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-blue-500 text-white transition text-sm">
+                    <i class="fa-solid fa-eraser mr-1"></i>Limpiar
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Crear -->
@@ -332,6 +405,191 @@
     </div>
 
     <script>
+        // ======== FILTROS (igual a tejedores) ========
+        (function () {
+            const qs = (s) => document.querySelector(s);
+            const qsa = (s) => [...document.querySelectorAll(s)];
+
+            const open = (sel) => {
+                const m = qs(sel);
+                if (!m) return;
+                m.classList.remove('hidden');
+            };
+            const close = (sel) => {
+                const m = qs(sel);
+                if (!m) return;
+                m.classList.add('hidden');
+            };
+
+            qsa('[data-close]').forEach((b) =>
+                b.addEventListener('click', () => close(b.dataset.close))
+            );
+
+            const btnOpenFilters = qs('#btn-open-filters');
+            const filterBadge = qs('#filter-badge');
+            const btnClearFilters = qs('#btn-clear-filters');
+            const filterTurno = qs('#filter-turno');
+            const btnFilterFinished = qs('#btn-filter-finished');
+            const btnFilterMyFolios = qs('#btn-filter-my-folios');
+            const btnFilterAll = qs('#btn-filter-all');
+
+            let filterState = {
+                showFinished: false,
+                myFolios: true, // default
+                showAll: false,
+                turno: '',
+            };
+
+            const userName = @json(auth()->user()->nombre ?? '');
+            const tbody = qs('#tb-body');
+
+            function applyFilters() {
+                const rows = qsa('.table-row');
+                let visibleCount = 0;
+
+                rows.forEach((row) => {
+                    const status = row.dataset.status;
+                    const nomRec = (row.dataset.nomrec || '').trim();
+                    const turnoRec = row.dataset.turnorec || '';
+
+                    let show = true;
+
+                    if (!filterState.showFinished && !filterState.showAll && status === 'Terminado') {
+                        show = false;
+                    }
+
+                    if (filterState.myFolios && userName) {
+                        if (nomRec.toLowerCase() !== userName.toLowerCase()) {
+                            show = false;
+                        }
+                    }
+
+                    if (filterState.turno) {
+                        if (turnoRec !== filterState.turno) {
+                            show = false;
+                        }
+                    }
+
+                    if (show) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                const hasActiveFilters =
+                    filterState.showFinished ||
+                    filterState.myFolios ||
+                    filterState.showAll ||
+                    filterState.turno;
+                if (hasActiveFilters) filterBadge?.classList.remove('hidden');
+                else filterBadge?.classList.add('hidden');
+
+                let emptyRow = tbody?.querySelector('tr.no-results');
+                if (visibleCount === 0) {
+                    if (!emptyRow) {
+                        const tr = document.createElement('tr');
+                        tr.className = 'no-results';
+                        let message = 'Sin resultados con los filtros aplicados';
+                        if (filterState.myFolios && !filterState.showAll) {
+                            message = 'No tienes folios asignados';
+                        }
+                        tr.innerHTML = `<td colspan="11" class="px-4 py-6 text-center text-slate-500">
+                            <div class="flex flex-col items-center gap-2">
+                                <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
+                                <span class="text-base font-medium">${message}</span>
+                            </div>
+                        </td>`;
+                        tbody?.appendChild(tr);
+                    } else {
+                        let message = 'Sin resultados con los filtros aplicados';
+                        if (filterState.myFolios && !filterState.showAll) {
+                            message = 'No tienes folios asignados';
+                        }
+                        emptyRow.querySelector('td').innerHTML = `
+                            <div class="flex flex-col items-center gap-2">
+                                <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
+                                <span class="text-base font-medium">${message}</span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    emptyRow?.remove();
+                }
+            }
+
+            function updateFilterButtons() {
+                btnFilterFinished?.classList.toggle('bg-amber-100', filterState.showFinished);
+                btnFilterFinished?.classList.toggle('border-amber-400', filterState.showFinished);
+                btnFilterFinished?.classList.toggle('text-amber-800', filterState.showFinished);
+                btnFilterFinished?.classList.toggle('bg-gray-50', !filterState.showFinished);
+                btnFilterFinished?.classList.toggle('border-gray-300', !filterState.showFinished);
+                btnFilterFinished?.classList.toggle('text-gray-700', !filterState.showFinished);
+
+                btnFilterMyFolios?.classList.toggle('bg-blue-100', filterState.myFolios);
+                btnFilterMyFolios?.classList.toggle('border-blue-400', filterState.myFolios);
+                btnFilterMyFolios?.classList.toggle('text-blue-800', filterState.myFolios);
+                btnFilterMyFolios?.classList.toggle('bg-gray-50', !filterState.myFolios);
+                btnFilterMyFolios?.classList.toggle('border-gray-300', !filterState.myFolios);
+                btnFilterMyFolios?.classList.toggle('text-gray-700', !filterState.myFolios);
+
+                btnFilterAll?.classList.toggle('bg-green-100', filterState.showAll);
+                btnFilterAll?.classList.toggle('border-green-400', filterState.showAll);
+                btnFilterAll?.classList.toggle('text-green-800', filterState.showAll);
+                btnFilterAll?.classList.toggle('bg-gray-50', !filterState.showAll);
+                btnFilterAll?.classList.toggle('border-gray-300', !filterState.showAll);
+                btnFilterAll?.classList.toggle('text-gray-700', !filterState.showAll);
+            }
+
+            btnOpenFilters?.addEventListener('click', () => open('#modal-filters'));
+
+            btnFilterFinished?.addEventListener('click', function () {
+                filterState.showFinished = !filterState.showFinished;
+                if (filterState.showFinished) filterState.showAll = false;
+                updateFilterButtons();
+                applyFilters();
+            });
+
+            btnFilterMyFolios?.addEventListener('click', function () {
+                filterState.myFolios = !filterState.myFolios;
+                if (filterState.myFolios) filterState.showAll = false;
+                updateFilterButtons();
+                applyFilters();
+            });
+
+            btnFilterAll?.addEventListener('click', function () {
+                filterState.showAll = !filterState.showAll;
+                if (filterState.showAll) {
+                    filterState.showFinished = false;
+                    filterState.myFolios = false;
+                }
+                updateFilterButtons();
+                applyFilters();
+            });
+
+            filterTurno?.addEventListener('change', function () {
+                filterState.turno = this.value || '';
+                applyFilters();
+            });
+
+            btnClearFilters?.addEventListener('click', () => {
+                filterState = {
+                    showFinished: false,
+                    myFolios: true,
+                    showAll: false,
+                    turno: '',
+                };
+                if (filterTurno) filterTurno.value = '';
+                updateFilterButtons();
+                applyFilters();
+                close('#modal-filters');
+            });
+
+            applyFilters();
+            updateFilterButtons();
+        })();
+
         let selectedRowId = null;
         let selectedFolio = null;
 
@@ -391,10 +649,12 @@
         function selectRow(row, id) {
             // Deselect all rows
             document.querySelectorAll('#bpmTable tbody tr').forEach(r => {
-                r.classList.remove('bg-blue-100');
+                r.classList.remove('bg-blue-500', 'text-white');
+                r.classList.add('hover:bg-blue-50');
             });
             // Select current row
-            row.classList.add('bg-blue-100');
+            row.classList.remove('hover:bg-blue-50');
+            row.classList.add('bg-blue-500', 'text-white');
             selectedRowId = id;
             selectedFolio = row.dataset.folio;
 
