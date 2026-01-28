@@ -4,6 +4,12 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-3">
+    {{-- Botón de Filtros --}}
+    <button id="btn-open-filters" title="Filtros"
+            class="p-2 rounded-lg transition hover:bg-purple-100 relative">
+        <i class="fa-solid fa-filter text-purple-600 text-lg"></i>
+        <span id="filter-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">!</span>
+    </button>
     {{-- Botones icon-only al estilo BPM Engomado --}}
     <button id="btn-consult" title="Consultar folio"
             class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
@@ -35,7 +41,7 @@
     @endif
 
     {{-- Tabla --}}
-    <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-0" style="max-height: 70vh;">
+    <div class="overflow-x-auto overflow-y-auto rounded-lg bg-white shadow-sm" style="max-height: 70vh;">
         <table class="min-w-full text-sm">
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
@@ -55,32 +61,36 @@
             </thead>
             <tbody id="tb-body">
                 @forelse($items as $row)
-                    <tr class="border-t hover:bg-blue-50 cursor-pointer"
+                    <tr class="table-row hover:bg-blue-50 cursor-pointer {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}"
                         data-folio="{{ $row->Folio }}"
                         data-status="{{ $row->Status }}"
                         data-cveent="{{ $row->CveEmplEnt }}"
                         data-noment="{{ $row->NombreEmplEnt }}"
-                        data-turnoent="{{ $row->TurnoEntrega }}">
-                        <td class="px-4 py-3 font-semibold">
+                        data-turnoent="{{ $row->TurnoEntrega }}"
+                        data-cverec="{{ $row->CveEmplRec }}"
+                        data-nomrec="{{ $row->NombreEmplRec }}"
+                        data-turnorec="{{ $row->TurnoRecibe }}"
+                        style="{{ $row->Status === 'Terminado' ? 'display: none;' : '' }}">
+                        <td class="px-4 py-3 font-semibold {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                             <a class="text-blue-700 hover:underline" href="{{ route('tel-bpm-line.index', $row->Folio) }}">{{ $row->Folio }}</a>
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs
                                 {{ $row->Status==='Autorizado' ? 'bg-green-100 text-green-800' :
                                    ($row->Status==='Terminado' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800') }}">
                                 {{ $row->Status }}
                             </span>
                         </td>
-                        <td class="px-4 py-3">{{ optional($row->Fecha)->format('d/m/Y H:i') }}</td>
-                        <td class="px-4 py-3 font-mono">{{ $row->CveEmplRec }}</td>
-                        <td class="px-4 py-3">{{ $row->NombreEmplRec }}</td>
-                        <td class="px-4 py-3">{{ $row->TurnoRecibe }}</td>
-                        <td class="px-4 py-3 font-mono">{{ $row->CveEmplEnt }}</td>
-                        <td class="px-4 py-3">{{ $row->NombreEmplEnt }}</td>
-                        <td class="px-4 py-3">{{ $row->TurnoEntrega }}</td>
-                        <td class="px-4 py-3 font-mono">{{ $row->CveEmplAutoriza }}</td>
-                        <td class="px-4 py-3">{{ $row->NomEmplAutoriza }}</td>
-                        <td class="px-4 py-3 max-w-[200px]">
+                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ optional($row->Fecha)->format('d/m/Y H:i') }}</td>
+                        <td class="px-4 py-3 font-mono {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->CveEmplRec }}</td>
+                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->NombreEmplRec }}</td>
+                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->TurnoRecibe }}</td>
+                        <td class="px-4 py-3 font-mono {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->CveEmplEnt }}</td>
+                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->NombreEmplEnt }}</td>
+                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->TurnoEntrega }}</td>
+                        <td class="px-4 py-3 font-mono {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->CveEmplAutoriza }}</td>
+                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->NomEmplAutoriza }}</td>
+                        <td class="px-4 py-3 max-w-[200px] {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                             @if($row->Comentarios)
                                 <div class="truncate text-gray-700" title="{{ $row->Comentarios }}">
                                     {{ $row->Comentarios }}
@@ -91,7 +101,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="12" class="px-4 py-6 text-center text-slate-500">Sin resultados</td></tr>
+                    <tr class="no-results"><td colspan="12" class="px-4 py-6 text-center text-slate-500">Sin resultados</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -103,9 +113,9 @@
 {{-- Modal CREAR --}}
 <div id="modal-create" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
   <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-5">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg text-center font-semibold">Nuevo Folio</h2>
-        <button data-close="#modal-create" class="text-slate-500  hover:text-slate-700">&times;</button>
+    <div class="flex items-center justify-center mb-4 relative">
+        <h2 class="text-lg font-semibold text-center">Nuevo Folio</h2>
+        <button data-close="#modal-create" class="absolute right-0 text-slate-500 hover:text-slate-700">&times;</button>
     </div>
 
     <form id="form-create" method="POST" action="{{ route('tel-bpm.store') }}">
@@ -190,7 +200,7 @@
             <button class="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 w-full p-2">
                 Crear folio
             </button>
-            <button type="button" data-close="#modal-create" class="rounded-lg px-4 py-2 border hover:bg-slate-50 w-full p-2">
+            <button type="button" data-close="#modal-create" class="rounded-lg px-4 py-2 text-black border-black border w-full transition">
                 Cancelar
             </button>
         </div>
@@ -245,6 +255,60 @@
   </div>
 </div>
 
+{{-- Modal FILTROS --}}
+<div id="modal-filters" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+  <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-800">
+            <i class="fa-solid fa-filter text-purple-600 mr-2"></i>Filtros
+        </h2>
+        <button data-close="#modal-filters" class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        {{-- Mostrar Finalizados --}}
+        <button type="button" id="btn-filter-finished"
+                class="filter-btn p-4 rounded-lg border-2 transition-all text-center {{ request('show_finished') ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100' }}">
+            <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
+            <div class="font-semibold text-sm">Finalizados</div>
+        </button>
+
+        {{-- Mis Folios --}}
+        <button type="button" id="btn-filter-my-folios"
+                class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-blue-100 border-blue-400 text-blue-800">
+            <i class="fa-solid fa-user text-2xl mb-2 block"></i>
+            <div class="font-semibold text-sm">Mis Folios</div>
+        </button>
+
+        {{-- Mostrar Todos --}}
+        <button type="button" id="btn-filter-all"
+                class="filter-btn p-4 rounded-lg border-2 transition-all text-center {{ request('show_all') ? 'bg-green-100 border-green-400 text-green-800' : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100' }}">
+            <i class="fa-solid fa-list text-2xl mb-2 block"></i>
+            <div class="font-semibold text-sm">Todos</div>
+        </button>
+
+        {{-- Turno --}}
+        <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
+            <label class="block text-xs text-gray-600 mb-2 text-center">
+                <i class="fa-solid fa-clock mr-1"></i>Turno
+            </label>
+            <select id="filter-turno" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
+                <option value="">Todos</option>
+                <option value="1" {{ request('turno') == '1' ? 'selected' : '' }}>Turno 1</option>
+                <option value="2" {{ request('turno') == '2' ? 'selected' : '' }}>Turno 2</option>
+                <option value="3" {{ request('turno') == '3' ? 'selected' : '' }}>Turno 3</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+        <button type="button" id="btn-clear-filters" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-blue-500 text-white transition text-sm">
+            <i class="fa-solid fa-eraser mr-1"></i>Limpiar
+        </button>
+    </div>
+  </div>
+</div>
+
 <style>
     tr.selected a,
     tr.selected span,
@@ -257,7 +321,13 @@
         background-color: rgba(255, 255, 255, 0.2) !important;
         color: white !important;
     }
-    tr.selected:hover {
+    tr.selected,
+    tr.selected td {
+        background-color: rgb(59, 130, 246) !important; /* bg-blue-500 */
+        color: white !important;
+    }
+    tr.selected:hover,
+    tr.selected:hover td {
         background-color: rgb(37, 99, 235) !important; /* bg-blue-600 */
     }
 </style>
@@ -271,6 +341,194 @@
     const open = sel => { const m = qs(sel); if(!m) return; m.classList.remove('hidden'); m.classList.add('flex'); }
     const close = sel => { const m = qs(sel); if(!m) return; m.classList.add('hidden'); m.classList.remove('flex'); }
     qsa('[data-close]').forEach(b => b.addEventListener('click', () => close(b.dataset.close)));
+
+    // Modal de Filtros - Filtrado sin recargar
+    const btnOpenFilters = qs('#btn-open-filters');
+    const filterBadge = qs('#filter-badge');
+    const btnClearFilters = qs('#btn-clear-filters');
+    const filterTurno = qs('#filter-turno');
+    const btnFilterFinished = qs('#btn-filter-finished');
+    const btnFilterMyFolios = qs('#btn-filter-my-folios');
+    const btnFilterAll = qs('#btn-filter-all');
+
+    // Estado de filtros - Por defecto mostrar solo mis folios
+    let filterState = {
+        showFinished: false,
+        myFolios: true,  // Por defecto activo
+        showAll: false,
+        turno: ''
+    };
+
+    // Obtener nombre del usuario actual
+    const userName = @json(auth()->user()->nombre ?? '');
+
+    // Obtener tbody una vez al inicio
+    const tbody = qs('#tb-body');
+
+    // Función para aplicar filtros
+    function applyFilters() {
+        const rows = qsa('.table-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const status = row.dataset.status;
+            const nomRec = (row.dataset.nomrec || '').trim();
+            const turnoRec = row.dataset.turnorec || '';
+            const turnoEnt = row.dataset.turnoent || '';
+
+            let show = true;
+
+            // Filtro por estado Terminado
+            if (!filterState.showFinished && !filterState.showAll && status === 'Terminado') {
+                show = false;
+            }
+
+            // Filtro Mis Folios - compara nombre con Nombre Recibe
+            if (filterState.myFolios && userName) {
+                if (nomRec.toLowerCase() !== userName.toLowerCase()) {
+                    show = false;
+                }
+            }
+
+            // Filtro por Turno - solo Turno Recibe
+            if (filterState.turno) {
+                if (turnoRec !== filterState.turno) {
+                    show = false;
+                }
+            }
+
+            // Mostrar/ocultar fila
+            if (show) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Actualizar badge (siempre visible si hay algún filtro activo, incluyendo myFolios por defecto)
+        const hasActiveFilters = filterState.showFinished || filterState.myFolios ||
+                                 filterState.showAll || filterState.turno;
+        if (hasActiveFilters) {
+            filterBadge?.classList.remove('hidden');
+        } else {
+            filterBadge?.classList.add('hidden');
+        }
+
+        // Mostrar mensaje si no hay resultados
+        let emptyRow = tbody?.querySelector('tr.no-results');
+        if (visibleCount === 0) {
+            if (!emptyRow) {
+                const tr = document.createElement('tr');
+                tr.className = 'no-results';
+                let message = 'Sin resultados con los filtros aplicados';
+                if (filterState.myFolios && !filterState.showAll) {
+                    message = 'No tienes folios asignados';
+                }
+                tr.innerHTML = `<td colspan="12" class="px-4 py-6 text-center text-slate-500">
+                    <div class="flex flex-col items-center gap-2">
+                        <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
+                        <span class="text-base font-medium">${message}</span>
+                    </div>
+                </td>`;
+                tbody?.appendChild(tr);
+            } else {
+                // Actualizar mensaje si ya existe
+                let message = 'Sin resultados con los filtros aplicados';
+                if (filterState.myFolios && !filterState.showAll) {
+                    message = 'No tienes folios asignados';
+                }
+                emptyRow.querySelector('td').innerHTML = `
+                    <div class="flex flex-col items-center gap-2">
+                        <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
+                        <span class="text-base font-medium">${message}</span>
+                    </div>
+                `;
+            }
+        } else {
+            emptyRow?.remove();
+        }
+    }
+
+    // Actualizar estado visual de botones
+    function updateFilterButtons() {
+        btnFilterFinished?.classList.toggle('bg-amber-100', filterState.showFinished);
+        btnFilterFinished?.classList.toggle('border-amber-400', filterState.showFinished);
+        btnFilterFinished?.classList.toggle('text-amber-800', filterState.showFinished);
+        btnFilterFinished?.classList.toggle('bg-gray-50', !filterState.showFinished);
+        btnFilterFinished?.classList.toggle('border-gray-300', !filterState.showFinished);
+        btnFilterFinished?.classList.toggle('text-gray-700', !filterState.showFinished);
+
+        btnFilterMyFolios?.classList.toggle('bg-blue-100', filterState.myFolios);
+        btnFilterMyFolios?.classList.toggle('border-blue-400', filterState.myFolios);
+        btnFilterMyFolios?.classList.toggle('text-blue-800', filterState.myFolios);
+        btnFilterMyFolios?.classList.toggle('bg-gray-50', !filterState.myFolios);
+        btnFilterMyFolios?.classList.toggle('border-gray-300', !filterState.myFolios);
+        btnFilterMyFolios?.classList.toggle('text-gray-700', !filterState.myFolios);
+
+        btnFilterAll?.classList.toggle('bg-green-100', filterState.showAll);
+        btnFilterAll?.classList.toggle('border-green-400', filterState.showAll);
+        btnFilterAll?.classList.toggle('text-green-800', filterState.showAll);
+        btnFilterAll?.classList.toggle('bg-gray-50', !filterState.showAll);
+        btnFilterAll?.classList.toggle('border-gray-300', !filterState.showAll);
+        btnFilterAll?.classList.toggle('text-gray-700', !filterState.showAll);
+    }
+
+    btnOpenFilters?.addEventListener('click', () => open('#modal-filters'));
+
+    // Botón Finalizados
+    btnFilterFinished?.addEventListener('click', function() {
+        filterState.showFinished = !filterState.showFinished;
+        if (filterState.showFinished) {
+            filterState.showAll = false;
+        }
+        updateFilterButtons();
+        applyFilters();
+    });
+
+    // Botón Mis Folios
+    btnFilterMyFolios?.addEventListener('click', function() {
+        filterState.myFolios = !filterState.myFolios;
+        if (filterState.myFolios) {
+            filterState.showAll = false;
+        }
+        updateFilterButtons();
+        applyFilters();
+    });
+
+    // Botón Todos
+    btnFilterAll?.addEventListener('click', function() {
+        filterState.showAll = !filterState.showAll;
+        if (filterState.showAll) {
+            filterState.showFinished = false;
+            filterState.myFolios = false;
+        }
+        updateFilterButtons();
+        applyFilters();
+    });
+
+    // Select Turno
+    filterTurno?.addEventListener('change', function() {
+        filterState.turno = this.value || '';
+        applyFilters();
+    });
+
+    btnClearFilters?.addEventListener('click', () => {
+        filterState = {
+            showFinished: false,
+            myFolios: true,  // Volver al estado por defecto
+            showAll: false,
+            turno: ''
+        };
+        filterTurno.value = '';
+        updateFilterButtons();
+        applyFilters();
+        close('#modal-filters');
+    });
+
+    // Inicializar filtros
+    applyFilters();
+    updateFilterButtons();
 
     // Crear: validar que el usuario exista como operador
     const usuarioEsOperador = @json($usuarioEsOperador ?? false);
@@ -289,7 +547,6 @@
     });
 
     // Seleccionar fila y accionar desde barra superior
-    const tbody = qs('#tb-body');
     let selected = null;
     const btnConsult = qs('#btn-consult');
     const btnEditTop = qs('#btn-edit');

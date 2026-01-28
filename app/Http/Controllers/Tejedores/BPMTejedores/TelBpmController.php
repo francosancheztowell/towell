@@ -28,7 +28,7 @@ class TelBpmController extends Controller
 
         $q       = trim((string) $request->get('q', ''));
         $status  = $request->get('status');
-        $perPage = (int) $request->get('per_page', 15);
+        $perPage = (int) $request->get('per_page', 1000); // Cargar más datos para filtrar en cliente
 
         $items = TelBpmModel::query()
             ->leftJoin('TelBPMLine', function($join) {
