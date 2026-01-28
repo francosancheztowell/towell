@@ -5,6 +5,15 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
+            onclick="abrirModalFormulacion()"
+            title="Agregar fórmula"
+            icon="fa-flask"
+            iconColor="text-white"
+            hoverBg="hover:bg-blue-600"
+            text="Agregar fórmula"
+            bg="bg-blue-500"
+        />
+        <x-navbar.button-create
             onclick="finalizar()"
             title="Finalizar"
             icon="fa-check-circle"
@@ -586,6 +595,117 @@
         </div>
     </div>
 
+    <!-- Modal Crear Formulación -->
+    <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
+                <h3 class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
+                <button onclick="cerrarModalFormulacion()" class="text-white hover:text-gray-200 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <form action="{{ route('eng-formulacion.store') }}" method="POST" class="p-6">
+                @csrf
+
+                <!-- Sección 1: Datos principales (3 columnas) -->
+                <div class="mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Folio (Programa Engomado) <span class="text-red-600">*</span></label>
+                            <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                                <option value="">-- Seleccione un Folio --</option>
+                                @foreach($foliosPrograma as $prog)
+                                    <option value="{{ $prog->Folio }}"
+                                            data-cuenta="{{ $prog->Cuenta }}"
+                                            data-calibre="{{ $prog->Calibre }}"
+                                            data-tipo="{{ $prog->RizoPie }}"
+                                            data-formula="{{ $prog->BomFormula }}"
+                                            {{ isset($orden) && $orden && $orden->Folio === $prog->Folio ? 'selected' : '' }}>
+                                        {{ $prog->Folio }} - {{ $prog->Cuenta }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
+                            <input type="date" name="fecha" value="{{ date('Y-m-d') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
+                            <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" step="60" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                            <input type="text" value="{{ auth()->user()->numero_empleado ?? (auth()->user()->numero ?? '') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Operador</label>
+                            <input type="text" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Folio seleccionado</label>
+                            <input type="text" id="create_folio_display" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campos ocultos para datos de EngProgramaEngomado -->
+                <input type="hidden" name="Cuenta" id="create_cuenta">
+                <input type="hidden" name="Calibre" id="create_calibre">
+                <input type="hidden" name="Tipo" id="create_tipo">
+                <input type="hidden" name="NomEmpl" id="create_nom_empl">
+                <input type="hidden" name="CveEmpl" id="create_cve_empl">
+                <input type="hidden" name="Formula" id="create_formula">
+
+                <!-- Sección 2: Datos de Captura -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Datos de Captura</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
+                            <select name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                                <option value="">Seleccione...</option>
+                                @for($i = 1; $i <= 5; $i++)
+                                    <option value="{{ $i }}">{{ $i }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.)</label>
+                            <input type="number" step="0.01" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Litros</label>
+                            <input type="number" step="0.01" name="Litros" id="create_litros" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado (Min)</label>
+                            <input type="number" step="0.01" name="TiempoCocinado" id="create_tiempo" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">% Sólidos</label>
+                            <input type="number" step="0.01" name="Solidos" id="create_solidos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Viscosidad</label>
+                            <input type="number" step="0.01" name="Viscocidad" id="create_viscocidad" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex gap-2 justify-end pt-3 border-t border-gray-200 mt-4">
+                    <button type="submit" class="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-lg hover:shadow-xl">
+                        <i class="fa-solid fa-save mr-1"></i>Crear Formulación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal para agregar oficial -->
     <div
         id="modal-oficial"
@@ -650,6 +770,61 @@
                 humedad: 'Humedad',
                 ubicacion: 'Ubicacion',
                 roturas: 'Roturas'
+            };
+
+            const createModal = document.getElementById('createModal');
+            const createFolioSelect = document.getElementById('create_folio_prog');
+
+            window.abrirModalFormulacion = function () {
+                if (!createModal) return;
+                createModal.classList.remove('hidden');
+                createModal.style.display = 'flex';
+
+                if (createFolioSelect && createFolioSelect.value) {
+                    window.cargarDatosPrograma(createFolioSelect);
+                }
+            };
+
+            window.cerrarModalFormulacion = function () {
+                if (!createModal) return;
+                createModal.classList.add('hidden');
+                createModal.style.display = 'none';
+            };
+
+            window.cargarDatosPrograma = function (select) {
+                if (!select) return;
+
+                const option = select.options[select.selectedIndex];
+                const setValue = (id, value) => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = value;
+                };
+
+                if (!option || !option.value) {
+                    setValue('create_folio_display', '');
+                    setValue('create_cuenta', '');
+                    setValue('create_calibre', '');
+                    setValue('create_tipo', '');
+                    setValue('create_formula', '');
+                    return;
+                }
+
+                setValue('create_folio_display', option.value);
+
+                const cuenta = option.getAttribute('data-cuenta') || '';
+                const calibre = option.getAttribute('data-calibre') || '';
+                const tipo = option.getAttribute('data-tipo') || '';
+                const formula = option.getAttribute('data-formula') || '';
+
+                setValue('create_cuenta', cuenta);
+                setValue('create_calibre', calibre);
+                setValue('create_tipo', tipo);
+                setValue('create_formula', formula);
+
+                @if(Auth::check())
+                    setValue('create_nom_empl', '{{ Auth::user()->nombre ?? "" }}');
+                    setValue('create_cve_empl', '{{ Auth::user()->numero ?? "" }}');
+                @endif
             };
 
             // ===== Helpers UI =====
