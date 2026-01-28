@@ -563,7 +563,7 @@ class UsuarioController extends Controller
                 $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaActual . '%')
                     ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
                     ->orderByRaw("CASE WHEN Ruta = ? THEN 0 ELSE 1 END", [$rutaActual])
-                    ->orderByRaw('LENGTH(Ruta) DESC')
+                    ->orderByRaw('LEN(Ruta) DESC')
                     ->orderBy('Nivel', 'desc')
                     ->first();
             }
@@ -576,7 +576,7 @@ class UsuarioController extends Controller
                     $ultimaParte = end($partes);
                     $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
                         ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                        ->orderByRaw('LENGTH(Ruta) DESC')
+                        ->orderByRaw('LEN(Ruta) DESC')
                         ->orderBy('Nivel', 'desc')
                         ->first();
                 }
