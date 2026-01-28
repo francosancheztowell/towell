@@ -198,7 +198,7 @@
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="17">
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="18">
                                 <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="19">
-                                <span class="text-lg font-bold text-gray-600">.JCS</span>
+                                <span id="codificacionSuffix" class="text-lg font-bold text-gray-600">.JCS</span>
                             </div>
                         </div>
                         <input type="hidden" id="CodificacionModelo" name="CodificacionModelo" required>
@@ -297,6 +297,7 @@
         const codificacionHidden = document.getElementById('CodificacionModelo');
         const codificacionNoData = document.getElementById('codificacionNoData');
         let codificacionFetchAttempted = false;
+        const codificacionSuffixSpan = document.getElementById('codificacionSuffix');
         let sumaPasadasDetalle = 0;
         let omitirConfirmacionPasadas = false;
 
@@ -386,9 +387,26 @@
             });
         });
 
+        function getCodificacionSuffix(telarId) {
+            const numericTelar = Number.parseInt(telarId, 10);
+            if (Number.isFinite(numericTelar) && numericTelar >= 200 && numericTelar <= 299) {
+                return 'JC5';
+            }
+            return 'JCS';
+        }
+
+        function updateCodificacionSuffix(telarId) {
+            const suffix = getCodificacionSuffix(telarId);
+            if (codificacionSuffixSpan) {
+                codificacionSuffixSpan.textContent = `.${suffix}`;
+            }
+            return suffix;
+        }
+
         function updateCodificacionModelo() {
             const fullCode = Array.from(codificacionInputs).map(input => input.value).join('');
-            codificacionHidden.value = fullCode ? (fullCode + '.JCS') : '';
+            const suffix = updateCodificacionSuffix(inputTelarId?.value || selectTelar?.value);
+            codificacionHidden.value = fullCode ? `${fullCode}.${suffix}` : '';
             updateCodificacionNoDataMessage();
         }
 
@@ -416,6 +434,8 @@
         selectTelar.addEventListener('change', function() {
             const telarSeleccionado = this.value;
             if (telarSeleccionado) {
+                updateCodificacionSuffix(telarSeleccionado);
+                updateCodificacionModelo();
                 cargarProducciones(telarSeleccionado);
             }
         });
@@ -513,6 +533,7 @@
                 formTelarId.textContent = telarId;
                 formNoProduccion.textContent = noProduccion;
                 formNombreProducto.textContent = modelo || '-';
+                updateCodificacionSuffix(telarId);
 
                 // Obtener CodigoDibujo por SalonTejidoId + TamanoClave y auto-llenar codificación
                 codificacionFetchAttempted = true;
