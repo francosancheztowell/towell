@@ -22,28 +22,28 @@ use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 class CodificacionController extends Controller
 {
     /** Columnas de la tabla (headers) */
-    private const COLUMNAS = [
-        'Clave mod.', 'NoProduccion', 'Fecha Orden', 'Fecha Cumplimiento', 'Departamento',
-        'Telar Actual', 'Prioridad', 'Modelo', 'Clave Modelo', 'Clave AX', 'Tamaño',
-        'Tolerancia', 'Codigo Dibujo', 'Fecha Compromiso', 'Id Flog.', 'Nombre de Formato Logistico',
-        'Clave', 'Cantidad a Producir', 'Peine', 'Ancho', 'Largo', 'P_crudo', 'Luchaje',
-        'Tra', 'Hilo', 'Codigo Color Trama', 'Nombre Color Trama', 'OBS.', 'Tipo plano',
-        'Med plano', 'Tipo de Rizo', 'Altura de Rizo', 'OBS', 'Veloc. Mínima', 'Rizo', 'Hilo',
-        'Cuenta', 'OBS.', 'Pie', 'Hilo', 'Cuenta', 'OBS', 'C1', 'OBS', 'C2', 'OBS', 'C3', 'OBS',
-        'C4', 'OBS', 'Med. de Cenefa', 'Med de inicio de rizo a cenefa', 'Rasurada', 'Tiras',
-        'Repeticiones p/corte', 'No. De Marbetes', 'Cambio de repaso', 'Vendedor', 'No. Orden',
-        'Observaciones', 'TRAMA (Ancho Peine)', 'Log. de Lucha Total', 'C1 trama de Fondo', 'Hilo',
-        'OBS', 'Pasadas', 'C1', 'Hilo', 'OBS.', 'Cod Color', 'Nombre Color', 'Pasadas', 'C2',
-        'Hilo', 'OBS.', 'Cod Color', 'Nombre Color', 'Pasadas', 'C3', 'Hilo', 'OBS.', 'Cod Color',
-        'Nombre Color', 'Pasadas', 'C4', 'Hilo', 'OBS.', 'Cod Color', 'Nombre Color', 'Pasadas',
-        'CS', 'Hilo', 'OBS.', 'Cod Color', 'Nombre Color', 'Pasadas', 'Total', 'Pasadas Dibujo',
-        'Contraccion', 'Tramas cm/Tejido', 'Contrac Rizo', 'Clasificación(KG)', 'KG/Dia',
-        'Densidad', 'Pzas/Día/pasadas', 'Pzas/Día/formula', 'Dif', 'Efic', 'Rev', 'Tiras',
-        'Pasadas', 'ColumCT', 'ColumCU', 'ColumCV', 'ComprobarModDup'
+        private const COLUMNAS = [
+        'Tamaño Clave', 'Rasema', 'Fecha Orden', 'Fecha Cumplimiento', 'Departamento',
+        'Telar Actual', 'Prioridad', 'Modelo', 'Clave Modelo', 'Clave AX', 'Tamaño AX',
+        'Tolerancia', 'Codigo Dibujo', 'Fecha Compromiso', 'Flogs', 'Nombre de Formato Logístico',
+        'Clave', 'Cantidad a Producir', 'Peine', 'Ancho', 'Largo', 'Peso crudo', 'Luchaje',
+        'Tra', 'Hilo', 'FibraId', 'Tipo plano', 'Med plano', 'Tipo de Rizo', 'Altura de Rizo',
+        'OBS', 'Velocidad STD', 'Calibre Rizo', 'Calibre Rizo 2', 'Cuenta Rizo', 'Fibra Rizo', 'Calibre Pie', 'Calibre Pie 2',
+        'Cuenta Pie', 'Fibra Pie', 'C1', 'OBS', 'C2', 'OBS 2', 'C3', 'OBS 3', 'C4', 'OBS 4',
+        'Med. de Cenefa', 'Med de inicio de rizo a cenefa', 'Rasurado', 'Tiras',
+        'Repeticiones p/corte', 'No. De Marbetes', 'Cambio de repaso', 'Vendedor', 'Categoria Calidad',
+        'Observaciones', 'Trama (Ancho Peine)', 'Log. Lucha Total', 'C1 Trama de Fondo', 'Hilo C1 Trama de Fondo',
+        'OBS C1 Trama de Fondo', 'Pasadas C1', 'C2 Trama de Fondo', 'Hilo C2 Trama de Fondo',
+        'OBS C2 Trama de Fondo', 'Pasadas C2 ', 'C3 Trama de Fondo', 'Hilo C3 Trama de Fondo',
+        'OBS C3 Trama de Fondo', 'Pasadas C3 ', 'C4 Trama de Fondo', 'Hilo C4 Trama de Fondo',
+        'OBS C4 Trama de Fondo', 'Pasadas C4 ', 'C5 Trama de Fondo', 'Hilo C5 Trama de Fondo',
+        'OBS C5 Trama de Fondo', 'Pasadas C5', 'Total', 'Pasadas Dibujo', 'Contraccion', 'Tramas cm/Tejido',
+        'Contrac Rizo', 'Clasificación(KG)', 'KG/Día', 'Densidad', 'Pzas/Día/ pasadas', 'Pzas/Día/ formula',
+        'DIF', 'EFIC.', 'Rev', 'Tiras', 'Pasadas', 'ColumCT', 'ColumCU', 'ColumCV', 'Comprobar modelos duplicados'
     ];
 
     /** Mapeo campo => tipo (date|zero|null para string) */
-    private const CAMPOS_MODELO = [
+        private const CAMPOS_MODELO = [
         'TamanoClave' => null,
         'OrdenTejido' => null,
         'FechaTejido' => 'date',
@@ -69,8 +69,6 @@ class CodificacionController extends Controller
         'Luchaje' => 'zero',
         'CalibreTrama' => 'zero',
         'CalibreTrama2' => 'zero',
-        'CodColorTrama' => null,
-        'ColorTrama' => null,
         'FibraId' => null,
         'DobladilloId' => null,
         'MedidaPlano' => 'zero',
@@ -113,32 +111,22 @@ class CodificacionController extends Controller
         'CalibreComb1' => null,
         'CalibreComb12' => null,
         'FibraComb1' => null,
-        'CodColorC1' => null,
-        'NomColorC1' => null,
         'PasadasComb1' => 'zero',
         'CalibreComb2' => null,
         'CalibreComb22' => null,
         'FibraComb2' => null,
-        'CodColorC2' => null,
-        'NomColorC2' => null,
         'PasadasComb2' => 'zero',
         'CalibreComb3' => null,
         'CalibreComb32' => null,
         'FibraComb3' => null,
-        'CodColorC3' => null,
-        'NomColorC3' => null,
         'PasadasComb3' => 'zero',
         'CalibreComb4' => null,
         'CalibreComb42' => null,
         'FibraComb4' => null,
-        'CodColorC4' => null,
-        'NomColorC4' => null,
         'PasadasComb4' => 'zero',
         'CalibreComb5' => null,
         'CalibreComb52' => null,
         'FibraComb5' => null,
-        'CodColorC5' => null,
-        'NomColorC5' => null,
         'PasadasComb5' => 'zero',
         'Total' => 'zero',
         'PasadasDibujo' => null,
@@ -477,10 +465,11 @@ class CodificacionController extends Controller
             $campos = array_merge(['Id'], array_keys(self::CAMPOS_MODELO));
 
             // Streaming JSON para grandes volúmenes - más eficiente en memoria
-            $codificaciones = DB::table('ReqModelosCodificados')
+            $codificaciones = ReqModelosCodificados::query()
                 ->select($campos)
                 ->orderByDesc('Id')
-            ->get();
+                ->toBase()
+                ->get();
 
             return response()->json([
                 'success' => true,
@@ -499,7 +488,6 @@ class CodificacionController extends Controller
         try {
             // Solo campos esenciales para la tabla, ordenados por Id (usa índice clustered)
             $campos = array_merge(['Id'], array_keys(self::CAMPOS_MODELO));
-            $table = 'ReqModelosCodificados';
             $idFilter = $request->filled('id') ? (int) $request->input('id') : null;
             $skipCache = $request->boolean('nocache', false);
 
@@ -519,7 +507,10 @@ class CodificacionController extends Controller
             DB::connection()->disableQueryLog();
 
             $columnsStr = implode(', ', array_map(fn($col) => "[{$col}]", $campos));
-            $query = DB::table($table)->selectRaw($columnsStr)->orderByDesc('Id');
+            $query = ReqModelosCodificados::query()
+                ->selectRaw($columnsStr)
+                ->orderByDesc('Id')
+                ->toBase();
 
             if ($idFilter !== null) {
                 $row = $query->where('Id', $idFilter)->limit(1)->first();
@@ -544,7 +535,7 @@ class CodificacionController extends Controller
             $estimatedCount = Cache::remember(
                 'codificacion_estimated_count',
                 300,
-                fn() => DB::table($table)->count()
+                fn() => ReqModelosCodificados::query()->toBase()->count()
             );
 
             $data = $estimatedCount > 1000

@@ -4,7 +4,7 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
-<x-buttons.catalog-actions route="codificacion" :showFilters="true" />
+<x-buttons.catalog-actions route="codificacion" :showFilters="true" :showExcel="false" />
     <!-- Botón Fijar Columnas -->
     <button type="button" onclick="openPinColumnsModal()"
             class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors"
@@ -38,36 +38,22 @@
             style="max-height: calc(100vh - 110px);"
         >
             <table id="mainTable" class="w-full min-w-full">
+                <colgroup id="mainTable-colgroup">
+                    @foreach($columnas as $idx => $col)
+                        <col data-index="{{ $idx }}">
+                    @endforeach
+                </colgroup>
                 <thead class="bg-blue-500">
                     <tr>
                         @foreach($columnas as $idx => $col)
                             <th
                                 class="column-{{ $idx }} px-3 py-2 text-left text-sm font-medium text-white whitespace-nowrap border-b border-blue-400 bg-blue-500"
                                 data-index="{{ $idx }}"
+                                data-column="{{ $camposModelo[$idx] ?? '' }}"
                             >
-                                <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2">
                                     <span class="truncate">{{ $col }}</span>
-                                    <div class="flex items-center gap-1">
-                                        <button
-                                            type="button"
-                                            class="sort-btn sort-btn-asc p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-shadow hover:shadow-md"
-                                            title="Ordenar ascendente"
-                                            data-sort="asc"
-                                            data-column="{{ $idx }}"
-                                        >
-                                            <i class="fas fa-arrow-up"></i>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="sort-btn sort-btn-desc p-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-shadow hover:shadow-md hidden"
-                                            title="Ordenar descendente"
-                                            data-sort="desc"
-                                            data-column="{{ $idx }}"
-                                        >
-                                            <i class="fas fa-arrow-down"></i>
-                                        </button>
-                                    </div>
-                                    </div>
+                                </div>
                             </th>
                         @endforeach
                     </tr>
@@ -122,7 +108,7 @@
     </div>
 </div>
 
-{{-- Menú contextual (click derecho) --}}
+{{-- Menú contextual (click derecho en filas) --}}
 <div id="context-menu" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-[99999] py-1 min-w-[150px]" style="z-index: 99999 !important; opacity: 1 !important; background-color: #ffffff !important;">
     <button
         id="context-menu-edit"
@@ -147,6 +133,22 @@
     </button>
 </div>
 
+{{-- Menú contextual para encabezados (click derecho) --}}
+<div id="context-menu-header" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-50 py-1 min-w-[180px]">
+    <button id="context-menu-header-filtrar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+        <i class="fas fa-filter text-yellow-500"></i>
+        <span>Filtrar</span>
+    </button>
+    <button id="context-menu-header-fijar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 flex items-center gap-2">
+        <i class="fas fa-thumbtack text-blue-500"></i>
+        <span>Fijar</span>
+    </button>
+    <button id="context-menu-header-ocultar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center gap-2">
+        <i class="fas fa-eye-slash text-red-500"></i>
+        <span>Ocultar</span>
+    </button>
+</div>
+
 <style>
     /* ============================================
        CONTENEDOR DE TABLA CON SCROLL VISIBLE
@@ -160,14 +162,13 @@
         flex: 1;
         min-height: 0;
         contain: layout paint;
-        will-change: scroll-position;
-        scrollbar-gutter: stable both-edges;
+        scrollbar-gutter: stable;
     }
 
     /* Scrollbar personalizada - Siempre visible y más grande */
     #table-container::-webkit-scrollbar {
-        width: 14px;
-        height: 14px;
+        width: 8px;
+        height: 8px;
     }
 
     #table-container::-webkit-scrollbar-track {
@@ -177,8 +178,8 @@
 
     #table-container::-webkit-scrollbar-thumb {
         background: #6b7280;
-        border-radius: 7px;
-        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
     }
 
     #table-container::-webkit-scrollbar-thumb:hover {
@@ -187,12 +188,12 @@
 
     /* Scrollbar horizontal - Más visible */
     #table-container::-webkit-scrollbar:horizontal {
-        height: 14px;
+        height: 8px;
     }
 
     /* Para Firefox */
     #table-container {
-        scrollbar-width: auto;
+        scrollbar-width: thin;
         scrollbar-color: #6b7280 #e5e7eb;
     }
 
@@ -206,7 +207,21 @@
         border-spacing: 0;
         min-width: max-content;
         table-layout: auto;
-        transform: translateZ(0);
+    }
+
+    #mainTable.locked-layout {
+        table-layout: fixed;
+    }
+
+    #mainTable th,
+    #mainTable td {
+        box-sizing: border-box;
+    }
+
+    #mainTable.locked-layout th,
+    #mainTable.locked-layout td {
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* ============================================
@@ -254,6 +269,35 @@
 
     #mainTable tbody tr.data-row {
         height: 36px;
+    }
+
+    /* Colores alternados (zebra striping) - Filas impares gris, pares blancas */
+    /* Usar clases row-odd y row-even agregadas por JavaScript */
+    #mainTable tbody tr.data-row.row-odd:not(.selected-row) {
+        background-color: #f9fafb !important; /* gray-50 */
+    }
+
+    #mainTable tbody tr.data-row.row-even:not(.selected-row) {
+        background-color: #ffffff !important; /* white */
+    }
+
+    /* Asegurar que las filas seleccionadas mantengan el color azul */
+    #mainTable tbody tr.data-row.selected-row {
+        background-color: rgb(59, 130, 246) !important; /* blue-500 */
+        color: white !important;
+    }
+
+    /* Hover en filas con colores alternados */
+    #mainTable tbody tr.data-row.row-odd:not(.selected-row):hover {
+        background-color: #f3f4f6 !important; /* gray-100 */
+    }
+
+    #mainTable tbody tr.data-row.row-even:not(.selected-row):hover {
+        background-color: #f9fafb !important; /* gray-50 */
+    }
+
+    #mainTable tbody tr.data-row.selected-row:hover {
+        background-color: rgb(37, 99, 235) !important; /* blue-600 */
     }
 
     #mainTable tbody tr.spacer-row,
@@ -425,6 +469,38 @@
     #context-menu button:active {
         background-color: #e5e7eb !important;
     }
+
+    /* ============================================
+       MENÚ CONTEXTUAL DE ENCABEZADOS
+       ============================================ */
+    #context-menu-header {
+        display: none;
+        background-color: #ffffff !important;
+        z-index: 99999 !important;
+        opacity: 1 !important;
+        position: fixed !important;
+    }
+
+    #context-menu-header:not(.hidden) {
+        display: block;
+        background-color: #ffffff !important;
+        z-index: 99999 !important;
+        opacity: 1 !important;
+    }
+
+    #context-menu-header button {
+        transition: background-color 0.15s ease;
+        background-color: #ffffff !important;
+        opacity: 1 !important;
+    }
+
+    #context-menu-header button:hover {
+        background-color: #f3f4f6 !important;
+    }
+
+    #context-menu-header button:active {
+        background-color: #e5e7eb !important;
+    }
 </style>
 
 
@@ -481,6 +557,12 @@ const state = {
     // Estado de columnas ocultas y fijadas
     let hiddenColumns = [];
     let pinnedColumns = [];
+    const columnWidthState = {
+        locked: false,
+        widths: []
+    };
+
+    let resizeRaf = null;
 
     // ============================================
     //  HELPERS DOM / DATA
@@ -695,17 +777,18 @@ function showToast(message, type = 'info') {
             }
 
             const columns = result.c;
+            const columnsLen = columns.length;
 
             // ⚡ OPTIMIZACIÓN: Crear objetos directamente sin múltiples iteraciones
             // Usar Array pre-allocado para mejor rendimiento
-            const dataLength = result.d.length;
-            state.rawData = new Array(dataLength);
+            const data = result.d;
+            const dataLength = data.length;
+            const rawData = new Array(dataLength);
 
             for (let i = 0; i < dataLength; i++) {
-                const row = result.d[i];
+                const row = data[i];
                 const obj = {};
-                const len = columns.length;
-                for (let j = 0; j < len; j++) {
+                for (let j = 0; j < columnsLen; j++) {
                     obj[columns[j]] = row[j];
                 }
                 if (obj.Id !== undefined && obj.Id !== null && obj.Id !== '') {
@@ -714,16 +797,22 @@ function showToast(message, type = 'info') {
                         obj.Id = parsedId;
                     }
                 }
-                state.rawData[i] = obj;
+                rawData[i] = obj;
             }
 
-            state.filteredData = [...state.rawData];
+            state.rawData = rawData;
+            state.filteredData = rawData.slice();
 
             // ⚡ OPTIMIZACIÓN: Renderizar usando requestAnimationFrame para mejor rendimiento
             requestAnimationFrame(() => {
                 renderPage();
                 if (loadingEl) loadingEl.classList.add('hidden');
                 state.isLoading = false;
+                // Actualizar iconos después de cargar datos
+                setTimeout(() => {
+                    updateColumnFilterIcons();
+                    updateColumnPinIcons();
+                }, 100);
             });
         } catch (error) {
             if (!loadingEl) return;
@@ -908,9 +997,14 @@ function showToast(message, type = 'info') {
             const isSelected = rowId === state.selectedId;
 
             tr.dataset.id = rowId;
+            
+            // Agregar clase para zebra striping (par/impar)
+            const zebraClass = i % 2 === 0 ? 'row-even' : 'row-odd';
+            
+            // No incluir hover:bg-gray-50 ya que el hover se maneja con CSS
             tr.className = isSelected
                 ? 'data-row cursor-pointer transition-colors bg-blue-500 text-white selected-row rendered'
-                : 'data-row cursor-pointer transition-colors hover:bg-gray-50 rendered';
+                : `data-row cursor-pointer transition-colors ${zebraClass} rendered`;
 
             if (isSelected) {
                 previousSelectedRow = tr;
@@ -1076,10 +1170,14 @@ function showToast(message, type = 'info') {
 
             tr.dataset.id = rowId;
 
+            // Agregar clase para zebra striping (par/impar) - usar índice i directamente
+            const zebraClass = i % 2 === 0 ? 'row-even' : 'row-odd';
+
             //  OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
+            // No incluir hoverClassBase ya que el hover se maneja con CSS
             tr.className = isSelected
                 ? `${baseClass} ${selectedClassBase} rendered`
-                : `${baseClass} ${hoverClassBase} rendered`;
+                : `${baseClass} ${zebraClass} rendered`;
 
             //  OPTIMIZACIÓN: Renderizar celdas con clases pre-calculadas
             for (let idx = 0; idx < camposLen; idx++) {
@@ -1117,6 +1215,10 @@ function showToast(message, type = 'info') {
             requestAnimationFrame(() => {
                 updatePagination();
                 applyColumnVisibility();
+                setTimeout(() => {
+                    updateColumnFilterIcons();
+                    updateColumnPinIcons();
+                }, 50);
             });
         }
     }
@@ -1173,6 +1275,8 @@ function showToast(message, type = 'info') {
                 renderPageVirtual(pageData, camposLen, totalCols);
                 updatePagination();
                 applyColumnVisibility();
+                updateColumnFilterIcons();
+                updateColumnPinIcons();
                 if (showLoading) {
                     setTimeout(() => showTableLoading(false), 30);
                 }
@@ -1214,10 +1318,15 @@ function showToast(message, type = 'info') {
                     const rowId = row.Id;
 
                     tr.dataset.id = rowId;
+                    
+                    // Agregar clase para zebra striping (par/impar)
+                    const zebraClass = i % 2 === 0 ? 'row-even' : 'row-odd';
+                    
                     //  OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
+                    // No incluir hoverClassBase ya que el hover se maneja con CSS
                     tr.className = isSelected
                         ? `${baseClass} ${selectedClassBase} rendered`
-                        : `${baseClass} ${hoverClassBase} rendered`;
+                        : `${baseClass} ${zebraClass} rendered`;
 
                     //  OPTIMIZACIÓN: Renderizar celdas con clases pre-calculadas
                     for (let idx = 0; idx < camposLen; idx++) {
@@ -1245,6 +1354,8 @@ function showToast(message, type = 'info') {
                 tbody.appendChild(fragment);
                 updatePagination();
                 applyColumnVisibility();
+                updateColumnFilterIcons();
+                updateColumnPinIcons();
                 if (showLoading) showTableLoading(false);
             }
         } catch (error) {
@@ -1262,7 +1373,11 @@ function showToast(message, type = 'info') {
 
         // Actualizar posiciones de columnas fijadas
         requestAnimationFrame(() => {
+            lockColumnWidths();
             updatePinnedColumnsPositions();
+            // Actualizar iconos después de actualizar posiciones
+            updateColumnFilterIcons();
+            updateColumnPinIcons();
         });
     }
 
@@ -1360,7 +1475,7 @@ function showToast(message, type = 'info') {
         //  OPTIMIZACIÓN: Actualizar solo la fila anterior (sin buscar todas con querySelector)
         if (previousSelectedRow && previousSelectedRow !== row) {
             previousSelectedRow.classList.remove('bg-blue-500', 'text-white', 'selected-row');
-            previousSelectedRow.classList.add('hover:bg-gray-50');
+            // No agregar hover:bg-gray-50 ya que el hover se maneja con CSS
             //  OPTIMIZACIÓN: Actualizar celdas de la fila anterior
             const prevCells = previousSelectedRow.querySelectorAll('td');
             prevCells.forEach(td => {
@@ -1370,7 +1485,6 @@ function showToast(message, type = 'info') {
         }
 
         //  OPTIMIZACIÓN: Actualizar nueva fila seleccionada
-        row.classList.remove('hover:bg-gray-50');
         row.classList.add('bg-blue-500', 'text-white', 'selected-row');
         //  OPTIMIZACIÓN: Actualizar celdas de la nueva fila
         const cells = row.querySelectorAll('td');
@@ -1567,6 +1681,8 @@ function eliminarCodificacion() {
         state.currentPage = 1;
         renderPage();
         updateActiveFiltersUI();
+        // Actualizar iconos de filtro después de aplicar filtros
+        updateColumnFilterIcons();
     }
 
     function applyFilters() {
@@ -1777,6 +1893,7 @@ function eliminarCodificacion() {
         state.filtrosDinamicos.splice(index, 1);
         aplicarFiltrosAND();
         renderModalFilters();
+        updateColumnFilterIcons();
         showToast(
             state.filteredData.length ? `${state.filteredData.length} registros` : 'Filtro eliminado',
             'info'
@@ -1786,6 +1903,7 @@ function eliminarCodificacion() {
     function limpiarFiltrosCodificacion() {
         state.filtrosDinamicos = [];
         aplicarFiltrosAND();
+        updateColumnFilterIcons();
         showToast('Filtros limpiados', 'info');
     }
 
@@ -1906,13 +2024,190 @@ function procesarExcel(file) {
     }
 
     // ============================================
+    //  ACTUALIZAR ICONOS DE FILTROS Y FIJADOS
+    // ============================================
+    function updateColumnFilterIcons() {
+        const thead = $('#mainTable thead');
+        if (!thead) return;
+
+        // Obtener todas las columnas con filtros activos
+        const filteredColumns = new Set();
+        state.filtrosDinamicos.forEach(f => {
+            if (f.columna !== undefined && f.columna !== null) {
+                filteredColumns.add(f.columna);
+            }
+        });
+
+        // Recorrer todos los encabezados
+        const allHeaders = $$('th[data-index]', thead);
+        allHeaders.forEach(th => {
+            const columnIndex = parseInt(th.dataset.index, 10);
+            if (Number.isNaN(columnIndex)) return;
+
+            // Buscar o crear el icono de filtro
+            let filterIcon = th.querySelector('.column-filter-icon');
+
+            if (filteredColumns.has(columnIndex)) {
+                // La columna tiene filtros activos - mostrar icono
+                if (!filterIcon) {
+                    filterIcon = document.createElement('i');
+                    filterIcon.className = 'fas fa-filter column-filter-icon text-yellow-400 ml-1 text-xs cursor-pointer hover:text-yellow-500';
+                    filterIcon.title = 'Columna filtrada - Click para quitar filtro';
+                    filterIcon.style.cursor = 'pointer';
+
+                    // Agregar event listener para eliminar filtro al hacer clic
+                    filterIcon.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        // Eliminar filtros de esta columna
+                        state.filtrosDinamicos = state.filtrosDinamicos.filter(f => f.columna !== columnIndex);
+
+                        // Aplicar filtros actualizados
+                        aplicarFiltrosAND();
+
+                        showToast('Filtro removido de la columna', 'info');
+                    });
+
+                    // Insertar el icono después del texto del encabezado
+                    const headerContent = th.querySelector('div');
+                    if (headerContent) {
+                        // Verificar si ya existe un icono de pin para insertar después
+                        const existingPinIcon = headerContent.querySelector('.column-pin-icon');
+                        if (existingPinIcon) {
+                            headerContent.insertBefore(filterIcon, existingPinIcon);
+                        } else {
+                            headerContent.appendChild(filterIcon);
+                        }
+                    } else {
+                        th.appendChild(filterIcon);
+                    }
+                }
+                filterIcon.style.display = 'inline-block';
+            } else {
+                // La columna no tiene filtros - ocultar icono
+                if (filterIcon) {
+                    filterIcon.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    function updateColumnPinIcons() {
+        const thead = $('#mainTable thead');
+        if (!thead) return;
+
+        // Obtener todas las columnas fijadas
+        const pinnedIndices = new Set(pinnedColumns);
+
+        // Recorrer todos los encabezados
+        const allHeaders = $$('th[data-index]', thead);
+        allHeaders.forEach(th => {
+            const columnIndex = parseInt(th.dataset.index, 10);
+            if (Number.isNaN(columnIndex)) return;
+
+            // Buscar o crear el icono de fijado
+            let pinIcon = th.querySelector('.column-pin-icon');
+
+            if (pinnedIndices.has(columnIndex)) {
+                // La columna está fijada - mostrar icono
+                if (!pinIcon) {
+                    pinIcon = document.createElement('i');
+                    pinIcon.className = 'fas fa-thumbtack column-pin-icon text-white ml-1 text-xs cursor-pointer hover:text-yellow-300';
+                    pinIcon.title = 'Desfijar columna';
+                    pinIcon.dataset.columnIndex = String(columnIndex);
+
+                    // Agregar event listener para desfijar al hacer clic
+                    pinIcon.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const idx = parseInt(pinIcon.dataset.columnIndex || String(columnIndex), 10);
+                        if (!Number.isNaN(idx)) {
+                            togglePinColumn(idx);
+                            showToast('Columna desfijada', 'info');
+                        }
+                    });
+
+                    // Insertar el icono después del texto del encabezado (o después del icono de filtro si existe)
+                    const headerContent = th.querySelector('div');
+                    if (headerContent) {
+                        // Insertar después del icono de filtro si existe, sino al final
+                        const existingFilterIcon = headerContent.querySelector('.column-filter-icon');
+                        if (existingFilterIcon) {
+                            headerContent.insertBefore(pinIcon, existingFilterIcon.nextSibling);
+                        } else {
+                            headerContent.appendChild(pinIcon);
+                        }
+                    } else {
+                        th.appendChild(pinIcon);
+                    }
+                }
+                pinIcon.style.display = 'inline-block';
+            } else {
+                // La columna no está fijada - ocultar icono
+                if (pinIcon) {
+                    pinIcon.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // ============================================
     //  OCULTAR / FIJAR COLUMNAS
     // ============================================
+    function getColElements() {
+        const colgroup = $('#mainTable-colgroup');
+        return colgroup ? Array.from(colgroup.children) : [];
+    }
+
+    function lockColumnWidths(force = false) {
+        if (columnWidthState.locked && !force) return;
+
+        const table = $('#mainTable');
+        const ths = $$('#mainTable thead th');
+        const cols = getColElements();
+        if (!table || !ths.length || !cols.length) return;
+
+        const widths = [];
+        const count = Math.min(ths.length, cols.length);
+        for (let i = 0; i < count; i++) {
+            let width = Math.ceil(ths[i].getBoundingClientRect().width);
+            if (!width) {
+                width = columnWidthState.widths[i] || 0;
+            }
+            widths.push(width);
+            cols[i].style.width = `${width}px`;
+            cols[i].style.minWidth = `${width}px`;
+            cols[i].style.maxWidth = `${width}px`;
+        }
+
+        const hasWidth = widths.some(w => w > 0);
+        if (!hasWidth) return;
+
+        columnWidthState.widths = widths;
+        columnWidthState.locked = true;
+        table.classList.add('locked-layout');
+    }
+
+    function setColVisibility(index, visible) {
+        const cols = getColElements();
+        const col = cols[index];
+        if (!col) return;
+        col.style.display = visible ? '' : 'none';
+        if (visible && columnWidthState.widths[index]) {
+            const width = columnWidthState.widths[index];
+            col.style.width = `${width}px`;
+            col.style.minWidth = `${width}px`;
+            col.style.maxWidth = `${width}px`;
+        }
+    }
+
     function showColumn(index, silent = false) {
         $$(`.column-${index}`).forEach(el => {
             el.style.display = '';
             el.style.visibility = '';
         });
+        setColVisibility(index, true);
         if (Array.isArray(hiddenColumns)) {
             const idx = hiddenColumns.indexOf(index);
             if (idx > -1) {
@@ -1926,6 +2221,7 @@ function procesarExcel(file) {
 
     function hideColumn(index, silent = false) {
         $$(`.column-${index}`).forEach(el => el.style.display = 'none');
+        setColVisibility(index, false);
         if (!hiddenColumns.includes(index)) hiddenColumns.push(index);
         if (!silent && typeof showToast === 'function') {
             showToast(`Columna oculta`, 'info');
@@ -1941,6 +2237,8 @@ function procesarExcel(file) {
         }
         pinnedColumns.sort((a, b) => a - b);
         updatePinnedColumnsPositions();
+        // Actualizar iconos de fijado después de cambiar estado
+        updateColumnPinIcons();
     }
 
     function updatePinnedColumnsPositions() {
@@ -2002,6 +2300,9 @@ function procesarExcel(file) {
             });
             left += width;
         });
+
+        // Actualizar iconos después de cambiar posiciones
+        updateColumnPinIcons();
     }
 
     function openPinColumnsModal() {
@@ -2109,6 +2410,262 @@ function procesarExcel(file) {
     }
 
     // ============================================
+    //  MENÚ CONTEXTUAL DE ENCABEZADOS
+    // ============================================
+    (function initContextMenuHeader() {
+        const menu = $('#context-menu-header');
+        if (!menu) return;
+
+        let menuColumnIndex = null;
+        let menuColumnField = null;
+
+        function hide() {
+            menu.classList.add('hidden');
+            menuColumnIndex = null;
+            menuColumnField = null;
+        }
+
+        function show(e, columnIndex, columnField) {
+            // Cerrar el menú de filas si está abierto
+            const rowMenu = $('#context-menu');
+            if (rowMenu && !rowMenu.classList.contains('hidden')) {
+                rowMenu.classList.add('hidden');
+            }
+
+            menuColumnIndex = columnIndex;
+            menuColumnField = columnField;
+            menu.style.left = e.clientX + 'px';
+            menu.style.top = e.clientY + 'px';
+
+            const rect = menu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) menu.style.left = (e.clientX - rect.width) + 'px';
+            if (rect.bottom > window.innerHeight) menu.style.top = (e.clientY - rect.height) + 'px';
+
+            menu.classList.remove('hidden');
+        }
+
+        // Cerrar al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!menu.classList.contains('hidden') && !menu.contains(e.target)) {
+                hide();
+            }
+        });
+
+        // Cerrar con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !menu.classList.contains('hidden')) {
+                hide();
+            }
+        });
+
+        // Listener de contextmenu en los encabezados
+        const thead = $('#mainTable thead');
+        if (thead) {
+            thead.addEventListener('contextmenu', (e) => {
+                const th = e.target.closest('th');
+                if (!th) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Obtener índice de columna
+                let columnIndex = parseInt(th.dataset.index, 10);
+                if (Number.isNaN(columnIndex)) {
+                    const classMatch = th.className.match(/column-(\d+)/);
+                    if (classMatch) {
+                        columnIndex = parseInt(classMatch[1], 10);
+                    }
+                }
+
+                // Obtener campo de la columna
+                const columnField = CONFIG.camposModelo[columnIndex] || null;
+
+                if (Number.isNaN(columnIndex) || !columnField) {
+                    console.error('[contextMenuHeader] No se pudo obtener índice o campo:', {
+                        index: columnIndex,
+                        field: columnField
+                    });
+                    return;
+                }
+
+                show(e, columnIndex, columnField);
+            });
+        }
+
+        // Botón Filtrar
+        $('#context-menu-header-filtrar')?.addEventListener('click', () => {
+            const savedIndex = menuColumnIndex;
+            const savedField = menuColumnField;
+            hide();
+
+            if (savedIndex !== null && savedIndex >= 0 && savedField) {
+                openFilterModalForColumn(savedIndex, savedField);
+            } else {
+                showToast('No se pudo obtener información de la columna', 'error');
+            }
+        });
+
+        // Botón Fijar
+        $('#context-menu-header-fijar')?.addEventListener('click', () => {
+            const savedIndex = menuColumnIndex;
+            hide();
+
+            if (savedIndex !== null && savedIndex >= 0) {
+                togglePinColumn(savedIndex);
+                showToast('Columna fijada/desfijada', 'info');
+            } else {
+                showToast('No se pudo obtener el índice de la columna', 'error');
+            }
+        });
+
+        // Botón Ocultar
+        $('#context-menu-header-ocultar')?.addEventListener('click', () => {
+            const savedIndex = menuColumnIndex;
+            hide();
+
+            if (savedIndex !== null && savedIndex >= 0) {
+                hideColumn(savedIndex);
+                showToast('Columna oculta', 'info');
+            } else {
+                showToast('No se pudo obtener el índice de la columna', 'error');
+            }
+        });
+    })();
+
+    // ============================================
+    //  FUNCIÓN PARA ABRIR MODAL DE FILTRO POR COLUMNA
+    // ============================================
+    function openFilterModalForColumn(columnIndex, columnField) {
+        if (columnIndex === null || columnIndex === undefined || columnIndex < 0) {
+            showToast('No se pudo obtener el índice de la columna', 'error');
+            return;
+        }
+
+        if (!columnField || typeof columnField !== 'string') {
+            showToast('No se pudo obtener el campo de la columna', 'error');
+            return;
+        }
+
+        // Obtener el label de la columna
+        const columnLabel = CONFIG.columnas[columnIndex]?.nombre || columnField;
+
+        // Obtener valores únicos de la columna desde los datos filtrados
+        const uniqueValues = new Set();
+        const valueCounts = new Map();
+
+        state.filteredData.forEach(row => {
+            const value = row[columnField];
+            if (value !== null && value !== undefined && value !== '') {
+                const valueStr = String(value).trim();
+                if (valueStr) {
+                    if (!valueCounts.has(valueStr)) {
+                        uniqueValues.add(valueStr);
+                        valueCounts.set(valueStr, { value: valueStr, count: 0 });
+                    }
+                    valueCounts.get(valueStr).count++;
+                }
+            }
+        });
+
+        const sortedValues = Array.from(uniqueValues).sort();
+
+        if (sortedValues.length === 0) {
+            showToast('No hay valores para filtrar en esta columna', 'info');
+            return;
+        }
+
+        // Crear HTML del modal
+        const escapedLabel = String(columnLabel).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        let html = `
+            <div class="text-left">
+                <p class="text-sm text-gray-600 mb-4">Filtrar por: <strong>${escapedLabel}</strong></p>
+                <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-2">
+                    <div class="mb-2 pb-2 border-b border-gray-200">
+                        <input type="text" id="filterSearchInput" placeholder="Buscar..." 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div id="filterCheckboxesContainer" class="space-y-1">
+        `;
+
+        sortedValues.forEach(value => {
+            const entry = valueCounts.get(value);
+            const count = entry ? entry.count : 0;
+            const escapedValue = String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const displayValue = escapedValue;
+
+            html += `
+                <label class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer filter-checkbox-item" data-value="${escapedValue}">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 filter-checkbox" value="${escapedValue}">
+                        <span class="text-sm text-gray-700">${displayValue}</span>
+                    </div>
+                    <span class="text-xs text-gray-500">(${count})</span>
+                </label>
+            `;
+        });
+
+        html += '</div></div></div>';
+
+        Swal.fire({
+            title: 'Filtrar Columna',
+            html: html,
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#3b82f6',
+            cancelButtonColor: '#6b7280',
+            width: '500px',
+            didOpen: () => {
+                // Restaurar estado de checkboxes si hay filtros activos para esta columna
+                const activeFiltersForColumn = state.filtrosDinamicos.filter(f => f.columna === columnIndex);
+                if (activeFiltersForColumn.length > 0) {
+                    activeFiltersForColumn.forEach(filter => {
+                        const filterValue = String(filter.valor || '').trim();
+                        const label = Array.from(document.querySelectorAll('.filter-checkbox-item')).find(l => {
+                            return l.dataset.value === filterValue;
+                        });
+                        if (label) {
+                            const checkbox = label.querySelector('.filter-checkbox');
+                            if (checkbox) checkbox.checked = true;
+                        }
+                    });
+                }
+
+                // Búsqueda en tiempo real
+                const searchInput = document.getElementById('filterSearchInput');
+                const container = document.getElementById('filterCheckboxesContainer');
+                const items = container.querySelectorAll('.filter-checkbox-item');
+
+                searchInput?.addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    items.forEach(item => {
+                        const text = item.textContent.toLowerCase();
+                        item.style.display = text.includes(searchTerm) ? '' : 'none';
+                    });
+                });
+
+                searchInput?.focus();
+            },
+            preConfirm: () => {
+                const checked = Array.from(document.querySelectorAll('.filter-checkbox:checked'));
+                const selectedValues = checked.map(cb => cb.value);
+
+                // Eliminar filtros existentes de esta columna
+                state.filtrosDinamicos = state.filtrosDinamicos.filter(f => f.columna !== columnIndex);
+
+                // Agregar nuevos filtros
+                selectedValues.forEach(value => {
+                    state.filtrosDinamicos.push({ columna: columnIndex, valor: value });
+                });
+
+                aplicarFiltrosAND();
+                updateColumnFilterIcons();
+                return true;
+            }
+        });
+    }
+
+    // ============================================
     //  INICIALIZACIÓN
     // ============================================
     function init() {
@@ -2137,9 +2694,16 @@ function procesarExcel(file) {
         if (next) next.onclick = () => goToPage(state.currentPage + 1);
 
         window.addEventListener('resize', () => {
-            if (virtualState.active) {
-                scheduleVirtualUpdate(true);
-            }
+            if (resizeRaf) return;
+            resizeRaf = requestAnimationFrame(() => {
+                resizeRaf = null;
+                columnWidthState.locked = false;
+                lockColumnWidths(true);
+                updatePinnedColumnsPositions();
+                if (virtualState.active) {
+                    scheduleVirtualUpdate(true);
+                }
+            });
         });
 
         // Menú contextual
@@ -2193,6 +2757,8 @@ function procesarExcel(file) {
     window.hideColumn                = hideColumn;
     window.showColumn                = showColumn;
     window.togglePinColumn           = togglePinColumn;
+    window.updateColumnFilterIcons   = updateColumnFilterIcons;
+    window.updateColumnPinIcons      = updateColumnPinIcons;
     window.loadData                  = () => loadData({ force: true }); // Refrescar sin cache después de crear/editar/eliminar
     window.renderPage                = renderPage; // Exponer renderPage para actualizar vista sin recargar
     window.addCodificacionRecords = function(newRecords) {

@@ -13,7 +13,7 @@
         <x-buttons.catalog-actions route="telares" :showFilters="true" />
 --}}
 
-@props(['route' => null, 'showFilters' => false])
+@props(['route' => null, 'showFilters' => false, 'showExcel' => true])
 
 @php
     // Mapeo de rutas a nombres de módulos en la tabla SYSRoles
@@ -56,7 +56,7 @@
 
         @if($puedeCrear)
             {{-- Para calendarios, mostrar dos botones de Excel separados --}}
-            @if($route === 'calendarios')
+            @if($showExcel && $route === 'calendarios')
                 <button id="btn-subir-excel-calendarios" onclick="subirExcelCalendariosMaestro()"
                 class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors"
                 title="Subir Calendarios" aria-label="Subir Calendarios">
@@ -68,7 +68,7 @@
                 title="Subir Líneas" aria-label="Subir Líneas">
                     <i class="fas fa-file-excel text-lg" aria-hidden="true"></i>
                 </button>
-            @else
+            @elseif($showExcel)
                 {{-- Para otros módulos, botón único --}}
                 <button id="btn-subir-excel" onclick="subirExcel{{ $routeJs }}()"
                 class="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-md transition-colors"
@@ -432,4 +432,3 @@
     };
     });
 </script>
-

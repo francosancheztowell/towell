@@ -6,6 +6,7 @@
     $isProgramaTejido = request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido');
     $showParoButton = !request()->routeIs('catalogos.req-programa-tejido') 
         && !request()->routeIs('programa.urd.eng.reservar.programar') 
+        && !request()->routeIs('codificacion-modelos')
         && !request()->is('simulacion*');
 
     // Información del usuario
