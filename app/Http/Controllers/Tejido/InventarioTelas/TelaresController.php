@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tejido\InventarioTelas;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TelaresController extends Controller
 {
@@ -29,16 +30,22 @@ class TelaresController extends Controller
             $telarEnProceso = $this->objTelarVacio($telar);
         }
 
-        // Siguiente orden programada (por FechaInicio -> inmediata)
+        // Siguiente orden programada (por Posicion/Secuencia)
         $ordenSig = null;
-        if (!empty($telarEnProceso->Inicio_Tejido)) {
+        if ($telarEnProceso->en_proceso) {
             $noTelarIdUsado = $telarEnProceso->NoTelarIdOriginal ?? $telarEnProceso->Telar ?? $telar;
+            $posicionActual = isset($telarEnProceso->Posicion) ? (int)$telarEnProceso->Posicion : null;
             $ordenSig = $this->fetchSiguienteOrden(
                 $salones,
                 $noTelarIdUsado,
-                $telarEnProceso->Inicio_Tejido,
-                $telarEnProceso->ProgramaId ?? null
+                $telarEnProceso->Inicio_Tejido ?? null,
+                $telarEnProceso->ProgramaId ?? null,
+                $posicionActual
             );
+            // Si no encuentra con posición, buscar cualquier orden disponible
+            if (!$ordenSig) {
+                $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $noTelarIdUsado);
+            }
         }
 
         $datos = collect([$telarEnProceso]);
@@ -93,17 +100,47 @@ class TelaresController extends Controller
             $ordenSig = null;
 
             if ($telarEnProceso && $telarEnProceso->en_proceso) {
-                // Si hay telar en proceso, buscar siguiente orden usando su fecha
+                // Si hay telar en proceso, buscar siguiente orden usando su posición (secuencia)
+                $posicionActual = isset($telarEnProceso->Posicion) ? (int)$telarEnProceso->Posicion : null;
+                
+                Log::info("Telar {$numeroTelar} - Proceso encontrado", [
+                    'Posicion' => $posicionActual,
+                    'ProgramaId' => $telarEnProceso->ProgramaId ?? null,
+                    'Inicio_Tejido' => $telarEnProceso->Inicio_Tejido ?? null,
+                ]);
+                
                 $ordenSig = $this->fetchSiguienteOrden(
                     $salones,
                     $numeroTelar,
-                    $telarEnProceso->Inicio_Tejido,
-                    $telarEnProceso->ProgramaId ?? null
+                    $telarEnProceso->Inicio_Tejido ?? null,
+                    $telarEnProceso->ProgramaId ?? null,
+                    $posicionActual
                 );
+                
+                Log::info("Telar {$numeroTelar} - Resultado búsqueda por Posicion", [
+                    'encontrada' => $ordenSig ? 'SI' : 'NO',
+                    'Orden_Prod' => $ordenSig->Orden_Prod ?? null,
+                    'Posicion' => $ordenSig->Posicion ?? null,
+                ]);
+                
+                // Si no encuentra con posición, buscar cualquier orden disponible
+                if (!$ordenSig) {
+                    $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
+                    Log::info("Telar {$numeroTelar} - Resultado búsqueda fallback", [
+                        'encontrada' => $ordenSig ? 'SI' : 'NO',
+                        'Orden_Prod' => $ordenSig->Orden_Prod ?? null,
+                        'Posicion' => $ordenSig->Posicion ?? null,
+                    ]);
+                }
             } else {
                 // Si no hay proceso, buscar la primera orden disponible (más próxima)
                 $telarEnProceso = $this->objTelarVacio($numeroTelar);
                 $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
+                Log::info("Telar {$numeroTelar} - Sin proceso, búsqueda primera orden", [
+                    'encontrada' => $ordenSig ? 'SI' : 'NO',
+                    'Orden_Prod' => $ordenSig->Orden_Prod ?? null,
+                    'Posicion' => $ordenSig->Posicion ?? null,
+                ]);
             }
 
             $datosTelaresCompletos[$numeroTelar] = [
@@ -157,6 +194,10 @@ class TelaresController extends Controller
                     $telarEnProceso->Inicio_Tejido,
                     $telarEnProceso->ProgramaId ?? null
                 );
+                // Si no encuentra con fecha, buscar cualquier orden disponible
+                if (!$ordenSig) {
+                    $ordenSig = $this->fetchPrimeraOrdenDisponibleConCandidatos($salones, $candidatosOrden);
+                }
             } else {
                 // Si no hay proceso, buscar la primera orden disponible
                 $telarEnProceso = $this->objTelarVacio($numeroTelar);
@@ -199,12 +240,18 @@ class TelaresController extends Controller
             $ordenSig = null;
 
             if ($telarEnProceso && $telarEnProceso->en_proceso) {
+                $posicionActual = isset($telarEnProceso->Posicion) ? (int)$telarEnProceso->Posicion : null;
                 $ordenSig = $this->fetchSiguienteOrden(
                     $salones,
                     $numeroTelar,
-                    $telarEnProceso->Inicio_Tejido,
-                    $telarEnProceso->ProgramaId ?? null
+                    $telarEnProceso->Inicio_Tejido ?? null,
+                    $telarEnProceso->ProgramaId ?? null,
+                    $posicionActual
                 );
+                // Si no encuentra con posición, buscar cualquier orden disponible
+                if (!$ordenSig) {
+                    $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
+                }
             } else {
                 $telarEnProceso = $this->objTelarVacio($numeroTelar);
                 $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
@@ -267,7 +314,7 @@ class TelaresController extends Controller
             ->whereIn('SalonTejidoId', $salones)
             ->where('NoTelarId', $telarId)
             ->where('EnProceso', 1)
-            ->select('Id as ProgramaId', 'FechaInicio')
+            ->select('Id as ProgramaId', 'FechaInicio', 'Posicion')
             ->first();
 
         if (!$telarEnProceso) {
@@ -277,14 +324,15 @@ class TelaresController extends Controller
         $siguienteOrden = $this->fetchSiguienteOrden(
             $salones,
             $telarId,
-            $telarEnProceso->FechaInicio,
+            $telarEnProceso->FechaInicio ?? null,
             $telarEnProceso->ProgramaId,
+            $telarEnProceso->Posicion ?? null,
             [
                 'CuentaRizo as Cuenta',
-                'CalibreRizo as Calibre_Rizo',
+                'CalibreRizo2',
                 'FibraRizo as Fibra_Rizo',
                 'CuentaPie as Cuenta_Pie',
-                'CalibrePie as Calibre_Pie',
+                'CalibrePie2',
                 'FibraPie as Fibra_Pie'
             ]
         );
@@ -334,6 +382,7 @@ class TelaresController extends Controller
             'NoTelarId as Telar',
             'NoTelarId as NoTelarIdOriginal',
             'EnProceso as en_proceso',
+            'Posicion',                        // <= para buscar siguiente orden por secuencia
             'NoProduccion as Orden_Prod',
             'FlogsId as Id_Flog',
             'CustName as Cliente',
@@ -404,7 +453,7 @@ class TelaresController extends Controller
      * Traer la siguiente orden programada con select configurable.
      * Si hay varias con la misma FechaInicio, se toma la de Id mayor al actual.
      */
-    private function fetchSiguienteOrden(array $salones, $noTelarId, $fechaInicioActual, $programaIdActual = null, array $select = null)
+    private function fetchSiguienteOrden(array $salones, $noTelarId, $fechaInicioActual, $programaIdActual = null, $posicionActual = null, array $select = null)
     {
         $select = $select ?: [
             'NoTelarId as Telar',
@@ -423,33 +472,97 @@ class TelaresController extends Controller
             'EntregaCte as Entrega'
         ];
 
-        return DB::table('ReqProgramaTejido')
+        Log::info("fetchSiguienteOrden - Parámetros", [
+            'noTelarId' => $noTelarId,
+            'salones' => $salones,
+            'posicionActual' => $posicionActual,
+            'fechaInicioActual' => $fechaInicioActual,
+            'programaIdActual' => $programaIdActual,
+        ]);
+
+        // DEBUG: Ver todas las órdenes del telar (en proceso y no en proceso)
+        $todasOrdenes = DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->where('NoTelarId', $noTelarId)
-            ->where('EnProceso', 0)
-            ->whereNotNull('FechaInicio')
-            ->where(function ($q) use ($fechaInicioActual, $programaIdActual) {
-                $q->where('FechaInicio', '>', $fechaInicioActual);
+            ->select('Id', 'EnProceso', 'Posicion', 'NoProduccion', 'FechaInicio')
+            ->orderBy('Posicion', 'asc')
+            ->orderBy('FechaInicio', 'asc')
+            ->get();
+        
+        Log::info("fetchSiguienteOrden - DEBUG: Todas las órdenes del telar {$noTelarId}", [
+            'total' => $todasOrdenes->count(),
+            'ordenes' => $todasOrdenes->map(function($o) {
+                return [
+                    'Id' => $o->Id,
+                    'EnProceso' => $o->EnProceso,
+                    'Posicion' => $o->Posicion,
+                    'NoProduccion' => $o->NoProduccion,
+                    'FechaInicio' => $o->FechaInicio,
+                ];
+            })->toArray(),
+        ]);
 
-                // Si hay varias con la misma FechaInicio, tomar la siguiente por Id
-                if (!is_null($programaIdActual)) {
-                    $q->orWhere(function ($qq) use ($fechaInicioActual, $programaIdActual) {
-                        $qq->where('FechaInicio', '=', $fechaInicioActual)
-                           ->where('Id', '>', $programaIdActual);
-                    });
-                }
+        // Si hay posición actual, buscar por secuencia (Posicion mayor a la actual)
+        if (!is_null($posicionActual) && $posicionActual > 0) {
+            // Intentar buscar con Posicion mayor primero
+            // IMPORTANTE: EnProceso puede ser NULL, no solo 0
+            $ordenConPosicion = DB::table('ReqProgramaTejido')
+                ->whereIn('SalonTejidoId', $salones)
+                ->where('NoTelarId', $noTelarId)
+                ->where(function($q) {
+                    $q->where('EnProceso', 0)
+                      ->orWhereNull('EnProceso');
+                })
+                ->whereNotNull('Posicion')
+                ->where('Posicion', '>', $posicionActual)
+                ->select($select)
+                ->orderBy('Posicion', 'asc')
+                ->orderBy('FechaInicio', 'asc')
+                ->orderBy('Id', 'asc')
+                ->first();
+            
+            Log::info("fetchSiguienteOrden - Búsqueda con Posicion > {$posicionActual}", [
+                'encontrada' => $ordenConPosicion ? 'SI' : 'NO',
+                'Orden_Prod' => $ordenConPosicion->Orden_Prod ?? null,
+                'Posicion' => $ordenConPosicion->Posicion ?? null,
+            ]);
+            
+            if ($ordenConPosicion) {
+                return $ordenConPosicion;
+            }
+        }
+
+        // Si no encontró con Posicion específica, buscar cualquier orden disponible
+        // Priorizar las que tienen Posicion
+        // IMPORTANTE: EnProceso puede ser NULL, no solo 0
+        $ordenDisponible = DB::table('ReqProgramaTejido')
+            ->whereIn('SalonTejidoId', $salones)
+            ->where('NoTelarId', $noTelarId)
+            ->where(function($q) {
+                $q->where('EnProceso', 0)
+                  ->orWhereNull('EnProceso');
             })
             ->select($select)
+            ->orderByRaw('CASE WHEN Posicion IS NOT NULL THEN 0 ELSE 1 END') // Priorizar Posicion
+            ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc')
             ->orderBy('Id', 'asc')
             ->first();
+        
+        Log::info("fetchSiguienteOrden - Búsqueda general", [
+            'encontrada' => $ordenDisponible ? 'SI' : 'NO',
+            'Orden_Prod' => $ordenDisponible->Orden_Prod ?? null,
+            'Posicion' => $ordenDisponible->Posicion ?? null,
+        ]);
+        
+        return $ordenDisponible;
     }
 
     /**
      * Traer la siguiente orden programada usando candidatos (útil para ITEMA con 3XX/1XX).
      * Busca en todos los candidatos y retorna la primera orden siguiente encontrada.
      */
-    private function fetchSiguienteOrdenConCandidatos(array $salones, array $candidatos, $fechaInicioActual, $programaIdActual = null, array $select = null)
+    private function fetchSiguienteOrdenConCandidatos(array $salones, array $candidatos, $fechaInicioActual, $programaIdActual = null, $posicionActual = null, array $select = null)
     {
         $select = $select ?: [
             'NoTelarId as Telar',
@@ -458,33 +571,53 @@ class TelaresController extends Controller
             'TamanoClave as Tamano_AX',
             'NombreProducto as Nombre_Producto',
             'CuentaRizo as Cuenta',
-            'CalibreRizo as Calibre_Rizo',
+            'CalibreRizo2',
             'FibraRizo as Fibra_Rizo',
             'CuentaPie as Cuenta_Pie',
-            'CalibrePie as Calibre_Pie',
+            'CalibrePie2',
             'FibraPie as Fibra_Pie',
             'TotalPedido as Saldos',
             'FechaInicio as Inicio_Tejido',
             'EntregaCte as Entrega'
         ];
 
+        // Si hay posición actual, buscar por secuencia (Posicion mayor a la actual)
+        if (!is_null($posicionActual) && $posicionActual > 0) {
+            // Intentar buscar con Posicion mayor primero
+            // IMPORTANTE: EnProceso puede ser NULL, no solo 0
+            $ordenConPosicion = DB::table('ReqProgramaTejido')
+                ->whereIn('SalonTejidoId', $salones)
+                ->whereIn('NoTelarId', $candidatos)
+                ->where(function($q) {
+                    $q->where('EnProceso', 0)
+                      ->orWhereNull('EnProceso');
+                })
+                ->whereNotNull('Posicion')
+                ->where('Posicion', '>', $posicionActual)
+                ->select($select)
+                ->orderBy('Posicion', 'asc')
+                ->orderBy('FechaInicio', 'asc')
+                ->orderBy('Id', 'asc')
+                ->first();
+            
+            if ($ordenConPosicion) {
+                return $ordenConPosicion;
+            }
+        }
+
+        // Si no encontró con Posicion específica, buscar cualquier orden disponible
+        // Priorizar las que tienen Posicion
+        // IMPORTANTE: EnProceso puede ser NULL, no solo 0
         return DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->whereIn('NoTelarId', $candidatos)
-            ->where('EnProceso', 0)
-            ->whereNotNull('FechaInicio')
-            ->where(function ($q) use ($fechaInicioActual, $programaIdActual) {
-                $q->where('FechaInicio', '>', $fechaInicioActual);
-
-                // Si hay varias con la misma FechaInicio, tomar la siguiente por Id
-                if (!is_null($programaIdActual)) {
-                    $q->orWhere(function ($qq) use ($fechaInicioActual, $programaIdActual) {
-                        $qq->where('FechaInicio', '=', $fechaInicioActual)
-                           ->where('Id', '>', $programaIdActual);
-                    });
-                }
+            ->where(function($q) {
+                $q->where('EnProceso', 0)
+                  ->orWhereNull('EnProceso');
             })
             ->select($select)
+            ->orderByRaw('CASE WHEN Posicion IS NOT NULL THEN 0 ELSE 1 END') // Priorizar Posicion
+            ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc')
             ->orderBy('Id', 'asc')
             ->first();
@@ -515,25 +648,84 @@ class TelaresController extends Controller
             'TamanoClave as Tamano_AX',
             'NombreProducto as Nombre_Producto',
             'CuentaRizo as Cuenta',
-            'CalibreRizo as Calibre_Rizo',
+            'CalibreRizo2',
             'FibraRizo as Fibra_Rizo',
             'CuentaPie as Cuenta_Pie',
-            'CalibrePie as Calibre_Pie',
+            'CalibrePie2',
             'FibraPie as Fibra_Pie',
             'TotalPedido as Saldos',
             'FechaInicio as Inicio_Tejido',
             'EntregaCte as Entrega'
         ];
 
-        return DB::table('ReqProgramaTejido')
+        Log::info("fetchPrimeraOrdenDisponible - Parámetros", [
+            'noTelarId' => $noTelarId,
+            'salones' => $salones,
+        ]);
+
+        // Buscar ordenada por Posicion (secuencia), luego por fecha
+        // IMPORTANTE: EnProceso puede ser NULL, no solo 0
+        $orden = DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->where('NoTelarId', $noTelarId)
-            ->where('EnProceso', 0)
-            ->whereNotNull('FechaInicio')
+            ->where(function($q) {
+                $q->where('EnProceso', 0)
+                  ->orWhereNull('EnProceso');
+            })
+            ->whereNotNull('Posicion')
             ->select($select)
+            ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc')
             ->orderBy('Id', 'asc')
             ->first();
+
+        Log::info("fetchPrimeraOrdenDisponible - Búsqueda con Posicion", [
+            'encontrada' => $orden ? 'SI' : 'NO',
+            'Orden_Prod' => $orden->Orden_Prod ?? null,
+            'Posicion' => $orden->Posicion ?? null,
+        ]);
+
+        // Si no encuentra con Posicion, buscar con FechaInicio
+        if (!$orden) {
+            $orden = DB::table('ReqProgramaTejido')
+                ->whereIn('SalonTejidoId', $salones)
+                ->where('NoTelarId', $noTelarId)
+                ->where(function($q) {
+                    $q->where('EnProceso', 0)
+                      ->orWhereNull('EnProceso');
+                })
+                ->whereNotNull('FechaInicio')
+                ->select($select)
+                ->orderBy('FechaInicio', 'asc')
+                ->orderBy('Id', 'asc')
+                ->first();
+            
+            Log::info("fetchPrimeraOrdenDisponible - Búsqueda con FechaInicio", [
+                'encontrada' => $orden ? 'SI' : 'NO',
+                'Orden_Prod' => $orden->Orden_Prod ?? null,
+            ]);
+        }
+
+        // Si aún no encuentra, buscar sin restricciones
+        if (!$orden) {
+            $orden = DB::table('ReqProgramaTejido')
+                ->whereIn('SalonTejidoId', $salones)
+                ->where('NoTelarId', $noTelarId)
+                ->where(function($q) {
+                    $q->where('EnProceso', 0)
+                      ->orWhereNull('EnProceso');
+                })
+                ->select($select)
+                ->orderBy('Id', 'asc')
+                ->first();
+            
+            Log::info("fetchPrimeraOrdenDisponible - Búsqueda sin restricciones", [
+                'encontrada' => $orden ? 'SI' : 'NO',
+                'Orden_Prod' => $orden->Orden_Prod ?? null,
+            ]);
+        }
+
+        return $orden;
     }
 
     /**
@@ -548,25 +740,63 @@ class TelaresController extends Controller
             'TamanoClave as Tamano_AX',
             'NombreProducto as Nombre_Producto',
             'CuentaRizo as Cuenta',
-            'CalibreRizo as Calibre_Rizo',
+            'CalibreRizo2',
             'FibraRizo as Fibra_Rizo',
             'CuentaPie as Cuenta_Pie',
-            'CalibrePie as Calibre_Pie',
+            'CalibrePie2',
             'FibraPie as Fibra_Pie',
             'TotalPedido as Saldos',
             'FechaInicio as Inicio_Tejido',
             'EntregaCte as Entrega'
         ];
 
-        return DB::table('ReqProgramaTejido')
+        // Buscar ordenada por Posicion (secuencia), luego por fecha
+        // IMPORTANTE: EnProceso puede ser NULL, no solo 0
+        $orden = DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->whereIn('NoTelarId', $candidatos)
-            ->where('EnProceso', 0)
-            ->whereNotNull('FechaInicio')
+            ->where(function($q) {
+                $q->where('EnProceso', 0)
+                  ->orWhereNull('EnProceso');
+            })
+            ->whereNotNull('Posicion')
             ->select($select)
+            ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc')
             ->orderBy('Id', 'asc')
             ->first();
+
+        // Si no encuentra con Posicion, buscar con FechaInicio
+        if (!$orden) {
+            $orden = DB::table('ReqProgramaTejido')
+                ->whereIn('SalonTejidoId', $salones)
+                ->whereIn('NoTelarId', $candidatos)
+                ->where(function($q) {
+                    $q->where('EnProceso', 0)
+                      ->orWhereNull('EnProceso');
+                })
+                ->whereNotNull('FechaInicio')
+                ->select($select)
+                ->orderBy('FechaInicio', 'asc')
+                ->orderBy('Id', 'asc')
+                ->first();
+        }
+
+        // Si aún no encuentra, buscar sin restricciones
+        if (!$orden) {
+            $orden = DB::table('ReqProgramaTejido')
+                ->whereIn('SalonTejidoId', $salones)
+                ->whereIn('NoTelarId', $candidatos)
+                ->where(function($q) {
+                    $q->where('EnProceso', 0)
+                      ->orWhereNull('EnProceso');
+                })
+                ->select($select)
+                ->orderBy('Id', 'asc')
+                ->first();
+        }
+
+        return $orden;
     }
 
     /**
