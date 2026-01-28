@@ -87,7 +87,7 @@
                 @endphp
                 @forelse($actividades as $a)
                     <tr class="hover:bg-gray-50 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
-                        <td class="px-1 py-2 text-slate-600 font-medium sticky left-0 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20">{{ $a['Orden'] }}</td>
+                        <td class="px-1 py-2 text-slate-600 font-medium sticky left-0 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20">{{ $loop->iteration }}</td>
                         <td class="px-1 py-2 text-gray-800 font-medium sticky left-8 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20 min-w-[120px] max-w-[120px] text-xs truncate" title="{{ $a['Actividad'] }}">{{ $a['Actividad'] }}</td>
                         @foreach($telares->slice(0, 10) as $t)
                             @php $val = $map[$a['Orden']][$t] ?? null; @endphp
