@@ -101,6 +101,10 @@ class ModuloProduccionEngomadoController extends Controller
 
         // Si no hay orden_id, mostrar vista vacía
         if (!$ordenId) {
+            $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
+                ->orderBy('Folio', 'desc')
+                ->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
+
             return view('modulos.engomado.modulo-produccion-engomado', [
                 'orden' => null,
                 'julios' => collect([]),
@@ -112,6 +116,7 @@ class ModuloProduccionEngomadoController extends Controller
                 'observaciones' => '',
                 'totalRegistros' => 0,
                 'registrosProduccion' => collect([]),
+                'foliosPrograma' => $foliosPrograma,
             ]);
         }
 
@@ -284,6 +289,11 @@ class ModuloProduccionEngomadoController extends Controller
         // Obtener catálogo de ubicaciones
         $ubicaciones = CatUbicaciones::orderBy('Codigo')->get();
 
+        // Folios disponibles para nueva formulación
+        $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
+            ->orderBy('Folio', 'desc')
+            ->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
+
         // Variables para la vista (sin restricción de área)
         $puedeCrearRegistros = true;
         $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
@@ -314,6 +324,7 @@ class ModuloProduccionEngomadoController extends Controller
             'tieneRegistrosExistentes' => $tieneRegistrosExistentes,
             'usuarioArea' => $usuarioArea,
             'ubicaciones' => $ubicaciones,
+            'foliosPrograma' => $foliosPrograma,
         ]);
     }
 
