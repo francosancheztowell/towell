@@ -592,7 +592,9 @@
                 <div class="engomado-footer-cell"><strong>NÚCLEO:</strong> {{ $ordenEngomado->Nucleo ?? '-' }}</div>
                 <div class="engomado-footer-cell"><strong>ANCHO BALONAS:</strong> {{ $ordenEngomado->AnchoBalonas ?? '-' }}</div>
                 <div class="engomado-footer-cell"><strong>CUENDEADOS MÍNIMO:</strong> {{ $ordenEngomado->Cuentados ?? '-' }}</div>
-                <div class="engomado-footer-cell"><strong>OBSERVACIONES:</strong> {{ $ordenEngomado->Obs ?? 'Texto para mostrar, aqui el usuario podra escribir sus observaciones' }}</div>
+                @if(!empty($ordenEngomado->Obs))
+                    <div class="engomado-footer-cell"><strong>OBSERVACIONES:</strong> {{ $ordenEngomado->Obs }}</div>
+                @endif
             </div>
             <div class="engomado-footer-row">
                 <div class="engomado-footer-cell"><strong>NO. TELAS:</strong> {{ $ordenEngomado->NoTelas ?? '-' }}</div>

@@ -25,32 +25,32 @@
             <!-- Columna Izquierda -->
             <div class="col-span-12 md:col-span-2 flex flex-col space-y-3">
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Folio:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $orden ? $orden->Folio : '-' }}</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Folio:</span>
+                        <span class="text-md text-gray-900 flex-1">{{ $orden ? $orden->Folio : '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Cuenta:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $orden ? ($orden->Cuenta ?? '-') : '-' }}</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Cuenta:</span>
+                        <span class="text-md text-gray-900 flex-1">{{ $orden ? ($orden->Cuenta ?? '-') : '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Urdido:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $orden ? ($orden->MaquinaId ?? '-') : '-' }}</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Urdido:</span>
+                        <span class="text-md text-gray-900 flex-1">{{ $orden ? ($orden->MaquinaId ?? '-') : '-' }}</span>
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Metros:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $metros ?? '0' }}</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Metros:</span>
+                        <span class="text-md text-gray-900 flex-1">{{ $metros ?? '0' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Proveedor:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $loteProveedor ?? '-' }}</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[55px]">Proveedor:</span>
+                        <span class="text-md text-gray-900 flex-1">{{ $loteProveedor ?? '-' }}</span>
                 </div>
             </div>
 
             <!-- Columna Centro -->
                 <div class="col-span-12 md:col-span-2 flex flex-col space-y-4">
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Tipo:</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Tipo:</span>
                         @if($orden && $orden->RizoPie)
                             @php
                                 $tipo = strtoupper(trim($orden->RizoPie));
@@ -61,20 +61,20 @@
                                 {{ $orden->RizoPie }}
                     </span>
                         @else
-                            <span class="text-sm text-gray-500 italic">-</span>
+                            <span class="text-md text-gray-500 italic">-</span>
                         @endif
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Destino:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $destino ?? '-' }}</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Destino:</span>
+                        <span class="text-md text-gray-900 flex-1">{{ $destino ?? '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Ordenado por:</span>
-                        <span class="text-sm text-gray-900 flex-1">{{ $nomEmpl ?? '-' }}</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Ordenado por:</span>
+                        <span class="text-md text-gray-900 flex-1">{{ $nomEmpl ?? '-' }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Hilo:</span>
-                        <span class="text-sm text-gray-500 italic flex-1">{{ $hilo ?? '-' }}</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Hilo:</span>
+                        <span class="text-md text-gray-500 italic flex-1">{{ $hilo ?? '-' }}</span>
                 </div>
                 <div class="flex-1"></div>
             </div>
@@ -82,14 +82,14 @@
             <!-- Columna 3: Tabla No. JULIO y HILOS -->
                 <div class="col-span-12 md:col-span-4 flex flex-col">
                 <div class="flex-1 flex flex-col">
-                        <label class="block text-sm font-semibold text-gray-700 text-center">Información de Julio</label>
+                        <label class="block text-md font-semibold text-gray-700 text-center">Información de Julio</label>
                     <div class="border border-gray-300 rounded overflow-hidden max-w-md mx-auto w-full">
-                        <table class="w-full text-sm" style="table-layout: fixed;">
+                        <table class="w-full text-md" style="table-layout: fixed;">
                             <thead>
                                 <tr>
-                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 border-gray-300 text-sm px-2" style="width: 80px;">No. Julio</th>
-                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 text-sm px-2" style="width: 70px;">Hilos</th>
-                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 text-sm px-2" style="width: 180px;">Obs.</th>
+                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 border-gray-300 text-md px-2" style="width: 80px;">No. Julio</th>
+                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 text-md px-2" style="width: 70px;">Hilos</th>
+                                    <th class="text-center bg-gray-200 font-semibold text-gray-700 text-md px-2" style="width: 180px;">Obs.</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -97,13 +97,13 @@
                                         @foreach($julios as $julio)
                                 <tr>
                                     <td class="border border-r border-gray-200 text-center py-1 px-2" style="width: 80px;">
-                                                    <span class="text-sm text-gray-900">{{ $julio->Julios ?? '-' }}</span>
+                                                    <span class="text-md text-gray-900">{{ $julio->Julios ?? '-' }}</span>
                                     </td>
                                     <td class="border text-center py-1 px-2" style="width: 70px;">
-                                                    <span class="text-sm text-gray-900">{{ $julio->Hilos ?? '-' }}</span>
+                                                    <span class="text-md text-gray-900">{{ $julio->Hilos ?? '-' }}</span>
                                     </td>
                                     <td class="border text-center py-1 px-2" style="width: 180px;">
-                                                    <span class="text-sm text-gray-900">{{ $julio->Obs ?? '-' }}</span>
+                                                    <span class="text-md text-gray-900">{{ $julio->Obs ?? '-' }}</span>
                                     </td>
                                 </tr>
                                         @endforeach
@@ -124,8 +124,8 @@
             <!-- Columna 4: Observaciones -->
             <div class="col-span-12 md:col-span-4 flex flex-col">
                 <div class="flex-1 flex flex-col">
-                    <label class="block text-sm font-semibold text-gray-700">Observaciones:</label>
-                    <div class="flex-1 w-full border border-gray-300 rounded px-2 text-sm overflow-y-auto">
+                    <label class="block text-md font-semibold text-gray-700">Observaciones:</label>
+                    <div class="flex-1 w-full border border-gray-300 rounded px-2 text-md overflow-y-auto">
                             <span class="text-gray-500 whitespace-pre-wrap">{{ $observaciones ?? '-' }}</span>
                     </div>
                 </div>
@@ -136,7 +136,7 @@
     <!-- Sección inferior: Tabla de Producción -->
     <div class="bg-white shadow-md overflow-hidden">
             <div class="overflow-x-auto max-h-[55vh] overflow-y-auto">
-                <table class=" text-sm w-full">
+                <table class=" text-md w-full">
                 <thead class="bg-blue-500 text-white sticky top-0 z-20">
                     <tr>
                         <th class="py-1"></th>
@@ -154,17 +154,17 @@
                     </tr>
                     <!-- Cabecera de la tabla de producción -->
                     <tr>
-                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold sticky left-0 z-30 text-xs md:text-sm w-16 md:w-14 lg:w-20">Fecha</th>
-                        <th class="py-2 px-1 md:px-1 text-center font-semibold text-xs md:text-sm w-24 md:w-28 lg:w-32">Oficial</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm w-20 max-w-[60px]">Turno</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Fin</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm w-24 max-w-[75px]">No. Julio</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-20 max-w-[60px]">Hilos</th>
+                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold sticky left-0 z-30 text-xs md:text-md w-16 md:w-14 lg:w-20">Fecha</th>
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold text-md w-24 md:w-28 lg:w-32">Oficial</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md w-20 max-w-[60px]">Turno</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-32 max-w-[110px]">H. Fin</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md w-24 max-w-[75px]">No. Julio</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-20 max-w-[60px]">Hilos</th>
                         <th class="py-2 px-1 md:px-0.5 text-center font-semibold text-[10px] md:text-xs w-12 md:w-10 lg:w-12">Kg. Bruto</th>
                         <th class="py-2 px-1 md:px-0.5 text-center font-semibold text-[10px] md:text-xs w-10 md:w-9 lg:w-10">Tara</th>
                         <th class="py-2 px-1 md:px-0.5 text-center font-semibold text-[10px] md:text-xs w-12 md:w-10 lg:w-12">Kg. Neto</th>
-                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold text-xs md:text-sm w-16 md:w-14 lg:w-20">Metros</th>
+                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold text-xs md:text-md w-14 md:w-12 lg:w-20">Metros</th>
                         <th class="py-2 px-1 md:px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-12 md:w-10 lg:w-12 h-10 md:h-12 relative align-bottom">
                             <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Hilat.</span>
                         </th>
@@ -261,7 +261,7 @@
                                 >
                                 <button
                                     type="button"
-                                    class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-sm bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
+                                    class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-md bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
                                     data-registro-id="{{ $registroId }}"
                                 >
                                     <span class="fecha-display-text text-gray-900 font-medium">
@@ -277,7 +277,7 @@
                                             @if($tieneOficiales)
                                                 <select
                                                     data-field="oficial"
-                                                    class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-xs md:text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 oficial-select"
+                                                    class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 oficial-select"
                                                     data-registro-id="{{ $registroId }}"
                                                 >
                                                     <option value="">Seleccionar oficial...</option>
@@ -322,7 +322,7 @@
                         <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap w-20 max-w-[60px]">
                                         <select
                                             data-field="turno"
-                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-md text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             min="1"
                                             max="3"
                                         >
@@ -339,7 +339,7 @@
                                             <input
                                                 type="time"
                                                 data-field="h_inicio"
-                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                                 value="{{ $horaInicio }}"
                                             >
                                             <i
@@ -356,7 +356,7 @@
                                             <input
                                                 type="time"
                                                 data-field="h_fin"
-                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                                 value="{{ $horaFin }}"
                                             >
                                             <i
@@ -371,7 +371,7 @@
                         <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap w-24 max-w-[75px]">
                                         <select
                                             data-field="no_julio"
-                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-julio"
+                                            class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-md text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-julio"
                                             data-valor-inicial="{{ $noJulio }}"
                                         >
                                 <option value="">Seleccionar...</option>
@@ -384,7 +384,7 @@
                                             type="number"
                                             disabled
                                             data-field="hilos"
-                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-xs text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-hilos"
+                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-md text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-hilos"
                                             value="{{ $hilos }}"
                                         >
                         </td>
@@ -395,7 +395,7 @@
                                             type="number"
                                             step="0.01"
                                             data-field="kg_bruto"
-                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-xs md:text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-md text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $kgBruto }}"
                                         >
                         </td>
@@ -407,7 +407,7 @@
                                             step="0.01"
                                             disabled
                                             data-field="tara"
-                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-xs md:text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-md text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $tara }}"
                                         >
                         </td>
@@ -418,7 +418,7 @@
                                             type="number"
                                             step="0.01"
                                             data-field="kg_neto"
-                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-xs md:text-sm text-center bg-gray-50 text-gray-600 cursor-not-allowed"
+                                            class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-md text-center bg-gray-50 text-gray-600 cursor-not-allowed"
                                             value="{{ $kgNeto }}"
                                             readonly
                                         >
@@ -430,7 +430,7 @@
                                             type="number"
                                             disabled
                                             data-field="metros"
-                                            class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            class="w-full border border-gray-300 rounded px-1 md:px-2 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $metros }}"
                                         >
                         </td>
@@ -440,7 +440,7 @@
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
+                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-md transition-colors"
                                                 onclick="toggleQuantityEdit(this, 'hilat')"
                                             >
                                                 <span class="quantity-display font-semibold" data-field="hilat">
@@ -469,7 +469,7 @@
                             <div class="flex items-center justify-center relative">
                                             <button
                                                 type="button"
-                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
+                                                class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-md transition-colors"
                                                 onclick="toggleQuantityEdit(this, 'maq')"
                                             >
                                                 <span class="quantity-display font-semibold" data-field="maq">
@@ -498,7 +498,7 @@
                             <div class="flex items-center justify-center relative">
                                 <button
                                     type="button"
-                                    class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
+                                    class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-md transition-colors"
                                     onclick="toggleQuantityEdit(this, 'operac')"
                                 >
                                     <span class="quantity-display font-semibold" data-field="operac">
@@ -527,7 +527,7 @@
                             <div class="flex items-center justify-center relative">
                                 <button
                                     type="button"
-                                    class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-sm transition-colors"
+                                    class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-md transition-colors"
                                     onclick="toggleQuantityEdit(this, 'transf')"
                                 >
                                     <span class="quantity-display font-semibold" data-field="transf">
@@ -598,10 +598,10 @@
                     <table class="w-full border-collapse">
                         <thead>
                             <tr class="bg-gray-100">
-                                <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700 border border-gray-300">No Operador</th>
-                                <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700 border border-gray-300 hidden">Nombre</th>
-                                <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700 border border-gray-300">Turno</th>
-                                <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700 border border-gray-300">Metros</th>
+                                <th class="px-3 py-2 text-left text-md font-semibold text-gray-700 border border-gray-300">No Operador</th>
+                                <th class="px-3 py-2 text-left text-md font-semibold text-gray-700 border border-gray-300 hidden">Nombre</th>
+                                <th class="px-3 py-2 text-left text-md font-semibold text-gray-700 border border-gray-300">Turno</th>
+                                <th class="px-3 py-2 text-left text-md font-semibold text-gray-700 border border-gray-300">Metros</th>
                             </tr>
                         </thead>
                         <tbody id="oficiales-existentes" class="bg-white">
@@ -640,12 +640,44 @@
         const taraInput = row.querySelector('input[data-field="tara"]');
         const netoInput = row.querySelector('input[data-field="kg_neto"]');
 
-        if (brutoInput && taraInput && netoInput) {
-            const bruto = parseFloat(brutoInput.value) || 0;
-            const tara = parseFloat(taraInput.value) || 0;
-            const neto = bruto - tara;
+        if (!brutoInput || !taraInput || !netoInput) return;
+
+        const bruto = parseFloat(brutoInput.value) || 0;
+        const tara = parseFloat(taraInput.value) || 0;
+        const neto = bruto - tara;
+
+        // Si el neto es negativo, marcarlo en rojo, si no, quitar el error
+        if (neto < 0) {
             netoInput.value = neto.toFixed(2);
+            marcarCampoError(netoInput, true);
+        } else {
+            netoInput.value = neto.toFixed(2);
+            marcarCampoError(netoInput, false);
         }
+    }
+
+    // Función para marcar campos con error (borde rojo)
+    function marcarCampoError(elemento, tieneError) {
+        if (!elemento) return;
+
+        if (tieneError) {
+            elemento.classList.add('border-red-500', 'border-2');
+            elemento.classList.remove('border-gray-300');
+        } else {
+            elemento.classList.remove('border-red-500', 'border-2');
+            elemento.classList.add('border-gray-300');
+        }
+    }
+
+    // Función para limpiar todos los errores visuales
+    function limpiarErroresVisuales() {
+        const tablaBody = document.getElementById('tabla-produccion-body');
+        if (!tablaBody) return;
+
+        // Limpiar errores de todos los campos editables
+        tablaBody.querySelectorAll('input, select').forEach(el => {
+            marcarCampoError(el, false);
+        });
     }
 
             // Toggle editor de cantidad
@@ -829,10 +861,10 @@
                             if (noJulioValue && noJulioValue !== '') {
                                 // Actualizar todos los selects excluyendo el julio seleccionado
                                 actualizarTodosLosSelectsJulios();
-                                
+
                                 // Asegurar que el select actual tenga el valor seleccionado
                                 target.value = noJulioValue;
-                                
+
                                 // Obtener la opción seleccionada después de actualizar
                                 const updatedOption = target.options[target.selectedIndex];
                                 if (updatedOption) {
@@ -848,6 +880,12 @@
                                         const taraVal = tara !== null ? tara : 0;
                                         kgNeto = bruto - taraVal;
                                         netoInput.value = kgNeto.toFixed(2);
+                                        // Marcar en rojo si es negativo
+                                        if (kgNeto < 0) {
+                                            marcarCampoError(netoInput, true);
+                                        } else {
+                                            marcarCampoError(netoInput, false);
+                                        }
                                     }
 
                                     actualizarJulioTara(registroId, noJulioValue, tara, kgNeto);
@@ -1146,9 +1184,17 @@
                             if (row && result.data) {
                                 const netoInput = row.querySelector('input[data-field="kg_neto"]');
                                 if (netoInput && result.data.kg_neto !== undefined && result.data.kg_neto !== null) {
-                                    netoInput.value = parseFloat(result.data.kg_neto).toFixed(2);
+                                    const kgNetoValue = parseFloat(result.data.kg_neto);
+                                    netoInput.value = kgNetoValue.toFixed(2);
+                                    // Marcar en rojo si es negativo
+                                    if (kgNetoValue < 0) {
+                                        marcarCampoError(netoInput, true);
+                                    } else {
+                                        marcarCampoError(netoInput, false);
+                                    }
                                 } else if (netoInput && result.data.kg_neto === null) {
                                     netoInput.value = '';
+                                    marcarCampoError(netoInput, false);
                                 }
                             }
                         } else {
@@ -1211,9 +1257,17 @@
                             if (row && result.data && result.data.kg_neto !== undefined) {
                                 const netoInput = row.querySelector('input[data-field="kg_neto"]');
                                 if (netoInput && result.data.kg_neto !== null) {
-                                    netoInput.value = parseFloat(result.data.kg_neto).toFixed(2);
+                                    const kgNetoValue = parseFloat(result.data.kg_neto);
+                                    netoInput.value = kgNetoValue.toFixed(2);
+                                    // Marcar en rojo si es negativo
+                                    if (kgNetoValue < 0) {
+                                        marcarCampoError(netoInput, true);
+                                    } else {
+                                        marcarCampoError(netoInput, false);
+                                    }
                                 } else if (netoInput) {
                                     netoInput.value = '';
+                                    marcarCampoError(netoInput, false);
                                 }
                             }
                         } else {
@@ -1295,13 +1349,13 @@
                 function obtenerJuliosSeleccionados(excluirSelect) {
                     const juliosSeleccionados = new Set();
                     const todosLosSelects = document.querySelectorAll('.select-julio');
-                    
+
                     todosLosSelects.forEach(select => {
                         if (select !== excluirSelect && select.value && select.value !== '') {
                             juliosSeleccionados.add(select.value);
                         }
                     });
-                    
+
                     return juliosSeleccionados;
                 }
 
@@ -1318,7 +1372,7 @@
                     // Agregar opciones disponibles (excluyendo las ya seleccionadas)
                     catalogosJuliosCompleto.forEach(item => {
                         const julioValue = String(item.julio);
-                        
+
                         // Si el julio está seleccionado en otra fila, no agregarlo
                         if (excluirJulios.has(julioValue)) {
                             return;
@@ -1330,7 +1384,7 @@
                         option.textContent = item.julio;
 
                         // Si es el valor inicial o el valor actual, seleccionarlo
-                        if ((valorInicial && String(item.julio) === String(valorInicial)) || 
+                        if ((valorInicial && String(item.julio) === String(valorInicial)) ||
                             (valorActual && String(item.julio) === String(valorActual))) {
                             option.selected = true;
                         }
@@ -1350,7 +1404,7 @@
                 // Función para actualizar todos los selects de julios
                 function actualizarTodosLosSelectsJulios() {
                     const todosLosSelects = document.querySelectorAll('.select-julio');
-                    
+
                     todosLosSelects.forEach(select => {
                         const juliosExcluidos = obtenerJuliosSeleccionados(select);
                         actualizarSelectJulio(select, juliosExcluidos);
@@ -1369,12 +1423,12 @@
 
                         // Guardar el catálogo completo en la variable global
                         catalogosJuliosCompleto = result.data;
-                        
+
                         // Primero, actualizar todos los selects respetando los valores iniciales
                         // Necesitamos hacerlo en dos pasos: primero identificar todos los valores iniciales,
                         // luego actualizar excluyendo esos valores
                         const todosLosSelects = document.querySelectorAll('.select-julio');
-                        
+
                         // Paso 1: Recopilar todos los valores iniciales que deben mantenerse
                         const valoresIniciales = new Map();
                         todosLosSelects.forEach(select => {
@@ -1383,12 +1437,12 @@
                                 valoresIniciales.set(select, valorInicial);
                             }
                         });
-                        
+
                         // Paso 2: Actualizar cada select excluyendo los julios seleccionados en otros
                         todosLosSelects.forEach(select => {
                             const valorInicial = valoresIniciales.get(select) || '';
                             const juliosExcluidos = obtenerJuliosSeleccionados(select);
-                            
+
                             // Si este select tiene un valor inicial, excluirlo de los excluidos temporalmente
                             // para que pueda mantener su valor
                             const juliosExcluidosParaEste = new Set(juliosExcluidos);
@@ -1401,14 +1455,14 @@
                                     }
                                 });
                             }
-                            
+
                             actualizarSelectJulio(select, juliosExcluidosParaEste);
-                            
+
                             // Restaurar el valor inicial si existe
                             if (valorInicial && valorInicial !== '') {
                                 select.value = valorInicial;
                                 select.setAttribute('data-valor-anterior', valorInicial);
-                                
+
                                 // Configurar tara y calcular neto
                                 const row = select.closest('tr');
                                 const taraInput = row ? row.querySelector('input[data-field="tara"]') : null;
@@ -1425,6 +1479,12 @@
                                         const taraVal = parseFloat(tara) || 0;
                                         const neto = bruto - taraVal;
                                         netoInput.value = neto.toFixed(2);
+                                        // Marcar en rojo si es negativo
+                                        if (neto < 0) {
+                                            marcarCampoError(netoInput, true);
+                                        } else {
+                                            marcarCampoError(netoInput, false);
+                                        }
                                     }
                                 }
                             } else {
@@ -1752,7 +1812,7 @@
                         row.innerHTML = `
                             <td class="px-3 py-2 border border-gray-300">
                                 <select
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-oficial-nombre"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-oficial-nombre"
                                     data-numero="${i}"
                                 >
                                     <option value="">Seleccionar empleado...</option>
@@ -1767,7 +1827,7 @@
                             <td class="px-3 py-2 border border-gray-300 hidden">
                                 <input
                                     type="text"
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-50 cursor-not-allowed input-oficial-nombre"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-md bg-gray-50 cursor-not-allowed input-oficial-nombre"
                                     data-numero="${i}"
                                     value="${oficial.nombre || ''}"
                                     placeholder="Se selecciona automáticamente"
@@ -1776,7 +1836,7 @@
                             </td>
                             <td class="px-3 py-2 border border-gray-300">
                                 <select
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-oficial-turno"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-oficial-turno"
                                     data-numero="${i}"
                                 >
                                     <option value="">Seleccionar...</option>
@@ -1790,7 +1850,7 @@
                                     type="number"
                                     step="0.01"
                                     min="0"
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-oficial-metros"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-oficial-metros"
                                     data-numero="${i}"
                                     value="${oficial.metros || ''}"
                                     placeholder="0.00"
@@ -1971,11 +2031,14 @@
             });
 
             function validarRegistrosCompletos() {
+                limpiarErroresVisuales();
+
                 const tablaBody = document.getElementById('tabla-produccion-body');
                 if (!tablaBody) return { valido: false, mensaje: 'No se encontró la tabla de producción' };
 
                 const filas = tablaBody.querySelectorAll('tr[data-registro-id]');
                 const registrosIncompletos = [];
+                let hayErrores = false;
 
                 filas.forEach((fila, index) => {
                     const registroId = fila.getAttribute('data-registro-id');
@@ -1983,57 +2046,85 @@
 
                     // Fecha
                     const fechaInput = fila.querySelector('input.input-fecha');
-                    const fechaDisplay = fila.querySelector('.fecha-display-text');
                     if (!fechaInput || !fechaInput.value) {
                         camposFaltantes.push('Fecha');
+                        marcarCampoError(fechaInput, true);
+                        hayErrores = true;
                     }
 
                     // Oficial (requerido)
                     const oficialSelect = fila.querySelector('.oficial-select');
                     if (!oficialSelect || !oficialSelect.value) {
                         camposFaltantes.push('Oficial');
+                        marcarCampoError(oficialSelect, true);
+                        hayErrores = true;
                     }
 
                     // Turno
                     const turnoSelect = fila.querySelector('select[data-field="turno"]');
                     if (!turnoSelect || !turnoSelect.value) {
                         camposFaltantes.push('Turno');
+                        marcarCampoError(turnoSelect, true);
+                        hayErrores = true;
                     }
 
                     // H. Inicio
                     const hInicioInput = fila.querySelector('input[data-field="h_inicio"]');
                     if (!hInicioInput || !hInicioInput.value) {
                         camposFaltantes.push('H. Inicio');
+                        marcarCampoError(hInicioInput, true);
+                        hayErrores = true;
                     }
 
                     // H. Fin
                     const hFinInput = fila.querySelector('input[data-field="h_fin"]');
                     if (!hFinInput || !hFinInput.value) {
                         camposFaltantes.push('H. Fin');
+                        marcarCampoError(hFinInput, true);
+                        hayErrores = true;
                     }
 
                     // No. Julio
                     const noJulioSelect = fila.querySelector('select[data-field="no_julio"]');
                     if (!noJulioSelect || !noJulioSelect.value) {
                         camposFaltantes.push('No. Julio');
+                        marcarCampoError(noJulioSelect, true);
+                        hayErrores = true;
                     }
 
                     // Kg. Bruto
                     const kgBrutoInput = fila.querySelector('input[data-field="kg_bruto"]');
                     if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') {
                         camposFaltantes.push('Kg. Bruto');
+                        marcarCampoError(kgBrutoInput, true);
+                        hayErrores = true;
                     }
 
                     // Tara
                     const taraInput = fila.querySelector('input[data-field="tara"]');
                     if (!taraInput || !taraInput.value || taraInput.value.trim() === '') {
                         camposFaltantes.push('Tara');
+                        marcarCampoError(taraInput, true);
+                        hayErrores = true;
+                    }
+
+                    // Kg. Neto - Validar que no sea negativo
+                    const kgNetoInput = fila.querySelector('input[data-field="kg_neto"]');
+                    if (kgNetoInput && kgNetoInput.value) {
+                        const kgNetoValue = parseFloat(kgNetoInput.value);
+                        if (!isNaN(kgNetoValue) && kgNetoValue < 0) {
+                            camposFaltantes.push('Kg. Neto (no puede ser negativo)');
+                            marcarCampoError(kgNetoInput, true);
+                            hayErrores = true;
+                        }
                     }
 
                     // Metros
                     const metrosInput = fila.querySelector('input[data-field="metros"]');
                     if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') {
                         camposFaltantes.push('Metros');
+                        marcarCampoError(metrosInput, true);
+                        hayErrores = true;
                     }
 
                     // Roturas son opcionales, no se validan
@@ -2046,8 +2137,8 @@
                     }
                 });
 
-                if (registrosIncompletos.length > 0) {
-                    return { valido: false, mensaje: 'Completa todos los registros' };
+                if (registrosIncompletos.length > 0 || hayErrores) {
+                    return { valido: false, mensaje: 'Completa todos los registros y corrige los errores' };
                 }
 
                 return { valido: true };
@@ -2056,7 +2147,7 @@
             // Función para abrir PDF en nueva pestaña y mostrar diálogo de impresión
             function abrirPDFParaImprimir(url) {
                 const printWindow = window.open(url, '_blank');
-                
+
                 if (printWindow) {
                     // Esperar a que el PDF se cargue y luego abrir el diálogo de impresión
                     printWindow.onload = function() {
@@ -2064,7 +2155,7 @@
                             printWindow.print();
                         }, 500);
                     };
-                    
+
                     // Fallback: si onload no funciona, intentar después de un tiempo
                     setTimeout(() => {
                         try {

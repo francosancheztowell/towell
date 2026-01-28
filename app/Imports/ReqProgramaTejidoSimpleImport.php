@@ -33,7 +33,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
     /** Cache temporal de posiciones asignadas por telar durante el batch actual (para evitar duplicados) */
     private static array $posicionesCachePorTelar = [];
-    
+
     /** Cache para rastrear el primer registro de cada telar en el batch actual */
     private static array $primerRegistroPorTelar = [];
     public function model(array $rawRow)
@@ -107,7 +107,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
                 // FibraComb1 ya no se lee del Excel; se rellenará desde NombreCC1
                 'FibraComb1'      => null,
 
-                // Campos ahora provienen de modelos codificados
+               // Campos ahora provienen de modelos codificados
                 'CodColorComb1'   => null,
                 'NombreCC1'       => null,
 
@@ -329,30 +329,30 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
             $salonTejidoId = $data['SalonTejidoId'] ?? null;
             $noTelarId = $data['NoTelarId'] ?? null;
             $esPrimerRegistroDelTelar = false;
-            
+
             if (!isset($data['Posicion']) || $data['Posicion'] === null || $data['Posicion'] === '') {
                 if ($salonTejidoId && $noTelarId) {
                     $cacheKey = $salonTejidoId . '|' . $noTelarId;
-                    
+
                     // Verificar si es el primer registro de este telar en el batch actual
                     if (!isset(self::$primerRegistroPorTelar[$cacheKey])) {
                         self::$primerRegistroPorTelar[$cacheKey] = true;
                         $esPrimerRegistroDelTelar = true;
                     }
-                    
+
                     // Obtener siguiente posición disponible desde BD
                     $siguientePosicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonTejidoId, $noTelarId);
-                    
+
                     // Verificar si ya asignamos posiciones para este telar en este batch
                     if (!isset(self::$posicionesCachePorTelar[$cacheKey])) {
                         self::$posicionesCachePorTelar[$cacheKey] = [];
                     }
-                    
+
                     // Ajustar posición si ya fue asignada en este batch
                     while (in_array($siguientePosicion, self::$posicionesCachePorTelar[$cacheKey], true)) {
                         $siguientePosicion++;
                     }
-                    
+
                     // Guardar en cache y asignar
                     self::$posicionesCachePorTelar[$cacheKey][] = $siguientePosicion;
                     $data['Posicion'] = $siguientePosicion;

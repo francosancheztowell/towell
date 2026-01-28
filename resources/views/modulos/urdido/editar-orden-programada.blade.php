@@ -87,7 +87,7 @@
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-0.5">Cuenta</label>
                     <input
-                        type="text"
+                        type="number"
                         id="campo_Cuenta"
                         data-campo="Cuenta"
                         value="{{ $orden->Cuenta ?? '' }}"
