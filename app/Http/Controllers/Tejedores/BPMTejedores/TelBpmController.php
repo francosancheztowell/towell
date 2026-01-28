@@ -60,21 +60,42 @@ class TelBpmController extends Controller
 
         // Quien RECIBE: usuario actual en TelTelaresOperador (busca por varias llaves)
         $operadorUsuario = null;
+        $telaresUsuario = collect();
         try {
             $codes = collect([$userCode, $userCodeAlt])->filter(fn($v)=>$v!=='' )->unique()->all();
             $operadorUsuario = TelTelaresOperador::query()
                 ->when(!empty($codes), fn($q) => $q->whereIn('numero_empleado', $codes))
                 ->when(empty($codes) && $userName !== '', fn($q)=> $q->where('nombreEmpl', 'like', "%{$userName}%"))
                 ->first();
+
+            $telaresUsuario = TelTelaresOperador::query()
+                ->when(!empty($codes), fn($q) => $q->whereIn('numero_empleado', $codes))
+                ->when(empty($codes) && $userName !== '', fn($q)=> $q->where('nombreEmpl', 'like', "%{$userName}%"))
+                ->pluck('NoTelarId')
+                ->filter()
+                ->unique()
+                ->values();
         } catch (\Throwable $e) {
             $operadorUsuario = null;
+            $telaresUsuario = collect();
         }
         $usuarioEsOperador = (bool) $operadorUsuario;
 
-        // Opciones para ENTREGAR (select)
+        // Opciones para ENTREGAR (select): solo operadores con telar en común y sin duplicados
         try {
-            $operadoresEntrega = TelTelaresOperador::orderBy('numero_empleado')
-                ->get(['numero_empleado','nombreEmpl','Turno']);
+            if ($telaresUsuario->isEmpty()) {
+                $operadoresEntrega = collect();
+            } else {
+                $operadoresEntrega = TelTelaresOperador::query()
+                    ->whereIn('NoTelarId', $telaresUsuario)
+                    ->orderBy('numero_empleado')
+                    ->get(['numero_empleado','nombreEmpl','Turno']);
+
+                $operadoresEntrega = $operadoresEntrega
+                    ->groupBy('numero_empleado')
+                    ->map(fn($group) => $group->first())
+                    ->values();
+            }
         } catch (\Throwable $e) {
             $operadoresEntrega = collect();
         }
