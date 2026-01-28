@@ -54,8 +54,7 @@ class TelDesarrolladoresController extends Controller
                     ->orWhere('Tipo', strtolower($tipo));
             })
             ->orderByDesc('Fecha')
-            ->orderByDesc('id')
-            ->get(['NoJulio', 'Fecha', 'id'])
+            ->get(['NoJulio', 'Fecha'])
             ->unique('NoJulio')
             ->values();
     }
