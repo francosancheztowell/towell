@@ -262,7 +262,8 @@ class TelBpmLineController extends Controller
         }
 
         $item->update(['Status' => self::EST_TERM]);
-        return redirect()->route('tel-bpm.index')->with('success', 'Folio marcado como Terminado.');
+        // Ruta real de navegación
+        return redirect()->route('tejedores.bpm')->with('success', 'Folio marcado como Terminado.');
     }
 
     /** Autorizar (de Terminado → Autorizado) */
@@ -307,7 +308,8 @@ class TelBpmLineController extends Controller
             'NomEmplAutoriza' => $name !== null ? (string)$name : '',
         ]);
 
-        return redirect()->route('tel-bpm.index')->with('success', 'Folio Autorizado.');
+        // Ruta real de navegación
+        return redirect()->route('tejedores.bpm')->with('success', 'Folio Autorizado.');
     }
 
     /** Rechazar (de Terminado → Creado) */
@@ -340,7 +342,8 @@ class TelBpmLineController extends Controller
             'NomEmplAutoriza' => null,
         ]);
 
-        return redirect()->route('tel-bpm.index')->with('success', 'Folio regresó a estado Creado.');
+        // Ruta real de navegación
+        return redirect()->route('tejedores.bpm')->with('success', 'Folio regresó a estado Creado.');
     }
 
     /* ==================== Helpers ==================== */
