@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'BPM - Folios')
+@section('page-title', 'BPM - Tejedores')
 
 @section('navbar-right')
 <div class="flex items-center gap-3">
@@ -11,18 +11,15 @@
         <span id="filter-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">!</span>
     </button>
     {{-- Botones icon-only al estilo BPM Engomado --}}
-    <button id="btn-consult" title="Consultar folio"
-            class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-        <i class="fa-solid fa-eye text-blue-600 text-lg"></i>
-    </button>
-    <button id="btn-delete" title="Eliminar folio"
-            class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-        <i class="fa-solid fa-trash text-red-600 text-lg"></i>
-    </button>
-    <button id="btn-open-create" title="Nuevo folio"
-            class="p-2 rounded-lg transition hover:bg-green-100">
-        <i class="fa-solid fa-plus text-green-600 text-lg"></i>
-    </button>
+    <x-navbar.button-edit
+    id="btn-consult"
+    title="Consultar folio"
+    class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+    module="BPM Tejedores"/>
+    <x-navbar.button-delete module="BPM Tejedores" id="btn-delete" title="Eliminar folio"
+    class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled/>
+    <x-navbar.button-create module="BPM Tejedores" id="btn-open-create" title="Nuevo folio"
+    class="p-2 rounded-lg transition hover:bg-green-100"/>
 </div>
 @endsection
 
@@ -70,7 +67,7 @@
                         data-cverec="{{ $row->CveEmplRec }}"
                         data-nomrec="{{ $row->NombreEmplRec }}"
                         data-turnorec="{{ $row->TurnoRecibe }}"
-                        style="{{ $row->Status === 'Terminado' ? 'display: none;' : '' }}">
+                        style="{{ $row->Status === 'Autorizado' ? 'display: none;' : '' }}">
                         <td class="px-4 py-3 font-semibold {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                             <a class="text-blue-700 hover:underline" href="{{ route('tel-bpm-line.index', $row->Folio) }}">{{ $row->Folio }}</a>
                         </td>
@@ -266,11 +263,11 @@
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-4">
-        {{-- Mostrar Finalizados --}}
-        <button type="button" id="btn-filter-finished"
-                class="filter-btn p-4 rounded-lg border-2 transition-all text-center {{ request('show_finished') ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100' }}">
+        {{-- Mostrar Autorizados --}}
+        <button type="button" id="btn-filter-authorized"
+                class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
             <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
-            <div class="font-semibold text-sm">Finalizados</div>
+            <div class="font-semibold text-sm">Autorizados</div>
         </button>
 
         {{-- Mis Folios --}}
@@ -347,13 +344,13 @@
     const filterBadge = qs('#filter-badge');
     const btnClearFilters = qs('#btn-clear-filters');
     const filterTurno = qs('#filter-turno');
-    const btnFilterFinished = qs('#btn-filter-finished');
+    const btnFilterAuthorized = qs('#btn-filter-authorized');
     const btnFilterMyFolios = qs('#btn-filter-my-folios');
     const btnFilterAll = qs('#btn-filter-all');
 
-    // Estado de filtros - Por defecto mostrar solo mis folios
+    // Estado de filtros - Por defecto mostrar solo mis folios y ocultar Autorizados
     let filterState = {
-        showFinished: false,
+        showAuthorized: false,  // Por defecto ocultar Autorizados
         myFolios: true,  // Por defecto activo
         showAll: false,
         turno: ''
@@ -378,8 +375,8 @@
 
             let show = true;
 
-            // Filtro por estado Terminado
-            if (!filterState.showFinished && !filterState.showAll && status === 'Terminado') {
+            // Filtro por estado Autorizado (por defecto ocultar)
+            if (!filterState.showAuthorized && !filterState.showAll && status === 'Autorizado') {
                 show = false;
             }
 
@@ -407,7 +404,7 @@
         });
 
         // Actualizar badge (siempre visible si hay algún filtro activo, incluyendo myFolios por defecto)
-        const hasActiveFilters = filterState.showFinished || filterState.myFolios ||
+        const hasActiveFilters = filterState.showAuthorized || filterState.myFolios ||
                                  filterState.showAll || filterState.turno;
         if (hasActiveFilters) {
             filterBadge?.classList.remove('hidden');
@@ -452,12 +449,12 @@
 
     // Actualizar estado visual de botones
     function updateFilterButtons() {
-        btnFilterFinished?.classList.toggle('bg-amber-100', filterState.showFinished);
-        btnFilterFinished?.classList.toggle('border-amber-400', filterState.showFinished);
-        btnFilterFinished?.classList.toggle('text-amber-800', filterState.showFinished);
-        btnFilterFinished?.classList.toggle('bg-gray-50', !filterState.showFinished);
-        btnFilterFinished?.classList.toggle('border-gray-300', !filterState.showFinished);
-        btnFilterFinished?.classList.toggle('text-gray-700', !filterState.showFinished);
+        btnFilterAuthorized?.classList.toggle('bg-green-100', filterState.showAuthorized);
+        btnFilterAuthorized?.classList.toggle('border-green-400', filterState.showAuthorized);
+        btnFilterAuthorized?.classList.toggle('text-green-800', filterState.showAuthorized);
+        btnFilterAuthorized?.classList.toggle('bg-gray-50', !filterState.showAuthorized);
+        btnFilterAuthorized?.classList.toggle('border-gray-300', !filterState.showAuthorized);
+        btnFilterAuthorized?.classList.toggle('text-gray-700', !filterState.showAuthorized);
 
         btnFilterMyFolios?.classList.toggle('bg-blue-100', filterState.myFolios);
         btnFilterMyFolios?.classList.toggle('border-blue-400', filterState.myFolios);
@@ -476,10 +473,10 @@
 
     btnOpenFilters?.addEventListener('click', () => open('#modal-filters'));
 
-    // Botón Finalizados
-    btnFilterFinished?.addEventListener('click', function() {
-        filterState.showFinished = !filterState.showFinished;
-        if (filterState.showFinished) {
+    // Botón Autorizados
+    btnFilterAuthorized?.addEventListener('click', function() {
+        filterState.showAuthorized = !filterState.showAuthorized;
+        if (filterState.showAuthorized) {
             filterState.showAll = false;
         }
         updateFilterButtons();
@@ -500,7 +497,7 @@
     btnFilterAll?.addEventListener('click', function() {
         filterState.showAll = !filterState.showAll;
         if (filterState.showAll) {
-            filterState.showFinished = false;
+            filterState.showAuthorized = false;
             filterState.myFolios = false;
         }
         updateFilterButtons();
@@ -515,7 +512,7 @@
 
     btnClearFilters?.addEventListener('click', () => {
         filterState = {
-            showFinished: false,
+            showAuthorized: false,  // Por defecto ocultar Autorizados
             myFolios: true,  // Volver al estado por defecto
             showAll: false,
             turno: ''
