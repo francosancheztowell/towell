@@ -66,7 +66,7 @@
 
     {{-- Tabla de checklist --}}
     <div id="grid-wrapper" class="overflow-auto rounded-lg border bg-white" style="max-height: calc(100vh - 280px);">
-        <table id="grid" class="min-w-full text-sm">
+        <table id="grid" class="min-w-full text-base">
             <thead class="bg-blue-500 text-white sticky top-0 z-30">
                 <tr>
                     <th class="px-1 py-2 text-left w-8 font-semibold sticky left-0 bg-blue-500 z-40">#</th>
@@ -88,12 +88,12 @@
                 @forelse($actividades as $a)
                     <tr class="hover:bg-gray-50 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                         <td class="px-1 py-2 text-slate-600 font-medium sticky left-0 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20">{{ $loop->iteration }}</td>
-                        <td class="px-1 py-2 text-gray-800 font-medium sticky left-8 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20 min-w-[120px] max-w-[120px] text-xs truncate" title="{{ $a['Actividad'] }}">{{ $a['Actividad'] }}</td>
+                        <td class="px-1 py-2 text-gray-800 font-medium sticky left-8 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20 min-w-[120px] max-w-[120px] text-base truncate" title="{{ $a['Actividad'] }}">{{ $a['Actividad'] }}</td>
                         @foreach($telares->slice(0, 10) as $t)
                             @php $val = $map[$a['Orden']][$t] ?? null; @endphp
                             <td class="px-0.5 py-2 text-center">
                                 <button
-                                    class="cell-btn inline-flex items-center justify-center w-7 h-7 rounded border-2 transition
+                                    class="cell-btn inline-flex items-center justify-center w-8 h-8 rounded border-2 transition
                                         {{ $val==='OK' ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' :
                                            ($val==='X' ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' :
                                            'bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100') }}"
@@ -104,7 +104,7 @@
                                     data-valor="{{ $val ?? '' }}"
                                     @if($header->Status !== 'Creado') disabled @endif
                                 >
-                                   <span class="cell-icon font-bold">{{ $val==='OK' ? '✓' : ($val==='X' ? '✗' : '○') }}</span>
+                                   <span class="cell-icon font-bold text-base">{{ $val==='OK' ? '✓' : ($val==='X' ? '✗' : '○') }}</span>
                                 </button>
                             </td>
                         @endforeach

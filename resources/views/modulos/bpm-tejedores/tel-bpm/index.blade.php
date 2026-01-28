@@ -38,7 +38,7 @@
     @endif
 
     {{-- Tabla --}}
-    <div class="overflow-x-auto overflow-y-auto rounded-lg bg-white shadow-sm" style="max-height: 70vh;">
+    <div class="overflow-x-auto overflow-y-auto rounded-lg bg-white shadow-sm pb-3" style="max-height: 70vh;">
         <table class="min-w-full text-sm">
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <tr>
@@ -117,7 +117,7 @@
 
     <form id="form-create" method="POST" action="{{ route('tel-bpm.store') }}">
         @csrf
-        <input type="hidden" name="_mode" value="create">
+        <input type="hidden" name="_mode" value="create"    >
 
         <div class="space-y-6">
             <!-- Fecha y Hora -->

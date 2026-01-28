@@ -382,7 +382,7 @@ function setupBodyScrollGuards() {
     if (isMobile || isTouchDevice) {
         document.addEventListener('touchend', (e) => {
             const now = Date.now();
-            if (now - lastTouchEnd <= 300) {
+            if (now - lastTouchEnd <= 300 && e.cancelable) {
                 e.preventDefault();
             }
             lastTouchEnd = now;
@@ -396,7 +396,7 @@ function setupBodyScrollGuards() {
         if (!scrollable && isStandaloneMode()) {
             // Solo prevenir en modo standalone para evitar scroll accidental
             const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
-            if (!isInput) {
+            if (!isInput && e.cancelable) {
                 e.preventDefault();
             }
         }

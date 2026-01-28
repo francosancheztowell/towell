@@ -148,7 +148,7 @@
 
   <!-- ====== Modal Cortado de Rollo ====== -->
   <div id="modalCortadoRollos" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
-    <div class="relative bg-white rounded-lg shadow-xl w-[96vw] sm:w-[90vw] lg:w-[94vw] max-w-none mx-1 my-2 h-[40vh] flex flex-col">
+    <div class="relative bg-white rounded-lg shadow-xl w-[96vw] sm:w-[90vw] lg:w-[94vw] max-w-none mx-1 my-2 h-[80vh] max-h-[80vh] flex flex-col">
       <!-- Header del Modal -->
       <div class="flex items-center justify-between gap-2 p-4 border-b border-gray-200">
         <h2 class="text-2xl font-bold text-gray-800 whitespace-nowrap">Cortado de Rollo</h2>
@@ -168,10 +168,10 @@
       </div>
 
       <!-- Body del Modal -->
-      <div class="p-8 flex-1 overflow-hidden flex flex-col">
+      <div class="p-6 flex-1 min-h-0 overflow-hidden flex flex-col">
 
         <!-- Tabla de Datos de Producción -->
-        <div id="tablaProduccionCortadoContainer" class="flex-shrink-0" style="display: none;">
+        <div id="tablaProduccionCortadoContainer" class="flex-1 min-h-0" style="display: none;">
           <h3 class="text-xl font-semibold text-gray-800 mb-4">Seleccionar Marbete a Liberar</h3>
           <div class="border-2 border-gray-300 rounded-lg overflow-hidden">
             <table class="w-full bg-white">
@@ -188,7 +188,7 @@
                 </tr>
               </thead>
             </table>
-            <div class="overflow-x-auto overflow-y-auto" style="max-height: 200px;">
+            <div class="overflow-x-auto overflow-y-auto max-h-[300px]">
               <table class="w-full bg-white">
                 <tbody id="tablaProduccionCortadoBody" class="divide-y divide-gray-200">
                   <!-- Los datos se cargarán dinámicamente -->
@@ -204,10 +204,10 @@
 
       <!-- Footer del Modal -->
       <div class="flex justify-end gap-4 p-6 border-t border-gray-200 flex-shrink-0">
-        <button type="button" id="closeModalCortadoBtn" class="px-6 py-3 text-lg bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium">
+        <button type="button" id="closeModalCortadoBtn" class="px-4 py-2 text-base bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors font-medium">
           Cerrar
         </button>
-        <button type="button" id="btnNotificarCortado" class="px-6 py-3 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium" style="display: none;">
+        <button type="button" id="btnNotificarCortado" class="px-4 py-2 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium" style="display: none;">
           Notificar
         </button>
       </div>
