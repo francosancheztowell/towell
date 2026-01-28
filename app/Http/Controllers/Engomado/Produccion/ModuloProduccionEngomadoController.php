@@ -198,6 +198,9 @@ class ModuloProduccionEngomadoController extends Controller
                             'NoJulio' => null, // NoJulio debe ser null al crear los registros
                             'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
                         ];
+                        if ($solidosFormulacion !== null) {
+                            $registroData['Solidos'] = $solidosFormulacion;
+                        }
 
                         // Solo agregar campos de oficial si tienen valores
                         if (!empty($claveUsuario)) {
@@ -216,26 +219,19 @@ class ModuloProduccionEngomadoController extends Controller
                         $registrosACrear[] = $registroData;
                     }
 
-<<<<<<< Updated upstream
-                // Crear todos los registros en lote si hay alguno
-                if (count($registrosACrear) > 0) {
-                    foreach ($registrosACrear as $index => $registroData) {
-                        $registroCreado = EngProduccionEngomado::create($registroData);
-=======
-                    // Crear los registros faltantes
-                    $registrosACrear = [];
-                    for ($i = 0; $i < $registrosFaltantes; $i++) {
-                        // Preparar datos del registro (solo campos que existen en la tabla)
-                        $registroData = [
-                            'Folio' => $orden->Folio,
-                            'NoJulio' => null, // NoJulio debe ser null al crear los registros
-                            'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
-                        ];
-                        if ($solidosFormulacion !== null) {
-                            $registroData['Solidos'] = $solidosFormulacion;
+                    // Crear todos los registros en lote si hay alguno
+                    if (count($registrosACrear) > 0) {
+                        foreach ($registrosACrear as $index => $registroData) {
+                            try {
+                                EngProduccionEngomado::create($registroData);
+                            } catch (\Illuminate\Database\QueryException $e) {
+                                // Continuar con el siguiente registro aunque falle uno
+                                continue;
+                            } catch (\Throwable $e) {
+                                // Continuar con el siguiente registro aunque falle uno
+                                continue;
+                            }
                         }
->>>>>>> Stashed changes
-
                     }
                 }
             } catch (\Throwable $e) {
