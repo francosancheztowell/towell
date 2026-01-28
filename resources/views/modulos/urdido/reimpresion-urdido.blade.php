@@ -4,6 +4,17 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+                <!-- Botón de Filtros -->
+                    <button
+                        id="btn-open-filters"
+                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                        title="Filtros"
+                    >
+                        <i class="fa-solid fa-filter"></i>
+                        <span>Filtros</span>
+                        <span id="filter-badge" class="hidden ml-1 bg-purple-800 text-white text-xs px-2 py-0.5 rounded-full">1</span>
+                    </button>
+
         <x-navbar.button-edit
             id="btnEditarSeleccionado"
             onclick="editarOrdenSeleccionada()"
@@ -73,9 +84,12 @@
                 <tbody class="divide-y divide-gray-200" id="tbodyOrdenes">
                     @forelse ($ordenes as $orden)
                         <tr
-                            class="hover:bg-gray-50 cursor-pointer transition-colors"
+                            class="table-row hover:bg-gray-50 cursor-pointer transition-colors"
                             data-orden-id="{{ $orden->Id }}"
                             data-status="{{ $orden->Status ?? '' }}"
+                            data-folio="{{ $orden->Folio ?? '' }}"
+                            data-maquina="{{ $orden->MaquinaId ?? '' }}"
+                            data-tipo="{{ $orden->RizoPie ?? '' }}"
                             onclick="seleccionarFila(this)"
                         >
                             <td class="px-2 py-2" data-value="{{ $orden->Folio ?? '' }}">{{ $orden->Folio ?? '-' }}</td>
@@ -102,7 +116,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
+                        <tr class="no-results">
                             <td colspan="7" class="px-2 py-4 text-center text-gray-500">
                                 No hay ordenes con esos criterios.
                             </td>
@@ -118,6 +132,73 @@
                         <span id="contadorRegistros">Encontrados <strong>{{ count($ordenes) }}</strong> registro(s)</span>
                     </p>
                 </div>
+    </div>
+</div>
+
+<!-- Modal FILTROS -->
+<div id="modal-filters" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
+        <div class="flex items-center justify-end">
+
+            <button data-close="#modal-filters" class="text-slate-500 hover:text-slate-700 text-4xl leading-none">&times;</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <!-- Folio -->
+            <div class="p-4 rounded-lg border-2 border-blue-300 bg-blue-50">
+                <label class="block text-md font-semibold text-blue-800 mb-2 text-center">
+                    Folio
+                </label>
+                <input type="text" id="filter-folio" class="w-full rounded border border-blue-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Buscar folio...">
+            </div>
+            <!-- Máquina -->
+            <div class="p-4 rounded-lg border-2 border-green-300 bg-green-50">
+                <label class="block text-md font-semibold text-green-800 mb-2 text-center">
+                    Máquina
+                </label>
+                <select id="filter-maquina" class="w-full rounded border border-green-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-green-500 bg-white">
+                    <option value="">Todas</option>
+                    @php
+                        $maquinas = $ordenes->pluck('MaquinaId')->filter()->unique()->sort()->values();
+                    @endphp
+                    @foreach($maquinas as $maq)
+                        <option value="{{ $maq }}" {{ request('maquina') == $maq ? 'selected' : '' }}>{{ $maq }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <!-- Tipo -->
+            <div class="p-4 rounded-lg border-2 border-cyan-300 bg-cyan-50">
+                <label class="block text-md font-semibold text-cyan-800 mb-2 text-center">
+                    Tipo
+                </label>
+                <select id="filter-tipo" class="w-full rounded border border-cyan-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-cyan-500 bg-white">
+                    <option value="">Todos</option>
+                    @php
+                        $tipos = $ordenes->pluck('RizoPie')->filter()->unique()->sort()->values();
+                    @endphp
+                    @foreach($tipos as $tipo)
+                        <option value="{{ $tipo }}" {{ request('tipo') == $tipo ? 'selected' : '' }}>{{ $tipo }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <!-- Status -->
+            <div class="p-4 rounded-lg border-2 border-amber-300 bg-amber-50">
+                <label class="block text-md font-semibold text-amber-800 mb-2 text-center">
+                    Status
+                </label>
+                <select id="filter-status" class="w-full rounded border border-amber-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 bg-white">
+                    <option value="">Todos</option>
+                    <option value="Finalizado" {{ request('status') == 'Finalizado' ? 'selected' : '' }}>Finalizado</option>
+                    <option value="En Proceso" {{ request('status') == 'En Proceso' ? 'selected' : '' }}>En Proceso</option>
+                    <option value="Programado" {{ request('status') == 'Programado' ? 'selected' : '' }}>Programado</option>
+                    <option value="Cancelado" {{ request('status') == 'Cancelado' ? 'selected' : '' }}>Cancelado</option>
+                </select>
+            </div>
+        </div>
+            <div class="flex items-center gap-2">
+            <button type="button" id="btn-clear-filters" class="w-full px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition text-sm">
+                <i class="fa-solid fa-eraser mr-1"></i>Limpiar
+            </button>
+        </div>
     </div>
 </div>
 
@@ -316,7 +397,164 @@
             if (fechaHeader) {
                 ordenarTabla('fecha', 'desc');
             }
+            initFilters();
         });
+
+        // ========== FILTROS ==========
+        function initFilters() {
+            const btnOpenFilters = document.getElementById('btn-open-filters');
+            const btnCloseFilters = document.querySelector('[data-close="#modal-filters"]');
+            const modalFilters = document.getElementById('modal-filters');
+            const btnClearFilters = document.getElementById('btn-clear-filters');
+            const filterBadge = document.getElementById('filter-badge');
+            const filterFolio = document.getElementById('filter-folio');
+            const filterMaquina = document.getElementById('filter-maquina');
+            const filterTipo = document.getElementById('filter-tipo');
+            const filterStatus = document.getElementById('filter-status');
+            const tbody = document.getElementById('tbodyOrdenes');
+
+            let filterState = {
+                folio: '',
+                maquina: '',
+                tipo: '',
+                status: ''
+            };
+
+            // Función para aplicar filtros
+            function applyFilters() {
+                const rows = tbody?.querySelectorAll('.table-row') || [];
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const folio = (row.dataset.folio || '').toLowerCase();
+                    const maquina = row.dataset.maquina || '';
+                    const tipo = row.dataset.tipo || '';
+                    const status = row.dataset.status || '';
+
+                    let show = true;
+
+                    // Filtro por folio
+                    if (filterState.folio) {
+                        if (!folio.includes(filterState.folio.toLowerCase())) {
+                            show = false;
+                        }
+                    }
+
+                    // Filtro por máquina
+                    if (show && filterState.maquina) {
+                        if (maquina !== filterState.maquina) {
+                            show = false;
+                        }
+                    }
+
+                    // Filtro por tipo
+                    if (show && filterState.tipo) {
+                        if (tipo !== filterState.tipo) {
+                            show = false;
+                        }
+                    }
+
+                    // Filtro por status
+                    if (show && filterState.status) {
+                        if (status !== filterState.status) {
+                            show = false;
+                        }
+                    }
+
+                    // Mostrar/ocultar fila
+                    if (show) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                // Mostrar mensaje si no hay resultados
+                let noResultsRow = tbody?.querySelector('tr.no-results');
+                if (visibleCount === 0) {
+                    if (!noResultsRow) {
+                        const tr = document.createElement('tr');
+                        tr.className = 'no-results';
+                        tr.innerHTML = `<td colspan="7" class="px-2 py-4 text-center text-gray-500">
+                            <div class="flex flex-col items-center gap-2">
+                                <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
+                                <span class="text-base font-medium">No hay órdenes con los filtros aplicados</span>
+                            </div>
+                        </td>`;
+                        tbody?.appendChild(tr);
+                    }
+                } else {
+                    noResultsRow?.remove();
+                }
+
+                // Actualizar contador
+                actualizarContador();
+
+                // Actualizar badge
+                const activeCount = Object.values(filterState).filter(v => v !== '').length;
+                if (activeCount > 0 && filterBadge) {
+                    filterBadge.textContent = activeCount;
+                    filterBadge.classList.remove('hidden');
+                } else if (filterBadge) {
+                    filterBadge.classList.add('hidden');
+                }
+            }
+
+            // Abrir modal
+            btnOpenFilters?.addEventListener('click', () => {
+                modalFilters?.classList.remove('hidden');
+                modalFilters?.classList.add('flex');
+            });
+
+            // Cerrar modal
+            btnCloseFilters?.addEventListener('click', () => {
+                modalFilters?.classList.add('hidden');
+                modalFilters?.classList.remove('flex');
+            });
+
+            // Cerrar al hacer click fuera
+            modalFilters?.addEventListener('click', (e) => {
+                if (e.target === modalFilters) {
+                    modalFilters.classList.add('hidden');
+                    modalFilters.classList.remove('flex');
+                }
+            });
+
+            // Event listeners para filtros
+            filterFolio?.addEventListener('input', (e) => {
+                filterState.folio = e.target.value.trim();
+                applyFilters();
+            });
+
+            filterMaquina?.addEventListener('change', (e) => {
+                filterState.maquina = e.target.value;
+                applyFilters();
+            });
+
+            filterTipo?.addEventListener('change', (e) => {
+                filterState.tipo = e.target.value;
+                applyFilters();
+            });
+
+            filterStatus?.addEventListener('change', (e) => {
+                filterState.status = e.target.value;
+                applyFilters();
+            });
+
+            // Limpiar filtros
+            btnClearFilters?.addEventListener('click', () => {
+                filterFolio.value = '';
+                filterMaquina.value = '';
+                filterTipo.value = '';
+                filterStatus.value = '';
+                filterState = { folio: '', maquina: '', tipo: '', status: '' };
+                applyFilters();
+            });
+
+            // Aplicar filtros iniciales si hay valores en los campos
+            applyFilters();
+        }
     })();
 </script>
 @endsection

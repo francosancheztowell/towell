@@ -316,9 +316,19 @@
         const btnSolicitar = $('#btn-solicitar');
         const btnEditar    = $('#btn-editar');
         const btnCancelar  = $('#btn-cancelar');
+        const btnResumen   = $('#btn-resumen');
 
-        [btnSolicitar, btnEditar, btnCancelar].forEach(b => b?.classList.remove('hidden'));
+        // Resetear todos los botones
+        [btnSolicitar, btnEditar, btnCancelar, btnResumen].forEach(b => b?.classList.remove('hidden'));
+        
         if (status === 'En Proceso') return; // puede todo
+        if (status === 'En preparación'){ 
+            // Solo mostrar resumen
+            btnSolicitar?.classList.add('hidden'); 
+            btnEditar?.classList.add('hidden'); 
+            btnCancelar?.classList.add('hidden'); 
+            return; 
+        }
         if (status === 'Solicitado'){ btnSolicitar?.classList.add('hidden'); btnEditar?.classList.add('hidden'); return; }
         if (status === 'Surtido'){ btnSolicitar?.classList.add('hidden'); btnEditar?.classList.add('hidden'); btnCancelar?.classList.add('hidden'); return; }
         if (status === 'Cancelado'){ btnSolicitar?.classList.add('hidden'); btnEditar?.classList.add('hidden'); btnCancelar?.classList.add('hidden'); return; }

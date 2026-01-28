@@ -42,6 +42,10 @@ class ProgramarUrdidoController extends Controller
     public function reimpresionFinalizadas(Request $request)
     {
         $busqueda = trim((string) $request->query('q', ''));
+        $folio = trim((string) $request->query('folio', ''));
+        $maquina = trim((string) $request->query('maquina', ''));
+        $tipo = trim((string) $request->query('tipo', ''));
+        $status = trim((string) $request->query('status', ''));
 
         $query = UrdProgramaUrdido::select([
             'Id',
@@ -54,9 +58,29 @@ class ProgramarUrdidoController extends Controller
             'FechaProg',
             'Status',
         ]);
-        // Mostrar todas las órdenes sin filtrar por status
 
-        if ($busqueda !== '') {
+        // Filtro por folio
+        if ($folio !== '') {
+            $query->where('Folio', 'like', "%{$folio}%");
+        }
+
+        // Filtro por máquina
+        if ($maquina !== '') {
+            $query->where('MaquinaId', $maquina);
+        }
+
+        // Filtro por tipo
+        if ($tipo !== '') {
+            $query->where('RizoPie', $tipo);
+        }
+
+        // Filtro por status
+        if ($status !== '') {
+            $query->where('Status', $status);
+        }
+
+        // Búsqueda general (si no hay filtros específicos)
+        if ($busqueda !== '' && $folio === '' && $maquina === '' && $tipo === '' && $status === '') {
             $query->where(function ($sub) use ($busqueda) {
                 $sub->where('Folio', 'like', "%{$busqueda}%")
                     ->orWhere('Cuenta', 'like', "%{$busqueda}%")

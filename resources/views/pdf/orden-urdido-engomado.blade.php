@@ -46,7 +46,7 @@
             top: -10px;
             right: 0;
             text-align: right;
-            font-size: 8.5pt;
+            font-size: 14pt;
             font-weight: bold;
             padding-top: 0;
         }
@@ -214,7 +214,7 @@
         <div class="folio-top-right">
             No. FOLIO: {{ $orden->Folio ?? '-' }}
             @if(!empty($esReimpresion))
-                <div style="font-size: 7pt; color: #dc2626; font-weight: bold; margin-top: 2px;">REIMPRESIÓN</div>
+                <div style="font-size: 12pt; color: #dc2626; font-weight: bold; margin-top: 4px;">REIMPRESIÓN</div>
             @endif
         </div>
     @endif
