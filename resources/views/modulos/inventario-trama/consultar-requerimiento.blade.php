@@ -18,6 +18,18 @@
 @endsection
 
 @section('content')
+<style>
+    /* Estilos para fila seleccionada */
+    tr.selected,
+    tr.selected td {
+        background-color: rgb(59, 130, 246) !important; /* bg-blue-500 */
+        color: white !important;
+    }
+    tr.selected:hover,
+    tr.selected:hover td {
+        background-color: rgb(37, 99, 235) !important; /* bg-blue-600 */
+    }
+</style>
 <div class="w-full">
     @if($requerimientos && $requerimientos->count() > 0)
         @php
@@ -56,12 +68,13 @@
                                     @foreach($requerimientos as $req)
                                         @php
                                             $statusClass = $statusColors[$req->Status] ?? 'bg-gray-100 text-gray-800';
+                                            $isSelected = $req->Folio === $selectedFolio;
                                         @endphp
-                                        <tr class="hover:bg-gray-50 cursor-pointer {{ $req->Folio === $selectedFolio ? 'bg-blue-100' : '' }}" data-folio="{{ $req->Folio }}">
+                                        <tr class="hover:bg-gray-50 cursor-pointer {{ $isSelected ? 'selected bg-blue-500 text-white' : '' }}" data-folio="{{ $req->Folio }}" data-status="{{ $req->Status }}" data-status-class="{{ $statusClass }}">
                                             <td class="px-4 py-1 text-sm font-semibold text-gray-900 border-r border-gray-200">{{ $req->Folio }}</td>
                                             <td class="px-4 py-1 text-sm font-semibold text-gray-900 border-r border-gray-200">{{ \Carbon\Carbon::parse($req->Fecha)->format('d/m/Y') }}</td>
                                             <td class="px-4 py-1 border-r border-gray-200">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $statusClass }}">{{ $req->Status }}</span>
+                                                <span class="status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $isSelected ? 'bg-blue-600 text-white' : $statusClass }}">{{ $req->Status }}</span>
                                             </td>
                                             <td class="px-4 py-1 text-sm font-semibold text-gray-900 border-r border-gray-200">{{ $turnoDesc[$req->Turno] ?? $req->Turno }}</td>
                                             <td class="px-4 py-1 text-sm font-semibold text-gray-900">{{ $req->numero_empleado ?? '-' }}</td>
@@ -230,8 +243,27 @@
 
     // --------- Core UI ---------
     function selectFolio(folio, rowEl, forzarRecarga = false){
-        $$('#tbody-folios tr').forEach(tr => tr.classList.remove('bg-blue-100'));
-        if (rowEl) rowEl.classList.add('bg-blue-100');
+        // Remover clase selected de todas las filas y restaurar badges
+        $$('#tbody-folios tr').forEach(tr => {
+            tr.classList.remove('selected', 'bg-blue-500', 'text-white');
+            // Restaurar badge de status a su estado original
+            const statusBadge = tr.querySelector('.status-badge');
+            if (statusBadge) {
+                const originalStatusClass = tr.getAttribute('data-status-class') || 'bg-gray-100 text-gray-800';
+                statusBadge.className = `status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${originalStatusClass}`;
+            }
+        });
+        
+        // Agregar clase selected a la fila seleccionada
+        if (rowEl) {
+            rowEl.classList.add('selected', 'bg-blue-500', 'text-white');
+            // Actualizar badge de status para que sea visible sobre fondo azul
+            const statusBadge = rowEl.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.className = 'status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white';
+            }
+        }
+        
         fetchDetalles(folio, forzarRecarga).then(({ok, req, consumos}) => {
             if (!ok) return;
             setSelectedFolio(folio, req?.Status);
