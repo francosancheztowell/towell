@@ -4,6 +4,14 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
+    {{-- Botón de Filtros --}}
+    <button id="btn-open-filters" title="Filtros"
+            class="p-2 rounded-lg transition hover:bg-purple-100 relative">
+        <i class="fa-solid fa-filter text-purple-600 text-lg"></i>
+        <span id="filter-badge"
+              class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">!</span>
+    </button>
+
     <x-navbar.button-create
         id="btn-nuevo"
         title="Nuevo"
@@ -72,7 +80,7 @@
             </thead>
             <tbody id="rows-body" class="text-gray-800">
                 @forelse($registros as $r)
-                    <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50 cursor-pointer"
+                    <tr class="table-row odd:bg-white even:bg-gray-50 hover:bg-blue-50 cursor-pointer"
                         data-folio="{{ $r->Folio }}"
                         data-date="{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}"
                         data-turno="{{ $r->Turno }}"
@@ -114,108 +122,152 @@
 <div id="modalNuevo" class="fixed inset-0 z-50 hidden items-center justify-center">
     <div class="fixed inset-0 bg-black/50" data-close="1"></div>
     <div class="relative bg-white w-[90vw] max-w-3xl rounded shadow-lg">
-        <div class="modal-header bg-blue-500 text-white border-b flex items-center justify-between p-2.5">
-            <h5 class="text-base md:text-lg font-semibold" id="modal-title">
+        <div class="modal-header bg-blue-500 text-white flex items-center justify-between p-2.5">
+            <h5 class="text-base md:text-lg font-semibold flex items-center gap-2" id="modal-title">
                 Nuevo Registro de Producción
             </h5>
             <div class="flex items-center gap-2">
-                <button type="button" class="px-2.5 py-1.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition text-sm" id="btn-cancelar-modal">
+                <button type="button" class="px-3 py-1.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition text-sm" id="btn-cancelar-modal">
                     Cancelar
                 </button>
-                <button type="button" class="px-2.5 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 font-medium transition shadow-md text-sm" id="btn-guardar-nuevo">
+                <button type="button" class="px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 font-medium transition shadow-md text-sm" id="btn-guardar-nuevo">
                     Guardar
                 </button>
             </div>
         </div>
-        <div class="p-3 modal-scroll max-h-[85vh] overflow-y-auto pt-[72px]">
+        <div class="p-3 modal-scroll max-h-[85vh] overflow-y-auto">
             <div class="grid grid-cols-12 gap-3">
                 <div class="col-span-12">
-                    <h6 class="text-sm font-semibold text-gray-700  border-b border-gray-200">
+                    <h6 class="text-sm font-semibold text-gray-700 border-b border-gray-200">
                         <i class="fa fa-info-circle mr-2 text-blue-500"></i>Información General
                     </h6>
                 </div>
 
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Folio</label>
+                <div class="col-span-6 md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700">Folio</label>
                     <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50" id="f_Folio" readonly>
                 </div>
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Fecha</label>
+                <div class="col-span-6 md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700">Fecha</label>
                     <input type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Date">
                 </div>
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Turno</label>
+                <div class="col-span-6 md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700">Turno</label>
                     <select class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Turno">
                         <option value="1">1</option>
                         <option value="2">2</option>
                         <option value="3">3</option>
                     </select>
                 </div>
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">No. Empleado</label>
+                <div class="col-span-6 md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700">No. Empleado</label>
                     <input type="text" disabled class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_numero_empleado">
                 </div>
-                <div class="col-span-12 md:col-span-6">
-                    <label class="block text-sm font-medium text-gray-700 ">Nombre del Operador</label>
+                <div class="col-span-12 md:col-span-4">
+                    <label class="block text-sm font-medium text-gray-700">Nombre del Operador</label>
                     <input type="text" disabled class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_nombreEmpl">
                 </div>
 
-                <div class="col-span-12 ">
-                    <h6 class="text-sm font-semibold text-gray-700 mb-2  border-b border-gray-200">
+                <div class="col-span-12">
+                    <h6 class="text-sm font-semibold text-gray-700  border-b border-gray-200">
                         <i class="fa fa-box mr-2 text-blue-500"></i>Detalles del Material
                     </h6>
                 </div>
 
                 <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Calibre</label>
+                    <label class="block text-sm font-medium text-gray-700">Calibre</label>
                     <select class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Calibre">
                         <option value="">Cargando...</option>
                     </select>
                 </div>
                 <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Fibra</label>
+                    <label class="block text-sm font-medium text-gray-700">Fibra</label>
                     <select class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_FibraTrama" disabled>
                         <option value="">Selecciona calibre</option>
                     </select>
                 </div>
                 <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Cód. Color</label>
+                    <label class="block text-sm font-medium text-gray-700">Cód. Color</label>
                     <select class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_CodColor" disabled>
                         <option value="">Selecciona calibre</option>
                     </select>
                 </div>
                 <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Nombre del Color</label>
+                    <label class="block text-sm font-medium text-gray-700">Nombre del Color</label>
                     <input type="text" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50" id="f_Color" readonly>
                 </div>
 
-                <div class="col-span-12 ">
-                    <h6 class="text-sm font-semibold text-gray-700  border-b border-gray-200">
+                <div class="col-span-12">
+                    <h6 class="text-sm font-semibold text-gray-700 border-b border-gray-200">
                         <i class="fa fa-chart-line mr-2 text-blue-500"></i>Datos de Producción
                     </h6>
                 </div>
 
                 <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Cantidad (kg)</label>
+                    <label class="block text-sm font-medium text-gray-700">Cantidad (kg)</label>
                     <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cantidad">
                 </div>
                 <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Conos</label>
+                    <label class="block text-sm font-medium text-gray-700">Conos</label>
                     <input type="number" step="1" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Conos">
                 </div>
                 <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Tiempo (hrs)</label>
+                    <label class="block text-sm font-medium text-gray-700">Tiempo (hrs)</label>
                     <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Horas">
                 </div>
                 <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700 ">Eficiencia (%)</label>
+                    <label class="block text-sm font-medium text-gray-700">Eficiencia (%)</label>
                     <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Eficiencia">
                 </div>
                 <div class="col-span-12">
-                    <label class="block text-sm font-medium text-gray-700 ">Observaciones</label>
+                    <label class="block text-sm font-medium text-gray-700">Observaciones</label>
                     <textarea class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4" id="f_Obs" rows="2"></textarea>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal FILTROS --}}
+<div id="modal-filters" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">
+                <i class="fa-solid fa-filter text-purple-600 mr-2"></i>Filtros
+            </h2>
+            <button type="button" data-close="#modal-filters"
+                    class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-4 mb-4">
+            {{-- Filtro por Operador --}}
+            <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
+                <label class="block text-xs text-gray-600 mb-2">
+                    <i class="fa-solid fa-user mr-1"></i>Operador
+                </label>
+                <select id="filter-operador"
+                        class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
+                    <option value="">Todos los operadores</option>
+                </select>
+            </div>
+
+            {{-- Filtro por Calibre --}}
+            <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
+                <label class="block text-xs text-gray-600 mb-2">
+                    <i class="fa-solid fa-ruler mr-1"></i>Calibre
+                </label>
+                <select id="filter-calibre"
+                        class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
+                    <option value="">Todos los calibres</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button type="button" id="btn-clear-filters"
+                    class="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-blue-500 text-white transition text-sm">
+                <i class="fa-solid fa-eraser mr-1"></i>Limpiar
+            </button>
         </div>
     </div>
 </div>
@@ -392,7 +444,7 @@
     };
 
     const rowHtml = (r) => `
-        <tr class="odd:bg-white even:bg-gray-50 hover:bg-blue-50 cursor-pointer"
+        <tr class="table-row odd:bg-white even:bg-gray-50 hover:bg-blue-50 cursor-pointer"
             data-folio="${r.Folio ?? ''}"
             data-date="${r.Date ?? ''}"
             data-turno="${r.Turno ?? ''}"
@@ -631,8 +683,9 @@
             state.selectedRow = null;
             updateActionButtons();
         }
+        
         showModal();
-        DOM.modalTitle.innerHTML = '<i class="fa fa-plus-circle mr-2"></i>Nuevo Registro de Producción';
+        DOM.modalTitle.innerHTML = 'Nuevo Registro de Producción';
         resetDependents();
         await initMaterialSelectors();
 
@@ -640,7 +693,13 @@
             const url = `{{ route('tejido.produccion.reenconado.generar-folio') }}`;
             const { data } = await axios.post(url);
             if (data?.success) {
-                setFieldValue('f_Folio', data.folio);
+                // Establecer el folio siguiente de forma explícita
+                const folioField = document.getElementById('f_Folio');
+                if (folioField) {
+                    folioField.value = data.folio || '';
+                } else {
+                    setFieldValue('f_Folio', data.folio);
+                }
                 setFieldValue('f_Date', data.fecha || new Date().toISOString().split('T')[0]);
                 setFieldValue('f_Turno', data.turno || '1');
                 setFieldValue('f_nombreEmpl', data.usuario);
@@ -743,6 +802,218 @@
             }
         });
     }
+
+    // Calcular eficiencia automáticamente: (cantidad / tiempo) * 9.3
+    const calcularEficiencia = () => {
+        const cantidadField = document.getElementById('f_Cantidad');
+        const tiempoField = document.getElementById('f_Horas');
+        const eficienciaField = document.getElementById('f_Eficiencia');
+        
+        if (!cantidadField || !tiempoField || !eficienciaField) return;
+        
+        const cantidad = parseFloat(cantidadField.value) || 0;
+        const tiempo = parseFloat(tiempoField.value) || 0;
+        
+        if (cantidad > 0 && tiempo > 0) {
+            const eficiencia = (cantidad / tiempo) * 9.3;
+            eficienciaField.value = eficiencia.toFixed(2);
+        } else {
+            eficienciaField.value = '';
+        }
+    };
+
+    const cantidadEl = document.getElementById('f_Cantidad');
+    const tiempoEl = document.getElementById('f_Horas');
+    
+    if (cantidadEl) {
+        cantidadEl.addEventListener('input', calcularEficiencia);
+        cantidadEl.addEventListener('blur', calcularEficiencia);
+    }
+    
+    if (tiempoEl) {
+        tiempoEl.addEventListener('input', calcularEficiencia);
+        tiempoEl.addEventListener('blur', calcularEficiencia);
+    }
+
+    // ======== FILTROS ========
+    (function () {
+        const qs = (s) => document.querySelector(s);
+        const qsa = (s) => [...document.querySelectorAll(s)];
+
+        const open = (sel) => {
+            const m = qs(sel);
+            if (!m) return;
+            m.classList.remove('hidden');
+        };
+        const close = (sel) => {
+            const m = qs(sel);
+            if (!m) return;
+            m.classList.add('hidden');
+        };
+
+        qsa('[data-close]').forEach((b) =>
+            b.addEventListener('click', () => close(b.dataset.close))
+        );
+
+        const btnOpenFilters = qs('#btn-open-filters');
+        const filterBadge = qs('#filter-badge');
+        const btnClearFilters = qs('#btn-clear-filters');
+        const filterOperador = qs('#filter-operador');
+        const filterCalibre = qs('#filter-calibre');
+        const tbody = DOM.tbody;
+
+        // Obtener nombre del usuario actual
+        const userName = @json(auth()->user()->nombre ?? '');
+
+        let filterState = {
+            operador: userName || '', // Por defecto filtrar por el usuario actual
+            calibre: '',
+        };
+
+        // Obtener operadores y calibres únicos de la tabla
+        function obtenerOperadoresUnicos() {
+            const operadores = new Set();
+            qsa('.table-row').forEach(row => {
+                const operador = row.dataset.nombreempl || '';
+                if (operador) operadores.add(operador);
+            });
+            return Array.from(operadores).sort();
+        }
+
+        function obtenerCalibresUnicos() {
+            const calibres = new Set();
+            qsa('.table-row').forEach(row => {
+                const calibre = row.dataset.calibre || '';
+                if (calibre) calibres.add(calibre);
+            });
+            return Array.from(calibres).sort();
+        }
+
+        // Poblar selects de filtros
+        function poblarFiltros() {
+            if (!filterOperador || !filterCalibre) return;
+
+            // Limpiar opciones existentes (excepto "Todos")
+            while (filterOperador.children.length > 1) {
+                filterOperador.removeChild(filterOperador.lastChild);
+            }
+            while (filterCalibre.children.length > 1) {
+                filterCalibre.removeChild(filterCalibre.lastChild);
+            }
+
+            // Agregar operadores
+            obtenerOperadoresUnicos().forEach(operador => {
+                const option = document.createElement('option');
+                option.value = operador;
+                option.textContent = operador;
+                filterOperador.appendChild(option);
+            });
+
+            // Agregar calibres
+            obtenerCalibresUnicos().forEach(calibre => {
+                const option = document.createElement('option');
+                option.value = calibre;
+                option.textContent = calibre;
+                filterCalibre.appendChild(option);
+            });
+
+            // Establecer el valor por defecto del operador (usuario actual)
+            if (userName && filterOperador) {
+                filterOperador.value = userName;
+            }
+        }
+
+        function applyFilters() {
+            const rows = qsa('.table-row');
+            let visibleCount = 0;
+
+            rows.forEach((row) => {
+                const operador = (row.dataset.nombreempl || '').trim();
+                const calibre = (row.dataset.calibre || '').trim();
+
+                let show = true;
+
+                // Filtro por Operador
+                if (filterState.operador) {
+                    if (operador !== filterState.operador) {
+                        show = false;
+                    }
+                }
+
+                // Filtro por Calibre
+                if (filterState.calibre) {
+                    if (calibre !== filterState.calibre) {
+                        show = false;
+                    }
+                }
+
+                // Mostrar/ocultar fila
+                if (show) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Actualizar badge
+            const hasActiveFilters = filterState.operador || filterState.calibre;
+            if (hasActiveFilters) {
+                filterBadge?.classList.remove('hidden');
+            } else {
+                filterBadge?.classList.add('hidden');
+            }
+
+            // Mostrar mensaje si no hay resultados
+            let emptyRow = tbody?.querySelector('tr.no-results');
+            if (visibleCount === 0) {
+                if (!emptyRow) {
+                    const tr = document.createElement('tr');
+                    tr.className = 'no-results';
+                    tr.innerHTML = `<td colspan="13" class="px-4 py-6 text-center text-slate-500">
+                        <div class="flex flex-col items-center gap-2">
+                            <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
+                            <span class="text-base font-medium">Sin resultados con los filtros aplicados</span>
+                        </div>
+                    </td>`;
+                    tbody?.appendChild(tr);
+                }
+            } else {
+                emptyRow?.remove();
+            }
+        }
+
+        btnOpenFilters?.addEventListener('click', () => {
+            poblarFiltros();
+            open('#modal-filters');
+        });
+
+        filterOperador?.addEventListener('change', function () {
+            filterState.operador = this.value || '';
+            applyFilters();
+        });
+
+        filterCalibre?.addEventListener('change', function () {
+            filterState.calibre = this.value || '';
+            applyFilters();
+        });
+
+        btnClearFilters?.addEventListener('click', () => {
+            filterState = {
+                operador: '',
+                calibre: '',
+            };
+            if (filterOperador) filterOperador.value = '';
+            if (filterCalibre) filterCalibre.value = '';
+            applyFilters();
+            close('#modal-filters');
+        });
+
+        // Inicializar filtros al cargar
+        poblarFiltros();
+        // Aplicar filtro por defecto (usuario actual)
+        applyFilters();
+    })();
 })();
 </script>
 @endsection

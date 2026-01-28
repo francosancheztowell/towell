@@ -664,7 +664,14 @@
                 const tara  = parseFloat(taraInput.value) || 0;
                 const neto  = bruto - tara;
 
-                netoInput.value = neto.toFixed(2);
+                // Si el neto es negativo, marcarlo en rojo, si no, quitar el error
+                if (neto < 0) {
+                    netoInput.value = neto.toFixed(2);
+                    marcarCampoError(netoInput, true);
+                } else {
+                    netoInput.value = neto.toFixed(2);
+                    marcarCampoError(netoInput, false);
+                }
             }
 
             window.toggleQuantityEdit = function (element) {
@@ -1363,6 +1370,39 @@
             // ===== DOM Ready =====
             document.addEventListener('DOMContentLoaded', function () {
                 const tablaBody = document.getElementById('tabla-produccion-body');
+                
+                // Remover borde rojo cuando el usuario corrige los campos
+                function removerErrorAlCambiar(e) {
+                    const elemento = e.target;
+                    if (elemento.classList.contains('border-red-500')) {
+                        elemento.classList.remove('border-red-500', 'border-2');
+                        elemento.classList.add('border-gray-300');
+                    }
+                }
+                
+                // Agregar listeners para quitar errores visuales al corregir
+                if (tablaBody) {
+                    tablaBody.addEventListener('input', removerErrorAlCambiar);
+                    tablaBody.addEventListener('change', removerErrorAlCambiar);
+                }
+                
+                // Para campos de merma
+                document.querySelectorAll('input[data-field="merma_con_goma"], input[data-field="merma_sin_goma"]').forEach(el => {
+                    el.addEventListener('input', removerErrorAlCambiar);
+                    el.addEventListener('change', removerErrorAlCambiar);
+                });
+                
+                // Para botones de temperatura (Canoa 1 y 2)
+                document.addEventListener('click', function(e) {
+                    const opt = e.target.closest('.number-option');
+                    if (opt) {
+                        const cell = opt.closest('td');
+                        const btn = cell ? cell.querySelector('.edit-quantity-btn') : null;
+                        if (btn && btn.classList.contains('border-red-500')) {
+                            btn.classList.remove('border-red-500', 'border-2');
+                        }
+                    }
+                });
 
                 if (tablaBody) {
                     // Precalcular netos
@@ -1694,6 +1734,13 @@
 
                         const valorAnterior = quantityDisplay.textContent.trim();
                         quantityDisplay.textContent = selectedValue;
+                        
+                        // Quitar borde rojo si estaba marcado como error
+                        const editBtn = cell.querySelector('.edit-quantity-btn');
+                        if (editBtn && editBtn.classList.contains('border-red-500')) {
+                            editBtn.classList.remove('border-red-500', 'border-2', 'ring-2', 'ring-red-300');
+                            editBtn.style.border = '';
+                        }
 
                         actualizarCampoProduccion(registroId, campoMap[fieldName], selectedValue)
                             .catch(() => {
@@ -1978,12 +2025,55 @@
                 }
             });
 
+            function marcarCampoError(elemento, tieneError) {
+                if (!elemento) return;
+                
+                if (tieneError) {
+                    elemento.classList.add('border-red-500', 'border-2');
+                    elemento.classList.remove('border-gray-300');
+                } else {
+                    elemento.classList.remove('border-red-500', 'border-2');
+                    elemento.classList.add('border-gray-300');
+                }
+            }
+
+            function limpiarErroresVisuales() {
+                const tablaBody = document.getElementById('tabla-produccion-body');
+                if (tablaBody) {
+                    tablaBody.querySelectorAll('input, select').forEach(el => {
+                        marcarCampoError(el, false);
+                    });
+                }
+                
+                // Limpiar errores de campos de merma
+                document.querySelectorAll('input[data-field="merma_con_goma"], input[data-field="merma_sin_goma"]').forEach(el => {
+                    marcarCampoError(el, false);
+                });
+            }
+
             function validarRegistrosCompletos() {
+                limpiarErroresVisuales();
+                
                 const tablaBody = document.getElementById('tabla-produccion-body');
                 if (!tablaBody) return { valido: false, mensaje: 'No se encontró la tabla de producción' };
 
                 const filas = tablaBody.querySelectorAll('tr[data-registro-id]');
                 const registrosIncompletos = [];
+                let hayErrores = false;
+
+                // Validar campos de merma (fuera de la tabla)
+                const mermaConGoma = document.querySelector('input[data-field="merma_con_goma"]');
+                const mermaSinGoma = document.querySelector('input[data-field="merma_sin_goma"]');
+                
+                if (!mermaConGoma || !mermaConGoma.value || mermaConGoma.value.trim() === '') {
+                    marcarCampoError(mermaConGoma, true);
+                    hayErrores = true;
+                }
+                
+                if (!mermaSinGoma || !mermaSinGoma.value || mermaSinGoma.value.trim() === '') {
+                    marcarCampoError(mermaSinGoma, true);
+                    hayErrores = true;
+                }
 
                 filas.forEach((fila, index) => {
                     const registroId = fila.getAttribute('data-registro-id');
@@ -1993,57 +2083,128 @@
                     const fechaInput = fila.querySelector('input.input-fecha');
                     if (!fechaInput || !fechaInput.value) {
                         camposFaltantes.push('Fecha');
+                        marcarCampoError(fechaInput, true);
+                        hayErrores = true;
                     }
 
                     // Oficial (requerido)
                     const oficialSelect = fila.querySelector('.oficial-select');
                     if (!oficialSelect || !oficialSelect.value) {
                         camposFaltantes.push('Oficial');
+                        marcarCampoError(oficialSelect, true);
+                        hayErrores = true;
                     }
 
                     // Turno
                     const turnoSelect = fila.querySelector('select[data-field="turno"]');
                     if (!turnoSelect || !turnoSelect.value) {
                         camposFaltantes.push('Turno');
+                        marcarCampoError(turnoSelect, true);
+                        hayErrores = true;
                     }
 
                     // H. Inicio
                     const hInicioInput = fila.querySelector('input[data-field="h_inicio"]');
                     if (!hInicioInput || !hInicioInput.value) {
                         camposFaltantes.push('H. Inicio');
+                        marcarCampoError(hInicioInput, true);
+                        hayErrores = true;
                     }
 
                     // H. Fin
                     const hFinInput = fila.querySelector('input[data-field="h_fin"]');
                     if (!hFinInput || !hFinInput.value) {
                         camposFaltantes.push('H. Fin');
+                        marcarCampoError(hFinInput, true);
+                        hayErrores = true;
                     }
 
                     // Julio
                     const julioSelect = fila.querySelector('select[data-field="no_julio"]');
                     if (!julioSelect || !julioSelect.value) {
                         camposFaltantes.push('Julio');
+                        marcarCampoError(julioSelect, true);
+                        hayErrores = true;
                     }
 
                     // Kg. Bruto
                     const kgBrutoInput = fila.querySelector('input[data-field="kg_bruto"]');
                     if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') {
                         camposFaltantes.push('Kg. Bruto');
+                        marcarCampoError(kgBrutoInput, true);
+                        hayErrores = true;
                     }
 
                     // Tara
                     const taraInput = fila.querySelector('input[data-field="tara"]');
                     if (!taraInput || !taraInput.value || taraInput.value.trim() === '') {
                         camposFaltantes.push('Tara');
+                        marcarCampoError(taraInput, true);
+                        hayErrores = true;
+                    }
+
+                    // Kg. Neto - Validar que no sea negativo
+                    const kgNetoInput = fila.querySelector('input[data-field="kg_neto"]');
+                    if (kgNetoInput && kgNetoInput.value) {
+                        const kgNetoValue = parseFloat(kgNetoInput.value);
+                        if (!isNaN(kgNetoValue) && kgNetoValue < 0) {
+                            camposFaltantes.push('Kg. Neto (no puede ser negativo)');
+                            marcarCampoError(kgNetoInput, true);
+                            hayErrores = true;
+                        }
                     }
 
                     // Metros
                     const metrosInput = fila.querySelector('input[data-field="metros"]');
                     if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') {
                         camposFaltantes.push('Metros');
+                        marcarCampoError(metrosInput, true);
+                        hayErrores = true;
                     }
 
-                    // Sólidos, Canoa 1, Canoa 2 y Roturas son opcionales, no se validan
+                    // Sólidos (Sol. Can.) - REQUERIDO
+                    const solidosInput = fila.querySelector('input[data-field="solidos"]');
+                    if (!solidosInput || !solidosInput.value || solidosInput.value.trim() === '') {
+                        camposFaltantes.push('Sólidos');
+                        marcarCampoError(solidosInput, true);
+                        hayErrores = true;
+                    }
+
+                    // Canoa 1 (Temp) - REQUERIDO
+                    const canoa1Btn = fila.querySelector('button[onclick*="temp_canoa1"]');
+                    const canoa1Display = canoa1Btn ? canoa1Btn.querySelector('.quantity-display[data-field="temp_canoa1"]') : null;
+                    const canoa1Value = canoa1Display ? canoa1Display.textContent.trim() : '';
+                    if (!canoa1Value || canoa1Value === '0' || canoa1Value === '') {
+                        camposFaltantes.push('Temp Canoa 1');
+                        if (canoa1Btn) {
+                            canoa1Btn.classList.add('border-red-500', 'border-2', 'ring-2', 'ring-red-300');
+                            canoa1Btn.style.border = '2px solid #ef4444';
+                        }
+                        hayErrores = true;
+                    }
+
+                    // Canoa 2 (Temp) - REQUERIDO
+                    const canoa2Btn = fila.querySelector('button[onclick*="temp_canoa2"]');
+                    const canoa2Display = canoa2Btn ? canoa2Btn.querySelector('.quantity-display[data-field="temp_canoa2"]') : null;
+                    const canoa2Value = canoa2Display ? canoa2Display.textContent.trim() : '';
+                    if (!canoa2Value || canoa2Value === '0' || canoa2Value === '') {
+                        camposFaltantes.push('Temp Canoa 2');
+                        if (canoa2Btn) {
+                            canoa2Btn.classList.add('border-red-500', 'border-2', 'ring-2', 'ring-red-300');
+                            canoa2Btn.style.border = '2px solid #ef4444';
+                        }
+                        hayErrores = true;
+                    }
+
+                    // Ubicación - REQUERIDO
+                    const ubicacionSelect = fila.querySelector('select[data-field="ubicacion"]');
+                    if (!ubicacionSelect || !ubicacionSelect.value || ubicacionSelect.value.trim() === '') {
+                        camposFaltantes.push('Ubicación');
+                        marcarCampoError(ubicacionSelect, true);
+                        hayErrores = true;
+                    }
+
+                    // Roturas es OPCIONAL, no se valida
 
                     if (camposFaltantes.length > 0) {
                         registrosIncompletos.push({
@@ -2053,8 +2214,21 @@
                     }
                 });
 
-                if (registrosIncompletos.length > 0) {
-                    return { valido: false, mensaje: 'Completa todos los registros' };
+                if (hayErrores || registrosIncompletos.length > 0) {
+                    let mensaje = 'Por favor completa los siguientes campos:\n\n';
+                    
+                    // Agregar errores de merma si existen
+                    if ((mermaConGoma && (!mermaConGoma.value || mermaConGoma.value.trim() === '')) ||
+                        (mermaSinGoma && (!mermaSinGoma.value || mermaSinGoma.value.trim() === ''))) {
+                        mensaje += '• Merma con Goma\n';
+                        mensaje += '• Merma sin Goma\n\n';
+                    }
+                    
+                    registrosIncompletos.forEach(reg => {
+                        mensaje += `Fila ${reg.fila}: ${reg.campos.join(', ')}\n`;
+                    });
+                    
+                    return { valido: false, mensaje: mensaje.trim() };
                 }
 
                 return { valido: true };
@@ -2066,13 +2240,23 @@
                 const validacion = validarRegistrosCompletos();
 
                 if (!validacion.valido) {
+                    // Hacer scroll al primer campo con error
+                    const primerError = document.querySelector('.border-red-500');
+                    if (primerError) {
+                        primerError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        setTimeout(() => {
+                            primerError.focus();
+                        }, 500);
+                    }
+                    
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
                             icon: 'warning',
                             title: 'Registros incompletos',
-                            text: validacion.mensaje,
+                            html: '<pre style="text-align: left; white-space: pre-wrap; font-family: inherit;">' + validacion.mensaje.replace(/\n/g, '<br>') + '</pre>',
                             confirmButtonText: 'Entendido',
-                            confirmButtonColor: '#2563eb'
+                            confirmButtonColor: '#2563eb',
+                            width: '600px'
                         });
                     } else {
                         alert(validacion.mensaje);

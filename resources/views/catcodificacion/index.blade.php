@@ -50,6 +50,88 @@
                         'EfiFinal' => 'Eficiencia Final',
                         'DesperdicioTrama' => 'Desperdicio Trama',
                     ];
+
+                    /**
+                     * Orden de columnas (CatCodificados).
+                     * Nota: sólo reordena las columnas que existan en $columnas;
+                     * cualquier columna no listada se conserva al final.
+                     */
+                    $ordenDeseado = [
+                        // Encabezado principal
+                        'OrdenTejido',          // Num de Orden
+                        'FechaTejido',          // Fecha Orden
+                        'FechaCumplimiento',    // Fecha Cumplimiento
+                        'Departamento',
+                        'TelarId',              // Telar Actual
+                        'Prioridad',
+                        'Nombre',               // Modelo
+                        'ClaveModelo',          // CLAVE MODELO
+                        'HiloAX',               // CLAVE AX
+                        'InventSizeId',         // Tamaño
+                        'Tolerancia',
+                        'CodigoDibujo',
+                        'FechaCompromiso',
+                        'FlogsId',
+                        'NombreProyecto',       // Nombre de Formato Logístico
+                        'Clave',
+
+                        // Medidas / especificación
+                        'Cantidad',
+                        'Peine',
+                        'Ancho',
+                        'Largo',
+                        'P_crudo',
+                        'Luchaje',
+                        'Tra',
+
+                        // Plano / rizo / pie
+                        'DobladilloId',         // Tipo plano
+                        'MedidaPlano',          // Med plano
+                        'TipoRizo',
+                        'AlturaRizo',
+
+                        // Velocidades / observaciones
+                        'VelocidadSTD',
+                        'Obs',
+
+                        // Cenefa / repeticiones / marbetes
+                        'MedidaCenefa',
+                        'MedIniRizoCenefa',
+                        'Razurada',
+                        'NoTiras',
+                        'Repeticiones',
+                        'NoMarbete',
+                        'CambioRepaso',
+
+                        // Comercial / orden / observaciones
+                        'Vendedor',
+                        'NoOrden',
+                        'Obs5',                 // Observaciones
+
+                        // Trama / lucha
+                        'TramaAnchoPeine',
+                        'LogLuchaTotal',
+
+                        // Totales / tiempos
+                        'Total',
+                        'RespInicio',
+                        'HrInicio',
+                        'HrTermino',
+                        'MinutosCambio',
+                        'PesoMuestra',
+                        'RegAlinacion',
+                        'OBSParaPro',
+
+                        // Producción (final)
+                        'CantidadProducir_2',   // Cantidad a Producir (2)
+                        'Tejidas',
+                        'pzaXrollo',
+                    ];
+
+                    // Reordenar: primero las del orden deseado, luego las restantes
+                    $presentes = array_values(array_intersect($ordenDeseado, $columnas));
+                    $restantes = array_values(array_diff($columnas, $ordenDeseado));
+                    $columnas = array_values(array_merge($presentes, $restantes));
                 @endphp
 
                 <table id="mainTable" class="w-full min-w-full text-[11px] leading-tight">
