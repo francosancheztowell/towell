@@ -87,7 +87,7 @@
 
                     <!-- Acciones dinámicas -->
                     <div class="flex flex-col space-y-2 lg:min-w-48" id="acciones-contenedor">
-                        <x-navbar.button-report
+                        <x-navbar.button-create
                             id="btn-solicitar"
                             title="Solicitar consumo"
                             text="Solicitar consumo"
@@ -253,7 +253,7 @@
                 statusBadge.className = `status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${originalStatusClass}`;
             }
         });
-        
+
         // Agregar clase selected a la fila seleccionada
         if (rowEl) {
             rowEl.classList.add('selected', 'bg-blue-500', 'text-white');
@@ -263,7 +263,7 @@
                 statusBadge.className = 'status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white';
             }
         }
-        
+
         fetchDetalles(folio, forzarRecarga).then(({ok, req, consumos}) => {
             if (!ok) return;
             setSelectedFolio(folio, req?.Status);
@@ -320,14 +320,14 @@
 
         // Resetear todos los botones
         [btnSolicitar, btnEditar, btnCancelar, btnResumen].forEach(b => b?.classList.remove('hidden'));
-        
+
         if (status === 'En Proceso') return; // puede todo
-        if (status === 'En preparación'){ 
+        if (status === 'En preparación'){
             // Solo mostrar resumen
-            btnSolicitar?.classList.add('hidden'); 
-            btnEditar?.classList.add('hidden'); 
-            btnCancelar?.classList.add('hidden'); 
-            return; 
+            btnSolicitar?.classList.add('hidden');
+            btnEditar?.classList.add('hidden');
+            btnCancelar?.classList.add('hidden');
+            return;
         }
         if (status === 'Solicitado'){ btnSolicitar?.classList.add('hidden'); btnEditar?.classList.add('hidden'); return; }
         if (status === 'Surtido'){ btnSolicitar?.classList.add('hidden'); btnEditar?.classList.add('hidden'); btnCancelar?.classList.add('hidden'); return; }
@@ -364,32 +364,32 @@
         try {
             const response = await fetch(Endpoints.enProceso);
             const data = await response.json();
-            
+
             const btnNuevo = $('#btn-nuevo-requerimiento');
             if (!btnNuevo) return;
-            
+
             if (data.exists && data.folio) {
                 // Deshabilitar el botón y cambiar su estilo
                 btnNuevo.disabled = true;
                 btnNuevo.setAttribute('disabled', 'disabled');
-                
+
                 // Cambiar estilos visuales
                 btnNuevo.classList.remove('bg-blue-500', 'hover:bg-blue-600');
                 btnNuevo.classList.add('bg-gray-400', 'cursor-not-allowed', 'opacity-60');
-                
+
                 // Actualizar el icono y texto si existen
                 const icon = btnNuevo.querySelector('i');
                 if (icon) {
                     icon.classList.remove('text-white');
                     icon.classList.add('text-gray-600');
                 }
-                
+
                 const text = btnNuevo.querySelector('span');
                 if (text) {
                     text.classList.remove('text-white');
                     text.classList.add('text-gray-600');
                 }
-                
+
                 btnNuevo.title = `Ya existe un requerimiento "En Proceso" con el folio ${data.folio}. Debe finalizar o cancelar el requerimiento actual antes de crear uno nuevo.`;
             }
         } catch (error) {
@@ -400,13 +400,13 @@
     // --------- Verificar y crear nuevo requerimiento ---------
     async function verificarYCrearNuevo(){
         const btnNuevo = $('#btn-nuevo-requerimiento');
-        
+
         // Si el botón está deshabilitado, mostrar solo alerta informativa
         if (btnNuevo && btnNuevo.disabled) {
             try {
                 const response = await fetch(Endpoints.enProceso);
                 const data = await response.json();
-                
+
                 if (data.exists && data.folio) {
                     // Mostrar modal informativo (se cierra automáticamente después de 5 segundos o con click fuera/ESC)
                     Swal.fire({
@@ -425,7 +425,7 @@
             }
             return;
         }
-        
+
         // Si no está deshabilitado, proceder normalmente
         try {
             // Verificar si hay un registro "En Proceso"

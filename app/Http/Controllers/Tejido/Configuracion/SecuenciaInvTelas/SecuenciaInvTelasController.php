@@ -28,14 +28,21 @@ class SecuenciaInvTelasController extends Controller
             $validated = $request->validate([
                 'NoTelar' => 'required|integer',
                 'TipoTelar' => 'required|string|max:50',
-                'Secuencia' => 'required|integer',
+                'Secuencia' => 'nullable|integer',
                 'Observaciones' => 'nullable|string|max:500',
             ]);
+
+            // Calcular siguiente secuencia si no se proporciona o es 0
+            $secuencia = $validated['Secuencia'] ?? 0;
+            if ($secuencia <= 0) {
+                $maxSecuencia = InvSecuenciaTelares::max('Secuencia') ?? 0;
+                $secuencia = $maxSecuencia + 1;
+            }
 
             $registro = InvSecuenciaTelares::create([
                 'NoTelar' => $validated['NoTelar'],
                 'TipoTelar' => $validated['TipoTelar'],
-                'Secuencia' => $validated['Secuencia'],
+                'Secuencia' => $secuencia,
                 'Observaciones' => $validated['Observaciones'] ?? null,
                 'Created_At' => now(),
             ]);
