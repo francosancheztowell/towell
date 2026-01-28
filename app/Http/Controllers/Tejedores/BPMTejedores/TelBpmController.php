@@ -275,7 +275,8 @@ class TelBpmController extends Controller
         }
 
         $item->delete(); // ON DELETE CASCADE eliminará sus líneas
-        return redirect()->route('tel-bpm.index')->with('success', "Folio $folio eliminado.");
+        // Ruta real de navegación
+        return redirect()->route('tejedores.bpm')->with('success', "Folio $folio eliminado.");
     }
 
     /* ===================== Helpers ===================== */
