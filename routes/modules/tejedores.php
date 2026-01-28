@@ -70,6 +70,10 @@ Route::prefix('tejedores')->group(function () {
     Route::redirect('/notificar-mont-rollos/insertar', '/tejedores/cortadoderollo/insertar', 301);
 });
 
+// Legacy URL: mantener rutas tel-bpm.* pero no mostrar el listado por /tel-bpm
+// (La ruta real de navegación es /tejedores/bpmtejedores)
+Route::redirect('/tel-bpm', '/tejedores/bpmtejedores', 301);
+
 Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
     ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
     ->names('tel-actividades-bpm');
