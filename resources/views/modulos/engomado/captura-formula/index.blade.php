@@ -125,7 +125,7 @@
                 </button>
             </div>
 
-            <form action="{{ route('eng-formulacion.store') }}" method="POST" class="p-6">
+            <form id="createForm" action="{{ route('eng-formulacion.store') }}" method="POST" class="p-6">
                 @csrf
 
                 <!-- Sección 1: Datos principales (3 columnas) -->
@@ -176,6 +176,7 @@
                 <input type="hidden" name="Tipo" id="create_tipo">
                 <input type="hidden" name="NomEmpl" id="create_nom_empl">
                 <input type="hidden" name="CveEmpl" id="create_cve_empl">
+                <input type="hidden" name="componentes" id="create_componentes_payload">
                 <!-- Sección 2: Datos de Captura -->
                 <div class="mb-4">
                     <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Datos de Captura</h4>
@@ -1026,7 +1027,7 @@
                 return;
             }
 
-            componentesCreateData.forEach((comp) => {
+            componentesCreateData.forEach((comp, index) => {
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-blue-50 transition-colors';
 
@@ -1034,12 +1035,48 @@
                 const consumoTotal = consumoUnitario * kilosCreateFormula;
 
                 row.innerHTML = `
-                    <td class="px-4 py-2 text-sm font-medium">${comp.ItemId || ''}</td>
-                    <td class="px-4 py-2 text-sm">${comp.ItemName || ''}</td>
-                    <td class="px-4 py-2 text-sm">${comp.ConfigId || ''}</td>
-                    <td class="px-4 py-2 text-sm text-right font-semibold text-blue-700">${consumoTotal.toFixed(4)}</td>
+                    <td class="px-4 py-2 text-sm">
+                        <input type="text" value="${comp.ItemId || ''}" data-index="${index}" data-field="ItemId"
+                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-2 text-sm">
+                        <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
+                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-2 text-sm">
+                        <input type="text" value="${comp.ConfigId || ''}" data-index="${index}" data-field="ConfigId"
+                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-2 text-sm">
+                        <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
+                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
                 `;
                 tbody.appendChild(row);
+            });
+        }
+
+        function obtenerComponentesCreateDesdeTabla() {
+            const tbody = document.getElementById('create_componentes_tbody');
+            if (!tbody) return [];
+
+            const filas = Array.from(tbody.querySelectorAll('tr'));
+            return filas.map((row, index) => {
+                const itemId = row.querySelector('[data-field="ItemId"]')?.value || '';
+                const itemName = row.querySelector('[data-field="ItemName"]')?.value || '';
+                const configId = row.querySelector('[data-field="ConfigId"]')?.value || '';
+                const consumoTotal = parseFloat(row.querySelector('[data-field="ConsumoTotal"]')?.value) || 0;
+
+                const original = componentesCreateData[index] || {};
+                return {
+                    ItemId: itemId,
+                    ItemName: itemName,
+                    ConfigId: configId,
+                    ConsumoUnitario: parseFloat(original.ConsumoUnitario) || 0,
+                    ConsumoTotal: consumoTotal,
+                    Unidad: original.Unidad || '',
+                    Almacen: original.Almacen || ''
+                };
             });
         }
 
@@ -1065,6 +1102,17 @@
                     kilosCreateFormula = parseFloat(this.value) || 0;
                     if (componentesCreateData.length > 0) {
                         renderizarTablaComponentesCreate();
+                    }
+                });
+            }
+
+            const createForm = document.getElementById('createForm');
+            if (createForm) {
+                createForm.addEventListener('submit', function() {
+                    const componentes = obtenerComponentesCreateDesdeTabla();
+                    const payload = document.getElementById('create_componentes_payload');
+                    if (payload) {
+                        payload.value = JSON.stringify(componentes);
                     }
                 });
             }

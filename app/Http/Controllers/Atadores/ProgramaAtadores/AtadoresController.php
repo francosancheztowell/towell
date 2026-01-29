@@ -604,27 +604,6 @@ class AtadoresController extends Controller
                 return response()->json(['ok' => false, 'message' => 'El atado ya fue terminado anteriormente'], 422);
             }
 
-            // Validar que TODAS las actividades estén marcadas (Estado = 1)
-            $totalActividades = DB::connection('sqlsrv')
-                ->table('AtaMontadoActividades')
-                ->where('NoJulio', $montado->NoJulio)
-                ->where('NoProduccion', $montado->NoProduccion)
-                ->count();
-
-            $actividadesCompletadas = DB::connection('sqlsrv')
-                ->table('AtaMontadoActividades')
-                ->where('NoJulio', $montado->NoJulio)
-                ->where('NoProduccion', $montado->NoProduccion)
-                ->where('Estado', 1)
-                ->count();
-
-            if ($actividadesCompletadas < $totalActividades) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'Debe marcar todas las actividades antes de terminar el atado. (' . $actividadesCompletadas . '/' . $totalActividades . ' completadas)'
-                ], 422);
-            }
-
             // Validar que la merma (MergaKg) esté capturada antes de terminar
             if (is_null($montado->MergaKg) || $montado->MergaKg === '') {
                 return response()->json([

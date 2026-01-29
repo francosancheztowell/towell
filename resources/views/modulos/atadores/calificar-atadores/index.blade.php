@@ -428,24 +428,6 @@ function guardarObservacionesAuto() {
 
 
 async function terminarAtado(){
-    // Validar que todas las actividades estén marcadas
-    const total = actividadesData.length;
-    const completadas = actividadesData.filter(a => a.estado).length;
-
-    // Verificar checkboxes actuales en la interfaz
-    const checkboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleActividad"]');
-    const marcados = Array.from(checkboxes).filter(cb => cb.checked).length;
-
-    if (marcados < total) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Actividades incompletas',
-            text: `Debe marcar todas las actividades antes de terminar el atado. (${marcados}/${total} completadas)`,
-            confirmButtonText: 'Entendido'
-        });
-        return;
-    }
-
     // Validar que la merma (Merma Kg) esté capturada
     const mergaInput = document.getElementById('mergaKg');
     const mergaValorStr = mergaInput ? mergaInput.value.trim() : '';
