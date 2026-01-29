@@ -91,6 +91,7 @@ class EngProduccionFormulacionController extends Controller
             'TiempoCocinado' => 'nullable|numeric',
             'Solidos' => 'nullable|numeric',
             'Viscocidad' => 'nullable|numeric',
+            'componentes' => 'nullable|string',
         ]);
 
         try {
@@ -121,7 +122,28 @@ class EngProduccionFormulacionController extends Controller
             $validated['MaquinaId'] = $programa->MaquinaEng;
             $validated['CveEmpl'] = $programa->CveEmpl;
 
-            $formulacion = EngProduccionFormulacionModel::create($validated);
+            DB::transaction(function () use ($validated, $folio, $request) {
+                EngProduccionFormulacionModel::create($validated);
+
+                $componentesRaw = $request->input('componentes');
+                if ($componentesRaw) {
+                    $componentes = json_decode($componentesRaw, true);
+                    if (is_array($componentes)) {
+                        foreach ($componentes as $comp) {
+                            EngFormulacionLineModel::create([
+                                'Folio' => $folio,
+                                'ItemId' => $comp['ItemId'] ?? null,
+                                'ItemName' => $comp['ItemName'] ?? null,
+                                'ConfigId' => $comp['ConfigId'] ?? null,
+                                'ConsumoUnit' => $comp['ConsumoUnitario'] ?? null,
+                                'ConsumoTotal' => $comp['ConsumoTotal'] ?? null,
+                                'Unidad' => $comp['Unidad'] ?? null,
+                                'InventLocation' => $comp['Almacen'] ?? null,
+                            ]);
+                        }
+                    }
+                }
+            });
 
             return redirect()->back()
                 ->with('success', 'Formulación creada exitosamente con folio: ' . $folio);
