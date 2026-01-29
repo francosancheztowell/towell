@@ -10,6 +10,9 @@ class AtaMontadoMaquinasModel extends Model
     protected $table = 'AtaMontadoMaquinas';
     protected $connection = 'sqlsrv';
     public $timestamps = false;
+    protected $primaryKey = 'Id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'NoJulio',

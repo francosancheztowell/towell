@@ -8,9 +8,9 @@ class AtaActividadesModel extends Model
 {
     protected $table = 'AtaActividades';
     protected $connection = 'sqlsrv';
-    protected $primaryKey = 'ActividadId';
-    public $incrementing = false;
-    protected $keyType = 'string';
+    protected $primaryKey = 'Id';
+    public $incrementing = true;
+    protected $keyType = 'int';
     public $timestamps = false;
 
     protected $fillable = [

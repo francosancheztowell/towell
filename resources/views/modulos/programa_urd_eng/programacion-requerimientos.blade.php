@@ -23,18 +23,18 @@
             <table id="tablaRequerimientos" class="w-full">
                 <thead>
                     <tr class="bg-blue-500">
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-20">Telar</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-28">Fecha Req</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-20">Cuenta</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-20">Calibre</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-24">Hilo</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-28">Urdido</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-20">Tipo</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-28">Destino</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-28">Tipo Atado</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-24">Metros</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-24">Kilos</th>
-                        <th class="px-2 py-3 text-left text-xs font-semibold text-white w-24">Agrupar</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Telar</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Fecha Req</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Cuenta</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Calibre</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Hilo</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Urdido</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Tipo</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Destino</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Tipo Atado</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Metros</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Kilos</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Agrupar</th>
                     </tr>
                 </thead>
                 <tbody id="tbodyRequerimientos" class="bg-white">
@@ -50,27 +50,27 @@
             <table id="tablaResumen" class="w-full">
                 <thead id="theadResumen">
                     <tr class="bg-slate-100">
-                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Telar</th>
-                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Cuenta</th>
-                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Hilo</th>
-                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Calibre</th>
-                        <th class="px-2 py-1.5 text-left text-[10px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Modelo</th>
-                        <th class="px-2 py-1.5 text-center text-[10px] font-semibold text-blue-700 bg-blue-50/50" colspan="5">Metros</th>
-                        <th class="px-2 py-1.5 text-right text-[10px] font-semibold text-blue-700 bg-blue-50" rowspan="2">Total (mts)</th>
-                        <th class="px-2 py-1.5 text-center text-[10px] font-semibold text-green-700 bg-green-50/50" colspan="5">Kilos</th>
-                        <th class="px-2 py-1.5 text-right text-[10px] font-semibold text-green-700 bg-green-50" rowspan="2">Total (kg)</th>
+                        <th class="px-2 py-1.5 text-left text-[12px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Telar</th>
+                        <th class="px-2 py-1.5 text-left text-[12px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Cuenta</th>
+                        <th class="px-2 py-1.5 text-left text-[12px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Hilo</th>
+                        <th class="px-2 py-1.5 text-left text-[12px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Calibre</th>
+                        <th class="px-2 py-1.5 text-left text-[12px] font-semibold text-slate-700 bg-slate-100" rowspan="2">Modelo</th>
+                        <th class="px-2 py-1.5 text-center text-[12px] font-semibold text-blue-700 bg-blue-50/50" colspan="5">Metros</th>
+                        <th class="px-2 py-1.5 text-right text-[12px] font-semibold text-blue-700 bg-blue-50" rowspan="2">Total (mts)</th>
+                        <th class="px-2 py-1.5 text-center text-[12px] font-semibold text-green-700 bg-green-50/50" colspan="5">Kilos</th>
+                        <th class="px-2 py-1.5 text-right text-[12px] font-semibold text-green-700 bg-green-50" rowspan="2">Total (kg)</th>
                     </tr>
                     <tr>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="0">Semana 1</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="1">Semana 2</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="2">Semana 3</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="3">Semana 4</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="4">Semana 5</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="0">Semana 1</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="1">Semana 2</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="2">Semana 3</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="3">Semana 4</th>
-                        <th class="px-2 py-1 text-right text-[10px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="4">Semana 5</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="0">Semana 1</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="1">Semana 2</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="2">Semana 3</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="3">Semana 4</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="4">Semana 5</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="0">Semana 1</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="1">Semana 2</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="2">Semana 3</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="3">Semana 4</th>
+                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="4">Semana 5</th>
                     </tr>
                 </thead>
                 <tbody id="tbodyResumen" class="bg-white">
@@ -212,22 +212,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tr.innerHTML = `
             <td class="px-2 py-3 w-20">
-                <input type="text" class="w-full px-2 py-1.5 text-xs bg-transparent border-0" value="${telar.no_telar || ''}" data-field="telar" disabled>
+                <input type="text" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${telar.no_telar || ''}" data-field="telar" disabled>
             </td>
             <td class="px-2 py-3 w-28">
-                <input type="date" class="w-full px-2 py-1.5 text-xs bg-transparent border-0" value="${fechaISO}" data-field="fecha_req" disabled>
+                <input type="date" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${fechaISO}" data-field="fecha_req" disabled>
             </td>
             <td class="px-2 py-3 w-20">
-                <input type="text" class="w-full px-2 py-1.5 text-xs bg-transparent border-0" value="${telar.cuenta || ''}" data-field="cuenta" disabled>
+                <input type="text" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${telar.cuenta || ''}" data-field="cuenta" disabled>
             </td>
             <td class="px-2 py-3 w-20">
-                <input type="number" step="0.01" class="w-full px-2 py-1.5 text-xs bg-transparent border-0" value="${telar.calibre ?? ''}" data-field="calibre" disabled>
+                <input type="number" step="0.01" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${telar.calibre ?? ''}" data-field="calibre" disabled>
             </td>
             <td class="px-2 py-3 w-24">
-                <input type="text" class="w-full px-2 py-1.5 text-xs bg-transparent border-0" value="${telar.hilo ?? ''}" data-field="hilo" disabled>
+                <input type="text" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${telar.hilo ?? ''}" data-field="hilo" disabled>
             </td>
             <td class="px-2 py-3 w-28">
-                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido">
+                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido">
                     ${opciones.urdido.map((x, idx) => {
                         const isSelected = telar.urdido === x || (!telar.urdido && idx === 0);
                         return `<option value="${x}" ${isSelected ? 'selected' : ''}>${x}</option>`;
@@ -235,10 +235,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 </select>
             </td>
             <td class="px-2 py-3 w-20">
-                <span class="px-2 py-1 inline-block text-xs font-medium rounded-md ${tipoCls}">${tipoNormalizado || 'N/A'}</span>
+                <span class="px-2 py-1 inline-block text-md font-medium rounded-md ${tipoCls}">${tipoNormalizado || 'N/A'}</span>
             </td>
             <td class="px-2 py-3 w-28">
-                <select class="w-full px-2 py-1.5 text-xs bg-transparent border-0 cursor-default appearance-none" data-field="destino" disabled>
+                <select class="w-full px-2 py-1.5 text-md bg-transparent border-0 cursor-default appearance-none" data-field="destino" disabled>
                     ${(() => {
                         const destinoMapeado = telar.destino ? mapearSalonADestino(telar.destino) : mapearSalonADestino(telar.salon);
                         return opciones.destino.map(x => {
@@ -248,18 +248,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </select>
             </td>
             <td class="px-2 py-3 w-28">
-                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo_atado">
+                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo_atado">
                     ${opciones.tipoAtado.map(x => `<option value="${x}" ${(telar.tipo_atado||'Normal')===x?'selected':''}>${x}</option>`).join('')}
                 </select>
             </td>
             <td class="px-2 py-3 w-24">
                 <input type="text" placeholder="Metros"
-                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
                        value="${telar.metros ? formatNumberInput(telar.metros) : ''}" data-field="metros">
             </td>
             <td class="px-2 py-3 w-24">
                 <input type="text" placeholder="Kilos"
-                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                        value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos">
             </td>
             <td class="px-2 py-3 w-24 text-center">
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <i class="fa-solid fa-triangle-exclamation text-red-400 mb-2"></i>
                         <p class="font-semibold">Error de validación</p>
                         <p class="text-sm mt-2">${v.mensaje}</p>
-                        <p class="text-xs mt-2 text-gray-500">Todos los telares deben tener el mismo tipo, y si existen, mismo calibre/hilo/salón.</p>
+                        <p class="text-md mt-2 text-gray-500">Todos los telares deben tener el mismo tipo, y si existen, mismo calibre/hilo/salón.</p>
                     </td>
                 </tr>`;
             renderResumenMensaje('No se puede cargar el resumen por error de validación.');
@@ -797,11 +797,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Crear las columnas de metros y kilos para todas las semanas
             const metrosCells = semanasData.map(s => {
-                return `<td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(s.metros)}</td>`;
+                return `<td class="px-2 py-1.5 whitespace-nowrap text-md text-right">${fmtNum(s.metros)}</td>`;
             }).join('');
 
             const kilosCells = semanasData.map(s => {
-                return `<td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-right">${fmtNum(s.kilos)}</td>`;
+                return `<td class="px-2 py-1.5 whitespace-nowrap text-md text-right">${fmtNum(s.kilos)}</td>`;
             }).join('');
 
             tr.innerHTML = `
@@ -811,9 +811,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.calibre != null && r.calibre !== '' ? r.calibre : '-'}</td>
                 <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.modelo || '-'}</td>
                 ${metrosCells}
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-blue-600 bg-blue-50">${fmtNum(r.total || 0)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-md font-semibold text-right text-blue-600 bg-blue-50">${fmtNum(r.total || 0)}</td>
                 ${kilosCells}
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] font-semibold text-right text-green-600 bg-green-50">${fmtNum(r.totalKilos || 0)}</td>
+                <td class="px-2 py-1.5 whitespace-nowrap text-md font-semibold text-right text-green-600 bg-green-50">${fmtNum(r.totalKilos || 0)}</td>
             `;
             tb.appendChild(tr);
         }
@@ -825,22 +825,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Crear celdas de totales por semana para metros
         const totalesMetrosCells = totalesMetrosPorSemana.map(total => {
-            return `<td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-blue-700 bg-blue-100">${fmtNum(total)}</td>`;
+            return `<td class="px-2 py-2 whitespace-nowrap text-md font-semibold text-right text-blue-700 bg-blue-100">${fmtNum(total)}</td>`;
         }).join('');
 
         // Crear celdas de totales por semana para kilos
         const totalesKilosCells = totalesKilosPorSemana.map(total => {
-            return `<td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-green-700 bg-green-100">${fmtNum(total)}</td>`;
+            return `<td class="px-2 py-2 whitespace-nowrap text-md font-semibold text-right text-green-700 bg-green-100">${fmtNum(total)}</td>`;
         }).join('');
 
         trTotal.innerHTML = `
             <td class="px-2 py-2 whitespace-nowrap text-[10px] font-bold text-gray-800 bg-gray-100" colspan="5">TOTAL</td>
             ${totalesMetrosCells}
-            <td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-blue-700 bg-blue-100">
+            <td class="px-2 py-2 whitespace-nowrap text-md font-semibold text-right text-blue-700 bg-blue-100">
                 <span class="block">${fmtNum(sumaTotalMetros)}</span>
             </td>
             ${totalesKilosCells}
-            <td class="px-2 py-2 whitespace-nowrap text-[10px] font-semibold text-right text-green-700 bg-green-100">
+            <td class="px-2 py-2 whitespace-nowrap text-md font-semibold text-right text-green-700 bg-green-100">
                 <span class="block">${fmtNum(sumaTotalKilos)}</span>
             </td>
         `;

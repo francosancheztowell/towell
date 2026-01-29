@@ -14,36 +14,35 @@
         'Creado' => 'bg-gray-100 text-gray-800 border-gray-200',
     ];
     $statusClass = $statusColors[$requerimiento->Status] ?? 'bg-gray-100 text-gray-800 border-gray-200';
-    $totalCantidad = $consumosPorSalon->flatten()->sum('Cantidad');
+    // Calcular total solo de items con cantidad > 0
+    $totalCantidad = $consumosPorSalon->flatten()->filter(function($c) {
+        return ($c->Cantidad ?? 0) > 0;
+    })->sum('Cantidad');
 @endphp
 
-<div class="bg-white py-4">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+<div class="bg-white py-3">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
 
         <!-- Resumen compacto -->
-        <div class="bg-white border rounded-lg p-4 flex flex-wrap gap-3 text-sm">
+        <div class="bg-gradient-to-r from-blue-50 to-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-4 text-sm">
             <div class="flex items-center gap-2">
-                <span class="text-gray-500 font-semibold">Folio:</span>
-                <span class="text-gray-900 font-bold">{{ $requerimiento->Folio }}</span>
+                <span class="text-gray-500">Folio:</span>
+                <span class="text-gray-900 font-bold text-base">{{ $requerimiento->Folio }}</span>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-gray-500 font-semibold">Fecha:</span>
+                <span class="text-gray-500">Fecha:</span>
                 <span class="text-gray-900">{{ formatearFecha($requerimiento->Fecha) }}</span>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-gray-500 font-semibold">Status:</span>
-                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border {{ $statusClass }}">
+                <span class="text-gray-500">Status:</span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold border {{ $statusClass }}">
                     {{ $requerimiento->Status }}
                 </span>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-gray-500 font-semibold">Artículos:</span>
-                <span class="text-gray-900 font-bold">{{ $totalConsumos }}</span>
-            </div>
             @if($totalCantidad > 0)
-            <div class="flex items-center gap-2">
-                <span class="text-gray-500 font-semibold">Cantidad total:</span>
-                <span class="text-gray-900 font-bold">{{ number_format($totalCantidad, 0) }}</span>
+            <div class="flex items-center gap-2 ml-auto">
+                <span class="text-gray-500">Total:</span>
+                <span class="text-blue-600 font-bold text-base">{{ number_format($totalCantidad, 0) }}</span>
             </div>
             @endif
         </div>
@@ -68,7 +67,13 @@
                         'Cantidad'  => $items->sum('Cantidad'),
                         'Partidas'  => $items->count(),
                     ];
+                })->filter(function ($row) {
+                    // Filtrar items con cantidad > 0
+                    return ($row['Cantidad'] ?? 0) > 0;
                 })->values();
+            })->filter(function ($items) {
+                // Filtrar salones que no tengan items con cantidad > 0
+                return $items->count() > 0;
             });
         @endphp
 
@@ -78,18 +83,18 @@
                     $salonCantidad = $items->sum('Cantidad');
                     $salonCount = $items->sum('Partidas');
                 @endphp
-                <div class="bg-white border rounded-lg overflow-hidden">
-                    <div class="flex items-center justify-between px-4 py-3 bg-gray-100 text-sm">
-                        <div class="flex items-center gap-3">
-                            <span class="font-semibold text-gray-800">Salón: {{ $salon ?? 'Sin asignar' }}</span>
-                            <span class="text-gray-600">Partidas: {{ $salonCount }}</span>
-                        </div>
-                        <div class="text-gray-700 font-semibold">
-                            Cantidad total: {{ number_format($salonCantidad, 0) }}
+                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                    <div class="px-4 py-2.5 bg-blue-50 border-b border-gray-200">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="font-bold text-gray-800">{{ $salon ?? 'Sin asignar' }}</span>
+                            <div class="flex items-center gap-4 text-gray-600">
+                                <span><strong class="text-gray-800">{{ $salonCount }}</strong> partidas</span>
+                                <span><strong class="text-blue-600">{{ number_format($salonCantidad, 0) }}</strong> total</span>
+                            </div>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full text-xs divide-y divide-gray-200">
+                        <table class="min-w-full text-sm">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-3 py-2 text-left font-semibold text-gray-700">Calibre</th>
@@ -102,7 +107,7 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 @foreach($items as $row)
-                                    <tr class="hover:bg-blue-50">
+                                    <tr class="hover:bg-blue-50/50">
                                         <td class="px-3 py-2 text-gray-800">{{ $row['Calibre'] ?? '-' }}</td>
                                         <td class="px-3 py-2 text-gray-800">{{ $row['Fibra'] ?? '-' }}</td>
                                         <td class="px-3 py-2 text-gray-800">{{ $row['CodColor'] ?? '-' }}</td>
@@ -110,7 +115,7 @@
                                         <td class="px-3 py-2 text-right font-semibold text-gray-900">
                                             {{ number_format($row['Cantidad'] ?? 0, 0) }}
                                         </td>
-                                        <td class="px-3 py-2 text-right text-gray-700">
+                                        <td class="px-3 py-2 text-right text-gray-600">
                                             {{ $row['Partidas'] ?? 0 }}
                                         </td>
                                     </tr>
@@ -121,10 +126,10 @@
                 </div>
             @endforeach
         @else
-            <div class="bg-white border rounded-lg p-8 text-center">
-                <i class="fas fa-inbox text-3xl text-gray-400 mb-2"></i>
-                <p class="text-gray-700 font-semibold">No hay artículos registrados</p>
-                <p class="text-gray-500 text-sm">Este folio no tiene consumos registrados.</p>
+            <div class="bg-white border border-gray-200 rounded-lg p-6 text-center">
+                <i class="fas fa-inbox text-3xl text-gray-300 mb-3"></i>
+                <p class="text-gray-600 font-semibold text-base">No hay artículos con cantidad</p>
+                <p class="text-gray-400 text-sm mt-1">Todos los artículos tienen cantidad 0</p>
             </div>
         @endif
 

@@ -4,8 +4,8 @@
     // Variables de estado de rutas
     $isProduccionIndex = Route::currentRouteName() === 'produccion.index';
     $isProgramaTejido = request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido');
-    $showParoButton = !request()->routeIs('catalogos.req-programa-tejido') 
-        && !request()->routeIs('programa.urd.eng.reservar.programar') 
+    $showParoButton = !request()->routeIs('catalogos.req-programa-tejido')
+        && !request()->routeIs('programa.urd.eng.reservar.programar')
         && !request()->routeIs('codificacion-modelos')
         && !request()->is('simulacion*');
 
@@ -66,7 +66,7 @@
                 <!-- Botón Paro -->
                 @if($showParoButton)
                     <a href="{{ url('mantenimiento/nuevo-paro') }}"
-                       class="bg-yellow-400 hover:bg-yellow-500 flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors">
+                       class="bg-yellow-500 hover:bg-yellow-600 flex items-center gap-2 px-4 py-3 text-md font-bold rounded-lg transition-colors">
                         <i class="fas fa-exclamation-triangle"></i>
                         Paro
                     </a>
@@ -75,7 +75,7 @@
                 <!-- Botón Salir -->
                 @if($isProduccionIndex)
                     <button id="logout-btn"
-                            class="flex items-center gap-1 px-2 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-700 rounded-lg transition-colors">
+                            class="flex items-center gap-1 px-4 py-3 text-md font-bold text-white bg-red-500 hover:bg-red-700 rounded-lg transition-colors">
                         <i class="fas fa-sign-out-alt"></i>
                         Salir
                     </button>

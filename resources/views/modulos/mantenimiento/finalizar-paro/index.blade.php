@@ -181,6 +181,7 @@
                         name="enviar_telegram"
                         value="1"
                         class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        checked
                     >
                     <span class="ml-2">Enviar a Telegram</span>
                 </label>
@@ -396,6 +397,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Asegurar que el checkbox "Enviar a Telegram" siempre esté marcado
+    const checkboxEnviarTelegram = document.getElementById('enviar_telegram');
+    checkboxEnviarTelegram.checked = true;
+    checkboxEnviarTelegram.addEventListener('change', function() {
+        // Si intentan desmarcarlo, volver a marcarlo
+        if (!this.checked) {
+            this.checked = true;
+        }
+    });
+
     // Cargar operadores al iniciar
     cargarOperadores();
 
@@ -442,11 +453,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         timer: 2000,
                         showConfirmButton: false
                     }).then(() => {
-                        window.location.href = '{{ route('mantenimiento.solicitudes') }}';
+                        window.location.href = '{{ route('produccion.index') }}';
                     });
                 } else {
                     alert(result.message || 'Paro finalizado correctamente');
-                    window.location.href = '{{ route('mantenimiento.solicitudes') }}';
+                    window.location.href = '{{ route('produccion.index') }}';
                 }
             } else {
                 const errorMsg = result.error || 'Error al finalizar el paro. Por favor, intenta nuevamente.';
