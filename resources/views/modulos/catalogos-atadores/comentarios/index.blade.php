@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('page-title', 'Catálogo de Comentarios')
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
@@ -10,11 +11,6 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-6">
-    <!-- Encabezado -->
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Comentarios</h1>
-    </div>
-
     <!-- Tabla de actividades -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <div class="overflow-x-auto">
@@ -27,8 +23,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($comentarios as $comentario)
-                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
-                        onclick="selectRow(this, '{{ $comentario->Nota1 }}')" 
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+                        onclick="selectRow(this, '{{ $comentario->Nota1 }}')"
                         data-id="{{ $comentario->Nota1 }}">
                         <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $comentario->Nota1 }}</td>
                         <td class="px-6 py-4 text-sm text-gray-900">{{ $comentario->Nota2 }}</td>
@@ -86,7 +82,7 @@
         <form id="comentarioForm" onsubmit="handleSubmit(event)">
             <div class="p-6">
                 <input type="hidden" id="original_nota1" name="original_nota1">
-                
+
                 <div class="grid grid-cols-1 gap-4">
                     <div>
                         <label for="Nota1" class="block text-sm font-medium text-gray-700 mb-1">
@@ -96,7 +92,7 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 hover:shadow-sm transition-all duration-200"
                             placeholder="Ingrese la primera nota"></textarea>
                     </div>
-                    
+
                     <div>
                         <label for="Nota2" class="block text-sm font-medium text-gray-700 mb-1">
                             Nota 2
@@ -107,13 +103,13 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="border-t p-4 flex justify-end gap-2">
-                <button type="button" onclick="closeFormModal()" 
+                <button type="button" onclick="closeFormModal()"
                     class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                     Cancelar
                 </button>
-                <button type="submit" 
+                <button type="submit"
                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
                     <i class="fas fa-save mr-1"></i> Guardar
                 </button>
@@ -143,11 +139,11 @@
             </div>
         </div>
         <div class="border-t p-4 flex justify-end gap-2">
-            <button onclick="closeDeleteModal()" 
+            <button onclick="closeDeleteModal()"
                 class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                 Cancelar
             </button>
-            <button onclick="deleteComentario()" 
+            <button onclick="deleteComentario()"
                 class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">
                 <i class="fas fa-trash mr-1"></i> Eliminar
             </button>
@@ -166,9 +162,13 @@
     function selectRow(row, nota1) {
         // Remover selección previa
         if (selectedRow) {
-            selectedRow.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
+            selectedRow.classList.remove('bg-blue-500');
+            selectedRow.querySelectorAll('td').forEach(td => {
+                td.classList.remove('text-white');
+                td.classList.add('text-gray-900');
+            });
         }
-        
+
         // Si se hace clic en la misma fila, deseleccionar
         if (selectedRow === row) {
             selectedRow = null;
@@ -176,12 +176,16 @@
             disableButtons();
             return;
         }
-        
+
         // Seleccionar nueva fila
         selectedRow = row;
         currentComentarioNota1 = nota1;
-        row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
-        
+        row.classList.add('bg-blue-500');
+        row.querySelectorAll('td').forEach(td => {
+            td.classList.remove('text-gray-900');
+            td.classList.add('text-white');
+        });
+
         // Habilitar botones
         enableButtons();
     }
@@ -190,13 +194,13 @@
     function enableButtons() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = false;
             btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
             btnEdit.classList.add('cursor-pointer');
         }
-        
+
         if (btnDelete) {
             btnDelete.disabled = false;
             btnDelete.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -208,13 +212,13 @@
     function disableButtons() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = true;
             btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
             btnEdit.classList.remove('cursor-pointer');
         }
-        
+
         if (btnDelete) {
             btnDelete.disabled = true;
             btnDelete.classList.add('opacity-50', 'cursor-not-allowed');
@@ -249,7 +253,7 @@
     function openEditModal(nota1) {
         currentComentarioNota1 = nota1;
         document.getElementById('formModalTitle').textContent = 'Editar Comentario';
-        
+
         // Cargar datos desde el backend
         axios.get(`/atadores/catalogos/comentarios/${encodeURIComponent(nota1)}`)
             .then(response => {
@@ -258,7 +262,7 @@
                     document.getElementById('original_nota1').value = data.Nota1;
                     document.getElementById('Nota1').value = data.Nota1;
                     document.getElementById('Nota2').value = data.Nota2 || '';
-                    
+
                     document.getElementById('formModal').classList.remove('hidden');
                     document.getElementById('formModal').classList.add('flex');
                 }
@@ -282,7 +286,7 @@
                     const data = response.data.data;
                     document.getElementById('view_nota1').textContent = data.Nota1;
                     document.getElementById('view_nota2').textContent = data.Nota2 || '-';
-                    
+
                     document.getElementById('viewModal').classList.remove('hidden');
                     document.getElementById('viewModal').classList.add('flex');
                 }
@@ -332,9 +336,9 @@
                         currentComentarioNota1 = null;
                         disableButtons();
                     }
-                    
+
                     closeDeleteModal();
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: '¡Eliminado!',
@@ -358,27 +362,27 @@
     // Manejar envío del formulario
     function handleSubmit(event) {
         event.preventDefault();
-        
+
         const formData = new FormData(event.target);
         const data = {
             Nota1: formData.get('Nota1'),
             Nota2: formData.get('Nota2')
         };
-        
+
         const originalNota1 = formData.get('original_nota1');
         const isEdit = originalNota1 !== '';
-        
-        const url = isEdit 
+
+        const url = isEdit
             ? `/atadores/catalogos/comentarios/${encodeURIComponent(originalNota1)}`
             : '/atadores/catalogos/comentarios';
-        
+
         const method = isEdit ? 'put' : 'post';
-        
+
         axios[method](url, data)
             .then(response => {
                 if (response.data.success) {
                     closeFormModal();
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: isEdit ? '¡Actualizado!' : '¡Creado!',
@@ -406,7 +410,7 @@
         const formModal = document.getElementById('formModal');
         const viewModal = document.getElementById('viewModal');
         const deleteModal = document.getElementById('deleteModal');
-        
+
         if (event.target === formModal) {
             closeFormModal();
         }

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'Reservar y Programar Urd/Eng')
+@section('page-title', 'Reservar y Programar ')
 
 @section('navbar-right')
 <div class="flex items-center gap-2">

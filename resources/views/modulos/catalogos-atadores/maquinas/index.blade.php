@@ -1,20 +1,15 @@
 @extends('layouts.app')
-
+@section('page-title', 'Máquinas Atadores')
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openCreateModal()" title="Nueva Máquina" module="Atadores"/>
-        <x-navbar.button-edit id="btnEdit" onclick="editSelected()" title="Editar Máquina" module="Atadores" :disabled="true"/>
-        <x-navbar.button-delete id="btnDelete" onclick="deleteSelected()" title="Eliminar Máquina" module="Atadores" :disabled="true"/>
+        <x-navbar.button-create onclick="openCreateModal()" title="Nueva Máquina" module="Maquinas"/>
+        <x-navbar.button-edit id="btnEdit" onclick="editSelected()" title="Editar Máquina" module="Maquinas" />
+        <x-navbar.button-delete id="btnDelete" onclick="deleteSelected()" title="Eliminar Máquina" module="Maquinas" />
     </div>
 @endsection
 
 @section('content')
 <div class="container mx-auto px-4 py-6">
-    <!-- Encabezado -->
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Catálogo de Máquinas</h1>
-    </div>
-
     <!-- Tabla de máquinas -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <div class="overflow-x-auto">

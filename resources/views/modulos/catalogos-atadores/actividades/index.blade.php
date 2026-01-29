@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('page-title', 'Catálogo de Actividades')
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create onclick="openCreateModal()" title="Nueva Actividad" module="Atadores"/>
@@ -10,11 +10,6 @@
 
 @section('content')
 <div class="container mx-auto px-4 py-6">
-    <!-- Encabezado -->
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Catálogo de Actividades</h1>
-    </div>
-
     <!-- Tabla de actividades -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <div class="overflow-x-auto">
@@ -27,8 +22,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($actividades as $actividad)
-                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150" 
-                        onclick="selectRow(this, '{{ $actividad->ActividadId }}')" 
+                    <tr class="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+                        onclick="selectRow(this, '{{ $actividad->ActividadId }}')"
                         data-id="{{ $actividad->ActividadId }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $actividad->ActividadId }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $actividad->Porcentaje }}%</td>
@@ -86,7 +81,7 @@
         <form id="actividadForm" onsubmit="handleSubmit(event)">
             <div class="p-6">
                 <input type="hidden" id="original_actividadid" name="original_id">
-                
+
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
                         <label for="ActividadId" class="block text-sm font-medium text-gray-700 mb-1">
@@ -96,7 +91,7 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 hover:shadow-sm transition-all duration-200"
                             placeholder="Ej: MONTAJE">
                     </div>
-                    
+
                     <div class="col-span-2">
                         <label for="Porcentaje" class="block text-sm font-medium text-gray-700 mb-1">
                             Porcentaje <span class="text-red-500">*</span>
@@ -107,13 +102,13 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="border-t p-4 flex justify-end gap-2">
-                <button type="button" onclick="closeFormModal()" 
+                <button type="button" onclick="closeFormModal()"
                     class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                     Cancelar
                 </button>
-                <button type="submit" 
+                <button type="submit"
                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
                     <i class="fas fa-save mr-1"></i> Guardar
                 </button>
@@ -143,11 +138,11 @@
             </div>
         </div>
         <div class="border-t p-4 flex justify-end gap-2">
-            <button onclick="closeDeleteModal()" 
+            <button onclick="closeDeleteModal()"
                 class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                 Cancelar
             </button>
-            <button onclick="deleteActividad()" 
+            <button onclick="deleteActividad()"
                 class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">
                 <i class="fas fa-trash mr-1"></i> Eliminar
             </button>
@@ -168,7 +163,7 @@
         if (selectedRow) {
             selectedRow.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
         }
-        
+
         // Si se hace clic en la misma fila, deseleccionar
         if (selectedRow === row) {
             selectedRow = null;
@@ -176,12 +171,12 @@
             disableButtons();
             return;
         }
-        
+
         // Seleccionar nueva fila
         selectedRow = row;
         currentActividadId = id;
         row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
-        
+
         // Habilitar botones
         enableButtons();
     }
@@ -190,13 +185,13 @@
     function enableButtons() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = false;
             btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
             btnEdit.classList.add('cursor-pointer');
         }
-        
+
         if (btnDelete) {
             btnDelete.disabled = false;
             btnDelete.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -208,13 +203,13 @@
     function disableButtons() {
         const btnEdit = document.getElementById('btnEdit');
         const btnDelete = document.getElementById('btnDelete');
-        
+
         if (btnEdit) {
             btnEdit.disabled = true;
             btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
             btnEdit.classList.remove('cursor-pointer');
         }
-        
+
         if (btnDelete) {
             btnDelete.disabled = true;
             btnDelete.classList.add('opacity-50', 'cursor-not-allowed');
@@ -249,7 +244,7 @@
     function openEditModal(id) {
         currentActividadId = id;
         document.getElementById('formModalTitle').textContent = 'Editar Actividad';
-        
+
         // Cargar datos desde el backend
         axios.get(`/atadores/catalogos/actividades/${id}`)
             .then(response => {
@@ -258,7 +253,7 @@
                     document.getElementById('original_actividadid').value = data.ActividadId;
                     document.getElementById('ActividadId').value = data.ActividadId;
                     document.getElementById('Porcentaje').value = data.Porcentaje;
-                    
+
                     document.getElementById('formModal').classList.remove('hidden');
                     document.getElementById('formModal').classList.add('flex');
                 }
@@ -282,7 +277,7 @@
                     const data = response.data.data;
                     document.getElementById('view_actividadid').textContent = data.ActividadId;
                     document.getElementById('view_porcentaje').textContent = data.Porcentaje + '%';
-                    
+
                     document.getElementById('viewModal').classList.remove('hidden');
                     document.getElementById('viewModal').classList.add('flex');
                 }
@@ -332,9 +327,9 @@
                         currentActividadId = null;
                         disableButtons();
                     }
-                    
+
                     closeDeleteModal();
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: '¡Eliminado!',
@@ -358,27 +353,27 @@
     // Manejar envío del formulario
     function handleSubmit(event) {
         event.preventDefault();
-        
+
         const formData = new FormData(event.target);
         const data = {
             ActividadId: formData.get('ActividadId'),
             Porcentaje: formData.get('Porcentaje')
         };
-        
+
         const originalId = formData.get('original_id');
         const isEdit = originalId !== '';
-        
-        const url = isEdit 
+
+        const url = isEdit
             ? `/atadores/catalogos/actividades/${originalId}`
             : '/atadores/catalogos/actividades';
-        
+
         const method = isEdit ? 'put' : 'post';
-        
+
         axios[method](url, data)
             .then(response => {
                 if (response.data.success) {
                     closeFormModal();
-                    
+
                     Swal.fire({
                         icon: 'success',
                         title: isEdit ? '¡Actualizado!' : '¡Creado!',
@@ -406,7 +401,7 @@
         const formModal = document.getElementById('formModal');
         const viewModal = document.getElementById('viewModal');
         const deleteModal = document.getElementById('deleteModal');
-        
+
         if (event.target === formModal) {
             closeFormModal();
         }

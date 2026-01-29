@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'BPM - Tejedores')
+@section('page-title', 'BPM Tejedores')
 
 @section('navbar-right')
 <div class="flex items-center gap-3">
@@ -9,10 +9,11 @@
     id="btn-open-filters"
     title="Filtros"
     icon="fa-filter"
+    text="Filtrar"
+    bg="bg-green-600"
     module="BPM Tejedores"
-    iconColor="text-purple-600"
-    hoverBg="hover:bg-purple-100"
-    class="text-sm" />
+    iconColor="text-white"
+    class="text-white" />
     <x-navbar.button-edit
     id="btn-consult"
     title="Consultar folio"

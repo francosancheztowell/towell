@@ -28,7 +28,8 @@ class TelTelaresOperadorController extends Controller
                       ->orWhere('NoTelarId', 'like', "%{$q}%");
                 });
             })
-            ->orderBy('numero_empleado')
+            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
+            ->orderBy('NoTelarId')
             ->get();
 
         $telares = ReqTelares::obtenerTodos();
@@ -51,44 +52,107 @@ class TelTelaresOperadorController extends Controller
     }
 
     /**
-     * Guardar (numero_empleado como PK lógica)
+     * Guardar (usando Id como PK - IDENTITY)
+     * Soporta múltiples telares: crear un registro por cada telar seleccionado
      */
     public function store(Request $request)
     {
         $data = $request->validate([
             'numero_empleado' => ['required', 'string', 'max:30', 'exists:SYSUsuario,numero_empleado'],
-            'NoTelarId'       => ['required', 'string', 'max:10'],
+            'nombreEmpl'      => ['required', 'string', 'max:100'],
+            'Turno'           => ['required', 'string', 'max:10'],
             'SalonTejidoId'   => ['required', 'string', 'max:10'],
+            'telares'         => ['required', 'array', 'min:1'],
+            'telares.*'       => ['required', 'string', 'max:10'],
         ]);
 
-        // Validación: no permitir asignar el mismo telar al mismo usuario más de una vez
-        $yaExiste = TelTelaresOperador::query()
-            ->where('numero_empleado', $data['numero_empleado'])
-            ->where('NoTelarId', $data['NoTelarId'])
-            ->exists();
-        if ($yaExiste) {
-            return back()->withErrors('Este operador ya tiene asignado el telar seleccionado.')->withInput();
-        }
-
         $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
-        $payload = [
-            'numero_empleado' => $data['numero_empleado'],
-            'nombreEmpl'      => $usuario->nombre ?? '',
-            'NoTelarId'       => $data['NoTelarId'],
-            'Turno'           => (string)($usuario->turno ?? ''),
-            'SalonTejidoId'   => $data['SalonTejidoId'],
-        ];
+        $telares = $request->input('telares', []);
+        $creados = 0;
+        $duplicados = [];
 
-        TelTelaresOperador::create($payload);
+        DB::beginTransaction();
+        try {
+            foreach ($telares as $telar) {
+                // Validación: no permitir asignar el mismo telar al mismo usuario más de una vez
+                $yaExiste = TelTelaresOperador::query()
+                    ->where('numero_empleado', $data['numero_empleado'])
+                    ->where('NoTelarId', $telar)
+                    ->exists();
+                
+                if ($yaExiste) {
+                    $duplicados[] = $telar;
+                    continue;
+                }
 
-        return redirect()
-            ->route('tel-telares-operador.index')
-            ->with('success', 'Operador registrado correctamente.');
+                $payload = [
+                    'numero_empleado' => $data['numero_empleado'],
+                    'nombreEmpl'      => $data['nombreEmpl'] ?? ($usuario->nombre ?? ''),
+                    'NoTelarId'       => $telar,
+                    'Turno'           => $data['Turno'] ?? (string)($usuario->turno ?? ''),
+                    'SalonTejidoId'   => $data['SalonTejidoId'],
+                ];
+
+                TelTelaresOperador::create($payload);
+                $creados++;
+            }
+
+            DB::commit();
+
+            $mensaje = "Se crearon {$creados} registro(s) correctamente.";
+            if (count($duplicados) > 0) {
+                $mensaje .= " Los telares " . implode(', ', $duplicados) . " ya estaban asignados.";
+            }
+
+            // Obtener los registros recién creados para devolverlos
+            $registrosCreados = TelTelaresOperador::query()
+                ->where('numero_empleado', $data['numero_empleado'])
+                ->whereIn('NoTelarId', array_diff($telares, $duplicados))
+                ->orderByDesc('Id')
+                ->limit($creados)
+                ->get();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $mensaje,
+                    'creados' => $creados,
+                    'duplicados' => count($duplicados),
+                    'data' => $registrosCreados->map(function($item) {
+                        return [
+                            'Id' => $item->Id,
+                            'numero_empleado' => $item->numero_empleado,
+                            'nombreEmpl' => $item->nombreEmpl,
+                            'NoTelarId' => $item->NoTelarId,
+                            'Turno' => $item->Turno,
+                            'SalonTejidoId' => $item->SalonTejidoId,
+                        ];
+                    })
+                ]);
+            }
+
+            return redirect()
+                ->route('tel-telares-operador.index')
+                ->with('success', $mensaje);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al crear los registros: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return back()
+                ->withErrors('Error al crear los registros: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     /**
      * Form editar
-     * Route Model Binding por clave primaria: numero_empleado
+     * Route Model Binding por Id (PK)
      */
     public function edit(TelTelaresOperador $telTelaresOperador)
     {
@@ -104,7 +168,7 @@ class TelTelaresOperadorController extends Controller
     }
 
     /**
-     * Actualizar (permite cambiar numero_empleado)
+     * Actualizar (Id no cambia, solo los demás campos)
      */
     public function update(Request $request, TelTelaresOperador $telTelaresOperador)
     {
@@ -114,23 +178,23 @@ class TelTelaresOperadorController extends Controller
             'SalonTejidoId'   => ['required', 'string', 'max:10'],
         ]);
 
+        // Validación: no permitir duplicar (numero_empleado + NoTelarId) excepto el registro actual
+        $yaExiste = TelTelaresOperador::query()
+            ->where('numero_empleado', $data['numero_empleado'])
+            ->where('NoTelarId', $data['NoTelarId'])
+            ->where('Id', '!=', $telTelaresOperador->Id)
+            ->exists();
+        if ($yaExiste) {
+            return back()->withErrors('Este operador ya tiene asignado el telar seleccionado.')->withInput();
+        }
+
         // Recalcular nombre y turno desde SYSUsuario
         $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
         $data['nombreEmpl'] = $usuario->nombre ?? $telTelaresOperador->nombreEmpl;
         $data['Turno'] = (string)($usuario->turno ?? $telTelaresOperador->Turno);
 
-        $originalKey = $telTelaresOperador->getKey();
-
         try {
-            DB::transaction(function () use ($telTelaresOperador, $data, $originalKey) {
-                // Si la PK cambia, actualizar manualmente con where por clave original
-                if ($data['numero_empleado'] !== $originalKey) {
-                    TelTelaresOperador::where($telTelaresOperador->getKeyName(), $originalKey)
-                        ->update($data);
-                } else {
-                    $telTelaresOperador->update($data);
-                }
-            });
+            $telTelaresOperador->update($data);
         } catch (\Throwable $e) {
             return back()->withErrors('Error al actualizar: ' . $e->getMessage())->withInput();
         }
@@ -142,12 +206,27 @@ class TelTelaresOperadorController extends Controller
     /**
      * Eliminar
      */
-    public function destroy(TelTelaresOperador $telTelaresOperador)
+    public function destroy(Request $request, TelTelaresOperador $telTelaresOperador)
     {
+        $id = $telTelaresOperador->Id;
         try {
             $telTelaresOperador->delete();
         } catch (\Throwable $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar el operador: ' . $e->getMessage()
+                ], 500);
+            }
             return back()->withErrors('No se puede eliminar el operador: ' . $e->getMessage());
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Operador eliminado correctamente.',
+                'id' => $id
+            ]);
         }
 
         return redirect()->route('tel-telares-operador.index')
