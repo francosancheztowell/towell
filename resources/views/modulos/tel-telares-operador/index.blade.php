@@ -1,25 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'Tel · Telares por Operador')
+@section('title', 'Telares por Operador')
 @section('page-title')
 Telares por Operador
 @endsection
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button id="btn-create" type="button" class="p-2 rounded-lg transition hover:bg-green-100" title="Nuevo Operador">
-            <i class="fa-solid fa-plus text-green-600 text-lg"></i>
-        </button>
-        <button id="btn-top-edit" type="button"
-            class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled title="Editar Operador">
-            <i class="fa-solid fa-pen-to-square text-yellow-500 text-lg"></i>
-        </button>
-        <button id="btn-top-delete" type="button"
-            class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled title="Eliminar Operador">
-            <i class="fa-solid fa-trash text-red-600 text-lg"></i>
-        </button>
+        <x-navbar.button-report id="btn-open-filters" title="Filtros" icon="fa-filter" text="Filtrar" bg="bg-green-600" module="Telares x Operador" iconColor="text-white" class="text-white" />
+        <x-navbar.button-create id="btn-create" title="Nuevo Operador" module="Telares x Operador"/>
+        <x-navbar.button-edit id="btn-top-edit" title="Editar Operador" module="Telares x Operador" />
+        <x-navbar.button-delete id="btn-top-delete" title="Eliminar Operador" module="Telares x Operador" />
     </div>
 @endsection
 
@@ -46,20 +37,23 @@ Telares por Operador
         </script>
     @endif
 
+    @php
+        $salonesUnique = $items->pluck('SalonTejidoId')->unique()->filter()->sort()->values();
+    @endphp
+
     <div class="bg-white rounded shadow">
-        <div class="overflow-x-auto">
-            <div class="overflow-y-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-blue-500 text-white sticky top-0 z-10">
-                <tr>
-                    <th class="px-3 py-2 text-left">Número</th>
-                    <th class="px-3 py-2 text-left">Nombre</th>
-                    <th class="px-3 py-2 text-left">No. Telar</th>
-                    <th class="px-3 py-2 text-left">Turno</th>
-                    <th class="px-3 py-2 text-left">Salón</th>
-                </tr>
-                    </thead>
-                    <tbody>
+        <div class="overflow-auto max-h-[70vh]">
+            <table class="min-w-full text-md">
+                <thead class="bg-blue-500 text-white">
+                    <tr>
+                        <th class="sticky top-0 z-10 bg-blue-500 px-3 py-2 text-left">Número</th>
+                        <th class="sticky top-0 z-10 bg-blue-500 px-3 py-2 text-left">Nombre</th>
+                        <th class="sticky top-0 z-10 bg-blue-500 px-3 py-2 text-left">Telar</th>
+                        <th class="sticky top-0 z-10 bg-blue-500 px-3 py-2 text-left">Turno</th>
+                        <th class="sticky top-0 z-10 bg-blue-500 px-3 py-2 text-left">Salón</th>
+                    </tr>
+                </thead>
+                <tbody>
                 @forelse($items as $it)
                     <tr class="odd:bg-white even:bg-gray-50 cursor-pointer transition-colors duration-150 hover:bg-blue-50 row-selectable"
                         data-key="{{ $it->getRouteKey() }}"
@@ -78,9 +72,8 @@ Telares por Operador
                 @empty
                     <tr><td colspan="5" class="px-3 py-3 text-center text-gray-500">Sin registros</td></tr>
                 @endforelse
-                    </tbody>
-                </table>
-            </div>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -104,7 +97,7 @@ Telares por Operador
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                            <label class="block text-sm font-medium">Número Empleado</label>
+                            <label class="block text-md font-medium">Número Empleado</label>
                             <select id="createEmpleado" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
                                 <option value="" disabled selected>Selecciona empleado</option>
                                 @foreach(($usuarios ?? []) as $u)
@@ -113,11 +106,11 @@ Telares por Operador
                             </select>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium">Nombre</label>
+                            <label class="block text-md font-medium">Nombre</label>
                             <input type="text" id="createNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded bg-gray-50" readonly required>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium">No. Telar</label>
+                            <label class="block text-md font-medium">Telar</label>
                             <select id="createTelar" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
                                 <option value="" disabled selected>Selecciona telar</option>
                                 @foreach(($telares ?? []) as $tel)
@@ -128,11 +121,11 @@ Telares por Operador
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium">Turno</label>
+                            <label class="block text-md font-medium">Turno</label>
                             <input type="text" id="createTurno" name="Turno" class="w-full px-3 py-2 border rounded bg-gray-50" readonly required>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium">Salón Tejido Id</label>
+                            <label class="block text-md font-medium">Salón Tejido Id</label>
                             <input type="text" id="createSalon" name="SalonTejidoId" class="w-full px-3 py-2 border rounded" required>
                         </div>
                     </div>
@@ -158,7 +151,7 @@ Telares por Operador
                     @method('PUT')
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                            <label class="block text-sm font-medium">Número Empleado</label>
+                            <label class="block text-md font-medium">Número Empleado</label>
                             <select id="editEmpleado" name="numero_empleado" class="w-full px-3 py-2 border rounded" required>
                                 @foreach(($usuarios ?? []) as $u)
                                     <option value="{{ $u->numero_empleado }}" data-nombre="{{ $u->nombre }}" data-turno="{{ $u->turno }}">{{ $u->numero_empleado }}</option>
@@ -166,11 +159,11 @@ Telares por Operador
                             </select>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium">Nombre</label>
+                            <label class="block text-md font-medium">Nombre</label>
                             <input type="text" id="editNombre" name="nombreEmpl" class="w-full px-3 py-2 border rounded bg-gray-50" readonly>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium">No. Telar</label>
+                            <label class="block text-md font-medium">No. Telar</label>
                             <select id="editTelar" name="NoTelarId" class="w-full px-3 py-2 border rounded" required>
                                 @foreach(($telares ?? []) as $tel)
                                     <option value="{{ $tel->NoTelarId }}" data-salon="{{ $tel->SalonTejidoId }}">
@@ -180,19 +173,60 @@ Telares por Operador
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium">Turno</label>
+                            <label class="block text-md font-medium">Turno</label>
                             <input type="text" id="editTurno" name="Turno" class="w-full px-3 py-2 border rounded bg-gray-50" readonly>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium">Salón Tejido Id</label>
+                            <label class="block text-md font-medium">Salón Tejido</label>
                             <input type="text" id="editSalon" name="SalonTejidoId" class="w-full px-3 py-2 border rounded" required>
                         </div>
                     </div>
-                    <div class="flex justify-end">
-                        <button type="button" data-close-modal="editModal" class="px-4 py-2 bg-gray-500 text-white rounded mr-2">Cancelar</button>
-                        <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded">Actualizar</button>
+                    <div class="flex justify-end mt-2">
+                        <button type="button" data-close-modal="editModal" class="px-4 py-2 bg-gray-500 text-white rounded mr-2 w-full">Cancelar</button>
+                        <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded w-full">Actualizar</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal Filtros (estilo BPM) --}}
+    <div id="modal-filters" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">
+                    <i class="fa-solid fa-filter text-purple-600 mr-2"></i>Filtros
+                </h2>
+                <button type="button" data-close="#modal-filters" class="text-slate-500 hover:text-slate-700 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
+                    <label class="block text-xs text-gray-600 mb-2 text-center">
+                        <i class="fa-solid fa-clock mr-1"></i>Turno
+                    </label>
+                    <select id="filter-turno" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
+                        <option value="">Todos</option>
+                        <option value="1">Turno 1</option>
+                        <option value="2">Turno 2</option>
+                        <option value="3">Turno 3</option>
+                    </select>
+                </div>
+                <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
+                    <label class="block text-xs text-gray-600 mb-2 text-center">
+                        <i class="fa-solid fa-door-open mr-1"></i>Salón
+                    </label>
+                    <select id="filter-salon" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
+                        <option value="">Todos</option>
+                        @foreach($salonesUnique as $s)
+                            <option value="{{ $s }}">{{ $s }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" id="btn-clear-filters" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-blue-500 text-white transition text-sm">
+                    <i class="fa-solid fa-eraser mr-1"></i>Limpiar
+                </button>
             </div>
         </div>
     </div>
@@ -377,6 +411,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Estado inicial
     updateTopButtonsState();
+
+    // --- Modal Filtros (estilo BPM) ---
+    const modalFilters = document.getElementById('modal-filters');
+    const btnOpenFilters = document.getElementById('btn-open-filters');
+    const filterTurno = document.getElementById('filter-turno');
+    const filterSalon = document.getElementById('filter-salon');
+    const btnClearFilters = document.getElementById('btn-clear-filters');
+
+    function openFiltersModal() {
+        if (!modalFilters) return;
+        modalFilters.classList.remove('hidden');
+        modalFilters.classList.add('flex');
+    }
+
+    function closeFiltersModal() {
+        if (!modalFilters) return;
+        modalFilters.classList.add('hidden');
+        modalFilters.classList.remove('flex');
+    }
+
+    function applyFilters() {
+        const turno = (filterTurno?.value || '').trim();
+        const salon = (filterSalon?.value || '').trim();
+        const rows = document.querySelectorAll('.row-selectable');
+        rows.forEach(tr => {
+            const t = (tr.dataset.turno || '').toString().trim();
+            const s = (tr.dataset.salon || '').toString().trim();
+            const matchTurno = !turno || t === turno;
+            const matchSalon = !salon || s === salon;
+            const show = matchTurno && matchSalon;
+            tr.style.display = show ? '' : 'none';
+        });
+    }
+
+    btnOpenFilters?.addEventListener('click', openFiltersModal);
+    btnClearFilters?.addEventListener('click', function() {
+        if (filterTurno) filterTurno.value = '';
+        if (filterSalon) filterSalon.value = '';
+        applyFilters();
+        closeFiltersModal();
+    });
+    filterTurno?.addEventListener('change', applyFilters);
+    filterSalon?.addEventListener('change', applyFilters);
+
+    modalFilters?.addEventListener('click', function(e) {
+        if (e.target === modalFilters) closeFiltersModal();
+    });
+    document.querySelectorAll('[data-close="#modal-filters"]').forEach(btn => {
+        btn.addEventListener('click', closeFiltersModal);
+    });
+
+    applyFilters();
 
     // Event listeners para botones de navbar
     document.getElementById('btn-create')?.addEventListener('click', function() {
