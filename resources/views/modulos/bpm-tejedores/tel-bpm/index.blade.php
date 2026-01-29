@@ -4,13 +4,15 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-3">
-    {{-- Botón de Filtros --}}
-    <button id="btn-open-filters" title="Filtros"
-            class="p-2 rounded-lg transition hover:bg-purple-100 relative">
-        <i class="fa-solid fa-filter text-purple-600 text-lg"></i>
-        <span id="filter-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">!</span>
-    </button>
-    {{-- Botones icon-only al estilo BPM Engomado --}}
+    {{-- Botones estilo BPM Engomado --}}
+    <x-navbar.button-report
+    id="btn-open-filters"
+    title="Filtros"
+    icon="fa-filter"
+    module="BPM Tejedores"
+    iconColor="text-purple-600"
+    hoverBg="hover:bg-purple-100"
+    class="text-sm" />
     <x-navbar.button-edit
     id="btn-consult"
     title="Consultar folio"

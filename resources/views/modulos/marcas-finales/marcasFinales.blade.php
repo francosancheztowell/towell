@@ -12,25 +12,20 @@
             id="btn-nuevo"
             title="Nuevo"
             module="Marcas Finales"
-            :disabled="false"
-            icon="fa-plus"
-            iconColor="text-green-600"
-            hoverBg="hover:bg-green-100" />
+
+         />
 
         <x-navbar.button-edit
             id="btn-editar"
             title="Editar"
             module="Marcas Finales"
-            :disabled="true"
-            icon="fa-pen-to-square"
-            iconColor="text-blue-600"
-            hoverBg="hover:bg-blue-100" />
 
+         />
         <x-navbar.button-report
             id="btn-visualizar"
             title="Visualizar"
             module="Marcas Finales"
-            :disabled="true"
+
             icon="fa-eye"
             iconColor="text-gray-700"
             hoverBg="hover:bg-gray-100" />
@@ -39,7 +34,7 @@
             id="btn-finalizar"
             title="Finalizar"
             module="Marcas Finales"
-            :disabled="false"
+
             icon="fa-check"
             iconColor="text-orange-600"
             hoverBg="hover:bg-orange-100" />
@@ -48,7 +43,7 @@
             id="btn-fechas"
             title="Fechas"
             module="Marcas Finales"
-            :disabled="false"
+
             icon="fa-calendar"
             iconColor="text-indigo-600"
             hoverBg="hover:bg-indigo-100" />

@@ -13,9 +13,7 @@ Actividades BPM Urdido
             onclick="openUrdModal('createModal')"
             id="btn-nuevo"
             title="Nueva Actividad"
-            icon="fa-plus"
-            iconColor="text-green-600"
-            hoverBg="hover:bg-green-100" />
+             />
 
         <!-- Botón Editar -->
         <x-navbar.button-edit
@@ -23,9 +21,7 @@ Actividades BPM Urdido
         onclick="handleTopEdit()"
             id="btn-top-edit"
             title="Editar Actividad"
-            :disabled="true"
-            iconColor="text-yellow-500"
-            hoverBg="hover:bg-yellow-100" />
+         />
 
         <!-- Botón Eliminar -->
         <x-navbar.button-delete
@@ -33,9 +29,7 @@ Actividades BPM Urdido
             onclick="handleTopDelete()"
             id="btn-top-delete"
             title="Eliminar Actividad"
-            :disabled="true"
-            iconColor="text-red-600"
-            hoverBg="hover:bg-red-100" />
+         />
     </div>
 @endsection
 

@@ -14,18 +14,14 @@
       title="Nuevo"
       module="Marcas Finales"
       :disabled="false"
-      icon="fa-plus"
-      iconColor="text-green-600"
-      hoverBg="hover:bg-green-100" />
+   />
 
     <x-navbar.button-edit
       id="btn-editar"
       title="Editar"
       module="Marcas Finales"
       :disabled="true"
-      icon="fa-pen-to-square"
-      iconColor="text-blue-600"
-      hoverBg="hover:bg-blue-100" />
+/>
 
     <x-navbar.button-report
         id="btn-visualizar"

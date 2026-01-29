@@ -5,40 +5,31 @@
 @section('navbar-right')
 <div class="flex items-center gap-2">
     {{-- Botón de Filtros --}}
-    <button id="btn-open-filters" title="Filtros"
-            class="p-2 rounded-lg transition hover:bg-purple-100 relative">
-        <i class="fa-solid fa-filter text-purple-600 text-lg"></i>
-        <span id="filter-badge"
-              class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">!</span>
-    </button>
+    <x-navbar.button-report
+    id="btn-open-filters"
+    title="Filtros"
+    icon="fa-filter"
+    module="Producción Reenconado Cabezuela"
+    iconColor="text-purple-600"
+    hoverBg="hover:bg-purple-100"
+    class="text-sm" />
 
     <x-navbar.button-create
         id="btn-nuevo"
         title="Nuevo"
         module="Producción Reenconado Cabezuela"
-
-        :disabled="false"
-        icon="fa-plus"
-        iconColor="text-green-600"
-        hoverBg="hover:bg-green-100"
     />
     <x-navbar.button-edit
         id="btn-editar"
         title="Editar"
         module="Producción Reenconado Cabezuela"
-        :disabled="true"
-        icon="fa-pen-to-square"
-        iconColor="text-yellow-500"
-        hoverBg="hover:bg-yellow-100"
     />
     <x-navbar.button-delete
         id="btn-eliminar"
         title="Eliminar"
         module="Producción Reenconado Cabezuela"
-        :disabled="true"
-        icon="fa-trash"
-        iconColor="text-red-600"
-        hoverBg="hover:bg-red-100"
+
+
     />
 </div>
 @endsection
@@ -124,16 +115,16 @@
 
 <div id="modalNuevo" class="fixed inset-0 z-50 hidden items-center justify-center">
     <div class="fixed inset-0 bg-black/50" data-close="1"></div>
-    <div class="relative bg-white w-[90vw] max-w-3xl rounded shadow-lg">
+    <div class="relative bg-white w-[95vw] max-w-5xl rounded shadow-lg">
         <div class="modal-header bg-blue-500 text-white flex items-center justify-between p-2.5">
             <h5 class="text-base md:text-lg font-semibold flex items-center gap-2" id="modal-title">
                 Nuevo Registro de Producción
             </h5>
             <div class="flex items-center gap-2">
-                <button type="button" class="px-3 py-1.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition text-sm" id="btn-cancelar-modal">
+                <button type="button" class="px-6 py-2.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition text-md min-w-[120px]" id="btn-cancelar-modal">
                     Cancelar
                 </button>
-                <button type="button" class="px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 font-medium transition shadow-md text-sm" id="btn-guardar-nuevo">
+                <button type="button" class="px-6 py-2.5 rounded bg-green-600 text-white hover:bg-green-700 font-medium transition shadow-md text-md min-w-[120px]" id="btn-guardar-nuevo">
                     Guardar
                 </button>
             </div>
@@ -206,25 +197,27 @@
                     </h6>
                 </div>
 
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700">Cantidad (kg)</label>
-                    <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cantidad">
-                </div>
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700">Cabezuela</label>
-                    <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cabezuela">
-                </div>
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700">Conos</label>
-                    <input type="number" step="1" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Conos">
-                </div>
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700">Tiempo (hrs)</label>
-                    <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Horas">
-                </div>
-                <div class="col-span-6 md:col-span-3">
-                    <label class="block text-sm font-medium text-gray-700">Eficiencia (%)</label>
-                    <input type="number" step="0.01" class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Eficiencia">
+                <div class="col-span-12 grid grid-cols-5 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Cantidad (kg)</label>
+                        <input type="number" step="0.01" class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cantidad">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Cabezuela</label>
+                        <input type="number" step="0.01" class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Cabezuela">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Conos</label>
+                        <input type="number" step="1" class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Conos">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Tiempo (hrs)</label>
+                        <input type="number" step="0.01" class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Horas">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Eficiencia (%)</label>
+                        <input type="number" step="0.01" class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="f_Eficiencia">
+                    </div>
                 </div>
                 <div class="col-span-12">
                     <label class="block text-sm font-medium text-gray-700">Observaciones</label>
@@ -696,7 +689,7 @@
             state.selectedRow = null;
             updateActionButtons();
         }
-        
+
         showModal();
         DOM.modalTitle.innerHTML = 'Nuevo Registro de Producción';
         resetDependents();
@@ -821,12 +814,12 @@
         const cantidadField = document.getElementById('f_Cantidad');
         const tiempoField = document.getElementById('f_Horas');
         const eficienciaField = document.getElementById('f_Eficiencia');
-        
+
         if (!cantidadField || !tiempoField || !eficienciaField) return;
-        
+
         const cantidad = parseFloat(cantidadField.value) || 0;
         const tiempo = parseFloat(tiempoField.value) || 0;
-        
+
         if (cantidad > 0 && tiempo > 0) {
             const eficiencia = (cantidad / tiempo) * 9.3;
             eficienciaField.value = eficiencia.toFixed(2);
@@ -837,12 +830,12 @@
 
     const cantidadEl = document.getElementById('f_Cantidad');
     const tiempoEl = document.getElementById('f_Horas');
-    
+
     if (cantidadEl) {
         cantidadEl.addEventListener('input', calcularEficiencia);
         cantidadEl.addEventListener('blur', calcularEficiencia);
     }
-    
+
     if (tiempoEl) {
         tiempoEl.addEventListener('input', calcularEficiencia);
         tiempoEl.addEventListener('blur', calcularEficiencia);

@@ -285,7 +285,7 @@ class UsuarioController extends Controller
     {
         try {
             $idrol = $request->input('idrol');
-            $campo = $request->input('campo'); // 'acceso', 'crear', 'modificar', 'eliminar'
+            $campo = $request->input('campo'); // 'acceso', 'crear', 'modificar', 'eliminar', 'registrar'
             $valor = $request->input('valor') ? 1 : 0;
 
             // Buscar el registro existente
@@ -312,7 +312,7 @@ class UsuarioController extends Controller
                     'crear' => $campo === 'crear' ? $valor : 0,
                     'modificar' => $campo === 'modificar' ? $valor : 0,
                     'eliminar' => $campo === 'eliminar' ? $valor : 0,
-                    'registrar' => 0,
+                    'registrar' => $campo === 'registrar' ? $valor : 0,
                     'assigned_at' => now()
                 ]);
             }

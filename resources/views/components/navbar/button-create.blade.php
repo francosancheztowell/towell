@@ -36,8 +36,8 @@
     'moduleId' => null,
     'checkPermission' => null,
     'icon' => 'fa-plus',
-    'iconColor' => 'text-green-600',
-    'hoverBg' => 'hover:bg-green-100',
+    'iconColor' => null,
+    'hoverBg' => null,
     'text' => null,
     'bg' => null
 ])
@@ -71,6 +71,31 @@
 @endphp
 
 @php
+    // Establecer valores por defecto si no se proporcionan
+    // Por defecto: texto "Crear", fondo azul, texto blanco
+    // Si $text es null (no proporcionado), usar "Crear". Si es cadena vacía, mantener vacío.
+    $finalText = ($text === null) ? 'Crear' : $text;
+    $finalBg = $bg ?? 'bg-blue-500';
+    $finalIconColor = $iconColor ?? 'text-white';
+    
+    // Si no se proporciona hoverBg, usar uno apropiado según el fondo
+    if ($hoverBg === null) {
+        if ($finalBg === 'bg-blue-500') {
+            $finalHoverBg = 'hover:bg-blue-600';
+        } elseif (str_contains($finalBg, 'bg-blue-')) {
+            // Si hay otro fondo azul, oscurecerlo
+            $finalHoverBg = 'hover:bg-blue-600';
+        } elseif (str_contains($finalBg, 'bg-')) {
+            // Si hay otro fondo, usar hover:opacity-90
+            $finalHoverBg = 'hover:opacity-90';
+        } else {
+            // Si no hay fondo, usar el hover verde por defecto (comportamiento anterior)
+            $finalHoverBg = 'hover:bg-green-100';
+        }
+    } else {
+        $finalHoverBg = $hoverBg;
+    }
+
     // Normalizar el icono: remover "fa-solid " si viene incluido, ya que siempre lo agregamos
     $iconNormalized = str_replace('fa-solid ', '', $icon);
     // Asegurar que tenga el prefijo "fa-"
@@ -79,14 +104,7 @@
     }
 
     // Si hay texto, ajustar el padding
-    $paddingClass = $text ? 'px-3 py-2' : 'p-2';
-
-    // Si hay fondo, ajustar el hoverBg si no se especifica
-    $finalHoverBg = $hoverBg;
-    if ($bg && $hoverBg === 'hover:bg-green-100') {
-        // Si hay un fondo personalizado, usar el hoverBg proporcionado o un hover más oscuro por defecto
-        $finalHoverBg = $hoverBg !== 'hover:bg-green-100' ? $hoverBg : 'hover:opacity-90';
-    }
+    $paddingClass = $finalText ? 'px-3 py-2' : 'p-2';
 @endphp
 
 @if($hasPermission)
@@ -94,12 +112,12 @@
     type="button"
     @if($id && !$attributes->has('id')) id="{{ $id }}" @endif
     onclick="{{ $onclick }}"
-    {{ $attributes->merge(['class' => $paddingClass.' '.($text ? 'rounded-lg' : 'rounded-full').' transition '.$finalHoverBg.' disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 '.($bg ?? '').' '.(!$text ? 'w-9 h-9' : '')]) }}
+    {{ $attributes->merge(['class' => $paddingClass.' '.($finalText ? 'rounded-lg' : 'rounded-full').' transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 '.$finalBg.' '.$finalHoverBg.' '.(!$finalText ? 'w-9 h-9' : '')]) }}
     @if($disabled) disabled @endif
     title="{{ $title }}">
-    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-sm' }}"></i>
-    @if($text)
-        <span class="text-sm font-medium {{ $iconColor }}">{{ $text }}</span>
+    <i class="fa-solid {{ $iconNormalized }} {{ $finalIconColor }} {{ $finalText ? 'text-base' : 'text-sm' }}"></i>
+    @if($finalText)
+        <span class="text-sm font-medium {{ $finalIconColor }}">{{ $finalText }}</span>
     @endif
 </button>
 @endif

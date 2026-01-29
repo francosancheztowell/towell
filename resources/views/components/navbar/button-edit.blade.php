@@ -38,9 +38,9 @@
     'moduleId' => null,
     'checkPermission' => null,
     'icon' => 'fa-pen-to-square',
-    'iconColor' => 'text-blue-600',
-    'hoverBg' => '',
-    'bg' => '',
+    'iconColor' => null,
+    'hoverBg' => null,
+    'bg' => null,
     'text' => null,
     'class' => ''
 ])
@@ -112,6 +112,28 @@
 @endphp
 
 @php
+    // Establecer valores por defecto si no se proporcionan
+    // Por defecto: texto "Editar", fondo morado, texto blanco
+    // Si $text es null (no proporcionado), usar "Editar". Si es cadena vacía, mantener vacío.
+    $finalText = ($text === null) ? 'Editar' : $text;
+    $finalBg = $bg ?? 'bg-purple-500';
+    $finalIconColor = $iconColor ?? 'text-white';
+    
+    // Si no se proporciona hoverBg, usar uno apropiado según el fondo
+    if ($hoverBg === null) {
+        if ($finalBg === 'bg-purple-500') {
+            $finalHoverBg = 'hover:bg-purple-600';
+        } elseif (str_contains($finalBg, 'bg-')) {
+            // Si hay otro fondo, usar hover:opacity-90
+            $finalHoverBg = 'hover:opacity-90';
+        } else {
+            // Si no hay fondo, usar el hover azul por defecto (comportamiento anterior)
+            $finalHoverBg = 'hover:bg-blue-600';
+        }
+    } else {
+        $finalHoverBg = $hoverBg;
+    }
+
     // Normalizar el icono: remover "fa-solid " si viene incluido, ya que siempre lo agregamos
     $iconNormalized = str_replace('fa-solid ', '', $icon);
     // Asegurar que tenga el prefijo "fa-"
@@ -120,16 +142,7 @@
     }
 
     // Si hay texto, ajustar el padding
-    $paddingClass = $text ? 'px-3 py-2' : 'p-2';
-@endphp
-
-@php
-    // Si hay fondo personalizado, ajustar hoverBg si es necesario
-    $finalHoverBg = $hoverBg;
-    if ($bg && $hoverBg === '') {
-        // Si hay bg pero hoverBg es el default antiguo, usar hover más oscuro
-        $finalHoverBg = 'hover:opacity-90';
-    }
+    $paddingClass = $finalText ? 'px-3 py-2' : 'p-2';
 @endphp
 
 @if($hasPermission)
@@ -139,12 +152,12 @@
     @if($onclick && $type !== 'submit') onclick="{{ $onclick }}" @endif
     @if($module) data-module="{{ $module }}" @endif
     @if($moduleId) data-module-id="{{ $moduleId }}" @endif
-    class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg }} {{ !$text ? 'w-9 h-9' : '' }} {{ $class }}"
+    class="{{ $paddingClass }} {{ $finalText ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $finalBg }} {{ !$finalText ? 'w-9 h-9' : '' }} {{ $class }}"
     @if($disabled) disabled @endif
     title="{{ $title }}">
-    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-sm' }}"></i>
-    @if($text)
-        <span class="text-sm font-medium {{ $iconColor }}">{{ $text }}</span>
+    <i class="fa-solid {{ $iconNormalized }} {{ $finalIconColor }} {{ $finalText ? 'text-base' : 'text-sm' }}"></i>
+    @if($finalText)
+        <span class="text-sm font-medium {{ $finalIconColor }}">{{ $finalText }}</span>
     @endif
 </button>
 @endif

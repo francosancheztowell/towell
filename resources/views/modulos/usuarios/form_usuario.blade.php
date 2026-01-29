@@ -63,8 +63,8 @@
 
                 <!-- ddDatos Generales -->
                 <div>
-                    <div class="px-4 sm:px-6 py-3 sm:py-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <div class="px-4 sm:px-6 py-2 sm:py-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <!-- Área -->
                             <div class="space-y-1">
                                 <label for="area" class="block text-sm font-medium text-gray-700">Área</label>
@@ -156,16 +156,7 @@
                                 </div>
                             </div>
 
-                            <!-- Enviar mensaje -->
-                            <div class="space-y-1">
-                                <label class="block text-sm font-medium text-gray-700">¿Enviar mensaje?</label>
-                                <div class="flex items-center pt-1">
-                                    <input id="enviarMensaje" name="enviarMensaje" type="checkbox" value="1"
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                        {{ old('enviarMensaje', $usuario->enviarMensaje ?? false) ? 'checked' : '' }}>
-                                    <label for="enviarMensaje" class="ml-2 block text-sm text-gray-700">Sí, enviar mensajes</label>
-                                </div>
-                            </div>
+
 
                             <!-- Foto de Perfil -->
                             <div class="space-y-1 sm:col-span-2">
@@ -214,74 +205,85 @@
                 </div>
 
                 <!-- Permisos por Módulos -->
-                <div>
-                    <div class="px-4 sm:px-6 py-3 sm:py-4">
-                        <!-- Header con título y botones -->
-                        <div class="mb-4">
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                <h3 class="text-lg font-semibold text-gray-900">Permisos por Módulos</h3>
-                                <div class="flex flex-wrap gap-2">
-                                    <button type="button" onclick="seleccionarTodos()"
-                                        class="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors">
-                                        Seleccionar Todo
-                                    </button>
-                                    <button type="button" onclick="deseleccionarTodos()"
-                                        class="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                                        Deseleccionar Todo
-                                    </button>
+                <div class="">
+                    <div class="px-4 sm:px-6 py-2 sm:py-3">
+
+                        <!-- Versión móvil: cards con header sticky -->
+                        <div class="block sm:hidden ">
+                            <div class="border border-gray-200 rounded shadow-sm overflow-hidden flex flex-col" style="height: 200px;">
+                                <!-- Header sticky -->
+                                <div class="bg-blue-600 rounded-t border-b border-blue-700 sticky top-0 z-20 flex-shrink-0">
+                                    <div class="grid grid-cols-2 gap-1 px-1 py-0.5">
+                                        <div class="text-[8px] font-semibold text-white uppercase leading-tight">Módulo</div>
+                                        <div class="flex flex-col gap-0.5">
+                                            <div class="text-[7px] font-semibold text-white uppercase text-center leading-tight">Acceso</div>
+                                            <div class="text-[7px] font-semibold text-white uppercase text-center leading-tight">Crear</div>
+                                            <div class="text-[7px] font-semibold text-white uppercase text-center leading-tight">Modificar</div>
+                                            <div class="text-[7px] font-semibold text-white uppercase text-center leading-tight">Eliminar</div>
+                                            <div class="text-[7px] font-semibold text-white uppercase text-center leading-tight">Registrar</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Contenido con scroll -->
+                                <div class="bg-white space-y-0 p-0.5 overflow-y-auto overflow-x-auto flex-1">
+                                    @foreach ($modulos as $modulo)
+                                        @php
+                                            $slugModulo = strtolower(str_replace(' ', '_', $modulo->modulo));
+                                            $permisos = isset($permisosUsuario) ? ($permisosUsuario[$modulo->idrol] ?? null) : null;
+                                        @endphp
+                                        <div class="bg-white border-b border-gray-100 p-0.5">
+                                            <div class="grid grid-cols-2 gap-1 items-start">
+                                                <div class="font-medium text-gray-900 text-[9px] leading-tight">{{ $modulo->modulo }}</div>
+                                                <div class="flex flex-col gap-0.5">
+                                                    <label class="flex items-center justify-center">
+                                                        <input type="checkbox" name="modulo_{{ $modulo->idrol }}_acceso" value="1"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
+                                                            {{ old("modulo_{$modulo->idrol}_acceso", $permisos->acceso ?? false) ? 'checked' : '' }}>
+                                                        <span class="text-[8px] text-gray-700">Acceso</span>
+                                                    </label>
+                                                    <label class="flex items-center justify-center">
+                                                        <input type="checkbox" name="modulo_{{ $modulo->idrol }}_crear" value="1"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
+                                                            {{ old("modulo_{$modulo->idrol}_crear", $permisos->crear ?? false) ? 'checked' : '' }}>
+                                                        <span class="text-[8px] text-gray-700">Crear</span>
+                                                    </label>
+                                                    <label class="flex items-center justify-center">
+                                                        <input type="checkbox" name="modulo_{{ $modulo->idrol }}_modificar" value="1"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
+                                                            {{ old("modulo_{$modulo->idrol}_modificar", $permisos->modificar ?? false) ? 'checked' : '' }}>
+                                                        <span class="text-[8px] text-gray-700">Modificar</span>
+                                                    </label>
+                                                    <label class="flex items-center justify-center">
+                                                        <input type="checkbox" name="modulo_{{ $modulo->idrol }}_eliminar" value="1"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
+                                                            {{ old("modulo_{$modulo->idrol}_eliminar", $permisos->eliminar ?? false) ? 'checked' : '' }}>
+                                                        <span class="text-[8px] text-gray-700">Eliminar</span>
+                                                    </label>
+                                                    <label class="flex items-center justify-center">
+                                                        <input type="checkbox" name="modulo_{{ $modulo->idrol }}_registrar" value="1"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
+                                                            {{ old("modulo_{$modulo->idrol}_registrar", $permisos->registrar ?? false) ? 'checked' : '' }}>
+                                                        <span class="text-[8px] text-gray-700">Registrar</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Versión móvil: cards -->
-                        <div class="block sm:hidden space-y-2">
-                            @foreach ($modulos as $modulo)
-                                @php
-                                    $slugModulo = strtolower(str_replace(' ', '_', $modulo->modulo));
-                                    $permisos = isset($permisosUsuario) ? ($permisosUsuario[$modulo->idrol] ?? null) : null;
-                                @endphp
-                                <div class="bg-white border border-gray-200 rounded-lg p-2.5">
-                                    <h3 class="font-medium text-gray-900 mb-1.5 text-sm">{{ $modulo->modulo }}</h3>
-                                    <div class="grid grid-cols-2 gap-1.5">
-                                        <label class="flex items-center">
-                                            <input type="checkbox" name="modulo_{{ $modulo->idrol }}_acceso" value="1"
-                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1.5"
-                                                {{ old("modulo_{$modulo->idrol}_acceso", $permisos->acceso ?? false) ? 'checked' : '' }}>
-                                            <span class="text-xs text-gray-700">Acceso</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" name="modulo_{{ $modulo->idrol }}_crear" value="1"
-                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1.5"
-                                                {{ old("modulo_{$modulo->idrol}_crear", $permisos->crear ?? false) ? 'checked' : '' }}>
-                                            <span class="text-xs text-gray-700">Crear</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" name="modulo_{{ $modulo->idrol }}_modificar" value="1"
-                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1.5"
-                                                {{ old("modulo_{$modulo->idrol}_modificar", $permisos->modificar ?? false) ? 'checked' : '' }}>
-                                            <span class="text-xs text-gray-700">Modificar</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" name="modulo_{{ $modulo->idrol }}_eliminar" value="1"
-                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1.5"
-                                                {{ old("modulo_{$modulo->idrol}_eliminar", $permisos->eliminar ?? false) ? 'checked' : '' }}>
-                                            <span class="text-xs text-gray-700">Eliminar</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-
                         <!-- Versión desktop: tabla con contenedor -->
                         <div class="hidden sm:block">
-                            <div class="overflow-x-auto max-h-[600px] overflow-y-auto border border-gray-200 rounded-lg shadow-sm">
+                            <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col" style="height: 350px;">
                                 <!-- Header de la tabla sticky -->
-                                <div class="sticky top-0 z-10">
-                                    <div class="grid grid-cols-5 gap-1 px-3 py-2 bg-blue-600 rounded-t-lg border-b border-blue-700 shadow-lg">
+                                <div class="sticky top-0 z-10 flex-shrink-0">
+                                    <div class="grid grid-cols-6 gap-1 px-3 py-1.5 bg-blue-600 rounded-t-lg border-b border-blue-700 shadow-lg" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;">
                                         <div class="text-xs font-semibold text-white uppercase tracking-wider">Módulo</div>
 
                                         <!-- Acceso -->
-                                        <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                        <div class="text-sm font-semibold text-white uppercase tracking-wider text-center">
                                             <div class="flex items-center justify-center gap-1">
                                                 <span>Acceso</span>
                                                 <input type="checkbox" id="selectAllAcceso"
@@ -291,7 +293,7 @@
                                         </div>
 
                                         <!-- Crear -->
-                                        <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                        <div class="text-sm font-semibold text-white uppercase tracking-wider text-center">
                                             <div class="flex items-center justify-center gap-1">
                                                 <span>Crear</span>
                                                 <input type="checkbox" id="selectAllCrear"
@@ -301,7 +303,7 @@
                                         </div>
 
                                         <!-- Modificar -->
-                                        <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                        <div class="text-sm font-semibold text-white uppercase tracking-wider text-center">
                                             <div class="flex items-center justify-center gap-1">
                                                 <span>Modificar</span>
                                                 <input type="checkbox" id="selectAllModificar"
@@ -311,7 +313,7 @@
                                         </div>
 
                                         <!-- Eliminar -->
-                                        <div class="text-xs font-semibold text-white uppercase tracking-wider text-center">
+                                        <div class="text-sm font-semibold text-white uppercase tracking-wider text-center">
                                             <div class="flex items-center justify-center gap-1">
                                                 <span>Eliminar</span>
                                                 <input type="checkbox" id="selectAllEliminar"
@@ -319,11 +321,20 @@
                                                     onchange="toggleAllEliminar(this)">
                                             </div>
                                         </div>
+                                        <!-- Registrar -->
+                                        <div class="text-sm font-semibold text-white uppercase tracking-wider text-center">
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span>Registrar</span>
+                                                <input type="checkbox" id="selectAllRegistrar"
+                                                    class="h-3 w-3 text-white bg-white border-white rounded focus:ring-blue-300 cursor-pointer"
+                                                    onchange="toggleAllRegistrar(this)">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- Cuerpo de la tabla -->
-                                <div class="bg-white">
+                                <!-- Cuerpo de la tabla con scroll -->
+                                <div class="bg-white overflow-y-auto overflow-x-auto flex-1">
                                 @foreach ($modulos as $modulo)
                                     @php
                                         $permisos = isset($permisosUsuario) ? ($permisosUsuario[$modulo->idrol] ?? null) : null;
@@ -348,7 +359,7 @@
                                             $fontClass = 'font-normal text-gray-600';
                                         }
                                     @endphp
-                                    <div class="grid grid-cols-5 gap-1 px-3 py-1.5 border-b border-gray-100 hover:bg-gray-50 transition-colors {{ $bgClass }} {{ $loop->last ? 'rounded-b-lg' : '' }}">
+                                    <div class="grid grid-cols-6 gap-1 px-3 py-1 border-b border-gray-100 hover:bg-gray-50 transition-colors {{ $bgClass }} {{ $loop->last ? 'rounded-b-lg' : '' }}" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;">
                                         <!-- Módulo -->
                                         <div class="flex items-center text-sm {{ $fontClass }} {{ $indent }}">
                                             @if($nivel != '1')
@@ -391,6 +402,13 @@
                                                 class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-eliminar"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_eliminar", $permisos->eliminar ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
+
+                                        <!-- Registrar -->
+                                        <div class="flex items-center justify-center">
+                                            <input type="checkbox" name="modulo_{{ $modulo->idrol }}_registrar" value="1"
+                                                class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-registrar"
+                                                {{ $isEdit ? (old("modulo_{$modulo->idrol}_registrar", $permisos->registrar ?? false) ? 'checked' : '') : 'checked' }}>
+                                        </div>
                                     </div>
                                 @endforeach
                                 </div>
@@ -402,7 +420,7 @@
 
                 <!-- Botones sticky fijos en la parte inferior -->
                 <div class="sticky bottom-0 left-0 right-0 z-20">
-                    <div class="px-4 sm:px-6 py-3 sm:py-4">
+                    <div class="px-4 sm:px-6 py-2 sm:py-3">
                         <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end max-w-7xl mx-auto">
                             <a href="{{ route('configuracion.usuarios.select') }}"
                                class="px-4 sm:px-6 py-2 sm:py-3 bg-red-500 border border-gray-300 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 transition-colors text-center">

@@ -35,9 +35,9 @@
     'moduleId' => null,
     'checkPermission' => null,
     'icon' => 'fa-trash',
-    'iconColor' => 'text-red-500',
-    'hoverBg' => '',
-    'bg' => '',
+    'iconColor' => null,
+    'hoverBg' => null,
+    'bg' => null,
     'text' => null,
     'class' => ''
 ])
@@ -71,6 +71,46 @@
 @endphp
 
 @php
+    // Establecer valores por defecto si no se proporcionan
+    // Por defecto: texto "Eliminar", fondo rojo, texto blanco
+    // Si $text es null (no proporcionado), usar "Eliminar". Si es cadena vacía, mantener vacío.
+    $finalText = ($text === null) ? 'Eliminar' : $text;
+    $finalBg = $bg ?? 'bg-red-500';
+    $finalIconColor = $iconColor ?? 'text-white';
+    
+    // Extraer hover del class si está presente (tiene prioridad)
+    $hoverFromClass = '';
+    if ($class && preg_match('/hover:[^\s]+/', $class, $matches)) {
+        $hoverFromClass = $matches[0];
+    }
+
+    // Si no se proporciona hoverBg, usar uno apropiado según el fondo
+    if ($hoverFromClass) {
+        // Si hay hover en class, usarlo (tiene máxima prioridad)
+        $finalHoverBg = $hoverFromClass;
+    } elseif ($hoverBg === null) {
+        if ($finalBg === 'bg-red-500') {
+            $finalHoverBg = 'hover:bg-red-600';
+        } elseif (str_contains($finalBg, 'bg-red-')) {
+            // Si hay otro fondo rojo, oscurecerlo
+            $finalHoverBg = 'hover:bg-red-600';
+        } elseif (str_contains($finalBg, 'bg-')) {
+            // Si hay otro fondo, usar hover:opacity-90
+            $finalHoverBg = 'hover:opacity-90';
+        } else {
+            // Si no hay fondo, usar el hover rojo por defecto (comportamiento anterior)
+            $finalHoverBg = 'hover:bg-red-100';
+        }
+    } else {
+        $finalHoverBg = $hoverBg;
+    }
+
+    // Remover el hover del class para evitar duplicados
+    if ($hoverFromClass) {
+        $class = preg_replace('/hover:[^\s]+/', '', $class);
+        $class = preg_replace('/\s+/', ' ', trim($class));
+    }
+
     // Normalizar el icono: remover "fa-solid " si viene incluido, ya que siempre lo agregamos
     $iconNormalized = str_replace('fa-solid ', '', $icon);
     // Asegurar que tenga el prefijo "fa-"
@@ -79,35 +119,7 @@
     }
 
     // Si hay texto, ajustar el padding
-    $paddingClass = $text ? 'px-3 py-2' : 'p-2';
-@endphp
-
-@php
-    // Extraer hover del class si está presente (tiene prioridad)
-    $hoverFromClass = '';
-    if ($class && preg_match('/hover:[^\s]+/', $class, $matches)) {
-        $hoverFromClass = $matches[0];
-    }
-
-    // Lógica para hoverBg: si hay hover en class, usarlo; si no, usar la lógica normal
-    $finalHoverBg = $hoverBg;
-    if ($hoverFromClass) {
-        // Si hay hover en class, usarlo (tiene máxima prioridad)
-        $finalHoverBg = $hoverFromClass;
-    } elseif ($bg) {
-        // Si hay un fondo personalizado y no hay hover en class
-        if ($hoverBg === 'hover:bg-red-100') {
-            // Si hoverBg es el default antiguo, usar hover más oscuro automáticamente
-            $finalHoverBg = 'hover:opacity-90';
-        }
-        // Si hoverBg es diferente al default (se proporcionó uno personalizado), se mantiene el proporcionado
-    }
-
-    // Remover el hover del class para evitar duplicados
-    if ($hoverFromClass) {
-        $class = preg_replace('/hover:[^\s]+/', '', $class);
-        $class = preg_replace('/\s+/', ' ', trim($class));
-    }
+    $paddingClass = $finalText ? 'px-3 py-2' : 'p-2';
 @endphp
 
 @if($hasPermission)
@@ -115,12 +127,12 @@
     type="button"
     @if($id) id="{{ $id }}" @endif
     onclick="{{ $onclick }}"
-    class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg }} {{ !$text ? 'w-9 h-9' : '' }} {{ $class }}"
+    class="{{ $paddingClass }} {{ $finalText ? 'rounded-lg' : 'rounded-full' }} transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $finalBg }} {{ $finalHoverBg }} {{ !$finalText ? 'w-9 h-9' : '' }} {{ $class }}"
     @if($disabled) disabled @endif
     title="{{ $title }}">
-    <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-sm' }}"></i>
-    @if($text)
-        <span class="text-sm font-medium">{{ $text }}</span>
+    <i class="fa-solid {{ $iconNormalized }} {{ $finalIconColor }} {{ $finalText ? 'text-base' : 'text-sm' }}"></i>
+    @if($finalText)
+        <span class="text-sm font-medium {{ $finalIconColor }}">{{ $finalText }}</span>
     @endif
 </button>
 @endif

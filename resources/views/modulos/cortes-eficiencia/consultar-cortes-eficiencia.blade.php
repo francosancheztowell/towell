@@ -1,6 +1,6 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
-@section('page-title', 'Consultar Cortes de Eficiencia')
+@section('page-title', 'Cortes de Eficiencia')
 
 @php
     use Carbon\Carbon;
@@ -11,48 +11,39 @@
     <x-navbar.button-create
       id="btn-nuevo"
       title="Nuevo"
-      module="Cortes de Eficiencia"
-      :disabled="false"
-      icon="fa-plus"
-      iconColor="text-green-600"
-      hoverBg="hover:bg-green-100" />
+      module="Cortes de Eficiencia" />
 
     <x-navbar.button-edit
       id="btn-editar"
       title="Editar"
       module="Cortes de Eficiencia"
-      :disabled="true"
-      icon="fa-pen-to-square"
-      iconColor="text-blue-600"
-      hoverBg="hover:bg-blue-100" />
-
+    />
     <x-navbar.button-report
       id="btn-visualizar"
       title="Visualizar"
-      module="Cortes de Eficiencia"
-      :disabled="true"
       icon="fa-eye"
       iconColor="text-gray-700"
-      hoverBg="hover:bg-gray-100" />
-
+      hoverBg="hover:bg-gray-100"
+      class="text-sm"
+      module="Cortes de Eficiencia"
+    />
     <x-navbar.button-report
       id="btn-finalizar"
       title="Finalizar"
-      module="Cortes de Eficiencia"
-      :disabled="false"
       icon="fa-check"
       iconColor="text-orange-600"
       hoverBg="hover:bg-orange-100"
-      />
-
+      class="text-sm"
+      module="Cortes de Eficiencia"
+    />
     <x-navbar.button-report
       id="btn-fechas"
       title="Fechas"
-      module="Cortes de Eficiencia"
-      :disabled="false"
       icon="fa-calendar"
       iconColor="text-indigo-600"
-      hoverBg="hover:bg-indigo-100" />
+      hoverBg="hover:bg-indigo-100"
+      class="text-sm"
+      module="Cortes de Eficiencia" />
 </div>
 @endsection
 

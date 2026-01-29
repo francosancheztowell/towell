@@ -12,30 +12,21 @@ Actividades BPM Engomado
         <x-navbar.button-create
         type="button"
         onclick="openActividadModal('createModal')"
-        class="p-2 rounded-lg transition hover:bg-green-100"
-        title="Nueva Actividad"
-        icon="fa-plus"
-        iconColor="text-green-600"
-        hoverBg="hover:bg-green-100"
         module="Actividades BPM Engomado"
         />
 
         <x-navbar.button-edit
         id="btn-top-edit"
         onclick="handleTopEdit()"
-        :disabled="true"
-        iconColor="text-yellow-500"
         module="Actividades BPM Engomado"
-        hoverBg="hover:bg-yellow-100"/>
+        />
 
 
         <x-navbar.button-delete
         id="btn-top-delete"
         onclick="handleTopDelete()"
-        :disabled="true"
-        iconColor="text-red-500"
         module="Actividades BPM Engomado"
-        hoverBg="hover:bg-red-100"/>
+        />
     </div>
 @endsection
 
