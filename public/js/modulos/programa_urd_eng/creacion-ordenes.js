@@ -96,6 +96,7 @@
     let filaSeleccionadaId = null;
     const gruposData = Object.create(null); // { filaId: { grupo, bomId, kilos, materialesUrdido } }
     let config = {}; // Configuración con rutas y datos
+    let sortState = { column: null, direction: null }; // Estado de ordenamiento: { column: 'itemId', direction: 'asc'|'desc' }
 
     /* =================== LS helpers específicos =================== */
     const LS = {
@@ -206,16 +207,16 @@
             tr.dataset.filaId = filaId;
 
             tr.innerHTML = `
-                <td class="px-2 py-3 text-xs text-center">${g.telaresStr || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${fmtDate(g.fechaReq)}</td>
-                <td class="px-2 py-3 text-xs text-center">${g.cuenta || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${g.calibre || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${g.hilo || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${g.urdido || '-'}</td>
-                <td class="px-2 py-3 text-center"><span class="px-2 py-1 inline-block text-xs font-medium rounded-md ${tipoCls}">${g.tipo || 'N/A'}</span></td>
-                <td class="px-2 py-3 text-xs text-center">${g.destino || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${fmtNumber(g.metros)}</td>
-                <td class="px-2 py-3 text-xs text-center">${fmtNumber(g.kilos)}</td>
+                <td class="px-2 py-3 text-sm text-center">${g.telaresStr || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${fmtDate(g.fechaReq)}</td>
+                <td class="px-2 py-3 text-sm text-center">${g.cuenta || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${g.calibre || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${g.hilo || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${g.urdido || '-'}</td>
+                <td class="px-2 py-3 text-center"><span class="px-2 py-1 inline-block text-sm font-medium rounded-md ${tipoCls}">${g.tipo || 'N/A'}</span></td>
+                <td class="px-2 py-3 text-sm text-center">${g.destino || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${fmtNumber(g.metros)}</td>
+                <td class="px-2 py-3 text-sm text-center">${fmtNumber(g.kilos)}</td>
                 <td class="px-2 py-3 text-center">
                     <input type="text" placeholder="Buscar BOM..." class="w-full px-2 py-1.5 border border-gray-500 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                            data-grupo="${g.telaresStr}" data-fila-id="${filaId}" data-kilos="${g.kilos || 0}" data-bom-input="true" data-bom-id="" autocomplete="off"
@@ -468,10 +469,10 @@
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-gray-50';
             tr.innerHTML = `
-                <td class="px-2 py-3 text-xs text-center">${m.ItemId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${m.ConfigId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${fmtNumber(consumo, 3)}</td>
-                <td class="px-2 py-3 text-xs text-center">${fmtNumber(kilos)}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.ItemId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.ConfigId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${fmtNumber(consumo, 3)}</td>
+                <td class="px-2 py-3 text-sm text-center">${fmtNumber(kilos)}</td>
             `;
             tbody.appendChild(tr);
         }
@@ -551,7 +552,99 @@
         }
     }
 
-    function renderTablaMaterialesEngomado(materiales=[], bomId=null) {
+    /* =================== Ordenamiento de tabla Materiales Engomado =================== */
+    function ordenarMateriales(materiales, column, direction) {
+        if (!column || !direction || !materiales || !materiales.length) return materiales;
+
+        const sorted = [...materiales].sort((a, b) => {
+            let valA, valB;
+
+            // Obtener valores según la columna
+            switch(column) {
+                case 'itemId': valA = String(a.ItemId || '').toLowerCase(); valB = String(b.ItemId || '').toLowerCase(); break;
+                case 'configId': valA = String(a.ConfigId || '').toLowerCase(); valB = String(b.ConfigId || '').toLowerCase(); break;
+                case 'inventSizeId': valA = String(a.InventSizeId || '').toLowerCase(); valB = String(b.InventSizeId || '').toLowerCase(); break;
+                case 'inventColorId': valA = String(a.InventColorId || '').toLowerCase(); valB = String(b.InventColorId || '').toLowerCase(); break;
+                case 'inventLocationId': valA = String(a.InventLocationId || '').toLowerCase(); valB = String(b.InventLocationId || '').toLowerCase(); break;
+                case 'inventBatchId': valA = String(a.InventBatchId || '').toLowerCase(); valB = String(b.InventBatchId || '').toLowerCase(); break;
+                case 'wmsLocationId': valA = String(a.WMSLocationId || '').toLowerCase(); valB = String(b.WMSLocationId || '').toLowerCase(); break;
+                case 'inventSerialId': valA = String(a.InventSerialId || '').toLowerCase(); valB = String(b.InventSerialId || '').toLowerCase(); break;
+                case 'loteProv': valA = String(a.TwCalidadFlog || '').toLowerCase(); valB = String(b.TwCalidadFlog || '').toLowerCase(); break;
+                case 'noProv': valA = String(a.TwClienteFlog || '').toLowerCase(); valB = String(b.TwClienteFlog || '').toLowerCase(); break;
+                case 'prodDate':
+                    valA = a.ProdDate ? new Date(a.ProdDate).getTime() : 0;
+                    valB = b.ProdDate ? new Date(b.ProdDate).getTime() : 0;
+                    break;
+                case 'conos': valA = toNumber(a.TwTiras, 0); valB = toNumber(b.TwTiras, 0); break;
+                case 'kilos': valA = toNumber(a.PhysicalInvent, 0); valB = toNumber(b.PhysicalInvent, 0); break;
+                default: return 0;
+            }
+
+            // Comparar valores
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return sorted;
+    }
+
+    function actualizarIconosOrdenamiento(column, direction) {
+        qsa('#tablaMaterialesEngomado th.sortable').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+            if (th.dataset.sort === column) {
+                th.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+        });
+    }
+
+    let ordenamientoInicializado = false;
+    function initOrdenamientoTabla() {
+        if (ordenamientoInicializado) return; // Ya se inicializó, no hacer nada
+
+        qsa('#tablaMaterialesEngomado th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.dataset.sort;
+                if (!column) return;
+
+                // Determinar nueva dirección
+                let newDirection = 'asc';
+                if (sortState.column === column && sortState.direction === 'asc') {
+                    newDirection = 'desc';
+                }
+
+                // Actualizar estado
+                sortState.column = column;
+                sortState.direction = newDirection;
+
+                // Actualizar iconos
+                actualizarIconosOrdenamiento(column, newDirection);
+
+                // Re-renderizar tabla con ordenamiento
+                if (filaSeleccionadaId && gruposData[filaSeleccionadaId]) {
+                    const materiales = gruposData[filaSeleccionadaId].materialesEngomado || [];
+                    const bomId = gruposData[filaSeleccionadaId].bomId || null;
+                    const materialesOrdenados = ordenarMateriales(materiales, column, newDirection);
+
+                    // Guardar selecciones antes de re-renderizar
+                    guardarSeleccionesCheckboxes(bomId);
+                    const selecciones = LS.getSelecciones(bomId);
+
+                    renderTablaMaterialesEngomado(materialesOrdenados, bomId, true); // true = skip guardar en gruposData
+
+                    // Restaurar selecciones después de re-renderizar
+                    setTimeout(() => {
+                        restaurarSelecciones(selecciones);
+                        actualizarTotalesMaterialesEngomado();
+                    }, 50);
+                }
+            });
+        });
+
+        ordenamientoInicializado = true;
+    }
+
+    function renderTablaMaterialesEngomado(materiales=[], bomId=null, skipGuardar=false) {
         const tbody = qs('#tbodyMaterialesEngomado');
         if (!Array.isArray(materiales) || !materiales.length) {
             tbody.innerHTML = `<tr><td colspan="14" class="px-4 py-8 text-center text-gray-500">
@@ -566,19 +659,27 @@
             return;
         }
 
-        // Guardar materiales en gruposData para uso posterior
-        if (filaSeleccionadaId && gruposData[filaSeleccionadaId]) {
-            gruposData[filaSeleccionadaId].materialesEngomado = materiales;
-        } else {
-            Object.keys(gruposData).forEach(fid => {
-                if (gruposData[fid].bomId === bomId) {
-                    gruposData[fid].materialesEngomado = materiales;
-                }
-            });
+        // Aplicar ordenamiento si hay estado de ordenamiento activo
+        let materialesParaRender = materiales;
+        if (sortState.column && sortState.direction) {
+            materialesParaRender = ordenarMateriales(materiales, sortState.column, sortState.direction);
+        }
+
+        // Guardar materiales en gruposData para uso posterior (solo si no se está re-renderizando por ordenamiento)
+        if (!skipGuardar) {
+            if (filaSeleccionadaId && gruposData[filaSeleccionadaId]) {
+                gruposData[filaSeleccionadaId].materialesEngomado = materiales;
+            } else {
+                Object.keys(gruposData).forEach(fid => {
+                    if (gruposData[fid].bomId === bomId) {
+                        gruposData[fid].materialesEngomado = materiales;
+                    }
+                });
+            }
         }
 
         tbody.innerHTML = '';
-        for (const m of materiales) {
+        for (const m of materialesParaRender) {
             const kilos  = toNumber(m.PhysicalInvent, 0);
             const conos  = toNumber(m.TwTiras, 0);
             const lotePr = m.TwCalidadFlog || '-';
@@ -590,19 +691,19 @@
             tr.className = 'hover:bg-gray-50';
             tr.dataset.materialData = JSON.stringify(m); // Almacenar datos completos en el DOM
             tr.innerHTML = `
-                <td class="px-2 py-3 text-xs text-center">${m.ItemId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${m.ConfigId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${m.InventSizeId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${m.InventColorId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${m.InventLocationId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${m.InventBatchId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${m.WMSLocationId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${m.InventSerialId || '-'}</td>
-                <td class="px-2 py-3 text-xs text-center">${lotePr}</td>
-                <td class="px-2 py-3 text-xs text-center">${noProv}</td>
-                <td class="px-2 py-3 text-xs text-center">${prodDate}</td>
-                <td class="px-2 py-3 text-xs text-center">${conos.toFixed(0)}</td>
-                <td class="px-2 py-3 text-xs text-center">${fmtNumber(kilos)}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.ItemId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.ConfigId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.InventSizeId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.InventColorId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.InventLocationId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.InventBatchId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.WMSLocationId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${m.InventSerialId || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${lotePr}</td>
+                <td class="px-2 py-3 text-sm text-center">${noProv}</td>
+                <td class="px-2 py-3 text-sm text-center">${prodDate}</td>
+                <td class="px-2 py-3 text-sm text-center">${conos.toFixed(0)}</td>
+                <td class="px-2 py-3 text-sm text-center">${fmtNumber(kilos)}</td>
 
                 <td class="px-2 py-3 text-center">
                     <input type="checkbox" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 checkbox-material"
@@ -614,6 +715,18 @@
         }
 
         agregarEventListenersCheckboxes(bomId);
+
+        // Inicializar ordenamiento si no se ha hecho antes
+        if (!skipGuardar) {
+            setTimeout(() => {
+                initOrdenamientoTabla();
+                // Actualizar iconos si hay estado de ordenamiento activo
+                if (sortState.column && sortState.direction) {
+                    actualizarIconosOrdenamiento(sortState.column, sortState.direction);
+                }
+            }, 100);
+        }
+
         if (bomId) {
             setTimeout(() => {
                 restaurarSelecciones(LS.getSelecciones(bomId));
@@ -745,7 +858,7 @@
                 opt.textContent = it.text || it.nombre || '';
                 select.appendChild(opt);
             });
-        } catch(e){ 
+        } catch(e){
             console.error('Error al cargar núcleos:', e);
         }
     }

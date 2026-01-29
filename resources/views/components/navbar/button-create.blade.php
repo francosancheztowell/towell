@@ -92,9 +92,9 @@
 @if($hasPermission)
 <button
     type="button"
-    @if($id) id="{{ $id }}" @endif
+    @if($id && !$attributes->has('id')) id="{{ $id }}" @endif
     onclick="{{ $onclick }}"
-    class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg ?? '' }} {{ !$text ? ($bg ? 'w-9 h-9' : 'w-9 h-9') : '' }}"
+    {{ $attributes->merge(['class' => $paddingClass.' '.($text ? 'rounded-lg' : 'rounded-full').' transition '.$finalHoverBg.' disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 '.($bg ?? '').' '.(!$text ? 'w-9 h-9' : '')]) }}
     @if($disabled) disabled @endif
     title="{{ $title }}">
     <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-sm' }}"></i>

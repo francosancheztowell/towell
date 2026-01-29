@@ -61,7 +61,7 @@
                     @method('PUT')
                 @endif
 
-                <!-- Datos Generales -->
+                <!-- ddDatos Generales -->
                 <div>
                     <div class="px-4 sm:px-6 py-3 sm:py-4">
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">

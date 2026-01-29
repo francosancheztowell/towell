@@ -15,12 +15,21 @@ use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Atadores\AtaActividadesModel;
 use App\Models\Atadores\AtaComentariosModel;
 use App\Models\Tejido\TejHistorialInventarioTelaresModel;
+use App\Models\Tejedores\TelTelaresOperador;
 
 class AtadoresController extends Controller
 {
     //
-    public function index(){
-        $inventarioTelares = TejInventarioTelares::select(
+    public function index(Request $request){
+        $user = Auth::user();
+        $area = $user->area ?? '';
+        $puesto = $user->puesto ?? '';
+
+        // Obtener filtro personalizado del request, si existe
+        $filtroPersonalizado = $request->get('filtro', null);
+
+        // Construir la consulta base
+        $query = TejInventarioTelares::select(
             'tej_inventario_telares.id',
             'tej_inventario_telares.fecha',
             'tej_inventario_telares.turno',
@@ -52,12 +61,48 @@ class AtadoresController extends Controller
                  ->on('tej_inventario_telares.no_orden', '=', 'AtaMontadoTelas.NoProduccion');
         })
         ->whereNotNull('tej_inventario_telares.no_julio')
-        ->where('tej_inventario_telares.no_julio', '!=', '') // No_julio debe estar lleno
-        ->orderBy('tej_inventario_telares.fecha', 'desc')
-        ->orderBy('tej_inventario_telares.turno', 'desc')
-        ->get();
+        ->where('tej_inventario_telares.no_julio', '!=', ''); // No_julio debe estar lleno
 
-        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares'));
+        // Determinar filtro por defecto según área/puesto (solo para mostrar en el frontend)
+        // El filtrado real se hace en el cliente sin recargar
+        $filtroAplicado = 'todos'; // Por defecto mostrar todos
+        $telaresUsuario = []; // Telares del usuario si es tejedor
+
+        // Verificar si es tejedor (área Smith, Itema o Jacquard)
+        $areaUpper = strtoupper(trim($area));
+        $esTejedor = in_array($areaUpper, ['SMITH', 'ITEMA', 'JACQUARD']);
+
+        // Si no hay filtro personalizado, determinar el filtro por defecto según área/puesto
+        if (!$filtroPersonalizado) {
+            if ($esTejedor) {
+                // Tejedor: obtener sus telares y aplicar filtro terminados
+                $filtroAplicado = 'terminados';
+                $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
+                    ->pluck('NoTelarId')
+                    ->toArray();
+            } elseif (strtolower($area) === 'atador' || strtolower($puesto) === 'atador') {
+                $filtroAplicado = 'activo-proceso';
+            } elseif (strtolower($puesto) === 'supervisor') {
+                $filtroAplicado = 'terminados';
+            }
+        } else {
+            $filtroAplicado = $filtroPersonalizado;
+            // Si el usuario es tejedor, obtener sus telares para el filtro
+            if ($esTejedor) {
+                $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
+                    ->pluck('NoTelarId')
+                    ->toArray();
+            }
+        }
+
+        // No aplicar filtros en el servidor - se harán en el cliente
+        // Siempre devolver todos los registros
+
+        $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'desc')
+            ->orderBy('tej_inventario_telares.turno', 'desc')
+            ->get();
+
+        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor'));
     }
 
     public function iniciarAtado(Request $request)
@@ -290,39 +335,62 @@ class AtadoresController extends Controller
             }
 
             try {
-                DB::beginTransaction();
-
-                // 1. Actualizar supervisor en AtaMontadoTelas
-                $comentariosSupervisor = $request->input('comments_sup', $request->input('comentarios_supervisor', ''));
-                
-                DB::connection('sqlsrv')
-                    ->table('AtaMontadoTelas')
-                    ->where('NoJulio', $montado->NoJulio)
-                    ->where('NoProduccion', $montado->NoProduccion)
-                    ->update([
-                        'CveSupervisor' => $user->numero_empleado,
-                        'NomSupervisor' => $user->nombre,
-                        'FechaSupervisor' => Carbon::now(),
-                        'Estatus' => 'Autorizado',
-                        'CveTejedor' => $montado->CveTejedor ?: $user->numero_empleado,
-                        'NomTejedor' => $montado->NomTejedor ?: $user->nombre,
-                        'comments_sup' => $comentariosSupervisor,
-                    ]);
-
-                // 2. Obtener el registro original de tej_inventario_telares ANTES de eliminarlo
+                // Obtener el registro original de tej_inventario_telares ANTES de la transacción
                 // para capturar campos adicionales (Localidad, Cuenta, Calibre, TipoAtado, etc.)
                 $registroOriginal = TejInventarioTelares::where('no_julio', $montado->NoJulio)
                     ->where('no_orden', $montado->NoProduccion)
                     ->first();
 
-                // 3. Guardar en TejHistorialInventarioTelares con todos los campos
-                TejHistorialInventarioTelaresModel::create([
+                // Iniciar transacción en la conexión SQL Server
+                DB::connection('sqlsrv')->beginTransaction();
+
+                // 1. Actualizar supervisor en AtaMontadoTelas usando el modelo directamente
+                $comentariosSupervisor = $request->input('comments_sup', $request->input('comentarios_supervisor', ''));
+
+                $montado->CveSupervisor = $user->numero_empleado;
+                $montado->NomSupervisor = $user->nombre;
+                $montado->FechaSupervisor = Carbon::now();
+                $montado->Estatus = 'Autorizado';
+                $montado->CveTejedor = $montado->CveTejedor ?: $user->numero_empleado;
+                $montado->NomTejedor = $montado->NomTejedor ?: $user->nombre;
+                $montado->comments_sup = $comentariosSupervisor;
+                $montado->save();
+
+                // 2. Guardar en TejHistorialInventarioTelares con todos los campos
+                // Usar query builder para tener mejor control sobre el formato de fechas
+
+                // Preparar FechaRequerimiento
+                $fechaRequerimiento = null;
+                if ($montado->Fecha) {
+                    try {
+                        if (is_string($montado->Fecha)) {
+                            $fechaRequerimiento = Carbon::parse($montado->Fecha);
+                        } elseif ($montado->Fecha instanceof \DateTime || $montado->Fecha instanceof \Carbon\Carbon) {
+                            $fechaRequerimiento = Carbon::instance($montado->Fecha);
+                        }
+                    } catch (\Exception $e) {
+                    }
+                }
+
+                // Preparar HoraParo (remover microsegundos si existen)
+                $horaParo = null;
+                if ($montado->HoraParo) {
+                    $horaParoStr = trim((string)$montado->HoraParo);
+                    // Remover microsegundos si existen
+                    if (preg_match('/^(\d{1,2}:\d{2}:\d{2})/', $horaParoStr, $matches)) {
+                        $horaParo = $matches[1];
+                    } elseif (preg_match('/^(\d{1,2}:\d{2})/', $horaParoStr, $matches)) {
+                        $horaParo = $matches[1] . ':00';
+                    }
+                }
+
+                // Preparar datos para insertar
+                $datosHistorial = [
                     'NoTelarId' => $montado->NoTelarId,
                     'Status' => 'Completado',
                     'Tipo' => $montado->Tipo,
                     'Cuenta' => $registroOriginal?->cuenta,
                     'Calibre' => $registroOriginal?->calibre,
-                    'FechaRequerimiento' => $montado->Fecha,
                     'Turno' => $montado->Turno,
                     'Fibra' => $registroOriginal?->hilo,
                     'Metros' => $montado->Metros,
@@ -332,11 +400,25 @@ class AtadoresController extends Controller
                     'Localidad' => $registroOriginal?->localidad,
                     'LoteProveedor' => $montado->LoteProveedor,
                     'NoProveedor' => $montado->NoProveedor,
-                    'HoraParo' => $montado->HoraParo,
                     'FechaAtado' => Carbon::now(),
-                ]);
+                ];
 
-                // 4. Guardar datos de máquinas y actividades del proceso actual
+                // Agregar FechaRequerimiento solo si existe
+                if ($fechaRequerimiento) {
+                    $datosHistorial['FechaRequerimiento'] = $fechaRequerimiento;
+                }
+
+                // Agregar HoraParo solo si existe
+                if ($horaParo) {
+                    $datosHistorial['HoraParo'] = $horaParo;
+                }
+
+                // Insertar usando query builder para mejor control
+                DB::connection('sqlsrv')
+                    ->table('TejHistorialInventarioTelares')
+                    ->insert($datosHistorial);
+
+                // 3. Guardar datos de máquinas y actividades del proceso actual
                 // Obtener datos actuales de máquinas
                 $maquinasActuales = AtaMontadoMaquinasModel::where('NoJulio', $montado->NoJulio)
                     ->where('NoProduccion', $montado->NoProduccion)
@@ -381,7 +463,11 @@ class AtadoresController extends Controller
                     }
                 }
 
-                // 5. Eliminar el registro original de tej_inventario_telares
+                // Commit de la transacción SQL Server
+                DB::connection('sqlsrv')->commit();
+
+                // 4. Eliminar el registro original de tej_inventario_telares (MySQL)
+                // Esto se hace fuera de la transacción SQL Server ya que es otra conexión
                 if ($registroOriginal) {
                     $registroOriginal->delete();
                 }
@@ -389,8 +475,6 @@ class AtadoresController extends Controller
                 // 5. NO eliminar las tablas de montado - mantener los registros autorizados
                 // Los registros en AtaMontadoTelas, AtaMontadoMaquinas y AtaMontadoActividades
                 // se conservan como registro histórico del proceso autorizado
-
-                DB::commit();
                 return response()->json([
                     'ok' => true,
                     'message' => 'Proceso autorizado completamente',
@@ -402,8 +486,9 @@ class AtadoresController extends Controller
                 ]);
 
             } catch (\Exception $e) {
-                DB::rollback();
-                return response()->json(['ok' => false, 'message' => 'Error: ' . $e->getMessage()]);
+                DB::connection('sqlsrv')->rollBack();
+
+                return response()->json(['ok' => false, 'message' => 'Error al autorizar: ' . $e->getMessage()]);
             }
         }
 
@@ -545,7 +630,7 @@ class AtadoresController extends Controller
 
             // Register current time as "hora de arranque" y cambiar estatus a 'Terminado'
             $commentsAta = $request->input('comments_ata', '');
-            
+
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
                 ->where('NoJulio', $montado->NoJulio)

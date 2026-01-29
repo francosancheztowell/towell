@@ -32,8 +32,7 @@
                         <select
                             id="depto"
                             name="depto"
-                            class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
-                            disabled
+                            class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             required
                         >
                             <option value="">Cargando...</option>
@@ -48,8 +47,9 @@
                             id="tipo_falla"
                             name="tipo_falla"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            disabled
                         >
-                            <option value="">Seleccione un tipo de falla</option>
+                            <option value="">Seleccione primero una máquina</option>
                         </select>
                     </div>
 
@@ -61,6 +61,7 @@
                             id="orden_trabajo"
                             name="orden_trabajo"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            disabled
                         >
                     </div>
                 </div>
@@ -102,7 +103,7 @@
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             disabled
                         >
-                            <option value="">Seleccione primero un departamento</option>
+                            <option value="">Seleccione primero un tipo de falla</option>
                         </select>
                     </div>
 
@@ -139,6 +140,7 @@
                     id="notificar_supervisor"
                     name="notificar_supervisor"
                     class="w-4 h-4 md:w-5 md:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    checked
                 >
                 <label for="notificar_supervisor" class="text-xs md:text-sm font-medium text-gray-700">
                     Notificar a Supervisor
@@ -150,8 +152,8 @@
             <div class="grid grid-cols-3 gap-3 md:gap-4 mt-2 md:mt-3 pt-2 md:pt-3 border-t border-gray-200">
                 <button
                     type="button"
-                    id="btn-cancelar"
-                    class="px-4 py-2.5 md:px-6 md:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm md:text-base font-medium rounded-md transition-colors"
+                    id="btn-ir-solicitudes"
+                    class="px-4 py-2.5 md:px-6 md:py-3 bg-white hover:bg-gray-50 text-gray-700 text-base md:text-lg font-medium rounded-md transition-colors border-2 border-gray-300"
                     onclick="window.location.href='{{ route('mantenimiento.solicitudes') }}'"
                 >
                     Ir a Solicitudes
@@ -159,7 +161,7 @@
                 <button
                     type="button"
                     id="btn-cancelar"
-                    class="px-4 py-2.5 md:px-6 md:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm md:text-base font-medium rounded-md transition-colors"
+                    class="px-4 py-2.5 md:px-6 md:py-3 bg-white hover:bg-gray-50 text-gray-700 text-base md:text-lg font-medium rounded-md transition-colors border-2 border-gray-300"
                     onclick="window.location.href='{{ route('mantenimiento.solicitudes') }}'"
                 >
                     Cancelar
@@ -204,10 +206,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success && result.data) {
-                // Limpiar opciones existentes excepto la primera
-                while (selectTipoFalla.options.length > 1) {
-                    selectTipoFalla.remove(1);
-                }
+                // Limpiar opciones existentes
+                selectTipoFalla.innerHTML = '<option value="">Seleccione primero una máquina</option>';
 
                 // Agregar tipos de falla
                 result.data.forEach(tipoFalla => {
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (result.success && result.data) {
                 // Limpiar opciones existentes
-                selectDepto.innerHTML = '';
+                selectDepto.innerHTML = '<option value="">Seleccione un departamento</option>';
 
                 // Agregar departamentos
                 result.data.forEach(depto => {
@@ -256,12 +256,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     if (deptoEncontrado) {
                         selectDepto.value = deptoEncontrado;
-                        // Actualizar el input hidden para que se envíe en el formulario
+                        // Actualizar el input hidden para compatibilidad
                         document.getElementById('depto-hidden').value = deptoEncontrado;
-                        // Cargar máquinas y fallas automáticamente
+                        // Cargar máquinas automáticamente
                         cargarMaquinas(deptoEncontrado);
-                        const tipoFallaSeleccionado = selectTipoFalla.value || null;
-                        cargarFallas(deptoEncontrado, tipoFallaSeleccionado);
                     }
                 }
             } else {
@@ -352,24 +350,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event listener para Tipo Falla: auto-marcar/desmarcar "Notificar a Supervisor" y recargar fallas
+    // Event listener para Tipo Falla: recargar fallas y habilitar descripción
     selectTipoFalla.addEventListener('change', function() {
-        const tipoFallaSeleccionado = this.value.toUpperCase().trim();
-        // Si es "Electrico" o "Mecanico", marcar automáticamente
-        if (tipoFallaSeleccionado === 'ELECTRICO' || tipoFallaSeleccionado === 'MECANICO') {
-            checkboxNotificarSupervisor.checked = true;
-        } else {
-            // Para cualquier otro tipo, desmarcar
-            checkboxNotificarSupervisor.checked = false;
-        }
+        // Mantener checkbox siempre marcado
+        checkboxNotificarSupervisor.checked = true;
 
         // Recargar fallas con el tipo de falla seleccionado
         const departamentoSeleccionado = selectDepto.value;
-        if (departamentoSeleccionado) {
-            // Limpiar selecciones de falla y descripción antes de recargar
+        if (departamentoSeleccionado && this.value) {
+            // Limpiar solo selecciones de falla y descripción antes de recargar
+            // NO limpiar ni deshabilitar la orden de trabajo
             selectFalla.value = '';
             selectDescripcion.value = '';
             cargarFallas(departamentoSeleccionado, this.value || null);
+        } else {
+            selectFalla.value = '';
+            selectFalla.disabled = true;
+            selectDescripcion.value = '';
+            selectDescripcion.disabled = true;
+            selectDescripcion.innerHTML = '<option value="">Seleccione primero un tipo de falla</option>';
+            // Solo deshabilitar orden de trabajo si no hay tipo de falla seleccionado
+            if (!this.value) {
+                inputOrdenTrabajo.disabled = true;
+            }
         }
     });
 
@@ -387,16 +390,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Sincronizar selects: elegir Descripción → selecciona su Falla
+    // Sincronizar selects: elegir Descripción → selecciona su Falla y habilita orden de trabajo
     selectDescripcion.addEventListener('change', function() {
         const val = this.value;
         if (!val) {
             selectFalla.value = '';
+            inputOrdenTrabajo.disabled = true;
             return;
         }
         const match = Array.from(selectFalla.options).find(o => (o.dataset?.desc ?? '') === val);
         if (match) {
             selectFalla.value = match.value;
+        }
+        // Habilitar orden de trabajo cuando hay descripción seleccionada
+        inputOrdenTrabajo.disabled = false;
+        // Solo cargar orden de trabajo sugerida si el campo está vacío
+        // Si ya tiene un valor, mantenerlo
+        const departamentoSeleccionado = selectDepto.value;
+        const maquinaSeleccionada = selectMaquina.value;
+        if (departamentoSeleccionado && maquinaSeleccionada && !inputOrdenTrabajo.value) {
+            cargarOrdenTrabajo(departamentoSeleccionado, maquinaSeleccionada);
         }
     });
 
@@ -471,24 +484,76 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event listener para cambio de departamento (aunque esté deshabilitado, mantener lógica)
+    // Event listener para cambio de departamento
     selectDepto.addEventListener('change', function() {
         const departamentoSeleccionado = this.value;
         // Actualizar el input hidden
         document.getElementById('depto-hidden').value = departamentoSeleccionado;
-        // Al cambiar de departamento, limpiamos orden de trabajo (para evitar valores de otro depto)
-        inputOrdenTrabajo.value = '';
-        cargarMaquinas(departamentoSeleccionado);
-        // Cargar fallas con el tipo de falla seleccionado (si hay uno)
-        const tipoFallaSeleccionado = selectTipoFalla.value || null;
-        cargarFallas(departamentoSeleccionado, tipoFallaSeleccionado);
+        
+        if (departamentoSeleccionado) {
+            // Habilitar máquina
+            cargarMaquinas(departamentoSeleccionado);
+            // Deshabilitar y limpiar campos siguientes
+            selectTipoFalla.disabled = true;
+            selectTipoFalla.value = '';
+            selectDescripcion.disabled = true;
+            selectDescripcion.value = '';
+            selectDescripcion.innerHTML = '<option value="">Seleccione primero un tipo de falla</option>';
+            inputOrdenTrabajo.disabled = true;
+            inputOrdenTrabajo.value = '';
+            selectFalla.value = '';
+            selectFalla.disabled = true;
+            selectFalla.innerHTML = '<option value="">Seleccione primero un departamento</option>';
+        } else {
+            // Si no hay departamento, deshabilitar todo
+            selectMaquina.disabled = true;
+            selectMaquina.innerHTML = '<option value="">Seleccione primero un departamento</option>';
+            selectTipoFalla.disabled = true;
+            selectDescripcion.disabled = true;
+            inputOrdenTrabajo.disabled = true;
+            selectFalla.disabled = true;
+        }
     });
 
-    // Event listener para cambio de máquina → buscar orden de trabajo sugerida
+    // Event listener para cambio de máquina → habilitar tipo falla y buscar orden de trabajo sugerida
     selectMaquina.addEventListener('change', function() {
         const departamentoSeleccionado = selectDepto.value;
         const maquinaSeleccionada = this.value;
-        cargarOrdenTrabajo(departamentoSeleccionado, maquinaSeleccionada);
+        
+        if (maquinaSeleccionada) {
+            // Habilitar tipo de falla
+            selectTipoFalla.disabled = false;
+            // Deshabilitar y limpiar campos siguientes
+            selectTipoFalla.value = '';
+            selectDescripcion.disabled = true;
+            selectDescripcion.value = '';
+            selectDescripcion.innerHTML = '<option value="">Seleccione primero un tipo de falla</option>';
+            inputOrdenTrabajo.disabled = true;
+            inputOrdenTrabajo.value = '';
+            selectFalla.value = '';
+            selectFalla.disabled = true;
+            selectFalla.innerHTML = '<option value="">Seleccione primero un departamento</option>';
+            // Cargar orden de trabajo sugerida
+            cargarOrdenTrabajo(departamentoSeleccionado, maquinaSeleccionada);
+        } else {
+            // Si no hay máquina, deshabilitar campos siguientes
+            selectTipoFalla.disabled = true;
+            selectTipoFalla.value = '';
+            selectDescripcion.disabled = true;
+            inputOrdenTrabajo.disabled = true;
+            inputOrdenTrabajo.value = '';
+            selectFalla.value = '';
+            selectFalla.disabled = true;
+        }
+    });
+
+    // Asegurar que el checkbox siempre esté marcado
+    checkboxNotificarSupervisor.checked = true;
+    checkboxNotificarSupervisor.addEventListener('change', function() {
+        // Si intentan desmarcarlo, volver a marcarlo
+        if (!this.checked) {
+            this.checked = true;
+        }
     });
 
     // Cargar datos al iniciar
@@ -501,18 +566,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData(form);
 
-        // Asegurar que los campos deshabilitados (fecha, hora y depto) se incluyan
+        // Asegurar que los campos deshabilitados (fecha, hora) se incluyan
         const fechaInput = document.getElementById('fecha');
         const horaInput = document.getElementById('hora');
-        const deptoHidden = document.getElementById('depto-hidden');
         if (fechaInput.value) {
             formData.set('fecha', fechaInput.value);
         }
         if (horaInput.value) {
             formData.set('hora', horaInput.value);
         }
-        if (deptoHidden.value) {
-            formData.set('depto', deptoHidden.value);
+        // Asegurar que el departamento se envíe (usar el select directamente)
+        if (selectDepto.value) {
+            formData.set('depto', selectDepto.value);
         }
 
         // Agregar el checkbox

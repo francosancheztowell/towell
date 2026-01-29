@@ -4,25 +4,42 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
-    <button id="btnReservar" type="button"
-        class="px-3 py-1 text-yellow-500 hover:text-yellow-600 rounded-lg transition-colors flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
-        title="Reservar" disabled>
-        <i class="fa-solid fa-save w-5 h-5"></i>
-    </button>
+    <x-navbar.button-create
+        id="btnReservar"
+        type="button"
+        title="Reservar"
+        icon="fa-save"
+        iconColor="text-white"
+        hoverBg="hover:bg-gray-600"
+        bg="bg-gray-500"
+        text="Reservar"
+        disabled
+        />
 
-    <button id="btnLiberarTelar" type="button"
-        class="px-3 py-2 text-red-500 hover:text-red-600 rounded-lg transition-colors flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
-        title="Liberar telar" disabled>
-        <i class="fa-solid fa-unlock w-5 h-5"></i>
-    </button>
+    <x-navbar.button-create
+        id="btnLiberarTelar"
+        type="button"
+        title="Liberar telar"
+        icon="fa-unlock"
+        iconColor="text-white"
+        hoverBg="hover:bg-red-600"
+        bg="bg-red-500"
+        text="Liberar telar"
+        />
 
-    <button id="btnProgramar" type="button"
-        class="px-3 py-1 text-green-500 hover:text-green-600 rounded-lg transition-colors flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
-        title="Programar" disabled>
-        <i class="fa-solid fa-calendar-check w-5 h-5"></i>
-    </button>
+    <x-navbar.button-create
+        id="btnProgramar"
+        type="button"
+        title="Programar"
+        icon="fa-calendar-check"
+        iconColor="text-white"
+        hoverBg="hover:bg-purple-600"
+        bg="bg-purple-500"
+        text="Programar"
+        />
 
-    <button id="btnResetFiltros" type="button"
+
+        <button id="btnResetFiltros" type="button"
         class="px-3 py-2 text-gray-500 hover:text-gray-600 rounded-lg transition-colors flex items-center justify-center"
         title="Restablecer filtros">
         <i class="fa-solid fa-arrows-rotate w-5 h-5"></i>

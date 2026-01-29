@@ -214,7 +214,7 @@
     </div>
   </div>
 
-  <!-- ====== Polyfill CSS.escape (debe estar ANTES de los scripts) ====== -->
+
   <script>
     (function () {
       if (typeof window.CSS === 'undefined') {
