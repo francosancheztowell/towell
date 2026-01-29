@@ -33,7 +33,7 @@ class UsuarioRepository
             $query->where('turno', $filtros['turno']);
         }
 
-        $query->orderBy('nombre');
+        $query->orderBy('idusuario', 'desc');
 
         $total = (clone $query)->count();
         $usuarios = $query->offset($offset)->limit($perPage)->get();

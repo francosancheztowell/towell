@@ -7,19 +7,9 @@ Catálogo de Desarrolladores
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button id="btn-create" type="button" class="p-2 rounded-lg transition hover:bg-green-100" title="Nuevo Desarrollador">
-            <i class="fa-solid fa-plus text-green-600 text-lg"></i>
-        </button>
-        <button id="btn-top-edit" type="button"
-            class="p-2 rounded-lg transition hover:bg-yellow-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled title="Editar Desarrollador">
-            <i class="fa-solid fa-pen-to-square text-yellow-500 text-lg"></i>
-        </button>
-        <button id="btn-top-delete" type="button"
-            class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled title="Eliminar Desarrollador">
-            <i class="fa-solid fa-trash text-red-600 text-lg"></i>
-        </button>
+        <x-navbar.button-create id="btn-create"  title="Nuevo Desarrollador" module="Catalogo Desarrolladores" />
+        <x-navbar.button-edit id="btn-top-edit"  title="Editar Desarrollador" module="Catalogo Desarrolladores" />
+        <x-navbar.button-delete id="btn-top-delete"  title="Eliminar Desarrollador" module="Catalogo Desarrolladores" />
     </div>
 @endsection
 
@@ -111,8 +101,8 @@ Catálogo de Desarrolladores
                         </div>
                     </div>
                     <div class="flex justify-end mt-4">
-                        <button type="button" data-close-modal="createModal" class="px-4 py-2 bg-gray-500 text-white rounded mr-2">Cancelar</button>
-                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded">Guardar</button>
+                        <button type="button" data-close-modal="createModal" class="w-full px-4 py-2  bg-gray-500 text-white rounded mr-2">Cancelar</button>
+                        <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded">Guardar</button>
                     </div>
                 </form>
             </div>
@@ -146,8 +136,8 @@ Catálogo de Desarrolladores
                         </div>
                     </div>
                     <div class="flex justify-end mt-4">
-                        <button type="button" data-close-modal="editModal" class="px-4 py-2 bg-gray-500 text-white rounded mr-2">Cancelar</button>
-                        <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded">Actualizar</button>
+                        <button type="button" data-close-modal="editModal" class="px-4 py-2 bg-gray-500 w-full text-white rounded mr-2">Cancelar</button>
+                        <button type="submit" class="px-4 py-2 bg-yellow-600 w-full text-white rounded">Actualizar</button>
                     </div>
                 </form>
             </div>

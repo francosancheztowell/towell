@@ -524,41 +524,52 @@ class MantenimientoParosController extends Controller
     }
 
     /**
-     * Obtener lista de paros/fallas activos para el reporte.
-     * Solo muestra los paros creados por el usuario autenticado.
+     * Obtener lista de paros/fallas para el reporte.
+     * Filtra por área del usuario (SYSUsuario.area → Depto).
+     * Opcional: ?depto= refina por departamento dentro del área.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
             $usuario = Auth::user();
-            $numeroEmpleado = $usuario->numero_empleado ?? null;
-
-            if (!$numeroEmpleado) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Usuario no autenticado o sin número de empleado',
-                    'data' => [],
-                ], 401);
+            $areaUsuario = null;
+            if ($usuario && $usuario->idusuario) {
+                $sys = SYSUsuario::where('idusuario', $usuario->idusuario)->first();
+                $areaUsuario = $sys && !empty(trim((string) $sys->area)) ? trim($sys->area) : null;
             }
 
-            $paros = ManFallasParos::where('Estatus', 'Activo')
-                ->where('CveEmpl', $numeroEmpleado)
+            $query = ManFallasParos::query()
                 ->orderByDesc('Fecha')
-                ->orderByDesc('Hora')
-                ->get([
-                    'Id',
-                    'Folio',
-                    'Estatus',
-                    'Fecha',
-                    'Hora',
-                    'Depto',
-                    'MaquinaId',
-                    'TipoFallaId',
-                    'Falla',
-                    'HoraFin',
-                    'NomAtendio',
-                    'NomEmpl',
-                ]);
+                ->orderByDesc('Hora');
+
+            if ($areaUsuario !== null && $areaUsuario !== '') {
+                $areaUpper = strtoupper($areaUsuario);
+                if (in_array($areaUpper, ['TEJIDO'], true)) {
+                    $query->whereIn('Depto', ['Jacquard', 'Smith', 'Itema', 'Karl Mayer', 'KARL MAYER', 'KarlMayer']);
+                } else {
+                    $query->where('Depto', $areaUsuario);
+                }
+            }
+
+            $depto = $request->filled('depto') ? trim($request->get('depto')) : null;
+            if ($depto !== null && $depto !== '') {
+                $query->where('Depto', $depto);
+            }
+
+            $paros = $query->get([
+                'Id',
+                'Folio',
+                'Estatus',
+                'Fecha',
+                'Hora',
+                'Depto',
+                'MaquinaId',
+                'TipoFallaId',
+                'Falla',
+                'HoraFin',
+                'NomAtendio',
+                'NomEmpl',
+            ]);
 
             return response()->json([
                 'success' => true,

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Actividades Tejedores · BPM')
+@section('title', 'Actividades Tejedores BPM')
 @section('page-title')
 Actividades Tejedores · BPM
 @endsection
@@ -11,28 +11,19 @@ Actividades Tejedores · BPM
             onclick="openTelModal('createModal')"
             id="btn-nuevo"
             title="Nueva Actividad"
-            icon="fa-plus"
-            iconColor="text-green-600"
-            hoverBg="hover:bg-green-100"
-            checkPermission="false" />
+            module="Actividades Tejedores" />
 
         <x-navbar.button-edit
             onclick="handleTopEdit()"
             id="btn-top-edit"
             title="Editar Actividad"
-            :disabled="true"
-            iconColor="text-yellow-500"
-            hoverBg="hover:bg-yellow-100"
-            checkPermission="false" />
+            module="Actividades Tejedores" />
 
         <x-navbar.button-delete
             onclick="handleTopDelete()"
             id="btn-top-delete"
             title="Eliminar Actividad"
-            :disabled="true"
-            iconColor="text-red-600"
-            hoverBg="hover:bg-red-100"
-            checkPermission="false" />
+            module="Actividades Tejedores" />
     </div>
 @endsection
 
