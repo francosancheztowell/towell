@@ -30,7 +30,7 @@ class PermissionService
                 $crear = isset($permisos[$prefijo . 'crear']) ? 1 : 0;
                 $modificar = isset($permisos[$prefijo . 'modificar']) ? 1 : 0;
                 $eliminar = isset($permisos[$prefijo . 'eliminar']) ? 1 : 0;
-                $registrar = $crear; // Usar mismo valor que crear
+                $registrar = isset($permisos[$prefijo . 'registrar']) ? 1 : 0;
 
                 $permiso = SYSUsuariosRoles::create([
                     'idusuario' => $idusuario,

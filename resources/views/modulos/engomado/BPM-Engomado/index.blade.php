@@ -5,25 +5,26 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         {{-- Botón de Filtros --}}
-        <button id="btn-open-filters" title="Filtros"
-                class="p-2 rounded-lg transition hover:bg-purple-100 relative">
-            <i class="fa-solid fa-filter text-purple-600 text-lg"></i>
-            <span id="filter-badge"
-                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">!</span>
-        </button>
+        <x-navbar.button-report id="btn-open-filters" title="Filtros"
+        icon="fa-filter"
+        module="BPM (Buenas Practicas Manufactura) Eng"
+        iconColor="text-white"
+        text="Filtrar"
+        hoverBg="hover:bg-green-600"
+        class="text-white"
+        bg="bg-green-600" />
 
         <x-navbar.button-create
         onclick="document.getElementById('createModal').classList.remove('hidden')"
-        class="p-2 rounded-lg transition hover:bg-green-100"
         title="Crear Nuevo"
+        module="BPM (Buenas Practicas Manufactura) Eng"
         />
         <x-navbar.button-edit
         onclick="openChecklist()"
         id="btn-checklist"
-        disabled
-        class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        module="BPM (Buenas Practicas Manufactura) Eng"
         title="Abrir Checklist"
-        />
+        class="text-sm" />
     </div>
 @endsection
 

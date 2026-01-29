@@ -13,24 +13,17 @@
         <!-- Grupo 1: Controles principales -->
         <div class="flex items-center gap-1">
             <!-- Botón Drag and Drop -->
-            <button type="button"
-                    id="btnDragDrop"
-                    onclick="toggleDragDropMode()"
-                    class="relative w-9 h-9 flex items-center justify-center rounded-full bg-black text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-                    title="Activar/Desactivar arrastrar filas"
-                    aria-label="Drag and Drop">
-                <i class="fa-solid fa-arrows-alt-v text-sm"></i>
-            </button>
+            <x-navbar.button-create
+                icon="fa-arrows-up-down"
+                type="button"
+                id="btnDragDrop"
+                bg="bg-black"
+                iconColor="text-white"
+                module="Programa Tejido"
+                onclick="toggleDragDropMode()"
+                title="Activar/Desactivar arrastrar filas"/>
 
-            <!-- Botón Edición Inline -->
-            <button type="button"
-                    id="btnInlineEdit"
-                    onclick="toggleInlineEditMode()"
-                    class="relative w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-blue-800 transition-colors"
-                    title="Activar/Desactivar edición en línea"
-                    aria-label="Edición en línea">
-                <i class="fa-solid fa-pen text-sm"></i>
-            </button>
+
 
             <!-- Descargar programa -->
             <x-navbar.button-report
@@ -41,6 +34,7 @@
                 bg="bg-blue-500"
                 iconColor="text-white"
                 hoverBg="hover:bg-blue-600"
+                module="Programa Tejido"
                 class="text-sm" />
 
             <!-- Liberar órdenes -->
@@ -62,21 +56,27 @@
         ])
 
         <!-- Grupo 3: Acciones adicionales -->
-        <a href="{{ route('programa-tejido.balancear') }}"
-           class="w-9 h-9 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors"
-           title="Balancear"
-           aria-label="Balancear">
-            <i class="fa-solid fa-scale-balanced text-sm"></i>
-        </a>
+        <x-navbar.button-edit
+        onclick="window.location.href='{{ route('programa-tejido.balancear') }}'"
+        title="Balancear"
+        module="Programa Tejido"
+        icon="fa-scale-balanced"
+        bg="bg-green-500"
+        iconColor="text-white"
+        hoverBg="hover:bg-green-600"
+        class="text-sm" />
 
-        <button type="button"
-                id="btnVincularExistentes"
-                onclick="vincularRegistrosExistentes()"
-                class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
-                title="Vincular registros existentes - Click para activar modo selección múltiple"
-                aria-label="Vincular registros existentes">
-            <i class="fa-solid fa-link text-sm"></i>
-        </button>
+        <x-navbar.button-edit
+        type="button"
+        id="btnVincularExistentes"
+        onclick="vincularRegistrosExistentes()"
+        title="Vincular registros existentes - Click para activar modo selección múltiple"
+        module="Programa Tejido"
+        icon="fa-link"
+        bg="bg-blue-500"
+        iconColor="text-white"
+        hoverBg="hover:bg-blue-600"
+        class="text-sm" />
 
         <a href="{{ route('planeacion.catalogos.index') }}"
            class="w-9 h-9 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors"
@@ -98,18 +98,18 @@
             <div id="actualizarDropdownMenu"
                  class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                 <div class="py-1">
-                    <button type="button"
-                            id="menuActCalendarios"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                        <i class="fa-solid fa-calendar text-blue-600"></i>
-                        <span>Act. Calendarios</span>
-                    </button>
-                    <button type="button"
-                            id="menuActFechas"
-                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-green-600"></i>
-                        <span>Act. Fechas</span>
-                    </button>
+                    <x-navbar.button-edit type="button"
+                        id="menuActCalendarios"
+                        onclick="document.getElementById('actualizarDropdownMenu').classList.toggle('hidden')"
+                        title="Actualizar Calendarios"
+                        text="Actualizar Calendarios"
+                        module="Programa Tejido"
+                        icon="fa-calendar-days"
+                        bg="bg-white"
+                        iconColor="text-blue-500"
+                        hoverBg="hover:bg-blue-600"
+                        class="text-sm" />
+
                 </div>
             </div>
         </div>

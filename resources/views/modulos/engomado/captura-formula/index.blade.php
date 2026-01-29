@@ -1,39 +1,27 @@
 @extends('layouts.app')
 
-@section('page-title', 'Captura de Fórmulas - Engomado')
+@section('page-title', 'Captura de Fórmulas')
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
         onclick="document.getElementById('createModal').classList.remove('hidden')"
         title="Crear Nueva Fórmula"
-        icon="fa-plus"
-        iconColor="text-green-600"
-        hoverBg="hover:bg-green-100"
-        module="Captura de Formula"
-        />
-        <x-navbar.button-edit
-        onclick="openEditModal()"
-        title="Editar Fórmula"
-        icon="fa-edit"
-        iconColor="text-yellow-600"
-        hoverBg="hover:bg-yellow-100"
         module="Captura de Formula"
         />
         <x-navbar.button-delete
         onclick="confirmDelete()"
         title="Eliminar Fórmula"
-        icon="fa-trash"
-        iconColor="text-red-600"
-        hoverBg="hover:bg-red-100"
         module="Captura de Formula"
         />
         <x-navbar.button-report
         onclick="confirmAutorizar()"
         title="Autorizar"
-        icon="fa-check-circle"
-        iconColor="text-blue-600"
-        hoverBg="hover:bg-blue-100"
+        bg="bg-green-600"
+        text="Finalizar"
+        iconColor="text-white"
+        hoverBg="hover:bg-green-600"
+        class="text-white"
         module="Captura de Formula"
         />
     </div>

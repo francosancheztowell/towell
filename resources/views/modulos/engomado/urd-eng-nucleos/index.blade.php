@@ -12,9 +12,6 @@ Catálogo de Núcleos
         <x-navbar.button-create
         onclick="openCreateModal()"
         title="Nuevo Núcleo"
-        icon="fa-plus"
-        iconColor="text-green-600"
-        hoverBg="hover:bg-green-100"
         module="Catálogo de Núcleos"
         />
 
@@ -22,19 +19,15 @@ Catálogo de Núcleos
         <x-navbar.button-edit
         id="btn-top-edit"
         onclick="handleTopEdit()"
-        :disabled="true"
-        iconColor="text-yellow-500"
         module="Catálogo de Núcleos"
-        hoverBg="hover:bg-yellow-100"/>
+        />
 
         <!-- Botón Eliminar -->
         <x-navbar.button-delete
         id="btn-top-delete"
         onclick="handleTopDelete()"
-        :disabled="true"
-        iconColor="text-red-500"
         module="Catálogo de Núcleos"
-        hoverBg="hover:bg-red-100"/>
+        />
     </div>
 @endsection
 

@@ -7,22 +7,20 @@
         <x-navbar.button-create
         onclick="openCreateModal()"
         title="Nueva Ubicación"
-
+        module="Catalogo Ubicaciones"
         />
         <x-navbar.button-edit
         id="btnEdit"
         onclick="editSelected()"
         title="Editar Ubicación"
-        :disabled="true"
-
+        module="Catalogo Ubicaciones"
         />
         <x-navbar.button-delete
         id="btnDelete"
         onclick="deleteSelected()"
         title="Eliminar Ubicación"
-        :disabled="true"
-
-        hoverBg="hover:bg-red-600"/>
+        module="Catalogo Ubicaciones"
+        />
     </div>
 @endsection
 

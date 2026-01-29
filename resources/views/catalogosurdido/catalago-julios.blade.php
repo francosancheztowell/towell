@@ -7,22 +7,19 @@
         <x-navbar.button-create
         onclick="openCreateModal()"
         title="Nuevo Julio"
-        module="Catalogos Julios"
+        module="Catalogo Julios Eng"
         />
         <x-navbar.button-edit
         id="btnEdit"
         onclick="editSelected()"
         title="Editar Julio"
-        :disabled="true"
-        module="Catalogos Julios"
+        module="Catalogo Julios Eng"
         />
         <x-navbar.button-delete
         id="btnDelete"
         onclick="deleteSelected()"
         title="Eliminar Julio"
-        :disabled="true"
-        module="Catalogos Julios"
-        hoverBg="hover:bg-red-600"/>
+        module="Catalogo Julios Eng"/>
         <x-buttons.catalog-actions route="julios" :showFilters="true" />
     </div>
 @endsection
