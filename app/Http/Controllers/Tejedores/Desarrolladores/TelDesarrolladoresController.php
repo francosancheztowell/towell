@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Tejedores\Desarrolladores;
 use App\Http\Controllers\Controller;
 use App\Helpers\TelDesarrolladoresHelper;
 use App\Models\Tejedores\TelTelaresOperador;
-use App\Models\Tejedores\catDesarrolladoresModel;
+use App\Models\Sistema\Usuario;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Atadores\AtaMontadoTelasModel;
@@ -29,7 +29,10 @@ class TelDesarrolladoresController extends Controller
         $telares = $this->obtenerTelares();
         $juliosRizo = $this->obtenerUltimosJuliosMontados('Rizo');
         $juliosPie = $this->obtenerUltimosJuliosMontados('Pie');
-        $desarrolladores = catDesarrolladoresModel::all();
+        $desarrolladores = Usuario::porArea('Desarrollador')
+            ->activos()
+            ->orderBy('nombre')
+            ->get();
 
         return view('modulos.desarrolladores.desarrolladores', compact( 'telares', 'juliosRizo', 'juliosPie', 'desarrolladores'));
     }

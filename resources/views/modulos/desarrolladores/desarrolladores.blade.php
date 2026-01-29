@@ -91,8 +91,8 @@
                         </div>
 
                         <div>
-                            <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie</label>
-                            <select id="NumeroJulioPie" name="NumeroJulioPie" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie <span class="text-red-500">*</span></label>
+                            <select id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Julio</option>
                                 @foreach ($juliosPie ?? [] as $julio)
                                     @if($julio)
@@ -103,14 +103,14 @@
                         </div>
 
                         <div>
-                            <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo</label>
+                            <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo <span class="text-red-500">*</span></label>
                             <input type="number" id="TotalPasadasDibujo" name="TotalPasadasDibujo" min="1" step="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese total de pasadas">
                         </div>
 
                         <div>
-                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio</label>
+                            <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
                             <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
-                                <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" class="hidden">
+                                <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" required class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -122,19 +122,19 @@
                         </div>
 
                         <div>
-                            <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
-                            <input type="time" id="HoraInicio" name="HoraInicio" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio <span class="text-red-500">*</span></label>
+                            <input type="time" id="HoraInicio" name="HoraInicio" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                         </div>
 
                         <div>
-                            <label for="HoraFinal" class="block text-sm font-medium text-gray-700 mb-1">Hora Final</label>
-                            <input type="time" id="HoraFinal" name="HoraFinal" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="HoraFinal" class="block text-sm font-medium text-gray-700 mb-1">Hora Final <span class="text-red-500">*</span></label>
+                            <input type="time" id="HoraFinal" name="HoraFinal" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                         </div>
 
                         <div>
-                            <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final</label>
+                            <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final <span class="text-red-500">*</span></label>
                             <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
-                                <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" class="hidden">
+                                <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" required class="hidden">
                                 <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
                                     <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -146,8 +146,8 @@
                         </div>
 
                         <div>
-                            <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador</label>
-                            <select id="Desarrollador" name="Desarrollador" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador <span class="text-red-500">*</span></label>
+                            <select id="Desarrollador" name="Desarrollador" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                 <option value="" disabled selected>Selecciona un Desarrollador</option>
                                 @foreach ($desarrolladores ?? [] as $desarrollador)
                                     @if($desarrollador)
@@ -609,7 +609,7 @@
                             const pasadasValue = detalle.Pasadas ?? detalle.pasadas ?? '';
                             const pasadasKey = detalle.pasadasField ?? detalle.pasadas_key ?? index;
 
-                            const row = crearFilaDetalle(index, calibre, hilo, fibra, codColor, nombreColor, pasadasValue, pasadasKey);
+                            const row = crearFilaDetalle(index, calibre, hilo, fibra, codColor, nombreColor, pasadasValue, pasadasKey, false);
                             bodyDetallesOrden.appendChild(row);
                         });
                         adjuntarListenersDetallePasadas();
@@ -778,8 +778,186 @@
         // Contador para generar índices únicos de filas nuevas
         let contadorFilasNuevas = 1000;
 
+        const detalleMaterialRoutes = {
+            calibres: "{{ route('tejido.produccion.reenconado.calibres') }}",
+            fibras: "{{ route('tejido.produccion.reenconado.fibras') }}",
+            colores: "{{ route('tejido.produccion.reenconado.colores') }}"
+        };
+
+        const detalleMaterialCache = {
+            calibres: null,
+            fibras: new Map(),
+            colores: new Map()
+        };
+
+        const setDetalleSelectOptions = (select, options, placeholder, selectedValue = '') => {
+            if (!select) return;
+            select.innerHTML = '';
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = placeholder;
+            select.appendChild(placeholderOption);
+
+            options.forEach((opt) => {
+                const option = document.createElement('option');
+                if (typeof opt === 'string') {
+                    option.value = opt;
+                    option.textContent = opt;
+                } else {
+                    option.value = opt.value;
+                    option.textContent = opt.label;
+                    if (opt.name) option.dataset.name = opt.name;
+                }
+                select.appendChild(option);
+            });
+
+            select.value = selectedValue || '';
+            select.disabled = options.length === 0;
+        };
+
+        const ensureDetalleOption = (select, value, label, name = '') => {
+            if (!select || !value) return;
+            const exists = Array.from(select.options).some(opt => opt.value === value);
+            if (!exists) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = label || value;
+                if (name) option.dataset.name = name;
+                select.appendChild(option);
+            }
+        };
+
+        const fetchDetalleJson = async (url, params = {}) => {
+            const query = new URLSearchParams(params);
+            const fullUrl = query.toString() ? `${url}?${query}` : url;
+            const response = await fetch(fullUrl);
+            if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+            }
+            return response.json();
+        };
+
+        const getDetalleCalibres = async () => {
+            if (detalleMaterialCache.calibres) return detalleMaterialCache.calibres;
+            try {
+                const data = await fetchDetalleJson(detalleMaterialRoutes.calibres);
+                const items = (data?.data || []).map(i => i.ItemId).filter(Boolean);
+                detalleMaterialCache.calibres = items;
+                return items;
+            } catch (e) {
+                console.error('No se pudieron cargar calibres', e);
+                return [];
+            }
+        };
+
+        const getDetalleFibras = async (itemId) => {
+            if (detalleMaterialCache.fibras.has(itemId)) return detalleMaterialCache.fibras.get(itemId);
+            try {
+                const data = await fetchDetalleJson(detalleMaterialRoutes.fibras, { itemId });
+                const items = (data?.data || []).map(i => i.ConfigId).filter(Boolean);
+                detalleMaterialCache.fibras.set(itemId, items);
+                return items;
+            } catch (e) {
+                console.error('No se pudieron cargar fibras', e);
+                return [];
+            }
+        };
+
+        const getDetalleColores = async (itemId) => {
+            if (detalleMaterialCache.colores.has(itemId)) return detalleMaterialCache.colores.get(itemId);
+            try {
+                const data = await fetchDetalleJson(detalleMaterialRoutes.colores, { itemId });
+                const items = (data?.data || []).map(c => ({
+                    value: c.InventColorId,
+                    label: `${c.InventColorId} - ${c.Name}`,
+                    name: c.Name
+                })).filter(c => c.value);
+                detalleMaterialCache.colores.set(itemId, items);
+                return items;
+            } catch (e) {
+                console.error('No se pudieron cargar colores', e);
+                return [];
+            }
+        };
+
+        const getDetalleRowEls = (row) => ({
+            calibreEl: row.querySelector('.detalle-calibre'),
+            fibraEl: row.querySelector('.detalle-fibra'),
+            codColorEl: row.querySelector('.detalle-codcolor'),
+            colorEl: row.querySelector('.detalle-color')
+        });
+
+        const resetDependentsForRow = (row) => {
+            const { fibraEl, codColorEl, colorEl } = getDetalleRowEls(row);
+            setDetalleSelectOptions(fibraEl, [], 'Selecciona calibre');
+            setDetalleSelectOptions(codColorEl, [], 'Selecciona calibre');
+            if (colorEl) colorEl.value = '';
+        };
+
+        const updateColorFromCod = (row, fallback = '') => {
+            const { codColorEl, colorEl } = getDetalleRowEls(row);
+            const selected = codColorEl?.selectedOptions?.[0];
+            if (colorEl) {
+                colorEl.value = selected?.dataset?.name || fallback || '';
+            }
+        };
+
+        const loadDependentsForRow = async (row, itemId, selections = {}) => {
+            const { fibraEl, codColorEl } = getDetalleRowEls(row);
+            if (!itemId) {
+                resetDependentsForRow(row);
+                return;
+            }
+
+            setDetalleSelectOptions(fibraEl, [], 'Cargando...');
+            setDetalleSelectOptions(codColorEl, [], 'Cargando...');
+
+            const [fibras, colores] = await Promise.all([
+                getDetalleFibras(itemId),
+                getDetalleColores(itemId)
+            ]);
+
+            setDetalleSelectOptions(fibraEl, fibras, 'Selecciona fibra', selections.fibra || '');
+            setDetalleSelectOptions(codColorEl, colores, 'Selecciona color', selections.codColor || '');
+
+            if (selections.fibra) {
+                ensureDetalleOption(fibraEl, selections.fibra, selections.fibra);
+                fibraEl.value = selections.fibra;
+            }
+
+            if (selections.codColor) {
+                ensureDetalleOption(codColorEl, selections.codColor, selections.codColor, selections.colorName);
+                codColorEl.value = selections.codColor;
+            }
+
+            updateColorFromCod(row, selections.colorName || '');
+        };
+
+        const initMaterialSelectorsForRow = async (row, selections = {}) => {
+            const { calibreEl, codColorEl } = getDetalleRowEls(row);
+            if (!calibreEl) return;
+
+            setDetalleSelectOptions(calibreEl, [], 'Cargando...');
+            const calibres = await getDetalleCalibres();
+            setDetalleSelectOptions(calibreEl, calibres, 'Selecciona calibre', selections.calibre || '');
+            if (selections.calibre) {
+                ensureDetalleOption(calibreEl, selections.calibre, selections.calibre);
+                calibreEl.value = selections.calibre;
+            }
+
+            await loadDependentsForRow(row, selections.calibre || '', selections);
+
+            calibreEl.addEventListener('change', async (e) => {
+                await loadDependentsForRow(row, e.target.value, {});
+            });
+
+            codColorEl?.addEventListener('change', () => {
+                updateColorFromCod(row, '');
+            });
+        };
+
         // Función para crear una fila de detalle editable
-        function crearFilaDetalle(index, calibre = '', hilo = '', fibra = '', codColor = '', nombreColor = '', pasadas = '', pasadasKey = null) {
+        function crearFilaDetalle(index, calibre = '', hilo = '', fibra = '', codColor = '', nombreColor = '', pasadas = '', pasadasKey = null, usarSelects = false) {
             const key = pasadasKey ?? `nuevo_${contadorFilasNuevas++}`;
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50 transition-colors fila-detalle';
@@ -787,11 +965,18 @@
             
             row.innerHTML = `
                 <td class="px-4 py-2">
-                    <input type="text" 
-                           name="detalle_calibre[]" 
-                           value="${calibre}" 
-                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                           placeholder="Calibre">
+                    ${
+                        usarSelects
+                            ? `<select name="detalle_calibre[]"
+                                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm detalle-calibre">
+                                       <option value="">Cargando...</option>
+                                   </select>`
+                            : `<input type="text" 
+                                       name="detalle_calibre[]" 
+                                       value="${calibre}" 
+                                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                       placeholder="Calibre">`
+                    }
                 </td>
                 <td class="px-4 py-2">
                     <input type="text" 
@@ -801,25 +986,42 @@
                            placeholder="Hilo">
                 </td>
                 <td class="px-4 py-2">
-                    <input type="text" 
-                           name="detalle_fibra[]" 
-                           value="${fibra}" 
-                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                           placeholder="Fibra">
+                    ${
+                        usarSelects
+                            ? `<select name="detalle_fibra[]"
+                                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm detalle-fibra"
+                                       disabled>
+                                       <option value="">Selecciona calibre</option>
+                                   </select>`
+                            : `<input type="text" 
+                                       name="detalle_fibra[]" 
+                                       value="${fibra}" 
+                                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                       placeholder="Fibra">`
+                    }
                 </td>
                 <td class="px-4 py-2">
-                    <input type="text" 
-                           name="detalle_codcolor[]" 
-                           value="${codColor}" 
-                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                           placeholder="Cod Color">
+                    ${
+                        usarSelects
+                            ? `<select name="detalle_codcolor[]"
+                                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm detalle-codcolor"
+                                       disabled>
+                                       <option value="">Selecciona calibre</option>
+                                   </select>`
+                            : `<input type="text" 
+                                       name="detalle_codcolor[]" 
+                                       value="${codColor}" 
+                                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                       placeholder="Cod Color">`
+                    }
                 </td>
                 <td class="px-4 py-2">
                     <input type="text" 
                            name="detalle_nombrecolor[]" 
                            value="${nombreColor}" 
-                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                           placeholder="Nombre Color">
+                           class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${usarSelects ? 'bg-gray-50 detalle-color' : ''}"
+                           placeholder="Nombre Color"
+                           ${usarSelects ? 'readonly' : ''}>
                 </td>
                 <td class="px-4 py-2">
                     <input type="number" 
@@ -842,6 +1044,15 @@
                     </button>
                 </td>
             `;
+
+            if (usarSelects) {
+                void initMaterialSelectorsForRow(row, {
+                    calibre,
+                    fibra,
+                    codColor,
+                    colorName: nombreColor
+                });
+            }
             
             return row;
         }
@@ -857,7 +1068,7 @@
                 bodyDetallesOrden.innerHTML = '';
             }
             
-            const nuevaFila = crearFilaDetalle(nuevoIndex);
+            const nuevaFila = crearFilaDetalle(nuevoIndex, '', '', '', '', '', '', null, true);
             bodyDetallesOrden.appendChild(nuevaFila);
             
             // Adjuntar listener al nuevo input de pasadas
