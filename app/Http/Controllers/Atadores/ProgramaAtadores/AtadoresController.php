@@ -73,6 +73,10 @@ class AtadoresController extends Controller
         $esTejedor = in_array($areaUpper, ['SMITH', 'ITEMA', 'JACQUARD']);
 
         // Si no hay filtro personalizado, determinar el filtro por defecto según área/puesto
+        $areaNorm = strtolower(trim((string) $area));
+        $puestoNorm = strtolower(trim((string) $puesto));
+        $esAreaAtadores = in_array($areaNorm, ['atador', 'atadores'], true);
+
         if (!$filtroPersonalizado) {
             if ($esTejedor) {
                 // Tejedor: obtener sus telares y aplicar filtro terminados
@@ -80,9 +84,10 @@ class AtadoresController extends Controller
                 $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
                     ->pluck('NoTelarId')
                     ->toArray();
-            } elseif (strtolower($area) === 'atador' || strtolower($puesto) === 'atador') {
+            } elseif ($esAreaAtadores || in_array($puestoNorm, ['atador', 'atadores'], true)) {
+                // Área Atadores (o puesto atador/atadores): ver solo Activo y En Proceso
                 $filtroAplicado = 'activo-proceso';
-            } elseif (strtolower($puesto) === 'supervisor') {
+            } elseif ($puestoNorm === 'supervisor') {
                 $filtroAplicado = 'terminados';
             }
         } else {

@@ -28,7 +28,7 @@ Actividades Tejedores · BPM
 @endsection
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
+<div class="w-full px-4 py-6">
     @if($errors->any())
         <script>
             Swal.fire({
@@ -52,13 +52,13 @@ Actividades Tejedores · BPM
     @endif
 
     <!-- Tabla de Actividades -->
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gradient-to-r bg-blue-500 text-white sticky top-0 z-10">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="overflow-auto max-h-[75vh]">
+            <table class="w-full text-sm">
+                <thead class="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                     <tr>
-                        <th class="px-4 py-3 text-left font-semibold w-24">Orden</th>
-                        <th class="px-4 py-3 text-left font-semibold">Actividad</th>
+                        <th class="sticky top-0 z-10 bg-blue-500 px-6 py-4 text-left font-semibold text-base w-32">Orden</th>
+                        <th class="sticky top-0 z-10 bg-blue-500 px-6 py-4 text-left font-semibold text-base">Actividad</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -68,18 +68,18 @@ Actividades Tejedores · BPM
                             data-actividad="{{ e($item->Actividad) }}"
                             onclick="selectRow(this)"
                             aria-selected="false">
-                            <td class="px-4 py-3 align-middle font-medium text-gray-700">
+                            <td class="px-6 py-4 align-middle font-semibold text-gray-700 text-base">
                                 {{ $item->Orden }}
                             </td>
-                            <td class="px-4 py-3 align-middle text-gray-800">
+                            <td class="px-6 py-4 align-middle text-gray-800 text-base">
                                 {{ $item->Actividad }}
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="2" class="px-4 py-8 text-center text-gray-500">
-                                <i class="fa-solid fa-inbox text-4xl mb-2 text-gray-300"></i>
-                                <p class="text-lg">No se encontraron actividades</p>
+                            <td colspan="2" class="px-6 py-12 text-center text-gray-500">
+                                <i class="fa-solid fa-inbox text-5xl mb-3 text-gray-300 block"></i>
+                                <p class="text-lg font-medium">No se encontraron actividades</p>
                             </td>
                         </tr>
                     @endforelse
@@ -95,20 +95,26 @@ Actividades Tejedores · BPM
     </form>
 
     <!-- Modal para Nueva Actividad -->
-    <div id="createModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4 transform transition-all">
-            <div class="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-t-lg">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-plus-circle"></i>
-                    Nueva Actividad BPM
-                </h2>
+    <div id="createModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50 items-center justify-center p-4" onclick="if(event.target === this) closeTelModal('createModal')">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl transform transition-all animate-modalFadeIn" onclick="event.stopPropagation()">
+            <div class="bg-gradient-to-r from-green-600 via-green-500 to-green-600 text-white px-8 py-5 rounded-t-xl">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold flex items-center gap-3">
+                        <i class="fa-solid fa-plus-circle text-2xl"></i>
+                        Nueva Actividad BPM
+                    </h2>
+                    <button type="button" onclick="closeTelModal('createModal')" class="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-colors">
+                        <i class="fa-solid fa-times text-xl"></i>
+                    </button>
+                </div>
             </div>
 
-            <form action="{{ route('tel-actividades-bpm.store') }}" method="POST" class="p-6">
+            <form action="{{ route('tel-actividades-bpm.store') }}" method="POST" class="p-8">
                 @csrf
-                <div class="space-y-4">
+                <div class="space-y-6">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                            <i class="fa-solid fa-tasks text-green-600"></i>
                             Actividad <span class="text-red-500">*</span>
                         </label>
                         <input
@@ -116,22 +122,26 @@ Actividades Tejedores · BPM
                             name="Actividad"
                             maxlength="100"
                             required
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
-                            placeholder="Nombre de la actividad">
+                            autofocus
+                            class="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm hover:shadow-md"
+                            placeholder="Ingresa el nombre de la actividad">
+                        <p class="mt-2 text-xs text-gray-500">
+                            <i class="fa-solid fa-info-circle mr-1"></i>Máximo 100 caracteres
+                        </p>
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200">
                     <button
                         type="button"
                         onclick="closeTelModal('createModal')"
-                        class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
-                        <i class="fa-solid fa-times mr-1"></i> Cancelar
+                        class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-times"></i> Cancelar
                     </button>
                     <button
                         type="submit"
-                        class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
-                        <i class="fa-solid fa-check mr-1"></i> Guardar
+                        class="px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white rounded-lg transition-all font-semibold shadow-md hover:shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> Guardar Actividad
                     </button>
                 </div>
             </form>
@@ -139,21 +149,27 @@ Actividades Tejedores · BPM
     </div>
 
     <!-- Modal para Editar Actividad -->
-    <div id="editModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4 transform transition-all">
-            <div class="bg-gradient-to-r from-yellow-600 to-yellow-500 text-white px-6 py-4 rounded-t-lg">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-edit"></i>
-                    Editar Actividad BPM
-                </h2>
+    <div id="editModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50 items-center justify-center p-4" onclick="if(event.target === this) closeTelModal('editModal')">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl transform transition-all animate-modalFadeIn" onclick="event.stopPropagation()">
+            <div class="bg-gradient-to-r from-yellow-600 via-yellow-500 to-yellow-600 text-white px-8 py-5 rounded-t-xl">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold flex items-center gap-3">
+                        <i class="fa-solid fa-edit text-2xl"></i>
+                        Editar Actividad BPM
+                    </h2>
+                    <button type="button" onclick="closeTelModal('editModal')" class="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-colors">
+                        <i class="fa-solid fa-times text-xl"></i>
+                    </button>
+                </div>
             </div>
 
-            <form id="editForm" action="" method="POST" class="p-6">
+            <form id="editForm" action="" method="POST" class="p-8">
                 @csrf
                 @method('PUT')
-                <div class="space-y-4">
+                <div class="space-y-6">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                            <i class="fa-solid fa-tasks text-yellow-600"></i>
                             Actividad <span class="text-red-500">*</span>
                         </label>
                         <input
@@ -162,22 +178,26 @@ Actividades Tejedores · BPM
                             name="Actividad"
                             maxlength="100"
                             required
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition"
-                            placeholder="Nombre de la actividad">
+                            autofocus
+                            class="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm hover:shadow-md"
+                            placeholder="Ingresa el nombre de la actividad">
+                        <p class="mt-2 text-xs text-gray-500">
+                            <i class="fa-solid fa-info-circle mr-1"></i>Máximo 100 caracteres
+                        </p>
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200">
                     <button
                         type="button"
                         onclick="closeTelModal('editModal')"
-                        class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
-                        <i class="fa-solid fa-times mr-1"></i> Cancelar
+                        class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-times"></i> Cancelar
                     </button>
                     <button
                         type="submit"
-                        class="px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition font-medium">
-                        <i class="fa-solid fa-save mr-1"></i> Actualizar
+                        class="px-6 py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-white rounded-lg transition-all font-semibold shadow-md hover:shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-save"></i> Actualizar Actividad
                     </button>
                 </div>
             </form>
@@ -208,17 +228,36 @@ Actividades Tejedores · BPM
     @keyframes modalFadeIn {
         from {
             opacity: 0;
-            transform: scale(0.95);
+            transform: scale(0.9) translateY(-20px);
         }
         to {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) translateY(0);
         }
     }
 
-    #createModal > div,
-    #editModal > div {
-        animation: modalFadeIn 0.2s ease-out;
+    .animate-modalFadeIn {
+        animation: modalFadeIn 0.3s ease-out;
+    }
+
+    /* Mejorar scrollbar de la tabla */
+    .overflow-auto::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .overflow-auto::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .overflow-auto::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    .overflow-auto::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
 </style>
 
@@ -283,14 +322,32 @@ Actividades Tejedores · BPM
 
     // Abrir modal
     function openTelModal(modalId) {
-        document.getElementById(modalId).classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            // Focus en el primer input si existe
+            setTimeout(() => {
+                const firstInput = modal.querySelector('input[type="text"], input[type="number"], textarea, select');
+                if (firstInput) firstInput.focus();
+            }, 100);
+        }
     }
 
     // Cerrar modal
     function closeTelModal(modalId) {
-        document.getElementById(modalId).classList.add('hidden');
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+            // Reset form si es createModal
+            if (modalId === 'createModal') {
+                const form = modal.querySelector('form');
+                if (form) form.reset();
+            }
+        }
     }
 
     // Abrir modal de edición
