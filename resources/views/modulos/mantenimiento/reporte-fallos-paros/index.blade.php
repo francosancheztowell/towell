@@ -18,12 +18,11 @@
     title="Nuevo Paro"
     module="Solicitudes"
     />
-    <x-navbar.button-delete
-    type="button"
-    id="btn-terminar-paro"
-    title="Terminar Paro"
-    module="Solicitudes"
-    />
+
+    <button type="button" id="btn-terminar-paro" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-md transition-colors whitespace-nowrap">
+        Terminar Paro
+    </button>
+
 </div>
 @endsection
 @section('page-title', 'Reporte de Fallos y Paros')
