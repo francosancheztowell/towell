@@ -15,19 +15,28 @@ use Illuminate\Support\Facades\Auth;
 
 class EngProduccionFormulacionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $items = EngProduccionFormulacionModel::orderBy('Folio', 'desc')->get();
+            $folioFiltro = $request->query('folio');
+
+            $itemsQuery = EngProduccionFormulacionModel::orderBy('Folio', 'desc');
+            if (!empty($folioFiltro)) {
+                $itemsQuery->where('Folio', $folioFiltro);
+            }
+            $items = $itemsQuery->get();
             $usuarios = SYSUsuario::orderBy('nombre', 'asc')->get();
             $maquinas = URDCatalogoMaquina::where('Departamento', 'Engomado')
                 ->orderBy('Nombre', 'asc')
                 ->get();
 
             // Obtener folios de EngProgramaEngomado con Status diferente de 'Finalizado'
-            $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
-                ->orderBy('Folio', 'desc')
-                ->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
+            $foliosProgramaQuery = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
+                ->orderBy('Folio', 'desc');
+            if (!empty($folioFiltro)) {
+                $foliosProgramaQuery->where('Folio', $folioFiltro);
+            }
+            $foliosPrograma = $foliosProgramaQuery->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
 
             // Generar folio sugerido
             $year = date('Y');
@@ -50,9 +59,10 @@ class EngProduccionFormulacionController extends Controller
             $maquinas = collect([]);
             $foliosPrograma = collect([]);
             $folioSugerido = 'ENG-FORM-' . date('Y') . '-0001';
+            $folioFiltro = $request->query('folio');
         }
 
-        return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "foliosPrograma", "folioSugerido"));
+        return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "foliosPrograma", "folioSugerido", "folioFiltro"));
     }
 
     public function store(Request $request)

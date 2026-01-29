@@ -5,7 +5,7 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
-            onclick="abrirModalFormulacion()"
+            onclick="window.location.href='{{ isset($orden) && $orden && $orden->Folio ? route('engomado.captura-formula', ['folio' => $orden->Folio]) : route('engomado.captura-formula') }}'"
             title="Agregar fórmula"
             icon="fa-flask"
             iconColor="text-white"
@@ -618,14 +618,16 @@
                             <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
                                 <option value="">-- Seleccione un Folio --</option>
                                 @foreach($foliosPrograma as $prog)
-                                    <option value="{{ $prog->Folio }}"
-                                            data-cuenta="{{ $prog->Cuenta }}"
-                                            data-calibre="{{ $prog->Calibre }}"
-                                            data-tipo="{{ $prog->RizoPie }}"
-                                            data-formula="{{ $prog->BomFormula }}"
-                                            {{ isset($orden) && $orden && $orden->Folio === $prog->Folio ? 'selected' : '' }}>
-                                        {{ $prog->Folio }} - {{ $prog->Cuenta }}
-                                    </option>
+                                    @if(!isset($orden) || !$orden || $orden->Folio === $prog->Folio)
+                                        <option value="{{ $prog->Folio }}"
+                                                data-cuenta="{{ $prog->Cuenta }}"
+                                                data-calibre="{{ $prog->Calibre }}"
+                                                data-tipo="{{ $prog->RizoPie }}"
+                                                data-formula="{{ $prog->BomFormula }}"
+                                                {{ isset($orden) && $orden && $orden->Folio === $prog->Folio ? 'selected' : '' }}>
+                                            {{ $prog->Folio }} - {{ $prog->Cuenta }}
+                                        </option>
+                                    @endif
                                 @endforeach
                             </select>
                         </div>
@@ -646,8 +648,13 @@
                             <input type="text" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Folio seleccionado</label>
-                            <input type="text" id="create_folio_display" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
+                            <select name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                                <option value="">Seleccione...</option>
+                                @for($i = 1; $i <= 5; $i++)
+                                    <option value="{{ $i }}">{{ $i }}</option>
+                                @endfor
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -663,16 +670,7 @@
                 <!-- Sección 2: Datos de Captura -->
                 <div class="mb-4">
                     <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Datos de Captura</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
-                            <select name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                                <option value="">Seleccione...</option>
-                                @for($i = 1; $i <= 5; $i++)
-                                    <option value="{{ $i }}">{{ $i }}</option>
-                                @endfor
-                            </select>
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.)</label>
                             <input type="number" step="0.01" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
@@ -801,15 +799,12 @@
                 };
 
                 if (!option || !option.value) {
-                    setValue('create_folio_display', '');
                     setValue('create_cuenta', '');
                     setValue('create_calibre', '');
                     setValue('create_tipo', '');
                     setValue('create_formula', '');
                     return;
                 }
-
-                setValue('create_folio_display', option.value);
 
                 const cuenta = option.getAttribute('data-cuenta') || '';
                 const calibre = option.getAttribute('data-calibre') || '';

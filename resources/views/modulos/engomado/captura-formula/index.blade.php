@@ -152,7 +152,8 @@
                                             data-cuenta="{{ $prog->Cuenta }}"
                                             data-calibre="{{ $prog->Calibre }}"
                                             data-tipo="{{ $prog->RizoPie }}"
-                                            data-formula="{{ $prog->BomFormula }}">
+                                            data-formula="{{ $prog->BomFormula }}"
+                                            {{ isset($folioFiltro) && $folioFiltro === $prog->Folio ? 'selected' : '' }}>
                                         {{ $prog->Folio }} - {{ $prog->Cuenta }}
                                     </option>
                                 @endforeach
