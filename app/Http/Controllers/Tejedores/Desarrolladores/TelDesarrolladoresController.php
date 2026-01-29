@@ -20,21 +20,42 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Models\Planeacion\ReqProgramaTejido;
+use Illuminate\Support\Facades\Auth;
 
 class TelDesarrolladoresController extends Controller
 {
     public function index(Request $request)
     {
+        // Validar que el usuario actual sea desarrollador
+        $usuarioActual = Auth::user();
+        
+        if (!$usuarioActual || $usuarioActual->area !== 'Desarrolladores') {
+            return redirect()->route('home')
+                ->with('error', 'No tienes permiso para acceder a este módulo. Debes ser un Desarrollador.');
+        }
 
         $telares = $this->obtenerTelares();
         $juliosRizo = $this->obtenerUltimosJuliosMontados('Rizo');
         $juliosPie = $this->obtenerUltimosJuliosMontados('Pie');
-        $desarrolladores = Usuario::porArea('Desarrollador')
+        
+        // Obtener solo usuarios con área "Desarrolladores"
+        $desarrolladores = Usuario::porArea('Desarrolladores')
             ->activos()
             ->orderBy('nombre')
             ->get();
 
-        return view('modulos.desarrolladores.desarrolladores', compact( 'telares', 'juliosRizo', 'juliosPie', 'desarrolladores'));
+        // Asegurar que el usuario actual esté en la lista
+        if (!$desarrolladores->contains('idusuario', $usuarioActual->idusuario)) {
+            $desarrolladores->prepend($usuarioActual);
+            $desarrolladores = $desarrolladores->sortBy('nombre')->values();
+        }
+
+        // Nombre del desarrollador actual para preseleccionar en el select
+        $desarrolladorActual = $usuarioActual->nombre;
+
+        return view('modulos.desarrolladores.desarrolladores', compact(
+            'telares', 'juliosRizo', 'juliosPie', 'desarrolladores', 'desarrolladorActual'
+        ));
     }
 
     protected function obtenerTelares()
@@ -716,7 +737,18 @@ class TelDesarrolladoresController extends Controller
 
 	    public function store(Request $request){
 	        try {
-
+	            // Validar que el usuario actual sea desarrollador
+	            $usuarioActual = Auth::user();
+	            
+	            if (!$usuarioActual || $usuarioActual->area !== 'Desarrolladores') {
+	                if ($request->ajax()) {
+	                    return response()->json([
+	                        'success' => false,
+	                        'message' => 'No tienes permiso para registrar como desarrollador. Debes ser un Desarrollador.'
+	                    ], 403);
+	                }
+	                return back()->with('error', 'No tienes permiso para registrar como desarrollador. Debes ser un Desarrollador.')->withInput();
+	            }
 
 	            $validated = $request->validate([
 	                'NoTelarId' => 'required|string',
