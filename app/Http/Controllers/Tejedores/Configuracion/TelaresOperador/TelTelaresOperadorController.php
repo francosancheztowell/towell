@@ -28,7 +28,8 @@ class TelTelaresOperadorController extends Controller
                       ->orWhere('NoTelarId', 'like', "%{$q}%");
                 });
             })
-            ->orderByDesc('Id')
+            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
+            ->orderBy('NoTelarId')
             ->get();
 
         $telares = ReqTelares::obtenerTodos();

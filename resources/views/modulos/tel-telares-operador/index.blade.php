@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnGuardar = document.getElementById('btnGuardar');
     
     const telaresData = @json($telares ?? []);
-    
+
     function cargarTelaresPorSalon(salon) {
         if (!salon || salon === '') {
             telaresContainer.classList.add('hidden');
@@ -713,30 +713,31 @@ document.addEventListener('DOMContentLoaded', function() {
             telaresList.innerHTML = '';
             return;
         }
-        
+
         const telaresDelSalon = telaresData.filter(t => (t.SalonTejidoId || '').toString().trim() === salon.toString().trim());
-        
+
         if (telaresDelSalon.length === 0) {
             telaresList.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4">No hay telares disponibles para este salón</p>';
             telaresContainer.classList.remove('hidden');
             btnGuardar.disabled = true;
             return;
         }
-        
+
         telaresList.innerHTML = telaresDelSalon.map(telar => {
             const telarId = (telar.NoTelarId || '').toString();
+            const escapedId = escapeHtml(telarId);
+            const escapedSalon = escapeHtml(salon);
             return `
                 <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors">
-                    <input type="checkbox" name="telares[]" value="${telarId}" data-salon="${salon}" class="telar-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                    <span class="ml-2 text-sm font-medium text-gray-700">${telarId}</span>
+                    <input type="checkbox" name="telares[]" value="${escapedId}" data-salon="${escapedSalon}" class="telar-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <span class="ml-2 text-sm font-medium text-gray-700">${escapedId}</span>
                 </label>
             `;
         }).join('');
-        
+
         telaresContainer.classList.remove('hidden');
         actualizarEstadoGuardar();
-        
-        // Event listeners para checkboxes
+
         document.querySelectorAll('.telar-checkbox').forEach(cb => {
             cb.addEventListener('change', actualizarEstadoGuardar);
         });
@@ -895,30 +896,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 return false;
             }
-            
-            // Validar duplicados antes de enviar
+
             const numeroEmpleado = empSel.value.trim();
             const telaresSeleccionados = Array.from(telaresCheckboxes).map(cb => cb.value.trim());
-            const duplicados = [];
-            
-            document.querySelectorAll('.row-selectable').forEach(row => {
-                const num = (row.dataset.numero || '').trim();
-                const tel = (row.dataset.telar || '').trim();
-                if (num === numeroEmpleado && telaresSeleccionados.includes(tel)) {
-                    duplicados.push(tel);
-                }
-            });
-            
-            if (duplicados.length > 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Asignaciones duplicadas',
-                    text: `Este operador ya tiene asignados los telares: ${duplicados.join(', ')}`
-                });
-                return false;
-            }
-            
-            // Crear múltiples registros
+
+            // Crear múltiples registros (el backend omite duplicados y lo indica en el mensaje)
             const formData = new FormData();
             formData.append('numero_empleado', numeroEmpleado);
             formData.append('nombreEmpl', nombre.value);
