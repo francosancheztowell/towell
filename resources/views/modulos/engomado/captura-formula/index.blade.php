@@ -164,13 +164,8 @@
                             <input type="text" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
-                            <select name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                                <option value="">Seleccione...</option>
-                                @for($i = 1; $i <= 5; $i++)
-                                    <option value="{{ $i }}">{{ $i }}</option>
-                                @endfor
-                            </select>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Fórmula</label>
+                            <input type="text" name="Formula" id="create_formula" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                     </div>
                 </div>
@@ -181,12 +176,19 @@
                 <input type="hidden" name="Tipo" id="create_tipo">
                 <input type="hidden" name="NomEmpl" id="create_nom_empl">
                 <input type="hidden" name="CveEmpl" id="create_cve_empl">
-                <input type="hidden" name="Formula" id="create_formula">
-
                 <!-- Sección 2: Datos de Captura -->
                 <div class="mb-4">
                     <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Datos de Captura</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
+                            <select name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                                <option value="">Seleccione...</option>
+                                @for($i = 1; $i <= 5; $i++)
+                                    <option value="{{ $i }}">{{ $i }}</option>
+                                @endfor
+                            </select>
+                        </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.)</label>
                             <input type="number" step="0.01" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
@@ -206,6 +208,44 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Viscosidad</label>
                             <input type="number" step="0.01" name="Viscocidad" id="create_viscocidad" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 3: Componentes de la Fórmula -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Componentes de la Fórmula</h4>
+
+                    <!-- Loading -->
+                    <div id="create_componentes_loading" class="hidden text-center py-6">
+                        <i class="fa-solid fa-spinner fa-spin text-3xl text-blue-500"></i>
+                        <p class="text-gray-600 mt-2 text-sm">Cargando componentes...</p>
+                    </div>
+
+                    <!-- Error -->
+                    <div id="create_componentes_error" class="hidden">
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                            <i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl mb-1"></i>
+                            <p class="text-red-700 font-medium text-sm" id="create_componentes_error_message">Error al cargar componentes</p>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Componentes -->
+                    <div id="create_componentes_tabla_container" class="hidden">
+                        <div class="overflow-x-auto border rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-semibold">Articulo</th>
+                                        <th class="px-4 py-2 text-left font-semibold">Nombre</th>
+                                        <th class="px-4 py-2 text-left font-semibold">ConfigId</th>
+                                        <th class="px-4 py-2 text-right font-semibold">Consumo Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="create_componentes_tbody" class="bg-white divide-y divide-gray-200">
+                                    <!-- Se llenará dinámicamente -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -534,7 +574,7 @@
             });
         }
 
-        function cargarDatosPrograma(select) {
+        function cargarDatosPrograma(select, mostrarAlerta = true) {
             const option = select.options[select.selectedIndex];
 
             if (!option.value) {
@@ -543,6 +583,12 @@
                 document.getElementById('create_calibre').value = '';
                 document.getElementById('create_tipo').value = '';
                 document.getElementById('create_formula').value = '';
+                formulaCreateActual = '';
+                componentesCreateData = [];
+                renderizarTablaComponentesCreate();
+                document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+                document.getElementById('create_componentes_loading').classList.add('hidden');
+                document.getElementById('create_componentes_error').classList.add('hidden');
                 return;
             }
 
@@ -557,6 +603,8 @@
             document.getElementById('create_calibre').value = calibre;
             document.getElementById('create_tipo').value = tipo;
             document.getElementById('create_formula').value = formula;
+            formulaCreateActual = formula;
+            cargarComponentesCreate(formulaCreateActual);
 
             // Obtener operador actual del sistema (ya está cargado en Auth)
             @if(Auth::check())
@@ -565,20 +613,22 @@
             @endif
 
             // Mostrar confirmación con los datos cargados
-            Swal.fire({
-                icon: 'success',
-                title: 'Datos cargados',
-                html: `<div class="text-left text-sm">
-                    <p><strong>Folio:</strong> ${option.value}</p>
-                    <p><strong>Cuenta:</strong> ${cuenta || '-'}</p>
-                    <p><strong>Calibre:</strong> ${calibre || '-'}</p>
-                    <p><strong>Tipo:</strong> ${tipo || '-'}</p>
-                    <p><strong>Fórmula:</strong> ${formula || '-'}</p>
-                </div>`,
-                confirmButtonColor: '#a855f7',
-                timer: 2000,
-                timerProgressBar: true
-            });
+            if (mostrarAlerta) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Datos cargados',
+                    html: `<div class="text-left text-sm">
+                        <p><strong>Folio:</strong> ${option.value}</p>
+                        <p><strong>Cuenta:</strong> ${cuenta || '-'}</p>
+                        <p><strong>Calibre:</strong> ${calibre || '-'}</p>
+                        <p><strong>Tipo:</strong> ${tipo || '-'}</p>
+                        <p><strong>Fórmula:</strong> ${formula || '-'}</p>
+                    </div>`,
+                    confirmButtonColor: '#a855f7',
+                    timer: 2000,
+                    timerProgressBar: true
+                });
+            }
         }
 
         function fillEmpleadoEdit(select) {
@@ -635,6 +685,9 @@
         let componentesData = [];
         let formulaActual = '';
         let kilosFormula = 0;
+        let componentesCreateData = [];
+        let formulaCreateActual = '';
+        let kilosCreateFormula = 0;
 
         function abrirModalComponentes(kilos = 0) {
             if (!formulaActual) {
@@ -921,6 +974,101 @@
                 }
             });
         }
+
+        function cargarComponentesCreate(formula) {
+            if (!formula) {
+                componentesCreateData = [];
+                renderizarTablaComponentesCreate();
+                document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+                document.getElementById('create_componentes_loading').classList.add('hidden');
+                document.getElementById('create_componentes_error').classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('create_componentes_loading').classList.remove('hidden');
+            document.getElementById('create_componentes_error').classList.add('hidden');
+            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+
+            fetch(`/eng-formulacion/componentes/formula?formula=${encodeURIComponent(formula)}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('create_componentes_loading').classList.add('hidden');
+                    document.getElementById('create_componentes_error').classList.add('hidden');
+
+                    if (data.success) {
+                        componentesCreateData = data.componentes || [];
+                        renderizarTablaComponentesCreate();
+                        document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
+                    } else {
+                        mostrarErrorComponentesCreate(data.error || 'Error al cargar componentes');
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('create_componentes_loading').classList.add('hidden');
+                    mostrarErrorComponentesCreate('Error de conexión: ' + error.message);
+                });
+        }
+
+        function renderizarTablaComponentesCreate() {
+            const tbody = document.getElementById('create_componentes_tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            if (componentesCreateData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-4 py-6 text-center text-gray-500">
+                            No hay componentes para esta formula
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            componentesCreateData.forEach((comp) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-blue-50 transition-colors';
+
+                const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
+                const consumoTotal = consumoUnitario * kilosCreateFormula;
+
+                row.innerHTML = `
+                    <td class="px-4 py-2 text-sm font-medium">${comp.ItemId || ''}</td>
+                    <td class="px-4 py-2 text-sm">${comp.ItemName || ''}</td>
+                    <td class="px-4 py-2 text-sm">${comp.ConfigId || ''}</td>
+                    <td class="px-4 py-2 text-sm text-right font-semibold text-blue-700">${consumoTotal.toFixed(4)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function mostrarErrorComponentesCreate(mensaje) {
+            const errorBox = document.getElementById('create_componentes_error');
+            const errorMsg = document.getElementById('create_componentes_error_message');
+            if (errorBox && errorMsg) {
+                errorBox.classList.remove('hidden');
+                errorMsg.textContent = mensaje;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const select = document.getElementById('create_folio_prog');
+            if (select && select.value) {
+                cargarDatosPrograma(select, false);
+            }
+
+            const kilosInput = document.getElementById('create_kilos');
+            if (kilosInput) {
+                kilosCreateFormula = parseFloat(kilosInput.value) || 0;
+                kilosInput.addEventListener('input', function() {
+                    kilosCreateFormula = parseFloat(this.value) || 0;
+                    if (componentesCreateData.length > 0) {
+                        renderizarTablaComponentesCreate();
+                    }
+                });
+            }
+        });
 
         window.addEventListener('pageshow', function(event) {
             if (event.persisted) {
