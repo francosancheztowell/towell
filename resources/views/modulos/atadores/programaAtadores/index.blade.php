@@ -5,19 +5,24 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         {{-- Botón de Filtros --}}
-        <button id="btn-open-filters" title="Filtros"
-                class="p-2 rounded-lg transition hover:bg-purple-100 relative">
-            <i class="fa-solid fa-filter text-purple-600 text-lg"></i>
-            @if($filtroAplicado !== 'todos')
-                <span id="filter-badge"
-                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">!</span>
-            @endif
-        </button>
-        
-        <button id="btnIniciarAtado" onclick="iniciarAtado()" disabled
-            class="px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 opacity-50 cursor-not-allowed">
-            <i class="fas fa-play mr-1"></i> Iniciar Atado
-        </button>
+        <x-navbar.button-report
+        id="btn-open-filters"
+        title="Filtros"
+        icon="fa-filter"
+        text="Filtrar"
+        module="Programa Atadores"
+        iconColor="text-white"
+        hoverBg="hover:bg-green-600"
+        class="text-white"
+        bg="bg-green-600" />
+        <x-navbar.button-create
+        id="btnIniciarAtado"
+        onclick="iniciarAtado()"
+        disabled
+        module="Programa Atadores"
+        title="Iniciar Atado"
+        text="Iniciar Atado"
+        />
     </div>
 @endsection
 
@@ -65,7 +70,7 @@
 </div>
 
 <div class="container mx-auto px-4 py-4">
-    
+
     <div class="overflow-x-auto overflow-y-auto rounded-lg shadow-md bg-white">
         <table class="min-w-full divide-y divide-gray-200 text-md">
                 <thead class="bg-blue-500 sticky top-0 z-10">
@@ -86,7 +91,7 @@
                             Tipo
                         </th>
                         <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            No. Julio
+                            Julio
                         </th>
                         <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
                             Ubicación
@@ -98,7 +103,7 @@
                             Orden
                         </th>
                         <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Tipo Atado
+                            Tipo
                         </th>
                         <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
                             Cuenta
@@ -110,7 +115,7 @@
                             Hilo
                         </th>
                         <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Lote Prov.
+                            Lote
                         </th>
                         <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
                             No. Prov.
@@ -254,12 +259,12 @@ function applyFilters() {
                 // Solo registros con status Activo (sin registro en AtaMontadoTelas)
                 show = status === 'Activo';
                 break;
-                
+
             case 'activo-proceso':
                 // Activo y En Proceso
                 show = status === 'Activo' || status === 'En Proceso';
                 break;
-                
+
             case 'terminados':
                 // Solo Terminados
                 show = status === 'Terminado';
@@ -268,7 +273,7 @@ function applyFilters() {
                     show = show && filterState.telaresUsuario.includes(noTelar);
                 }
                 break;
-                
+
             case 'todos':
             default:
                 // Mostrar todos
@@ -384,7 +389,7 @@ async function refreshStatus() {
 
         // Obtener todos los registros sin filtro
         const url = '{{ route("atadores.programa") }}';
-        
+
         const response = await fetch(url);
         const html = await response.text();
         const parser = new DOMParser();
@@ -401,12 +406,12 @@ async function refreshStatus() {
                     currentStatusCell.getAttribute('data-status') !== newStatusCell.getAttribute('data-status')) {
                     currentStatusCell.innerHTML = newStatusCell.innerHTML;
                     currentStatusCell.setAttribute('data-status', newStatusCell.getAttribute('data-status'));
-                    
+
                     // Actualizar el atributo data-status de la fila
                     const newStatus = newStatusCell.getAttribute('data-status');
                     row.setAttribute('data-status', newStatus || 'Activo');
                 }
-                
+
                 // Actualizar telar si cambió
                 const newTelar = newRow.getAttribute('data-telar');
                 if (newTelar) {
@@ -414,7 +419,7 @@ async function refreshStatus() {
                 }
             }
         });
-        
+
         // Reaplicar filtros después de actualizar
         applyFilters();
 
