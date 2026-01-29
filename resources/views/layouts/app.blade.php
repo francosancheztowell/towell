@@ -412,6 +412,8 @@
             text: data.message,
             confirmButtonColor: '#3b82f6',
             timer: 2000
+          }).then(() => {
+            cerrarModalTelares();
           });
         } else {
           throw new Error(data.error || 'Error al notificar');
