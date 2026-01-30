@@ -75,8 +75,8 @@
         <table class="min-w-full divide-y divide-gray-200 text-md">
                 <thead class="bg-blue-500 sticky top-0 z-10">
                     <tr>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Fecha
+                        <th id="th-fecha" class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar por fecha (asc/desc)">
+                            Fecha <span id="sort-fecha-icon" class="ml-1 opacity-80">▲</span>
                         </th>
                         <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
                             Estatus
@@ -130,6 +130,7 @@
                         <tr class="table-row hover:bg-blue-100 cursor-pointer transition-colors duration-150"
                             onclick="selectRow(this, {{ $item->id }})"
                             data-id="{{ $item->id }}"
+                            data-fecha="{{ $item->fecha ? $item->fecha->format('Y-m-d') : '9999-99-99' }}"
                             data-no-julio="{{ $item->no_julio }}"
                             data-no-orden="{{ $item->no_orden }}"
                             data-hora-paro="{{ $item->horaParo ?? '' }}"
@@ -217,6 +218,9 @@ let filterState = {
     telaresUsuario: @json($telaresUsuario ?? []), // Telares del usuario si es tejedor
     esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }} // Si el usuario es tejedor
 };
+
+// Orden por Fecha: asc = más vieja primero (default), desc = más nueva primero
+let fechaSortDir = 'asc';
 
 // Funciones para el modal de filtros
 function mostrarModalFiltros() {
@@ -363,6 +367,35 @@ function updateFilterButtons() {
             break;
     }
 }
+
+// Ordenar tabla por fecha (asc/desc)
+function sortTableByFecha() {
+    const tbody = document.getElementById('tb-body');
+    if (!tbody) return;
+
+    const noResults = tbody.querySelector('tr.no-results');
+    if (noResults) noResults.remove();
+
+    const rows = Array.from(tbody.querySelectorAll('tr.table-row'));
+    rows.sort((a, b) => {
+        const fa = (a.getAttribute('data-fecha') || '9999-99-99');
+        const fb = (b.getAttribute('data-fecha') || '9999-99-99');
+        const cmp = fa.localeCompare(fb);
+        return fechaSortDir === 'asc' ? cmp : -cmp;
+    });
+
+    rows.forEach(tr => tbody.appendChild(tr));
+    if (noResults) tbody.appendChild(noResults);
+}
+
+// Clic en columna Fecha: alternar asc/desc y reordenar
+document.getElementById('th-fecha')?.addEventListener('click', function(e) {
+    e.stopPropagation();
+    fechaSortDir = fechaSortDir === 'asc' ? 'desc' : 'asc';
+    const icon = document.getElementById('sort-fecha-icon');
+    if (icon) icon.textContent = fechaSortDir === 'asc' ? '▲' : '▼';
+    sortTableByFecha();
+});
 
 // Cerrar modal al hacer clic fuera de él
 document.getElementById('modalFiltros')?.addEventListener('click', function(e) {

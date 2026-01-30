@@ -103,8 +103,8 @@ class AtadoresController extends Controller
         // No aplicar filtros en el servidor - se harán en el cliente
         // Siempre devolver todos los registros
 
-        $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'desc')
-            ->orderBy('tej_inventario_telares.turno', 'desc')
+        $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
+            ->orderBy('tej_inventario_telares.turno', 'asc')
             ->get();
 
         return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor'));

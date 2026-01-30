@@ -18,6 +18,7 @@
                 type="button"
                 id="btnDragDrop"
                 bg="bg-black"
+                text=""
                 iconColor="text-white"
                 module="Programa Tejido"
                 onclick="toggleDragDropMode()"
@@ -62,6 +63,7 @@
         module="Programa Tejido"
         icon="fa-scale-balanced"
         bg="bg-green-500"
+        text=""
         iconColor="text-white"
         hoverBg="hover:bg-green-600"
         class="text-sm" />
@@ -73,6 +75,7 @@
         title="Vincular registros existentes - Click para activar modo selección múltiple"
         module="Programa Tejido"
         icon="fa-link"
+        text=""
         bg="bg-blue-500"
         iconColor="text-white"
         hoverBg="hover:bg-blue-600"
