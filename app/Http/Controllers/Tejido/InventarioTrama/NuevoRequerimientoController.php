@@ -475,11 +475,11 @@ class NuevoRequerimientoController extends Controller
             'CodColorTrama as CODIGO_COLOR_TRAMA',
             'ColorTrama as COLOR_TRAMA',
             // Combos
-            'CalibreComb12 as CALIBRE_C1', 'FibraComb1 as FIBRA_C1', 'CodColorComb1 as CODIGO_COLOR_C1', 'NombreCC1 as COLOR_C1',
-            'CalibreComb22 as CALIBRE_C2', 'FibraComb2 as FIBRA_C2', 'CodColorComb2 as CODIGO_COLOR_C2', 'NombreCC2 as COLOR_C2',
-            'CalibreComb32 as CALIBRE_C3', 'FibraComb3 as FIBRA_C3', 'CodColorComb3 as CODIGO_COLOR_C3', 'NombreCC3 as COLOR_C3',
-            'CalibreComb42 as CALIBRE_C4', 'FibraComb4 as FIBRA_C4', 'CodColorComb4 as CODIGO_COLOR_C4', 'NombreCC4 as COLOR_C4',
-            'CalibreComb52 as CALIBRE_C5', 'FibraComb5 as FIBRA_C5', 'CodColorComb5 as CODIGO_COLOR_C5', 'NombreCC5 as COLOR_C5',
+            'CalibreComb1 as CALIBRE_C1', 'FibraComb1 as FIBRA_C1', 'CodColorComb1 as CODIGO_COLOR_C1', 'NombreCC1 as COLOR_C1',
+            'CalibreComb2 as CALIBRE_C2', 'FibraComb2 as FIBRA_C2', 'CodColorComb2 as CODIGO_COLOR_C2', 'NombreCC2 as COLOR_C2',
+            'CalibreComb3 as CALIBRE_C3', 'FibraComb3 as FIBRA_C3', 'CodColorComb3 as CODIGO_COLOR_C3', 'NombreCC3 as COLOR_C3',
+            'CalibreComb4 as CALIBRE_C4', 'FibraComb4 as FIBRA_C4', 'CodColorComb4 as CODIGO_COLOR_C4', 'NombreCC4 as COLOR_C4',
+            'CalibreComb5 as CALIBRE_C5', 'FibraComb5 as FIBRA_C5', 'CodColorComb5 as CODIGO_COLOR_C5', 'NombreCC5 as COLOR_C5',
         ])->first();
     }
 
