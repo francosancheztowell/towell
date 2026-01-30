@@ -57,16 +57,15 @@
         ])
 
         <!-- Grupo 3: Acciones adicionales -->
-        <x-navbar.button-edit
-        onclick="window.location.href='{{ route('programa-tejido.balancear') }}'"
-        title="Balancear"
-        module="Programa Tejido"
-        icon="fa-scale-balanced"
-        bg="bg-green-500"
-        text=""
-        iconColor="text-white"
-        hoverBg="hover:bg-green-600"
-        class="text-sm" />
+        <button
+        type="button"
+        id="btnBalancear"
+        onclick="abrirBalancearDesdeSeleccion()"
+        title="Balancear (selecciona un registro con orden compartida)"
+        class="w-9 h-9 flex items-center justify-center rounded-full bg-gray-400 text-white hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors"
+        disabled>
+            <i class="fa-solid fa-scale-balanced text-sm"></i>
+        </button>
 
         <x-navbar.button-edit
         type="button"

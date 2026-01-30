@@ -17,12 +17,9 @@
     <x-navbar.button-edit
     id="btn-consult"
     title="Consultar folio"
-    class="p-2 rounded-lg transition hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
     module="BPM Tejedores"/>
-    <x-navbar.button-delete module="BPM Tejedores" id="btn-delete" title="Eliminar folio"
-    class="p-2 rounded-lg transition hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled/>
-    <x-navbar.button-create module="BPM Tejedores" id="btn-open-create" title="Nuevo folio"
-    class="p-2 rounded-lg transition hover:bg-green-100"/>
+    <x-navbar.button-delete module="BPM Tejedores" id="btn-delete" title="Eliminar folio"/>
+    <x-navbar.button-create module="BPM Tejedores" id="btn-open-create" title="Nuevo folio"/>
 </div>
 @endsection
 

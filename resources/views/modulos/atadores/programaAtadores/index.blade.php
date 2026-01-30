@@ -30,40 +30,44 @@
 {{-- Modal de Filtros --}}
 <div id="modalFiltros" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800">
-                <i class="fa-solid fa-filter text-purple-600 mr-2"></i>Filtros
-            </h2>
+        <div class="flex items-center justify-between mb-2">
+            <p class="text-sm text-slate-500">Puedes elegir uno o varios filtros. Clic de nuevo para quitar.</p>
             <button type="button" onclick="cerrarModalFiltros()" class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-            {{-- Ver Todos --}}
+        <div class="grid grid-cols-3 gap-3">
+            {{-- Fila 1: Ver Todos, Ver Creados, Activo --}}
             <button type="button" id="btn-filter-todos" onclick="aplicarFiltro('todos')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
                 <i class="fa-solid fa-list text-2xl mb-2 block"></i>
                 <div class="font-semibold text-sm">Ver Todos</div>
             </button>
-
-            {{-- Ver Creados (Activo) --}}
             <button type="button" id="btn-filter-creados" onclick="aplicarFiltro('creados')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
                 <i class="fa-solid fa-plus-circle text-2xl mb-2 block"></i>
                 <div class="font-semibold text-sm">Ver Creados</div>
             </button>
-
-            {{-- Ver Activo y En Proceso --}}
-            <button type="button" id="btn-filter-activo-proceso" onclick="aplicarFiltro('activo-proceso')"
+            <button type="button" id="btn-filter-activo" onclick="aplicarFiltro('activo')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                <i class="fa-solid fa-play-circle text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">Activo y En Proceso</div>
+                <i class="fa-solid fa-circle-dot text-2xl mb-2 block"></i>
+                <div class="font-semibold text-sm">Activo</div>
             </button>
 
-            {{-- Ver Terminados --}}
+            {{-- Fila 2: En Proceso, Calificados, Terminados --}}
+            <button type="button" id="btn-filter-en-proceso" onclick="aplicarFiltro('en-proceso')"
+                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
+                <i class="fa-solid fa-play-circle text-2xl mb-2 block"></i>
+                <div class="font-semibold text-sm">En Proceso</div>
+            </button>
+            <button type="button" id="btn-filter-calificados" onclick="aplicarFiltro('calificados')"
+                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
+                <i class="fa-solid fa-star text-2xl mb-2 block"></i>
+                <div class="font-semibold text-sm">Calificados</div>
+            </button>
             <button type="button" id="btn-filter-terminados" onclick="aplicarFiltro('terminados')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
                 <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">Ver Terminados</div>
+                <div class="font-semibold text-sm">Terminados</div>
             </button>
         </div>
     </div>
@@ -75,54 +79,22 @@
         <table class="min-w-full divide-y divide-gray-200 text-md">
                 <thead class="bg-blue-500 sticky top-0 z-10">
                     <tr>
-                        <th id="th-fecha" class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar por fecha (asc/desc)">
-                            Fecha <span id="sort-fecha-icon" class="ml-1 opacity-80">▲</span>
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Estatus
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Turno
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Telar
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Tipo
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Julio
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Ubicación
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Metros
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Orden
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Tipo
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Cuenta
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Calibre
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Hilo
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Lote
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            No. Prov.
-                        </th>
-                        <th class="px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500">
-                            Hr. Paro
-                        </th>
+                        <th data-sort="fecha" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Fecha <span class="sort-icon ml-1 opacity-80">▲</span> </th>
+                        <th data-sort="estatus" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Estatus <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="turno" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Turno <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="telar" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Telar <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="tipo" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Tipo <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="julio" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Julio <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="ubicacion" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Ubicación <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="metros" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Metros <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="orden" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Orden <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="tipo-atado" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Tipo <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="cuenta" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Cuenta <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="calibre" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Calibre <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="hilo" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Hilo <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="lote" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Lote <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="no-prov" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> No. Prov. <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="hr-paro" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Hr. Paro <span class="sort-icon ml-1 opacity-80"></span> </th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="tb-body">
@@ -131,11 +103,22 @@
                             onclick="selectRow(this, {{ $item->id }})"
                             data-id="{{ $item->id }}"
                             data-fecha="{{ $item->fecha ? $item->fecha->format('Y-m-d') : '9999-99-99' }}"
-                            data-no-julio="{{ $item->no_julio }}"
-                            data-no-orden="{{ $item->no_orden }}"
+                            data-estatus="{{ $item->status_proceso ?? 'Activo' }}"
+                            data-turno="{{ $item->turno ?? '' }}"
+                            data-telar="{{ $item->no_telar ?? '' }}"
+                            data-tipo="{{ $item->tipo ?? '' }}"
+                            data-no-julio="{{ $item->no_julio ?? '' }}"
+                            data-ubicacion="{{ $item->localidad ?? '' }}"
+                            data-metros="{{ $item->metros !== null && $item->metros !== '' ? $item->metros : '-999999' }}"
+                            data-no-orden="{{ $item->no_orden ?? '' }}"
+                            data-tipo-atado="{{ $item->tipo_atado ?? '' }}"
+                            data-cuenta="{{ $item->cuenta ?? '' }}"
+                            data-calibre="{{ $item->calibre !== null && $item->calibre !== '' ? $item->calibre : '-999999' }}"
+                            data-hilo="{{ $item->hilo ?? '' }}"
+                            data-lote="{{ $item->LoteProveedor ?? '' }}"
+                            data-no-prov="{{ $item->NoProveedor ?? '' }}"
                             data-hora-paro="{{ $item->horaParo ?? '' }}"
-                            data-status="{{ $item->status_proceso ?? 'Activo' }}"
-                            data-telar="{{ $item->no_telar ?? '' }}">
+                            data-status="{{ $item->status_proceso ?? 'Activo' }}">
                             <td class="px-2 py-2 whitespace-nowrap text-md">
                                 {{ $item->fecha ? $item->fecha->format('d/m/Y') : '-' }}
                             </td>
@@ -212,15 +195,35 @@
 let selectedRowId = null;
 let selectedRow = null;
 
-// Estado de filtros - Inicializar con el filtro por defecto según área/puesto
+// Estado de filtros - Array de filtros seleccionados (vacíos = ver todos)
 let filterState = {
-    tipo: '{{ $filtroAplicado }}', // Inicializar con el filtro del servidor
-    telaresUsuario: @json($telaresUsuario ?? []), // Telares del usuario si es tejedor
-    esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }} // Si el usuario es tejedor
+    filtros: @json($filtroAplicado === 'todos' ? [] : [$filtroAplicado]),
+    telaresUsuario: @json($telaresUsuario ?? []),
+    esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }}
 };
 
-// Orden por Fecha: asc = más vieja primero (default), desc = más nueva primero
-let fechaSortDir = 'asc';
+// Orden por columnas: column = clave de columna, dir = 'asc' | 'desc'
+let sortState = { column: 'fecha', dir: 'asc' };
+const SORT_NUMERIC_COLUMNS = ['metros', 'calibre', 'julio', 'orden'];
+
+function getDataKey(col) {
+    if (col === 'julio') return 'data-no-julio';
+    if (col === 'orden') return 'data-no-orden';
+    if (col === 'hr-paro') return 'data-hora-paro';
+    return 'data-' + col;
+}
+
+function updateSortIcons() {
+    document.querySelectorAll('.th-sortable .sort-icon').forEach((span, idx) => {
+        const th = span.closest('th');
+        const col = th?.getAttribute('data-sort');
+        if (col === sortState.column) {
+            span.textContent = sortState.dir === 'asc' ? '▲' : '▼';
+        } else {
+            span.textContent = '';
+        }
+    });
+}
 
 // Funciones para el modal de filtros
 function mostrarModalFiltros() {
@@ -239,53 +242,61 @@ function cerrarModalFiltros() {
     }
 }
 
-// Función para aplicar filtros sin recargar
+// Toggle de un filtro (permite elegir 2 o más). Ver Todos limpia el resto.
 function aplicarFiltro(tipo) {
-    filterState.tipo = tipo;
+    if (tipo === 'todos') {
+        filterState.filtros = [];
+    } else {
+        const idx = filterState.filtros.indexOf(tipo);
+        if (idx >= 0) {
+            filterState.filtros.splice(idx, 1);
+        } else {
+            filterState.filtros.push(tipo);
+        }
+    }
     updateFilterButtons();
     applyFilters();
-    cerrarModalFiltros();
 }
 
-// Función para aplicar filtros a las filas
+// Qué status(es) incluye cada clave de filtro
+function statusMatchesFilter(status, noTelar, filterKey) {
+    switch (filterKey) {
+        case 'creados':
+        case 'activo':
+            return status === 'Activo';
+        case 'activo-proceso':
+            return status === 'Activo' || status === 'En Proceso';
+        case 'en-proceso':
+            return status === 'En Proceso';
+        case 'calificados':
+            return status === 'Calificado';
+        case 'terminados':
+            let ok = status === 'Terminado';
+            if (filterState.esTejedor && filterState.telaresUsuario.length > 0) {
+                ok = ok && filterState.telaresUsuario.includes(noTelar);
+            }
+            return ok;
+        default:
+            return false;
+    }
+}
+
+// Función para aplicar filtros a las filas (varios filtros = unión: se muestra si coincide con alguno)
 function applyFilters() {
     const rows = document.querySelectorAll('.table-row');
     const tbody = document.getElementById('tb-body');
     let visibleCount = 0;
+    const filtros = filterState.filtros || [];
 
     rows.forEach(row => {
         const status = row.getAttribute('data-status') || 'Activo';
-        const noTelar = row.getAttribute('data-telar') || ''; // Obtener telar del atributo data
+        const noTelar = row.getAttribute('data-telar') || '';
         let show = true;
 
-        switch (filterState.tipo) {
-            case 'creados':
-                // Solo registros con status Activo (sin registro en AtaMontadoTelas)
-                show = status === 'Activo';
-                break;
-
-            case 'activo-proceso':
-                // Activo y En Proceso
-                show = status === 'Activo' || status === 'En Proceso';
-                break;
-
-            case 'terminados':
-                // Solo Terminados
-                show = status === 'Terminado';
-                // Si es tejedor, también filtrar por sus telares
-                if (filterState.esTejedor && filterState.telaresUsuario.length > 0) {
-                    show = show && filterState.telaresUsuario.includes(noTelar);
-                }
-                break;
-
-            case 'todos':
-            default:
-                // Mostrar todos
-                show = true;
-                break;
+        if (filtros.length > 0) {
+            show = filtros.some(f => statusMatchesFilter(status, noTelar, f));
         }
 
-        // Mostrar/ocultar fila
         if (show) {
             row.style.display = '';
             visibleCount++;
@@ -294,9 +305,8 @@ function applyFilters() {
         }
     });
 
-    // Actualizar badge
     const filterBadge = document.getElementById('filter-badge');
-    if (filterState.tipo !== 'todos') {
+    if (filtros.length > 0) {
         filterBadge?.classList.remove('hidden');
     } else {
         filterBadge?.classList.add('hidden');
@@ -321,80 +331,109 @@ function applyFilters() {
     }
 }
 
-// Actualizar estado visual de botones
+// Actualizar estado visual de botones (varios pueden estar activos)
 function updateFilterButtons() {
-    const btnTodos = document.getElementById('btn-filter-todos');
-    const btnCreados = document.getElementById('btn-filter-creados');
-    const btnActivoProceso = document.getElementById('btn-filter-activo-proceso');
-    const btnTerminados = document.getElementById('btn-filter-terminados');
+    const btns = [
+        document.getElementById('btn-filter-todos'),
+        document.getElementById('btn-filter-creados'),
+        document.getElementById('btn-filter-activo'),
+        document.getElementById('btn-filter-en-proceso'),
+        document.getElementById('btn-filter-calificados'),
+        document.getElementById('btn-filter-terminados')
+    ];
 
-    // Resetear todos los botones
-    [btnTodos, btnCreados, btnActivoProceso, btnTerminados].forEach(btn => {
+    const keyToBtn = {
+        'todos': [btns[0], 'bg-green-100', 'border-green-400', 'text-green-800'],
+        'creados': [btns[1], 'bg-blue-100', 'border-blue-400', 'text-blue-800'],
+        'activo': [btns[2], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
+        'activo-proceso': [btns[2], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
+        'en-proceso': [btns[3], 'bg-yellow-100', 'border-yellow-400', 'text-yellow-800'],
+        'calificados': [btns[4], 'bg-amber-100', 'border-amber-400', 'text-amber-800'],
+        'terminados': [btns[5], 'bg-purple-100', 'border-purple-400', 'text-purple-800']
+    };
+
+    const activeClasses = [
+        'bg-green-100', 'border-green-400', 'text-green-800',
+        'bg-blue-100', 'border-blue-400', 'text-blue-800',
+        'bg-yellow-100', 'border-yellow-400', 'text-yellow-800',
+        'bg-purple-100', 'border-purple-400', 'text-purple-800',
+        'bg-amber-100', 'border-amber-400', 'text-amber-800',
+        'bg-teal-100', 'border-teal-400', 'text-teal-800'
+    ];
+
+    btns.forEach(btn => {
         if (btn) {
-            btn.classList.remove('bg-green-100', 'border-green-400', 'text-green-800',
-                               'bg-blue-100', 'border-blue-400', 'text-blue-800',
-                               'bg-yellow-100', 'border-yellow-400', 'text-yellow-800',
-                               'bg-purple-100', 'border-purple-400', 'text-purple-800');
+            btn.classList.remove(...activeClasses);
             btn.classList.add('bg-gray-50', 'border-gray-300', 'text-gray-700');
         }
     });
 
-    // Aplicar estilos según el filtro activo
-    switch (filterState.tipo) {
-        case 'todos':
-            if (btnTodos) {
-                btnTodos.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
-                btnTodos.classList.add('bg-green-100', 'border-green-400', 'text-green-800');
-            }
-            break;
-        case 'creados':
-            if (btnCreados) {
-                btnCreados.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
-                btnCreados.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-800');
-            }
-            break;
-        case 'activo-proceso':
-            if (btnActivoProceso) {
-                btnActivoProceso.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
-                btnActivoProceso.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800');
-            }
-            break;
-        case 'terminados':
-            if (btnTerminados) {
-                btnTerminados.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
-                btnTerminados.classList.add('bg-purple-100', 'border-purple-400', 'text-purple-800');
-            }
-            break;
+    const filtros = filterState.filtros || [];
+    // Ver Todos activo cuando no hay ningún otro filtro
+    if (filtros.length === 0 && keyToBtn['todos']) {
+        const [btn, ...classes] = keyToBtn['todos'];
+        if (btn) {
+            btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
+            btn.classList.add(...classes);
+        }
     }
+    filtros.forEach(tipo => {
+        const entry = keyToBtn[tipo];
+        if (entry) {
+            const [btn, ...classes] = entry;
+            if (btn) {
+                btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
+                btn.classList.add(...classes);
+            }
+        }
+    });
 }
 
-// Ordenar tabla por fecha (asc/desc)
-function sortTableByFecha() {
+// Ordenar tabla por la columna actual (sortState.column / sortState.dir)
+function sortTable() {
     const tbody = document.getElementById('tb-body');
     if (!tbody) return;
 
     const noResults = tbody.querySelector('tr.no-results');
     if (noResults) noResults.remove();
 
+    const key = getDataKey(sortState.column);
+    const isNumeric = SORT_NUMERIC_COLUMNS.includes(sortState.column);
+
     const rows = Array.from(tbody.querySelectorAll('tr.table-row'));
     rows.sort((a, b) => {
-        const fa = (a.getAttribute('data-fecha') || '9999-99-99');
-        const fb = (b.getAttribute('data-fecha') || '9999-99-99');
-        const cmp = fa.localeCompare(fb);
-        return fechaSortDir === 'asc' ? cmp : -cmp;
+        let va = a.getAttribute(key) ?? '';
+        let vb = b.getAttribute(key) ?? '';
+        let cmp;
+        if (isNumeric) {
+            const na = parseFloat(va) || -999999;
+            const nb = parseFloat(vb) || -999999;
+            cmp = na - nb;
+        } else {
+            cmp = String(va).localeCompare(String(vb), undefined, { numeric: true });
+        }
+        return sortState.dir === 'asc' ? cmp : -cmp;
     });
 
     rows.forEach(tr => tbody.appendChild(tr));
     if (noResults) tbody.appendChild(noResults);
+    updateSortIcons();
 }
 
-// Clic en columna Fecha: alternar asc/desc y reordenar
-document.getElementById('th-fecha')?.addEventListener('click', function(e) {
-    e.stopPropagation();
-    fechaSortDir = fechaSortDir === 'asc' ? 'desc' : 'asc';
-    const icon = document.getElementById('sort-fecha-icon');
-    if (icon) icon.textContent = fechaSortDir === 'asc' ? '▲' : '▼';
-    sortTableByFecha();
+// Clic en cualquier columna ordenable
+document.querySelectorAll('.th-sortable').forEach(th => {
+    th.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const col = this.getAttribute('data-sort');
+        if (!col) return;
+        if (sortState.column === col) {
+            sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortState.column = col;
+            sortState.dir = 'asc';
+        }
+        sortTable();
+    });
 });
 
 // Cerrar modal al hacer clic fuera de él
@@ -407,10 +446,11 @@ document.getElementById('modalFiltros')?.addEventListener('click', function(e) {
 // Abrir modal con el botón
 document.getElementById('btn-open-filters')?.addEventListener('click', mostrarModalFiltros);
 
-// Inicializar filtros al cargar la página
+// Inicializar filtros y orden al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     updateFilterButtons();
     applyFilters();
+    updateSortIcons();
 });
 
 setInterval(refreshStatus, 5000);
@@ -440,9 +480,10 @@ async function refreshStatus() {
                     currentStatusCell.innerHTML = newStatusCell.innerHTML;
                     currentStatusCell.setAttribute('data-status', newStatusCell.getAttribute('data-status'));
 
-                    // Actualizar el atributo data-status de la fila
+                    // Actualizar el atributo data-status y data-estatus de la fila
                     const newStatus = newStatusCell.getAttribute('data-status');
                     row.setAttribute('data-status', newStatus || 'Activo');
+                    row.setAttribute('data-estatus', newStatus || 'Activo');
                 }
 
                 // Actualizar telar si cambió
@@ -453,8 +494,9 @@ async function refreshStatus() {
             }
         });
 
-        // Reaplicar filtros después de actualizar
+        // Reaplicar filtros y orden después de actualizar
         applyFilters();
+        sortTable();
 
         // Restaurar la selección después de actualizar solo si todavía existe
         if (currentSelectedId) {

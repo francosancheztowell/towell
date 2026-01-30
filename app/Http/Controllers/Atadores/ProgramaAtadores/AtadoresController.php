@@ -85,8 +85,8 @@ class AtadoresController extends Controller
                     ->pluck('NoTelarId')
                     ->toArray();
             } elseif ($esAreaAtadores || in_array($puestoNorm, ['atador', 'atadores'], true)) {
-                // Área Atadores (o puesto atador/atadores): ver solo Activo y En Proceso
-                $filtroAplicado = 'activo-proceso';
+                // Área Atadores (o puesto atador/atadores): ver solo Activo por defecto
+                $filtroAplicado = 'activo';
             } elseif ($puestoNorm === 'supervisor') {
                 $filtroAplicado = 'terminados';
             }

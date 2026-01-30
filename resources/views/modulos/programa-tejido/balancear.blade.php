@@ -1152,5 +1152,91 @@
         });
       };
 
+      // ==========================
+      // Control del botón Balancear según selección
+      // ==========================
+      function updateBalancearButton(rowElement) {
+        const btn = document.getElementById('btnBalancear');
+        if (!btn) return;
+
+        if (!rowElement) {
+          // Sin selección: botón deshabilitado y gris
+          btn.disabled = true;
+          btn.classList.remove('bg-green-500', 'hover:bg-green-600');
+          btn.classList.add('bg-gray-400', 'hover:bg-gray-500');
+          btn.title = 'Balancear (selecciona un registro con orden compartida)';
+          return;
+        }
+
+        const ordCompartida = rowElement.getAttribute('data-ord-compartida');
+        const tieneOrdCompartida = ordCompartida && 
+                                   ordCompartida.trim() !== '' && 
+                                   ordCompartida !== '0' && 
+                                   ordCompartida.toLowerCase() !== 'null';
+
+        if (tieneOrdCompartida) {
+          // Tiene OrdCompartida: botón habilitado y verde
+          btn.disabled = false;
+          btn.classList.remove('bg-gray-400', 'hover:bg-gray-500');
+          btn.classList.add('bg-green-500', 'hover:bg-green-600');
+          btn.title = `Balancear orden compartida: ${ordCompartida.trim()}`;
+        } else {
+          // No tiene OrdCompartida: botón deshabilitado y gris
+          btn.disabled = true;
+          btn.classList.remove('bg-green-500', 'hover:bg-green-600');
+          btn.classList.add('bg-gray-400', 'hover:bg-gray-500');
+          btn.title = 'Balancear (este registro no tiene orden compartida)';
+        }
+      }
+
+      // Listener para cambios de selección
+      document.addEventListener('pt:selection-changed', function(e) {
+        const { rowElement } = e.detail || {};
+        updateBalancearButton(rowElement);
+      });
+
+      // Función para abrir balanceo desde la fila seleccionada
+      window.abrirBalancearDesdeSeleccion = function() {
+        const rows = Array.from(document.querySelectorAll('.selectable-row'));
+        const selectedRow = rows.find(r => r.classList.contains('bg-blue-700') || r.classList.contains('bg-blue-400'));
+        
+        if (!selectedRow) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Sin selección',
+            text: 'Selecciona un registro con orden compartida para balancear.'
+          });
+          return;
+        }
+
+        const ordCompartida = selectedRow.getAttribute('data-ord-compartida');
+        if (!ordCompartida || ordCompartida.trim() === '' || ordCompartida === '0' || ordCompartida.toLowerCase() === 'null') {
+          Swal.fire({
+            icon: 'info',
+            title: 'Sin orden compartida',
+            text: 'El registro seleccionado no tiene orden compartida para balancear.'
+          });
+          return;
+        }
+
+        // Abrir modal de balanceo para este grupo
+        if (typeof window.verDetallesGrupoBalanceo === 'function') {
+          window.verDetallesGrupoBalanceo(parseInt(ordCompartida.trim()));
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'La función de balanceo no está disponible.'
+          });
+        }
+      };
+
+      // Inicializar estado del botón al cargar
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => updateBalancearButton(null));
+      } else {
+        updateBalancearButton(null);
+      }
+
     })();
     </script>

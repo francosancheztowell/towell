@@ -597,13 +597,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
+                const folio = (result.data && result.data.folio) ? result.data.folio : (result.folio || '—');
+                const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                const mensajeHtml = 'Folio: <strong>' + esc(folio) + '</strong>' + (result.message ? '<br><br>' + esc(result.message) : '');
                 // Mostrar mensaje de éxito con SweetAlert
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'success',
                         title: 'Reportado correctamente',
-                        text: result.message || 'El paro ha sido reportado correctamente',
-                        timer: 2000,
+                        html: mensajeHtml,
+                        timer: 6000,
                         showConfirmButton: false
                     }).then(() => {
                         // Volver a la página anterior

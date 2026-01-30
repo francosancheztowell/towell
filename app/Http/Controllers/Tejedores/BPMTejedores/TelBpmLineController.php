@@ -78,12 +78,8 @@ class TelBpmLineController extends Controller
             // Si falla la inicialización, continuamos mostrando lo disponible
         }
 
-        // Obtener comentarios existentes
-        $comentarios = DB::table('TelBPMLine')
-            ->where('Folio', $folio)
-            ->where('Orden', 0)
-            ->where('NoTelarId', 'COMENT')
-            ->value('comentarios') ?? '';
+        // Comentarios ahora en TelBPM.Comentarios (no en TelBPMLine)
+        $comentarios = $header->Comentarios ?? '';
 
         // Determinar si el usuario actual es Supervisor
         $esSupervisor = false;
@@ -214,7 +210,7 @@ class TelBpmLineController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** Actualizar comentarios del folio */
+    /** Actualizar comentarios del folio (guardados en TelBPM.Comentarios) */
     public function updateComentarios(Request $request, string $folio)
     {
         $header = TelBpmModel::findOrFail($folio);
@@ -224,27 +220,25 @@ class TelBpmLineController extends Controller
         }
 
         $data = $request->validate([
-            'Comentarios' => ['nullable','string','max:1000'],
+            'Comentarios' => ['nullable','string','max:150'],
         ]);
 
-        try {
-            // Buscar si ya existe un registro de comentarios (usando Orden = 0 como identificador especial)
-            DB::table('TelBPMLine')->updateOrInsert(
-                [
-                    'Folio' => $folio,
-                    'Orden' => 0, // Orden especial para comentarios
-                    'NoTelarId' => 'COMENT', // Acortado para evitar truncamiento
-                    'Actividad' => 'COMENTARIOS', // Acortado
-                ],
-                [
-                    'comentarios' => $data['Comentarios'] ?? null,
-                    'TurnoRecibe' => substr((string)$header->TurnoRecibe, 0, 10), // Limitar a 10 caracteres
-                    'SalonTejidoId' => null,
-                    'Valor' => null,
-                ]
-            );
+        $valor = $data['Comentarios'] ?? null;
+        if ($valor !== null) {
+            $valor = trim($valor);
+            if ($valor === '') {
+                $valor = null;
+            }
+        }
 
-            return response()->json(['ok' => true, 'msg' => 'Comentarios guardados']);
+        try {
+            $header->Comentarios = $valor;
+            $header->save();
+
+            $msg = $valor === null || $valor === ''
+                ? 'Comentarios actualizados.'
+                : 'Comentario guardado correctamente.';
+            return response()->json(['ok' => true, 'msg' => $msg]);
         } catch (\Throwable $e) {
             return response()->json(['ok' => false, 'msg' => $e->getMessage()], 500);
         }

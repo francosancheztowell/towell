@@ -8,9 +8,11 @@ use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Helpers\TurnoHelper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Models\Tejedores\TelActividadesBPM;
 
 class TelBpmController extends Controller
 {
@@ -31,12 +33,7 @@ class TelBpmController extends Controller
         $perPage = (int) $request->get('per_page', 1000); // Cargar más datos para filtrar en cliente
 
         $items = TelBpmModel::query()
-            ->leftJoin('TelBPMLine', function($join) {
-                $join->on('TelBPM.Folio', '=', 'TelBPMLine.Folio')
-                     ->where('TelBPMLine.Orden', '=', 0)
-                     ->where('TelBPMLine.NoTelarId', '=', 'COMENT');
-            })
-            ->select('TelBPM.*', 'TelBPMLine.comentarios as Comentarios')
+            ->select('TelBPM.*')
             ->when($q !== '', function ($qry) use ($q) {
                 $qry->where('TelBPM.Folio', 'like', "%{$q}%")
                     ->orWhere('TelBPM.CveEmplRec', 'like', "%{$q}%")
@@ -53,10 +50,10 @@ class TelBpmController extends Controller
         // Prefills para modal crear (estructura de 3 filas)
         $turnoActual = TurnoHelper::getTurnoActual();
         $fechaActual = Carbon::now('America/Mexico_City');
-        $user = auth()->user();
-        $userCode    = (string) ($user->cve ?? '');
-        $userCodeAlt = (string) ($user->numero_empleado ?? '');
-        $userName    = (string) ($user->name ?? $user->nombre ?? '');
+        $user = Auth::user();
+        $userCode    = $user ? (string) ($user->cve ?? '') : '';
+        $userCodeAlt = $user ? (string) ($user->numero_empleado ?? '') : '';
+        $userName    = $user ? (string) ($user->name ?? $user->nombre ?? '') : '';
 
         // Quien RECIBE: usuario actual en TelTelaresOperador (busca por varias llaves)
         $operadorUsuario = null;
@@ -128,11 +125,11 @@ class TelBpmController extends Controller
             'TurnoEntrega'  => ['required','string','max:10'],
         ]);
 
-        // Defaults automáticos si no vienen en request (ajusta con tus helpers de usuario)
-        // Valores por defecto seguros cuando no vienen en el request
-        $data['CveEmplRec']    = $data['CveEmplRec']    ?? ((string) (auth()->user()->cve ?? null));
-        $data['NombreEmplRec'] = $data['NombreEmplRec'] ?? ((string) (auth()->user()->name ?? null));
-        $data['TurnoRecibe']   = $data['TurnoRecibe']   ?? ((string) request()->get('turno_actual', '1'));
+        // Valores por defecto cuando no vienen en el request (usuario autenticado)
+        $user = Auth::user();
+        $data['CveEmplRec']    = $data['CveEmplRec']    ?? ($user ? (string) ($user->cve ?? $user->numero_empleado ?? '') : '');
+        $data['NombreEmplRec'] = $data['NombreEmplRec'] ?? ($user ? (string) ($user->name ?? $user->nombre ?? '') : '');
+        $data['TurnoRecibe']   = $data['TurnoRecibe']   ?? (string) request()->get('turno_actual', '1');
 
         // Permitir múltiples folios activos - se eliminó la restricción anterior
 
@@ -194,15 +191,15 @@ class TelBpmController extends Controller
 
         // Inicializar líneas del checklist (todas las combinaciones Actividad x Telar)
         try {
-            $header = \App\Models\Tejedores\TelBpmModel::findOrFail($folio);
+            $header = TelBpmModel::findOrFail($folio);
             // Catálogo de actividades
-            $actividades = \App\Models\Tejedores\TelActividadesBPM::orderBy('Orden')->get(['Orden','Actividad'])
+            $actividades = TelActividadesBPM::orderBy('Orden')->get(['Orden','Actividad'])
                 ->map(fn($a)=>['Orden'=>$a->Orden, 'Actividad'=>$a->Actividad]);
             // Telares asignados al usuario que recibe
             $telares = collect();
             $salonPorTelar = [];
             try {
-                $asignados = \App\Models\Tejedores\TelTelaresOperador::query()
+                $asignados = TelTelaresOperador::query()
                     ->where('numero_empleado', (string)$header->CveEmplRec)
                     ->get(['NoTelarId','SalonTejidoId']);
                 $telares = $asignados->pluck('NoTelarId')->filter()->unique()->values();
@@ -210,18 +207,18 @@ class TelBpmController extends Controller
             } catch (\Throwable $e) {
                 $telares = collect();
             }
-            \DB::transaction(function () use ($folio, $header, $actividades, $telares, $salonPorTelar) {
+            DB::transaction(function () use ($folio, $header, $actividades, $telares, $salonPorTelar) {
                 foreach ($actividades as $a) {
                     $orden = (int)$a['Orden'];
                     $actividad = (string)$a['Actividad'];
                     foreach ($telares as $t) {
-                        $exists = \DB::table('TelBPMLine')
+                        $exists = DB::table('TelBPMLine')
                             ->where('Folio', $folio)
                             ->where('Orden', $orden)
                             ->where('NoTelarId', (string)$t)
                             ->exists();
                         if (!$exists) {
-                            \DB::table('TelBPMLine')->insert([
+                            DB::table('TelBPMLine')->insert([
                                 'Folio'         => $folio,
                                 'Orden'         => $orden,
                                 'NoTelarId'     => (string)$t,
@@ -281,17 +278,14 @@ class TelBpmController extends Controller
 
     /* ===================== Helpers ===================== */
 
-    /** Verifica permisos con tu helper; si no existe, deja pasar (para desarrollo) */
+    /** Verifica permisos con userCan (action, module). Si el helper no existe, deja pasar. */
     private function checkPerm(string $accion): void
     {
-        // TODO: reemplaza por tu helper real de permisos
-        // Ejemplo: if (!\Permission::can('BPM', $accion)) abort(403);
         try {
-            if (function_exists('permission_can')) {
-                if (!permission_can('BPM', $accion)) abort(403);
+            if (function_exists('userCan') && !userCan($accion, 'BPM')) {
+                abort(403);
             }
         } catch (\Throwable $e) {
-            // en dev, no bloqueamos si el helper no está disponible
             Log::debug('Perm helper no disponible: '.$e->getMessage());
         }
     }

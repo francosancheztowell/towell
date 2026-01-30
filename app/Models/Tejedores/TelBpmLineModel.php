@@ -13,13 +13,9 @@ class TelBpmLineModel extends Model
 
     protected $table = 'TelBPMLine';
 
-    /**
-     * Esta tabla NO tiene PK. Con Eloquent:
-     * - Inserts: OK con create()/save()
-     * - Updates/Deletes: usa query builder con condiciones (ver notas abajo).
-     */
-    protected $primaryKey = null;
-    public $incrementing = false;
+    protected $primaryKey = 'Id';
+    public $incrementing = true;
+    protected $keyType = 'integer';
     public $timestamps = false;
 
     protected $fillable = [
@@ -30,7 +26,6 @@ class TelBpmLineModel extends Model
         'Orden',
         'Actividad',
         'Valor',
-        'comentarios',
     ];
 
     protected $casts = [

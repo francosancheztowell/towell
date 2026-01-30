@@ -15,15 +15,20 @@
         @if(!empty($esSupervisor) && $esSupervisor)
             <form method="POST" action="{{ route('tel-bpm.authorize', $header->Folio) }}" id="form-authorize" class="inline">
                 @csrf @method('PATCH')
-                <button type="button" class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition" id="btn-authorize">
-                    <i class="fa-solid fa-thumbs-up mr-1"></i>Autorizar
-                </button>
+                <x-navbar.button-create
+                type="button"
+                title="Autorizar"
+                text="Autorizar"
+                id="btn-authorize"/>
             </form>
             <form method="POST" action="{{ route('tel-bpm.reject', $header->Folio) }}" id="form-reject" class="inline">
                 @csrf @method('PATCH')
-                <button type="button" class="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition" id="btn-reject">
-                    <i class="fa-solid fa-times mr-1"></i>Rechazar
-                </button>
+                <x-navbar.button-delete
+                type="button"
+                title="Rechazar"
+                text="Rechazar"
+                id="btn-reject"
+                :disabled="false"/>
             </form>
         @else
             <button type="button" class="px-4 py-2 bg-green-300 text-white rounded-lg cursor-not-allowed" title="Solo un supervisor puede autorizar" disabled>Autorizar</button>
@@ -119,24 +124,20 @@
     {{-- Sección de Comentarios --}}
     <div class="bg-white rounded-lg border p-2 mt-2">
         <div class="flex items-center justify-between mb-2">
-            <h3 class="text-base font-semibold text-gray-700">
-                <i class="fa-solid fa-comment text-blue-600 mr-1"></i>Comentarios
-            </h3>
-            @if($header->Status === 'Creado')
-                <button id="btn-save-comentarios" class="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:opacity-50 text-sm">
-                    <i class="fa-solid fa-save mr-1"></i>Guardar
-                </button>
-            @endif
+            <h3 class="text-base font-semibold text-gray-700">Comentarios</h3>
+            <span id="comentarios-status" class="text-xs text-slate-400"></span>
         </div>
         <textarea
             id="comentarios-textarea"
             rows="3"
-            maxlength="1000"
+            maxlength="150"
             placeholder="Ingrese comentarios..."
             class="w-full rounded border px-2 py-1 text-sm resize-none focus:ring-1 focus:ring-blue-500 {{ $header->Status !== 'Creado' ? 'bg-gray-50' : '' }}"
             {{ $header->Status !== 'Creado' ? 'readonly' : '' }}
         >{{ $comentarios }}</textarea>
-
+        <div class="text-right text-xs text-slate-500 mt-1">
+            <span id="char-count">{{ strlen($comentarios ?? '') }}</span>/150
+        </div>
     </div>
 </div>
 
@@ -271,40 +272,36 @@
         });
     }
 
-    // Manejo de comentarios
+    // Comentarios: guardado automático 3 segundos después de dejar de escribir
     const comentariosTextarea = document.getElementById('comentarios-textarea');
-    const btnSaveComentarios = document.getElementById('btn-save-comentarios');
     const charCount = document.getElementById('char-count');
+    const comentariosStatus = document.getElementById('comentarios-status');
     const comentariosUrl = @json(route('tel-bpm-line.comentarios', $header->Folio));
+    const COMENTARIOS_DEBOUNCE_MS = 3000;
+    let comentariosDebounceTimer = null;
+    let lastSavedComentarios = (function() {
+        var c = @json($comentarios ?? '');
+        return typeof c === 'string' ? c : '';
+    })();
 
-    // Contador de caracteres
-    comentariosTextarea?.addEventListener('input', function() {
-        const count = this.value.length;
-        charCount.textContent = count;
-        if (count > 1000) {
-            charCount.classList.add('text-red-500');
-        } else {
-            charCount.classList.remove('text-red-500');
-        }
-    });
+    function setComentariosStatus(text, isError) {
+        if (!comentariosStatus) return;
+        comentariosStatus.textContent = text;
+        comentariosStatus.className = 'text-xs ' + (isError ? 'text-red-500' : 'text-slate-400');
+    }
 
-    // Guardar comentarios
-    btnSaveComentarios?.addEventListener('click', async function() {
-        if (!editable) {
-            toast('info', 'Edición no permitida');
-            return;
-        }
-
+    async function saveComentarios() {
+        if (!editable || !comentariosTextarea) return;
         const comentarios = comentariosTextarea.value;
-        if (comentarios.length > 1000) {
-            toast('error', 'Los comentarios exceden el límite de 1000 caracteres');
+        if (comentarios.length > 150) {
+            toast('error', 'Los comentarios no pueden superar 150 caracteres.');
             return;
         }
+        var comentariosNorm = comentarios.trim();
+        if (comentariosNorm === (typeof lastSavedComentarios === 'string' ? lastSavedComentarios.trim() : '')) return;
 
+        setComentariosStatus('Guardando...', false);
         try {
-            btnSaveComentarios.disabled = true;
-            btnSaveComentarios.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Guardando...';
-
             const response = await fetch(comentariosUrl, {
                 method: 'POST',
                 headers: {
@@ -312,24 +309,44 @@
                     'X-CSRF-TOKEN': csrf,
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    Comentarios: comentarios
-                })
+                body: JSON.stringify({ Comentarios: comentarios })
             });
 
-            const data = await response.json();
+            var data = {};
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = { ok: false, msg: 'Respuesta no válida del servidor' };
+            }
 
             if (response.ok && data.ok) {
-                toast('success', data.msg || 'Comentarios guardados');
+                lastSavedComentarios = comentarios;
+                setComentariosStatus('Guardado', false);
+                setTimeout(function() { setComentariosStatus('', false); }, 2000);
+                toast('success', data.msg || 'Comentario guardado correctamente.');
             } else {
-                toast('error', data.msg || 'Error al guardar comentarios');
+                setComentariosStatus('Error', true);
+                toast('error', data.msg || 'No se pudo guardar el comentario.');
             }
         } catch (error) {
-            toast('error', 'Error de conexión');
-        } finally {
-            btnSaveComentarios.disabled = false;
-            btnSaveComentarios.innerHTML = '<i class="fa-solid fa-save mr-1"></i>Guardar';
+            setComentariosStatus('Error de conexión', true);
+            toast('error', 'Error de conexión. Intente de nuevo.');
         }
+    }
+
+    // Contador de caracteres y debounce para guardar (3 s)
+    comentariosTextarea?.addEventListener('input', function() {
+        const count = this.value.length;
+        if (charCount) charCount.textContent = count;
+        if (count > 150) {
+            comentariosTextarea.classList.add('border-red-500');
+        } else {
+            comentariosTextarea.classList.remove('border-red-500');
+        }
+
+        if (!editable) return;
+        if (comentariosDebounceTimer) clearTimeout(comentariosDebounceTimer);
+        comentariosDebounceTimer = setTimeout(saveComentarios, COMENTARIOS_DEBOUNCE_MS);
     });
 })();
 </script>

@@ -30,6 +30,7 @@ class TelBpmModel extends Model
         'CveEmplAutoriza',
         'NomEmplAutoriza',
         'Status',
+        'Comentarios',
     ];
 
     protected $casts = [
