@@ -15,6 +15,24 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* Fondo compatible con iPad/Safari: rellena viewport y gradiente con prefijo WebKit */
+        html {
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+        }
+        body {
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            background: #93c5fd;
+            background: -webkit-linear-gradient(to bottom, #60a5fa, #93c5fd);
+            background: linear-gradient(to bottom, #60a5fa, #93c5fd);
+        }
+        /* Mismo fondo en main para que en iPad el scroll muestre el gradiente */
+        main.app-main {
+            background: #93c5fd;
+            background: -webkit-linear-gradient(to bottom, #60a5fa, #93c5fd);
+            background: linear-gradient(to bottom, #60a5fa, #93c5fd);
+        }
     </style>
 </head>
 
@@ -25,7 +43,7 @@
 
   <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 
-        <main class="overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: 64px; height: 100vh; max-height: 100vh;">
+        <main class="app-main overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: 64px; height: 100vh; max-height: 100vh; min-height: -webkit-fill-available;">
             @yield('content')
         </main>
 
