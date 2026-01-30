@@ -5,7 +5,7 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
-        onclick="document.getElementById('createModal').classList.remove('hidden')"
+        onclick="openCreateModal()"
         title="Crear Nueva Fórmula"
         module="Captura de Formula"
         />
@@ -130,7 +130,7 @@
 
                 <!-- Sección 1: Datos principales (3 columnas) -->
                 <div class="mb-4">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Folio (Programa Engomado) <span class="text-red-600">*</span></label>
                             <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
@@ -502,14 +502,92 @@
 
         function selectRow(row, folio) {
             if (selectedRow) {
-                selectedRow.classList.remove('bg-purple-100');
+                selectedRow.classList.remove('bg-blue-100');
             }
 
             selectedRow = row;
             selectedFolio = folio;
-            row.classList.add('bg-purple-100');
+            row.classList.add('bg-blue-100');
 
             enableButtons();
+        }
+
+        function openCreateModal() {
+            const modal = document.getElementById('createModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+
+            if (!selectedRow || !selectedFolio) {
+                return;
+            }
+
+            const select = document.getElementById('create_folio_prog');
+            if (select) {
+                const existeFolio = Array.from(select.options).some(option => option.value === selectedFolio);
+                if (existeFolio) {
+                    select.value = selectedFolio;
+                    cargarDatosPrograma(select, false);
+                }
+            }
+
+            const cells = selectedRow.cells;
+            const fechaTexto = (cells[1]?.textContent || '').trim();
+            const horaTexto = (cells[2]?.textContent || '').trim();
+            const ollaTexto = (cells[8]?.textContent || '').trim();
+            const formulaTexto = (cells[9]?.textContent || '').trim();
+            const kilosTexto = (cells[10]?.textContent || '').trim().replace(/,/g, '');
+            const litrosTexto = (cells[11]?.textContent || '').trim().replace(/,/g, '');
+            const tiempoTexto = (cells[12]?.textContent || '').trim().replace(/,/g, '');
+            const solidosTexto = (cells[13]?.textContent || '').trim().replace(/,/g, '');
+            const viscocidadTexto = (cells[14]?.textContent || '').trim().replace(/,/g, '');
+
+            const fechaInput = document.querySelector('#createModal input[name="fecha"]');
+            if (fechaInput && fechaTexto.includes('/')) {
+                const partes = fechaTexto.split('/');
+                if (partes.length === 3) {
+                    const [dia, mes, anio] = partes;
+                    fechaInput.value = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+                }
+            }
+
+            const horaInput = document.getElementById('create_hora');
+            if (horaInput && horaTexto) {
+                horaInput.value = horaTexto;
+            }
+
+            const ollaInput = document.getElementById('create_olla');
+            if (ollaInput && ollaTexto) {
+                ollaInput.value = ollaTexto;
+            }
+
+            const formulaInput = document.getElementById('create_formula');
+            if (formulaInput && formulaTexto) {
+                formulaInput.value = formulaTexto;
+                formulaCreateActual = formulaTexto;
+            }
+
+            const kilosInput = document.getElementById('create_kilos');
+            if (kilosInput) {
+                kilosInput.value = kilosTexto || '';
+                kilosCreateFormula = parseFloat(kilosTexto) || 0;
+                if (componentesCreateData.length > 0) {
+                    renderizarTablaComponentesCreate();
+                }
+            }
+
+            const litrosInput = document.getElementById('create_litros');
+            if (litrosInput) litrosInput.value = litrosTexto || '';
+            const tiempoInput = document.getElementById('create_tiempo');
+            if (tiempoInput) tiempoInput.value = tiempoTexto || '';
+            const solidosInput = document.getElementById('create_solidos');
+            if (solidosInput) solidosInput.value = solidosTexto || '';
+            const viscocidadInput = document.getElementById('create_viscocidad');
+            if (viscocidadInput) viscocidadInput.value = viscocidadTexto || '';
+
+            if (formulaTexto && (!select || select.value !== selectedFolio)) {
+                cargarComponentesCreate(formulaTexto);
+            }
         }
 
         function enableButtons() {
