@@ -10,11 +10,14 @@
         module="Captura de Formula"
         />
         <x-navbar.button-delete
+        id="btn-delete"
         onclick="confirmDelete()"
         title="Eliminar Fórmula"
         module="Captura de Formula"
+        :disabled="true"
         />
         <x-navbar.button-report
+        id="btn-autorizar"
         onclick="confirmAutorizar()"
         title="Autorizar"
         bg="bg-green-600"
@@ -23,24 +26,37 @@
         hoverBg="hover:bg-green-600"
         class="text-white"
         module="Captura de Formula"
+        :disabled="true"
+        />
+        <x-navbar.button-edit
+        id="btn-edit"
+        onclick="openEditModal()"
+        title="Editar"
+        bg="bg-purple-500"
+        text="Editar"
+        iconColor="text-white"
+        hoverBg="hover:bg-purple-300"
+        class="text-white"
+        module="Captura de Formula"
+        :disabled="true"
+        />
+        <x-navbar.button-edit
+        id="btn-view"
+        onclick="openViewModal()"
+        title="Ver"
+        bg="bg-orange-500"
+        text="Ver"
+        iconColor="text-white"
+        icon="fa-list"
+        hoverBg="hover:bg-orange-300"
+        class="text-white"
+        module="Captura de Formula"
+        :disabled="true"
         />
     </div>
 @endsection
 
 @section('content')
-    @if(session('success'))
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                Swal.fire({
-                    icon: 'success',
-                    title: '{{ session('success') }}',
-                    showConfirmButton: false,
-                    timer: 1000,
-                    timerProgressBar: true
-                });
-            });
-        </script>
-    @endif
     @if(session('error'))
         <script>
             document.addEventListener('DOMContentLoaded', function() {
@@ -56,7 +72,7 @@
 
     <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-4 mx-4" style="max-height: 70vh;">
         <table id="formulaTable" class="min-w-full text-sm">
-            <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+            <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white ">
                 <tr>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Orden</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Fecha</th>
@@ -77,7 +93,27 @@
             </thead>
             <tbody>
                 @forelse($items as $item)
-                    <tr class="border-b hover:bg-blue-100 cursor-pointer transition-colors" onclick="selectRow(this, '{{ $item->Folio }}')">
+                    <tr class="border-b hover:bg-blue-100 cursor-pointer transition-colors"
+                        onclick="selectRow(this, '{{ $item->Folio }}')"
+                        data-folio="{{ $item->Folio }}"
+                        data-fecha="{{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('Y-m-d') : '' }}"
+                        data-hora="{{ $item->Hora ? substr($item->Hora, 0, 5) : '' }}"
+                        data-status="{{ $item->Status }}"
+                        data-cuenta="{{ $item->Cuenta }}"
+                        data-calibre="{{ $item->Calibre }}"
+                        data-tipo="{{ $item->Tipo }}"
+                        data-nomempl="{{ $item->NomEmpl }}"
+                        data-cveempl="{{ $item->CveEmpl ?? '' }}"
+                        data-olla="{{ $item->Olla }}"
+                        data-formula="{{ $item->Formula }}"
+                        data-kilos="{{ $item->Kilos }}"
+                        data-litros="{{ $item->Litros }}"
+                        data-tiempo="{{ $item->TiempoCocinado }}"
+                        data-solidos="{{ $item->Solidos }}"
+                        data-viscocidad="{{ $item->Viscocidad }}"
+                        data-maquina="{{ $item->MaquinaId ?? '' }}"
+                        data-prodid="{{ $item->ProdId ?? '' }}"
+                    >
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             {{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('d/m/Y') : '' }}
@@ -133,7 +169,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Folio (Programa Engomado) <span class="text-red-600">*</span></label>
-                            <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this, false)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
                                 <option value="">-- Seleccione un Folio --</option>
                                 @foreach($foliosPrograma as $prog)
                                     <option value="{{ $prog->Folio }}"
@@ -269,7 +305,7 @@
     <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
-                <h3 class="text-xl font-semibold">Editar Formulación</h3>
+                <h3 id="edit_modal_title" class="text-xl font-semibold">Editar Formulación</h3>
                 <button onclick="document.getElementById('editModal').classList.add('hidden')" class="text-white hover:text-gray-200 transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -394,10 +430,10 @@
                             class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                         <i class="fa-solid fa-times mr-2"></i>Cancelar
                     </button>
-                    <button type="button" onclick="abrirModalComponentes()" class="px-6 py-3 text-base font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg hover:shadow-xl">
+                    <button id="btn-ver-componentes" type="button" onclick="abrirModalComponentes()" class="px-6 py-3 text-base font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg hover:shadow-xl">
                         <i class="fa-solid fa-flask mr-2"></i>Ver Componentes
                     </button>
-                    <button type="submit" class="px-6 py-3 text-base font-medium bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition shadow-lg hover:shadow-xl">
+                    <button id="btn-edit-submit" type="submit" class="px-6 py-3 text-base font-medium bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition shadow-lg hover:shadow-xl">
                         <i class="fa-solid fa-check mr-2"></i>Actualizar
                     </button>
                 </div>
@@ -442,7 +478,7 @@
                     <!-- Toolbar -->
                     <div class="bg-blue-50 rounded-lg p-4 mb-4 flex justify-between items-center">
                         <div class="flex gap-3">
-                            <button onclick="nuevoComponente()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                            <button id="btn-nuevo-componente" onclick="nuevoComponente()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                                 <i class="fa-solid fa-plus mr-2"></i>Nuevo
                             </button>
                             <button id="btn-editar-componente" onclick="editarComponente()" disabled class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
@@ -499,12 +535,12 @@
     <script>
         let selectedRow = null;
         let selectedFolio = null;
+        let viewOnlyMode = false;
 
         function selectRow(row, folio) {
-            if (selectedRow) {
-                selectedRow.classList.remove('bg-blue-100');
-            }
-
+            document.querySelectorAll('#formulaTable tbody tr.bg-blue-100, #formulaTable tbody tr.bg-blue-500').forEach(existing => {
+                existing.classList.remove('bg-blue-100', 'bg-blue-500');
+            });
             selectedRow = row;
             selectedFolio = folio;
             row.classList.add('bg-blue-100');
@@ -590,8 +626,18 @@
             }
         }
 
+        function disableButtons() {
+            ['btn-edit', 'btn-view', 'btn-autorizar', 'btn-delete'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            });
+        }
+
         function enableButtons() {
-            ['btn-edit', 'btn-autorizar', 'btn-delete'].forEach(id => {
+            ['btn-edit', 'btn-view', 'btn-autorizar', 'btn-delete'].forEach(id => {
                 const btn = document.getElementById(id);
                 if (btn) {
                     btn.disabled = false;
@@ -610,19 +656,111 @@
                 return;
             }
 
-            const cells = selectedRow.cells;
+            viewOnlyMode = false;
+            setEditModalReadOnly(false);
+            fillEditModalFromRow(selectedRow);
 
-            // Orden: cells[0] = Folio (Orden), cells[1] = Fecha, cells[2] = Hr, cells[3] = Status,
-            // Cuenta: cells[4], Calibre: cells[5], Tipo: cells[6], Operador: cells[7], Olla: cells[8],
-            // Formula: cells[9], Kg: cells[10], Litros: cells[11], Tiempo: cells[12],
-            // Solidos: cells[13], Viscocidad: cells[14]
+            document.getElementById('editModal').classList.remove('hidden');
+        }
 
-            // Usar la Formula (cells[9]) del registro seleccionado para buscar componentes en BOMVersion
-            formulaActual = cells[9].textContent.trim(); // La Formula del registro
-            const kilosValue = cells[10].textContent.trim().replace(/,/g, '');
+        function openViewModal() {
+            if (!selectedRow) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Ningún registro seleccionado',
+                    confirmButtonColor: '#a855f7'
+                });
+                return;
+            }
 
-            // Abrir directamente el modal de componentes usando la Formula como referencia
-            abrirModalComponentes(kilosValue);
+            viewOnlyMode = true;
+            setEditModalReadOnly(true);
+            fillEditModalFromRow(selectedRow);
+
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function setEditModalReadOnly(isReadOnly) {
+            const modal = document.getElementById('editModal');
+            const title = document.getElementById('edit_modal_title');
+            const submitBtn = document.getElementById('btn-edit-submit');
+            const fields = modal ? modal.querySelectorAll('input, select, textarea') : [];
+
+            fields.forEach(field => {
+                if (isReadOnly) {
+                    field.setAttribute('disabled', 'disabled');
+                } else {
+                    field.removeAttribute('disabled');
+                }
+            });
+
+            if (submitBtn) {
+                submitBtn.classList.toggle('hidden', isReadOnly);
+            }
+            if (title) {
+                title.textContent = isReadOnly ? 'Ver Formulación' : 'Editar Formulación';
+            }
+        }
+
+        function fillEditModalFromRow(row) {
+            const data = row.dataset || {};
+            const editForm = document.getElementById('editForm');
+            if (editForm && data.folio) {
+                editForm.action = `/eng-formulacion/${data.folio}`;
+            }
+
+            const horaInput = document.getElementById('edit_hora');
+            if (horaInput) horaInput.value = data.hora || '';
+
+            const maquinaSelect = document.getElementById('edit_maquina');
+            if (maquinaSelect) maquinaSelect.value = data.maquina || '';
+
+            const cuentaInput = document.getElementById('edit_cuenta');
+            if (cuentaInput) cuentaInput.value = data.cuenta || '';
+
+            const empleadoSelect = document.getElementById('edit_empleado');
+            if (empleadoSelect) {
+                empleadoSelect.value = data.nomempl || '';
+                if (data.nomempl) {
+                    fillEmpleadoEdit(empleadoSelect);
+                }
+            }
+
+            const cveInput = document.getElementById('edit_cve_empl');
+            if (cveInput) cveInput.value = data.cveempl || '';
+
+            const ollaInput = document.getElementById('edit_olla');
+            if (ollaInput) ollaInput.value = data.olla || '';
+
+            const formulaInput = document.getElementById('edit_formula');
+            if (formulaInput) formulaInput.value = data.formula || '';
+
+            const prodInput = document.getElementById('edit_prod_id');
+            if (prodInput) prodInput.value = data.prodid || '';
+
+            const calibreInput = document.getElementById('edit_calibre');
+            if (calibreInput) calibreInput.value = data.calibre || '';
+
+            const tipoInput = document.getElementById('edit_tipo');
+            if (tipoInput) tipoInput.value = data.tipo || '';
+
+            const kilosInput = document.getElementById('edit_kilos');
+            if (kilosInput) kilosInput.value = data.kilos || '';
+
+            const litrosInput = document.getElementById('edit_litros');
+            if (litrosInput) litrosInput.value = data.litros || '';
+
+            const tiempoInput = document.getElementById('edit_tiempo');
+            if (tiempoInput) tiempoInput.value = data.tiempo || '';
+
+            const solidosInput = document.getElementById('edit_solidos');
+            if (solidosInput) solidosInput.value = data.solidos || '';
+
+            const viscInput = document.getElementById('edit_viscocidad');
+            if (viscInput) viscInput.value = data.viscocidad || '';
+
+            formulaActual = data.formula || '';
+            kilosFormula = parseFloat(data.kilos) || 0;
         }
 
         function confirmDelete() {
@@ -691,23 +829,7 @@
                 document.getElementById('create_cve_empl').value = '{{ Auth::user()->numero ?? "" }}';
             @endif
 
-            // Mostrar confirmación con los datos cargados
-            if (mostrarAlerta) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Datos cargados',
-                    html: `<div class="text-left text-sm">
-                        <p><strong>Folio:</strong> ${option.value}</p>
-                        <p><strong>Cuenta:</strong> ${cuenta || '-'}</p>
-                        <p><strong>Calibre:</strong> ${calibre || '-'}</p>
-                        <p><strong>Tipo:</strong> ${tipo || '-'}</p>
-                        <p><strong>Fórmula:</strong> ${formula || '-'}</p>
-                    </div>`,
-                    confirmButtonColor: '#a855f7',
-                    timer: 2000,
-                    timerProgressBar: true
-                });
-            }
+            // Al cargar datos ya no se muestra alerta
         }
 
         function fillEmpleadoEdit(select) {
@@ -789,6 +911,7 @@
             document.getElementById('componentes_loading').classList.remove('hidden');
             document.getElementById('componentes_error').classList.add('hidden');
             document.getElementById('componentes_tabla_container').classList.add('hidden');
+            actualizarToolbarComponentes();
 
             // Cargar componentes desde el servidor
             fetch(`/eng-formulacion/componentes/formula?formula=${encodeURIComponent(formulaActual)}`)
@@ -801,6 +924,7 @@
                         componentesData = data.componentes || [];
                         document.getElementById('componentes_tabla_container').classList.remove('hidden');
                         renderizarTablaComponentes();
+                        actualizarToolbarComponentes();
 
                         // Mostrar alerta si está vacío
                         if (data.vacio || componentesData.length === 0) {
@@ -835,12 +959,38 @@
         let selectedComponenteIndex = null;
         let selectedComponenteRow = null;
 
+        function actualizarToolbarComponentes() {
+            const btnNuevo = document.getElementById('btn-nuevo-componente');
+            const btnEditar = document.getElementById('btn-editar-componente');
+            const btnEliminar = document.getElementById('btn-eliminar-componente');
+
+            if (btnNuevo) {
+                btnNuevo.disabled = viewOnlyMode;
+                btnNuevo.classList.toggle('opacity-50', viewOnlyMode);
+                btnNuevo.classList.toggle('cursor-not-allowed', viewOnlyMode);
+            }
+
+            if (btnEditar) {
+                const disabled = viewOnlyMode || selectedComponenteIndex === null;
+                btnEditar.disabled = disabled;
+                btnEditar.classList.toggle('opacity-50', disabled);
+                btnEditar.classList.toggle('cursor-not-allowed', disabled);
+            }
+
+            if (btnEliminar) {
+                const disabled = viewOnlyMode || selectedComponenteIndex === null;
+                btnEliminar.disabled = disabled;
+                btnEliminar.classList.toggle('opacity-50', disabled);
+                btnEliminar.classList.toggle('cursor-not-allowed', disabled);
+            }
+        }
+
         function renderizarTablaComponentes() {
             const tbody = document.getElementById('componentes_tbody');
             tbody.innerHTML = '';
             selectedComponenteIndex = null;
             selectedComponenteRow = null;
-            deshabilitarBotonesComponente();
+            actualizarToolbarComponentes();
 
             if (componentesData.length === 0) {
                 tbody.innerHTML = `
@@ -895,17 +1045,15 @@
             row.classList.add('bg-blue-100');
 
             // Habilitar botones
-            habilitarBotonesComponente();
+            actualizarToolbarComponentes();
         }
 
         function habilitarBotonesComponente() {
-            document.getElementById('btn-editar-componente').disabled = false;
-            document.getElementById('btn-eliminar-componente').disabled = false;
+            actualizarToolbarComponentes();
         }
 
         function deshabilitarBotonesComponente() {
-            document.getElementById('btn-editar-componente').disabled = true;
-            document.getElementById('btn-eliminar-componente').disabled = true;
+            actualizarToolbarComponentes();
         }
 
         function calcularConsumoTotal(consumoUnitario) {
@@ -913,6 +1061,9 @@
         }
 
         function nuevoComponente() {
+            if (viewOnlyMode) {
+                return;
+            }
             Swal.fire({
                 title: 'Nuevo Componente',
                 html: `
@@ -968,6 +1119,9 @@
         }
 
         function editarComponente() {
+            if (viewOnlyMode) {
+                return;
+            }
             if (selectedComponenteIndex === null) return;
 
             const comp = componentesData[selectedComponenteIndex];
@@ -1027,6 +1181,9 @@
         }
 
         function eliminarComponenteSeleccionado() {
+            if (viewOnlyMode) {
+                return;
+            }
             if (selectedComponenteIndex === null) return;
 
             const comp = componentesData[selectedComponenteIndex];
@@ -1168,6 +1325,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            disableButtons();
             const select = document.getElementById('create_folio_prog');
             if (select && select.value) {
                 cargarDatosPrograma(select, false);
