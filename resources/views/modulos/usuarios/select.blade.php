@@ -152,6 +152,11 @@
                 </div>
             @endforelse
         </div>
+
+        <div class="mt-4 px-4 py-3 bg-gray-100 rounded-lg border border-gray-200 text-center text-sm font-medium text-gray-700">
+            <i class="fas fa-users mr-2 text-blue-600"></i>
+            Total: {{ $usuarios->count() }} {{ $usuarios->count() === 1 ? 'usuario' : 'usuarios' }}
+        </div>
     </div>
 
     <!-- Modal Crear Usuario -->

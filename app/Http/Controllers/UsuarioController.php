@@ -140,23 +140,14 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Listar usuarios con paginación
+     * Listar todos los usuarios (sin paginación)
      */
     public function select(Request $request)
     {
-        $page = max(1, (int) $request->input('page', 1));
-        $perPage = 50;
-
-        $result = $this->usuarioRepository->getAll($page, $perPage);
+        $usuarios = $this->usuarioRepository->getAllForSelect();
 
         return view('modulos.usuarios.select', [
-            'usuarios' => $result['data'] ?? collect(),
-            'current_page' => $result['current_page'] ?? 1,
-            'per_page' => $result['per_page'] ?? $perPage,
-            'total' => $result['total'] ?? 0,
-            'last_page' => $result['last_page'] ?? 1,
-            'from' => $result['from'] ?? 0,
-            'to' => $result['to'] ?? 0,
+            'usuarios' => $usuarios,
         ]);
     }
 
