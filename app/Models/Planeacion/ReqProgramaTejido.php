@@ -43,7 +43,8 @@ class ReqProgramaTejido extends Model
         'Prioridad','LargoCrudo','OrdCompartida','CategoriaCalidad','PorcentajeSegundos','PedidoTempo','OrdCompartidaLider','Reprogramar','Posicion',
         'MtsRollo','PzasRollo','TotalRollos','TotalPzas','Repeticiones','CombinaTram','BomId','BomName','CreaProd',
         'Densidad','HiloAX','ActualizaLmat',
-        'FechaCreacion','HoraCreacion','UsuarioCrea','FechaModificacion','HoraModificacion','UsuarioModifica'
+        'FechaCreacion','HoraCreacion','UsuarioCrea','FechaModificacion','HoraModificacion','UsuarioModifica',
+        'OrdPrincipal'
     ];
 
     /**
@@ -146,6 +147,7 @@ class ReqProgramaTejido extends Model
         'FechaModificacion' => 'date', // DATE en SQL Server
         'HoraModificacion' => 'string', // TIME en SQL Server
         'UsuarioModifica' => 'string', // VARCHAR(50) en SQL Server
+        'OrdPrincipal' => 'integer', // INT NULL en SQL Server
     ];
 
     /* ===========================

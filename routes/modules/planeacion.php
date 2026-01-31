@@ -73,6 +73,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
 
     Route::get('/codificacion', [CatCodificacionController::class, 'index'])->name('codificacion.index');
     Route::get('/codificacion/api/all-fast', [CatCodificacionController::class, 'getAllFast'])->name('codificacion.all-fast');
+    Route::get('/codificacion/api/ordenes-en-proceso', [CatCodificacionController::class, 'ordenesEnProceso'])->name('codificacion.ordenes-en-proceso');
     Route::post('/codificacion/excel', [CatCodificacionController::class, 'procesarExcel'])->name('codificacion.excel');
     Route::get('/codificacion/excel-progress/{id}', [CatCodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
     Route::get('/codificacion/orden-cambio-pdf', [OrdenDeCambioFelpaController::class, 'generarPDF'])->name('codificacion.orden-cambio-pdf');

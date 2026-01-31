@@ -36,6 +36,7 @@ class CatCodificados extends Model
         'BomName', 'CreaProd', 'EficienciaSTD', 'Densidad', 'HiloAX', 'ActualizaLmat', 'FechaCreacion',
         'HoraCreacion', 'UsuarioCrea', 'FechaModificacion', 'HoraModificacion', 'UsuarioModifica',
         'CategoriaCalidad', 'CustName',
+        'OrdPrincipal',
     ];
 
     protected $fillable = self::COLUMNS;
@@ -74,5 +75,6 @@ class CatCodificados extends Model
         'UsuarioModifica' => 'string', // VARCHAR(50) en SQL Server
         'CategoriaCalidad' => 'string', // VARCHAR(50) en SQL Server
         'CustName' => 'string', // NVARCHAR(150) en SQL Server
+        'OrdPrincipal' => 'integer', // INT NULL en SQL Server
     ];
 }

@@ -4,6 +4,11 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+        <button type="button" onclick="mostrarAlertaNavbar()"
+            class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
+            title="Mostrar alerta" aria-label="Mostrar alerta">
+            <i class="fa-solid fa-bell text-sm"></i>
+        </button>
         <button id="btn-filtrar" onclick="filtrarCodificacion()"
             class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
             title="Filtrar" aria-label="Filtrar">
@@ -63,7 +68,8 @@
                     $ordenDeseado = [
                         // Encabezado principal
                         'OrdenTejido',          // Num de Orden
-                        'FechaTejido',          // Fecha Orden
+                        'OrdPrincipal',
+                        'FechaTejido',         // Fecha Orden
                         'FechaCumplimiento',    // Fecha Cumplimiento
                         'Departamento',
                         'TelarId',              // Telar Actual
@@ -238,6 +244,14 @@
             scrollbar-color: #6b7280 #e5e7eb;
         }
 
+        .swal-select-orden {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+
         #mainTable {
             position: relative;
             width: 100%;
@@ -405,6 +419,190 @@
             const showToast = window.showToast || internalToast;
             if (!window.showToast) {
                 window.showToast = showToast;
+            }
+
+            /**
+             * Muestra el modal de formulario de codificación al hacer clic en el botón de la navbar.
+             */
+            function mostrarAlertaNavbar() {
+                if (typeof Swal === 'undefined') {
+                    internalToast('SweetAlert2 no está cargado.', 'warning');
+                    return;
+                }
+
+                // Obtener el registro seleccionado si existe
+                const registroSeleccionado = state.selectedRowIndex !== null && state.selectedRowIndex !== undefined
+                    ? state.filtered[state.selectedRowIndex]
+                    : null;
+
+                // Valores iniciales desde el registro seleccionado o vacíos
+                const ordenTejido = registroSeleccionado?.OrdenTejido || '';
+                const telar = registroSeleccionado?.TelarId || '';
+                const articulo = registroSeleccionado?.ItemId || registroSeleccionado?.ClaveModelo || '';
+                const pesoMuestra = registroSeleccionado?.PesoMuestra || '';
+                const actLmat = registroSeleccionado?.ActualizaLmat === true || registroSeleccionado?.ActualizaLmat === 1 || registroSeleccionado?.ActualizaLmat === '1';
+                const bomId = registroSeleccionado?.BomId || '';
+
+                Swal.fire({
+                    title: 'Peso Muestra',
+                    html: `
+                        <div class="text-left space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Orden Tejido</label>
+                                <select
+                                    id="swal-orden-tejido"
+                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 appearance-none cursor-pointer swal-select-orden"
+                                >
+                                    <option value="">Seleccione una orden en proceso...</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
+                                <input
+                                    type="text"
+                                    id="swal-telar"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none"
+                                    placeholder="Los trae del cat codificados"
+                                    value="${telar}"
+                                    readonly
+                                    title="solo para visualización"
+                                >
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Articulo</label>
+                                <input
+                                    type="text"
+                                    id="swal-articulo"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none"
+                                    placeholder="De cat codificados"
+                                    value="${articulo}"
+                                    readonly
+                                    title="solo para visualización"
+                                >
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Peso Muestra</label>
+                                <input
+                                    type="text"
+                                    id="swal-peso-muestra"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="lo obtiene de catcodificacos y se puede editar"
+                                    value="${pesoMuestra}"
+                                >
+                            </div>
+                            <div>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        id="swal-act-lmat"
+                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        ${actLmat ? 'checked' : ''}
+                                    >
+                                    <span class="text-sm font-medium text-gray-700">Act Lmat</span>
+                                </label>
+                            </div>
+                            <div id="swal-lista-mat-container" class="${actLmat ? '' : 'hidden'}">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Lista Mat (BomId)</label>
+                                <input
+                                    type="text"
+                                    id="swal-lista-mat"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="lo obtiene de catcodificacos y se puede editar"
+                                    value="${bomId}"
+                                >
+                            </div>
+                        </div>
+                    `,
+                    width: '600px',
+                    showCancelButton: true,
+                    confirmButtonText: 'Guardar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#3b82f6',
+                    cancelButtonColor: '#6b7280',
+                    didOpen: () => {
+                        // Mostrar/ocultar campo Lista Mat según checkbox Act Lmat
+                        const actLmatCheckbox = document.getElementById('swal-act-lmat');
+                        const listaMatContainer = document.getElementById('swal-lista-mat-container');
+
+                        if (actLmatCheckbox && listaMatContainer) {
+                            actLmatCheckbox.addEventListener('change', function() {
+                                if (this.checked) {
+                                    listaMatContainer.classList.remove('hidden');
+                                } else {
+                                    listaMatContainer.classList.add('hidden');
+                                }
+                            });
+                        }
+
+                        // GET órdenes en proceso (ReqProgramaTejido) y rellenar select
+                        const selectOrden = document.getElementById('swal-orden-tejido');
+                        const telarInput = document.getElementById('swal-telar');
+                        const articuloInput = document.getElementById('swal-articulo');
+
+                        if (selectOrden) {
+                            fetch('/planeacion/codificacion/api/ordenes-en-proceso', { headers: { 'Accept': 'application/json' } })
+                                .then(resp => resp.json())
+                                .then(json => {
+                                    if (json.s && Array.isArray(json.d)) {
+                                        json.d.forEach(item => {
+                                            const opt = document.createElement('option');
+                                            opt.value = item.noProduccion || '';
+                                            opt.dataset.noTelarId = item.noTelarId != null ? String(item.noTelarId) : '';
+                                            opt.dataset.itemId = item.itemId != null ? String(item.itemId) : '';
+                                            opt.dataset.nombreProducto = item.nombreProducto || '';
+                                            opt.textContent = (item.noProduccion || '') + (item.noTelarId ? ' — Telar ' + item.noTelarId : '') + (item.nombreProducto ? ' — ' + item.nombreProducto : '');
+                                            selectOrden.appendChild(opt);
+                                        });
+                                        if (ordenTejido) selectOrden.value = ordenTejido;
+                                        // Al elegir una orden, rellenar Telar y Articulo
+                                        selectOrden.addEventListener('change', function() {
+                                            const opt = this.options[this.selectedIndex];
+                                            if (opt && opt.value) {
+                                                if (telarInput) telarInput.value = opt.dataset.noTelarId || '';
+                                                if (articuloInput) articuloInput.value = opt.dataset.itemId || opt.dataset.nombreProducto || '';
+                                            } else {
+                                                if (telarInput) telarInput.value = '';
+                                                if (articuloInput) articuloInput.value = '';
+                                            }
+                                        });
+                                        if (selectOrden.value && selectOrden.dispatchEvent) selectOrden.dispatchEvent(new Event('change'));
+                                    }
+                                })
+                                .catch(() => {});
+                            selectOrden.focus();
+                        }
+                    },
+                    preConfirm: () => {
+                        const ordenTejido = document.getElementById('swal-orden-tejido')?.value.trim() || '';
+                        const pesoMuestra = document.getElementById('swal-peso-muestra')?.value.trim() || '';
+                        const actLmat = document.getElementById('swal-act-lmat')?.checked || false;
+                        const bomId = document.getElementById('swal-lista-mat')?.value.trim() || '';
+
+                        // Validaciones básicas
+                        if (!ordenTejido) {
+                            Swal.showValidationMessage('Seleccione una orden en proceso');
+                            return false;
+                        }
+
+                        return {
+                            ordenTejido,
+                            pesoMuestra,
+                            actLmat,
+                            bomId
+                        };
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed && result.value) {
+                        const datos = result.value;
+                        // Aquí puedes hacer la petición al servidor para guardar
+                        console.log('Datos a guardar:', datos);
+                        internalToast('Datos guardados correctamente', 'success');
+                        // TODO: Implementar guardado real con fetch al servidor
+                    }
+                });
             }
 
             // =========================
@@ -668,6 +866,38 @@
                 }
             }
 
+            /**
+             * Acción rápida: filtrar solo registros con OrdCompartida y OrdCompartidaLider llenos.
+             */
+            function aplicarAccionRapidaOrdCompartida() {
+                if (!state.data.length) {
+                    showToast('Espera a que carguen los datos', 'warning');
+                    return;
+                }
+
+                state.filtered = state.data.filter(row => {
+                    const ordCompartida = row.OrdCompartida;
+                    const ordCompartidaLider = row.OrdCompartidaLider;
+                    const hasOrdCompartida = ordCompartida != null && ordCompartida !== '' && String(ordCompartida).trim() !== '';
+                    const hasOrdCompartidaLider = ordCompartidaLider != null && ordCompartidaLider !== '' && String(ordCompartidaLider).trim() !== '';
+                    return hasOrdCompartida && hasOrdCompartidaLider;
+                });
+
+                state.page = 1;
+                state.selectedRowIndex = null;
+                renderPage();
+                updatePagination();
+                updateFilterCount();
+                actualizarEstadoBotonReimprimir();
+
+                showToast(
+                    state.filtered.length
+                        ? state.filtered.length + ' de ' + state.data.length + ' registros con OrdCompartida'
+                        : 'No hay registros con OrdCompartida y OrdCompartidaLider llenos',
+                    state.filtered.length ? 'success' : 'warning'
+                );
+            }
+
             function filtrarCodificacion() {
                 Swal.fire({
                     html: `
@@ -678,6 +908,16 @@
                             </div>
 
                             <div class="space-y-4">
+                                <div class="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
+                                    <p class="text-sm font-semibold text-amber-900 mb-2">Acciones rápidas</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" id="btn-quick-ordcompartida" class="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors flex items-center gap-2">
+                                            <i class="fas fa-link"></i> Obtener OrdCompartida
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-amber-800 mt-1">Solo registros con OrdCompartida y OrdCompartidaLider llenos.</p>
+                                </div>
+
                                 <div class="flex flex-col sm:flex-row gap-2">
                                     <select
                                         id="filtro-columna"
@@ -721,8 +961,16 @@
                     `,
                     showConfirmButton: false,
                     showCancelButton: false,
-                    width: 560,
+                    width: 580,
                     didOpen: () => {
+                        const btnQuickOrdCompartida = document.getElementById('btn-quick-ordcompartida');
+                        if (btnQuickOrdCompartida) {
+                            btnQuickOrdCompartida.addEventListener('click', () => {
+                                aplicarAccionRapidaOrdCompartida();
+                                Swal.close();
+                            });
+                        }
+
                         // Poblar select columnas
                         const colSelect = document.getElementById('filtro-columna');
                         if (colSelect) {
@@ -1112,6 +1360,7 @@
             // =========================
             //   EXPOSE GLOBAL
             // =========================
+            window.mostrarAlertaNavbar         = mostrarAlertaNavbar;
             window.subirExcelCatCodificacion   = subirExcelCatCodificacion;
             window.procesarExcel               = procesarExcel;
             window.pollImportProgress          = pollImportProgress;

@@ -4,9 +4,6 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button type="button" id="alineacionNavOcultar" class="bg-red-500 rounded-full flex items-center gap-2 px-3 py-2 text-sm font-medium shadow-sm" title="Ver columnas ocultas">
-            <i class="fas fa-eye-slash text-white"></i>
-        </button>
         <button type="button" id="alineacionNavFijar" class="bg-blue-500 rounded-full flex items-center gap-2 px-3 py-2 text-sm font-medium shadow-sm" title="Ver columnas fijadas">
             <i class="fas fa-thumbtack text-white"></i>
 
@@ -19,30 +16,58 @@
         // Estructura fija de columnas en la vista para que no cambie según el controlador
         if (!isset($columnas)) {
             $columnas = [
-                'Id', 'NoTelarId', 'SalonTejidoId', 'Posicion',
-                'NoProduccion', 'NombreProducto', 'TotalPedido', 'SaldoPedido', 'Produccion',
-                'FechaInicio', 'FechaFinal', 'ProgramarProd', 'Programado',
-                'TamanoClave', 'CustName', 'Peine', 'AnchoToalla', 'PesoGRM2', 'peso_mues_max',
+                'NoTelarId', 'NoProduccion', 'FechaCambio', 'FechaCompromiso', 'ItemId', 'NombreProducto',
+                'Tolerancia', 'RazSN', 'TipoRizo', 'CalibreRizo',
+                'Ancho', 'LargoCrudo', 'PesoCrudo', 'Luchaje', 'TipoPlano', 'MedidaPlano',                 'NoTiras',
+                'CuentaRizo', 'CuentaPie', 'CalibreTrama',
+                'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4',
+                'AnchoToalla', 'PesoGRM2', 'PesoMin', 'PesoMax', 'MuestraMin', 'MuestraMax',
+                'TotalPedido', 'ProdAcumMesAnt', 'ProdAcumMes', 'Produccion', 'SaldoPedido',
+                'DiasEficiencia', 'ProdKgDia', 'DiasPorEjecutar', 'Observaciones',
             ];
         }
         if (!isset($columnLabels)) {
             $columnLabels = [
-                'Id' => 'Id', 'NoTelarId' => 'Telar', 'SalonTejidoId' => 'Salón', 'Posicion' => 'Pos',
-                'NoProduccion' => 'No. Prod.', 'NombreProducto' => 'Producto', 'TotalPedido' => 'Total pedido',
-                'SaldoPedido' => 'Saldo pedido', 'Produccion' => 'Producción',
-                'FechaInicio' => 'Inicio', 'FechaFinal' => 'Final', 'ProgramarProd' => 'Programar prod.', 'Programado' => 'Programado',
-                'TamanoClave' => 'Tamaño', 'CustName' => 'Cliente', 'Peine' => 'Peine', 'AnchoToalla' => 'Ancho toalla',
-                'PesoGRM2' => 'Peso g/m²', 'peso_mues_max' => 'Peso mues. máx.',
+                'NoTelarId' => 'Telar', 'NoProduccion' => 'No. Orden', 'FechaCambio' => 'Fecha de cambio',
+                'FechaCompromiso' => 'Fecha comprom.', 'ItemId' => 'Clave AX', 'NombreProducto' => 'Modelo',
+                'Tolerancia' => 'Tolerancia', 'RazSN' => 'Raz. S/N', 'TipoRizo' => 'Tipo Rizo', 'CalibreRizo' => 'Alt Rizo',
+                'Ancho' => 'Crudo Anc.', 'LargoCrudo' => 'Crudo Lar.', 'PesoCrudo' => 'Crudo Peso', 'Luchaje' => 'Luc.', 'TipoPlano' => 'Tipo Plano',
+                'MedidaPlano' => 'Med. plano',                 'NoTiras' => 'Tiras',
+                'CuentaRizo' => 'Hilo Rizo', 'CuentaPie' => 'Hilo Pie', 'CalibreTrama' => 'Hilo Trama',
+                'PasadasComb1' => '1', 'PasadasComb2' => '2', 'PasadasComb3' => '3', 'PasadasComb4' => '4',
+                'AnchoToalla' => 'Med. Cen.', 'PesoGRM2' => 'Peso Muestra',
+                'PesoMin' => 'Peso Min', 'PesoMax' => 'Peso Max',
+                'MuestraMin' => 'Muestra Min', 'MuestraMax' => 'Muestra Max',
+                'TotalPedido' => 'Cantidad Solicitada', 'ProdAcumMesAnt' => 'Prod. Acum. Mes Ant.',
+                'ProdAcumMes' => 'Prod. Acum. Mes', 'Produccion' => 'Prod. Acum.', 'SaldoPedido' => 'Diferencia',
+                'DiasEficiencia' => 'Días de prod.',
+                'ProdKgDia' => 'Prod. Prom. X Día', 'DiasPorEjecutar' => 'Días por Ejecutar',
+                'Observaciones' => 'Observaciones',
             ];
         }
         if (!isset($subColumnLabels)) {
-            $subColumnLabels = array_fill_keys($columnas, '');
+            $subColumnLabels = [
+                'NoTelarId' => '', 'NoProduccion' => '', 'FechaCambio' => '', 'FechaCompromiso' => '',
+                'ItemId' => '', 'NombreProducto' => '', 'Tolerancia' => '', 'RazSN' => '', 'TipoRizo' => '',
+                'CalibreRizo' => '', 'Ancho' => 'Anc.', 'LargoCrudo' => 'Lar.', 'PesoCrudo' => 'Peso', 'Luchaje' => '',
+                'TipoPlano' => '', 'MedidaPlano' => '',                 'NoTiras' => '',
+                'CuentaRizo' => 'Rizo', 'CuentaPie' => 'Pie', 'CalibreTrama' => 'Trama',
+                'PasadasComb1' => '1', 'PasadasComb2' => '2', 'PasadasComb3' => '3', 'PasadasComb4' => '4',
+                'AnchoToalla' => '', 'PesoGRM2' => '',
+                'PesoMin' => 'Min', 'PesoMax' => 'Max',
+                'MuestraMin' => 'Min', 'MuestraMax' => 'Max',
+                'TotalPedido' => '', 'ProdAcumMesAnt' => '', 'ProdAcumMes' => '',
+                'Produccion' => '', 'SaldoPedido' => '', 'DiasEficiencia' => '',
+                'ProdKgDia' => '', 'DiasPorEjecutar' => '', 'Observaciones' => '',
+            ];
         }
         if (!isset($headerGroups)) {
             $headerGroups = [
-                'Producción' => ['NoProduccion', 'NombreProducto', 'TotalPedido', 'SaldoPedido', 'Produccion'],
-                'Fechas' => ['FechaInicio', 'FechaFinal', 'ProgramarProd', 'Programado'],
-                'Peso' => ['PesoGRM2', 'peso_mues_max'],
+                'Crudo' => ['Ancho', 'LargoCrudo', 'PesoCrudo'],
+                'Hilo' => ['CuentaRizo', 'CuentaPie', 'CalibreTrama'],
+                'Cenefa Trama' => ['PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4'],
+                'Peso' => ['PesoMin', 'PesoMax'],
+                'Muestra' => ['MuestraMin', 'MuestraMax'],
             ];
         }
         $items = $items ?? [];
@@ -66,7 +91,7 @@
                             }
                         }
                     @endphp
-                <table id="mainTable" class="w-full min-w-full text-[11px] leading-tight">
+                <table id="mainTable" class="w-full min-w-full text-sm leading-tight">
                     <thead class="alineacion-thead bg-blue-600 text-white sticky top-0 z-10 alineacion-header-context">
                         {{-- Fila 1: columnas con un solo encabezado usan rowspan="2"; los grupos usan colspan --}}
                         <tr>
@@ -112,10 +137,6 @@
         <button type="button" id="alineacionCtxFijar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 flex items-center gap-2">
             <i class="fas fa-thumbtack text-blue-500"></i>
             <span id="alineacionCtxFijarLabel">Fijar</span>
-        </button>
-        <button type="button" id="alineacionCtxOcultar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center gap-2">
-            <i class="fas fa-eye-slash text-red-500"></i>
-            <span id="alineacionCtxOcultarLabel">Ocultar</span>
         </button>
     </div>
 
@@ -206,10 +227,6 @@
         #mainTable tbody td.alineacion-pinned { z-index: 1; }
         #mainTable thead th.alineacion-pinned { z-index: 11 !important; }
 
-        /* Columnas ocultas */
-        #mainTable thead th.alineacion-col-hidden,
-        #mainTable tbody td.alineacion-col-hidden { display: none !important; }
-
         /* Filas seleccionadas (bg-blue-500 text-white) */
         #mainTable tbody tr.alineacion-row-selected,
         #mainTable tbody tr.alineacion-row-selected td { background-color: #3b82f6 !important; color: #fff !important; }
@@ -228,7 +245,6 @@
                 data: @json($items),
                 filtered: [],
                 pinnedColumns: [],
-                hiddenColumns: [],
                 filters: [],
                 selectedRowIndex: null,
             };
@@ -273,7 +289,7 @@
                 state.pinnedColumns.forEach(idx => {
                     const els = getColumnElements(idx);
                     const th = els.find(el => el.tagName === 'TH');
-                    if (!th || th.classList.contains('alineacion-col-hidden')) return;
+                    if (!th) return;
                     const w = th.offsetWidth || 80;
                     els.forEach(el => {
                         el.classList.add('alineacion-pinned');
@@ -295,22 +311,11 @@
                 });
             }
 
-            function applyColumnVisibility() {
-                CONFIG.columnas.forEach((_, idx) => {
-                    const hidden = state.hiddenColumns.includes(idx);
-                    getColumnElements(idx).forEach(el => {
-                        if (hidden) el.classList.add('alineacion-col-hidden');
-                        else el.classList.remove('alineacion-col-hidden');
-                    });
-                });
-                updatePinnedPositions();
-            }
-
             function updateColumnHeaderIcons() {
                 CONFIG.columnas.forEach((col, idx) => {
                     const thList = getColumnElements(idx).filter(el => el.tagName === 'TH');
                     const th = thList[0];
-                    if (!th || th.classList.contains('alineacion-col-hidden')) return;
+                    if (!th) return;
                     const field = col;
                     const container = th.querySelector('.alineacion-header-icons');
                     if (!container) return;
@@ -345,17 +350,20 @@
                     const isEven = index % 2 === 0;
                     const baseClass = selected ? 'alineacion-row-selected bg-blue-500 text-white hover:bg-blue-600' : (isEven ? 'bg-white hover:bg-gray-100' : 'bg-gray-50 hover:bg-gray-200');
                     const rowClass = 'alineacion-selectable-row cursor-pointer transition-colors ' + baseClass;
-                    const cellClass = selected ? 'px-3 py-1.5 border-b border-r border-blue-400 whitespace-nowrap text-[11px] text-white column-' : 'px-3 py-1.5 border-b border-r border-gray-200 whitespace-nowrap text-[11px] text-gray-700 column-';
+                    const cellClass = selected ? 'px-3 py-1.5 border-b border-r border-blue-400 whitespace-nowrap text-sm text-white column-' : 'px-3 py-1.5 border-b border-r border-gray-200 whitespace-nowrap text-sm text-gray-700 column-';
                     const cells = CONFIG.columnas.map((col, colIdx) => {
-                        const value = row[col] ?? '';
-                        const raw = value !== null && value !== '' ? String(value) : '';
+                        let value = row[col] ?? '';
+                        let raw = value !== null && value !== '' ? String(value) : '';
+                        if (col === 'AnchoToalla' && value !== '' && value != null && !isNaN(parseFloat(value))) {
+                            raw = parseFloat(value).toFixed(3);
+                        }
                         return '<td class="' + cellClass + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
                             (raw ? escapeHtml(raw) : '') + '</td>';
                     }).join('');
                     return '<tr class="' + rowClass + '" data-row-index="' + index + '">' + cells + '</tr>';
                 }).join('');
 
-                applyColumnVisibility();
+                updatePinnedPositions();
                 updateColumnHeaderIcons();
             }
 
@@ -386,8 +394,6 @@
                 menuColumnIndex = columnIndex;
                 menuColumnField = columnField;
                 if (!menu) return;
-                const ocultarLabel = $('#alineacionCtxOcultarLabel');
-                if (ocultarLabel) ocultarLabel.textContent = state.hiddenColumns.includes(columnIndex) ? 'Mostrar' : 'Ocultar';
                 const fijarLabel = $('#alineacionCtxFijarLabel');
                 if (fijarLabel) fijarLabel.textContent = state.pinnedColumns.includes(columnIndex) ? 'Desfijar' : 'Fijar';
                 menu.style.left = e.clientX + 'px';
@@ -469,39 +475,6 @@
                 return (CONFIG.columnLabels && CONFIG.columnLabels[field]) || field || ('Columna ' + idx);
             }
 
-            function openPanelOcultar() {
-                const hiddenSet = new Set(state.hiddenColumns || []);
-                let html = '<div class="text-left"><p class="text-sm text-gray-600 mb-3">Marca las columnas que quieres <strong>ocultar</strong>:</p>';
-                html += '<div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">';
-                CONFIG.columnas.forEach((_, idx) => {
-                    const label = escapeHtml(getColumnLabel(idx));
-                    const checked = hiddenSet.has(idx) ? ' checked' : '';
-                    html += '<label class="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer alineacion-ocultar-row">';
-                    html += '<input type="checkbox" class="alineacion-ocultar-cb w-4 h-4 text-red-600 rounded border-gray-300" data-index="' + idx + '"' + checked + '>';
-                    html += '<span class="text-sm text-gray-800">' + label + '</span></label>';
-                });
-                html += '</div></div>';
-                Swal.fire({
-                    title: 'Ocultar columnas',
-                    html: html,
-                    showCancelButton: true,
-                    confirmButtonText: 'Aplicar',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonColor: '#3b82f6',
-                    cancelButtonColor: '#6b7280',
-                    width: '380px',
-                    preConfirm: () => {
-                        const checked = $$('.alineacion-ocultar-cb:checked').map(cb => parseInt(cb.getAttribute('data-index'), 10)).filter(i => !Number.isNaN(i));
-                        return checked;
-                    }
-                }).then(result => {
-                    if (!result.isConfirmed) return;
-                    state.hiddenColumns = (result.value || []).slice().sort((a, b) => a - b);
-                    applyColumnVisibility();
-                    updateColumnHeaderIcons();
-                });
-            }
-
             function openPanelFijar() {
                 const pinnedSet = new Set(state.pinnedColumns || []);
                 let html = '<div class="text-left"><p class="text-sm text-gray-600 mb-3">Marca las columnas que quieres <strong>fijar</strong> (quedan a la izquierda al hacer scroll):</p>';
@@ -531,7 +504,6 @@
                     if (!result.isConfirmed) return;
                     state.pinnedColumns = (result.value || []).slice().sort((a, b) => a - b);
                     updatePinnedPositions();
-                    applyColumnVisibility();
                     updateColumnHeaderIcons();
                 });
             }
@@ -539,7 +511,6 @@
             document.addEventListener('DOMContentLoaded', () => {
                 renderTable();
 
-                $('#alineacionNavOcultar')?.addEventListener('click', openPanelOcultar);
                 $('#alineacionNavFijar')?.addEventListener('click', openPanelFijar);
 
                 const tbody = $('#alineacion-body');
@@ -548,7 +519,7 @@
                         const tr = e.target.closest('tr.alineacion-selectable-row');
                         if (!tr) return;
                         const idx = parseInt(tr.getAttribute('data-row-index'), 10);
-                        if (!Number.isNaN(idx)) toggleRowSelection(idx);
+                        if (!Number.isNaN(idx)) setSelectedRow(idx);
                     });
                 }
 
@@ -595,7 +566,6 @@
                                 if (i >= 0) {
                                     state.pinnedColumns.splice(i, 1);
                                     updatePinnedPositions();
-                                    applyColumnVisibility();
                                     updateColumnHeaderIcons();
                                 }
                             }
@@ -625,22 +595,7 @@
                         state.pinnedColumns.sort((a, b) => a - b);
                     }
                     updatePinnedPositions();
-                    applyColumnVisibility();
                     updateColumnHeaderIcons();
-                });
-
-                $('#alineacionCtxOcultar')?.addEventListener('click', () => {
-                    const idx = menuColumnIndex;
-                    hideContextMenu();
-                    if (idx == null) return;
-                    const pos = state.hiddenColumns.indexOf(idx);
-                    if (pos >= 0) {
-                        state.hiddenColumns.splice(pos, 1);
-                    } else {
-                        state.hiddenColumns.push(idx);
-                        state.hiddenColumns.sort((a, b) => a - b);
-                    }
-                    applyColumnVisibility();
                 });
             });
         })();

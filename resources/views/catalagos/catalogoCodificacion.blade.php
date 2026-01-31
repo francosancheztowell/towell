@@ -5,6 +5,8 @@
 @section('navbar-right')
 <div class="flex items-center gap-2">
 <x-buttons.catalog-actions route="codificacion" :showFilters="true" :showExcel="false" />
+    <!-- Botón Alerta (SweetAlert2) -->
+
     <!-- Botón Fijar Columnas -->
     <button type="button" onclick="openPinColumnsModal()"
             class="w-9 h-9 flex items-center justify-center rounded-full bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-colors"
@@ -506,7 +508,6 @@
 
 {{-- JS principal --}}
 <script>
-{{-- Modal Duplicar/Importar Codificación - Debe estar FUERA del IIFE para estar disponible globalmente --}}
 @include('catalagos.modal._duplicar-importar-codificacion')
 
 (() => {
@@ -997,10 +998,10 @@ function showToast(message, type = 'info') {
             const isSelected = rowId === state.selectedId;
 
             tr.dataset.id = rowId;
-            
+
             // Agregar clase para zebra striping (par/impar)
             const zebraClass = i % 2 === 0 ? 'row-even' : 'row-odd';
-            
+
             // No incluir hover:bg-gray-50 ya que el hover se maneja con CSS
             tr.className = isSelected
                 ? 'data-row cursor-pointer transition-colors bg-blue-500 text-white selected-row rendered'
@@ -1318,10 +1319,10 @@ function showToast(message, type = 'info') {
                     const rowId = row.Id;
 
                     tr.dataset.id = rowId;
-                    
+
                     // Agregar clase para zebra striping (par/impar)
                     const zebraClass = i % 2 === 0 ? 'row-even' : 'row-odd';
-                    
+
                     //  OPTIMIZACIÓN: Usar clases pre-calculadas y marcar como renderizado
                     // No incluir hoverClassBase ya que el hover se maneja con CSS
                     tr.className = isSelected
@@ -1575,6 +1576,23 @@ function showToast(message, type = 'info') {
         }
     }
 
+    /**
+     * Muestra una alerta SweetAlert2 al hacer clic en el botón de la navbar.
+     */
+    function mostrarAlertaNavbar() {
+        if (typeof Swal === 'undefined') {
+            alert('SweetAlert2 no está cargado.');
+            return;
+        }
+        Swal.fire({
+            title: 'Módulo de Codificación',
+            html: '<p class="text-gray-600">Modelos Codificados</p>',
+            icon: 'info',
+            confirmButtonText: 'Aceptar',
+            confirmButtonColor: '#3b82f6'
+        });
+    }
+
     // ============================================
     //  CRUD (REDIRECCIONES)
     // ============================================
@@ -1726,6 +1744,20 @@ function eliminarCodificacion() {
                     </div>
 
                     <div class="space-y-4">
+                        <div class="">
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    id="btn-quick-ordcompartida"
+                                    class="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors flex items-center gap-2"
+                                    title="Solo registros con OrdCompartida y OrdCompartidaLider llenos"
+                                >
+                                    <i class="fas fa-link"></i>
+                                    Obtener OrdCompartida
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="flex gap-2">
                             <select
                                 id="filtro-columna"
@@ -1765,7 +1797,7 @@ function eliminarCodificacion() {
                     </div>
                 </div>
             `,
-            width: '550px',
+            width: '580px',
             showConfirmButton: false,
             showCancelButton: false,
             showCloseButton: false,
@@ -1796,6 +1828,14 @@ function eliminarCodificacion() {
                 if (clearBtn) {
                     clearBtn.onclick = () => {
                         limpiarFiltrosCodificacion();
+                        Swal.close();
+                    };
+                }
+
+                const btnQuickOrdCompartida = $('#btn-quick-ordcompartida');
+                if (btnQuickOrdCompartida) {
+                    btnQuickOrdCompartida.onclick = () => {
+                        aplicarAccionRapidaOrdCompartida();
                         Swal.close();
                     };
                 }
@@ -1905,6 +1945,37 @@ function eliminarCodificacion() {
         aplicarFiltrosAND();
         updateColumnFilterIcons();
         showToast('Filtros limpiados', 'info');
+    }
+
+    /**
+     * Acción rápida: filtrar solo registros con OrdCompartida y OrdCompartidaLider llenos.
+     */
+    function aplicarAccionRapidaOrdCompartida() {
+        if (!state.rawData.length) {
+            showToast('Espera a que carguen los datos', 'warning');
+            return;
+        }
+
+        state.filteredData = state.rawData.filter(row => {
+            const ordCompartida = row.OrdCompartida;
+            const ordCompartidaLider = row.OrdCompartidaLider;
+
+            const hasOrdCompartida = ordCompartida != null && ordCompartida !== '' && String(ordCompartida).trim() !== '';
+            const hasOrdCompartidaLider = ordCompartidaLider != null && ordCompartidaLider !== '' && String(ordCompartidaLider).trim() !== '';
+
+            return hasOrdCompartida && hasOrdCompartidaLider;
+        });
+
+        state.currentPage = 1;
+        renderPage();
+        updatePagination();
+        updateColumnFilterIcons();
+        showToast(
+            state.filteredData.length
+                ? `${state.filteredData.length} de ${state.rawData.length} registros con OrdCompartida`
+                : 'No hay registros con OrdCompartida y OrdCompartidaLider llenos',
+            state.filteredData.length ? 'success' : 'warning'
+        );
     }
 
     // ============================================
@@ -2581,7 +2652,7 @@ function procesarExcel(file) {
                 <p class="text-sm text-gray-600 mb-4">Filtrar por: <strong>${escapedLabel}</strong></p>
                 <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-2">
                     <div class="mb-2 pb-2 border-b border-gray-200">
-                        <input type="text" id="filterSearchInput" placeholder="Buscar..." 
+                        <input type="text" id="filterSearchInput" placeholder="Buscar..."
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                     </div>
                     <div id="filterCheckboxesContainer" class="space-y-1">
@@ -2743,6 +2814,7 @@ function procesarExcel(file) {
     // ============================================
     //  EXPOSE GLOBAL (compat)
     // ============================================
+    window.mostrarAlertaNavbar       = mostrarAlertaNavbar;
     window.agregarCodificacion       = agregarCodificacion;
     window.editarCodificacion        = editarCodificacion;
     window.eliminarCodificacion      = eliminarCodificacion;
