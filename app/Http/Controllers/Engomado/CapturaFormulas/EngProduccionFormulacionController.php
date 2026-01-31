@@ -109,14 +109,6 @@ class EngProduccionFormulacionController extends Controller
                     ->with('error', 'El folio no existe en el programa de engomado: ' . $folio);
             }
 
-            // Verificar si ya existe un registro con ese folio
-            $existingRecord = EngProduccionFormulacionModel::where('Folio', $folio)->first();
-
-            if ($existingRecord) {
-                return redirect()->back()
-                    ->with('error', 'Ya existe una formulación con el folio: ' . $folio);
-            }
-
             $validated['Folio'] = $folio;
             $validated['Status'] = 'Creado';
             $validated['MaquinaId'] = $programa->MaquinaEng;
