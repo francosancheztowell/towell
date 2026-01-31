@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Sistema\SYSUsuariosRoles;
+use App\Helpers\ImageOptimizer;
 use App\Services\ModuloService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -171,19 +172,23 @@ class ModulosController extends Controller
                 $data['Dependencia'] = null;
             }
 
-            // Manejar subida de imagen
+            // Manejar subida de imagen (optimizada: redimensionada y comprimida)
             if ($request->hasFile('imagen_archivo')) {
                 $imagen = $request->file('imagen_archivo');
-                $nombreImagen = time() . '_' . $imagen->getClientOriginalName();
-
-                // Crear directorio si no existe
+                $nombreImagen = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $imagen->getClientOriginalName());
                 $rutaImagenes = public_path('images/fotos_modulos');
-                if (!file_exists($rutaImagenes)) {
+                if (! file_exists($rutaImagenes)) {
                     mkdir($rutaImagenes, 0777, true);
                 }
-
-                $imagen->move($rutaImagenes, $nombreImagen);
-                $data['imagen'] = $nombreImagen;
+                $destPath = $rutaImagenes . DIRECTORY_SEPARATOR . $nombreImagen;
+                try {
+                    ImageOptimizer::optimizeAndSave($imagen, $destPath);
+                    $data['imagen'] = $nombreImagen;
+                } catch (\Exception $e) {
+                    Log::warning('Imagen no optimizada, guardando original: ' . $e->getMessage());
+                    $imagen->move($rutaImagenes, $nombreImagen);
+                    $data['imagen'] = $nombreImagen;
+                }
             } else {
                 $data['imagen'] = null;
             }
@@ -320,17 +325,23 @@ class ModulosController extends Controller
             $data['eliminar'] = $request->has('eliminar') ? true : false;
             $data['reigstrar'] = $request->has('reigstrar') ? true : false;
 
-            // Manejar subida de nueva imagen
+            // Manejar subida de nueva imagen (optimizada: redimensionada y comprimida)
             if ($request->hasFile('imagen_archivo')) {
-                // Eliminar imagen anterior si existe
                 if ($modulo->imagen && file_exists(public_path('images/fotos_modulos/' . $modulo->imagen))) {
                     unlink(public_path('images/fotos_modulos/' . $modulo->imagen));
                 }
-
                 $imagen = $request->file('imagen_archivo');
-                $nombreImagen = time() . '_' . $imagen->getClientOriginalName();
-                $imagen->move(public_path('images/fotos_modulos'), $nombreImagen);
-                $data['imagen'] = $nombreImagen;
+                $nombreImagen = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $imagen->getClientOriginalName());
+                $rutaImagenes = public_path('images/fotos_modulos');
+                $destPath = $rutaImagenes . DIRECTORY_SEPARATOR . $nombreImagen;
+                try {
+                    ImageOptimizer::optimizeAndSave($imagen, $destPath);
+                    $data['imagen'] = $nombreImagen;
+                } catch (\Exception $e) {
+                    Log::warning('Imagen no optimizada, guardando original: ' . $e->getMessage());
+                    $imagen->move($rutaImagenes, $nombreImagen);
+                    $data['imagen'] = $nombreImagen;
+                }
             }
 
             $modulo->update($data);

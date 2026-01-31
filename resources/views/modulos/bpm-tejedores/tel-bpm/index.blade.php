@@ -36,6 +36,16 @@
             {{ session('error') }}
         </div>
     @endif
+    @if($errors->any())
+        <div class="mb-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 px-4 py-3">
+            <p class="font-semibold">No se pudo crear el folio. Revise los datos:</p>
+            <ul class="list-disc list-inside mt-1 text-sm">
+                @foreach($errors->all() as $err)
+                    <li>{{ $err }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     {{-- Tabla --}}
     <div class="overflow-x-auto overflow-y-auto rounded-lg bg-white shadow-sm pb-3" style="max-height: 70vh;">
@@ -58,7 +68,13 @@
             </thead>
             <tbody id="tb-body">
                 @forelse($items as $row)
-                    <tr class="table-row hover:bg-blue-50 cursor-pointer {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}"
+                    @php
+                        $rowBg = $loop->even ? 'bg-gray-50' : 'bg-white';
+                        $statusClass = $row->Status === 'Autorizado'
+                            ? 'bg-green-100 text-green-800'
+                            : ($row->Status === 'Terminado' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800');
+                    @endphp
+                    <tr class="table-row hover:bg-blue-50 cursor-pointer {{ $rowBg }}"
                         data-folio="{{ $row->Folio }}"
                         data-status="{{ $row->Status }}"
                         data-cveent="{{ $row->CveEmplEnt }}"
@@ -68,26 +84,24 @@
                         data-nomrec="{{ $row->NombreEmplRec }}"
                         data-turnorec="{{ $row->TurnoRecibe }}"
                         style="{{ $row->Status === 'Autorizado' ? 'display: none;' : '' }}">
-                        <td class="px-4 py-3 font-semibold {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
+                        <td class="px-4 py-3 font-semibold {{ $rowBg }}">
                             <a class="text-blue-700 hover:underline" href="{{ route('tel-bpm-line.index', $row->Folio) }}">{{ $row->Folio }}</a>
                         </td>
-                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs
-                                {{ $row->Status==='Autorizado' ? 'bg-green-100 text-green-800' :
-                                   ($row->Status==='Terminado' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800') }}">
+                        <td class="px-4 py-3 {{ $rowBg }}">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs {{ $statusClass }}">
                                 {{ $row->Status }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ optional($row->Fecha)->format('d/m/Y H:i') }}</td>
-                        <td class="px-4 py-3 font-mono {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->CveEmplRec }}</td>
-                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->NombreEmplRec }}</td>
-                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->TurnoRecibe }}</td>
-                        <td class="px-4 py-3 font-mono {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->CveEmplEnt }}</td>
-                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->NombreEmplEnt }}</td>
-                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->TurnoEntrega }}</td>
-                        <td class="px-4 py-3 font-mono {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->CveEmplAutoriza }}</td>
-                        <td class="px-4 py-3 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">{{ $row->NomEmplAutoriza }}</td>
-                        <td class="px-4 py-3 max-w-[200px] {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
+                        <td class="px-4 py-3 {{ $rowBg }}">{{ optional($row->Fecha)->format('d/m/Y H:i') }}</td>
+                        <td class="px-4 py-3 font-mono {{ $rowBg }}">{{ $row->CveEmplRec }}</td>
+                        <td class="px-4 py-3 {{ $rowBg }}">{{ $row->NombreEmplRec }}</td>
+                        <td class="px-4 py-3 {{ $rowBg }}">{{ $row->TurnoRecibe }}</td>
+                        <td class="px-4 py-3 font-mono {{ $rowBg }}">{{ $row->CveEmplEnt }}</td>
+                        <td class="px-4 py-3 {{ $rowBg }}">{{ $row->NombreEmplEnt }}</td>
+                        <td class="px-4 py-3 {{ $rowBg }}">{{ $row->TurnoEntrega }}</td>
+                        <td class="px-4 py-3 font-mono {{ $rowBg }}">{{ $row->CveEmplAutoriza }}</td>
+                        <td class="px-4 py-3 {{ $rowBg }}">{{ $row->NomEmplAutoriza }}</td>
+                        <td class="px-4 py-3 max-w-[200px] {{ $rowBg }}">
                             @if($row->Comentarios)
                                 <div class="truncate text-gray-700" title="{{ $row->Comentarios }}">
                                     {{ $row->Comentarios }}
@@ -371,7 +385,6 @@
             const status = row.dataset.status;
             const nomRec = (row.dataset.nomrec || '').trim();
             const turnoRec = row.dataset.turnorec || '';
-            const turnoEnt = row.dataset.turnoent || '';
 
             let show = true;
 
@@ -418,10 +431,7 @@
             if (!emptyRow) {
                 const tr = document.createElement('tr');
                 tr.className = 'no-results';
-                let message = 'Sin resultados con los filtros aplicados';
-                if (filterState.myFolios && !filterState.showAll) {
-                    message = 'No tienes folios asignados';
-                }
+                const message = getEmptyMessage();
                 tr.innerHTML = `<td colspan="12" class="px-4 py-6 text-center text-slate-500">
                     <div class="flex flex-col items-center gap-2">
                         <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
@@ -431,10 +441,7 @@
                 tbody?.appendChild(tr);
             } else {
                 // Actualizar mensaje si ya existe
-                let message = 'Sin resultados con los filtros aplicados';
-                if (filterState.myFolios && !filterState.showAll) {
-                    message = 'No tienes folios asignados';
-                }
+                const message = getEmptyMessage();
                 emptyRow.querySelector('td').innerHTML = `
                     <div class="flex flex-col items-center gap-2">
                         <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
@@ -447,28 +454,24 @@
         }
     }
 
+    function getEmptyMessage() {
+        if (filterState.myFolios && !filterState.showAll) {
+            return 'No tienes folios asignados';
+        }
+        return 'Sin resultados con los filtros aplicados';
+    }
+
     // Actualizar estado visual de botones
     function updateFilterButtons() {
-        btnFilterAuthorized?.classList.toggle('bg-green-100', filterState.showAuthorized);
-        btnFilterAuthorized?.classList.toggle('border-green-400', filterState.showAuthorized);
-        btnFilterAuthorized?.classList.toggle('text-green-800', filterState.showAuthorized);
-        btnFilterAuthorized?.classList.toggle('bg-gray-50', !filterState.showAuthorized);
-        btnFilterAuthorized?.classList.toggle('border-gray-300', !filterState.showAuthorized);
-        btnFilterAuthorized?.classList.toggle('text-gray-700', !filterState.showAuthorized);
+        toggleBtn(btnFilterAuthorized, filterState.showAuthorized, ['bg-green-100','border-green-400','text-green-800'], ['bg-gray-50','border-gray-300','text-gray-700']);
+        toggleBtn(btnFilterMyFolios, filterState.myFolios, ['bg-blue-100','border-blue-400','text-blue-800'], ['bg-gray-50','border-gray-300','text-gray-700']);
+        toggleBtn(btnFilterAll, filterState.showAll, ['bg-green-100','border-green-400','text-green-800'], ['bg-gray-50','border-gray-300','text-gray-700']);
+    }
 
-        btnFilterMyFolios?.classList.toggle('bg-blue-100', filterState.myFolios);
-        btnFilterMyFolios?.classList.toggle('border-blue-400', filterState.myFolios);
-        btnFilterMyFolios?.classList.toggle('text-blue-800', filterState.myFolios);
-        btnFilterMyFolios?.classList.toggle('bg-gray-50', !filterState.myFolios);
-        btnFilterMyFolios?.classList.toggle('border-gray-300', !filterState.myFolios);
-        btnFilterMyFolios?.classList.toggle('text-gray-700', !filterState.myFolios);
-
-        btnFilterAll?.classList.toggle('bg-green-100', filterState.showAll);
-        btnFilterAll?.classList.toggle('border-green-400', filterState.showAll);
-        btnFilterAll?.classList.toggle('text-green-800', filterState.showAll);
-        btnFilterAll?.classList.toggle('bg-gray-50', !filterState.showAll);
-        btnFilterAll?.classList.toggle('border-gray-300', !filterState.showAll);
-        btnFilterAll?.classList.toggle('text-gray-700', !filterState.showAll);
+    function toggleBtn(btn, isOn, onClasses, offClasses) {
+        if (!btn) return;
+        onClasses.forEach(cls => btn.classList.toggle(cls, isOn));
+        offClasses.forEach(cls => btn.classList.toggle(cls, !isOn));
     }
 
     btnOpenFilters?.addEventListener('click', () => open('#modal-filters'));
@@ -568,14 +571,14 @@
     }
 
     function clearSelection() {
-        (tbody?.querySelectorAll('tr.selected') || []).forEach(tr => tr.classList.remove('selected','bg-blue-500','text-white'));
+        (tbody?.querySelectorAll('tr.selected') || []).forEach(tr => tr.classList.remove('selected'));
     }
 
     tbody?.addEventListener('click', (e)=>{
         const tr = e.target.closest('tr');
         if (!tr) return;
         clearSelection();
-        tr.classList.add('selected','bg-blue-500','text-white');
+        tr.classList.add('selected');
         selected = tr;
         updateActions();
     });

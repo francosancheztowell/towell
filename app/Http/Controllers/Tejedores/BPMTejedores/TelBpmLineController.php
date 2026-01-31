@@ -269,31 +269,10 @@ class TelBpmLineController extends Controller
             return back()->with('error', 'Sólo puedes autorizar un folio Terminado.');
         }
 
-        // Tomar datos del usuario actual de forma robusta
-        $u = \Illuminate\Support\Facades\Auth::user();
-        $code = null;
-        $name = null;
-        if ($u) {
-            $code = $u->cve
-                ?? $u->numero_empleado
-                ?? $u->idusuario
-                ?? $u->id
-                ?? null;
-            $name = $u->name
-                ?? $u->nombre
-                ?? $u->Nombre
-                ?? null;
-        }
-
-        // Validar que el usuario sea Supervisor para autorizar
-        $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
-        if ($numeroEmpleado) {
-            $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
-            if (!$sysUsuario || strtolower(trim($sysUsuario->puesto ?? '')) !== 'supervisor') {
-                return back()->with('error', 'No tienes permisos para autorizar. Solo los supervisores pueden realizar esta acción.');
-            }
-        } else {
-            return back()->with('error', 'No se pudo identificar el usuario para validar permisos de autorización.');
+        try {
+            [$code, $name] = $this->getSupervisorInfo('autorizar');
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         $item->update([
@@ -315,19 +294,10 @@ class TelBpmLineController extends Controller
             return back()->with('error', 'Sólo puedes rechazar un folio Terminado.');
         }
 
-        // Validar que el usuario sea Supervisor para rechazar
-        $u = \Illuminate\Support\Facades\Auth::user();
-        if (!$u) {
-            return back()->with('error', 'Usuario no autenticado.');
-        }
-        $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
-        if ($numeroEmpleado) {
-            $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
-            if (!$sysUsuario || strtolower(trim($sysUsuario->puesto ?? '')) !== 'supervisor') {
-                return back()->with('error', 'No tienes permisos para rechazar. Solo los supervisores pueden realizar esta acción.');
-            }
-        } else {
-            return back()->with('error', 'No se pudo identificar el usuario para validar permisos de rechazo.');
+        try {
+            $this->getSupervisorInfo('rechazar');
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         $item->update([
@@ -348,5 +318,35 @@ class TelBpmLineController extends Controller
         if ($curr === null || $curr === '') return 'OK';
         if ($curr === 'OK') return 'X';
         return null;
+    }
+
+    private function getSupervisorInfo(string $accion): array
+    {
+        $u = \Illuminate\Support\Facades\Auth::user();
+        if (!$u) {
+            throw new \RuntimeException('Usuario no autenticado.');
+        }
+
+        $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
+        if (!$numeroEmpleado) {
+            throw new \RuntimeException("No se pudo identificar el usuario para validar permisos de {$accion}.");
+        }
+
+        $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+        if (!$sysUsuario || strtolower(trim($sysUsuario->puesto ?? '')) !== 'supervisor') {
+            throw new \RuntimeException("No tienes permisos para {$accion}. Solo los supervisores pueden realizar esta acción.");
+        }
+
+        $code = $u->cve
+            ?? $u->numero_empleado
+            ?? $u->idusuario
+            ?? $u->id
+            ?? null;
+        $name = $u->name
+            ?? $u->nombre
+            ?? $u->Nombre
+            ?? null;
+
+        return [$code, $name];
     }
 }

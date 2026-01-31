@@ -11,13 +11,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use App\Models\Tejedores\TelActividadesBPM;
 
 class TelBpmController extends Controller
 {
-    /** Clave para SSYSFoliosConsecutivos */
-    private const FOLIO_KEY   = 'TelBPM'; // ajusta si tu tabla usa otra columna/filtro
+    /** Clave para SSYSFoliosSecuencias (debe coincidir con la columna Modulo en la BD) */
+    private const FOLIO_KEY   = 'BPMTEjido';
     private const PAD_LENGTH  = 5;        // BT00001 → 5 ceros
     private const EST_CREADO  = 'Creado';
     private const EST_TERM    = 'Terminado';
@@ -59,15 +60,9 @@ class TelBpmController extends Controller
         $operadorUsuario = null;
         $telaresUsuario = collect();
         try {
-            $codes = collect([$userCode, $userCodeAlt])->filter(fn($v)=>$v!=='' )->unique()->all();
-            $operadorUsuario = TelTelaresOperador::query()
-                ->when(!empty($codes), fn($q) => $q->whereIn('numero_empleado', $codes))
-                ->when(empty($codes) && $userName !== '', fn($q)=> $q->where('nombreEmpl', 'like', "%{$userName}%"))
-                ->first();
-
-            $telaresUsuario = TelTelaresOperador::query()
-                ->when(!empty($codes), fn($q) => $q->whereIn('numero_empleado', $codes))
-                ->when(empty($codes) && $userName !== '', fn($q)=> $q->where('nombreEmpl', 'like', "%{$userName}%"))
+            $codes = collect([$userCode, $userCodeAlt])->filter(fn($v)=>$v!=='' )->unique()->values()->all();
+            $operadorUsuario = $this->operadorQuery($codes, $userName)->first();
+            $telaresUsuario = $this->operadorQuery($codes, $userName)
                 ->pluck('NoTelarId')
                 ->filter()
                 ->unique()
@@ -97,6 +92,15 @@ class TelBpmController extends Controller
             $operadoresEntrega = collect();
         }
 
+        if (!$usuarioEsOperador && $user) {
+            Log::info('BPM Tejedores index: usuario no encontrado como operador (no puede crear folio desde la UI)', [
+                'user_id' => $user->id ?? null,
+                'user_cve' => $user->cve ?? null,
+                'user_numero_empleado' => $user->numero_empleado ?? null,
+                'user_nombre' => $user->name ?? $user->nombre ?? null,
+            ]);
+        }
+
         return view('modulos.bpm-tejedores.tel-bpm.index', [
             'items'   => $items,
             'q'       => $q,
@@ -112,18 +116,33 @@ class TelBpmController extends Controller
     /** Store: Genera folio, crea header y redirige a líneas */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        Log::info('BPM Tejedores store: intento de crear folio', [
+            'user_id' => $user?->id ?? null,
+            'user_cve' => $user->cve ?? $user->numero_empleado ?? null,
+            'user_nombre' => $user->name ?? $user->nombre ?? null,
+        ]);
+
         $this->checkPerm('crear');
 
-        $data = $request->validate([
-            // Recibe (automático del usuario logueado si no viene en request)
-            'CveEmplRec'    => ['nullable','string','max:30'],
-            'NombreEmplRec' => ['nullable','string','max:150'],
-            'TurnoRecibe'   => ['nullable','string','max:10'],
-            // Entrega (estos sí los captura el usuario)
-            'CveEmplEnt'    => ['required','string','max:30'],
-            'NombreEmplEnt' => ['required','string','max:150'],
-            'TurnoEntrega'  => ['required','string','max:10'],
-        ]);
+        try {
+            $data = $request->validate([
+                // Recibe (automático del usuario logueado si no viene en request)
+                'CveEmplRec'    => ['nullable','string','max:30'],
+                'NombreEmplRec' => ['nullable','string','max:150'],
+                'TurnoRecibe'   => ['nullable','string','max:10'],
+                // Entrega (estos sí los captura el usuario)
+                'CveEmplEnt'    => ['required','string','max:30'],
+                'NombreEmplEnt' => ['required','string','max:150'],
+                'TurnoEntrega'  => ['required','string','max:10'],
+            ]);
+        } catch (ValidationException $e) {
+            Log::warning('BPM Tejedores store: validación fallida', [
+                'errors' => $e->errors(),
+                'user_id' => $user?->id ?? null,
+            ]);
+            throw $e;
+        }
 
         // Valores por defecto cuando no vienen en el request (usuario autenticado)
         $user = Auth::user();
@@ -140,10 +159,23 @@ class TelBpmController extends Controller
 
         // Alinear consecutivo con máximo existente para evitar duplicado de PK
         $folio = null;
-        DB::transaction(function () use (&$folio) {
-            // Leer prefijo actual para TelBPM
-            $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
-            $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');
+        try {
+            DB::transaction(function () use (&$folio) {
+                // Leer prefijo actual para TelBPM
+                $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
+                if (!$row) {
+                    // Crear la fila si no existe (evita 500 en ambientes sin el registro)
+                    $maxFolio = DB::table('TelBPM')->where('Folio', 'like', 'BT%')->orderBy('Folio', 'desc')->value('Folio');
+                    $start = $maxFolio ? (int) substr($maxFolio, strlen('BT')) : 0;
+                    SSYSFoliosSecuencia::create(['modulo' => self::FOLIO_KEY, 'prefijo' => 'BT', 'consecutivo' => $start]);
+                    $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
+                    if (!$row) {
+                        Log::error('BPM Tejedores store: no se pudo crear fila en SSYSFoliosSecuencias para modulo=' . self::FOLIO_KEY);
+                        throw new \RuntimeException('No existe configuración de folio para BPM Tejedores en SSYSFoliosSecuencias y no se pudo crear. Verifique la tabla dbo.SSYSFoliosSecuencias.');
+                    }
+                    Log::info('BPM Tejedores store: se creó automáticamente la configuración de folio en SSYSFoliosSecuencias.');
+                }
+                $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');
             $currConsec = (int)($row->consecutivo ?? ($row->Consecutivo ?? 0));
 
             // Calcular máximo actual en TelBPM con ese prefijo
@@ -235,9 +267,20 @@ class TelBpmController extends Controller
             // Si falla la inicialización, continuar
         }
 
+        Log::info('BPM Tejedores store: folio creado correctamente', ['folio' => $folio, 'user_id' => $user?->id ?? null]);
+
         return redirect()
             ->route('tel-bpm-line.index', $folio)
             ->with('success', "Folio $folio creado. Completa el checklist.");
+        } catch (\Throwable $e) {
+            Log::error('BPM Tejedores store: error al crear folio', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'user_id' => $user?->id ?? null,
+            ]);
+            throw $e;
+        }
     }
 
     /** Editar header (sólo en estado 'Creado') */
@@ -283,10 +326,24 @@ class TelBpmController extends Controller
     {
         try {
             if (function_exists('userCan') && !userCan($accion, 'BPM')) {
+                $user = Auth::user();
+                Log::warning('BPM Tejedores: permiso denegado', [
+                    'accion' => $accion,
+                    'modulo' => 'BPM',
+                    'user_id' => $user?->id ?? null,
+                    'user_cve' => $user->cve ?? $user->numero_empleado ?? null,
+                ]);
                 abort(403);
             }
         } catch (\Throwable $e) {
             Log::debug('Perm helper no disponible: '.$e->getMessage());
         }
+    }
+
+    private function operadorQuery(array $codes, string $userName)
+    {
+        return TelTelaresOperador::query()
+            ->when(!empty($codes), fn($q) => $q->whereIn('numero_empleado', $codes))
+            ->when(empty($codes) && $userName !== '', fn($q)=> $q->where('nombreEmpl', 'like', "%{$userName}%"));
     }
 }
