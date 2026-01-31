@@ -2,10 +2,6 @@
 
 @section('page-title', 'Desarrolladores')
 
-@section('navbar-right')
-    <x-navbar.button-create/>
-@endsection
-
 @section('content')
     <div class="flex w-full flex-col px-4 py-4 md:px-6 lg:px-6">
         <div class="bg-white flex flex-col rounded-md max-w-full p-6">

@@ -43,6 +43,9 @@ class AtadoresController extends Controller
             'tej_inventario_telares.cuenta',
             'tej_inventario_telares.calibre',
             'tej_inventario_telares.hilo',
+            'tej_inventario_telares.ConfigId',
+            'tej_inventario_telares.InventSizeId',
+            'tej_inventario_telares.InventColorId',
             // Map column names from MySQL (camelCase) to expected aliases
             DB::raw('tej_inventario_telares.loteProveedor as LoteProveedor'),
             DB::raw('tej_inventario_telares.noProveedor as NoProveedor'),
@@ -176,6 +179,10 @@ class AtadoresController extends Controller
             'LoteProveedor' => $item->LoteProveedor,
             'NoProveedor' => $item->NoProveedor,
             'HoraParo' => $item->horaParo,
+            'HrInicio' => Carbon::now()->format('H:i'),
+            'ConfigId' => $item->ConfigId,
+            'InventSizeId' => $item->InventSizeId,
+            'InventColorId' => $item->InventColorId,
             // Operador = usuario en sesión al iniciar
             'CveTejedor' => $user?->numero_empleado,
             'NomTejedor' => $user?->nombre,
