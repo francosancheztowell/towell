@@ -9,6 +9,7 @@ use App\Models\Tejedores\TelActividadesBPM;
 use App\Models\Sistema\SYSUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Tejedores\TelTelaresOperador;
 
 class TelBpmLineController extends Controller
 {
@@ -34,7 +35,7 @@ class TelBpmLineController extends Controller
         $telares = collect();
         $salonPorTelar = [];
         try {
-            $asignados = \App\Models\Tejedores\TelTelaresOperador::query()
+            $asignados = TelTelaresOperador::query()
                 ->where('numero_empleado', (string)$header->CveEmplRec)
                 ->get(['NoTelarId','SalonTejidoId']);
             $telares = $asignados->pluck('NoTelarId')->filter()->unique()->values();
@@ -115,7 +116,7 @@ class TelBpmLineController extends Controller
         ]);
     }
 
-    /** Alterna tri-estado de una celda (NULL → OK → X → NULL) */
+    /** Alterna estado de una celda (NULL → OK → X → M Mantenimiento → NULL) */
     public function toggle(Request $request, string $folio)
     {
         $header = TelBpmModel::findOrFail($folio);
@@ -179,7 +180,7 @@ class TelBpmLineController extends Controller
             'rows.*.Actividad'   => ['nullable','string','max:100'],
             'rows.*.SalonTejidoId' => ['nullable','string','max:10'],
             'rows.*.TurnoRecibe' => ['nullable','string','max:10'],
-            'rows.*.Valor'       => ['nullable','string','max:50'], // 'OK' | 'X' | null
+            'rows.*.Valor'       => ['nullable','string','max:50'], // 'OK' | 'X' | 'M' | null
         ])['rows'];
 
         DB::transaction(function () use ($rows, $folio) {
@@ -191,9 +192,10 @@ class TelBpmLineController extends Controller
                 $actividad = $r['Actividad'] ?? TelActividadesBPM::where('Orden', $orden)->value('Actividad');
                 $valor = $r['Valor'] ?? null;
                 if ($valor === '') $valor = null;
-                if ($valor !== null && !in_array($valor, ['OK','X'], true)) {
+                if ($valor !== null && !in_array($valor, ['OK','X','M'], true)) {
                     if ($valor === '1') $valor = 'OK';
                     elseif ($valor === '-1') $valor = 'X';
+                    elseif (strtoupper($valor) === 'M' || $valor === 'Mantenimiento') $valor = 'M';
                     else $valor = null;
                 }
 
@@ -252,7 +254,7 @@ class TelBpmLineController extends Controller
 
     /* ==================== Acciones de Estado ==================== */
 
-    /** Terminar (de Creado → Terminado) */
+    /** Terminar (de Creado → Terminado). No permite telares con Mantenimiento mezclado con OK/X. */
     public function finish(string $folio)
     {
         $item = TelBpmModel::findOrFail($folio);
@@ -261,9 +263,42 @@ class TelBpmLineController extends Controller
             return back()->with('error', 'Sólo puedes terminar un folio en estado Creado.');
         }
 
+        $telaresMezcla = $this->telaresConMantenimientoMezclado($folio);
+        if ($telaresMezcla !== []) {
+            $lista = implode(', ', $telaresMezcla);
+            return back()->with('error', "No puedes finalizar: en este telar hay actividades en Mantenimiento mezcladas con OK o Equis. Todas las actividades de un mismo telar deben estar en Mantenimiento o ninguna. Telar(es) con mezcla: {$lista}");
+        }
+
         $item->update(['Status' => self::EST_TERM]);
         // Ruta real de navegación
         return redirect()->route('tejedores.bpm')->with('success', 'Folio marcado como Terminado.');
+    }
+
+    /** Devuelve los NoTelarId que tienen al menos un M y al menos un OK o X. */
+    private function telaresConMantenimientoMezclado(string $folio): array
+    {
+        $lineas = DB::table('TelBPMLine')
+            ->where('Folio', $folio)
+            ->get(['NoTelarId', 'Valor']);
+
+        $porTelar = [];
+        foreach ($lineas as $ln) {
+            $telar = (string) $ln->NoTelarId;
+            if (!isset($porTelar[$telar])) {
+                $porTelar[$telar] = ['M' => false, 'OKorX' => false];
+            }
+            $v = $ln->Valor === null ? '' : trim((string) $ln->Valor);
+            if ($v === 'M') $porTelar[$telar]['M'] = true;
+            if ($v === 'OK' || $v === 'X') $porTelar[$telar]['OKorX'] = true;
+        }
+
+        $mezcla = [];
+        foreach ($porTelar as $telar => $flags) {
+            if ($flags['M'] && $flags['OKorX']) {
+                $mezcla[] = $telar;
+            }
+        }
+        return $mezcla;
     }
 
     /** Autorizar (de Terminado → Autorizado) */
@@ -320,9 +355,10 @@ class TelBpmLineController extends Controller
 
     private function nextValor($curr): ?string
     {
-        // NULL → 'OK' → 'X' → NULL
+        // NULL → 'OK' → 'X' → 'M' (Mantenimiento) → NULL
         if ($curr === null || $curr === '') return 'OK';
         if ($curr === 'OK') return 'X';
+        if ($curr === 'X') return 'M';
         return null;
     }
 

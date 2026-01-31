@@ -77,7 +77,7 @@
                     <th class="px-1 py-2 text-left w-8 font-semibold sticky left-0 bg-blue-500 z-40">#</th>
                     <th class="px-1 py-2 text-left font-semibold sticky left-8 bg-blue-500 z-40 min-w-[120px] max-w-[120px]">Actividad</th>
                     @foreach($telares as $t)
-                        <th class="px-1 py-2 text-center font-semibold min-w-[60px] sticky top-0 bg-blue-500 z-30" data-telar="{{ $t }}">
+                        <th class="px-1 py-2 text-center font-semibold min-w-[60px] sticky top-0 bg-blue-500 z-30 {{ $loop->first ? '' : 'border-l border-blue-400/50' }}" data-telar="{{ $t }}">
                             <div class="truncate text-xs">{{ $t }}</div>
                         </th>
                     @endforeach
@@ -96,13 +96,14 @@
                         <td class="px-1 py-2 text-gray-800 font-medium sticky left-8 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20 min-w-[120px] max-w-[120px] text-base truncate" title="{{ $a['Actividad'] }}">{{ $a['Actividad'] }}</td>
                         @foreach($telares as $t)
                             @php $val = $map[$a['Orden']][$t] ?? null; @endphp
-                            <td class="px-0.5 py-2 text-center">
+                            <td class="px-0.5 py-2 text-center {{ $loop->first ? '' : 'border-l border-gray-200' }}">
                                 <button
                                     id="cell-{{ $a['Orden'] }}-{{ $t }}"
                                     class="cell-btn inline-flex items-center justify-center w-8 h-8 rounded border-2 transition
                                         {{ $val==='OK' ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' :
                                            ($val==='X' ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' :
-                                           'bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100') }}"
+                                           ($val==='M' ? 'bg-amber-100 border-amber-400 text-amber-700 hover:bg-amber-200' :
+                                           'bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100')) }}"
                                     data-orden="{{ $a['Orden'] }}"
                                     data-actividad="{{ $a['Actividad'] }}"
                                     data-telar="{{ $t }}"
@@ -110,7 +111,7 @@
                                     data-valor="{{ $val ?? '' }}"
                                     @if($header->Status !== 'Creado') disabled @endif
                                 >
-                                   <span class="cell-icon font-bold text-base">{{ $val==='OK' ? '✓' : ($val==='X' ? '✗' : '○') }}</span>
+                                   <span class="cell-icon font-bold text-base">{!! $val==='OK' ? '✓' : ($val==='X' ? '✗' : ($val==='M' ? '<i class="fas fa-wrench" aria-hidden="true"></i>' : '○')) !!}</span>
                                 </button>
                             </td>
                         @endforeach
@@ -122,7 +123,7 @@
         </table>
     </div>
 
-    {{-- Sección de Comentssarios --}}
+    {{-- Sección de Comentarios --}}
     <div class="bg-white rounded-lg border p-2 mt-2">
         <div class="flex items-center justify-between mb-2">
             <h3 class="text-base font-semibold text-gray-700">Comentarios</h3>
@@ -152,9 +153,34 @@
     const CELL_CLASSES = {
         OK: ['bg-green-100','border-green-400','text-green-700','hover:bg-green-200'],
         X: ['bg-red-100','border-red-400','text-red-700','hover:bg-red-200'],
+        M: ['bg-amber-100','border-amber-400','text-amber-700','hover:bg-amber-200'],
         EMPTY: ['bg-gray-50','border-gray-300','text-gray-400','hover:bg-gray-100','hover:border-gray-400'],
     };
-    const CELL_ICONS = { OK: '✓', X: '✗', EMPTY: '○' };
+    const CELL_ICONS = { OK: '✓', X: '✗', M: '<i class="fas fa-wrench" aria-hidden="true"></i>', EMPTY: '○' };
+
+    function nextValor(curr) {
+        if (!curr || curr === '') return 'OK';
+        if (curr === 'OK') return 'X';
+        if (curr === 'X') return 'M';
+        return '';
+    }
+
+    function getValuesForTelar(telarId) {
+        return Array.from(document.querySelectorAll('.cell-btn[data-telar="' + telarId + '"]'))
+            .map(btn => (btn.dataset.valor || '').trim());
+    }
+
+    function telarHasMixedMantenimiento(telarId) {
+        const values = getValuesForTelar(telarId);
+        const hasM = values.some(v => v === 'M');
+        const hasOKorX = values.some(v => v === 'OK' || v === 'X');
+        return hasM && hasOKorX;
+    }
+
+    function getTelaresConMezcla() {
+        const telares = new Set(Array.from(document.querySelectorAll('.cell-btn')).map(btn => btn.dataset.telar).filter(Boolean));
+        return Array.from(telares).filter(t => telarHasMixedMantenimiento(t));
+    }
 
     function toast(icon, title){
         Swal.fire({ icon, title, toast:true, position:'top-end', timer:2000, showConfirmButton:false });
@@ -178,16 +204,19 @@
     function setCellState(btn, next) {
         const icon = btn.querySelector('.cell-icon');
         btn.dataset.valor = next || '';
-        btn.classList.remove(...CELL_CLASSES.OK, ...CELL_CLASSES.X, ...CELL_CLASSES.EMPTY);
+        btn.classList.remove(...CELL_CLASSES.OK, ...CELL_CLASSES.X, ...CELL_CLASSES.M, ...CELL_CLASSES.EMPTY);
         if (next === 'OK') {
             btn.classList.add(...CELL_CLASSES.OK);
-            if (icon) icon.textContent = CELL_ICONS.OK;
+            if (icon) { icon.textContent = ''; icon.innerHTML = CELL_ICONS.OK; }
         } else if (next === 'X') {
             btn.classList.add(...CELL_CLASSES.X);
-            if (icon) icon.textContent = CELL_ICONS.X;
+            if (icon) { icon.textContent = ''; icon.innerHTML = CELL_ICONS.X; }
+        } else if (next === 'M') {
+            btn.classList.add(...CELL_CLASSES.M);
+            if (icon) { icon.textContent = ''; icon.innerHTML = CELL_ICONS.M; }
         } else {
             btn.classList.add(...CELL_CLASSES.EMPTY);
-            if (icon) icon.textContent = CELL_ICONS.EMPTY;
+            if (icon) { icon.textContent = ''; icon.innerHTML = CELL_ICONS.EMPTY; }
         }
     }
 
@@ -217,7 +246,7 @@
         });
     @endif
 
-    // Tri-estado por celda: vacío → ✓ → ✗ → vacío (guarda sólo el folio actual)
+    // Cuatro estados por celda: vacío → ✓ → ✗ → Mantenimiento → vacío. Validación de mezcla solo al Finalizar.
     document.querySelectorAll('.cell-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             if (!editable) { toast('info','Edición no permitida'); return; }
@@ -240,12 +269,25 @@
         });
     });
 
-    // Validación especial para Finalizar: verificar actividades sin completar
+    // Validación especial para Finalizar: telares con M no pueden tener OK/X; actividades sin completar
     const btnFinish = document.getElementById('btn-finish');
     const formFinish = document.getElementById('form-finish');
     if (btnFinish && formFinish) {
         btnFinish.addEventListener('click', () => {
-            // Contar actividades sin completar (celdas vacías - sin OK ni X)
+            const telaresMezcla = getTelaresConMezcla();
+            if (telaresMezcla.length > 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No puedes finalizar',
+                    html: 'En este telar hay actividades en <strong>Mantenimiento</strong> mezcladas con otros estados. ' +
+                        'Si un telar tiene alguna actividad en Mantenimiento, <strong>todas</strong> las actividades de ese telar deben estar en Mantenimiento.<br><br>' +
+                        'Telar(es) con mezcla: <strong>' + telaresMezcla.join(', ') + '</strong>',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#3085d6'
+                });
+                return;
+            }
+
             const allCells = document.querySelectorAll('.cell-btn');
             let incompletas = 0;
             allCells.forEach(btn => {
