@@ -122,7 +122,7 @@
         </table>
     </div>
 
-    {{-- Sección de Comentarios --}}
+    {{-- Sección de Comentssarios --}}
     <div class="bg-white rounded-lg border p-2 mt-2">
         <div class="flex items-center justify-between mb-2">
             <h3 class="text-base font-semibold text-gray-700">Comentarios</h3>

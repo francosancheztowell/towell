@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ambienteController;
 use App\Http\Controllers\Configuracion\BaseDeDatosController;
 use App\Http\Controllers\Configuracion\ConfiguracionController;
 use App\Http\Controllers\Configuracion\DepartamentosController;
