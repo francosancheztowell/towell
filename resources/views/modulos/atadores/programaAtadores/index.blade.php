@@ -262,9 +262,10 @@ function aplicarFiltro(tipo) {
 function statusMatchesFilter(status, noTelar, filterKey) {
     switch (filterKey) {
         case 'creados':
-        case 'activo':
             return status === 'Activo';
+        case 'activo':
         case 'activo-proceso':
+            // El área de atadores puede ver tanto Activo como En Proceso
             return status === 'Activo' || status === 'En Proceso';
         case 'en-proceso':
             return status === 'En Proceso';
