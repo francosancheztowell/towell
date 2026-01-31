@@ -4,9 +4,13 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-buttons.catalog-actions route="codificacion" :showFilters="true" />
-        <button
-            id="btn-reimprimir-seleccionado"
+        <button id="btn-filtrar" onclick="filtrarCodificacion()"
+            class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+            title="Filtrar" aria-label="Filtrar">
+            <i class="fas fa-filter text-lg" aria-hidden="true"></i>
+            <span id="filter-count" class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
+        </button>
+        <button id="btn-reimprimir-seleccionado"
             onclick="reimprimirOrdenSeleccionada()"
             class="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
             disabled

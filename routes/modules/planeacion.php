@@ -18,6 +18,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\ReimprimirOrdenesController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReqProgramaTejidoLineController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
+use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -76,6 +77,8 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion/excel-progress/{id}', [CatCodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
     Route::get('/codificacion/orden-cambio-pdf', [OrdenDeCambioFelpaController::class, 'generarPDF'])->name('codificacion.orden-cambio-pdf');
     Route::get('/codificacion/orden-cambio-excel', [OrdenDeCambioFelpaController::class, 'generarExcel'])->name('codificacion.orden-cambio-excel');
+
+    Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');
 
     Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
     Route::get('/telares/falla', [CatalagoTelarController::class, 'falla'])->name('telares.falla');

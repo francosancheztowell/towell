@@ -54,22 +54,6 @@ class TelBpmController extends Controller
         // Obtener datos del operador y operadores de entrega
         [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega] = $this->obtenerDatosOperador($user);
 
-        Log::info('BPM Tejedores index: listado cargado', [
-            'user_id' => $user?->getAuthIdentifier(),
-            'user_cve' => $user->numero_empleado ?? $user->cve ?? null,
-            'usuarioEsOperador' => $usuarioEsOperador,
-            'items_count' => $items->total(),
-        ]);
-        
-        if (!$usuarioEsOperador && $user) {
-            Log::info('BPM Tejedores index: usuario no encontrado como operador', [
-                'user_id' => $user->getAuthIdentifier(),
-                'user_cve' => $user->numero_empleado ?? $user->cve ?? null,
-                'user_numero_empleado' => $user->numero_empleado ?? null,
-                'user_nombre' => $user->name ?? $user->nombre ?? null,
-            ]);
-        }
-
         return view('modulos.bpm-tejedores.tel-bpm.index', [
             'items'   => $items,
             'q'       => $q,
@@ -90,26 +74,15 @@ class TelBpmController extends Controller
         return redirect()->route('tel-bpm-line.index', $folio);
     }
 
-    /** Log de depuración desde el cliente (pasos del flujo crear/modal). Revisar storage/logs/laravel.log */
+    /** Endpoint llamado desde el cliente para pasos del flujo crear/modal (sin logging). */
     public function logDebug(Request $request)
     {
-        $step = $request->input('step', '');
-        $msg = $request->input('msg', '');
-        Log::info('BPM Tejedores [cliente]', [
-            'step' => $step,
-            'msg' => $msg,
-            'user_id' => Auth::id(),
-        ]);
         return response('', 204);
     }
 
     /** Store: Genera folio, crea header y redirige a líneas */
     public function store(Request $request)
     {
-        Log::info('BPM Tejedores store: petición recibida', [
-            'user_id' => Auth::id(),
-            'has_input' => $request->hasAny(['CveEmplRec', 'CveEmplEnt']),
-        ]);
         $user = Auth::user();
         
         if (!$user) {
@@ -169,8 +142,6 @@ class TelBpmController extends Controller
 
             // Inicializar líneas del checklist
             $this->inicializarLineasChecklist($folio, $data['CveEmplRec'], $data['TurnoRecibe']);
-
-            Log::info('BPM Tejedores store: folio creado correctamente', ['folio' => $folio, 'user_id' => $user->getAuthIdentifier()]);
 
             return redirect()
                 ->route('tel-bpm-line.index', $folio)
@@ -238,7 +209,6 @@ class TelBpmController extends Controller
                     Log::error('BPM Tejedores: no se pudo crear fila en SSYSFoliosSecuencias para modulo=' . self::FOLIO_KEY);
                     throw new \RuntimeException('No existe configuración de folio para BPM Tejedores en SSYSFoliosSecuencias y no se pudo crear.');
                 }
-                Log::info('BPM Tejedores: se creó automáticamente la configuración de folio en SSYSFoliosSecuencias.');
             }
             
             $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');

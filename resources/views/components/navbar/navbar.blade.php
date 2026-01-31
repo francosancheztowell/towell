@@ -7,6 +7,7 @@
     $showParoButton = !request()->routeIs('catalogos.req-programa-tejido')
         && !request()->routeIs('programa.urd.eng.reservar.programar')
         && !request()->routeIs('codificacion-modelos')
+        && !request()->routeIs('planeacion.alineacion.index')
         && !request()->is('simulacion*');
 
     // Información del usuario

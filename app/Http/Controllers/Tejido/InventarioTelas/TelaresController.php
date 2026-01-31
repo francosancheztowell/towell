@@ -103,12 +103,6 @@ class TelaresController extends Controller
                 // Si hay telar en proceso, buscar siguiente orden usando su posición (secuencia)
                 $posicionActual = isset($telarEnProceso->Posicion) ? (int)$telarEnProceso->Posicion : null;
 
-                Log::info("Telar {$numeroTelar} - Proceso encontrado", [
-                    'Posicion' => $posicionActual,
-                    'ProgramaId' => $telarEnProceso->ProgramaId ?? null,
-                    'Inicio_Tejido' => $telarEnProceso->Inicio_Tejido ?? null,
-                ]);
-
                 $ordenSig = $this->fetchSiguienteOrden(
                     $salones,
                     $numeroTelar,
@@ -117,30 +111,14 @@ class TelaresController extends Controller
                     $posicionActual
                 );
 
-                Log::info("Telar {$numeroTelar} - Resultado búsqueda por Posicion", [
-                    'encontrada' => $ordenSig ? 'SI' : 'NO',
-                    'Orden_Prod' => $ordenSig->Orden_Prod ?? null,
-                    'Posicion' => $ordenSig->Posicion ?? null,
-                ]);
-
                 // Si no encuentra con posición, buscar cualquier orden disponible
                 if (!$ordenSig) {
                     $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
-                    Log::info("Telar {$numeroTelar} - Resultado búsqueda fallback", [
-                        'encontrada' => $ordenSig ? 'SI' : 'NO',
-                        'Orden_Prod' => $ordenSig->Orden_Prod ?? null,
-                        'Posicion' => $ordenSig->Posicion ?? null,
-                    ]);
                 }
             } else {
                 // Si no hay proceso, buscar la primera orden disponible (más próxima)
                 $telarEnProceso = $this->objTelarVacio($numeroTelar);
                 $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
-                Log::info("Telar {$numeroTelar} - Sin proceso, búsqueda primera orden", [
-                    'encontrada' => $ordenSig ? 'SI' : 'NO',
-                    'Orden_Prod' => $ordenSig->Orden_Prod ?? null,
-                    'Posicion' => $ordenSig->Posicion ?? null,
-                ]);
             }
 
             $datosTelaresCompletos[$numeroTelar] = [
@@ -472,15 +450,7 @@ class TelaresController extends Controller
             'EntregaCte as Entrega'
         ];
 
-        Log::info("fetchSiguienteOrden - Parámetros", [
-            'noTelarId' => $noTelarId,
-            'salones' => $salones,
-            'posicionActual' => $posicionActual,
-            'fechaInicioActual' => $fechaInicioActual,
-            'programaIdActual' => $programaIdActual,
-        ]);
-
-        // DEBUG: Ver todas las órdenes del telar (en proceso y no en proceso)
+        // Ver todas las órdenes del telar (en proceso y no en proceso)
         $todasOrdenes = DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->where('NoTelarId', $noTelarId)
@@ -488,19 +458,6 @@ class TelaresController extends Controller
             ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc')
             ->get();
-
-        Log::info("fetchSiguienteOrden - DEBUG: Todas las órdenes del telar {$noTelarId}", [
-            'total' => $todasOrdenes->count(),
-            'ordenes' => $todasOrdenes->map(function($o) {
-                return [
-                    'Id' => $o->Id,
-                    'EnProceso' => $o->EnProceso,
-                    'Posicion' => $o->Posicion,
-                    'NoProduccion' => $o->NoProduccion,
-                    'FechaInicio' => $o->FechaInicio,
-                ];
-            })->toArray(),
-        ]);
 
         // Si hay posición actual, buscar por secuencia (Posicion mayor a la actual)
         if (!is_null($posicionActual) && $posicionActual > 0) {
@@ -520,12 +477,6 @@ class TelaresController extends Controller
                 ->orderBy('FechaInicio', 'asc')
                 ->orderBy('Id', 'asc')
                 ->first();
-
-            Log::info("fetchSiguienteOrden - Búsqueda con Posicion > {$posicionActual}", [
-                'encontrada' => $ordenConPosicion ? 'SI' : 'NO',
-                'Orden_Prod' => $ordenConPosicion->Orden_Prod ?? null,
-                'Posicion' => $ordenConPosicion->Posicion ?? null,
-            ]);
 
             if ($ordenConPosicion) {
                 return $ordenConPosicion;
@@ -548,12 +499,6 @@ class TelaresController extends Controller
             ->orderBy('FechaInicio', 'asc')
             ->orderBy('Id', 'asc')
             ->first();
-
-        Log::info("fetchSiguienteOrden - Búsqueda general", [
-            'encontrada' => $ordenDisponible ? 'SI' : 'NO',
-            'Orden_Prod' => $ordenDisponible->Orden_Prod ?? null,
-            'Posicion' => $ordenDisponible->Posicion ?? null,
-        ]);
 
         return $ordenDisponible;
     }
@@ -658,11 +603,6 @@ class TelaresController extends Controller
             'EntregaCte as Entrega'
         ];
 
-        Log::info("fetchPrimeraOrdenDisponible - Parámetros", [
-            'noTelarId' => $noTelarId,
-            'salones' => $salones,
-        ]);
-
         // Buscar ordenada por Posicion (secuencia), luego por fecha
         // IMPORTANTE: EnProceso puede ser NULL, no solo 0
         $orden = DB::table('ReqProgramaTejido')
@@ -679,12 +619,6 @@ class TelaresController extends Controller
             ->orderBy('Id', 'asc')
             ->first();
 
-        Log::info("fetchPrimeraOrdenDisponible - Búsqueda con Posicion", [
-            'encontrada' => $orden ? 'SI' : 'NO',
-            'Orden_Prod' => $orden->Orden_Prod ?? null,
-            'Posicion' => $orden->Posicion ?? null,
-        ]);
-
         // Si no encuentra con Posicion, buscar con FechaInicio
         if (!$orden) {
             $orden = DB::table('ReqProgramaTejido')
@@ -699,11 +633,6 @@ class TelaresController extends Controller
                 ->orderBy('FechaInicio', 'asc')
                 ->orderBy('Id', 'asc')
                 ->first();
-
-            Log::info("fetchPrimeraOrdenDisponible - Búsqueda con FechaInicio", [
-                'encontrada' => $orden ? 'SI' : 'NO',
-                'Orden_Prod' => $orden->Orden_Prod ?? null,
-            ]);
         }
 
         // Si aún no encuentra, buscar sin restricciones
@@ -719,10 +648,6 @@ class TelaresController extends Controller
                 ->orderBy('Id', 'asc')
                 ->first();
 
-            Log::info("fetchPrimeraOrdenDisponible - Búsqueda sin restricciones", [
-                'encontrada' => $orden ? 'SI' : 'NO',
-                'Orden_Prod' => $orden->Orden_Prod ?? null,
-            ]);
         }
 
         return $orden;

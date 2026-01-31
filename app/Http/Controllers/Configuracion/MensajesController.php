@@ -10,7 +10,6 @@ use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Validation\Rule;
 
 class MensajesController extends Controller
 {
@@ -83,7 +82,15 @@ class MensajesController extends Controller
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'DepartamentoId' => ['required', 'integer', Rule::exists((new SysDepartamento)->getTable(), 'id')->using('sqlsrv')],
+            'DepartamentoId' => [
+                'required',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! SysDepartamento::where('id', $value)->exists()) {
+                        $fail(__('validation.exists', ['attribute' => $attribute]));
+                    }
+                },
+            ],
             'Telefono'       => ['required', 'string', 'max:20'],
             'Token'          => ['required', 'string', 'max:255'],
             'Activo'         => ['nullable', 'boolean'],
@@ -124,7 +131,15 @@ class MensajesController extends Controller
         $mensaje = SYSMensaje::findOrFail($id);
 
         $validated = $request->validate([
-            'DepartamentoId' => ['required', 'integer', Rule::exists((new SysDepartamento)->getTable(), 'id')->using('sqlsrv')],
+            'DepartamentoId' => [
+                'required',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! SysDepartamento::where('id', $value)->exists()) {
+                        $fail(__('validation.exists', ['attribute' => $attribute]));
+                    }
+                },
+            ],
             'Telefono'       => ['required', 'string', 'max:20'],
             'Token'          => ['required', 'string', 'max:255'],
             'ChatId'         => ['nullable', 'string', 'max:50'],

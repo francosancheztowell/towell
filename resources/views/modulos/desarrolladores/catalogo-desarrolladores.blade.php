@@ -83,26 +83,21 @@ Catálogo de Desarrolladores
                     @csrf
                     <div class="grid grid-cols-1 gap-3">
                         <div>
-                            <label class="block text-sm font-medium">Clave Empleado</label>
-                            <input type="text" name="clave_empleado" class="w-full px-3 py-2 border rounded" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium">Nombre</label>
-                            <input type="text" name="nombre" class="w-full px-3 py-2 border rounded" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium">Turno</label>
-                            <select name="Turno" class="w-full px-3 py-2 border rounded" required>
-                                <option value="" disabled selected>Selecciona turno</option>
-                                <option value="1">Turno 1</option>
-                                <option value="2">Turno 2</option>
-                                <option value="3">Turno 3</option>
+                            <label class="block text-sm font-medium">Empleado (desarrollador)</label>
+                            <select name="clave_empleado" id="createClaveEmpleado" class="w-full px-3 py-2 border rounded" required>
+                                <option value="" disabled selected>Selecciona un empleado</option>
+                                @foreach(($desarrolladores ?? collect()) as $dev)
+                                    <option value="{{ e($dev->numero_empleado) }}">{{ $dev->numero_empleado }} — {{ e($dev->nombre) }}</option>
+                                @endforeach
                             </select>
+                            @if(empty($desarrolladores) || count($desarrolladores) === 0)
+                                <p class="text-sm text-amber-600 mt-1">No hay empleados con área Desarrolladores disponibles para agregar.</p>
+                            @endif
                         </div>
                     </div>
                     <div class="flex justify-end mt-4">
                         <button type="button" data-close-modal="createModal" class="w-full px-4 py-2  bg-gray-500 text-white rounded mr-2">Cancelar</button>
-                        <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded">Guardar</button>
+                        <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white rounded" {{ ($desarrolladores ?? collect())->isEmpty() ? 'disabled' : '' }}>Guardar</button>
                     </div>
                 </form>
             </div>
