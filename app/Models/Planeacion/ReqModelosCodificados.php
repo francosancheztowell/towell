@@ -131,7 +131,8 @@ class ReqModelosCodificados extends Model
         'ColumCT',
         'ColumCU',
         'ColumCV',
-        'ComprobarModDup'
+        'ComprobarModDup',
+        'OrdPrincipal'
     ];
 
     // Castings para conversión de tipos al guardar en BD
@@ -153,6 +154,7 @@ class ReqModelosCodificados extends Model
         'ColumCU' => 'integer',
         'ColumCV' => 'integer',
         'TIRAS' => 'integer',
+        'OrdPrincipal' => 'integer', // INT NULL en SQL Server
 
         // DECIMAL fields (deben ser float/double)
         'CalibreTrama' => 'float',

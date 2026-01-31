@@ -11,29 +11,50 @@ class AlineacionController extends Controller
 {
     /**
      * Columnas en orden de visualización (keys usados en cada fila de datos).
+     * Campos del modelo ReqProgramaTejido se mapean; los que no existen quedan en blanco.
      *
      * @var array<int, string>
      */
     private array $columnas = [
-        'Id',
         'NoTelarId',
-        'SalonTejidoId',
-        'Posicion',
         'NoProduccion',
+        'FechaCambio',
+        'FechaCompromiso',
+        'ItemId',
         'NombreProducto',
-        'TotalPedido',
-        'SaldoPedido',
-        'Produccion',
-        'FechaInicio',
-        'FechaFinal',
-        'ProgramarProd',
-        'Programado',
-        'TamanoClave',
-        'CustName',
-        'Peine',
+        'Tolerancia',
+        'RazSN',
+        'TipoRizo',
+        'CalibreRizo',
+        'Ancho',
+        'LargoCrudo',
+        'PesoCrudo',
+        'Luchaje',
+        'TipoPlano',
+        'MedidaPlano',
+        'NoTiras',
+        'CuentaRizo',
+        'CuentaPie',
+        'CalibreTrama',
+        'PasadasComb1',
+        'PasadasComb2',
+        'PasadasComb3',
+        'PasadasComb4',
         'AnchoToalla',
         'PesoGRM2',
-        'peso_mues_max',
+        'PesoMin',
+        'PesoMax',
+        'MuestraMin',
+        'MuestraMax',
+        'TotalPedido',
+        'ProdAcumMesAnt',
+        'ProdAcumMes',
+        'Produccion',
+        'SaldoPedido',
+        'DiasEficiencia',
+        'ProdKgDia',
+        'DiasPorEjecutar',
+        'Observaciones',
     ];
 
     /**
@@ -62,22 +83,40 @@ class AlineacionController extends Controller
     private function mapearProgramaTejidoAItem(ReqProgramaTejido $r): array
     {
         $item = [];
+        $mapeoEspecial = [
+            'FechaCambio' => null,      // No existe en modelo, vacío
+            'FechaCompromiso' => 'EntregaCte',
+            'Tolerancia' => null,
+            'RazSN' => null,
+            'TipoRizo' => null,
+            'TipoPlano' => null,
+            'PesoMin' => 'PesoMuesMin',
+            'PesoMax' => 'PesoMuesMax',
+            'MuestraMin' => null,
+            'MuestraMax' => null,
+            'ProdAcumMesAnt' => null,
+            'ProdAcumMes' => null,
+            'DiasPorEjecutar' => null,
+        ];
+
         foreach ($this->columnas as $key) {
-            if ($key === 'peso_mues_max') {
-                $item[$key] = $r->getAttribute('PesoMuesMax') ?? '';
+            if (array_key_exists($key, $mapeoEspecial)) {
+                $attr = $mapeoEspecial[$key];
+                if ($attr === null) {
+                    $item[$key] = '';
+                    continue;
+                }
+                $value = $r->getAttribute($attr);
+                $item[$key] = $value ? (
+                    $attr === 'UpdatedAt' ? $this->formatDateAlineacion($value, 'd M Y H:i') : (
+                        $attr === 'EntregaCte' ? $this->formatDateAlineacion($value, 'd M Y') : $value
+                    )
+                ) : '';
                 continue;
             }
             $value = $r->getAttribute($key);
             if ($value === null) {
                 $item[$key] = '';
-                continue;
-            }
-            if (in_array($key, ['FechaInicio', 'FechaFinal'], true) && $value) {
-                $item[$key] = $this->formatDateAlineacion($value, 'd M Y H:i');
-                continue;
-            }
-            if (in_array($key, ['ProgramarProd', 'Programado'], true) && $value) {
-                $item[$key] = $this->formatDateAlineacion($value, 'd M Y');
                 continue;
             }
             $item[$key] = $value;

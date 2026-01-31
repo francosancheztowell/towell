@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Planeacion\CatCodificados;
 use App\Http\Controllers\Controller;
 use App\Imports\CatCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -105,6 +106,43 @@ class CatCodificacionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * API: órdenes en proceso de ReqProgramaTejido (EnProceso = 1).
+     * Devuelve lista de NoProduccion para el campo Orden Tejido del modal.
+     */
+    public function ordenesEnProceso(Request $request): JsonResponse
+    {
+        try {
+            $ordenes = ReqProgramaTejido::query()
+                ->enProceso(true)
+                ->ordenado()
+                ->get(['Id', 'NoProduccion', 'NoTelarId', 'SalonTejidoId', 'ItemId', 'NombreProducto'])
+                ->map(function ($r) {
+                    return [
+                        'id' => $r->Id,
+                        'noProduccion' => $r->NoProduccion !== null && $r->NoProduccion !== '' ? (string) $r->NoProduccion : null,
+                        'noTelarId' => $r->NoTelarId,
+                        'salonTejidoId' => $r->SalonTejidoId,
+                        'itemId' => $r->ItemId,
+                        'nombreProducto' => $r->NombreProducto,
+                    ];
+                })
+                ->filter(fn ($r) => $r['noProduccion'] !== null)
+                ->values();
+
+            return response()->json([
+                's' => true,
+                'd' => $ordenes,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('CatCodificacionController::ordenesEnProceso', ['error' => $e->getMessage()]);
+            return response()->json([
+                's' => false,
+                'e' => $e->getMessage(),
             ], 500);
         }
     }
