@@ -14,6 +14,8 @@ class SSYSFoliosSecuencia extends Model
 {
     use HasFactory;
 
+    protected $connection = 'sqlsrv';
+
     // Nombre real de la tabla (SQL Server + esquema)
     protected $table = 'dbo.SSYSFoliosSecuencias';
 

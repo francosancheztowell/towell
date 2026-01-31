@@ -89,6 +89,8 @@ Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])
     ->names('tel-bpm');
 
+Route::get('tel-bpm/check-permission', [TelBpmController::class, 'checkCreatePermission'])->name('tel-bpm.check-permission');
+
 Route::patch('tel-bpm/{folio}/terminar', [TelBpmLineController::class, 'finish'])->name('tel-bpm.finish');
 Route::patch('tel-bpm/{folio}/autorizar', [TelBpmLineController::class, 'authorizeDoc'])->name('tel-bpm.authorize');
 Route::patch('tel-bpm/{folio}/rechazar', [TelBpmLineController::class, 'reject'])->name('tel-bpm.reject');

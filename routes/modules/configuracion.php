@@ -3,6 +3,9 @@
 use App\Http\Controllers\ambienteController;
 use App\Http\Controllers\Configuracion\BaseDeDatosController;
 use App\Http\Controllers\Configuracion\ConfiguracionController;
+use App\Http\Controllers\Configuracion\DepartamentosController;
+use App\Http\Controllers\Configuracion\MensajesController;
+use App\Http\Controllers\Configuracion\SecuenciaFoliosController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -60,7 +63,23 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () {
     Route::get('/basededatos', [BaseDeDatosController::class, 'index'])->name('basededatos');
     Route::post('/basededatos/update-productivo', [BaseDeDatosController::class, 'updateProductivo'])->name('basededatos.update-productivo');
 
-    Route::get('/ambiente', [ambienteController::class, 'index']) -> name('configuracion.ambiente');
+
+    Route::get('/departamentos', [DepartamentosController::class, 'index'])->name('departamentos');
+    Route::post('/departamentos', [DepartamentosController::class, 'store'])->name('departamentos.store');
+    Route::put('/departamentos/{id}', [DepartamentosController::class, 'update'])->name('departamentos.update')->whereNumber('id');
+    Route::delete('/departamentos/{id}', [DepartamentosController::class, 'destroy'])->name('departamentos.destroy')->whereNumber('id');
+
+    Route::get('/secuencia-de-folios', [SecuenciaFoliosController::class, 'index'])->name('secuencia-folios');
+    Route::post('/secuencia-de-folios', [SecuenciaFoliosController::class, 'store'])->name('secuencia-folios.store');
+    Route::put('/secuencia-de-folios/{id}', [SecuenciaFoliosController::class, 'update'])->name('secuencia-folios.update')->whereNumber('id');
+    Route::delete('/secuencia-de-folios/{id}', [SecuenciaFoliosController::class, 'destroy'])->name('secuencia-folios.destroy')->whereNumber('id');
+
+    Route::get('/mensajes', [MensajesController::class, 'index'])->name('mensajes');
+    Route::post('/mensajes', [MensajesController::class, 'store'])->name('mensajes.store');
+    Route::put('/mensajes/{id}', [MensajesController::class, 'update'])->name('mensajes.update')->whereNumber('id');
+    Route::delete('/mensajes/{id}', [MensajesController::class, 'destroy'])->name('mensajes.destroy')->whereNumber('id');
+    Route::get('/mensajes/{id}/obtener-chat-ids', [MensajesController::class, 'obtenerChatIds'])->name('mensajes.obtener-chat-ids')->whereNumber('id');
+    Route::put('/mensajes/{id}/chat-id', [MensajesController::class, 'actualizarChatId'])->name('mensajes.actualizar-chat-id')->whereNumber('id');
 });
 
 Route::get('/modulos/{modulo}/duplicar', [ModulosController::class, 'duplicar'])->name('modulos.duplicar');

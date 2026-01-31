@@ -44,20 +44,22 @@ class TelBpmLineController extends Controller
             $telares = $lineas->pluck('NoTelarId')->filter()->unique()->values();
         }
 
-        // Inicializar todas las combinaciones (Actividad x Telar) con Valor NULL si no existen
-        try {
-            DB::transaction(function () use ($folio, $header, $actividades, $telares, $salonPorTelar) {
+        // Inicializar solo si faltan celdas (store() ya crea las líneas al crear el folio; así evitamos lentitud al redirigir)
+        $esperadas = $actividades->count() * $telares->count();
+        if ($lineas->count() < $esperadas && $esperadas > 0) {
+            try {
+                $existentesSet = [];
+                foreach ($lineas as $ln) {
+                    $existentesSet[((int)($ln->Orden ?? 0)) . '_' . (string)$ln->NoTelarId] = true;
+                }
+                $inserts = [];
                 foreach ($actividades as $a) {
                     $orden = (int)$a['Orden'];
                     $actividad = (string)$a['Actividad'];
                     foreach ($telares as $t) {
-                        $exists = DB::table('TelBPMLine')
-                            ->where('Folio', $folio)
-                            ->where('Orden', $orden)
-                            ->where('NoTelarId', (string)$t)
-                            ->exists();
-                        if (!$exists) {
-                            DB::table('TelBPMLine')->insert([
+                        $key = $orden . '_' . (string)$t;
+                        if (!isset($existentesSet[$key])) {
+                            $inserts[] = [
                                 'Folio'         => $folio,
                                 'Orden'         => $orden,
                                 'NoTelarId'     => (string)$t,
@@ -65,17 +67,21 @@ class TelBpmLineController extends Controller
                                 'SalonTejidoId' => $salonPorTelar[$t] ?? null,
                                 'TurnoRecibe'   => (string)$header->TurnoRecibe,
                                 'Valor'         => null,
-                            ]);
+                            ];
                         }
                     }
                 }
-            });
-            // Recargar líneas después de inicializar
-            $lineas = TelBpmLineModel::where('Folio', $folio)
-                        ->orderBy('Orden')
-                        ->get();
-        } catch (\Throwable $e) {
-            // Si falla la inicialización, continuamos mostrando lo disponible
+                if (!empty($inserts)) {
+                    DB::transaction(function () use ($inserts) {
+                        foreach (array_chunk($inserts, 50) as $chunk) {
+                            DB::table('TelBPMLine')->insert($chunk);
+                        }
+                    });
+                    $lineas = TelBpmLineModel::where('Folio', $folio)->orderBy('Orden')->get();
+                }
+            } catch (\Throwable $e) {
+                // Si falla, se muestra lo que ya hay
+            }
         }
 
         // Comentarios ahora en TelBPM.Comentarios (no en TelBPMLine)

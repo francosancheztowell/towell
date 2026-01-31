@@ -94,10 +94,11 @@
                     <tr class="hover:bg-gray-50 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                         <td class="px-1 py-2 text-slate-600 font-medium sticky left-0 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20">{{ $loop->iteration }}</td>
                         <td class="px-1 py-2 text-gray-800 font-medium sticky left-8 {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} z-20 min-w-[120px] max-w-[120px] text-base truncate" title="{{ $a['Actividad'] }}">{{ $a['Actividad'] }}</td>
-                        @foreach($telares->slice(0, 10) as $t)
+                        @foreach($telares as $t)
                             @php $val = $map[$a['Orden']][$t] ?? null; @endphp
                             <td class="px-0.5 py-2 text-center">
                                 <button
+                                    id="cell-{{ $a['Orden'] }}-{{ $t }}"
                                     class="cell-btn inline-flex items-center justify-center w-8 h-8 rounded border-2 transition
                                         {{ $val==='OK' ? 'bg-green-100 border-green-400 text-green-700 hover:bg-green-200' :
                                            ($val==='X' ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' :
@@ -146,9 +147,59 @@
     const editable = @json($header->Status === 'Creado');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const toggleUrl = @json(route('tel-bpm-line.toggle', $header->Folio));
+    const comentariosUrl = @json(route('tel-bpm-line.comentarios', $header->Folio));
+    const COMENTARIOS_DEBOUNCE_MS = 3000;
+    const CELL_CLASSES = {
+        OK: ['bg-green-100','border-green-400','text-green-700','hover:bg-green-200'],
+        X: ['bg-red-100','border-red-400','text-red-700','hover:bg-red-200'],
+        EMPTY: ['bg-gray-50','border-gray-300','text-gray-400','hover:bg-gray-100','hover:border-gray-400'],
+    };
+    const CELL_ICONS = { OK: '✓', X: '✗', EMPTY: '○' };
 
     function toast(icon, title){
         Swal.fire({ icon, title, toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+    }
+
+    async function postJson(url, payload) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        let data = {};
+        try {
+            data = await res.json();
+        } catch (e) {
+            data = { ok: false, msg: 'Respuesta no valida del servidor' };
+        }
+        return { res, data };
+    }
+
+    function setCellState(btn, next) {
+        const icon = btn.querySelector('.cell-icon');
+        btn.dataset.valor = next || '';
+        btn.classList.remove(...CELL_CLASSES.OK, ...CELL_CLASSES.X, ...CELL_CLASSES.EMPTY);
+        if (next === 'OK') {
+            btn.classList.add(...CELL_CLASSES.OK);
+            if (icon) icon.textContent = CELL_ICONS.OK;
+        } else if (next === 'X') {
+            btn.classList.add(...CELL_CLASSES.X);
+            if (icon) icon.textContent = CELL_ICONS.X;
+        } else {
+            btn.classList.add(...CELL_CLASSES.EMPTY);
+            if (icon) icon.textContent = CELL_ICONS.EMPTY;
+        }
+    }
+
+    function confirmAndSubmit(btnId, formId, title) {
+        const b = document.getElementById(btnId);
+        const f = document.getElementById(formId);
+        if (!b || !f) return;
+        b.addEventListener('click', () => {
+            Swal.fire({ title, icon:'question', showCancelButton:true,
+                confirmButtonText:'Aceptar', cancelButtonText:'Cancelar'
+            }).then(r => { if (r.isConfirmed) f.submit(); });
+        });
     }
 
     // Mostrar mensajes de sesión (success/error) al cargar la página
@@ -167,57 +218,27 @@
     @endif
 
     // Tri-estado por celda: vacío → ✓ → ✗ → vacío (guarda sólo el folio actual)
-    document.querySelectorAll('.cell-btn').forEach(btn=>{
-        btn.addEventListener('click', async ()=>{
+    document.querySelectorAll('.cell-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
             if (!editable) { toast('info','Edición no permitida'); return; }
 
             const payload = {
-                Orden: parseInt(btn.dataset.orden),
+                Orden: parseInt(btn.dataset.orden, 10),
                 NoTelarId: btn.dataset.telar,
                 SalonTejidoId: btn.dataset.salon || null,
                 TurnoRecibe: @json($header->TurnoRecibe),
                 Actividad: btn.dataset.actividad
             };
 
-            const res = await fetch(toggleUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await res.json();
-            if (!res.ok || !data.ok){
-                toast('error', data.msg || 'No se pudo guardar'); return;
+            const { res, data } = await postJson(toggleUrl, payload);
+            if (!res.ok || !data.ok) {
+                toast('error', data.msg || 'No se pudo guardar');
+                return;
             }
 
-            // Actualiza UI (NULL → OK → X → NULL)
-            const next = data.valor; // 'OK' | 'X' | null
-            btn.dataset.valor = next || '';
-            btn.classList.remove('bg-green-100','border-green-400','text-green-700','hover:bg-green-200','bg-red-100','border-red-400','text-red-700','hover:bg-red-200','bg-gray-50','border-gray-300','text-gray-400','hover:bg-gray-100','hover:border-gray-400');
-            if (next === 'OK') {
-                btn.classList.add('bg-green-100','border-green-400','text-green-700','hover:bg-green-200');
-                btn.querySelector('.cell-icon').innerHTML = '✓';
-            } else if (next === 'X') {
-                btn.classList.add('bg-red-100','border-red-400','text-red-700','hover:bg-red-200');
-                btn.querySelector('.cell-icon').innerHTML = '✗';
-            } else {
-                btn.classList.add('bg-gray-50','border-gray-300','text-gray-400','hover:bg-gray-100','hover:border-gray-400');
-                btn.querySelector('.cell-icon').innerHTML = '○';
-            }
+            setCellState(btn, data.valor);
         });
     });
-
-
-    // Confirmaciones de estado
-    const confirmAndSubmit = (btnId, formId, title) => {
-        const b = document.getElementById(btnId), f = document.getElementById(formId);
-        if (!b || !f) return;
-        b.addEventListener('click', ()=>{
-            Swal.fire({ title, icon:'question', showCancelButton:true,
-                confirmButtonText:'Aceptar', cancelButtonText:'Cancelar'
-            }).then(r=>{ if(r.isConfirmed) f.submit(); });
-        });
-    };
 
     // Validación especial para Finalizar: verificar actividades sin completar
     const btnFinish = document.getElementById('btn-finish');
@@ -276,8 +297,6 @@
     const comentariosTextarea = document.getElementById('comentarios-textarea');
     const charCount = document.getElementById('char-count');
     const comentariosStatus = document.getElementById('comentarios-status');
-    const comentariosUrl = @json(route('tel-bpm-line.comentarios', $header->Folio));
-    const COMENTARIOS_DEBOUNCE_MS = 3000;
     let comentariosDebounceTimer = null;
     let lastSavedComentarios = (function() {
         var c = @json($comentarios ?? '');
@@ -298,28 +317,13 @@
             return;
         }
         var comentariosNorm = comentarios.trim();
-        if (comentariosNorm === (typeof lastSavedComentarios === 'string' ? lastSavedComentarios.trim() : '')) return;
+        var lastNorm = (typeof lastSavedComentarios === 'string' ? lastSavedComentarios.trim() : '');
+        if (comentariosNorm === lastNorm) return;
 
         setComentariosStatus('Guardando...', false);
         try {
-            const response = await fetch(comentariosUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrf,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ Comentarios: comentarios })
-            });
-
-            var data = {};
-            try {
-                data = await response.json();
-            } catch (e) {
-                data = { ok: false, msg: 'Respuesta no válida del servidor' };
-            }
-
-            if (response.ok && data.ok) {
+            const { res, data } = await postJson(comentariosUrl, { Comentarios: comentarios });
+            if (res.ok && data.ok) {
                 lastSavedComentarios = comentarios;
                 setComentariosStatus('Guardado', false);
                 setTimeout(function() { setComentariosStatus('', false); }, 2000);

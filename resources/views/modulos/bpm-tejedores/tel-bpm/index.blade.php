@@ -26,27 +26,6 @@
 @section('content')
 <div class="max-w-7xl mx-auto p-4 pb-8">
     {{-- Flash messages --}}
-    @if(session('success'))
-        <div class="mb-2 rounded-lg bg-green-600/10 border border-green-600/30 text-green-800 px-4 py-3">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-2 rounded-lg bg-red-600/10 border border-red-600/30 text-red-800 px-4 py-3">
-            {{ session('error') }}
-        </div>
-    @endif
-    @if($errors->any())
-        <div class="mb-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 px-4 py-3">
-            <p class="font-semibold">No se pudo crear el folio. Revise los datos:</p>
-            <ul class="list-disc list-inside mt-1 text-sm">
-                @foreach($errors->all() as $err)
-                    <li>{{ $err }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
     {{-- Tabla --}}
     <div class="overflow-x-auto overflow-y-auto rounded-lg bg-white shadow-sm pb-3" style="max-height: 70vh;">
         <table class="min-w-full text-sm">
@@ -131,7 +110,7 @@
 
     <form id="form-create" method="POST" action="{{ route('tel-bpm.store') }}">
         @csrf
-        <input type="hidden" name="_mode" value="create"    >
+        <input type="hidden" name="_mode" value="create">
 
         <div class="space-y-6">
             <!-- Fecha y Hora -->
@@ -208,7 +187,7 @@
         </div>
 
         <div class="mt-6 flex items-center gap-2">
-            <button class="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 w-full p-2">
+            <button type="submit" class="rounded-lg px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 w-full p-2">
                 Crear folio
             </button>
             <button type="button" data-close="#modal-create" class="rounded-lg px-4 py-2 text-black border-black border w-full transition">
@@ -530,10 +509,10 @@
     applyFilters();
     updateFilterButtons();
 
-    // Crear: validar que el usuario exista como operador
+    // Crear: validar que el usuario exista como operador y tenga permisos
     const usuarioEsOperador = @json($usuarioEsOperador ?? false);
     const noRecibeInput = document.querySelector('#form-create input[name="CveEmplRec"]');
-    qs('#btn-open-create')?.addEventListener('click', ()=> {
+    qs('#btn-open-create')?.addEventListener('click', async ()=> {
         if (!usuarioEsOperador) {
             Swal.fire({
                 icon: 'error',
@@ -543,7 +522,87 @@
             });
             return;
         }
+        
+        // Verificar permisos antes de abrir el modal
+        try {
+            const response = await fetch('{{ route("tel-bpm.check-permission") }}', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (!data.puedeCrear) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Acceso Denegado',
+                        html: `
+                            <p class="mb-2">No tienes permisos para crear folios en este módulo.</p>
+                            <p class="text-sm text-gray-600">Solo usuarios del área <strong>Tejedores</strong> pueden crear folios.</p>
+                            <p class="text-sm text-gray-600 mt-2">Tu área actual: <strong>${data.usuarioArea || 'No definida'}</strong></p>
+                            ${!data.tienePermiso ? '<p class="text-sm text-red-600 mt-2">No tienes el permiso de creación en el módulo BPM.</p>' : ''}
+                            ${!data.esAreaTejedores ? '<p class="text-sm text-red-600 mt-2">No perteneces al área de Tejedores.</p>' : ''}
+                        `,
+                        confirmButtonColor: '#2563eb',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Error al verificar permisos:', error);
+            // Continuar con la apertura del modal si hay error en la verificación
+        }
+        
         open('#modal-create')
+    });
+
+    // Interceptar envío del formulario para verificar permisos
+    const formCreate = qs('#form-create');
+    formCreate?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Verificar permisos antes de enviar
+        try {
+            const response = await fetch('{{ route("tel-bpm.check-permission") }}', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (!data.puedeCrear) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Acceso Denegado',
+                        html: `
+                            <p class="mb-2">No tienes permisos para crear folios en este módulo.</p>
+                            <p class="text-sm text-gray-600">Solo usuarios del área <strong>Tejedores</strong> pueden crear folios.</p>
+                            <p class="text-sm text-gray-600 mt-2">Tu área actual: <strong>${data.usuarioArea || 'No definida'}</strong></p>
+                            ${!data.tienePermiso ? '<p class="text-sm text-red-600 mt-2">No tienes el permiso de creación en el módulo BPM.</p>' : ''}
+                            ${!data.esAreaTejedores ? '<p class="text-sm text-red-600 mt-2">No perteneces al área de Tejedores.</p>' : ''}
+                        `,
+                        confirmButtonColor: '#2563eb',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Error al verificar permisos:', error);
+            // Continuar con el envío si hay error en la verificación
+        }
+        
+        // Si tiene permisos, enviar el formulario
+        formCreate.submit();
     });
 
     // Seleccionar fila y accionar desde barra superior
@@ -692,10 +751,23 @@
   (function(){
     Swal.fire({
       icon: 'warning',
-      title: 'Acción no permitida',
+      title: 'Aviso',
       text: @json(session('error')),
       confirmButtonText: 'Entendido'
     });
+  })();
+</script>
+@endif
+
+@if($errors->any())
+<script>
+  (function(){
+    Swal.fire({
+      icon: 'error',
+      title: 'No se pudo crear el folio',
+      html: @json(implode('<br>', $errors->all())),
+      confirmButtonText: 'Entendido'
+    }).then(function(){ document.getElementById('btn-open-create') && document.getElementById('btn-open-create').click(); });
   })();
 </script>
 @endif
@@ -704,12 +776,18 @@
 <script>
   (function(){
     const message = @json(session('success'));
-    // Auto-refrescar cuando se crea, termina, autoriza o rechaza un folio
-    if (message.includes('creado') || message.includes('Terminado') || message.includes('Autorizado') || message.includes('Creado')) {
-        // Pequeño delay para que el usuario vea el mensaje de éxito antes del refresh
-        setTimeout(() => {
-            window.location.reload();
-        }, 1500);
+    Swal.fire({
+      icon: 'success',
+      title: 'Listo',
+      text: message,
+      toast: true,
+      position: 'top-end',
+      timer: 2500,
+      showConfirmButton: false
+    });
+    // Auto-refrescar solo cuando se crea, termina, autoriza o rechaza (no al eliminar)
+    if (typeof message === 'string' && (message.includes('creado') || message.includes('Terminado') || message.includes('Autorizado') || message.includes('Creado'))) {
+      setTimeout(function() { window.location.reload(); }, 1800);
     }
   })();
 </script>
