@@ -159,7 +159,6 @@ class CatCodificacionController extends Controller
     {
         try {
             $columnas = CatCodificados::COLUMNS;
-            $table    = (new CatCodificados())->getTable();
             $idFilter = $request->filled('id') ? (int) $request->input('id') : null;
             $skipCache = $request->boolean('nocache', false);
 
@@ -174,29 +173,22 @@ class CatCodificacionController extends Controller
                     ->header('X-Cache', 'HIT');
             }
 
-            // 2. PREPARACIÓN DE LA CONSULTA RAW (Más rápido que Query Builder)
-            // Asegúrate de que las columnas sean nombres seguros (vienen de tu constante)
-            $colsStr = implode(',', $columnas);
-
-            $pdo = DB::connection()->getPdo();
+            // 2. Query Builder (compatible SQL Server / MySQL - PDO LIMIT falla en SQL Server)
+            $query = CatCodificados::query()->select($columnas)->orderBy('Id', 'desc');
 
             if ($idFilter) {
-                // Caso filtro ID
-                $stmt = $pdo->prepare("SELECT {$colsStr} FROM {$table} WHERE Id = :id LIMIT 1");
-                $stmt->bindValue(':id', $idFilter, \PDO::PARAM_INT);
-            } else {
-                // Caso TODO (11,000 registros)
-                // LIMIT 20000 es un seguro por si la tabla crece descontroladamente
-                $stmt = $pdo->prepare("SELECT {$colsStr} FROM {$table} ORDER BY Id DESC");
+                $query->where('Id', $idFilter)->limit(1);
             }
 
-            // 3. EJECUCIÓN
-            $stmt->execute();
+            $registros = $query->get();
 
-            // 4. MAGIA: FETCH_NUM
-            // Esto devuelve [[val, val], [val, val]] directamente.
-            // Cero procesamiento de PHP, cero bucles foreach manuales.
-            $data = $stmt->fetchAll(\PDO::FETCH_NUM);
+            $data = $registros->map(function ($row) use ($columnas) {
+                $arr = [];
+                foreach ($columnas as $col) {
+                    $arr[] = $row->getAttribute($col);
+                }
+                return $arr;
+            })->all();
 
             $response = [
                 's' => true,
@@ -205,7 +197,7 @@ class CatCodificacionController extends Controller
                 'c' => $columnas,
             ];
 
-            // 5. CACHE MISS
+            // 3. CACHE MISS
             if (!$skipCache) {
                 Cache::put($cacheKey, $response, 60);
             }
@@ -215,6 +207,11 @@ class CatCodificacionController extends Controller
                 ->header('X-Cache', 'MISS');
 
         } catch (\Throwable $e) {
+            Log::error('CatCodificacionController::getAllFast', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 's' => false,
                 'e' => $e->getMessage(),

@@ -15,6 +15,14 @@
             <i class="fas fa-filter text-lg" aria-hidden="true"></i>
             <span id="filter-count" class="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold hidden">0</span>
         </button>
+        <button id="btn-balancear"
+            onclick="abrirModalBalancear()"
+            class="inline-flex items-center gap-1 px-3 py-3 border border-gray-300 bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition rounded-full p-4"
+            disabled
+            title="Ver registros compartidos y OrdCompartidaLider"
+        >
+            <i class="fas fa-balance-scale"></i>
+        </button>
         <button id="btn-reimprimir-seleccionado"
             onclick="reimprimirOrdenSeleccionada()"
             class="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
@@ -53,6 +61,18 @@
                 @php
                     $columnas = $columnas ?? [];
                     $columnLabels = [
+                        'OrdenTejido' => 'Num de Orden',
+                        'FechaTejido' => 'Fecha Orden',
+                        'FechaCumplimiento' => 'Fecha Cumplimiento',
+                        'TelarId' => 'Telar',
+                        'Nombre' => 'Modelo',
+                        'ClaveModelo' => 'Clave Modelo',
+                        'ItemId' => 'Clave AX',
+                        'HiloAX' => 'Hilo AX',
+                        'InventSizeId' => 'Tamaño',
+                        'FlogsId' => 'Flogs',
+                        'NombreProyecto' => 'Nombre de Formato Logístico',
+                        'Cantidad' => 'Cantidad a Producir',
                         'JulioRizo' => 'No Julio Rizo',
                         'JulioPie' => 'No Julio Pie',
                         'EfiInicial' => 'Eficiencia de Inicio',
@@ -72,21 +92,22 @@
                         'FechaTejido',         // Fecha Orden
                         'FechaCumplimiento',    // Fecha Cumplimiento
                         'Departamento',
-                        'TelarId',              // Telar Actual
+                        'TelarId',              // Telar
                         'Prioridad',
                         'Nombre',               // Modelo
-                        'ClaveModelo',          // CLAVE MODELO
-                        'HiloAX',               // CLAVE AX
+                        'ClaveModelo',          // Clave Modelo
+                        'ItemId',               // Clave AX
+                        'HiloAX',               // Hilo AX
                         'InventSizeId',         // Tamaño
                         'Tolerancia',
                         'CodigoDibujo',
                         'FechaCompromiso',
-                        'FlogsId',
+                        'FlogsId',              // Flogs
                         'NombreProyecto',       // Nombre de Formato Logístico
                         'Clave',
 
                         // Medidas / especificación
-                        'Cantidad',
+                        'Cantidad',             // Cantidad a Producir
                         'Peine',
                         'Ancho',
                         'Largo',
@@ -145,11 +166,12 @@
                 @endphp
 
                 <table id="mainTable" class="w-full min-w-full text-[11px] leading-tight">
-                    <thead class="bg-blue-500 text-white sticky top-0 z-10">
+                    <thead class="bg-blue-500 text-white sticky top-0 z-10 codificacion-header-context">
                         <tr>
-                            @foreach($columnas as $columna)
-                                <th class="px-3 py-2 text-left font-semibold whitespace-nowrap border-b border-blue-600/70">
+                            @foreach($columnas as $idx => $columna)
+                                <th class="px-3 py-2 text-left font-semibold whitespace-nowrap border-b border-blue-600/70 column-{{ $idx }}" data-column="{{ $columna }}" data-index="{{ $idx }}">
                                     <span class="block truncate">{{ $columnLabels[$columna] ?? $columna }}</span>
+                                    <span class="codificacion-header-icons ml-1 inline-flex items-center gap-0.5"></span>
                                 </th>
                             @endforeach
                         </tr>
@@ -159,6 +181,18 @@
                         {{-- El contenido se llena por JS --}}
                     </tbody>
                 </table>
+            </div>
+
+            {{-- Menú contextual para encabezados de columnas (Filtrar, Fijar) --}}
+            <div id="codificacionContextMenuHeader" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-[9999] py-1 min-w-[180px]">
+                <button type="button" id="codificacionCtxFiltrar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+                    <i class="fas fa-filter text-yellow-500"></i>
+                    <span>Filtrar</span>
+                </button>
+                <button type="button" id="codificacionCtxFijar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 flex items-center gap-2">
+                    <i class="fas fa-thumbtack text-blue-500"></i>
+                    <span id="codificacionCtxFijarLabel">Fijar</span>
+                </button>
             </div>
 
             {{-- Paginación fija abajo --}}
@@ -327,6 +361,72 @@
             padding-bottom: 0 !important;
             line-height: 1.2 !important;
         }
+
+        /* Menú contextual en encabezados */
+        .codificacion-header-context th {
+            cursor: context-menu;
+            position: relative;
+        }
+
+        /* Iconos en encabezados (filtro activo / columna fijada) */
+        .codificacion-header-icons {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .codificacion-header-icon {
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            padding: 3px 4px;
+            min-width: 22px;
+            min-height: 22px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            color: inherit;
+            font-size: 11px;
+        }
+        .codificacion-header-icon:hover {
+            opacity: 0.9;
+            background: rgba(255,255,255,0.25);
+        }
+        .codificacion-header-icon .fa-filter {
+            color: #fcd34d !important;
+        }
+        .codificacion-header-icon .fa-thumbtack {
+            color: #fff !important;
+        }
+
+        /* Columnas fijadas (pin) */
+        #mainTable thead th.codificacion-pinned,
+        #mainTable tbody td.codificacion-pinned {
+            position: sticky !important;
+            z-index: 5;
+            background-color: #1d4ed8 !important;
+            color: #fff !important;
+        }
+        #mainTable tbody td.codificacion-pinned {
+            z-index: 1;
+        }
+        #mainTable thead th.codificacion-pinned {
+            z-index: 11 !important;
+        }
+
+        /* Fila seleccionada (bg-blue-500, text-white) */
+        #mainTable tbody tr.codificacion-row-selected,
+        #mainTable tbody tr.codificacion-row-selected td {
+            background-color: #3b82f6 !important;
+            color: #fff !important;
+        }
+        #mainTable tbody tr.codificacion-row-selected:hover,
+        #mainTable tbody tr.codificacion-row-selected:hover td {
+            background-color: #2563eb !important;
+            color: #fff !important;
+        }
     </style>
 
     {{-- Script principal --}}
@@ -337,14 +437,18 @@
             // =========================
             const CONFIG = {
                 columnas: {!! json_encode($columnas ?? []) !!},
+                columnLabels: @json($columnLabels ?? []),
                 apiUrl: {!! json_encode($apiUrl ?? '/planeacion/codificacion/api/all-fast') !!},
                 totalRegistros: {{ isset($totalRegistros) ? (int) $totalRegistros : 0 }},
+                dateColumns: ['FechaTejido', 'FechaCumplimiento', 'FechaCompromiso', 'FechaCreacion', 'FechaModificacion'],
             };
 
             const state = {
                 data: [],
                 filtered: [],
                 filtros: [],       // { columna: index, valor: string }
+                filtrosPorColumna: [], // { column: string, value: string } para filtros desde menú contextual
+                pinnedColumns: [],
                 page: 1,
                 perPage: 500,
                 total: CONFIG.totalRegistros || 0,
@@ -360,6 +464,23 @@
 
             const getCsrf = () =>
                 document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+            function formatDateOnly(val, columnName) {
+                if (val == null || val === '') return '';
+                if (!CONFIG.dateColumns || !CONFIG.dateColumns.includes(columnName)) return String(val);
+                const s = String(val).trim();
+                if (!s) return '';
+                const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (m) return m[1] + '-' + m[2] + '-' + m[3];
+                const d = new Date(s);
+                if (!isNaN(d.getTime())) {
+                    const y = d.getFullYear();
+                    const mo = String(d.getMonth() + 1).padStart(2, '0');
+                    const da = String(d.getDate()).padStart(2, '0');
+                    return y + '-' + mo + '-' + da;
+                }
+                return s;
+            }
 
             function setLoading(isLoading, message = 'Cargando datos...', count = '') {
                 state.loading = isLoading;
@@ -553,7 +674,7 @@
                                             opt.dataset.noTelarId = item.noTelarId != null ? String(item.noTelarId) : '';
                                             opt.dataset.itemId = item.itemId != null ? String(item.itemId) : '';
                                             opt.dataset.nombreProducto = item.nombreProducto || '';
-                                            opt.textContent = (item.noProduccion || '') + (item.noTelarId ? ' — Telar ' + item.noTelarId : '') + (item.nombreProducto ? ' — ' + item.nombreProducto : '');
+                                            opt.textContent = item.noProduccion || '';
                                             selectOrden.appendChild(opt);
                                         });
                                         if (ordenTejido) selectOrden.value = ordenTejido;
@@ -629,16 +750,19 @@
                         throw new Error(json.e || 'Error al cargar datos');
                     }
 
-                    const columnas = json.c || CONFIG.columnas;
-                    const raw      = json.d || [];
+                    const columnas = (json.c && json.c.length) ? json.c : CONFIG.columnas;
+                    const raw      = Array.isArray(json.d) ? json.d : [];
                     const totalRows = raw.length;
 
                     setLoading(true, 'Procesando registros...', totalRows.toLocaleString() + ' registros');
 
                     state.data = raw.map(rowArr => {
                         const obj = {};
-                        for (let j = 0; j < columnas.length; j++) {
-                            obj[columnas[j]] = rowArr[j] ?? null;
+                        const rowLen = Array.isArray(rowArr) ? rowArr.length : 0;
+                        const colLen = columnas.length;
+                        for (let j = 0; j < colLen; j++) {
+                            const key = columnas[j];
+                            if (key) obj[key] = (j < rowLen ? rowArr[j] : null) ?? null;
                         }
                         return obj;
                     });
@@ -656,9 +780,7 @@
                     state.filtered = [...state.data];
                     state.total    = json.t || state.data.length;
 
-                    if (state.filtros.length) {
-                        aplicarFiltrosAND();
-                    }
+                    aplicarFiltrosAND();
 
                     renderPage();
                     updateFilterCount();
@@ -666,15 +788,17 @@
 
                     setLoading(false);
                 } catch (error) {
+                    console.error('loadData error:', error);
                     const tbody = $('#catcodificacion-body');
+                    const colCount = (CONFIG.columnas && CONFIG.columnas.length) ? CONFIG.columnas.length : 1;
                     if (tbody) {
                         tbody.innerHTML =
                             '<tr>' +
-                                '<td colspan="' + CONFIG.columnas.length + '" class="py-16 text-center">' +
+                                '<td colspan="' + colCount + '" class="py-16 text-center">' +
                                     '<div class="flex flex-col items-center gap-2">' +
                                         '<i class="fas fa-exclamation-triangle text-red-500 text-3xl"></i>' +
                                         '<p class="text-red-600 font-medium">Error al cargar datos</p>' +
-                                        '<p class="text-sm text-gray-500">' + error.message + '</p>' +
+                                        '<p class="text-sm text-gray-500">' + (error.message || 'Error desconocido') + '</p>' +
                                         '<button type="button" class="mt-2 px-3 py-1.5 text-sm rounded bg-blue-500 text-white hover:bg-blue-600" onclick="loadData()">' +
                                             'Reintentar' +
                                         '</button>' +
@@ -682,7 +806,7 @@
                                 '</td>' +
                             '</tr>';
                     }
-                    showToast('Error al cargar datos', 'error');
+                    showToast('Error al cargar datos: ' + (error.message || 'Error desconocido'), 'error');
                     setLoading(false);
                 }
             }
@@ -725,12 +849,13 @@
 
                     // Verificar si esta fila está seleccionada
                     const isSelected = state.selectedRowIndex === globalIndex;
+                    const isEven = rowIndex % 2 === 0;
 
-                    // Aplicar estilos según selección
+                    // Aplicar estilos según selección y alternancia
                     if (isSelected) {
-                        tr.classList.add('bg-blue-500', 'text-white');
+                        tr.classList.add('codificacion-row-selected');
                     } else {
-                        tr.classList.add('hover:bg-gray-50');
+                        tr.classList.add(...(isEven ? ['bg-white', 'hover:bg-gray-100'] : ['bg-gray-100', 'hover:bg-gray-200']));
                     }
 
                     // Evento click para seleccionar/deseleccionar
@@ -738,8 +863,8 @@
                         // Si ya está seleccionada, deseleccionar
                         if (state.selectedRowIndex === globalIndex) {
                             state.selectedRowIndex = null;
-                            tr.classList.remove('bg-blue-500', 'text-white');
-                            tr.classList.add('hover:bg-gray-50');
+                            tr.classList.remove('codificacion-row-selected', 'bg-white', 'bg-gray-100', 'hover:bg-gray-100', 'hover:bg-gray-200');
+                            tr.classList.add(...(rowIndex % 2 === 0 ? ['bg-white', 'hover:bg-gray-100'] : ['bg-gray-100', 'hover:bg-gray-200']));
                             tr.querySelectorAll('td').forEach(td => {
                                 td.classList.remove('text-white');
                                 td.classList.add('text-gray-700');
@@ -747,42 +872,52 @@
                             actualizarEstadoBotonReimprimir();
                         } else {
                             // Deseleccionar fila anterior si existe
-                            const prevSelected = tbody.querySelector('tr.bg-blue-500');
+                            const prevSelected = tbody.querySelector('tr.codificacion-row-selected');
                             if (prevSelected) {
-                                prevSelected.classList.remove('bg-blue-500', 'text-white');
-                                prevSelected.classList.add('hover:bg-gray-50');
+                                const prevIdx = parseInt(prevSelected.dataset.index, 10);
+                                const prevRowIdx = prevIdx - startIndex;
+                                prevSelected.classList.remove('codificacion-row-selected', 'bg-white', 'bg-gray-100', 'hover:bg-gray-100', 'hover:bg-gray-200');
+                                prevSelected.classList.add(...(prevRowIdx % 2 === 0 ? ['bg-white', 'hover:bg-gray-100'] : ['bg-gray-100', 'hover:bg-gray-200']));
                                 prevSelected.querySelectorAll('td').forEach(td => {
                                     td.classList.remove('text-white');
                                     td.classList.add('text-gray-700');
                                 });
                             }
 
-                            // Seleccionar nueva fila
-                            state.selectedRowIndex = globalIndex;
-                            tr.classList.add('bg-blue-500', 'text-white');
-                            tr.classList.remove('hover:bg-gray-50');
+                            // Seleccionar nueva fila: quitar fondos alternados y aplicar clase de selección
+                            tr.classList.remove('bg-white', 'bg-gray-100', 'hover:bg-gray-100', 'hover:bg-gray-200');
+                            tr.classList.add('codificacion-row-selected');
                             tr.querySelectorAll('td').forEach(td => {
                                 td.classList.remove('text-gray-700');
                                 td.classList.add('text-white');
                             });
+                            state.selectedRowIndex = globalIndex;
                             actualizarEstadoBotonReimprimir();
                         }
                     });
 
-                    for (const col of CONFIG.columnas) {
+                    CONFIG.columnas.forEach((col, colIdx) => {
                         const td = document.createElement('td');
-                        td.className = 'px-3 py-1.5 border-b border-gray-100 whitespace-nowrap text-[11px] ' +
+                        td.className = 'px-3 py-1.5 border-b border-gray-100 whitespace-nowrap text-[11px] column-' + colIdx + ' ' +
                             (isSelected ? 'text-white' : 'text-gray-700');
+                        td.setAttribute('data-column', col);
+                        td.setAttribute('data-index', colIdx);
                         const value = row[col] ?? '';
-                        td.textContent = value !== null ? String(value) : '';
+                        td.textContent = formatDateOnly(value, col);
                         tr.appendChild(td);
-                    }
+                    });
 
                     fragment.appendChild(tr);
                 });
 
                 tbody.innerHTML = '';
                 tbody.appendChild(fragment);
+                try {
+                    updatePinnedPositions();
+                    updateColumnHeaderIcons();
+                } catch (e) {
+                    console.warn('updatePinnedPositions/updateColumnHeaderIcons:', e);
+                }
                 updatePagination();
                 actualizarEstadoBotonReimprimir();
             }
@@ -816,6 +951,76 @@
             }
 
             // =========================
+            //   COLUMNAS FIJADAS
+            // =========================
+            function getColumnElements(index) {
+                return $$('#mainTable .column-' + index);
+            }
+
+            function updatePinnedPositions() {
+                const table = $('#mainTable');
+                if (!table || !state.pinnedColumns || !state.pinnedColumns.length) {
+                    $$('#mainTable th[data-index], #mainTable td[data-index]').forEach(el => {
+                        el.classList.remove('codificacion-pinned');
+                        el.style.left = '';
+                        el.style.position = '';
+                        el.style.top = '';
+                    });
+                    return;
+                }
+                let left = 0;
+                state.pinnedColumns.forEach(idx => {
+                    const els = getColumnElements(idx);
+                    const th = els.find(el => el.tagName === 'TH');
+                    if (!th) return;
+                    const w = th.offsetWidth || 80;
+                    els.forEach(el => {
+                        el.classList.add('codificacion-pinned');
+                        el.style.left = left + 'px';
+                        el.style.position = 'sticky';
+                        if (el.tagName === 'TH') el.style.top = '0';
+                    });
+                    left += w;
+                });
+                $$('#mainTable th[data-index], #mainTable td[data-index]').forEach(el => {
+                    const dataIndex = el.getAttribute('data-index');
+                    const idx = dataIndex !== null && dataIndex !== '' ? parseInt(dataIndex, 10) : NaN;
+                    if (Number.isNaN(idx) || !state.pinnedColumns.includes(idx)) {
+                        el.classList.remove('codificacion-pinned');
+                        el.style.left = '';
+                        el.style.position = '';
+                        el.style.top = '';
+                    }
+                });
+            }
+
+            function updateColumnHeaderIcons() {
+                if (!CONFIG.columnas || !CONFIG.columnas.length) return;
+                CONFIG.columnas.forEach((col, idx) => {
+                    const th = document.querySelector('#mainTable thead th.column-' + idx);
+                    if (!th) return;
+                    const field = col;
+                    const container = th.querySelector('.codificacion-header-icons');
+                    if (!container) return;
+                    let html = '';
+                    const hasFilter = (state.filtrosPorColumna || []).some(f => f.column === field);
+                    if (hasFilter) {
+                        html += '<button type="button" class="codificacion-header-icon" data-action="clear-filter" data-column="' + escapeHtml(field) + '" title="Quitar filtro"><i class="fas fa-filter"></i></button>';
+                    }
+                    if (state.pinnedColumns.includes(idx)) {
+                        html += '<button type="button" class="codificacion-header-icon" data-action="unpin" data-index="' + idx + '" title="Desfijar"><i class="fas fa-thumbtack"></i></button>';
+                    }
+                    container.innerHTML = html;
+                });
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // =========================
             //   FILTROS
             // =========================
             function aplicarFiltrosAND() {
@@ -824,10 +1029,11 @@
                     return;
                 }
 
-                if (!state.filtros.length) {
-                    state.filtered = [...state.data];
-                } else {
-                    state.filtered = state.data.filter(row => {
+                let filtered = [...state.data];
+
+                // Aplicar filtros antiguos (por índice de columna)
+                if (state.filtros.length) {
+                    filtered = filtered.filter(row => {
                         return state.filtros.every(f => {
                             const colName = CONFIG.columnas[f.columna];
                             if (!colName) return true;
@@ -838,6 +1044,24 @@
                         });
                     });
                 }
+
+                // Aplicar filtros por columna (desde menú contextual)
+                if (state.filtrosPorColumna && state.filtrosPorColumna.length) {
+                    const byColumn = {};
+                    state.filtrosPorColumna.forEach(f => {
+                        if (!byColumn[f.column]) byColumn[f.column] = [];
+                        byColumn[f.column].push(String(f.value || '').toLowerCase().trim());
+                    });
+                    filtered = filtered.filter(row => {
+                        return Object.entries(byColumn).every(([col, values]) => {
+                            const cellVal = row[col];
+                            const str = (cellVal != null ? String(cellVal) : '').toLowerCase().trim();
+                            return values.includes(str);
+                        });
+                    });
+                }
+
+                state.filtered = filtered;
 
                 // Mantener ordenamiento por Id descendente (más nuevos primero)
                 state.filtered.sort((a, b) => {
@@ -857,7 +1081,7 @@
                 const counter = document.getElementById('filter-count');
                 if (!counter) return;
 
-                const count = state.filtros.length;
+                const count = state.filtros.length + (state.filtrosPorColumna?.length || 0);
                 if (count > 0) {
                     counter.textContent = count;
                     counter.classList.remove('hidden');
@@ -984,7 +1208,7 @@
 
                         const activeFilters = document.getElementById('modal-active-filters');
                         const clearContainer = document.getElementById('btn-clear-container');
-                        if (state.filtros.length > 0) {
+                        if (state.filtros.length > 0 || (state.filtrosPorColumna && state.filtrosPorColumna.length > 0)) {
                             activeFilters?.classList.remove('hidden');
                             clearContainer?.classList.remove('hidden');
                         }
@@ -995,8 +1219,13 @@
                         document.getElementById('btn-add-filter')?.addEventListener('click', addFilterFromModal);
                         document.getElementById('btn-clear-filters')?.addEventListener('click', () => {
                             state.filtros = [];
+                            state.filtrosPorColumna = [];
                             aplicarFiltrosAND();
+                            state.page = 1;
+                            renderPage();
+                            updateColumnHeaderIcons();
                             renderModalFilters();
+                            updateFilterCount();
                             Swal.close();
                         });
 
@@ -1059,7 +1288,8 @@
 
                 if (!container || !list) return;
 
-                if (!state.filtros.length) {
+                const totalFiltros = state.filtros.length + (state.filtrosPorColumna?.length || 0);
+                if (totalFiltros === 0) {
                     container.classList.add('hidden');
                     clearBox?.classList.add('hidden');
                     return;
@@ -1068,17 +1298,44 @@
                 container.classList.remove('hidden');
                 clearBox?.classList.remove('hidden');
 
-                list.innerHTML = state.filtros.map((filtro, index) => {
+                let html = '';
+                // Filtros antiguos (por índice)
+                state.filtros.forEach((filtro, index) => {
                     const colName = CONFIG.columnas[filtro.columna] || 'Columna';
-                    return '' +
-                        '<span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-[10px]">' +
-                            '<span class="font-semibold">' + colName + ':</span>' +
-                            '<span>"' + filtro.valor + '"</span>' +
-                            '<button type="button" class="ml-1 hover:text-red-600 font-bold" onclick="removeFilterFromModal(' + index + ')">' +
+                    html += '<span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-[10px]">' +
+                        '<span class="font-semibold">' + escapeHtml(colName) + ':</span>' +
+                        '<span>"' + escapeHtml(filtro.valor) + '"</span>' +
+                        '<button type="button" class="ml-1 hover:text-red-600 font-bold" onclick="removeFilterFromModal(' + index + ')">' +
+                            '&times;' +
+                        '</button>' +
+                    '</span>';
+                });
+                // Filtros por columna (desde menú contextual)
+                if (state.filtrosPorColumna && state.filtrosPorColumna.length) {
+                    state.filtrosPorColumna.forEach((filtro, index) => {
+                        const colLabel = CONFIG.columnLabels[filtro.column] || filtro.column;
+                        html += '<span class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-[10px]">' +
+                            '<i class="fas fa-filter text-yellow-600"></i>' +
+                            '<span class="font-semibold">' + escapeHtml(colLabel) + ':</span>' +
+                            '<span>"' + escapeHtml(filtro.value) + '"</span>' +
+                            '<button type="button" class="ml-1 hover:text-red-600 font-bold" onclick="removeFilterPorColumna(' + index + ')">' +
                                 '&times;' +
                             '</button>' +
                         '</span>';
-                }).join('');
+                    });
+                }
+                list.innerHTML = html;
+            }
+
+            function removeFilterPorColumna(index) {
+                state.filtrosPorColumna.splice(index, 1);
+                aplicarFiltrosAND();
+                state.page = 1;
+                renderPage();
+                updateColumnHeaderIcons();
+                renderModalFilters();
+                updateFilterCount();
+                showToast('Filtro eliminado', 'info');
             }
 
             function removeFilterFromModal(index) {
@@ -1090,7 +1347,12 @@
 
             function limpiarFiltrosCodificacion() {
                 state.filtros = [];
+                state.filtrosPorColumna = [];
                 aplicarFiltrosAND();
+                state.page = 1;
+                renderPage();
+                updateColumnHeaderIcons();
+                updateFilterCount();
                 showToast('Filtros limpiados', 'info');
             }
 
@@ -1217,6 +1479,105 @@
             }
 
             // =========================
+            //   MENÚ CONTEXTUAL EN ENCABEZADOS
+            // =========================
+            const menu = $('#codificacionContextMenuHeader');
+            let menuColumnIndex = null;
+            let menuColumnField = null;
+
+            function hideContextMenu() {
+                if (menu) {
+                    menu.classList.add('hidden');
+                    menu.style.display = 'none';
+                }
+                menuColumnIndex = null;
+                menuColumnField = null;
+            }
+
+            function showContextMenu(e, columnIndex, columnField) {
+                menuColumnIndex = columnIndex;
+                menuColumnField = columnField;
+                if (!menu) return;
+                const fijarLabel = $('#codificacionCtxFijarLabel');
+                if (fijarLabel) fijarLabel.textContent = state.pinnedColumns.includes(columnIndex) ? 'Desfijar' : 'Fijar';
+                menu.style.left = e.clientX + 'px';
+                menu.style.top = e.clientY + 'px';
+                menu.style.display = 'block';
+                const rect = menu.getBoundingClientRect();
+                if (rect.right > window.innerWidth) menu.style.left = (e.clientX - rect.width) + 'px';
+                if (rect.bottom > window.innerHeight) menu.style.top = (e.clientY - rect.height) + 'px';
+                menu.classList.remove('hidden');
+            }
+
+            function openFilterModal(columnIndex, columnField) {
+                const columnLabel = CONFIG.columnLabels[columnField] || columnField;
+                const valueCounts = new Map();
+                state.filtered.forEach(row => {
+                    const v = row[columnField];
+                    const str = (v != null ? String(v) : '').trim();
+                    if (!valueCounts.has(str)) valueCounts.set(str, { raw: str, count: 0 });
+                    valueCounts.get(str).count++;
+                });
+                const uniqueValues = Array.from(valueCounts.keys()).filter(Boolean).sort();
+                if (uniqueValues.length === 0) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Sin valores', text: 'No hay valores para filtrar en esta columna.' });
+                    return;
+                }
+                const currentForColumn = (state.filtrosPorColumna || []).filter(f => f.column === columnField).map(f => f.value);
+
+                let html = '<div class="text-left"><p class="text-sm text-gray-600 mb-4">Filtrar por: <strong>' + escapeHtml(columnLabel) + '</strong></p>';
+                html += '<div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">';
+                html += '<div class="mb-2 pb-2 border-b border-gray-200"><input type="text" id="codificacionFilterSearch" placeholder="Buscar..." class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"></div>';
+                html += '<div id="codificacionFilterCheckboxes" class="space-y-1">';
+                uniqueValues.forEach(value => {
+                    const entry = valueCounts.get(value);
+                    const count = entry ? entry.count : 0;
+                    const checked = currentForColumn.includes(value) ? ' checked' : '';
+                    html += '<label class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"><div class="flex items-center gap-2">';
+                    html += '<input type="checkbox" class="codificacion-filter-cb w-4 h-4 text-blue-600" value="' + escapeHtml(value) + '"' + checked + '>';
+                    html += '<span class="text-sm text-gray-700">' + escapeHtml(value) + '</span></div><span class="text-xs text-gray-500">(' + count + ')</span></label>';
+                });
+                html += '</div></div></div>';
+
+                Swal.fire({
+                    title: 'Filtrar columna',
+                    html: html,
+                    showCancelButton: true,
+                    confirmButtonText: 'Aplicar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#3b82f6',
+                    width: '500px',
+                    didOpen: () => {
+                        const search = document.getElementById('codificacionFilterSearch');
+                        const container = document.getElementById('codificacionFilterCheckboxes');
+                        if (search && container) {
+                            search.addEventListener('input', () => {
+                                const term = search.value.toLowerCase();
+                                container.querySelectorAll('label').forEach(lab => {
+                                    const text = (lab.textContent || '').toLowerCase();
+                                    lab.style.display = text.includes(term) ? '' : 'none';
+                                });
+                            });
+                        }
+                    },
+                    preConfirm: () => {
+                        const checked = $$('.codificacion-filter-cb:checked').map(cb => cb.value);
+                        return checked;
+                    }
+                }).then(result => {
+                    if (!result.isConfirmed) return;
+                    state.filtrosPorColumna = (state.filtrosPorColumna || []).filter(f => f.column !== columnField);
+                    (result.value || []).forEach(v => {
+                        state.filtrosPorColumna.push({ column: columnField, value: v });
+                    });
+                    aplicarFiltrosAND();
+                    state.page = 1;
+                    renderPage();
+                    updateFilterCount();
+                });
+            }
+
+            // =========================
             //   INIT
             // =========================
             function initPaginationEvents() {
@@ -1246,10 +1607,89 @@
             document.addEventListener('DOMContentLoaded', () => {
                 initPaginationEvents();
                 loadData();
+
+                // Eventos del menú contextual en encabezados
+                const thead = $('#mainTable thead');
+                if (thead) {
+                    thead.addEventListener('contextmenu', (e) => {
+                        const th = e.target.closest('th');
+                        if (!th) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const columnIndex = parseInt(th.getAttribute('data-index'), 10);
+                        const columnField = th.getAttribute('data-column');
+                        if (Number.isNaN(columnIndex) || !columnField) return;
+                        showContextMenu(e, columnIndex, columnField);
+                    });
+                }
+
+                document.addEventListener('click', (e) => {
+                    if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target)) hideContextMenu();
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') hideContextMenu();
+                });
+
+                // Clic en iconos del encabezado: quitar filtro o desfijar
+                const mainTable = $('#mainTable');
+                if (mainTable) {
+                    mainTable.addEventListener('click', (e) => {
+                        const btn = e.target.closest('.codificacion-header-icon');
+                        if (!btn) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const action = btn.getAttribute('data-action');
+                        if (action === 'clear-filter') {
+                            const field = btn.getAttribute('data-column');
+                            if (field) {
+                                state.filtrosPorColumna = (state.filtrosPorColumna || []).filter(f => f.column !== field);
+                                aplicarFiltrosAND();
+                                state.page = 1;
+                                renderPage();
+                                updateFilterCount();
+                            }
+                        } else if (action === 'unpin') {
+                            const idx = parseInt(btn.getAttribute('data-index'), 10);
+                            if (!Number.isNaN(idx)) {
+                                const i = state.pinnedColumns.indexOf(idx);
+                                if (i >= 0) {
+                                    state.pinnedColumns.splice(i, 1);
+                                    updatePinnedPositions();
+                                    updateColumnHeaderIcons();
+                                }
+                            }
+                        }
+                    });
+                    mainTable.addEventListener('contextmenu', (e) => {
+                        if (e.target.closest('.codificacion-header-icon')) e.stopPropagation();
+                    });
+                }
+
+                $('#codificacionCtxFiltrar')?.addEventListener('click', () => {
+                    const idx = menuColumnIndex;
+                    const field = menuColumnField;
+                    hideContextMenu();
+                    if (idx != null && field) openFilterModal(idx, field);
+                });
+
+                $('#codificacionCtxFijar')?.addEventListener('click', () => {
+                    const idx = menuColumnIndex;
+                    hideContextMenu();
+                    if (idx == null) return;
+                    const i = state.pinnedColumns.indexOf(idx);
+                    if (i >= 0) {
+                        state.pinnedColumns.splice(i, 1);
+                    } else {
+                        state.pinnedColumns.push(idx);
+                        state.pinnedColumns.sort((a, b) => a - b);
+                    }
+                    updatePinnedPositions();
+                    updateColumnHeaderIcons();
+                });
             });
 
             // =========================
-            //   ACTUALIZAR ESTADO BOTÓN REIMPRIMIR
+            //   ACTUALIZAR ESTADO BOTÓN REIMPRIMIR Y BALANCEAR
             // =========================
             function actualizarEstadoBotonReimprimir() {
                 const btnReimprimir = document.getElementById('btn-reimprimir-seleccionado');
@@ -1257,12 +1697,14 @@
 
                 if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
                     btnReimprimir.disabled = true;
+                    actualizarEstadoBotonBalancear();
                     return;
                 }
 
                 const registroSeleccionado = state.filtered[state.selectedRowIndex];
                 if (!registroSeleccionado) {
                     btnReimprimir.disabled = true;
+                    actualizarEstadoBotonBalancear();
                     return;
                 }
 
@@ -1271,6 +1713,121 @@
                 const puedeReimprimir = usuarioCrea !== null && usuarioCrea !== undefined && usuarioCrea !== '';
 
                 btnReimprimir.disabled = !puedeReimprimir || !registroSeleccionado.Id;
+                actualizarEstadoBotonBalancear();
+            }
+
+            function actualizarEstadoBotonBalancear() {
+                const btnBalancear = document.getElementById('btn-balancear');
+                if (!btnBalancear) return;
+
+                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
+                    btnBalancear.disabled = true;
+                    return;
+                }
+
+                const registroSeleccionado = state.filtered[state.selectedRowIndex];
+                if (!registroSeleccionado) {
+                    btnBalancear.disabled = true;
+                    return;
+                }
+
+                const ordCompartida = registroSeleccionado.OrdCompartida;
+                const tieneOrdCompartida = ordCompartida != null && ordCompartida !== '' && String(ordCompartida).trim() !== '';
+
+                btnBalancear.disabled = !tieneOrdCompartida;
+            }
+
+            // =========================
+            //   BALANCEAR - VER REGISTROS COMPARTIDOS
+            // =========================
+            async function abrirModalBalancear() {
+                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
+                    showToast('Selecciona un registro primero', 'warning');
+                    return;
+                }
+
+                const registroSeleccionado = state.filtered[state.selectedRowIndex];
+                if (!registroSeleccionado) {
+                    showToast('No se pudo obtener el registro seleccionado', 'error');
+                    return;
+                }
+
+                const ordCompartida = registroSeleccionado.OrdCompartida;
+                const tieneOrdCompartida = ordCompartida != null && ordCompartida !== '' && String(ordCompartida).trim() !== '';
+
+                if (!tieneOrdCompartida) {
+                    showToast('El registro seleccionado no tiene OrdCompartida', 'warning');
+                    return;
+                }
+
+                try {
+                    Swal.fire({
+                        title: 'Cargando registros compartidos...',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+
+                    const resp = await fetch(`/planeacion/codificacion/api/registros-ord-compartida/${encodeURIComponent(ordCompartida)}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await resp.json();
+
+                    Swal.close();
+
+                    if (!data.success || !Array.isArray(data.registros)) {
+                        showToast(data.message || 'Error al cargar registros compartidos', 'error');
+                        return;
+                    }
+
+                    const registros = data.registros;
+                    const cantidad = registros.length;
+
+                    const escapeHtml = (t) => {
+                        const d = document.createElement('div');
+                        d.textContent = t;
+                        return d.innerHTML;
+                    };
+
+                    let html = '<div class="text-left">';
+                    html += '<p class="text-sm text-gray-600 mb-3">OrdCompartida: <strong>' + escapeHtml(String(ordCompartida)) + '</strong> · ' + cantidad + ' registro(s)</p>';
+                    html += '<div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">';
+                    html += '<table class="w-full text-sm">';
+                    html += '<thead class="bg-blue-500 text-white sticky top-0"><tr>';
+                    html += '<th class="px-3 py-2 text-left">Líder</th>';
+                    html += '<th class="px-3 py-2 text-left">Id</th>';
+                    html += '<th class="px-3 py-2 text-left">Orden</th>';
+                    html += '<th class="px-3 py-2 text-left">Telar</th>';
+                    html += '<th class="px-3 py-2 text-left">Modelo</th>';
+                    html += '<th class="px-3 py-2 text-left">Cantidad</th>';
+                    html += '</tr></thead><tbody>';
+
+                    registros.forEach(r => {
+                        const esLider = r.OrdCompartidaLider === 1 || r.OrdCompartidaLider === true || r.OrdCompartidaLider === '1';
+                        const rowClass = esLider ? 'bg-amber-100 font-semibold' : 'bg-white hover:bg-gray-50';
+                        html += '<tr class="' + rowClass + '">';
+                        html += '<td class="px-3 py-2">' + (esLider ? '<i class="fas fa-crown text-amber-600" title="OrdCompartidaLider"></i>' : '') + '</td>';
+                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.Id ?? '')) + '</td>';
+                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.OrdenTejido ?? '')) + '</td>';
+                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.TelarId ?? '')) + '</td>';
+                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.Nombre ?? r.ClaveModelo ?? '')) + '</td>';
+                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.Cantidad ?? '')) + '</td>';
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table></div></div>';
+
+                    Swal.fire({
+                        title: 'Registros compartidos',
+                        html: html,
+                        width: '680px',
+                        showConfirmButton: true,
+                        confirmButtonText: 'Cerrar',
+                        confirmButtonColor: '#3b82f6'
+                    });
+                } catch (error) {
+                    Swal.close();
+                    showToast(error.message || 'Error al cargar registros compartidos', 'error');
+                }
             }
 
             // =========================
@@ -1367,9 +1924,11 @@
             window.filtrarCodificacion         = filtrarCodificacion;
             window.limpiarFiltrosCodificacion  = limpiarFiltrosCodificacion;
             window.removeFilterFromModal       = removeFilterFromModal;
+            window.removeFilterPorColumna      = removeFilterPorColumna;
             window.loadData                    = loadData;
             window.reimprimirOrden              = reimprimirOrden;
             window.reimprimirOrdenSeleccionada  = reimprimirOrdenSeleccionada;
+            window.abrirModalBalancear          = abrirModalBalancear;
         })();
     </script>
 @endsection
