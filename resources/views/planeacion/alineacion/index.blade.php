@@ -240,6 +240,7 @@
             const CONFIG = {
                 columnas: {!! json_encode($columnas) !!},
                 columnLabels: @json($columnLabels ?? []),
+                apiUrl: {!! json_encode(route('planeacion.alineacion.api.data')) !!},
             };
             const state = {
                 data: @json($items),
@@ -354,7 +355,7 @@
                     const cells = CONFIG.columnas.map((col, colIdx) => {
                         let value = row[col] ?? '';
                         let raw = value !== null && value !== '' ? String(value) : '';
-                        if (col === 'AnchoToalla' && value !== '' && value != null && !isNaN(parseFloat(value))) {
+                        if ((col === 'AnchoToalla' || col === 'PesoGRM2') && value !== '' && value != null && !isNaN(parseFloat(value))) {
                             raw = parseFloat(value).toFixed(3);
                         }
                         return '<td class="' + cellClass + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
@@ -374,6 +375,24 @@
                     state.selectedRowIndex = rowIndex;
                 }
                 renderTable();
+            }
+
+            /**
+             * Refresca datos desde API (simula sockets). Se ejecuta cada 5 min.
+             */
+            async function refreshData() {
+                try {
+                    const resp = await fetch(CONFIG.apiUrl, { headers: { 'Accept': 'application/json' } });
+                    const json = await resp.json();
+                    if (json.s && Array.isArray(json.items)) {
+                        state.data = json.items;
+                        state.selectedRowIndex = null;
+                        applyFiltersToData();
+                        renderTable();
+                    }
+                } catch (e) {
+                    console.warn('Alineación: error al refrescar datos', e);
+                }
             }
 
             // ----- Menú contextual en encabezados -----
@@ -597,6 +616,9 @@
                     updatePinnedPositions();
                     updateColumnHeaderIcons();
                 });
+
+                // Refresco automático cada 5 min (simula sockets)
+                setInterval(refreshData, 5 * 60 * 1000);
             });
         })();
     </script>

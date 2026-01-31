@@ -81,6 +81,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion/orden-cambio-excel', [OrdenDeCambioFelpaController::class, 'generarExcel'])->name('codificacion.orden-cambio-excel');
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');
+    Route::get('/alineacion/api/data', [AlineacionController::class, 'apiData'])->name('alineacion.api.data');
 
     Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
     Route::get('/telares/falla', [CatalagoTelarController::class, 'falla'])->name('telares.falla');

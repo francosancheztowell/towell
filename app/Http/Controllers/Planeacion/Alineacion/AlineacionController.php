@@ -7,6 +7,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 
 class AlineacionController extends Controller
@@ -62,18 +63,11 @@ class AlineacionController extends Controller
     /**
      * Vista principal de Alineación (programa de tejido en proceso).
      * Tolerancia, Raz s/n, Tipo Rizo, Tipo Plano y Observaciones se obtienen de CatCodificados
-     * por clave ItemId (Clave AX) y OrdenTejido (No orden).
+     * por OrdenTejido (No orden). Si no existe la orden, no se hace nada.
      */
     public function index(): View
     {
-        $registros = ReqProgramaTejido::query()
-            ->enProceso(true)
-            ->ordenado()
-            ->get();
-
-        [$catCodMap, $catCodMapPorItem] = $this->obtenerCatCodificadosPorItemYOrden($registros);
-
-        $items = $registros->map(fn (ReqProgramaTejido $r) => $this->mapearProgramaTejidoAItem($r, $catCodMap, $catCodMapPorItem))->all();
+        $items = $this->obtenerItemsAlineacion();
 
         return view('planeacion.alineacion.index', [
             'items' => $items,
@@ -81,98 +75,90 @@ class AlineacionController extends Controller
     }
 
     /**
-     * Obtiene mapas de CatCodificados:
-     * 1) Por (ItemId | OrdenTejido) exacto
-     * 2) Por ItemId como fallback: el más reciente por FechaTejido (cuando no hay NoOrden)
-     *
-     * @return array{0: array<string, CatCodificados>, 1: array<string, CatCodificados>}
+     * API: Devuelve los items de alineación en JSON (para refresco automático cada 5 min).
      */
-    private function obtenerCatCodificadosPorItemYOrden(Collection $registros): array
+    public function apiData(): JsonResponse
     {
-        $pares = [];
-        $itemIds = [];
+        $items = $this->obtenerItemsAlineacion();
+
+        return response()->json(['s' => true, 'items' => $items]);
+    }
+
+    /**
+     * Obtiene los items de alineación (ReqProgramaTejido + CatCodificados).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function obtenerItemsAlineacion(): array
+    {
+        $registros = ReqProgramaTejido::query()
+            ->enProceso(true)
+            ->ordenado()
+            ->get();
+
+        $catCodPorOrden = $this->obtenerCatCodificadosPorOrden($registros);
+
+        return $registros->map(fn (ReqProgramaTejido $r) => $this->mapearProgramaTejidoAItem($r, $catCodPorOrden))->all();
+    }
+
+    /**
+     * Obtiene mapa de CatCodificados por OrdenTejido (No orden).
+     * Solo busca por orden; si no aparece, no hace nada.
+     *
+     * @return array<string, CatCodificados>
+     */
+    private function obtenerCatCodificadosPorOrden(Collection $registros): array
+    {
+        $ordenes = [];
         foreach ($registros as $r) {
-            $itemId = trim((string) ($r->ItemId ?? ''));
             $noOrden = trim((string) ($r->NoProduccion ?? ''));
-            if ($itemId !== '' || $noOrden !== '') {
-                $pares[] = ['itemId' => $itemId, 'orden' => $noOrden];
-                if ($itemId !== '') {
-                    $itemIds[$itemId] = true;
-                }
+            if ($noOrden !== '') {
+                $ordenes[$noOrden] = true;
             }
         }
 
-        $mapExacto = [];
-        if (! empty($pares)) {
-            $cats = CatCodificados::query()
-                ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5'])
-                ->where(function ($q) use ($pares) {
-                    foreach ($pares as $p) {
-                        $q->orWhereRaw(
-                            'CAST([ItemId] AS NVARCHAR(100)) = ? AND CAST([OrdenTejido] AS NVARCHAR(100)) = ?',
-                            [(string) $p['itemId'], (string) $p['orden']]
-                        );
-                    }
-                })
-                ->orderByDesc('Id')
-                ->get();
+        if (empty($ordenes)) {
+            return [];
+        }
 
-            foreach ($cats as $c) {
-                $key = trim((string) ($c->ItemId ?? '')) . '|' . trim((string) ($c->OrdenTejido ?? ''));
-                if (! isset($mapExacto[$key])) {
-                    $mapExacto[$key] = $c;
-                }
+        $ids = array_values(array_map('strval', array_keys($ordenes)));
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $cats = CatCodificados::query()
+            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5'])
+            ->whereRaw("CAST([OrdenTejido] AS NVARCHAR(100)) IN ({$placeholders})", $ids)
+            ->orderByDesc('Id')
+            ->get();
+
+        $map = [];
+        foreach ($cats as $c) {
+            $key = trim((string) ($c->OrdenTejido ?? ''));
+            if ($key !== '' && ! isset($map[$key])) {
+                $map[$key] = $c;
             }
         }
 
-        // Fallback: por ItemId, el más reciente por FechaTejido (fecha orden).
-        // Usar CAST para evitar error de conversión varchar->int en SQL Server (ItemId puede ser INT o VARCHAR).
-        $mapPorItem = [];
-        if (! empty($itemIds)) {
-            $ids = array_values(array_map('strval', array_keys($itemIds)));
-            $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            $catsFallback = CatCodificados::query()
-                ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5'])
-                ->whereRaw("CAST([ItemId] AS NVARCHAR(100)) IN ({$placeholders})", $ids)
-                ->whereNotNull('FechaTejido')
-                ->orderByDesc('FechaTejido')
-                ->get();
-
-            foreach ($catsFallback as $c) {
-                $itemId = trim((string) ($c->ItemId ?? ''));
-                if ($itemId !== '' && ! isset($mapPorItem[$itemId])) {
-                    $mapPorItem[$itemId] = $c;
-                }
-            }
-        }
-
-        return [$mapExacto, $mapPorItem];
+        return $map;
     }
 
     /**
      * Mapea un registro ReqProgramaTejido al array asociativo esperado por la vista.
-     * Tolerancia, RazSN, TipoRizo, TipoPlano y Observaciones vienen de CatCodificados.
-     * Si no hay match por (ItemId + NoOrden), usa el más reciente por FechaTejido del ItemId.
+     * Tolerancia, RazSN, TipoRizo, TipoPlano y Observaciones vienen de CatCodificados por OrdenTejido.
      *
-     * @param  array<string, CatCodificados>  $catCodMap
-     * @param  array<string, CatCodificados>  $catCodMapPorItem
+     * @param  array<string, CatCodificados>  $catCodPorOrden
      * @return array<string, mixed>
      */
-    private function mapearProgramaTejidoAItem(ReqProgramaTejido $r, array $catCodMap = [], array $catCodMapPorItem = []): array
+    private function mapearProgramaTejidoAItem(ReqProgramaTejido $r, array $catCodPorOrden = []): array
     {
-        $itemId = trim((string) ($r->ItemId ?? ''));
         $noOrden = trim((string) ($r->NoProduccion ?? ''));
-        $catKey = $itemId . '|' . $noOrden;
-        $cat = $catCodMap[$catKey] ?? $catCodMapPorItem[$itemId] ?? null;
+        $cat = $catCodPorOrden[$noOrden] ?? null;
 
         $item = [];
         $mapeoEspecial = [
-            'FechaCambio' => null,
             'FechaCompromiso' => 'EntregaCte',
-            'Tolerancia' => null,  // CatCodificados.Tolerancia
-            'RazSN' => null,      // CatCodificados.Razurada (Raz s/n)
-            'TipoRizo' => null,   // CatCodificados.TipoRizo
-            'TipoPlano' => null,  // CatCodificados.DobladilloId (Tipo plano)
+            'Tolerancia' => null,
+            'RazSN' => null,
+            'TipoRizo' => null,
+            'TipoPlano' => null,
             'PesoMin' => 'PesoMuesMin',
             'PesoMax' => 'PesoMuesMax',
             'MuestraMin' => null,
@@ -182,7 +168,15 @@ class AlineacionController extends Controller
             'DiasPorEjecutar' => null,
         ];
 
+        $concatCalibreFibra = [
+            'PasadasComb1' => fn () => $this->concatCalibreFibra($r->CalibreComb1, $r->FibraComb1),
+            'PasadasComb2' => fn () => $this->concatCalibreFibra($r->CalibreComb2, $r->FibraComb2),
+            'PasadasComb3' => fn () => $this->concatCalibreFibra($r->CalibreComb3, $r->FibraComb3),
+            'PasadasComb4' => fn () => $this->concatCalibreFibra($r->CalibreComb4, $r->FibraComb4),
+        ];
+
         $deCat = [
+            'FechaCambio' => fn () => $cat?->FechaTejido ? $this->formatDateAlineacion($cat->FechaTejido, 'd M Y') : '',
             'Tolerancia' => fn () => $cat?->Tolerancia,
             'RazSN' => fn () => $cat?->Razurada,
             'TipoRizo' => fn () => $cat?->TipoRizo,
@@ -191,6 +185,10 @@ class AlineacionController extends Controller
         ];
 
         foreach ($this->columnas as $key) {
+            if (isset($concatCalibreFibra[$key])) {
+                $item[$key] = $concatCalibreFibra[$key]();
+                continue;
+            }
             if (isset($deCat[$key])) {
                 $item[$key] = $deCat[$key]() ?? '';
                 continue;
@@ -217,6 +215,23 @@ class AlineacionController extends Controller
             $item[$key] = $value;
         }
         return $item;
+    }
+
+    /**
+     * Concatena Calibre/Fibra para Cenefa Trama (ReqProgramaTejido).
+     */
+    private function concatCalibreFibra($calibre, $fibra): string
+    {
+        $c = trim((string) ($calibre ?? ''));
+        $f = trim((string) ($fibra ?? ''));
+        if ($c === '' && $f === '') {
+            return '';
+        }
+        if ($c === '' || $f === '') {
+            return $c . $f;
+        }
+
+        return $c . '/' . $f;
     }
 
     /**
