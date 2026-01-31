@@ -527,10 +527,8 @@
     // Crear: validar que el usuario exista como operador y tenga permisos
     const usuarioEsOperador = @json($usuarioEsOperador ?? false);
     const noRecibeInput = document.querySelector('#form-create input[name="CveEmplRec"]');
-    qs('#btn-open-create')?.addEventListener('click', async ()=> {
-        logStep('click_create', '');
+    qs('#btn-open-create')?.addEventListener('click', ()=> {
         if (!usuarioEsOperador) {
-            logStep('bloqueado_no_operador', 'usuarioEsOperador=false');
             Swal.fire({
                 icon: 'error',
                 title: 'No eres operador registrado',
@@ -539,89 +537,10 @@
             });
             return;
         }
-        logStep('check_permission_start', '');
-        try {
-            const response = await fetch('{{ route("tel-bpm.check-permission") }}', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (!data.puedeCrear) {
-                    logStep('permission_denied', data.usuarioArea || '');
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Acceso Denegado',
-                        html: `
-                            <p class="mb-2">No tienes permisos para crear folios en este módulo.</p>
-                            <p class="text-sm text-gray-600">Solo usuarios del área <strong>Tejedores</strong> pueden crear folios.</p>
-                            <p class="text-sm text-gray-600 mt-2">Tu área actual: <strong>${data.usuarioArea || 'No definida'}</strong></p>
-                            ${!data.tienePermiso ? '<p class="text-sm text-red-600 mt-2">No tienes el permiso de creación en el módulo BPM.</p>' : ''}
-                            ${!data.esAreaTejedores ? '<p class="text-sm text-red-600 mt-2">No perteneces al área de Tejedores.</p>' : ''}
-                        `,
-                        confirmButtonColor: '#2563eb',
-                        confirmButtonText: 'Entendido'
-                    });
-                    return;
-                }
-                logStep('permission_ok', '');
-            } else {
-                logStep('permission_fail_http', response.status);
-            }
-        } catch (error) {
-            logStep('permission_fail_error', (error && error.message) || 'fetch error');
-            console.error('Error al verificar permisos:', error);
-        }
-        logStep('open_modal_create', '');
         open('#modal-create');
     });
 
-    // Interceptar envío del formulario para verificar permisos
     const formCreate = qs('#form-create');
-    formCreate?.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // Verificar permisos antes de enviar
-        try {
-            const response = await fetch('{{ route("tel-bpm.check-permission") }}', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                
-                if (!data.puedeCrear) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Acceso Denegado',
-                        html: `
-                            <p class="mb-2">No tienes permisos para crear folios en este módulo.</p>
-                            <p class="text-sm text-gray-600">Solo usuarios del área <strong>Tejedores</strong> pueden crear folios.</p>
-                            <p class="text-sm text-gray-600 mt-2">Tu área actual: <strong>${data.usuarioArea || 'No definida'}</strong></p>
-                            ${!data.tienePermiso ? '<p class="text-sm text-red-600 mt-2">No tienes el permiso de creación en el módulo BPM.</p>' : ''}
-                            ${!data.esAreaTejedores ? '<p class="text-sm text-red-600 mt-2">No perteneces al área de Tejedores.</p>' : ''}
-                        `,
-                        confirmButtonColor: '#2563eb',
-                        confirmButtonText: 'Entendido'
-                    });
-                    return;
-                }
-            }
-        } catch (error) {
-            console.error('Error al verificar permisos:', error);
-            // Continuar con el envío si hay error en la verificación
-        }
-        
-        // Si tiene permisos, enviar el formulario
-        formCreate.submit();
-    });
 
     // Seleccionar fila y accionar desde barra superior
     let selected = null;

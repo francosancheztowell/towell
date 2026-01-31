@@ -90,20 +90,6 @@ class TelBpmController extends Controller
         return redirect()->route('tel-bpm-line.index', $folio);
     }
 
-    /** Endpoint para frontend (siempre permite crear si está autenticado; acceso controlado por rutas/menú) */
-    public function checkCreatePermission(Request $request)
-    {
-        $user = Auth::user();
-        Log::info('BPM Tejedores checkCreatePermission: llamado', [
-            'user_id' => $user?->getAuthIdentifier(),
-            'auth_check' => Auth::check(),
-        ]);
-        if (!Auth::check()) {
-            return response()->json(['puedeCrear' => false, 'error' => 'Usuario no autenticado'], 401);
-        }
-        return response()->json(['puedeCrear' => true]);
-    }
-
     /** Log de depuración desde el cliente (pasos del flujo crear/modal). Revisar storage/logs/laravel.log */
     public function logDebug(Request $request)
     {

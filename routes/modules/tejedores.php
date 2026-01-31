@@ -85,12 +85,12 @@ Route::resource('tel-telares-operador', TelTelaresOperadorController::class)
 Route::get('/telaresPorOperador', [TelTelaresOperadorController::class, 'index'])->name('telaresPorOperador');
 Route::get('/ActividadesBPM', [TelActividadesBPMController::class, 'index'])->name('ActividadesBPM');
 
+// Ruta de depuración ANTES del resource para que no la capture tel-bpm/{folio}
+Route::get('tel-bpm/log-debug', [TelBpmController::class, 'logDebug'])->name('tel-bpm.log-debug');
+
 Route::resource('tel-bpm', TelBpmController::class)
     ->parameters(['tel-bpm' => 'folio'])
     ->names('tel-bpm');
-
-Route::get('tel-bpm/check-permission', [TelBpmController::class, 'checkCreatePermission'])->name('tel-bpm.check-permission');
-Route::get('tel-bpm/log-debug', [TelBpmController::class, 'logDebug'])->name('tel-bpm.log-debug');
 
 Route::patch('tel-bpm/{folio}/terminar', [TelBpmLineController::class, 'finish'])->name('tel-bpm.finish');
 Route::patch('tel-bpm/{folio}/autorizar', [TelBpmLineController::class, 'authorizeDoc'])->name('tel-bpm.authorize');
