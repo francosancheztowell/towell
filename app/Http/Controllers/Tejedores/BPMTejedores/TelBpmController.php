@@ -53,6 +53,13 @@ class TelBpmController extends Controller
         
         // Obtener datos del operador y operadores de entrega
         [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega] = $this->obtenerDatosOperador($user);
+
+        Log::info('BPM Tejedores index: listado cargado', [
+            'user_id' => $user?->getAuthIdentifier(),
+            'user_cve' => $user->numero_empleado ?? $user->cve ?? null,
+            'usuarioEsOperador' => $usuarioEsOperador,
+            'items_count' => $items->total(),
+        ]);
         
         if (!$usuarioEsOperador && $user) {
             Log::info('BPM Tejedores index: usuario no encontrado como operador', [
@@ -86,15 +93,37 @@ class TelBpmController extends Controller
     /** Endpoint para frontend (siempre permite crear si está autenticado; acceso controlado por rutas/menú) */
     public function checkCreatePermission(Request $request)
     {
+        $user = Auth::user();
+        Log::info('BPM Tejedores checkCreatePermission: llamado', [
+            'user_id' => $user?->getAuthIdentifier(),
+            'auth_check' => Auth::check(),
+        ]);
         if (!Auth::check()) {
             return response()->json(['puedeCrear' => false, 'error' => 'Usuario no autenticado'], 401);
         }
         return response()->json(['puedeCrear' => true]);
     }
 
+    /** Log de depuración desde el cliente (pasos del flujo crear/modal). Revisar storage/logs/laravel.log */
+    public function logDebug(Request $request)
+    {
+        $step = $request->input('step', '');
+        $msg = $request->input('msg', '');
+        Log::info('BPM Tejedores [cliente]', [
+            'step' => $step,
+            'msg' => $msg,
+            'user_id' => Auth::id(),
+        ]);
+        return response('', 204);
+    }
+
     /** Store: Genera folio, crea header y redirige a líneas */
     public function store(Request $request)
     {
+        Log::info('BPM Tejedores store: petición recibida', [
+            'user_id' => Auth::id(),
+            'has_input' => $request->hasAny(['CveEmplRec', 'CveEmplEnt']),
+        ]);
         $user = Auth::user();
         
         if (!$user) {

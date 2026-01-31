@@ -326,9 +326,24 @@
 (function(){
     const qs  = s => document.querySelector(s);
     const qsa = s => [...document.querySelectorAll(s)];
+    const logDebugUrl = @json(route('tel-bpm.log-debug'));
+    function logStep(step, msg) {
+        try {
+            const u = new URL(logDebugUrl);
+            u.searchParams.set('step', step);
+            if (msg) u.searchParams.set('msg', String(msg).slice(0, 200));
+            fetch(u.toString(), { method: 'GET', keepalive: true }).catch(() => {});
+        } catch (e) {}
+    }
 
     // Abrir/Cerrar modales
-    const open = sel => { const m = qs(sel); if(!m) return; m.classList.remove('hidden'); m.classList.add('flex'); }
+    const open = sel => {
+        const m = qs(sel);
+        if (!m) { logStep('modal_not_found', sel); return; }
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+        logStep('modal_opened', sel);
+    };
     const close = sel => { const m = qs(sel); if(!m) return; m.classList.add('hidden'); m.classList.remove('flex'); }
     qsa('[data-close]').forEach(b => b.addEventListener('click', () => close(b.dataset.close)));
 
@@ -513,7 +528,9 @@
     const usuarioEsOperador = @json($usuarioEsOperador ?? false);
     const noRecibeInput = document.querySelector('#form-create input[name="CveEmplRec"]');
     qs('#btn-open-create')?.addEventListener('click', async ()=> {
+        logStep('click_create', '');
         if (!usuarioEsOperador) {
+            logStep('bloqueado_no_operador', 'usuarioEsOperador=false');
             Swal.fire({
                 icon: 'error',
                 title: 'No eres operador registrado',
@@ -522,8 +539,7 @@
             });
             return;
         }
-        
-        // Verificar permisos antes de abrir el modal
+        logStep('check_permission_start', '');
         try {
             const response = await fetch('{{ route("tel-bpm.check-permission") }}', {
                 method: 'GET',
@@ -532,11 +548,10 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
-            
             if (response.ok) {
                 const data = await response.json();
-                
                 if (!data.puedeCrear) {
+                    logStep('permission_denied', data.usuarioArea || '');
                     Swal.fire({
                         icon: 'error',
                         title: 'Acceso Denegado',
@@ -552,13 +567,16 @@
                     });
                     return;
                 }
+                logStep('permission_ok', '');
+            } else {
+                logStep('permission_fail_http', response.status);
             }
         } catch (error) {
+            logStep('permission_fail_error', (error && error.message) || 'fetch error');
             console.error('Error al verificar permisos:', error);
-            // Continuar con la apertura del modal si hay error en la verificación
         }
-        
-        open('#modal-create')
+        logStep('open_modal_create', '');
+        open('#modal-create');
     });
 
     // Interceptar envío del formulario para verificar permisos

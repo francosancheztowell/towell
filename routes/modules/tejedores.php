@@ -90,6 +90,7 @@ Route::resource('tel-bpm', TelBpmController::class)
     ->names('tel-bpm');
 
 Route::get('tel-bpm/check-permission', [TelBpmController::class, 'checkCreatePermission'])->name('tel-bpm.check-permission');
+Route::get('tel-bpm/log-debug', [TelBpmController::class, 'logDebug'])->name('tel-bpm.log-debug');
 
 Route::patch('tel-bpm/{folio}/terminar', [TelBpmLineController::class, 'finish'])->name('tel-bpm.finish');
 Route::patch('tel-bpm/{folio}/autorizar', [TelBpmLineController::class, 'authorizeDoc'])->name('tel-bpm.authorize');
