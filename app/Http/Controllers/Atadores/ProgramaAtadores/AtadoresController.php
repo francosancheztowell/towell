@@ -179,6 +179,7 @@ class AtadoresController extends Controller
             'LoteProveedor' => $item->LoteProveedor,
             'NoProveedor' => $item->NoProveedor,
             'HoraParo' => $item->horaParo,
+            'HrInicio' => Carbon::now()->format('H:i'),
             'ConfigId' => $item->ConfigId,
             'InventSizeId' => $item->InventSizeId,
             'InventColorId' => $item->InventColorId,

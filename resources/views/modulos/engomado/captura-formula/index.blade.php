@@ -7,16 +7,6 @@
         $desdeProduccion = !empty($folioFiltro);
     @endphp
     <div class="flex items-center gap-2">
-        <x-navbar.button-report
-        id="btn-open-filters"
-        title="Filtros"
-        icon="fa-filter"
-        text="Filtrar"
-        bg="bg-green-600"
-        module="Captura de Formula"
-        iconColor="text-white"
-        class="text-white"
-        />
         @if($desdeProduccion)
             <x-navbar.button-create
             onclick="openCreateModal()"
@@ -90,7 +80,7 @@
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white ">
                 <tr>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Orden</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Fecha</th>
+                    <th id="th-fecha" class="text-left px-4 py-3 font-semibold whitespace-nowrap cursor-pointer select-none">Fecha <i class="fa-solid fa-filter text-xs ml-1 opacity-80"></i></th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Hr</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cuenta/Titulo</th>
@@ -172,51 +162,6 @@
         </table>
     </div>
 
-    <!-- Modal Filtros -->
-    <div id="modal-filters" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-        <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-800">
-                    <i class="fa-solid fa-filter text-purple-600 mr-2"></i>Filtros
-                </h2>
-                <button data-close="#modal-filters" class="text-slate-500 hover:text-slate-700 text-4xl leading-none">&times;</button>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Fecha</label>
-                    <input id="filter-fecha" type="date" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">No. Orden</label>
-                    <input id="filter-noorden" type="text" placeholder="Buscar..." class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Status</label>
-                    <select id="filter-status" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
-                        <option value="">Todos</option>
-                        <option value="Creado">Creado</option>
-                        <option value="En Proceso">En Proceso</option>
-                        <option value="Terminado">Terminado</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Cuenta</label>
-                    <input id="filter-cuenta" type="text" placeholder="Buscar..." class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <button type="button" id="btn-clear-filters" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-blue-500 text-white transition text-sm">
-                    <i class="fa-solid fa-eraser mr-1"></i>Limpiar
-                </button>
-                <button type="button" data-close="#modal-filters" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 transition text-sm hover:bg-gray-50">
-                    Cerrar
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal Crear -->
     <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -234,7 +179,7 @@
 
                 <!-- Sección 1: Datos principales (3 columnas) -->
                 <div class="mb-4">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Folio (Programa Engomado) <span class="text-red-600">*</span></label>
                             <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this, false)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
@@ -283,8 +228,8 @@
                 <input type="hidden" name="componentes" id="create_componentes_payload">
                 <!-- Sección 2: Datos de Captura -->
                 <div class="mb-4">
-                    <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Datos de Captura</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {{-- <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Datos de Captura</h4> --}}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
                             <select name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
@@ -681,6 +626,7 @@
         let selectedFolio = null;
         let viewOnlyMode = false;
         const observaciones = {};
+        let fechaSortAsc = null;
 
         function selectRow(row, folio) {
             document.querySelectorAll('#formulaTable tbody tr.selected').forEach(existing => {
@@ -693,13 +639,15 @@
             enableButtons();
         }
 
-        function openCreateModal() {
+        function openCreateModal(readOnly = false) {
+            viewOnlyMode = readOnly;
             const modal = document.getElementById('createModal');
             if (modal) {
                 modal.classList.remove('hidden');
             }
 
             if (!selectedRow || !selectedFolio) {
+                setCreateModalReadOnly(readOnly);
                 return;
             }
 
@@ -769,6 +717,8 @@
             if (formulaTexto && (!select || select.value !== selectedFolio)) {
                 cargarComponentesCreate(formulaTexto);
             }
+
+            setCreateModalReadOnly(readOnly);
         }
 
         function disableButtons() {
@@ -791,76 +741,52 @@
             });
         }
 
-        function openModal(selector) {
-            const modal = document.querySelector(selector);
-            if (!modal) return;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+        function obtenerFechaRow(row) {
+            let rowFecha = row.dataset.fecha || '';
+            if (!rowFecha) {
+                const cellFecha = (row.cells[1]?.textContent || '').trim();
+                if (cellFecha.includes('/')) {
+                    const parts = cellFecha.split('/');
+                    if (parts.length === 3) {
+                        const [d, m, y] = parts;
+                        rowFecha = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                    }
+                }
+            }
+            return rowFecha;
         }
 
-        function closeModal(selector) {
-            const modal = document.querySelector(selector);
-            if (!modal) return;
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        function applyFilters() {
+        function ordenarPorFecha(asc) {
             const tbody = document.getElementById('formulaTableBody');
             if (!tbody) return;
 
-            const fecha = document.getElementById('filter-fecha')?.value || '';
-            const noOrden = (document.getElementById('filter-noorden')?.value || '').toLowerCase().trim();
-            const status = document.getElementById('filter-status')?.value || '';
-            const cuenta = (document.getElementById('filter-cuenta')?.value || '').toLowerCase().trim();
-
             const rows = Array.from(tbody.querySelectorAll('tr[data-folio]'));
-            let visibleCount = 0;
+            const dataRows = rows.map((row, index) => ({
+                row,
+                index,
+                fecha: obtenerFechaRow(row)
+            }));
 
-            rows.forEach(row => {
-                const rowFecha = row.dataset.fecha || '';
-                const rowFolio = (row.dataset.folio || '').toLowerCase();
-                const rowStatus = row.dataset.status || '';
-                const rowCuenta = (row.dataset.cuenta || '').toLowerCase();
+            dataRows.sort((a, b) => {
+                const aFecha = a.fecha;
+                const bFecha = b.fecha;
 
-                let show = true;
-
-                if (fecha && rowFecha !== fecha) {
-                    show = false;
-                }
-                if (noOrden && !rowFolio.includes(noOrden)) {
-                    show = false;
-                }
-                if (status && rowStatus !== status) {
-                    show = false;
-                }
-                if (cuenta && !rowCuenta.includes(cuenta)) {
-                    show = false;
-                }
-
-                row.style.display = show ? '' : 'none';
-                if (show) {
-                    visibleCount++;
-                }
+                if (!aFecha && !bFecha) return a.index - b.index;
+                if (!aFecha) return 1;
+                if (!bFecha) return -1;
+                if (aFecha === bFecha) return a.index - b.index;
+                return asc ? aFecha.localeCompare(bFecha) : bFecha.localeCompare(aFecha);
             });
 
-            let emptyRow = tbody.querySelector('tr.no-results');
-            if (visibleCount === 0) {
-                if (!emptyRow) {
-                    const tr = document.createElement('tr');
-                    tr.className = 'no-results';
-                    tr.innerHTML = `<td colspan="16" class="px-4 py-6 text-center text-slate-500">Sin resultados</td>`;
-                    tbody.appendChild(tr);
-                }
-            } else {
-                emptyRow?.remove();
-            }
+            dataRows.forEach(item => tbody.appendChild(item.row));
+        }
 
-            if (selectedRow && selectedRow.style.display === 'none') {
-                selectedRow.classList.remove('selected');
-                selectedRow = null;
-                selectedFolio = null;
-                disableButtons();
+        function toggleOrdenFecha() {
+            fechaSortAsc = fechaSortAsc === null ? false : !fechaSortAsc;
+            ordenarPorFecha(fechaSortAsc);
+            const thFecha = document.getElementById('th-fecha');
+            if (thFecha) {
+                thFecha.setAttribute('aria-sort', fechaSortAsc ? 'ascending' : 'descending');
             }
         }
 
@@ -891,12 +817,7 @@
                 return;
             }
 
-            viewOnlyMode = true;
-            setEditModalReadOnly(true);
-            fillEditModalFromRow(selectedRow);
-            cargarComponentesVista();
-
-            document.getElementById('editModal').classList.remove('hidden');
+            openCreateModal(true);
         }
 
         function setEditModalReadOnly(isReadOnly) {
@@ -926,6 +847,34 @@
             }
             if (viewComponentesContainer) {
                 viewComponentesContainer.classList.toggle('hidden', !isReadOnly);
+            }
+        }
+
+        function setCreateModalReadOnly(isReadOnly) {
+            const modal = document.getElementById('createModal');
+            if (!modal) return;
+
+            const fields = modal.querySelectorAll('input, select, textarea');
+            fields.forEach(field => {
+                if (isReadOnly) {
+                    field.setAttribute('disabled', 'disabled');
+                } else {
+                    field.removeAttribute('disabled');
+                }
+            });
+
+            const addRowBtn = document.getElementById('btn-create-add-row');
+            if (addRowBtn) {
+                addRowBtn.classList.toggle('hidden', isReadOnly);
+                addRowBtn.disabled = isReadOnly;
+                addRowBtn.classList.toggle('opacity-50', isReadOnly);
+                addRowBtn.classList.toggle('cursor-not-allowed', isReadOnly);
+            }
+
+            const submitBtn = modal.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.classList.toggle('hidden', isReadOnly);
+                submitBtn.disabled = isReadOnly;
             }
         }
 
@@ -1569,23 +1518,25 @@
 
                 const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
                 const consumoTotal = consumoUnitario * kilosCreateFormula;
+                const disabledAttr = viewOnlyMode ? 'disabled' : '';
+                const disabledClass = viewOnlyMode ? 'bg-gray-100 cursor-not-allowed' : '';
 
                 row.innerHTML = `
                     <td class="px-4 py-2 text-sm">
                         <input type="text" value="${comp.ItemId || ''}" data-index="${index}" data-field="ItemId"
-                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
                     </td>
                     <td class="px-4 py-2 text-sm">
                         <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
-                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
                     </td>
                     <td class="px-4 py-2 text-sm">
                         <input type="text" value="${comp.ConfigId || ''}" data-index="${index}" data-field="ConfigId"
-                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
                     </td>
                     <td class="px-4 py-2 text-sm">
                         <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
-                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -1662,44 +1613,11 @@
                 });
             });
 
-            document.querySelectorAll('[data-close]').forEach(button => {
-                button.addEventListener('click', () => {
-                    const target = button.getAttribute('data-close');
-                    if (target) {
-                        closeModal(target);
-                    }
-                });
-            });
-
-            const btnOpenFilters = document.getElementById('btn-open-filters');
-            if (btnOpenFilters) {
-                btnOpenFilters.addEventListener('click', () => openModal('#modal-filters'));
+            const thFecha = document.getElementById('th-fecha');
+            if (thFecha) {
+                thFecha.setAttribute('aria-sort', 'none');
+                thFecha.addEventListener('click', toggleOrdenFecha);
             }
-
-            ['filter-fecha', 'filter-noorden', 'filter-status', 'filter-cuenta'].forEach(id => {
-                const input = document.getElementById(id);
-                if (input) {
-                    const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
-                    input.addEventListener(eventName, applyFilters);
-                }
-            });
-
-            const btnClearFilters = document.getElementById('btn-clear-filters');
-            if (btnClearFilters) {
-                btnClearFilters.addEventListener('click', () => {
-                    const fecha = document.getElementById('filter-fecha');
-                    const noOrden = document.getElementById('filter-noorden');
-                    const status = document.getElementById('filter-status');
-                    const cuenta = document.getElementById('filter-cuenta');
-                    if (fecha) fecha.value = '';
-                    if (noOrden) noOrden.value = '';
-                    if (status) status.value = '';
-                    if (cuenta) cuenta.value = '';
-                    applyFilters();
-                });
-            }
-
-            applyFilters();
 
             const kilosInput = document.getElementById('create_kilos');
             if (kilosInput) {

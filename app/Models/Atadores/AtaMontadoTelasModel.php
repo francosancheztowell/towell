@@ -38,6 +38,10 @@ class AtaMontadoTelasModel extends Model
         'FechaSupervisor',
         'comments_sup',
         'comments_tej',
-        'comments_ata'
+        'comments_ata',
+        'ConfigId',
+        'InventSizeId',
+        'InventColorId',
+        'HrInicio',
     ];
 }

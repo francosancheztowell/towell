@@ -26,13 +26,7 @@ class TelDesarrolladoresController extends Controller
 {
     public function index(Request $request)
     {
-        // Validar que el usuario actual sea desarrollador
         $usuarioActual = Auth::user();
-        
-        if (!$usuarioActual || $usuarioActual->area !== 'Desarrolladores') {
-            return redirect()->route('home')
-                ->with('error', 'No tienes permiso para acceder a este módulo. Debes ser un Desarrollador.');
-        }
 
         $telares = $this->obtenerTelares();
         $juliosRizo = $this->obtenerUltimosJuliosMontados('Rizo');
@@ -737,18 +731,7 @@ class TelDesarrolladoresController extends Controller
 
 	    public function store(Request $request){
 	        try {
-	            // Validar que el usuario actual sea desarrollador
 	            $usuarioActual = Auth::user();
-	            
-	            if (!$usuarioActual || $usuarioActual->area !== 'Desarrolladores') {
-	                if ($request->ajax()) {
-	                    return response()->json([
-	                        'success' => false,
-	                        'message' => 'No tienes permiso para registrar como desarrollador. Debes ser un Desarrollador.'
-	                    ], 403);
-	                }
-	                return back()->with('error', 'No tienes permiso para registrar como desarrollador. Debes ser un Desarrollador.')->withInput();
-	            }
 
 	            $validated = $request->validate([
 	                'NoTelarId' => 'required|string',
