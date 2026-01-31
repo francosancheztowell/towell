@@ -282,10 +282,12 @@ class ModuloService
     }
 
     /**
-     * Obtener prefijo de caché
+     * Obtener prefijo de caché (incluye APP_ENV para que local y production no compartan caché).
+     * Si en producción no ves el menú/BPM: ejecuta php artisan config:clear y php artisan cache:clear.
      */
     private function getCachePrefix(): string
     {
-        return self::CACHE_PREFIX;
+        $env = app()->environment();
+        return self::CACHE_PREFIX . '_' . $env;
     }
 }
