@@ -622,8 +622,17 @@ class LiberarOrdenesController extends Controller
         $salonTejidoId = trim((string) $request->query('salonTejidoId', ''));
         $term = trim((string) $request->query('term', ''));
         $allowFallback = filter_var($request->query('fallback', false), FILTER_VALIDATE_BOOLEAN);
+        $freeMode = filter_var($request->query('freeMode', false), FILTER_VALIDATE_BOOLEAN);
 
         try {
+            // Si freeMode está activo, búsqueda completamente libre (sin filtrar por ItemId ni InventSizeId)
+            if ($freeMode) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $this->queryBomFallback($term, null, null),
+                ]);
+            }
+
             // Si viene 'combinations', buscar múltiples combinaciones
             if ($combinationsParam !== '') {
                 $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
@@ -748,7 +757,7 @@ class LiberarOrdenesController extends Controller
         }
     }
 
-    private function queryBomFallback(string $term, ?string $inventSizeId = null, ?string $salonTejidoId = null)
+    private function queryBomFallback(string $term, ?string $inventSizeId = null, ?string $salonTejidoId = null, int $limit = 50)
     {
         $query = DB::connection('sqlsrv_ti')
             ->table('BOMTABLE as BT')
@@ -772,7 +781,7 @@ class LiberarOrdenesController extends Controller
             });
         }
 
-        return $query->orderBy('BT.BOMID')->limit(20)->get();
+        return $query->orderBy('BT.BOMID')->limit($limit)->get();
     }
 
     /**
@@ -1237,10 +1246,9 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Obtiene el peso del rollo desde la tabla ReqPesosRolloTejido
-     * Busca primero por tamaño FEL si el registro tiene FEL en InventSizeId
-     * Si no encuentra, busca por tamaño DEF (default)
-     * Si no encuentra nada, retorna null (para usar 41.5 como default)
+     * Obtiene el peso del rollo desde la tabla ReqPesosRolloTejido.
+     * Orden de búsqueda: 1) ItemId + InventSizeId exactos del registro; 2) FEL (si aplica); 3) DEF.
+     * Si no encuentra nada, retorna null (para usar 41.5 como default).
      *
      * @param ReqProgramaTejido $registro
      * @return float|null
@@ -1255,7 +1263,18 @@ class LiberarOrdenesController extends Controller
                 return null;
             }
 
-            // Si el registro tiene FEL en InventSizeId, buscar por FEL primero
+            // 1) Primero buscar por coincidencia exacta (ItemId + InventSizeId del registro)
+            if (!empty($inventSizeId)) {
+                $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
+                    ->where('InventSizeId', $inventSizeId)
+                    ->first();
+
+                if ($pesoRollo && $pesoRollo->PesoRollo !== null) {
+                    return (float) $pesoRollo->PesoRollo;
+                }
+            }
+
+            // 2) Si el registro tiene FEL en InventSizeId, buscar por FEL
             $buscarFel = !empty($inventSizeId) && (stripos($inventSizeId, 'FEL') !== false);
 
             if ($buscarFel) {
@@ -1268,7 +1287,7 @@ class LiberarOrdenesController extends Controller
                 }
             }
 
-            // Si no se encontró FEL, buscar por DEF (default)
+            // 3) Buscar por DEF (default)
             $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
                 ->where('InventSizeId', 'DEF')
                 ->first();

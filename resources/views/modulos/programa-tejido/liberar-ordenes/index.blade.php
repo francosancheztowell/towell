@@ -39,7 +39,7 @@
             ['field' => 'prioridad', 'label' => 'Prioridad'],
             ['field' => 'Maquina', 'label' => 'Maq'],
             ['field' => 'Ancho', 'label' => 'Ancho'],
-            ['field' => 'EficienciaSTD', 'label' => 'Ef Std'],
+            ['field' => 'EficienciaSTD', 'label' => 'Eficiencia'],
             ['field' => 'VelocidadSTD', 'label' => 'Velocidad'],
             ['field' => 'FibraRizo', 'label' => 'Hilo'],
             ['field' => 'CalibrePie2', 'label' => 'Calibre Pie'],
@@ -333,11 +333,11 @@
             <div class="overflow-x-auto flex-1" style="min-height: 0; flex: 1;">
                 <div class="overflow-y-auto" style="height: 100%; position: relative;">
                     <table id="mainTable" class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-blue-500 text-white" style="position: sticky; top: 0; z-index: 10;">
+                        <thead class="bg-blue-500 text-white liberar-header-context" style="position: sticky; top: 0; z-index: 10;">
                             <tr>
                                 @foreach($columns as $index => $col)
                                 <th class="px-2 py-2 text-left text-sm font-semibold text-white whitespace-nowrap column-{{ $index }}"
-                                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : ($col['field'] === 'HiloAX' ? '220px' : '80px') }}; z-index: 10;"
+                                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : ($col['field'] === 'HiloAX' ? '220px' : ($col['field'] === 'BomId' ? '180px' : ($col['field'] === 'BomName' ? '300px' : '80px'))) }}; z-index: 10;"
                                     data-index="{{ $index }}"
                                     data-field="{{ $col['field'] }}">
                                     @if($col['field'] === 'select')
@@ -347,7 +347,10 @@
                                             onclick="toggleSeleccionarTodo()"
                                             aria-label="Seleccionar todo">
                                     @else
-                                        {{ $col['label'] }}
+                                        <div class="flex items-center gap-1">
+                                            <span>{{ $col['label'] }}</span>
+                                            <span class="liberar-header-badges inline-flex items-center gap-0.5 ml-0.5" data-index="{{ $index }}" data-field="{{ $col['field'] }}"></span>
+                                        </div>
                                     @endif
                                 </th>
                                 @endforeach
@@ -355,7 +358,7 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
                             @foreach($registros as $index => $registro)
-                            <tr class="hover:bg-blue-50 transition-colors row-data" data-id="{{ $registro->Id ?? '' }}">
+                            <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}" data-id="{{ $registro->Id ?? '' }}" title="Clic en la fila para marcar como referencia visual (azul)">
                                 @foreach($columns as $colIndex => $col)
                                 <td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }} {{ $col['field'] === 'select' ? 'text-center' : '' }} {{ $col['field'] === 'prioridad' ? 'px-4 py-3' : '' }}"
                                     data-column="{{ $col['field'] }}">
@@ -380,6 +383,21 @@
     </div>
 </div>
 
+{{-- Menú contextual en encabezados (clic derecho): Filtrar, Fijar, Ocultar --}}
+<div id="liberar-context-menu-header" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg py-1 min-w-[180px]" style="z-index: 99999;">
+    <button type="button" id="liberar-context-filtrar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+        <i class="fas fa-filter text-blue-500"></i>
+        <span>Filtrar</span>
+    </button>
+    <button type="button" id="liberar-context-fijar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 flex items-center gap-2">
+        <i class="fas fa-thumbtack text-yellow-600"></i>
+        <span>Fijar / Desfijar</span>
+    </button>
+    <button type="button" id="liberar-context-ocultar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center gap-2">
+        <i class="fas fa-eye-slash text-red-500"></i>
+        <span>Ocultar</span>
+    </button>
+</div>
 
 <script>
 const liberarOrdenesUrl = '{{ route('programa-tejido.liberar-ordenes.procesar') }}';
@@ -390,17 +408,18 @@ const codigoDibujoUrl = '{{ route('programa-tejido.liberar-ordenes.codigo-dibujo
 const guardarCamposEditablesUrl = '{{ route('programa-tejido.liberar-ordenes.guardar-campos') }}';
 
 // Variables globales para columnas
-// Columnas fijadas por defecto: Maq (índice 2), Hilo (índice 6), Producto (índice 9), Pedido (índice 12)
+const liberarOrdenesColumnsList = @json($columns ?? []);
 let pinnedColumns = [2, 6, 9, 12];
 let hiddenColumns = [];
 let filtersActive = false;
+/** Filtros tipo Excel por columna: { [columnField]: string[] } valores seleccionados para mostrar */
+let liberarOrdenesColumnFilters = {};
 
 document.addEventListener('DOMContentLoaded', function() {
     // Marcar todos los checkboxes por defecto
     const checkboxes = document.querySelectorAll('.row-checkbox');
     checkboxes.forEach(checkbox => {
         checkbox.checked = true;
-        // Agregar listener para actualizar el checkbox del encabezado
         checkbox.addEventListener('change', updateSelectAllCheckbox);
     });
 
@@ -429,6 +448,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     input.value = inputAnterior.value.trim();
                 }
             }
+        }
+    });
+
+    // Marcar fila como referencia al hacer clic en la fila (no en casilla ni inputs)
+    setupRowReferenceClick();
+
+    // Menú contextual en encabezados (clic derecho): Filtrar, Fijar, Ocultar
+    initLiberarContextMenuHeader();
+
+    // Iconos en encabezados: fijado / filtrado (clic quita fijado o filtro)
+    updateLiberarHeaderBadges();
+    document.querySelector('#mainTable thead')?.addEventListener('click', (e) => {
+        const pinBtn = e.target.closest('.liberar-header-badge-pin');
+        const filterBtn = e.target.closest('.liberar-header-badge-filter');
+        if (pinBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const idx = parseInt(pinBtn.dataset.index, 10);
+            if (!Number.isNaN(idx)) { unpinColumn(idx); updateLiberarHeaderBadges(); updatePinnedColumnsPositions(); }
+        }
+        if (filterBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const field = filterBtn.dataset.field;
+            if (field) { delete liberarOrdenesColumnFilters[field]; applyFiltersSilent(); updateLiberarHeaderBadges(); }
         }
     });
 
@@ -570,7 +614,10 @@ function autoFillAllBomFields() {
         const inventSizeId = (inventSizeIdCell.textContent || '').trim();
         const currentBomId = (bomIdInput.value || '').trim();
 
-        if (!currentBomId && itemId && inventSizeId) {
+        // No autocompletar si el usuario ya editó el campo manualmente
+        const userEdited = bomIdInput.dataset.userEdited === 'true' || bomNameInput.dataset.userEdited === 'true';
+
+        if (!currentBomId && itemId && inventSizeId && !userEdited) {
             const cacheKey = `${itemId}|${inventSizeId}`;
 
             if (!cellsByKey.has(cacheKey)) {
@@ -749,28 +796,104 @@ function setupBomAutocomplete() {
         bomNameInput.dataset.itemId = itemId;
         bomNameInput.dataset.inventSizeId = inventSizeId;
 
+        // Función para cargar opciones disponibles
+        // Si el usuario editó el campo, usar modo libre (fallback) para mostrar más opciones
+        const loadAllOptions = async (sourceInput) => {
+            const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
+            const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
+            if (bomIdMessage) bomIdMessage.classList.add('hidden');
+            if (bomNameMessage) bomNameMessage.classList.add('hidden');
+
+            // Si el usuario editó el campo, usar modo libre para mostrar todas las opciones posibles
+            const userEdited = bomIdInput.dataset.userEdited === 'true' || bomNameInput.dataset.userEdited === 'true';
+            const freeMode = userEdited;
+
+            const options = await fetchBomOptions(
+                sourceInput.dataset.itemId,
+                sourceInput.dataset.inventSizeId,
+                '',
+                true,
+                freeMode
+            );
+            bomOptionsByRow.set(rowId, options);
+            updateBomDatalists(rowId, options);
+        };
+
         const debouncedFetch = debounce(async (sourceInput) => {
             const term = (sourceInput.value || '').trim();
+            const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
+            const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
+
+            // Si el usuario editó el campo, usar modo libre
+            const userEdited = bomIdInput.dataset.userEdited === 'true' || bomNameInput.dataset.userEdited === 'true';
+            const freeMode = userEdited;
+
             if (!term) {
-                // Si el término está vacío, ocultar mensajes
-                const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
-                const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
+                // Si el término está vacío, cargar opciones (en modo libre si editó)
                 if (bomIdMessage) bomIdMessage.classList.add('hidden');
                 if (bomNameMessage) bomNameMessage.classList.add('hidden');
+                await loadAllOptions(sourceInput);
                 return;
             }
 
-            const options = await fetchBomOptions(sourceInput.dataset.itemId, sourceInput.dataset.inventSizeId, term, true);
+            const options = await fetchBomOptions(
+                sourceInput.dataset.itemId,
+                sourceInput.dataset.inventSizeId,
+                term,
+                true,
+                freeMode
+            );
             bomOptionsByRow.set(rowId, options);
             updateBomDatalists(rowId, options);
 
-            if (options.length === 1) {
-                applyBomOption(row, options[0]);
-            }
+            // NO autocompletar automáticamente aunque haya solo una opción
+            // El usuario debe elegir manualmente del datalist o escribir el valor completo
         }, 300);
 
-        bomIdInput.addEventListener('input', () => debouncedFetch(bomIdInput));
-        bomNameInput.addEventListener('input', () => debouncedFetch(bomNameInput));
+        // Al hacer focus, cargar opciones disponibles para poder elegir
+        bomIdInput.addEventListener('focus', () => loadAllOptions(bomIdInput));
+        bomNameInput.addEventListener('focus', () => loadAllOptions(bomNameInput));
+
+        // Marcar que el usuario ha editado el campo manualmente
+        bomIdInput.addEventListener('input', () => {
+            bomIdInput.dataset.userEdited = 'true';
+
+            // Verificar si el usuario seleccionó una opción del datalist
+            const value = (bomIdInput.value || '').trim();
+            const datalist = document.getElementById(`bom-id-options-${rowId}`);
+            const selectedOption = datalist ? Array.from(datalist.options).find(opt => opt.value === value) : null;
+
+            if (selectedOption) {
+                // El usuario seleccionó una opción, sincronizar el otro campo
+                const bomName = selectedOption.label || '';
+                if (bomName) {
+                    bomNameInput.value = bomName;
+                }
+            } else {
+                // El usuario está escribiendo, buscar opciones
+                debouncedFetch(bomIdInput);
+            }
+        });
+
+        bomNameInput.addEventListener('input', () => {
+            bomNameInput.dataset.userEdited = 'true';
+
+            // Verificar si el usuario seleccionó una opción del datalist
+            const value = (bomNameInput.value || '').trim();
+            const datalist = document.getElementById(`bom-name-options-${rowId}`);
+            const selectedOption = datalist ? Array.from(datalist.options).find(opt => opt.value === value) : null;
+
+            if (selectedOption) {
+                // El usuario seleccionó una opción, sincronizar el otro campo
+                const bomId = selectedOption.label || '';
+                if (bomId) {
+                    bomIdInput.value = bomId;
+                }
+            } else {
+                // El usuario está escribiendo, buscar opciones
+                debouncedFetch(bomNameInput);
+            }
+        });
 
         bomIdInput.addEventListener('change', () => syncBomFromInput(row, 'bomId'));
         bomNameInput.addEventListener('change', () => syncBomFromInput(row, 'bomName'));
@@ -785,13 +908,17 @@ function debounce(fn, wait) {
     };
 }
 
-async function fetchBomOptions(itemId, inventSizeId, term, allowFallback) {
+async function fetchBomOptions(itemId, inventSizeId, term, allowFallback, freeMode = false) {
     const params = new URLSearchParams();
 
-    if (itemId) params.set('itemId', itemId);
-    if (inventSizeId) params.set('inventSizeId', inventSizeId);
+    // Si freeMode está activo, NO enviar itemId ni inventSizeId - búsqueda completamente libre
+    if (!freeMode) {
+        if (itemId) params.set('itemId', itemId);
+        if (inventSizeId) params.set('inventSizeId', inventSizeId);
+    }
     if (term) params.set('term', term);
-    if (allowFallback) params.set('fallback', '1');
+    if (allowFallback || freeMode) params.set('fallback', '1');
+    if (freeMode) params.set('freeMode', '1');
 
     const url = `${bomAutocompleteUrl}?${params.toString()}`;
 
@@ -863,12 +990,14 @@ function syncBomFromInput(row, sourceKey) {
     const bomNameInput = row.querySelector('.bom-name-input');
     const rowId = row.getAttribute('data-id') || bomIdInput?.dataset.rowId || '';
     const options = bomOptionsByRow.get(rowId) || [];
-    if (!options.length) return;
 
     if (!bomIdInput || !bomNameInput) return;
 
     if (sourceKey === 'bomId') {
         const value = (bomIdInput.value || '').trim();
+        if (!value) return;
+
+        // Buscar en las opciones cargadas
         const match = options.find(option => (option.bomId || '') === value);
         if (match) {
             bomNameInput.value = match.bomName || '';
@@ -877,9 +1006,47 @@ function syncBomFromInput(row, sourceKey) {
 
     if (sourceKey === 'bomName') {
         const value = (bomNameInput.value || '').trim();
+        if (!value) return;
+
+        // Buscar en las opciones cargadas
         const match = options.find(option => (option.bomName || '') === value);
         if (match) {
             bomIdInput.value = match.bomId || '';
+        }
+    }
+}
+
+// Función para sincronizar inmediatamente cuando se selecciona del datalist
+function syncBomOnSelect(row, sourceKey) {
+    const bomIdInput = row.querySelector('.bom-id-input');
+    const bomNameInput = row.querySelector('.bom-name-input');
+    const rowId = row.getAttribute('data-id') || bomIdInput?.dataset.rowId || '';
+
+    if (!bomIdInput || !bomNameInput) return;
+
+    // Obtener el datalist correspondiente
+    const datalist = sourceKey === 'bomId'
+        ? document.getElementById(`bom-id-options-${rowId}`)
+        : document.getElementById(`bom-name-options-${rowId}`);
+
+    if (!datalist) return;
+
+    const inputValue = sourceKey === 'bomId'
+        ? (bomIdInput.value || '').trim()
+        : (bomNameInput.value || '').trim();
+
+    if (!inputValue) return;
+
+    // Buscar en las opciones del datalist
+    const optionElement = Array.from(datalist.options).find(opt => opt.value === inputValue);
+
+    if (optionElement) {
+        // El label contiene el valor del otro campo
+        const otherValue = optionElement.label || '';
+        if (sourceKey === 'bomId' && otherValue) {
+            bomNameInput.value = otherValue;
+        } else if (sourceKey === 'bomName' && otherValue) {
+            bomIdInput.value = otherValue;
         }
     }
 }
@@ -926,7 +1093,118 @@ function updateSelectAllCheckbox() {
     selectAllCheckbox.checked = todosSeleccionados;
 }
 
+/** Clic en la fila (sin tocar casilla/inputs) marca la fila como referencia visual (azul). No afecta qué se libera. */
+/** Referencia visual: solo una fila puede estar marcada (azul). Clic en otra fila mueve la referencia; clic en la misma la quita. */
+function setupRowReferenceClick() {
+    document.querySelectorAll('tr.row-data').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('input, select, button, a, .row-checkbox')) return;
+            if (this.classList.contains('row-selected')) {
+                this.classList.remove('row-selected');
+                return;
+            }
+            document.querySelectorAll('tr.row-data.row-selected').forEach(r => r.classList.remove('row-selected'));
+            this.classList.add('row-selected');
+        });
+    });
+}
 
+/** Actualiza los iconos en encabezados: fijado (chincheta) y filtrado (filtro). Clic en el icono quita fijado o filtro. */
+function updateLiberarHeaderBadges() {
+    document.querySelectorAll('.liberar-header-badges').forEach(span => {
+        const index = parseInt(span.dataset.index, 10);
+        const field = span.dataset.field;
+        if (Number.isNaN(index) || !field) return;
+        const isPinned = pinnedColumns.includes(index);
+        const hasFilter = liberarOrdenesColumnFilters[field] != null;
+        const parts = [];
+        if (isPinned) {
+            parts.push(`<button type="button" class="liberar-header-badge-pin inline-flex items-center justify-center w-5 h-5 rounded bg-amber-400/90 text-white hover:bg-amber-500 text-[10px]" data-index="${index}" title="Quitar fijado"><i class="fas fa-thumbtack"></i></button>`);
+        }
+        if (hasFilter) {
+            parts.push(`<button type="button" class="liberar-header-badge-filter inline-flex items-center justify-center w-5 h-5 rounded bg-blue-400/90 text-white hover:bg-blue-500 text-[10px]" data-field="${field}" title="Quitar filtro"><i class="fas fa-filter"></i></button>`);
+        }
+        span.innerHTML = parts.join('');
+    });
+}
+
+/** Menú contextual en encabezados (clic derecho): Filtrar, Fijar, Ocultar — como req-programa-tejido. */
+function initLiberarContextMenuHeader() {
+    const menu = document.getElementById('liberar-context-menu-header');
+    if (!menu) return;
+
+    let menuColumnIndex = null;
+    let menuColumnField = null;
+
+    function hide() {
+        menu.classList.add('hidden');
+        menuColumnIndex = null;
+        menuColumnField = null;
+    }
+
+    function show(e, columnIndex, columnField) {
+        menuColumnIndex = columnIndex;
+        menuColumnField = columnField;
+        menu.style.left = e.clientX + 'px';
+        menu.style.top = e.clientY + 'px';
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) menu.style.left = (e.clientX - rect.width) + 'px';
+        if (rect.bottom > window.innerHeight) menu.style.top = (e.clientY - rect.height) + 'px';
+        menu.classList.remove('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!menu.classList.contains('hidden') && !menu.contains(e.target)) hide();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !menu.classList.contains('hidden')) hide();
+    });
+
+    const thead = document.querySelector('#mainTable thead');
+    if (thead) {
+        thead.addEventListener('contextmenu', (e) => {
+            const th = e.target.closest('th');
+            if (!th) return;
+            e.preventDefault();
+            e.stopPropagation();
+            let columnIndex = parseInt(th.dataset.index, 10);
+            if (Number.isNaN(columnIndex)) {
+                const classMatch = th.className.match(/column-(\d+)/);
+                if (classMatch) columnIndex = parseInt(classMatch[1], 10);
+            }
+            const columnField = th.dataset.field || th.getAttribute('data-field');
+            if (Number.isNaN(columnIndex) || columnField == null) return;
+            show(e, columnIndex, columnField);
+        });
+    }
+
+    document.getElementById('liberar-context-filtrar')?.addEventListener('click', () => {
+        const idx = menuColumnIndex;
+        const field = menuColumnField;
+        hide();
+        if (idx != null && idx >= 0 && field) {
+            const col = liberarOrdenesColumnsList.find(c => c.field === field);
+            openFilterExcelModal(field, col ? col.label : field);
+        }
+    });
+    document.getElementById('liberar-context-fijar')?.addEventListener('click', () => {
+        const idx = menuColumnIndex;
+        hide();
+        if (idx != null && idx >= 0) {
+            if (pinnedColumns.includes(idx)) unpinColumn(idx);
+            else pinColumn(idx);
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Columna fijada/desfijada', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+        }
+    });
+    document.getElementById('liberar-context-ocultar')?.addEventListener('click', () => {
+        const idx = menuColumnIndex;
+        hide();
+        if (idx != null && idx >= 0) {
+            hideColumn(idx);
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Columna oculta', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+        }
+    });
+}
 
 // Funciones para fijar columnas
 function openPinColumnsModal() {
@@ -987,12 +1265,14 @@ function pinColumn(index) {
         pinnedColumns.push(index);
         pinnedColumns.sort((a, b) => a - b);
         updatePinnedColumnsPositions();
+        updateLiberarHeaderBadges();
     }
 }
 
 function unpinColumn(index) {
     pinnedColumns = pinnedColumns.filter(i => i !== index);
     updatePinnedColumnsPositions();
+    updateLiberarHeaderBadges();
 }
 
 function updatePinnedColumnsPositions() {
@@ -1137,7 +1417,8 @@ function toggleFilters() {
     openFiltersModal();
 }
 
-function openFiltersModal() {
+/** Abre el modal de filtros. Opcional: preSelectColumnField = campo de columna a preseleccionar (desde menú contextual). */
+function openFiltersModal(preSelectColumnField) {
     const columns = @json($columns);
     const filteredColumns = columns.filter(c => c.field !== 'select' && c.field !== 'prioridad');
 
@@ -1226,7 +1507,11 @@ function openFiltersModal() {
         didOpen: () => {
             setTimeout(() => {
                 const colSelect = document.getElementById('filtro-columna');
-                if (colSelect) colSelect.focus();
+                const valInput = document.getElementById('filtro-valor');
+                if (preSelectColumnField && colSelect) {
+                    colSelect.value = preSelectColumnField;
+                    if (valInput) valInput.focus();
+                } else if (colSelect) colSelect.focus();
             }, 50);
         }
     });
@@ -1292,12 +1577,113 @@ function removeFilter(index) {
 
 function clearAllFilters() {
     liberarOrdenesFilters = [];
-    // Aplicar filtros automáticamente (mostrar todas las filas)
+    liberarOrdenesColumnFilters = {};
     applyFiltersSilent();
+    updateLiberarHeaderBadges();
     Swal.close();
     setTimeout(() => {
         openFiltersModal();
     }, 100);
+}
+
+/** Obtiene el valor de celda de una fila para una columna (para filtro tipo Excel). */
+function getCellValueForColumn(row, columnField) {
+    const cell = row.querySelector(`td[data-column="${columnField}"]`);
+    if (!cell) return '';
+    const select = cell.querySelector('select');
+    if (select) return (select.value || '').trim();
+    const input = cell.querySelector('input');
+    if (input) return (input.value != null ? String(input.value) : '').trim();
+    if (columnField === 'TotalPzas') {
+        const span = cell.querySelector('span[data-calculated-value]');
+        if (span) return (span.getAttribute('data-calculated-value') || '').trim();
+    }
+    return (cell.textContent || '').trim();
+}
+
+function escapeHtmlExcel(s) {
+    if (s == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+}
+
+/** Filtro tipo Excel: abre modal con valores únicos de la columna y checkboxes para elegir qué mostrar. */
+function openFilterExcelModal(columnField, columnLabel) {
+    const rows = document.querySelectorAll('.row-data');
+    const valueCounts = new Map();
+    rows.forEach(row => {
+        const val = getCellValueForColumn(row, columnField);
+        const key = val === '' ? '(vacío)' : val;
+        valueCounts.set(key, (valueCounts.get(key) || 0) + 1);
+    });
+    const uniqueValues = Array.from(valueCounts.entries()).sort((a, b) => String(a[0]).localeCompare(String(b[0]), undefined, { sensitivity: 'base' }));
+    const currentSelected = liberarOrdenesColumnFilters[columnField];
+    const selectedSet = currentSelected ? new Set(currentSelected) : null;
+
+    const checkboxesHtml = uniqueValues.map(([val, count]) => {
+        const checked = selectedSet === null ? true : selectedSet.has(val);
+        const safeVal = String(val).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const id = 'excel-filter-' + columnField.replace(/\W/g, '_') + '-' + String(val).replace(/\W/g, '_').slice(0, 30);
+        return `
+            <label class="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer">
+                <input type="checkbox" class="excel-filter-cb w-4 h-4 text-blue-600 rounded border-gray-300" data-value="${safeVal}" ${checked ? 'checked' : ''} id="${id}">
+                <span class="text-sm text-gray-700 truncate flex-1" title="${safeVal}">${escapeHtmlExcel(val)}</span>
+                <span class="text-xs text-gray-400">(${count})</span>
+            </label>`;
+    }).join('');
+
+    const html = `
+        <div class="w-full max-h-[70vh] flex flex-col">
+            <p class="text-sm text-gray-600 mb-2">Mostrar filas donde <strong>${escapeHtmlExcel(columnLabel)}</strong> sea uno de:</p>
+            <div class="flex gap-2 mb-2">
+                <button type="button" id="excel-filter-select-all" class="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Seleccionar todo</button>
+                <button type="button" id="excel-filter-deselect-all" class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Quitar selección</button>
+            </div>
+            <div class="border border-gray-200 rounded-lg overflow-y-auto flex-1 min-h-0" style="max-height: 320px;">
+                ${checkboxesHtml || '<p class="p-3 text-sm text-gray-500">No hay valores en esta columna.</p>'}
+            </div>
+            <footer class="flex justify-between gap-2 mt-3 pt-3 border-t border-gray-200">
+                <button type="button" id="excel-filter-clear" class="px-3 py-2 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200">Limpiar filtro de columna</button>
+                <button type="button" id="excel-filter-apply" class="px-4 py-2 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700">Aplicar</button>
+            </footer>
+        </div>`;
+
+    Swal.fire({
+        title: 'Filtrar: ' + (columnLabel || columnField),
+        html: html,
+        width: '420px',
+        padding: '1rem',
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { popup: 'rounded-xl', htmlContainer: 'p-0 text-left' },
+        didOpen: () => {
+            const container = document.querySelector('.excel-filter-cb')?.closest('.swal2-html-container');
+            if (!container) return;
+            container.querySelector('#excel-filter-select-all')?.addEventListener('click', () => {
+                container.querySelectorAll('.excel-filter-cb').forEach(cb => { cb.checked = true; });
+            });
+            container.querySelector('#excel-filter-deselect-all')?.addEventListener('click', () => {
+                container.querySelectorAll('.excel-filter-cb').forEach(cb => { cb.checked = false; });
+            });
+            container.querySelector('#excel-filter-apply')?.addEventListener('click', () => {
+                const selected = Array.from(container.querySelectorAll('.excel-filter-cb:checked')).map(cb => cb.dataset.value);
+                liberarOrdenesColumnFilters[columnField] = selected.length === uniqueValues.length ? null : selected;
+                if (liberarOrdenesColumnFilters[columnField] === null) delete liberarOrdenesColumnFilters[columnField];
+                applyFiltersSilent();
+                updateLiberarHeaderBadges();
+                Swal.close();
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Filtro aplicado', toast: true, position: 'top-end', timer: 1200, showConfirmButton: false });
+            });
+            container.querySelector('#excel-filter-clear')?.addEventListener('click', () => {
+                delete liberarOrdenesColumnFilters[columnField];
+                applyFiltersSilent();
+                updateLiberarHeaderBadges();
+                Swal.close();
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Filtro de columna quitado', toast: true, position: 'top-end', timer: 1200, showConfirmButton: false });
+            });
+        }
+    });
 }
 
 // Función para aplicar filtros sin mostrar notificación
@@ -1310,14 +1696,20 @@ function applyFiltersSilent() {
         if (liberarOrdenesFilters.length > 0) {
             liberarOrdenesFilters.forEach(filter => {
                 const cell = row.querySelector(`td[data-column="${filter.column}"]`);
-                const cellText = cell ? cell.textContent.toLowerCase().trim() : '';
+                const cellText = cell ? (getCellValueForColumn(row, filter.column) || '').toLowerCase() : '';
                 const filterValue = filter.value.toLowerCase().trim();
-
-                if (!cellText.includes(filterValue)) {
-                    showRow = false;
-                }
+                if (!cellText.includes(filterValue)) showRow = false;
             });
         }
+
+        Object.keys(liberarOrdenesColumnFilters).forEach(columnField => {
+            const allowed = liberarOrdenesColumnFilters[columnField];
+            if (!allowed) return;
+            if (allowed.length === 0) { showRow = false; return; }
+            const cellVal = getCellValueForColumn(row, columnField);
+            const key = cellVal === '' ? '(vacío)' : cellVal;
+            if (!allowed.includes(key)) showRow = false;
+        });
 
         row.style.display = showRow ? '' : 'none';
     });
@@ -1703,6 +2095,52 @@ function calcularDensidadDesdeRepeticiones(changedInput) {
 </script>
 
 <style>
+/* Menú contextual en encabezados */
+.liberar-header-context th { cursor: context-menu; }
+#liberar-context-menu-header {
+    z-index: 99999 !important;
+}
+#liberar-context-menu-header:not(.hidden) {
+    display: block;
+}
+#liberar-context-menu-header button {
+    border: none;
+    background: none;
+    width: 100%;
+    cursor: pointer;
+}
+
+/* Filas alternas: gris / blanco; seleccionada: blue-500 y texto blanco (solo visual) */
+tr.row-data.row-selected {
+    background-color: #3b82f6 !important;
+    color: #fff;
+}
+tr.row-data.row-selected td {
+    color: #fff !important;
+}
+tr.row-data.row-selected .prioridad-input,
+tr.row-data.row-selected .bom-id-input,
+tr.row-data.row-selected .bom-name-input,
+tr.row-data.row-selected .editable-field,
+tr.row-data.row-selected .hilo-ax-select {
+    color: #fff !important;
+    background-color: rgba(255,255,255,0.2) !important;
+    border-color: rgba(255,255,255,0.5) !important;
+}
+tr.row-data.row-selected .hilo-ax-select option {
+    background: #1e40af;
+    color: #fff;
+}
+tr.row-data.row-selected span[data-field] {
+    color: #fff !important;
+}
+tr.row-data.row-selected td.pinned-column {
+    background-color: #3b82f6 !important;
+}
+/* Hover en fila no seleccionada */
+tr.row-data:not(.row-selected).row-odd:hover { background-color: #eff6ff !important; }
+tr.row-data:not(.row-selected).row-even:hover { background-color: #dbeafe !important; }
+
 .pinned-column {
     position: sticky !important;
     background-color: #fffbeb !important;
@@ -1782,14 +2220,24 @@ th[data-field="HiloAX"] {
     width: 220px !important;
 }
 
-/* Estilos para los inputs de L.Mat */
+/* Estilos para los inputs de L.Mat y anchos de columna */
+td[data-column="BomId"],
+th[data-field="BomId"] {
+    min-width: 180px !important;
+    width: 180px;
+}
+td[data-column="BomName"],
+th[data-field="BomName"] {
+    min-width: 300px !important;
+    width: 300px;
+}
 .bom-id-input {
-    min-width: 100px !important;
+    min-width: 160px !important;
     width: 100% !important;
 }
 
 .bom-name-input {
-    min-width: 150px !important;
+    min-width: 280px !important;
     width: 100% !important;
 }
 
