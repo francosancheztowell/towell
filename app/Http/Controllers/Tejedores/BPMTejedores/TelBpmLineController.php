@@ -254,7 +254,7 @@ class TelBpmLineController extends Controller
 
     /* ==================== Acciones de Estado ==================== */
 
-    /** Terminar (de Creado → Terminado). No permite telares con Mantenimiento mezclado con OK/X. */
+    /** Terminar (de Creado → Terminado). */
     public function finish(string $folio)
     {
         $item = TelBpmModel::findOrFail($folio);
@@ -263,42 +263,9 @@ class TelBpmLineController extends Controller
             return back()->with('error', 'Sólo puedes terminar un folio en estado Creado.');
         }
 
-        $telaresMezcla = $this->telaresConMantenimientoMezclado($folio);
-        if ($telaresMezcla !== []) {
-            $lista = implode(', ', $telaresMezcla);
-            return back()->with('error', "No puedes finalizar: en este telar hay actividades en Mantenimiento mezcladas con OK o Equis. Todas las actividades de un mismo telar deben estar en Mantenimiento o ninguna. Telar(es) con mezcla: {$lista}");
-        }
-
         $item->update(['Status' => self::EST_TERM]);
         // Ruta real de navegación
         return redirect()->route('tejedores.bpm')->with('success', 'Folio marcado como Terminado.');
-    }
-
-    /** Devuelve los NoTelarId que tienen al menos un M y al menos un OK o X. */
-    private function telaresConMantenimientoMezclado(string $folio): array
-    {
-        $lineas = DB::table('TelBPMLine')
-            ->where('Folio', $folio)
-            ->get(['NoTelarId', 'Valor']);
-
-        $porTelar = [];
-        foreach ($lineas as $ln) {
-            $telar = (string) $ln->NoTelarId;
-            if (!isset($porTelar[$telar])) {
-                $porTelar[$telar] = ['M' => false, 'OKorX' => false];
-            }
-            $v = $ln->Valor === null ? '' : trim((string) $ln->Valor);
-            if ($v === 'M') $porTelar[$telar]['M'] = true;
-            if ($v === 'OK' || $v === 'X') $porTelar[$telar]['OKorX'] = true;
-        }
-
-        $mezcla = [];
-        foreach ($porTelar as $telar => $flags) {
-            if ($flags['M'] && $flags['OKorX']) {
-                $mezcla[] = $telar;
-            }
-        }
-        return $mezcla;
     }
 
     /** Autorizar (de Terminado → Autorizado) */

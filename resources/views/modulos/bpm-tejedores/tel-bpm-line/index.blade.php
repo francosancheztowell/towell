@@ -165,23 +165,6 @@
         return '';
     }
 
-    function getValuesForTelar(telarId) {
-        return Array.from(document.querySelectorAll('.cell-btn[data-telar="' + telarId + '"]'))
-            .map(btn => (btn.dataset.valor || '').trim());
-    }
-
-    function telarHasMixedMantenimiento(telarId) {
-        const values = getValuesForTelar(telarId);
-        const hasM = values.some(v => v === 'M');
-        const hasOKorX = values.some(v => v === 'OK' || v === 'X');
-        return hasM && hasOKorX;
-    }
-
-    function getTelaresConMezcla() {
-        const telares = new Set(Array.from(document.querySelectorAll('.cell-btn')).map(btn => btn.dataset.telar).filter(Boolean));
-        return Array.from(telares).filter(t => telarHasMixedMantenimiento(t));
-    }
-
     function toast(icon, title){
         Swal.fire({ icon, title, toast:true, position:'top-end', timer:2000, showConfirmButton:false });
     }
@@ -269,25 +252,11 @@
         });
     });
 
-    // Validación especial para Finalizar: telares con M no pueden tener OK/X; actividades sin completar
+    // Finalizar: confirmación según actividades completadas o no
     const btnFinish = document.getElementById('btn-finish');
     const formFinish = document.getElementById('form-finish');
     if (btnFinish && formFinish) {
         btnFinish.addEventListener('click', () => {
-            const telaresMezcla = getTelaresConMezcla();
-            if (telaresMezcla.length > 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'No puedes finalizar',
-                    html: 'En este telar hay actividades en <strong>Mantenimiento</strong> mezcladas con otros estados. ' +
-                        'Si un telar tiene alguna actividad en Mantenimiento, <strong>todas</strong> las actividades de ese telar deben estar en Mantenimiento.<br><br>' +
-                        'Telar(es) con mezcla: <strong>' + telaresMezcla.join(', ') + '</strong>',
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#3085d6'
-                });
-                return;
-            }
-
             const allCells = document.querySelectorAll('.cell-btn');
             let incompletas = 0;
             allCells.forEach(btn => {

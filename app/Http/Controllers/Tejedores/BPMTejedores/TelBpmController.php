@@ -50,7 +50,7 @@ class TelBpmController extends Controller
         $turnoActual = TurnoHelper::getTurnoActual();
         $fechaActual = Carbon::now('America/Mexico_City');
         $user = Auth::user();
-        
+
         // Obtener datos del operador y operadores de entrega
         [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega] = $this->obtenerDatosOperador($user);
 
@@ -84,7 +84,7 @@ class TelBpmController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        
+
         if (!$user) {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Usuario no autenticado'], 401);
@@ -197,20 +197,20 @@ class TelBpmController extends Controller
         return DB::transaction(function () {
             // Leer prefijo actual para TelBPM
             $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
-            
+
             if (!$row) {
                 // Crear la fila si no existe
                 $maxFolio = DB::table('TelBPM')->where('Folio', 'like', 'BT%')->orderBy('Folio', 'desc')->value('Folio');
                 $start = $maxFolio ? (int) substr($maxFolio, strlen('BT')) : 0;
                 SSYSFoliosSecuencia::create(['modulo' => self::FOLIO_KEY, 'prefijo' => 'BT', 'consecutivo' => $start]);
                 $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
-                
+
                 if (!$row) {
                     Log::error('BPM Tejedores: no se pudo crear fila en SSYSFoliosSecuencias para modulo=' . self::FOLIO_KEY);
                     throw new \RuntimeException('No existe configuración de folio para BPM Tejedores en SSYSFoliosSecuencias y no se pudo crear.');
                 }
             }
-            
+
             $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');
             $currConsec = (int)($row->consecutivo ?? ($row->Consecutivo ?? 0));
 
@@ -239,7 +239,7 @@ class TelBpmController extends Controller
                 $folio = $f['folio'];
                 $guard++;
             }
-            
+
             return $folio;
         });
     }
@@ -250,27 +250,27 @@ class TelBpmController extends Controller
         $operadorUsuario = null;
         $usuarioEsOperador = false;
         $operadoresEntrega = collect();
-        
+
         if (!$user) {
             return [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega];
         }
-        
+
         try {
             $userCode = (string) ($user->cve ?? '');
             $userCodeAlt = (string) ($user->numero_empleado ?? '');
             $userName = (string) ($user->name ?? $user->nombre ?? '');
-            
+
             $codes = collect([$userCode, $userCodeAlt])->filter(fn($v) => $v !== '')->unique()->values()->all();
             $operadorUsuario = $this->operadorQuery($codes, $userName)->first();
             $usuarioEsOperador = (bool) $operadorUsuario;
-            
+
             if ($usuarioEsOperador) {
                 $telaresUsuario = $this->operadorQuery($codes, $userName)
                     ->pluck('NoTelarId')
                     ->filter()
                     ->unique()
                     ->values();
-                
+
                 if ($telaresUsuario->isNotEmpty()) {
                     $operadoresEntrega = TelTelaresOperador::query()
                         ->whereIn('NoTelarId', $telaresUsuario)
@@ -284,7 +284,7 @@ class TelBpmController extends Controller
         } catch (\Throwable $e) {
             Log::debug('Error al obtener datos del operador: ' . $e->getMessage());
         }
-        
+
         return [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega];
     }
 
@@ -293,18 +293,18 @@ class TelBpmController extends Controller
     {
         try {
             $actividades = TelActividadesBPM::orderBy('Orden')->get(['Orden', 'Actividad']);
-            
+
             $asignados = TelTelaresOperador::query()
                 ->where('numero_empleado', $cveEmplRec)
                 ->get(['NoTelarId', 'SalonTejidoId']);
-            
+
             $telares = $asignados->pluck('NoTelarId')->filter()->unique()->values();
             $salonPorTelar = $asignados->mapWithKeys(fn($r) => [$r->NoTelarId => $r->SalonTejidoId])->all();
-            
+
             if ($actividades->isEmpty() || $telares->isEmpty()) {
                 return;
             }
-            
+
             DB::transaction(function () use ($folio, $actividades, $telares, $salonPorTelar, $turnoRecibe) {
                 foreach ($actividades as $actividad) {
                     foreach ($telares as $telar) {
@@ -313,7 +313,7 @@ class TelBpmController extends Controller
                             ->where('Orden', $actividad->Orden)
                             ->where('NoTelarId', (string)$telar)
                             ->exists();
-                        
+
                         if (!$exists) {
                             DB::table('TelBPMLine')->insert([
                                 'Folio' => $folio,
