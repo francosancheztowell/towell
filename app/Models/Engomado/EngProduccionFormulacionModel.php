@@ -22,7 +22,7 @@ class EngProduccionFormulacionModel extends Model
     protected $fillable = [
         'Folio',
         'fecha',
-        'Hora',           // time -> lo manejamos como string
+        'Hora',
         'MaquinaId',
         'Cuenta',
         'Calibre',
@@ -36,7 +36,7 @@ class EngProduccionFormulacionModel extends Model
         'ProdId',
         'TiempoCocinado',
         'Solidos',
-        'Viscocidad',     // así aparece en tu captura
+        'Viscocidad',   
         'Status',
         'obs_calidad',
     ];

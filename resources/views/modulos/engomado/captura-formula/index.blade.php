@@ -20,18 +20,6 @@
             module="Captura de Formula"
             :disabled="true"
             />
-            <x-navbar.button-report
-            id="btn-autorizar"
-            onclick="confirmAutorizar()"
-            title="Autorizar"
-            bg="bg-green-600"
-            text="Finalizar"
-            iconColor="text-white"
-            hoverBg="hover:bg-green-600"
-            class="text-white"
-            module="Captura de Formula"
-            :disabled="true"
-            />
             <x-navbar.button-edit
             id="btn-edit"
             onclick="openEditModal()"
@@ -312,12 +300,12 @@
 
                 <!-- Botones -->
                 <div class="flex gap-2 justify-end pt-3 border-t border-gray-200 mt-4">
-                    {{-- <button type="button" onclick="document.getElementById('createModal').classList.add('hidden')"
+                    <button type="button" onclick="cerrarModalCreate()"
                             class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition">
                         <i class="fa-solid fa-times mr-1"></i>Cancelar
-                    </button> --}}
-                    <button type="submit" class="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-lg hover:shadow-xl">
-                        <i class="fa-solid fa-save mr-1"></i>Crear Formulación
+                    </button>
+                    <button type="submit" id="btn-submit-create" class="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-lg hover:shadow-xl">
+                        <i class="fa-solid fa-save mr-1"></i><span id="submit-text-create">Crear Formulación</span>
                     </button>
                 </div>
             </form>
@@ -661,6 +649,15 @@
                 form.action = "{{ route('eng-formulacion.store') }}";
             }
 
+            // Actualizar botón submit
+            const submitBtn = document.getElementById('btn-submit-create');
+            const submitText = document.getElementById('submit-text-create');
+            if (submitText) submitText.textContent = 'Crear Formulación';
+            if (submitBtn) {
+                submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+                submitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            }
+
             // Color azul para crear
             const header = document.getElementById('create_modal_header');
             header.className = 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
@@ -695,7 +692,7 @@
         }
 
         function disableButtons() {
-            ['btn-edit', 'btn-view', 'btn-autorizar', 'btn-delete'].forEach(id => {
+            ['btn-edit', 'btn-view', 'btn-delete'].forEach(id => {
                 const btn = document.getElementById(id);
                 if (btn) {
                     btn.disabled = true;
@@ -705,7 +702,7 @@
         }
 
         function enableButtons() {
-            ['btn-edit', 'btn-view', 'btn-autorizar', 'btn-delete'].forEach(id => {
+            ['btn-edit', 'btn-view', 'btn-delete'].forEach(id => {
                 const btn = document.getElementById(id);
                 if (btn) {
                     btn.disabled = false;
@@ -787,6 +784,15 @@
             const form = document.getElementById('createForm');
             if (form) {
                 form.action = `/eng-formulacion/${selectedFolio}`;
+            }
+
+            // Actualizar botón submit
+            const submitBtn = document.getElementById('btn-submit-create');
+            const submitText = document.getElementById('submit-text-create');
+            if (submitText) submitText.textContent = 'Guardar Cambios';
+            if (submitBtn) {
+                submitBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
             }
 
             // Cambiar color del header a amarillo para editar
@@ -954,7 +960,7 @@
                 addRowBtn.classList.toggle('cursor-not-allowed', isReadOnly);
             }
 
-            const submitBtn = modal.querySelector('button[type="submit"]');
+            const submitBtn = document.getElementById('btn-submit-create');
             if (submitBtn) {
                 submitBtn.classList.toggle('hidden', isReadOnly);
                 submitBtn.disabled = isReadOnly;
@@ -1168,51 +1174,6 @@
         function fillEmpleadoEdit(select) {
             const option = select.options[select.selectedIndex];
             document.getElementById('edit_cve_empl').value = option.getAttribute('data-numero') || '';
-        }
-
-        function confirmAutorizar() {
-            if (!selectedFolio) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Ningún registro seleccionado',
-                    confirmButtonColor: '#a855f7'
-                });
-                return;
-            }
-
-            Swal.fire({
-                title: '¿Autorizar esta formulación?',
-                html: `Se autorizará la formulación con folio <strong>${selectedFolio}</strong>`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#3b82f6',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Sí, autorizar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Crear un formulario temporal para enviar la solicitud
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = `/eng-formulacion/${selectedFolio}/autorizar`;
-
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                    const csrfInput = document.createElement('input');
-                    csrfInput.type = 'hidden';
-                    csrfInput.name = '_token';
-                    csrfInput.value = csrfToken;
-                    form.appendChild(csrfInput);
-
-                    const methodInput = document.createElement('input');
-                    methodInput.type = 'hidden';
-                    methodInput.name = '_method';
-                    methodInput.value = 'PATCH';
-                    form.appendChild(methodInput);
-
-                    document.body.appendChild(form);
-                    form.submit();
-                }
-            });
         }
 
         // ===== FUNCIONES PARA MODAL DE COMPONENTES =====
