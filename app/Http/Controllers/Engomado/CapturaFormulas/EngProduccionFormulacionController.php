@@ -260,14 +260,26 @@ class EngProduccionFormulacionController extends Controller
             'Solidos' => 'nullable|numeric',
             'Viscocidad' => 'nullable|numeric',
             'Status' => 'nullable|in:Creado,En Proceso,Terminado',
+            'obs_calidad' => 'nullable|string',
         ]);
 
         try {
             $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
             $item->update($validated);
+            
+            // Si es una petición JSON (desde AJAX), devolver JSON
+            if ($request->expectsJson()) {
+                return response()->json(['success' => true, 'message' => 'Formulación actualizada exitosamente']);
+            }
+            
             return redirect()->back()->with('success', 'Formulación actualizada exitosamente');
         } catch (\Exception $e) {
             Log::error('Error al actualizar formulación: ' . $e->getMessage());
+            
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error al actualizar la formulación: ' . $e->getMessage()], 500);
+            }
+            
             return redirect()->back()->with('error', 'Error al actualizar la formulación: ' . $e->getMessage());
         }
     }

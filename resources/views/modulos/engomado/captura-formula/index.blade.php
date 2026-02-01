@@ -148,8 +148,10 @@
                         <td class="px-4 py-3 text-center">
                             <input
                                 type="checkbox"
-                                class="obs-checkbox w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-offset-0 focus:ring-0"
+                                class="obs-calidad-checkbox w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-offset-0 focus:ring-0"
                                 data-folio="{{ $item->Folio }}"
+                                {{ !empty($item->obs_calidad) ? 'checked' : '' }}
+                                title="{{ !empty($item->obs_calidad) ? $item->obs_calidad : 'Sin observaciones' }}"
                             >
                         </td>
                     </tr>
@@ -162,12 +164,12 @@
         </table>
     </div>
 
-    <!-- Modal Crear -->
+    <!-- Modal Crear/Editar -->
     <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
-                <h3 class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
-                <button onclick="document.getElementById('createModal').classList.add('hidden')" class="text-white hover:text-gray-200 transition">
+            <div id="create_modal_header" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
+                <h3 id="create_modal_title" class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
+                <button onclick="cerrarModalCreate()" class="text-white hover:text-gray-200 transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -176,6 +178,7 @@
 
             <form id="createForm" action="{{ route('eng-formulacion.store') }}" method="POST" class="p-6">
                 @csrf
+                <input type="hidden" id="create_method" name="_method" value="POST">
 
                 <!-- Sección 1: Datos principales (3 columnas) -->
                 <div class="mb-4">
@@ -626,6 +629,7 @@
         let selectedRow = null;
         let selectedFolio = null;
         let viewOnlyMode = false;
+        let editMode = false;
         const observaciones = {};
         let fechaSortAsc = null;
         const desdeProduccion = {{ $desdeProduccion ? 'true' : 'false' }};
@@ -642,91 +646,52 @@
         }
 
         function openCreateModal(readOnly = false) {
+            editMode = false;
             viewOnlyMode = readOnly;
             const modal = document.getElementById('createModal');
             if (modal) {
                 modal.classList.remove('hidden');
             }
 
-            if (!selectedRow || !selectedFolio) {
-                setCreateModalReadOnly(readOnly);
-                return;
+            // Configurar modal para CREAR
+            document.getElementById('create_modal_title').textContent = 'Nueva Formulación de Engomado';
+            document.getElementById('create_method').value = 'POST';
+            const form = document.getElementById('createForm');
+            if (form) {
+                form.action = "{{ route('eng-formulacion.store') }}";
             }
 
+            // Color azul para crear
+            const header = document.getElementById('create_modal_header');
+            header.className = 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+
+            // LIMPIAR todos los campos (para crear nuevo)
+            document.getElementById('create_olla').value = '';
+            document.getElementById('create_kilos').value = '0';
+            document.getElementById('create_litros').value = '0';
+            document.getElementById('create_tiempo').value = '0';
+            document.getElementById('create_solidos').value = '0';
+            document.getElementById('create_viscocidad').value = '0';
+
+            kilosCreateFormula = 0;
+            litrosCreateFormula = 0;
+            componentesCreateData = [];
+            formulaCreateActual = '';
+
+            // Si hay un folio seleccionado en el dropdown, cargar sus datos básicos
             const select = document.getElementById('create_folio_prog');
-            if (select) {
-                const existeFolio = Array.from(select.options).some(option => option.value === selectedFolio);
-                if (existeFolio) {
-                    select.value = selectedFolio;
-                    cargarDatosPrograma(select, false);
-                }
-            }
-
-            const cells = selectedRow.cells;
-            const fechaTexto = (cells[1]?.textContent || '').trim();
-            const horaTexto = (cells[2]?.textContent || '').trim();
-            const ollaTexto = (cells[8]?.textContent || '').trim();
-            const formulaTexto = (cells[9]?.textContent || '').trim();
-            const kilosTexto = (cells[10]?.textContent || '').trim().replace(/,/g, '');
-            const litrosTexto = (cells[11]?.textContent || '').trim().replace(/,/g, '');
-            const tiempoTexto = (cells[12]?.textContent || '').trim().replace(/,/g, '');
-            const solidosTexto = (cells[13]?.textContent || '').trim().replace(/,/g, '');
-            const viscocidadTexto = (cells[14]?.textContent || '').trim().replace(/,/g, '');
-
-            const fechaInput = document.querySelector('#createModal input[name="fecha"]');
-            if (fechaInput && fechaTexto.includes('/')) {
-                const partes = fechaTexto.split('/');
-                if (partes.length === 3) {
-                    const [dia, mes, anio] = partes;
-                    fechaInput.value = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-                }
-            }
-
-            const horaInput = document.getElementById('create_hora');
-            if (horaInput && horaTexto) {
-                horaInput.value = horaTexto;
-            }
-
-            const ollaInput = document.getElementById('create_olla');
-            if (ollaInput && ollaTexto) {
-                ollaInput.value = ollaTexto;
-            }
-
-            const formulaInput = document.getElementById('create_formula');
-            if (formulaInput && formulaTexto) {
-                formulaInput.value = formulaTexto;
-                formulaCreateActual = formulaTexto;
-            }
-
-            const kilosInput = document.getElementById('create_kilos');
-            if (kilosInput) {
-                kilosInput.value = kilosTexto || '';
-                kilosCreateFormula = parseFloat(kilosTexto) || 0;
-                if (componentesCreateData.length > 0) {
-                    renderizarTablaComponentesCreate();
-                }
-            }
-
-            const litrosInput = document.getElementById('create_litros');
-            if (litrosInput) {
-                litrosInput.value = litrosTexto || '';
-                litrosCreateFormula = parseFloat(litrosTexto) || 0;
-                if (componentesCreateData.length > 0) {
-                    renderizarTablaComponentesCreate();
-                }
-            }
-            const tiempoInput = document.getElementById('create_tiempo');
-            if (tiempoInput) tiempoInput.value = tiempoTexto || '';
-            const solidosInput = document.getElementById('create_solidos');
-            if (solidosInput) solidosInput.value = solidosTexto || '';
-            const viscocidadInput = document.getElementById('create_viscocidad');
-            if (viscocidadInput) viscocidadInput.value = viscocidadTexto || '';
-
-            if (formulaTexto && (!select || select.value !== selectedFolio)) {
-                cargarComponentesCreate(formulaTexto);
+            if (select && select.value) {
+                cargarDatosPrograma(select, false);
             }
 
             setCreateModalReadOnly(readOnly);
+        }
+
+        function cerrarModalCreate() {
+            const modal = document.getElementById('createModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
         }
 
         function disableButtons() {
@@ -799,33 +764,143 @@
         }
 
         function openEditModal() {
-            if (!selectedRow) {
+            if (!selectedRow || !selectedFolio) {
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Ningún registro seleccionado',
-                    confirmButtonColor: '#a855f7'
+                    title: 'Selección requerida',
+                    text: 'Debe seleccionar una fórmula primero',
+                    confirmButtonColor: '#3b82f6'
                 });
                 return;
             }
 
+            editMode = true;
             viewOnlyMode = false;
-            setEditModalReadOnly(false);
-            fillEditModalFromRow(selectedRow);
+            const modal = document.getElementById('createModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
 
-            document.getElementById('editModal').classList.remove('hidden');
+            // Configurar modal para EDITAR
+            document.getElementById('create_modal_title').textContent = 'Editar Formulación';
+            document.getElementById('create_method').value = 'PUT';
+            const form = document.getElementById('createForm');
+            if (form) {
+                form.action = `/eng-formulacion/${selectedFolio}`;
+            }
+
+            // Cambiar color del header a amarillo para editar
+            const header = document.getElementById('create_modal_header');
+            header.className = 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+
+            // Cargar datos del registro seleccionado
+            const cells = selectedRow.cells;
+            const ollaTexto = (cells[8]?.textContent || '').trim();
+            const formulaTexto = (cells[9]?.textContent || '').trim();
+            const kilosTexto = (cells[10]?.textContent || '').trim().replace(/,/g, '');
+            const litrosTexto = (cells[11]?.textContent || '').trim().replace(/,/g, '');
+            const tiempoTexto = (cells[12]?.textContent || '').trim().replace(/,/g, '');
+            const solidosTexto = (cells[13]?.textContent || '').trim().replace(/,/g, '');
+            const viscocidadTexto = (cells[14]?.textContent || '').trim().replace(/,/g, '');
+
+            // Cargar datos en el formulario
+            const select = document.getElementById('create_folio_prog');
+            if (select) {
+                select.value = selectedFolio;
+                cargarDatosPrograma(select, false);
+            }
+
+            document.getElementById('create_olla').value = ollaTexto || '';
+            
+            const kilosInput = document.getElementById('create_kilos');
+            if (kilosInput) {
+                kilosInput.value = kilosTexto || '0';
+                kilosCreateFormula = parseFloat(kilosTexto) || 0;
+            }
+
+            const litrosInput = document.getElementById('create_litros');
+            if (litrosInput) {
+                litrosInput.value = litrosTexto || '0';
+                litrosCreateFormula = parseFloat(litrosTexto) || 0;
+            }
+
+            document.getElementById('create_tiempo').value = tiempoTexto || '0';
+            document.getElementById('create_solidos').value = solidosTexto || '0';
+            document.getElementById('create_viscocidad').value = viscocidadTexto || '0';
+
+            formulaCreateActual = formulaTexto;
+            if (formulaTexto) {
+                cargarComponentesCreate(formulaTexto);
+            }
+
+            setCreateModalReadOnly(false);
         }
 
         function openViewModal() {
-            if (!selectedRow) {
+            if (!selectedRow || !selectedFolio) {
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Ningún registro seleccionado',
-                    confirmButtonColor: '#a855f7'
+                    title: 'Selección requerida',
+                    text: 'Debe seleccionar una fórmula primero',
+                    confirmButtonColor: '#3b82f6'
                 });
                 return;
             }
 
-            openCreateModal(true);
+            editMode = true;
+            viewOnlyMode = true;
+            const modal = document.getElementById('createModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+
+            // Configurar modal para VER
+            document.getElementById('create_modal_title').textContent = 'Ver Formulación';
+
+            // Cambiar color del header a naranja para ver
+            const header = document.getElementById('create_modal_header');
+            header.className = 'bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+
+            // Cargar datos del registro seleccionado (igual que editar)
+            const cells = selectedRow.cells;
+            const ollaTexto = (cells[8]?.textContent || '').trim();
+            const formulaTexto = (cells[9]?.textContent || '').trim();
+            const kilosTexto = (cells[10]?.textContent || '').trim().replace(/,/g, '');
+            const litrosTexto = (cells[11]?.textContent || '').trim().replace(/,/g, '');
+            const tiempoTexto = (cells[12]?.textContent || '').trim().replace(/,/g, '');
+            const solidosTexto = (cells[13]?.textContent || '').trim().replace(/,/g, '');
+            const viscocidadTexto = (cells[14]?.textContent || '').trim().replace(/,/g, '');
+
+            const select = document.getElementById('create_folio_prog');
+            if (select) {
+                select.value = selectedFolio;
+                cargarDatosPrograma(select, false);
+            }
+
+            document.getElementById('create_olla').value = ollaTexto || '';
+            
+            const kilosInput = document.getElementById('create_kilos');
+            if (kilosInput) {
+                kilosInput.value = kilosTexto || '0';
+                kilosCreateFormula = parseFloat(kilosTexto) || 0;
+            }
+
+            const litrosInput = document.getElementById('create_litros');
+            if (litrosInput) {
+                litrosInput.value = litrosTexto || '0';
+                litrosCreateFormula = parseFloat(litrosTexto) || 0;
+            }
+
+            document.getElementById('create_tiempo').value = tiempoTexto || '0';
+            document.getElementById('create_solidos').value = solidosTexto || '0';
+            document.getElementById('create_viscocidad').value = viscocidadTexto || '0';
+
+            formulaCreateActual = formulaTexto;
+            if (formulaTexto) {
+                cargarComponentesCreate(formulaTexto);
+            }
+
+            setCreateModalReadOnly(true);
         }
 
         function setEditModalReadOnly(isReadOnly) {
@@ -1801,17 +1876,32 @@
                 cargarDatosPrograma(select, false);
             }
 
-            document.querySelectorAll('.obs-checkbox').forEach(cb => {
+            document.querySelectorAll('.obs-calidad-checkbox').forEach(cb => {
                 cb.addEventListener('click', (event) => {
                     event.stopPropagation();
                 });
                 cb.addEventListener('change', () => {
                     const folio = cb.dataset.folio || '';
                     if (cb.checked) {
-                        abrirModalObservaciones(cb);
+                        abrirModalObsCalidad(cb);
                     } else {
-                        delete observaciones[folio];
-                        cb.title = '';
+                        // Si desmarca, preguntar si quiere eliminar las observaciones
+                        Swal.fire({
+                            title: '¿Eliminar observaciones?',
+                            text: '¿Desea eliminar las observaciones de calidad?',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3b82f6',
+                            cancelButtonColor: '#6b7280',
+                            confirmButtonText: 'Sí, eliminar',
+                            cancelButtonText: 'Cancelar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                guardarObsCalidad(folio, '', cb);
+                            } else {
+                                cb.checked = true; // Mantener marcado si cancela
+                            }
+                        });
                     }
                 });
             });
@@ -1855,6 +1945,100 @@
                 });
             }
         });
+
+        function abrirModalObsCalidad(checkbox) {
+            const folio = checkbox.dataset.folio || '';
+            const obsActual = checkbox.title !== 'Sin observaciones' ? checkbox.title : '';
+
+            Swal.fire({
+                title: 'Observaciones de Calidad',
+                html: `
+                    <div class="text-left">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Folio: ${folio}</label>
+                        <textarea id="swal-obs-calidad" class="swal2-textarea w-full" rows="4" placeholder="Ingrese las observaciones de calidad...">${obsActual}</textarea>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Cancelar',
+                focusConfirm: false,
+                preConfirm: () => {
+                    const obs = document.getElementById('swal-obs-calidad').value;
+                    return obs;
+                },
+                didOpen: () => {
+                    const textarea = document.getElementById('swal-obs-calidad');
+                    if (textarea) textarea.focus();
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const obs = result.value || '';
+                    guardarObsCalidad(folio, obs, checkbox);
+                } else {
+                    // Si cancela y no había observaciones previas, desmarcar
+                    if (!obsActual) {
+                        checkbox.checked = false;
+                    }
+                }
+            });
+        }
+
+        async function guardarObsCalidad(folio, observaciones, checkbox) {
+            try {
+                const url = `/eng-formulacion/${folio}`;
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        obs_calidad: observaciones
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Error al guardar');
+                }
+
+                // Actualizar checkbox y tooltip
+                if (observaciones.trim()) {
+                    checkbox.checked = true;
+                    checkbox.title = observaciones;
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Guardado',
+                        text: 'Observaciones guardadas exitosamente',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                } else {
+                    checkbox.checked = false;
+                    checkbox.title = 'Sin observaciones';
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Eliminado',
+                        text: 'Observaciones eliminadas',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudieron guardar las observaciones'
+                });
+                // Revertir el estado del checkbox en caso de error
+                checkbox.checked = !checkbox.checked;
+            }
+        }
 
         function abrirModalObservaciones(checkbox) {
             const folio = checkbox.dataset.folio || '';

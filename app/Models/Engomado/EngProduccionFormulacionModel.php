@@ -38,6 +38,7 @@ class EngProduccionFormulacionModel extends Model
         'Solidos',
         'Viscocidad',     // así aparece en tu captura
         'Status',
+        'obs_calidad',
     ];
 
     protected $casts = [
