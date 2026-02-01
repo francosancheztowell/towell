@@ -21,6 +21,8 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
+
 
 class TelDesarrolladoresController extends Controller
 {
@@ -31,7 +33,7 @@ class TelDesarrolladoresController extends Controller
         $telares = $this->obtenerTelares();
         $juliosRizo = $this->obtenerUltimosJuliosMontados('Rizo');
         $juliosPie = $this->obtenerUltimosJuliosMontados('Pie');
-        
+
         // Obtener solo usuarios con área "Desarrolladores"
         $desarrolladores = Usuario::porArea('Desarrolladores')
             ->activos()
@@ -420,6 +422,142 @@ class TelDesarrolladoresController extends Controller
             }
         }
 
+        /**
+         * Actualiza FechaArranque y FechaFinaliza en CatCodificados y ReqProgramaTejido
+         * 
+         * @param ReqProgramaTejido $programa El programa de tejido
+         * @param \DateTime|string|null $fechaArranque Fecha de arranque (si es null, usa FechaInicio del programa)
+         * @param \DateTime|string|null $fechaFinaliza Fecha de finalización (si es null, se deja null; si es 'now', usa fecha/hora actual)
+         * @return bool True si se actualizó correctamente, false si no se encontró el registro
+         */
+        private function actualizarFechasArranqueFinaliza(
+            ReqProgramaTejido $programa, 
+            $fechaArranque = null, 
+            $fechaFinaliza = null
+        ): bool {
+            $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
+            $noTelarId = trim((string) ($programa->NoTelarId ?? ''));
+
+            if ($noProduccion === '' || $noTelarId === '') {
+                return false;
+            }
+
+            // Determinar FechaArranque
+            if ($fechaArranque === null) {
+                // Si no se proporciona, usar FechaInicio del programa
+                $fechaArranque = !empty($programa->FechaInicio) 
+                    ? Carbon::parse($programa->FechaInicio)->format('Y-m-d H:i:s')
+                    : null;
+            } elseif ($fechaArranque instanceof \DateTime || $fechaArranque instanceof Carbon) {
+                $fechaArranque = $fechaArranque->format('Y-m-d H:i:s');
+            } elseif (is_string($fechaArranque)) {
+                // Ya está en formato string, validar que sea válido
+                try {
+                    Carbon::parse($fechaArranque);
+                } catch (Exception $e) {
+                    Log::warning('FechaArranque inválida', ['fecha' => $fechaArranque]);
+                    $fechaArranque = null;
+                }
+            }
+
+            // Determinar FechaFinaliza
+            if ($fechaFinaliza === null) {
+                // null se mantiene como null
+                $fechaFinaliza = null;
+            } elseif ($fechaFinaliza === 'now' || $fechaFinaliza === true) {
+                // Si es 'now' o true, usar fecha/hora actual
+                $fechaFinaliza = now()->format('Y-m-d H:i:s');
+            } elseif ($fechaFinaliza instanceof \DateTime || $fechaFinaliza instanceof Carbon) {
+                $fechaFinaliza = $fechaFinaliza->format('Y-m-d H:i:s');
+            } elseif (is_string($fechaFinaliza)) {
+                // Ya está en formato string, validar que sea válido
+                try {
+                    Carbon::parse($fechaFinaliza);
+                } catch (Exception $e) {
+                    Log::warning('FechaFinaliza inválida', ['fecha' => $fechaFinaliza]);
+                    $fechaFinaliza = null;
+                }
+            }
+
+            // ACTUALIZAR ReqProgramaTejido PRIMERO
+            $programaActualizado = false;
+            if ($programa->exists) {
+                $programa->FechaArranque = $fechaArranque;
+                $programa->FechaFinaliza = $fechaFinaliza;
+                
+                if ($programa->isDirty(['FechaArranque', 'FechaFinaliza'])) {
+                    $programa->save();
+                    $programaActualizado = true;
+                    Log::info('Fechas actualizadas en ReqProgramaTejido', [
+                        'Id' => $programa->Id,
+                        'NoTelarId' => $noTelarId,
+                        'NoProduccion' => $noProduccion,
+                        'FechaArranque' => $fechaArranque,
+                        'FechaFinaliza' => $fechaFinaliza,
+                    ]);
+                }
+            }
+
+            // ACTUALIZAR CatCodificados
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            // Verificar que las columnas existan
+            if (!in_array('FechaArranque', $columns, true) || !in_array('FechaFinaliza', $columns, true)) {
+                Log::warning('Las columnas FechaArranque o FechaFinaliza no existen en CatCodificados');
+                return $programaActualizado; // Retornar true si se actualizó ReqProgramaTejido
+            }
+
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $noProduccion);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $noProduccion);
+                $hasKeyFilter = true;
+            }
+
+            if (in_array('TelarId', $columns, true)) {
+                $query->where('TelarId', $noTelarId);
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $query->where('NoTelarId', $noTelarId);
+            }
+
+            if (!$hasKeyFilter) {
+                $query->where('NoProduccion', $noProduccion);
+            }
+
+            $registroCodificado = $query->first();
+
+            if (!$registroCodificado) {
+                Log::warning('No se encontró registro en CatCodificados para actualizar fechas', [
+                    'NoTelarId' => $noTelarId,
+                    'NoProduccion' => $noProduccion,
+                ]);
+                return $programaActualizado; // Retornar true si se actualizó ReqProgramaTejido
+            }
+
+            // Actualizar solo si hay cambios
+            $registroCodificado->FechaArranque = $fechaArranque;
+            $registroCodificado->FechaFinaliza = $fechaFinaliza;
+
+            if ($registroCodificado->isDirty(['FechaArranque', 'FechaFinaliza'])) {
+                $registroCodificado->save();
+                Log::info('Fechas actualizadas en CatCodificados', [
+                    'NoTelarId' => $noTelarId,
+                    'NoProduccion' => $noProduccion,
+                    'FechaArranque' => $fechaArranque,
+                    'FechaFinaliza' => $fechaFinaliza,
+                ]);
+                return true;
+            }
+
+            return $programaActualizado; // Retornar true si se actualizó al menos ReqProgramaTejido
+        }
+
         private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar): array
         {
             $idsAfectados = [];
@@ -519,9 +657,10 @@ class TelDesarrolladoresController extends Controller
 
             $dispatcher = ReqProgramaTejido::getEventDispatcher();
             $idsAfectados = [];
+            $fechaFinalizaAnterior = null; // Variable para guardar la FechaFinaliza del registro eliminado
 
             try {
-                DB::transaction(function () use ($registroActualizado, $salonTejido, $noTelarId, &$idsAfectados) {
+                DB::transaction(function () use ($registroActualizado, $salonTejido, $noTelarId, &$idsAfectados, &$fechaFinalizaAnterior) {
                     $registrosEnProceso = ReqProgramaTejido::query()
                         ->where('SalonTejidoId', $salonTejido)
                         ->where('NoTelarId', $noTelarId)
@@ -591,6 +730,16 @@ class TelDesarrolladoresController extends Controller
                                     }
                                 }
                             }
+
+                            // ACTUALIZAR FECHAS EN CatCodificados ANTES DE ELIMINAR
+                            // FechaArranque = FechaInicio del registro que se elimina
+                            // FechaFinaliza = fecha/hora actual
+                            $fechaFinalizaAnterior = now()->format('Y-m-d H:i:s');
+                            $this->actualizarFechasArranqueFinaliza(
+                                $registroEnProceso,
+                                null, // null = usa FechaInicio del programa
+                                'now' // 'now' = fecha/hora actual
+                            );
 
                             $this->actualizarReqModelosDesdePrograma($registroEnProceso);
                             $registroEnProceso->delete();
@@ -701,7 +850,7 @@ class TelDesarrolladoresController extends Controller
                                 $nuevoLider->saveQuietly();
 
                                 // Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
-                                \App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido::actualizarOrdPrincipalPorOrdCompartida($ordCompartida);
+                                VincularTejido::actualizarOrdPrincipalPorOrdCompartida($ordCompartida);
                             }
                         }
                     }
@@ -729,6 +878,15 @@ class TelDesarrolladoresController extends Controller
                 ->first();
             if ($registroParaModelo) {
                 $this->actualizarReqModelosDesdePrograma($registroParaModelo);
+                
+                // ACTUALIZAR FECHAS EN CatCodificados DEL NUEVO REGISTRO EN PROCESO
+                // FechaArranque = FechaFinaliza del registro anterior (si existe)
+                // FechaFinaliza = null
+                $this->actualizarFechasArranqueFinaliza(
+                    $registroParaModelo,
+                    $fechaFinalizaAnterior, // FechaFinaliza del registro eliminado
+                    null // null = se deja null
+                );
             }
         }
 

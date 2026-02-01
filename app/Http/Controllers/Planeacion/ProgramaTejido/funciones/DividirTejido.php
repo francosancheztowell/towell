@@ -214,17 +214,17 @@ class DividirTejido
             // ⚡ MEJORA: Ajustar cantidades - calcular correctamente el TotalPedido del registro original
             // El TotalPedido del original debe ser: TotalPedido original - suma de pedidos nuevos
             $sumaNuevos = array_sum($cantidadesNuevos);
-            
+
             // Si no se especificó cantidad para el original, calcularla restando los nuevos
             if ($cantidadParaOriginal <= 0) {
                 $cantidadParaOriginal = max(0, $cantidadOriginalTotal - $sumaNuevos);
             }
-            
+
             // Si tampoco hubo nuevos, mantener el total original en el registro base
             if ($cantidadParaOriginal <= 0 && $sumaNuevos <= 0) {
                 $cantidadParaOriginal = $cantidadOriginalTotal;
             }
-            
+
             // ⚡ MEJORA: Validar que la suma de original + nuevos no exceda el total original
             $sumaTotal = $cantidadParaOriginal + $sumaNuevos;
             if ($sumaTotal > $cantidadOriginalTotal) {
@@ -243,15 +243,15 @@ class DividirTejido
 
             // === PASO 1: Actualizar el registro original ===
             $registroOriginal->OrdCompartida = $nuevoOrdCompartida;
-            
+
             // ⚡ MEJORA: Actualizar TotalPedido y SaldoPedido restando los pedidos de los nuevos registros
             // TotalPedido = cantidad original - suma de pedidos nuevos
             $registroOriginal->TotalPedido = $cantidadParaOriginal;
-            
+
             // SaldoPedido = TotalPedido - Produccion (si hay producci├│n)
             $produccionOriginal = (float) ($registroOriginal->Produccion ?? 0);
             $registroOriginal->SaldoPedido = max(0, $cantidadParaOriginal - $produccionOriginal);
-            
+
 
             // Actualizar PedidoTempo, Observaciones y PorcentajeSegundos del registro original
             if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
@@ -364,28 +364,28 @@ class DividirTejido
                 );
 
                 // ⚡ MEJORA: Leer tamano_clave específico de cada destino (permite diferentes claves modelo por fila)
-                $tamanoClaveDestino = isset($destino['tamano_clave']) && $destino['tamano_clave'] !== null && $destino['tamano_clave'] !== '' 
-                    ? trim((string) $destino['tamano_clave']) 
+                $tamanoClaveDestino = isset($destino['tamano_clave']) && $destino['tamano_clave'] !== null && $destino['tamano_clave'] !== ''
+                    ? trim((string) $destino['tamano_clave'])
                     : null;
-                $productoDestino = isset($destino['producto']) && $destino['producto'] !== null && $destino['producto'] !== '' 
-                    ? trim((string) $destino['producto']) 
+                $productoDestino = isset($destino['producto']) && $destino['producto'] !== null && $destino['producto'] !== ''
+                    ? trim((string) $destino['producto'])
                     : null;
-                $flogDestino = isset($destino['flog']) && $destino['flog'] !== null && $destino['flog'] !== '' 
-                    ? trim((string) $destino['flog']) 
+                $flogDestino = isset($destino['flog']) && $destino['flog'] !== null && $destino['flog'] !== ''
+                    ? trim((string) $destino['flog'])
                     : null;
-                $descripcionDestino = isset($destino['descripcion']) && $destino['descripcion'] !== null && $destino['descripcion'] !== '' 
-                    ? trim((string) $destino['descripcion']) 
+                $descripcionDestino = isset($destino['descripcion']) && $destino['descripcion'] !== null && $destino['descripcion'] !== ''
+                    ? trim((string) $destino['descripcion'])
                     : null;
-                $custnameDestino = isset($destino['custName']) && $destino['custName'] !== null && $destino['custName'] !== '' 
-                    ? trim((string) $destino['custName']) 
+                $custnameDestino = isset($destino['custName']) && $destino['custName'] !== null && $destino['custName'] !== ''
+                    ? trim((string) $destino['custName'])
                     : null;
-                $itemIdDestino = isset($destino['itemId']) && $destino['itemId'] !== null && $destino['itemId'] !== '' 
-                    ? trim((string) $destino['itemId']) 
+                $itemIdDestino = isset($destino['itemId']) && $destino['itemId'] !== null && $destino['itemId'] !== ''
+                    ? trim((string) $destino['itemId'])
                     : null;
-                $inventSizeIdDestino = isset($destino['inventSizeId']) && $destino['inventSizeId'] !== null && $destino['inventSizeId'] !== '' 
-                    ? trim((string) $destino['inventSizeId']) 
+                $inventSizeIdDestino = isset($destino['inventSizeId']) && $destino['inventSizeId'] !== null && $destino['inventSizeId'] !== ''
+                    ? trim((string) $destino['inventSizeId'])
                     : null;
-                
+
                 // ⚡ MEJORA: Usar valores específicos del destino si existen, sino usar valores globales
                 // IMPORTANTE: Si hay tamano_clave específico, usarlo (incluso si es diferente al original)
                 if ($tamanoClaveDestino) {
@@ -409,7 +409,7 @@ class DividirTejido
                 if ($inventSizeIdDestino) {
                     $nuevo->InventSizeId = $inventSizeIdDestino;
                 }
-                
+
                 // Actualizar otros campos si se proporcionan (fallback a valores globales)
                 if (!$itemIdDestino && $codArticulo) $nuevo->ItemId = $codArticulo;
                 if (!$productoDestino && $producto) $nuevo->NombreProducto = $producto;
@@ -425,7 +425,7 @@ class DividirTejido
                 if ($tamanoClaveDestino && $tamanoClaveDestino !== $registroOriginal->TamanoClave) {
                     // Aplicar modelo codificado con la clave modelo específica
                     self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem, $tamanoClaveDestino);
-                    
+
                     // Aplicar campos técnicos desde los datos del destino (ya vienen del frontend)
                     if (isset($destino['cuentaRizo']) && $destino['cuentaRizo'] !== null) $nuevo->CuentaRizo = $destino['cuentaRizo'];
                     if (isset($destino['calibreRizo']) && $destino['calibreRizo'] !== null) $nuevo->CalibreRizo = $destino['calibreRizo'];
@@ -444,7 +444,7 @@ class DividirTejido
                     // Pero si viene del destino directamente, usarlo tal cual
                     if (isset($destino['calibreTrama']) && $destino['calibreTrama'] !== null) $nuevo->CalibreTrama = $destino['calibreTrama'];
                     if (isset($destino['calibreTrama2']) && $destino['calibreTrama2'] !== null) $nuevo->CalibreTrama2 = $destino['calibreTrama2'];
-                    
+
                     // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla del modelo o del destino
                     if (isset($destino['largoToalla']) && $destino['largoToalla'] !== null) {
                         $nuevo->LargoCrudo = (float) $destino['largoToalla'];
@@ -630,10 +630,10 @@ class DividirTejido
             // ⚡ CORRECCIÓN: Refrescar el registro original para obtener valores actualizados
             // fresh() sin parámetros recarga el modelo completo desde la BD
             $registroOriginal->refresh();
-            
+
             // ⚡ MEJORA: Refrescar el registro original para obtener valores actualizados (FechaFinal, fórmulas, etc.)
             $registroOriginal->refresh();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "Registro dividido correctamente. OrdCompartida: {$nuevoOrdCompartida}. Se crearon/actualizaron {$totalDivididos} registro(s).",
@@ -735,7 +735,7 @@ class DividirTejido
         if (!$modelo) {
             return;
         }
-        
+
         // Si se proporcionó tamanoClave específico, actualizarlo en el registro
         if ($tamanoClave) {
             $registro->TamanoClave = trim((string) $tamanoClave);

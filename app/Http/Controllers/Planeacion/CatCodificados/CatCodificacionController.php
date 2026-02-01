@@ -548,8 +548,8 @@ class CatCodificacionController extends Controller
             // Verificar si hay algún registro con OrdCompartidaLider activo
             $tieneLideres = false;
             foreach ($registros as $registro) {
-                $esLider = $registro['OrdCompartidaLider'] === 1 
-                    || $registro['OrdCompartidaLider'] === true 
+                $esLider = $registro['OrdCompartidaLider'] === 1
+                    || $registro['OrdCompartidaLider'] === true
                     || $registro['OrdCompartidaLider'] === '1';
                 if ($esLider) {
                     $tieneLideres = true;
