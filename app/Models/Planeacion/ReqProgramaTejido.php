@@ -42,9 +42,10 @@ class ReqProgramaTejido extends Model
         'CalibreRizo2','CalibrePie2','CalibreTrama2','CalibreComb1','CalibreComb2','CalibreComb3','CalibreComb4','CalibreComb5',
         'Prioridad','LargoCrudo','OrdCompartida','CategoriaCalidad','PorcentajeSegundos','PedidoTempo','OrdCompartidaLider','Reprogramar','Posicion',
         'MtsRollo','PzasRollo','TotalRollos','TotalPzas','Repeticiones','CombinaTram','BomId','BomName','CreaProd',
-        'Densidad','HiloAX','ActualizaLmat',
+        'Densidad','HiloAX','ActualizaLmat','PesoMuestra',
         'FechaCreacion','HoraCreacion','UsuarioCrea','FechaModificacion','HoraModificacion','UsuarioModifica',
-        'OrdPrincipal'
+        'OrdPrincipal',
+        'FechaArranque','FechaFinaliza'
     ];
 
     /**
@@ -140,6 +141,7 @@ class ReqProgramaTejido extends Model
         'CreaProd' => 'boolean', // BIT DEFAULT 1 en SQL Server
         'HiloAX' => 'string', // VARCHAR(30) en SQL Server
         'ActualizaLmat' => 'boolean', // BIT DEFAULT 1 en SQL Server
+        'PesoMuestra' => 'float', // REAL NULL en SQL Server
         // Campos de auditoría
         'FechaCreacion' => 'date', // DATE en SQL Server
         'HoraCreacion' => 'string', // TIME en SQL Server
@@ -148,6 +150,8 @@ class ReqProgramaTejido extends Model
         'HoraModificacion' => 'string', // TIME en SQL Server
         'UsuarioModifica' => 'string', // VARCHAR(50) en SQL Server
         'OrdPrincipal' => 'integer', // INT NULL en SQL Server
+        'FechaArranque' => 'datetime', // DATETIME NULL en SQL Server
+        'FechaFinaliza' => 'datetime', // DATETIME NULL en SQL Server
     ];
 
     /* ===========================

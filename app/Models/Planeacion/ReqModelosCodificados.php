@@ -132,7 +132,8 @@ class ReqModelosCodificados extends Model
         'ColumCU',
         'ColumCV',
         'ComprobarModDup',
-        'OrdPrincipal'
+        'OrdPrincipal',
+        'PesoMuestra'
     ];
 
     // Castings para conversión de tipos al guardar en BD
@@ -172,6 +173,7 @@ class ReqModelosCodificados extends Model
         'EFIC' => 'float',
         'Rev' => 'float',
         'PASADAS' => 'float',
+        'PesoMuestra' => 'float', // REAL NULL en SQL Server
 
         // Dates
         'FechaTejido' => 'datetime:Y-m-d H:i:s',

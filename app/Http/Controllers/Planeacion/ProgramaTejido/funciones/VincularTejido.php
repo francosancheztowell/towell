@@ -152,6 +152,9 @@ class VincularTejido
                         'OrdCompartidaLider' => 1,
                         'UpdatedAt' => now()
                     ]);
+
+                // PASO 4.1: Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
+                self::actualizarOrdPrincipalPorOrdCompartida($ordCompartidaAVincular);
             }
 
             // PASO 5: Actualizar OrdCompartida y OrdCompartidaLider en CatCodificados si NoProduccion y Programado están llenos
@@ -310,6 +313,9 @@ class VincularTejido
                             'OrdCompartidaLider' => 1,
                             'UpdatedAt' => now()
                         ]);
+
+                    // Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
+                    self::actualizarOrdPrincipalPorOrdCompartida($ordCompartidaNormalizada);
 
                     $idsAfectados = array_merge($idsAfectados, $idsRestantes);
 
@@ -593,5 +599,91 @@ class VincularTejido
         }
 
         return $candidato;
+    }
+
+    /**
+     * Actualiza OrdPrincipal con el ItemId del líder en todos los registros que comparten el mismo OrdCompartida.
+     * OrdPrincipal = ItemId (Clave AX) del registro líder.
+     * Función pública estática para poder ser llamada desde otras clases (DividirTejido, etc.)
+     *
+     * @param int $ordCompartida
+     * @return void
+     */
+    public static function actualizarOrdPrincipalPorOrdCompartida(int $ordCompartida): void
+    {
+        try {
+            // Obtener el registro líder (OrdCompartidaLider = 1)
+            $lider = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
+                ->where('OrdCompartidaLider', 1)
+                ->first(['Id', 'ItemId']);
+
+            if (!$lider || empty($lider->ItemId)) {
+                // Si no hay líder o no tiene ItemId, no actualizar OrdPrincipal
+                return;
+            }
+
+            $itemIdLider = trim((string) $lider->ItemId);
+            if ($itemIdLider === '') {
+                return;
+            }
+
+            // Actualizar OrdPrincipal con el ItemId del líder en TODOS los registros con este OrdCompartida
+            ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
+                ->update([
+                    'OrdPrincipal' => $itemIdLider,
+                    'UpdatedAt' => now()
+                ]);
+
+            // También actualizar en CatCodificados para todos los registros con este OrdCompartida
+            $registrosCompartidos = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
+                ->get(['Id', 'NoProduccion', 'NoTelarId']);
+
+            foreach ($registrosCompartidos as $registro) {
+                if ($registro && $registro->NoProduccion) {
+                    $noProduccion = trim((string) $registro->NoProduccion);
+                    $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
+
+                    if ($noProduccion !== '') {
+                        $modelo = new CatCodificados();
+                        $table = $modelo->getTable();
+                        $columns = Schema::getColumnListing($table);
+
+                        $query = CatCodificados::query();
+                        $hasKeyFilter = false;
+
+                        if (in_array('OrdenTejido', $columns, true)) {
+                            $query->where('OrdenTejido', $noProduccion);
+                            $hasKeyFilter = true;
+                        } elseif (in_array('NumOrden', $columns, true)) {
+                            $query->where('NumOrden', $noProduccion);
+                            $hasKeyFilter = true;
+                        }
+
+                        if (in_array('TelarId', $columns, true) && $noTelarId !== '') {
+                            $query->where('TelarId', $noTelarId);
+                        } elseif (in_array('NoTelarId', $columns, true) && $noTelarId !== '') {
+                            $query->where('NoTelarId', $noTelarId);
+                        }
+
+                        if (!$hasKeyFilter) {
+                            $query->where('NoProduccion', $noProduccion);
+                        }
+
+                        $registroCodificado = $query->first();
+                        if ($registroCodificado && in_array('OrdPrincipal', $columns, true)) {
+                            DBFacade::table($table)
+                                ->where('Id', $registroCodificado->Id)
+                                ->update(['OrdPrincipal' => $itemIdLider]);
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Loggear error pero no fallar la operación principal
+            LogFacade::warning('Error al actualizar OrdPrincipal por OrdCompartida', [
+                'ord_compartida' => $ordCompartida,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
