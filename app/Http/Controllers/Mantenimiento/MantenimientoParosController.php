@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
+use App\Models\Sistema\SYSMensaje;
 use App\Models\Sistema\SYSUsuario;
 
 class MantenimientoParosController extends Controller
@@ -397,24 +398,59 @@ class MantenimientoParosController extends Controller
     }
 
     /**
-     * Enviar notificación a Telegram con los detalles del paro reportado
+     * Mapea TipoFallaId del paro a la columna de SYSMensajes para Telegram.
+     * ReporteElectrico, ReporteMecanico, ReporteTiempoMuerto.
+     *
+     * @return string|null Nombre de la columna del módulo o null si no hay coincidencia
+     */
+    private function moduloTelegramPorTipoFalla(?string $tipoFallaId): ?string
+    {
+        if ($tipoFallaId === null || $tipoFallaId === '') {
+            return null;
+        }
+        $n = mb_strtoupper(trim($tipoFallaId));
+        $n = str_replace(['Á', 'É', 'Í', 'Ó', 'Ú'], ['A', 'E', 'I', 'O', 'U'], $n);
+
+        if (str_contains($n, 'ELECTRIC') || $n === 'ELECTRICO') {
+            return 'ReporteElectrico';
+        }
+        if (str_contains($n, 'MECANIC') || $n === 'MECANICO') {
+            return 'ReporteMecanico';
+        }
+        if ((str_contains($n, 'TIEMPO') && str_contains($n, 'MUERTO')) || $n === 'TIEMPO MUERTO') {
+            return 'ReporteTiempoMuerto';
+        }
+        return null;
+    }
+
+    /**
+     * Enviar notificación a Telegram con los detalles del paro reportado.
+     * Destinatarios: SYSMensajes con la columna según tipo de falla (ReporteElectrico, ReporteMecanico, ReporteTiempoMuerto) y Activo=1.
      */
     private function enviarNotificacionTelegram($paro, $usuario)
     {
         try {
             $botToken = config('services.telegram.bot_token');
-            $chatId = config('services.telegram.chat_id');
-
-            if (empty($botToken) || empty($chatId)) {
+            if (empty($botToken)) {
                 Log::warning('No se pudo enviar notificación a Telegram: credenciales no configuradas');
                 return;
             }
 
-            // Formatear fecha en español
+            $modulo = $this->moduloTelegramPorTipoFalla($paro->TipoFallaId ?? '');
+            if ($modulo === null) {
+                Log::info('Paro sin módulo Telegram para tipo de falla', ['TipoFallaId' => $paro->TipoFallaId ?? '']);
+                return;
+            }
+
+            $chatIds = SYSMensaje::getChatIdsPorModulo($modulo);
+            if (empty($chatIds)) {
+                Log::warning("No hay destinatarios con {$modulo} activo en SYSMensajes para notificación de paro");
+                return;
+            }
+
             $fecha = Carbon::parse($paro->Fecha)->format('d/m/Y');
             $hora = $paro->Hora;
 
-            // Construir el mensaje con formato
             $mensaje = "🚨 *NOTIFICACIÓN DE FALLA/PARO* 🚨\n\n";
             $mensaje .= "📋 *Folio:* {$paro->Folio}\n";
             $mensaje .= "👤 *Reportado por:* {$paro->NomEmpl}\n";
@@ -428,46 +464,60 @@ class MantenimientoParosController extends Controller
             if (!empty($paro->Descripcion)) {
                 $mensaje .= "📝 *Descripción:* {$paro->Descripcion}\n";
             }
-
             if (!empty($paro->OrdenTrabajo)) {
                 $mensaje .= "📋 *Orden de Trabajo:* {$paro->OrdenTrabajo}\n";
             }
-
             if (!empty($paro->Obs)) {
                 $mensaje .= "💬 *Observaciones:* {$paro->Obs}\n";
             }
-
             $mensaje .= "\n✅ *Estatus:* {$paro->Estatus}\n";
             $mensaje .= "🔄 *Turno:* {$paro->Turno}";
 
-            // Enviar mensaje a Telegram
             $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            $response = Http::post($url, [
-                'chat_id' => $chatId,
-                'text' => $mensaje,
-                'parse_mode' => 'Markdown'
-            ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                if ($data['ok'] ?? false) {
+            foreach ($chatIds as $chatId) {
+                $response = Http::post($url, [
+                    'chat_id' => $chatId,
+                    'text' => $mensaje,
+                    'parse_mode' => 'Markdown'
+                ]);
+                if (!$response->successful() || !($response->json()['ok'] ?? false)) {
+                    Log::warning('Error al enviar notificación de paro a Telegram', [
+                        'chat_id' => $chatId,
+                        'folio' => $paro->Folio,
+                        'response' => $response->json(),
+                    ]);
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Excepción al enviar notificación de paro a Telegram', [
+                'error' => $e->getMessage(),
+                'folio' => $paro->Folio ?? null,
+            ]);
         }
     }
 
     /**
      * Enviar notificación a Telegram al finalizar un paro/falla.
+     * Destinatarios: según tipo de falla (ReporteElectrico, ReporteMecanico, ReporteTiempoMuerto) en SYSMensajes.
      */
     private function enviarNotificacionTelegramCierre($paro, $usuario): void
     {
         try {
             $botToken = config('services.telegram.bot_token');
-            $chatId = config('services.telegram.chat_id');
-
-            if (empty($botToken) || empty($chatId)) {
+            if (empty($botToken)) {
                 Log::warning('No se pudo enviar notificación de cierre a Telegram: credenciales no configuradas');
+                return;
+            }
+
+            $modulo = $this->moduloTelegramPorTipoFalla($paro->TipoFallaId ?? '');
+            if ($modulo === null) {
+                Log::info('Paro finalizado sin módulo Telegram para tipo de falla', ['TipoFallaId' => $paro->TipoFallaId ?? '']);
+                return;
+            }
+
+            $chatIds = SYSMensaje::getChatIdsPorModulo($modulo);
+            if (empty($chatIds)) {
+                Log::warning("No hay destinatarios con {$modulo} activo en SYSMensajes para cierre de paro");
                 return;
             }
 
@@ -486,37 +536,34 @@ class MantenimientoParosController extends Controller
             if (!empty($paro->NomAtendio)) {
                 $mensaje .= "👤 *Atendió:* {$paro->NomAtendio}\n";
             }
-
             if (!empty($paro->TurnoAtendio)) {
                 $mensaje .= "🔄 *Turno atención:* {$paro->TurnoAtendio}\n";
             }
-
             if (!empty($paro->Calidad)) {
                 $mensaje .= "⭐ *Calidad:* {$paro->Calidad}/5\n";
             }
-
             if (!empty($paro->ObsCierre)) {
                 $mensaje .= "💬 *Observaciones cierre:* {$paro->ObsCierre}\n";
             }
-
             $mensaje .= "\n👤 *Cerrado por:* " . ($usuario->nombre ?? 'N/A');
 
             $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            $response = Http::post($url, [
-                'chat_id' => $chatId,
-                'text' => $mensaje,
-                'parse_mode' => 'Markdown'
-            ]);
-
-            if ($response->failed()) {
-                Log::error('Error al enviar notificación de cierre a Telegram', [
-                    'status' => $response->status(),
-                    'response' => $response->json(),
-                    'folio' => $paro->Folio
+            foreach ($chatIds as $chatId) {
+                $response = Http::post($url, [
+                    'chat_id' => $chatId,
+                    'text' => $mensaje,
+                    'parse_mode' => 'Markdown'
                 ]);
+                if (!$response->successful() || !($response->json()['ok'] ?? false)) {
+                    Log::warning('Error al enviar notificación de cierre de paro a Telegram', [
+                        'chat_id' => $chatId,
+                        'folio' => $paro->Folio,
+                        'response' => $response->json(),
+                    ]);
+                }
             }
         } catch (\Throwable $e) {
-            Log::error('Excepción al enviar notificación de cierre a Telegram', [
+            Log::error('Excepción al enviar notificación de cierre de paro a Telegram', [
                 'error' => $e->getMessage(),
                 'folio' => $paro->Folio ?? 'N/A'
             ]);

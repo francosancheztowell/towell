@@ -21,6 +21,8 @@ use App\Models\Tejido\TejEficienciaLine;
 use App\Models\Tejido\TejEficiencia;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejido\TejeFallasCeModel;
+use App\Models\Sistema\SYSMensaje;
+
 class CortesEficienciaController extends Controller
 {
     /**
@@ -648,7 +650,7 @@ class CortesEficienciaController extends Controller
                 'data' => $fallas,
             ]);
         } catch (\Throwable $e) {
-            \Log::error('Error al obtener fallas CE: ' . $e->getMessage());
+            Log::error('Error al obtener fallas CE: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudieron obtener las fallas',
@@ -904,14 +906,21 @@ class CortesEficienciaController extends Controller
         ];
     }
 
+    /**
+     * Destinatarios: SYSMensajes con CorteSEF=1 y Activo=1.
+     */
     private function enviarReporteCortesPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): void
     {
         try {
             $botToken = config('services.telegram.bot_token');
-            $chatId = config('services.telegram.chat_id');
+            if (empty($botToken)) {
+                Log::warning('No se pudo enviar PDF de cortes: TELEGRAM_BOT_TOKEN no configurado');
+                return;
+            }
 
-            if (empty($botToken) || empty($chatId)) {
-                Log::warning('No se pudo enviar PDF de cortes: credenciales Telegram no configuradas');
+            $chatIds = SYSMensaje::getChatIdsPorModulo('CorteSEF');
+            if (empty($chatIds)) {
+                Log::warning('No hay destinatarios con CorteSEF activo en SYSMensajes');
                 return;
             }
 
@@ -947,30 +956,33 @@ class CortesEficienciaController extends Controller
 
             $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
 
-            $response = Http::timeout(30)
-                ->attach('document', $pdfContent, $filename)
-                ->post($url, [
-                    'chat_id' => $chatId,
-                    'caption' => $caption,
-                ]);
+            foreach ($chatIds as $chatId) {
+                $response = Http::timeout(30)
+                    ->attach('document', $pdfContent, $filename)
+                    ->post($url, [
+                        'chat_id' => $chatId,
+                        'caption' => $caption,
+                    ]);
 
-            if ($response->successful()) {
-                $data = $response->json();
-                if ($data['ok'] ?? false) {
+                if ($response->successful()) {
+                    $data = $response->json();
+                    if (!($data['ok'] ?? false)) {
+                        Log::error('Telegram respondió ok=false para cortes', [
+                            'response' => $data,
+                            'fecha' => $fecha,
+                            'filename' => $filename,
+                            'chat_id' => $chatId,
+                        ]);
+                    }
                 } else {
-                    Log::error('Telegram respondió ok=false para cortes', [
-                        'response' => $data,
+                    Log::error('Error HTTP al enviar cortes a Telegram', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
                         'fecha' => $fecha,
                         'filename' => $filename,
+                        'chat_id' => $chatId,
                     ]);
                 }
-            } else {
-                Log::error('Error HTTP al enviar cortes a Telegram', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                    'fecha' => $fecha,
-                    'filename' => $filename,
-                ]);
             }
         } catch (\Throwable $e) {
             Log::error('Excepción al enviar PDF de cortes a Telegram', [

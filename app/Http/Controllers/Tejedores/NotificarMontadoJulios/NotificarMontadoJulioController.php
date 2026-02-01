@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Sistema\SYSMensaje;
 use Carbon\Carbon;
 
 class NotificarMontadoJulioController extends Controller
@@ -114,14 +115,19 @@ class NotificarMontadoJulioController extends Controller
 
     /**
      * Enviar notificacion de Atado de Julio a Telegram.
+     * Destinatarios: registros de SYSMensajes con NotificarAtadoJulio=1 y Activo=1.
      */
     private function enviarNotificacionTelegram(TejInventarioTelares $registro, $usuario = null): void
     {
         $botToken = config('services.telegram.bot_token');
-        $chatId = config('services.telegram.chat_id');
+        if (empty($botToken)) {
+            Log::warning('No se pudo enviar notificacion a Telegram: TELEGRAM_BOT_TOKEN no configurado');
+            return;
+        }
 
-        if (empty($botToken) || empty($chatId)) {
-            Log::warning('No se pudo enviar notificacion a Telegram: credenciales no configuradas');
+        $chatIds = SYSMensaje::getChatIdsPorModulo('NotificarAtadoJulio');
+        if (empty($chatIds)) {
+            Log::warning('No hay destinatarios con NotificarAtadoJulio activo en SYSMensajes');
             return;
         }
 
@@ -164,18 +170,21 @@ class NotificarMontadoJulioController extends Controller
         }
 
         $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-        $response = Http::timeout(20)->post($url, [
-            'chat_id' => $chatId,
-            'text' => $mensaje,
-            'parse_mode' => 'Markdown'
-        ]);
-
-        if (!$response->successful()) {
-            Log::error('Error al enviar notificacion de atado de julio a Telegram', [
-                'status' => $response->status(),
-                'response' => $response->json(),
-                'telar' => $registro->no_telar ?? null,
+        foreach ($chatIds as $chatId) {
+            $response = Http::timeout(20)->post($url, [
+                'chat_id' => $chatId,
+                'text' => $mensaje,
+                'parse_mode' => 'Markdown'
             ]);
+
+            if (!$response->successful()) {
+                Log::error('Error al enviar notificacion de atado de julio a Telegram', [
+                    'status' => $response->status(),
+                    'response' => $response->json(),
+                    'telar' => $registro->no_telar ?? null,
+                    'chat_id' => $chatId,
+                ]);
+            }
         }
     }
 }

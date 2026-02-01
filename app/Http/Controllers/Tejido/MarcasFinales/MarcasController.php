@@ -10,13 +10,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use App\Helpers\TurnoHelper;
 use App\Exports\MarcasFinalesExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Carbon;
+use App\Models\Sistema\SYSMensaje;
 
 class MarcasController extends Controller
 {
@@ -630,19 +630,23 @@ class MarcasController extends Controller
 
     /**
      * Enviar el PDF del reporte de marcas finales a Telegram.
+     * Destinatarios: SYSMensajes con MarcasFinales=1 y Activo=1.
      */
     private function enviarReporteMarcasPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): void
     {
         try {
             $botToken = config('services.telegram.bot_token');
-            $chatId = config('services.telegram.chat_id');
-
-            if (empty($botToken) || empty($chatId)) {
-                Log::warning('No se pudo enviar PDF a Telegram: credenciales no configuradas');
+            if (empty($botToken)) {
+                Log::warning('No se pudo enviar PDF a Telegram: TELEGRAM_BOT_TOKEN no configurado');
                 return;
             }
 
-            // Validar que el PDF content no esté vacío
+            $chatIds = SYSMensaje::getChatIdsPorModulo('MarcasFinales');
+            if (empty($chatIds)) {
+                Log::warning('No hay destinatarios con MarcasFinales activo en SYSMensajes');
+                return;
+            }
+
             if (empty($pdfContent)) {
                 Log::warning('No se pudo enviar PDF a Telegram: contenido vacío', [
                     'fecha' => $fecha,
@@ -651,7 +655,6 @@ class MarcasController extends Controller
                 return;
             }
 
-            // Verificar tamaño del archivo (Telegram tiene límite de 50MB)
             $pdfSizeMB = strlen($pdfContent) / 1024 / 1024;
             if ($pdfSizeMB > 50) {
                 Log::warning('PDF demasiado grande para enviar a Telegram', [
@@ -676,23 +679,41 @@ class MarcasController extends Controller
 
             $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
 
-            // Log de envío (para debugging)
+            foreach ($chatIds as $chatId) {
+                $response = Http::timeout(30)
+                    ->attach('document', $pdfContent, $filename)
+                    ->post($url, [
+                        'chat_id' => $chatId,
+                        'caption' => $caption,
+                    ]);
 
-            $response = Http::timeout(30) // Aumentar timeout a 30 segundos
-                ->attach('document', $pdfContent, $filename)
-                ->post($url, [
-                    'chat_id' => $chatId,
-                    'caption' => $caption,
-                ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                if ($data['ok'] ?? false) {
+                if ($response->successful()) {
+                    $data = $response->json();
+                    if (!($data['ok'] ?? false)) {
+                        Log::error('Telegram respondió ok=false para marcas finales', [
+                            'response' => $data,
+                            'fecha' => $fecha,
+                            'filename' => $filename,
+                            'chat_id' => $chatId,
+                        ]);
+                    }
                 } else {
+                    Log::error('Error HTTP al enviar marcas finales a Telegram', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'fecha' => $fecha,
+                        'filename' => $filename,
+                        'chat_id' => $chatId,
+                    ]);
                 }
-            } else {
             }
         } catch (\Throwable $e) {
+            Log::error('Excepción al enviar PDF de marcas finales a Telegram', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'fecha' => $fecha,
+                'filename' => $filename ?? null,
+            ]);
         }
     }
 

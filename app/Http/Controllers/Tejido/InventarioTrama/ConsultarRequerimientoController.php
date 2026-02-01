@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use App\Models\Tejido\TejTrama;
 use App\Models\Tejido\TejTramaConsumos;
+use App\Models\Sistema\SYSMensaje;
 
 class ConsultarRequerimientoController extends Controller
 {
@@ -200,15 +201,20 @@ class ConsultarRequerimientoController extends Controller
 
     /**
      * Enviar mensaje a Telegram al solicitar consumo.
+     * Destinatarios: registros de SYSMensajes con InvTrama=1 y Activo=1.
      */
     private function enviarTelegram(TejTrama $req): void
     {
         try {
             $botToken = config('services.telegram.bot_token');
-            $chatId   = config('services.telegram.chat_id');
+            if (empty($botToken)) {
+                Log::warning('Telegram: TELEGRAM_BOT_TOKEN no configurado');
+                return;
+            }
 
-            if (empty($botToken) || empty($chatId)) {
-                Log::warning('Telegram no configurado', ['botToken' => (bool)$botToken, 'chatId' => (bool)$chatId]);
+            $chatIds = SYSMensaje::getChatIdsPorModulo('InvTrama');
+            if (empty($chatIds)) {
+                Log::warning('Telegram: no hay destinatarios con InvTrama activo en SYSMensajes');
                 return;
             }
 
@@ -219,14 +225,15 @@ class ConsultarRequerimientoController extends Controller
             $mensaje .= "Operador: " . ($req->numero_empleado ?? 'N/A') . "\n";
 
             $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            $resp = Http::post($url, [
-                'chat_id' => $chatId,
-                'text' => $mensaje,
-                'parse_mode' => 'Markdown'
-            ]);
-
-            if ($resp->failed()) {
-                Log::error('Telegram: fallo al enviar', ['folio' => $req->Folio, 'status' => $resp->status(), 'body' => $resp->body()]);
+            foreach ($chatIds as $chatId) {
+                $resp = Http::post($url, [
+                    'chat_id' => $chatId,
+                    'text' => $mensaje,
+                    'parse_mode' => 'Markdown'
+                ]);
+                if ($resp->failed()) {
+                    Log::error('Telegram: fallo al enviar', ['folio' => $req->Folio, 'chat_id' => $chatId, 'status' => $resp->status(), 'body' => $resp->body()]);
+                }
             }
         } catch (\Throwable $e) {
             Log::error('Telegram: excepción al enviar', ['folio' => $req->Folio, 'error' => $e->getMessage()]);

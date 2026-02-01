@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Telegram;
 
 use App\Http\Controllers\Controller;
+use App\Models\Sistema\SYSMensaje;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -10,14 +11,14 @@ use Illuminate\Support\Facades\Log;
 class TelegramController extends Controller
 {
     /**
-     * Enviar mensaje a Telegram
+     * Enviar mensaje a Telegram.
+     * Los destinatarios se obtienen de la tabla SYSMensajes según el módulo (columna).
+     * Parámetros: mensaje (texto), modulo (ej: InvTrama, Desarrolladores, NotificarAtadoJulio, etc.)
      *
      * LÍMITES DE TELEGRAM:
      * - Chats individuales: ~1 mensaje por segundo
      * - Grupos: hasta 20 mensajes por segundo
-     * - Global: hasta 30 mensajes por segundo
      * - Tamaño de mensaje: máximo 4,096 caracteres
-     * - Sin límite diario de mensajes (plan gratuito)
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -25,56 +26,70 @@ class TelegramController extends Controller
     public function sendMessage(Request $request)
     {
         try {
-            // Obtener configuración de Telegram desde config/services.php
             $botToken = config('services.telegram.bot_token');
-            $chatId = config('services.telegram.chat_id');
-
-            // Validar que existan las credenciales
-            if (empty($botToken) || empty($chatId)) {
+            if (empty($botToken)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Credenciales de Telegram no configuradas. Por favor, configure TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en el archivo .env'
+                    'message' => 'Configure TELEGRAM_BOT_TOKEN en el archivo .env'
                 ], 500);
             }
 
-            // Mensaje a enviar (por ahora "Hola Mundo")
-            $mensaje = $request->input('mensaje', 'Hola , estimado towellamigo 👋');
-
-            // Limitar el tamaño del mensaje (Telegram tiene un límite de 4096 caracteres)
-            // NOTA: Si necesitas enviar mensajes más largos, divídelos en múltiples mensajes
+            $mensaje = $request->input('mensaje', '');
             $mensaje = mb_substr($mensaje, 0, 4096);
 
-            // URL de la API de Telegram
-            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+            $modulo = $request->input('modulo');
+            $chatIds = [];
 
-            // Enviar mensaje a Telegram
-            $response = Http::post($url, [
-                'chat_id' => $chatId,
-                'text' => $mensaje
-            ]);
+            if (! empty($modulo)) {
+                // Destinatarios según la columna del módulo en SYSMensajes (Activo=1 y columna=1)
+                $chatIds = SYSMensaje::getChatIdsPorModulo($modulo);
+            }
 
-            // Verificar respuesta
-            if ($response->successful()) {
-                $data = $response->json();
-
-                if ($data['ok'] ?? false) {
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Mensaje enviado a Telegram correctamente',
-                        'data' => $data
-                    ]);
+            // Fallback: si no hay módulo o no hay registros, usar chat_id global del .env (opcional)
+            if (empty($chatIds)) {
+                $chatIdGlobal = config('services.telegram.chat_id');
+                if (! empty($chatIdGlobal)) {
+                    $chatIds = [$chatIdGlobal];
                 }
             }
 
-            // Si llegamos aquí, hubo un error
-            $errorData = $response->json();
-            $errorMessage = $errorData['description'] ?? 'Error desconocido';
+            if (empty($chatIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $modulo
+                        ? "No hay destinatarios en SYSMensajes con módulo \"{$modulo}\" activo (y Activo=1). Configure registros en Configuración > Mensajes."
+                        : 'Indique el parámetro "modulo" (ej: InvTrama) o configure TELEGRAM_CHAT_ID en .env'
+                ], 400);
+            }
+
+            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+            $enviados = 0;
+            $errores = [];
+
+            foreach ($chatIds as $chatId) {
+                $response = Http::post($url, [
+                    'chat_id' => $chatId,
+                    'text' => $mensaje
+                ]);
+                if ($response->successful() && ($response->json()['ok'] ?? false)) {
+                    $enviados++;
+                } else {
+                    $errores[] = [
+                        'chat_id' => $chatId,
+                        'description' => $response->json()['description'] ?? 'Error desconocido'
+                    ];
+                }
+            }
 
             return response()->json([
-                'success' => false,
-                'message' => 'No se pudo enviar el mensaje a Telegram: ' . $errorMessage,
-                'error' => $errorData
-            ], $response->status() ?: 500);
+                'success' => $enviados > 0,
+                'message' => $enviados === count($chatIds)
+                    ? "Mensaje enviado a {$enviados} destinatario(s)."
+                    : "Enviado a {$enviados} de " . count($chatIds) . ". Algunos fallaron.",
+                'enviados' => $enviados,
+                'total' => count($chatIds),
+                'errores' => $errores
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Excepción al enviar mensaje a Telegram', [
@@ -92,41 +107,46 @@ class TelegramController extends Controller
     /**
      * Obtener información del bot de Telegram
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\View\View
      */
-    public function getBotInfo()
+    public function getBotInfo(Request $request)
     {
         try {
             $botToken = config('services.telegram.bot_token');
 
             if (empty($botToken)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Token del bot no configurado'
-                ], 500);
+                $payload = ['success' => false, 'message' => 'Token del bot no configurado'];
+                return $request->wantsJson()
+                    ? response()->json($payload, 500)
+                    : view('modulos.telegram.bot-info', $payload);
             }
 
             $url = "https://api.telegram.org/bot{$botToken}/getMe";
             $response = Http::get($url);
 
             if ($response->successful()) {
-                return response()->json([
-                    'success' => true,
-                    'data' => $response->json()
-                ]);
+                $data = $response->json();
+                $payload = ['success' => true, 'data' => $data];
+                return $request->wantsJson()
+                    ? response()->json($payload)
+                    : view('modulos.telegram.bot-info', $payload);
             }
 
-            return response()->json([
+            $payload = [
                 'success' => false,
                 'message' => 'No se pudo obtener información del bot',
                 'error' => $response->json()
-            ], 500);
+            ];
+            return $request->wantsJson()
+                ? response()->json($payload, 500)
+                : view('modulos.telegram.bot-info', $payload);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
+            $payload = ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+            return $request->wantsJson()
+                ? response()->json($payload, 500)
+                : view('modulos.telegram.bot-info', $payload);
         }
     }
 
@@ -135,18 +155,24 @@ class TelegramController extends Controller
      *
      * IMPORTANTE: El usuario debe enviar un mensaje al bot primero
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\View\View
      */
-    public function getChatId()
+    public function getChatId(Request $request)
     {
         try {
             $botToken = config('services.telegram.bot_token');
 
             if (empty($botToken)) {
-                return response()->json([
+                $payload = [
                     'success' => false,
-                    'message' => 'Token del bot no configurado'
-                ], 500);
+                    'message' => 'Token del bot no configurado',
+                    'chat_ids' => [],
+                    'instructions' => []
+                ];
+                return $request->wantsJson()
+                    ? response()->json($payload, 500)
+                    : view('modulos.telegram.get-chat-id', $payload);
             }
 
             $url = "https://api.telegram.org/bot{$botToken}/getUpdates";
@@ -176,33 +202,46 @@ class TelegramController extends Controller
                         }
                     }
 
-                    return response()->json([
+                    $payload = [
                         'success' => true,
                         'message' => count($chatIds) > 0
                             ? 'Chat IDs encontrados. Copia el chat_id correcto a tu archivo .env'
                             : 'No se encontraron mensajes. Envía un mensaje a tu bot primero.',
                         'chat_ids' => $chatIds,
                         'instructions' => [
-                            '1. Envía un mensaje a tu bot en Telegram',
-                            '2. Recarga esta página',
-                            '3. Copia el chat_id que aparece arriba',
-                            '4. Agrégalo a tu archivo .env como: TELEGRAM_CHAT_ID=tu_chat_id_aqui'
+                            'Envía un mensaje a tu bot en Telegram (cualquier texto).',
+                            'Recarga esta página con el botón de abajo.',
+                            'Copia el Chat ID que aparece en la tabla (botón "Copiar").',
+                            'Agrégalo a tu archivo .env como: TELEGRAM_CHAT_ID=tu_chat_id_aqui',
                         ]
-                    ]);
+                    ];
+                    return $request->wantsJson()
+                        ? response()->json($payload)
+                        : view('modulos.telegram.get-chat-id', $payload);
                 }
             }
 
-            return response()->json([
+            $payload = [
                 'success' => false,
                 'message' => 'No se pudo obtener los updates',
-                'error' => $response->json()
-            ], 500);
+                'error' => $response->json(),
+                'chat_ids' => [],
+                'instructions' => []
+            ];
+            return $request->wantsJson()
+                ? response()->json($payload, 500)
+                : view('modulos.telegram.get-chat-id', $payload);
 
         } catch (\Exception $e) {
-            return response()->json([
+            $payload = [
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Error: ' . $e->getMessage(),
+                'chat_ids' => [],
+                'instructions' => []
+            ];
+            return $request->wantsJson()
+                ? response()->json($payload, 500)
+                : view('modulos.telegram.get-chat-id', $payload);
         }
     }
 }

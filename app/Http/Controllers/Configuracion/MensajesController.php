@@ -14,14 +14,13 @@ use Illuminate\Support\Facades\Http;
 class MensajesController extends Controller
 {
     /**
-     * Llama getUpdates de Telegram con el token dado y devuelve chat_ids encontrados
-     * y el más reciente (último mensaje). Token puede ser el del registro o el global.
+     * Llama getUpdates de Telegram con el token del bot global y devuelve chat_ids encontrados.
      *
      * @return array{ chat_ids: array, ultimo_chat_id: string|null }
      */
-    private function obtenerChatIdsDesdeTelegram(?string $token): array
+    private function obtenerChatIdsDesdeTelegram(): array
     {
-        $botToken = $token ?: config('services.telegram.bot_token');
+        $botToken = config('services.telegram.bot_token');
         if (empty($botToken)) {
             return ['chat_ids' => [], 'ultimo_chat_id' => null];
         }
@@ -59,9 +58,7 @@ class MensajesController extends Controller
 
         return ['chat_ids' => $chatIds, 'ultimo_chat_id' => $ultimoChatId];
     }
-    /**
-     * Listado de mensajes (SYSMensajes) con departamento.
-     */
+
     public function index(): View
     {
         $mensajes = SYSMensaje::with('departamento')
@@ -76,9 +73,6 @@ class MensajesController extends Controller
         ]);
     }
 
-    /**
-     * Guardar nuevo mensaje.
-     */
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
@@ -94,26 +88,37 @@ class MensajesController extends Controller
             'Telefono'       => ['required', 'string', 'max:20'],
             'Token'          => ['required', 'string', 'max:255'],
             'Activo'         => ['nullable', 'boolean'],
+            'Nombre'         => ['nullable', 'string', 'max:150'],
+            'Desarrolladores'         => ['nullable', 'boolean'],
+            'NotificarAtadoJulio'     => ['nullable', 'boolean'],
+            'CorteSEF'                => ['nullable', 'boolean'],
+            'MarcasFinales'           => ['nullable', 'boolean'],
+            'ReporteElectrico'        => ['nullable', 'boolean'],
+            'ReporteMecanico'         => ['nullable', 'boolean'],
+            'ReporteTiempoMuerto'     => ['nullable', 'boolean'],
+            'Atadores'                => ['nullable', 'boolean'],
+            'InvTrama'                => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
+        $validated['Nombre'] = $request->input('Nombre');
+        $validated['Desarrolladores'] = (bool) ($request->boolean('Desarrolladores') ?? false);
+        $validated['NotificarAtadoJulio'] = (bool) ($request->boolean('NotificarAtadoJulio') ?? false);
+        $validated['CorteSEF'] = (bool) ($request->boolean('CorteSEF') ?? false);
+        $validated['MarcasFinales'] = (bool) ($request->boolean('MarcasFinales') ?? false);
+        $validated['ReporteElectrico'] = (bool) ($request->boolean('ReporteElectrico') ?? false);
+        $validated['ReporteMecanico'] = (bool) ($request->boolean('ReporteMecanico') ?? false);
+        $validated['ReporteTiempoMuerto'] = (bool) ($request->boolean('ReporteTiempoMuerto') ?? false);
+        $validated['Atadores'] = (bool) ($request->boolean('Atadores') ?? false);
+        $validated['InvTrama'] = (bool) ($request->boolean('InvTrama') ?? false);
 
         $mensaje = SYSMensaje::create($validated);
-
-        // Al crear, intentar obtener el chat_id del número (getUpdates con el Token del registro)
-        $telegram = $this->obtenerChatIdsDesdeTelegram($mensaje->Token);
-        if ($telegram['ultimo_chat_id'] !== null) {
-            $mensaje->ChatId = $telegram['ultimo_chat_id'];
-            $mensaje->save();
-        }
 
         if ($request->expectsJson()) {
             $mensaje->load('departamento');
             return response()->json([
                 'ok' => true,
-                'message' => $telegram['ultimo_chat_id']
-                    ? 'Mensaje creado correctamente. Chat ID asignado desde Telegram.'
-                    : 'Mensaje creado correctamente. Para asignar Chat ID, pide al usuario que envíe un mensaje al bot y usa "Obtener Chat ID".',
+                'message' => 'Mensaje creado correctamente.',
                 'item' => $this->itemToArray($mensaje),
             ]);
         }
@@ -123,9 +128,6 @@ class MensajesController extends Controller
             ->with('success', 'Mensaje creado correctamente.');
     }
 
-    /**
-     * Actualizar mensaje.
-     */
     public function update(Request $request, int $id): RedirectResponse|JsonResponse
     {
         $mensaje = SYSMensaje::findOrFail($id);
@@ -142,11 +144,30 @@ class MensajesController extends Controller
             ],
             'Telefono'       => ['required', 'string', 'max:20'],
             'Token'          => ['required', 'string', 'max:255'],
-            'ChatId'         => ['nullable', 'string', 'max:50'],
             'Activo'         => ['nullable', 'boolean'],
+            'Nombre'         => ['nullable', 'string', 'max:150'],
+            'Desarrolladores'         => ['nullable', 'boolean'],
+            'NotificarAtadoJulio'     => ['nullable', 'boolean'],
+            'CorteSEF'                => ['nullable', 'boolean'],
+            'MarcasFinales'           => ['nullable', 'boolean'],
+            'ReporteElectrico'        => ['nullable', 'boolean'],
+            'ReporteMecanico'         => ['nullable', 'boolean'],
+            'ReporteTiempoMuerto'     => ['nullable', 'boolean'],
+            'Atadores'                => ['nullable', 'boolean'],
+            'InvTrama'                => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
+        $validated['Nombre'] = $request->input('Nombre');
+        $validated['Desarrolladores'] = (bool) ($request->boolean('Desarrolladores') ?? false);
+        $validated['NotificarAtadoJulio'] = (bool) ($request->boolean('NotificarAtadoJulio') ?? false);
+        $validated['CorteSEF'] = (bool) ($request->boolean('CorteSEF') ?? false);
+        $validated['MarcasFinales'] = (bool) ($request->boolean('MarcasFinales') ?? false);
+        $validated['ReporteElectrico'] = (bool) ($request->boolean('ReporteElectrico') ?? false);
+        $validated['ReporteMecanico'] = (bool) ($request->boolean('ReporteMecanico') ?? false);
+        $validated['ReporteTiempoMuerto'] = (bool) ($request->boolean('ReporteTiempoMuerto') ?? false);
+        $validated['Atadores'] = (bool) ($request->boolean('Atadores') ?? false);
+        $validated['InvTrama'] = (bool) ($request->boolean('InvTrama') ?? false);
 
         $mensaje->update($validated);
 
@@ -164,9 +185,6 @@ class MensajesController extends Controller
             ->with('success', 'Mensaje actualizado correctamente.');
     }
 
-    /**
-     * Eliminar mensaje.
-     */
     public function destroy(int $id): RedirectResponse|JsonResponse
     {
         $mensaje = SYSMensaje::findOrFail($id);
@@ -182,14 +200,10 @@ class MensajesController extends Controller
             ->with('success', 'Mensaje eliminado correctamente.');
     }
 
-    /**
-     * Obtener chat_ids de Telegram para un registro (usa el Token del mensaje).
-     * Útil para el botón "Obtener Chat ID": el usuario envía un mensaje al bot y aquí se listan.
-     */
     public function obtenerChatIds(int $id): JsonResponse
     {
-        $mensaje = SYSMensaje::findOrFail($id);
-        $telegram = $this->obtenerChatIdsDesdeTelegram($mensaje->Token);
+        SYSMensaje::findOrFail($id);
+        $telegram = $this->obtenerChatIdsDesdeTelegram();
 
         return response()->json([
             'ok' => true,
@@ -198,13 +212,13 @@ class MensajesController extends Controller
             'instructions' => [
                 '1. Pide al usuario que envíe un mensaje al bot en Telegram',
                 '2. Haz clic de nuevo en "Obtener Chat ID" o recarga',
-                '3. Elige un chat_id y asígnalo al registro',
+                '3. Elige un chat_id y asígnalo al registro (se guarda en Token)',
             ],
         ]);
     }
 
     /**
-     * Actualizar solo el ChatId de un mensaje (desde el modal "Obtener Chat ID").
+     * Actualizar solo el Token (Chat ID de Telegram) del mensaje (desde el modal "Obtener Chat ID").
      */
     public function actualizarChatId(Request $request, int $id): JsonResponse
     {
@@ -213,13 +227,13 @@ class MensajesController extends Controller
         ]);
 
         $mensaje = SYSMensaje::findOrFail($id);
-        $mensaje->ChatId = $validated['ChatId'];
+        $mensaje->Token = $validated['ChatId'];
         $mensaje->save();
 
         $mensaje->load('departamento');
         return response()->json([
             'ok' => true,
-            'message' => 'Chat ID actualizado correctamente.',
+            'message' => 'Chat ID (Token) actualizado correctamente.',
             'item' => $this->itemToArray($mensaje),
         ]);
     }
@@ -233,8 +247,18 @@ class MensajesController extends Controller
             'DepartamentoNombre' => $depto ? ($depto->Depto ?? $depto->Descripcion ?? (string) $mensaje->DepartamentoId) : (string) $mensaje->DepartamentoId,
             'Telefono' => $mensaje->Telefono,
             'Token' => $mensaje->Token,
-            'ChatId' => $mensaje->ChatId ?? '',
             'Activo' => (bool) $mensaje->Activo,
+            'FechaRegistro' => $mensaje->FechaRegistro?->format('d/m/Y H:i'),
+            'Nombre' => $mensaje->Nombre ?? '',
+            'Desarrolladores' => (bool) $mensaje->Desarrolladores,
+            'NotificarAtadoJulio' => (bool) $mensaje->NotificarAtadoJulio,
+            'CorteSEF' => (bool) $mensaje->CorteSEF,
+            'MarcasFinales' => (bool) $mensaje->MarcasFinales,
+            'ReporteElectrico' => (bool) $mensaje->ReporteElectrico,
+            'ReporteMecanico' => (bool) $mensaje->ReporteMecanico,
+            'ReporteTiempoMuerto' => (bool) $mensaje->ReporteTiempoMuerto,
+            'Atadores' => (bool) $mensaje->Atadores,
+            'InvTrama' => (bool) $mensaje->InvTrama,
         ];
     }
 }

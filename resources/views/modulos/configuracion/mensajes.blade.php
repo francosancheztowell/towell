@@ -22,34 +22,59 @@
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Departamento</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Teléfono</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Token</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Activo</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Nombre</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Desarrolladores</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Notif. atado julio</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Corte SEF</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Marcas finales</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Rep. eléctrico</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Rep. mecánico</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Rep. tiempo muerto</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Atadores</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Inv. trama</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-mensajes">
                     @forelse($mensajes as $m)
                         @php
                             $depto = $m->departamento;
-                            $deptoNombre = $depto ? ($depto->Depto ?? $depto->Descripcion ?? '—') : '—';
+                            $deptoNombre = $depto ? ($depto->Depto ?? $depto->Descripcion ?? '') : '';
                             $activo = (bool) ($m->Activo ?? true);
-                            $chatId = $m->ChatId ?? '';
                         @endphp
                         <tr class="msg-row border-b border-gray-100 hover:bg-gray-50 cursor-pointer {{ $loop->even ? 'bg-gray-50/50' : '' }}"
                             data-id="{{ $m->Id }}"
                             data-departamento-id="{{ $m->DepartamentoId }}"
                             data-telefono="{{ e($m->Telefono) }}"
                             data-token="{{ e($m->Token) }}"
-                            data-chat-id="{{ e($chatId) }}"
-                            data-activo="{{ $activo ? '1' : '0' }}">
+                            data-activo="{{ $activo ? '1' : '0' }}"
+                            data-nombre="{{ e($m->Nombre ?? '') }}"
+                            data-desarrolladores="{{ ($m->Desarrolladores ?? false) ? '1' : '0' }}"
+                            data-notificar-atado-julio="{{ ($m->NotificarAtadoJulio ?? false) ? '1' : '0' }}"
+                            data-corte-sef="{{ ($m->CorteSEF ?? false) ? '1' : '0' }}"
+                            data-marcas-finales="{{ ($m->MarcasFinales ?? false) ? '1' : '0' }}"
+                            data-reporte-electrico="{{ ($m->ReporteElectrico ?? false) ? '1' : '0' }}"
+                            data-reporte-mecanico="{{ ($m->ReporteMecanico ?? false) ? '1' : '0' }}"
+                            data-reporte-tiempo-muerto="{{ ($m->ReporteTiempoMuerto ?? false) ? '1' : '0' }}"
+                            data-atadores="{{ ($m->Atadores ?? false) ? '1' : '0' }}"
+                            data-inv-trama="{{ ($m->InvTrama ?? false) ? '1' : '0' }}">
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Id }}</td>
                             <td class="px-4 py-3 font-medium text-gray-900 text-base">{{ $deptoNombre }}</td>
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Telefono }}</td>
-                            <td class="px-4 py-3 text-gray-700 text-base font-mono">{{ $chatId ?: '—' }}</td>
-                            <td class="px-4 py-3 text-gray-600 text-base max-w-[200px] truncate" title="{{ $m->Token }}">{{ $m->Token }}</td>
-                            <td class="px-4 py-3 text-gray-700 text-base">{{ $activo ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="{{ $m->Token }}">{{ $m->Token }}</td>
+                            <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Nombre ?? '' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->Desarrolladores ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->NotificarAtadoJulio ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->CorteSEF ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->MarcasFinales ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->ReporteElectrico ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->ReporteMecanico ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->ReporteTiempoMuerto ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->Atadores ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->InvTrama ?? false) ? 'Sí' : 'No' }}</td>
                         </tr>
                     @empty
                         <tr id="tr-empty">
-                            <td colspan="6" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>
+                            <td colspan="14" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -86,12 +111,26 @@
                     <label for="Token" class="block text-sm font-medium text-gray-700 mb-1">Token <span class="text-red-500">*</span></label>
                     <input type="text" name="Token" id="Token" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Token de notificación">
                 </div>
+                <div>
+                    <label for="Nombre" class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    <input type="text" name="Nombre" id="Nombre" maxlength="150" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nombre opcional">
+                </div>
                 <div class="flex items-center gap-2">
                     <input type="hidden" name="Activo" value="0">
                     <input type="checkbox" name="Activo" id="Activo" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                     <label for="Activo" class="text-sm font-medium text-gray-700">Activo</label>
                 </div>
-                <p class="text-xs text-gray-500">Si el usuario ya envió un mensaje al bot, al guardar se asignará el Chat ID automáticamente.</p>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <label class="flex items-center gap-2"><input type="hidden" name="Desarrolladores" value="0"><input type="checkbox" name="Desarrolladores" id="Desarrolladores" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Desarrolladores</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="NotificarAtadoJulio" value="0"><input type="checkbox" name="NotificarAtadoJulio" id="NotificarAtadoJulio" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Notif. atado julio</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="CorteSEF" value="0"><input type="checkbox" name="CorteSEF" id="CorteSEF" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Corte SEF</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="MarcasFinales" value="0"><input type="checkbox" name="MarcasFinales" id="MarcasFinales" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Marcas finales</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="ReporteElectrico" value="0"><input type="checkbox" name="ReporteElectrico" id="ReporteElectrico" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Rep. eléctrico</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="ReporteMecanico" value="0"><input type="checkbox" name="ReporteMecanico" id="ReporteMecanico" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Rep. mecánico</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="ReporteTiempoMuerto" value="0"><input type="checkbox" name="ReporteTiempoMuerto" id="ReporteTiempoMuerto" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Rep. tiempo muerto</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="Atadores" value="0"><input type="checkbox" name="Atadores" id="Atadores" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Atadores</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="InvTrama" value="0"><input type="checkbox" name="InvTrama" id="InvTrama" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Inv. trama</label>
+                </div>
             </div>
             <div class="mt-6 flex gap-2 justify-end">
                 <button type="button" id="form-cancelar" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
@@ -131,6 +170,8 @@
     const storeUrl = @json(route('configuracion.mensajes.store'));
     const updateUrlTpl = @json(route('configuracion.mensajes.update', ['id' => ':id']));
     const destroyUrlTpl = @json(route('configuracion.mensajes.destroy', ['id' => ':id']));
+    const obtenerChatIdsUrlTpl = @json(route('configuracion.mensajes.obtener-chat-ids', ['id' => ':id']));
+    const actualizarChatIdUrlTpl = @json(route('configuracion.mensajes.actualizar-chat-id', ['id' => ':id']));
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     let selectedRow = null;
@@ -181,6 +222,7 @@
         formMethod.value = 'POST';
         form.reset();
         document.getElementById('Activo').checked = true;
+        document.querySelectorAll('#modal-form input[type="hidden"][name]').forEach(function(h){ if(h.name!=='_token'&&h.name!=='_method') h.value = '0'; });
         openModal();
     });
 
@@ -191,6 +233,7 @@
         const telefono = selectedRow.dataset.telefono || '';
         const token = selectedRow.dataset.token || '';
         const activo = selectedRow.dataset.activo === '1';
+        const nombre = selectedRow.dataset.nombre || '';
         modalTitle.textContent = 'Editar mensaje';
         form.action = updateUrlTpl.replace(':id', id);
         formMethod.value = 'PUT';
@@ -198,6 +241,16 @@
         document.getElementById('Telefono').value = telefono;
         document.getElementById('Token').value = token;
         document.getElementById('Activo').checked = activo;
+        document.getElementById('Nombre').value = nombre;
+        document.getElementById('Desarrolladores').checked = selectedRow.dataset.desarrolladores === '1';
+        document.getElementById('NotificarAtadoJulio').checked = selectedRow.dataset.notificarAtadoJulio === '1';
+        document.getElementById('CorteSEF').checked = selectedRow.dataset.corteSef === '1';
+        document.getElementById('MarcasFinales').checked = selectedRow.dataset.marcasFinales === '1';
+        document.getElementById('ReporteElectrico').checked = selectedRow.dataset.reporteElectrico === '1';
+        document.getElementById('ReporteMecanico').checked = selectedRow.dataset.reporteMecanico === '1';
+        document.getElementById('ReporteTiempoMuerto').checked = selectedRow.dataset.reporteTiempoMuerto === '1';
+        document.getElementById('Atadores').checked = selectedRow.dataset.atadores === '1';
+        document.getElementById('InvTrama').checked = selectedRow.dataset.invTrama === '1';
         document.querySelector('input[name="Activo"][type="hidden"]').value = activo ? '0' : '0';
         openModal();
     });
@@ -237,7 +290,7 @@
                     if (tbody.querySelectorAll('tr.msg-row').length === 0) {
                         const empty = document.createElement('tr');
                         empty.id = 'tr-empty';
-                        empty.innerHTML = '<td colspan="6" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>';
+                        empty.innerHTML = '<td colspan="14" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>';
                         tbody.appendChild(empty);
                     }
                     Swal.fire({ icon: 'success', title: data.message || 'Eliminado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
@@ -300,8 +353,9 @@
                         const d = await r.json().catch(() => ({}));
                         if (r.ok && d.ok && d.item) {
                             const item = d.item;
-                            selectedRow.dataset.chatId = item.ChatId || '';
-                            selectedRow.cells[3].textContent = item.ChatId || '—';
+                            selectedRow.dataset.token = item.Token || '';
+                            selectedRow.cells[3].textContent = item.Token || '';
+                            selectedRow.cells[3].title = item.Token || '';
                             closeModalChatId();
                             Swal.fire({ icon: 'success', title: d.message || 'Chat ID asignado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
                         } else {
@@ -332,11 +386,11 @@
         const url = form.action;
         const body = new FormData(form);
         if (isPut) body.append('_method', 'PUT');
-        if (!document.getElementById('Activo').checked) {
-            body.set('Activo', '0');
-        } else {
-            body.set('Activo', '1');
-        }
+        if (!document.getElementById('Activo').checked) body.set('Activo', '0'); else body.set('Activo', '1');
+        ['Desarrolladores','NotificarAtadoJulio','CorteSEF','MarcasFinales','ReporteElectrico','ReporteMecanico','ReporteTiempoMuerto','Atadores','InvTrama'].forEach(function(name){
+            var el = document.getElementById(name);
+            body.set(name, el && el.checked ? '1' : '0');
+        });
 
         const submitBtn = document.getElementById('form-submit');
         submitBtn.disabled = true;
@@ -353,22 +407,40 @@
             });
             const data = await res.json().catch(() => ({}));
 
-            if (res.ok && data.ok) {
+            function siNo(v) { return v ? 'Sí' : 'No'; }
+                if (res.ok && data.ok) {
                 closeModal();
                 const item = data.item || {};
                 if (isPut && selectedRow) {
                     selectedRow.dataset.departamentoId = item.DepartamentoId || '';
                     selectedRow.dataset.telefono = item.Telefono || '';
                     selectedRow.dataset.token = item.Token || '';
-                    selectedRow.dataset.chatId = item.ChatId || '';
                     selectedRow.dataset.activo = item.Activo ? '1' : '0';
+                    selectedRow.dataset.nombre = item.Nombre || '';
+                    selectedRow.dataset.desarrolladores = item.Desarrolladores ? '1' : '0';
+                    selectedRow.dataset.notificarAtadoJulio = item.NotificarAtadoJulio ? '1' : '0';
+                    selectedRow.dataset.corteSef = item.CorteSEF ? '1' : '0';
+                    selectedRow.dataset.marcasFinales = item.MarcasFinales ? '1' : '0';
+                    selectedRow.dataset.reporteElectrico = item.ReporteElectrico ? '1' : '0';
+                    selectedRow.dataset.reporteMecanico = item.ReporteMecanico ? '1' : '0';
+                    selectedRow.dataset.reporteTiempoMuerto = item.ReporteTiempoMuerto ? '1' : '0';
+                    selectedRow.dataset.atadores = item.Atadores ? '1' : '0';
+                    selectedRow.dataset.invTrama = item.InvTrama ? '1' : '0';
                     selectedRow.cells[0].textContent = item.Id;
-                    selectedRow.cells[1].textContent = item.DepartamentoNombre || '—';
+                    selectedRow.cells[1].textContent = item.DepartamentoNombre || '';
                     selectedRow.cells[2].textContent = item.Telefono || '';
-                    selectedRow.cells[3].textContent = item.ChatId || '—';
-                    selectedRow.cells[4].textContent = item.Token || '';
-                    selectedRow.cells[4].title = item.Token || '';
-                    selectedRow.cells[5].textContent = item.Activo ? 'Sí' : 'No';
+                    selectedRow.cells[3].textContent = item.Token || '';
+                    selectedRow.cells[3].title = item.Token || '';
+                    selectedRow.cells[4].textContent = item.Nombre || '';
+                    selectedRow.cells[5].textContent = siNo(item.Desarrolladores);
+                    selectedRow.cells[6].textContent = siNo(item.NotificarAtadoJulio);
+                    selectedRow.cells[7].textContent = siNo(item.CorteSEF);
+                    selectedRow.cells[8].textContent = siNo(item.MarcasFinales);
+                    selectedRow.cells[9].textContent = siNo(item.ReporteElectrico);
+                    selectedRow.cells[10].textContent = siNo(item.ReporteMecanico);
+                    selectedRow.cells[11].textContent = siNo(item.ReporteTiempoMuerto);
+                    selectedRow.cells[12].textContent = siNo(item.Atadores);
+                    selectedRow.cells[13].textContent = siNo(item.InvTrama);
                 } else {
                     if (trEmpty) trEmpty.remove();
                     const even = tbody.querySelectorAll('tr.msg-row').length % 2 === 0;
@@ -378,9 +450,18 @@
                     tr.dataset.departamentoId = item.DepartamentoId || '';
                     tr.dataset.telefono = item.Telefono || '';
                     tr.dataset.token = item.Token || '';
-                    tr.dataset.chatId = item.ChatId || '';
                     tr.dataset.activo = item.Activo ? '1' : '0';
-                    tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.DepartamentoNombre || '—') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Telefono || '') + '</td><td class="px-4 py-3 text-gray-700 text-base font-mono">' + (item.ChatId || '—') + '</td><td class="px-4 py-3 text-gray-600 text-base max-w-[200px] truncate" title="' + (item.Token || '') + '">' + (item.Token || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Activo ? 'Sí' : 'No') + '</td>';
+                    tr.dataset.nombre = item.Nombre || '';
+                    tr.dataset.desarrolladores = item.Desarrolladores ? '1' : '0';
+                    tr.dataset.notificarAtadoJulio = item.NotificarAtadoJulio ? '1' : '0';
+                    tr.dataset.corteSef = item.CorteSEF ? '1' : '0';
+                    tr.dataset.marcasFinales = item.MarcasFinales ? '1' : '0';
+                    tr.dataset.reporteElectrico = item.ReporteElectrico ? '1' : '0';
+                    tr.dataset.reporteMecanico = item.ReporteMecanico ? '1' : '0';
+                    tr.dataset.reporteTiempoMuerto = item.ReporteTiempoMuerto ? '1' : '0';
+                    tr.dataset.atadores = item.Atadores ? '1' : '0';
+                    tr.dataset.invTrama = item.InvTrama ? '1' : '0';
+                    tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.DepartamentoNombre || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Telefono || '') + '</td><td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="' + (item.Token || '') + '">' + (item.Token || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Nombre || '') + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Desarrolladores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.NotificarAtadoJulio) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.CorteSEF) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.MarcasFinales) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteElectrico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteMecanico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteTiempoMuerto) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Atadores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.InvTrama) + '</td>';
                     tbody.appendChild(tr);
                 }
                 Swal.fire({ icon: 'success', title: data.message || 'Guardado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
