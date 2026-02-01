@@ -88,8 +88,10 @@
                         </span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">No Julio</span>
-                        <span class="text-sm font-semibold text-gray-800">{{ $item->NoJulio ?? '-' }}</span>
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Arranque</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            {{ $item->HoraArranque ? \Carbon\Carbon::parse($item->HoraArranque)->format('H:i') : '-' }}
+                        </span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Lote Provee</span>
@@ -124,10 +126,8 @@
                         <span class="text-sm font-semibold text-gray-800">{{ $item->Tipo ?? '-' }}</span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Arranque</span>
-                        <span class="text-sm font-semibold text-gray-800">
-                            {{ $item->HoraArranque ? \Carbon\Carbon::parse($item->HoraArranque)->format('H:i') : '-' }}
-                        </span>
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">No Julio</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $item->NoJulio ?? '-' }}</span>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">No Provee</span>
@@ -182,6 +182,15 @@
                         @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>{{ $item->Obs }}</textarea>
                     
                 </form>
+                @if($item->comments_ata)
+                    <p class="text-sm text-gray-700 mt-2"><strong>Comentarios del Atador:</strong> {{ $item->comments_ata }}</p>
+                @endif
+                @if($item->comments_tej)
+                    <p class="text-sm text-gray-700 mt-2"><strong>Comentarios del Tejedor:</strong> {{ $item->comments_tej }}</p>
+                @endif
+                @if($item->comments_sup)
+                    <p class="text-sm text-gray-700 mt-2"><strong>Comentarios del Supervisor:</strong> {{ $item->comments_sup }}</p>
+                @endif
             </div>
         </div>
 

@@ -296,6 +296,7 @@
                                         <th class="px-4 py-2 text-left font-semibold">Nombre</th>
                                         <th class="px-4 py-2 text-left font-semibold">ConfigId</th>
                                         <th class="px-4 py-2 text-right font-semibold">Consumo Total</th>
+                                        <th class="px-4 py-2 text-center font-semibold">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="create_componentes_tbody" class="bg-white divide-y divide-gray-200">
@@ -627,6 +628,7 @@
         let viewOnlyMode = false;
         const observaciones = {};
         let fechaSortAsc = null;
+        const desdeProduccion = {{ $desdeProduccion ? 'true' : 'false' }};
 
         function selectRow(row, folio) {
             document.querySelectorAll('#formulaTable tbody tr.selected').forEach(existing => {
@@ -1495,6 +1497,128 @@
                 });
         }
 
+        // Cache y rutas para materiales
+        const componenteMaterialRoutes = {
+            calibres: "{{ route('tejido.produccion.reenconado.calibres') }}",
+            fibras: "{{ route('tejido.produccion.reenconado.fibras') }}",
+            colores: "{{ route('tejido.produccion.reenconado.colores') }}"
+        };
+
+        const componenteMaterialCache = {
+            calibres: null,
+            fibras: new Map(),
+            colores: new Map()
+        };
+
+        const fetchComponenteJson = async (url, params = {}) => {
+            const query = new URLSearchParams(params);
+            const fullUrl = query.toString() ? `${url}?${query}` : url;
+            const response = await fetch(fullUrl);
+            if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+            }
+            return response.json();
+        };
+
+        const getComponenteCalibres = async () => {
+            if (componenteMaterialCache.calibres) return componenteMaterialCache.calibres;
+            try {
+                const data = await fetchComponenteJson(componenteMaterialRoutes.calibres);
+                const items = (data?.data || []).map(i => i.ItemId).filter(Boolean);
+                componenteMaterialCache.calibres = items;
+                return items;
+            } catch (e) {
+                console.error('No se pudieron cargar calibres', e);
+                return [];
+            }
+        };
+
+        const getComponenteFibras = async (itemId) => {
+            if (componenteMaterialCache.fibras.has(itemId)) return componenteMaterialCache.fibras.get(itemId);
+            try {
+                const data = await fetchComponenteJson(componenteMaterialRoutes.fibras, { itemId });
+                const items = (data?.data || []).map(i => i.ConfigId).filter(Boolean);
+                componenteMaterialCache.fibras.set(itemId, items);
+                return items;
+            } catch (e) {
+                console.error('No se pudieron cargar fibras', e);
+                return [];
+            }
+        };
+
+        const setComponenteSelectOptions = (select, options, placeholder, selectedValue = '') => {
+            if (!select) return;
+            select.innerHTML = '';
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = placeholder;
+            select.appendChild(placeholderOption);
+
+            options.forEach((opt) => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                select.appendChild(option);
+            });
+
+            select.value = selectedValue || '';
+            select.disabled = options.length === 0;
+        };
+
+        const ensureComponenteOption = (select, value, label) => {
+            if (!select || !value) return;
+            const exists = Array.from(select.options).some(opt => opt.value === value);
+            if (!exists) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = label || value;
+                select.appendChild(option);
+            }
+        };
+
+        async function initComponenteSelectorsForRow(row, comp) {
+            const calibreEl = row.querySelector('[data-field="ItemId"]');
+            const fibraEl = row.querySelector('[data-field="ConfigId"]');
+            
+            if (!calibreEl || !fibraEl) return;
+
+            // Cargar calibres
+            setComponenteSelectOptions(calibreEl, [], 'Cargando...');
+            const calibres = await getComponenteCalibres();
+            setComponenteSelectOptions(calibreEl, calibres, 'Selecciona calibre', comp.ItemId || '');
+            
+            if (comp.ItemId) {
+                ensureComponenteOption(calibreEl, comp.ItemId, comp.ItemId);
+                calibreEl.value = comp.ItemId;
+            }
+
+            // Cargar fibras si hay calibre seleccionado
+            if (comp.ItemId) {
+                setComponenteSelectOptions(fibraEl, [], 'Cargando...');
+                const fibras = await getComponenteFibras(comp.ItemId);
+                setComponenteSelectOptions(fibraEl, fibras, 'Selecciona fibra', comp.ConfigId || '');
+                
+                if (comp.ConfigId) {
+                    ensureComponenteOption(fibraEl, comp.ConfigId, comp.ConfigId);
+                    fibraEl.value = comp.ConfigId;
+                }
+            } else {
+                setComponenteSelectOptions(fibraEl, [], 'Selecciona calibre primero');
+            }
+
+            // Event listener para cuando cambie el calibre
+            calibreEl.addEventListener('change', async (e) => {
+                const itemId = e.target.value;
+                if (itemId) {
+                    setComponenteSelectOptions(fibraEl, [], 'Cargando...');
+                    const fibras = await getComponenteFibras(itemId);
+                    setComponenteSelectOptions(fibraEl, fibras, 'Selecciona fibra');
+                } else {
+                    setComponenteSelectOptions(fibraEl, [], 'Selecciona calibre primero');
+                }
+            });
+        }
+
         function renderizarTablaComponentesCreate() {
             const tbody = document.getElementById('create_componentes_tbody');
             if (!tbody) return;
@@ -1521,25 +1645,67 @@
                 const disabledAttr = viewOnlyMode ? 'disabled' : '';
                 const disabledClass = viewOnlyMode ? 'bg-gray-100 cursor-not-allowed' : '';
 
-                row.innerHTML = `
-                    <td class="px-4 py-2 text-sm">
-                        <input type="text" value="${comp.ItemId || ''}" data-index="${index}" data-field="ItemId"
-                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
-                    </td>
-                    <td class="px-4 py-2 text-sm">
-                        <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
-                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
-                    </td>
-                    <td class="px-4 py-2 text-sm">
-                        <input type="text" value="${comp.ConfigId || ''}" data-index="${index}" data-field="ConfigId"
-                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
-                    </td>
-                    <td class="px-4 py-2 text-sm">
-                        <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
-                            class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
-                    </td>
-                `;
+                // Solo usar selects si viene desde producción Y es una fila nueva (agregada con botón)
+                if (desdeProduccion && comp.esNuevo) {
+                    row.innerHTML = `
+                        <td class="px-4 py-2 text-sm">
+                            <select data-index="${index}" data-field="ItemId"
+                                class="componente-calibre w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                                <option value="">Cargando...</option>
+                            </select>
+                        </td>
+                        <td class="px-4 py-2 text-sm">
+                            <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr} readonly>
+                        </td>
+                        <td class="px-4 py-2 text-sm">
+                            <select data-index="${index}" data-field="ConfigId"
+                                class="componente-fibra w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                                <option value="">Selecciona calibre primero</option>
+                            </select>
+                        </td>
+                        <td class="px-4 py-2 text-sm">
+                            <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            <button type="button" onclick="eliminarFilaComponenteCreate(${index})" 
+                                class="text-red-600 hover:text-red-800 transition-colors" ${disabledAttr}
+                                title="Eliminar">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <td class="px-4 py-2 text-sm">
+                            <input type="text" value="${comp.ItemId || ''}" data-index="${index}" data-field="ItemId"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                        </td>
+                        <td class="px-4 py-2 text-sm">
+                            <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                        </td>
+                        <td class="px-4 py-2 text-sm">
+                            <input type="text" value="${comp.ConfigId || ''}" data-index="${index}" data-field="ConfigId"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                        </td>
+                        <td class="px-4 py-2 text-sm">
+                            <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                            <span class="text-gray-400">-</span>
+                        </td>
+                    `;
+                }
+                
                 tbody.appendChild(row);
+
+                // Inicializar selects en cascada solo si viene desde producción Y es fila nueva
+                if (desdeProduccion && comp.esNuevo) {
+                    initComponenteSelectorsForRow(row, comp);
+                }
             });
         }
 
@@ -1550,12 +1716,20 @@
                 ConfigId: '',
                 ConsumoUnitario: 0,
                 Unidad: '',
-                Almacen: ''
+                Almacen: '',
+                esNuevo: true
             });
             renderizarTablaComponentesCreate();
             document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
             document.getElementById('create_componentes_loading').classList.add('hidden');
             document.getElementById('create_componentes_error').classList.add('hidden');
+        }
+
+        function eliminarFilaComponenteCreate(index) {
+            if (index >= 0 && index < componentesCreateData.length) {
+                componentesCreateData.splice(index, 1);
+                renderizarTablaComponentesCreate();
+            }
         }
 
         function obtenerComponentesCreateDesdeTabla() {

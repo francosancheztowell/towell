@@ -80,7 +80,12 @@
                                 <option value="" disabled selected>Selecciona un Julio</option>
                                 @foreach ($juliosRizo ?? [] as $julio)
                                     @if($julio)
-                                        <option value="{{ data_get($julio, 'NoJulio') ?? '' }}">{{ data_get($julio, 'NoJulio') ?? '' }}</option>
+                                        @php
+                                            $noJulio = data_get($julio, 'NoJulio') ?? '';
+                                            $inventSizeId = data_get($julio, 'InventSizeId') ?? '';
+                                            $displayText = $noJulio . ($inventSizeId ? ' - ' . $inventSizeId : '');
+                                        @endphp
+                                        <option value="{{ $noJulio }}">{{ $displayText }}</option>
                                     @endif
                                 @endforeach
                             </select>
@@ -92,7 +97,12 @@
                                 <option value="" disabled selected>Selecciona un Julio</option>
                                 @foreach ($juliosPie ?? [] as $julio)
                                     @if($julio)
-                                        <option value="{{ data_get($julio, 'NoJulio') ?? '' }}">{{ data_get($julio, 'NoJulio') ?? '' }}</option>
+                                        @php
+                                            $noJulio = data_get($julio, 'NoJulio') ?? '';
+                                            $inventSizeId = data_get($julio, 'InventSizeId') ?? '';
+                                            $displayText = $noJulio . ($inventSizeId ? ' - ' . $inventSizeId : '');
+                                        @endphp
+                                        <option value="{{ $noJulio }}">{{ $displayText }}</option>
                                     @endif
                                 @endforeach
                             </select>
