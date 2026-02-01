@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Log as LogFacade;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\Rule;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqMatrizHilos;
 /**
@@ -41,6 +42,12 @@ class ProgramaTejidoController extends Controller
     public function index()
     {
         try {
+            $isMuestras = request()->is('planeacion/muestras');
+            $basePath = $isMuestras ? '/planeacion/muestras' : '/planeacion/programa-tejido';
+            $apiPath = $isMuestras ? '/muestras' : '/programa-tejido';
+            $linePath = $isMuestras ? '/planeacion/muestras-line' : '/planeacion/req-programa-tejido-line';
+            $pageTitle = $isMuestras ? 'Muestras' : 'Programa Tejido';
+
             $registros = ReqProgramaTejido::select([
                 'Id',
                 'EnProceso',
@@ -144,7 +151,14 @@ class ProgramaTejidoController extends Controller
 
             $columns = UtilityHelpers::getTableColumns();
 
-            return view('modulos.programa-tejido.req-programa-tejido', compact('registros', 'columns'));
+            return view('modulos.programa-tejido.req-programa-tejido', compact(
+                'registros',
+                'columns',
+                'basePath',
+                'apiPath',
+                'linePath',
+                'pageTitle'
+            ));
         } catch (\Throwable $e) {
             LogFacade::error('Error al cargar programa de tejido', [
                 'msg' => $e->getMessage(),
@@ -155,6 +169,10 @@ class ProgramaTejidoController extends Controller
                 'registros' => collect(),
                 'columns' => UtilityHelpers::getTableColumns(),
                 'error' => 'Error al cargar los datos: ' . $e->getMessage(),
+                'basePath' => $basePath ?? '/planeacion/programa-tejido',
+                'apiPath' => $apiPath ?? '/programa-tejido',
+                'linePath' => $linePath ?? '/planeacion/req-programa-tejido-line',
+                'pageTitle' => $pageTitle ?? 'Programa de Tejido',
             ]);
         }
     }
@@ -1258,7 +1276,7 @@ class ProgramaTejidoController extends Controller
             $origenTelar = $registro->NoTelarId;
 
             // PARKING: quita al registro movido del rango 1..N en ORIGEN para evitar choque al renumerar
-            DBFacade::table('ReqProgramaTejido')
+            DBFacade::table(ReqProgramaTejido::tableName())
                 ->where('Id', $registro->Id)
                 ->where('SalonTejidoId', $origenSalon)
                 ->where('NoTelarId', $origenTelar)
@@ -1382,7 +1400,7 @@ class ProgramaTejidoController extends Controller
 
                 if (!empty($updatesOrigen)) {
                     $idsOrigen = array_keys($updatesOrigen);
-                    DBFacade::table('ReqProgramaTejido')
+                    DBFacade::table(ReqProgramaTejido::tableName())
                         ->whereIn('Id', $idsOrigen)
                         ->where('SalonTejidoId', $origenSalon)
                         ->where('NoTelarId', $origenTelar)
@@ -1392,7 +1410,7 @@ class ProgramaTejidoController extends Controller
                     if (isset($data['Posicion'])) {
                         $data['Posicion'] = (int)$data['Posicion'];
                     }
-                    DBFacade::table('ReqProgramaTejido')
+                    DBFacade::table(ReqProgramaTejido::tableName())
                         ->where('Id', $idU)
                         ->where('SalonTejidoId', $origenSalon)
                         ->where('NoTelarId', $origenTelar)
@@ -1459,13 +1477,13 @@ class ProgramaTejidoController extends Controller
 
             // 1) Reserva posiciones únicas en destino para todos los registros actuales
             // (Id es único, así que Id+1000000 jamás duplica dentro del telar)
-            DBFacade::table('ReqProgramaTejido')
+            DBFacade::table(ReqProgramaTejido::tableName())
                 ->where('SalonTejidoId', $nuevoSalon)
                 ->where('NoTelarId', $nuevoTelar)
                 ->update(['Posicion' => DBFacade::raw('Id + 1000000')]);
 
             // 2) Mueve el registro al destino con posición temporal única también
-            DBFacade::table('ReqProgramaTejido')
+            DBFacade::table(ReqProgramaTejido::tableName())
                 ->where('Id', $registro->Id)
                 ->where('SalonTejidoId', $origenSalon)
                 ->where('NoTelarId', $origenTelar)
@@ -1502,7 +1520,7 @@ class ProgramaTejidoController extends Controller
                     $data = array_merge($data, $updateRegistroMovido);
                 }
 
-                DBFacade::table('ReqProgramaTejido')
+                DBFacade::table(ReqProgramaTejido::tableName())
                     ->where('Id', $idU)
                     ->where('SalonTejidoId', $nuevoSalon)
                     ->where('NoTelarId', $nuevoTelar)
@@ -1664,7 +1682,7 @@ class ProgramaTejidoController extends Controller
                     : now();
                 [$updatesOriginales, $detallesOriginales] = DateHelpers::recalcularFechasSecuencia($registrosOriginales, $inicioOriginal);
                 foreach ($updatesOriginales as $idU => $data) {
-                    DBFacade::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                    DBFacade::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
                 }
             }
 
@@ -1674,7 +1692,7 @@ class ProgramaTejidoController extends Controller
                     : now();
                 [$updatesNuevos, $detallesNuevos] = DateHelpers::recalcularFechasSecuencia($registrosNuevos, $inicioNuevo);
                 foreach ($updatesNuevos as $idU => $data) {
-                    DBFacade::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                    DBFacade::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
                 }
             }
 
@@ -1919,7 +1937,7 @@ class ProgramaTejidoController extends Controller
             $request->validate([
                 'calendario_id' => 'required|string',
                 'registros_ids' => 'required|array|min:1',
-                'registros_ids.*' => 'required|integer|exists:ReqProgramaTejido,Id'
+                'registros_ids.*' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')]
             ]);
 
             $calendarioId = $request->input('calendario_id');

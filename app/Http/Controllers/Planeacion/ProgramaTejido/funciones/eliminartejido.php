@@ -89,7 +89,7 @@ class EliminarTejido
             [$updates,$detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
 
             foreach ($updates as $idU => $data) {
-                DB::table('ReqProgramaTejido')->where('Id',$idU)->update($data);
+                DB::table(ReqProgramaTejido::tableName())->where('Id',$idU)->update($data);
             }
 
             DB::commit();
@@ -163,7 +163,7 @@ class EliminarTejido
 
             // Actualizar solo los registros de este telar
             foreach ($updates as $idU => $data) {
-                DB::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                DB::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
             }
 
             DB::commit();
@@ -266,7 +266,7 @@ class EliminarTejido
                 [$updates,$detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
 
                 foreach ($updates as $idU => $data) {
-                    DB::table('ReqProgramaTejido')->where('Id',$idU)->update($data);
+                    DB::table(ReqProgramaTejido::tableName())->where('Id',$idU)->update($data);
                 }
 
                 DB::commit();
@@ -413,7 +413,7 @@ class EliminarTejido
                 [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosTelar, $inicioOriginal);
 
                 foreach ($updates as $idU => $data) {
-                    DB::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+                    DB::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
                 }
 
                 // Regenerar líneas de todos los registros del telar
@@ -481,7 +481,7 @@ class EliminarTejido
         [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosTelar, $inicioOriginal);
 
         foreach ($updates as $idU => $data) {
-            DB::table('ReqProgramaTejido')->where('Id', $idU)->update($data);
+            DB::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
         }
 
         // Regenerar líneas de todos los registros del telar
@@ -494,4 +494,3 @@ class EliminarTejido
     }
 
 }
-

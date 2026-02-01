@@ -22,6 +22,26 @@ class ReqProgramaTejido extends Model
     /** @var bool */
     public $timestamps = false; // Usas CreatedAt/UpdatedAt manuales
 
+    public function getTable()
+    {
+        $override = config('planeacion.programa_tejido_table');
+        if (is_string($override) && $override !== '') {
+            return $override;
+        }
+
+        return $this->table;
+    }
+
+    public static function tableName(): string
+    {
+        $override = config('planeacion.programa_tejido_table');
+        if (is_string($override) && $override !== '') {
+            return $override;
+        }
+
+        return (new static())->table;
+    }
+
     /**
      * Mass assignment: no necesitas exponer 'Id'
      * Mantengo el listado original (menos 'Id') para compatibilidad.

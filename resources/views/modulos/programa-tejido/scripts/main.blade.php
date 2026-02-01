@@ -1,4 +1,43 @@
 <script>
+  const PT_BASE_PATH = @json($basePath ?? '/planeacion/programa-tejido');
+  const PT_API_PATH = @json($apiPath ?? '/programa-tejido');
+  const PT_LINE_PATH = @json($linePath ?? '/planeacion/req-programa-tejido-line');
+
+  (function () {
+    if (window.PT_FETCH_PATCHED) return;
+    window.PT_FETCH_PATCHED = true;
+
+    const originalFetch = window.fetch.bind(window);
+    const rewriteUrl = (url) => {
+      if (typeof url !== 'string') return url;
+      let next = url;
+
+      if (PT_BASE_PATH && next.includes('/planeacion/programa-tejido')) {
+        next = next.replace('/planeacion/programa-tejido', PT_BASE_PATH);
+      }
+      if (PT_API_PATH && next.includes('/programa-tejido')) {
+        next = next.replace('/programa-tejido', PT_API_PATH);
+      }
+      if (PT_LINE_PATH && next.includes('/planeacion/req-programa-tejido-line')) {
+        next = next.replace('/planeacion/req-programa-tejido-line', PT_LINE_PATH);
+      }
+
+      return next;
+    };
+
+    window.fetch = function (input, init) {
+      if (typeof input === 'string') {
+        return originalFetch(rewriteUrl(input), init);
+      }
+      if (input instanceof Request) {
+        const url = rewriteUrl(input.url);
+        if (url === input.url) return originalFetch(input, init);
+        return originalFetch(new Request(url, input), init);
+      }
+      return originalFetch(input, init);
+    };
+  })();
+
 @include('modulos.programa-tejido.modal.duplicar-dividir')
 
   {!! view('modulos.programa-tejido.scripts.state', ['columns' => $columns ?? []])->render() !!}

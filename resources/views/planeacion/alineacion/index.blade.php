@@ -358,6 +358,34 @@
                         if ((col === 'AnchoToalla' || col === 'PesoGRM2') && value !== '' && value != null && !isNaN(parseFloat(value))) {
                             raw = parseFloat(value).toFixed(3);
                         }
+                        // Días de prod. = fecha actual - FechaTejido (catcodificados, ej. 2020-02-01), calculado en cliente
+                        if (col === 'DiasEficiencia') {
+                            const fechaStr = (row['FechaTejido'] != null ? String(row['FechaTejido']).trim() : '') || (row['FechaCambio'] != null ? String(row['FechaCambio']).trim() : '');
+                            let fechaBase = null;
+                            // YYYY-MM-DD o YYYY-MM-DD HH:MM:SS (formato catcodificados)
+                            const iso = fechaStr.match(/^(\d{4})-(\d{2})-(\d{2})(?:[\sT](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+                            if (iso) {
+                                const y = parseInt(iso[1], 10), m = parseInt(iso[2], 10) - 1, d = parseInt(iso[3], 10);
+                                const h = iso[4] != null ? parseInt(iso[4], 10) : 0, min = iso[5] != null ? parseInt(iso[5], 10) : 0, seg = iso[6] != null ? parseInt(iso[6], 10) : 0;
+                                if (y > 1900 && y < 2100 && m >= 0 && m <= 11 && d >= 1 && d <= 31)
+                                    fechaBase = new Date(y, m, d, h, min, seg, 0);
+                            }
+                            // DD/MM/YYYY o DD-MM-YYYY (día primero)
+                            if (!fechaBase && /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(fechaStr)) {
+                                const parts = fechaStr.split(/[\/\-]/);
+                                const d = parseInt(parts[0], 10), m = parseInt(parts[1], 10) - 1;
+                                let y = parseInt(parts[2], 10);
+                                if (y < 100) y += y < 50 ? 2000 : 1900;
+                                if (d >= 1 && d <= 31 && m >= 0 && m <= 11 && y > 1900 && y < 2100)
+                                    fechaBase = new Date(y, m, d, 0, 0, 0, 0);
+                            }
+                            if (fechaBase && !isNaN(fechaBase.getTime())) {
+                                const hoy = new Date();
+                                const msPorDia = 1000 * 60 * 60 * 24;
+                                const diffDias = (hoy.getTime() - fechaBase.getTime()) / msPorDia;
+                                if (Number.isFinite(diffDias)) raw = diffDias >= 0 ? Number(diffDias).toFixed(1) : '0';
+                            }
+                        }
                         return '<td class="' + cellClass + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
                             (raw ? escapeHtml(raw) : '') + '</td>';
                     }).join('');

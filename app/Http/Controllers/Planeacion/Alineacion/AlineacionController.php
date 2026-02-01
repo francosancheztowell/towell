@@ -214,6 +214,8 @@ class AlineacionController extends Controller
             }
             $item[$key] = $value;
         }
+        // FechaTejido en Y-m-d para cálculo de Días de prod. en el front (catcodificados)
+        $item['FechaTejido'] = $cat?->FechaTejido ? Carbon::parse($cat->FechaTejido)->format('Y-m-d') : '';
         return $item;
     }
 

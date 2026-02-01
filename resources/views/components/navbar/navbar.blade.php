@@ -3,8 +3,13 @@
 
     // Variables de estado de rutas
     $isProduccionIndex = Route::currentRouteName() === 'produccion.index';
-    $isProgramaTejido = request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido');
+    $isMuestras = request()->routeIs('muestras.index') || request()->is('planeacion/muestras');
+    $isProgramaTejido = request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido') || $isMuestras;
+    $programaTejidoModuleLabel = $isMuestras ? 'Muestras' : 'Programa';
+    $programaTejidoModulePermission = 'Programa Tejido';
+    $liberarOrdenesBase = $isMuestras ? '/planeacion/muestras' : '/planeacion/programa-tejido';
     $showParoButton = !request()->routeIs('catalogos.req-programa-tejido')
+        && !$isMuestras
         && !request()->routeIs('programa.urd.eng.reservar.programar')
         && !request()->routeIs('codificacion-modelos')
         && !request()->routeIs('planeacion.alineacion.index')
@@ -59,7 +64,10 @@
 
                 <!-- Controles Programa Tejido -->
                 @if($isProgramaTejido)
-                    @include('components.navbar.sections.programa-tejido')
+                    @include('components.navbar.sections.programa-tejido', [
+                        'moduleLabel' => $programaTejidoModuleLabel,
+                        'modulePermission' => $programaTejidoModulePermission
+                    ])
                 @endif
 
                 @yield('navbar-right')
@@ -150,7 +158,7 @@
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    window.location.href = '/planeacion/programa-tejido/liberar-ordenes?dias=' + result.value;
+                    window.location.href = '{{ $liberarOrdenesBase }}' + '/liberar-ordenes?dias=' + result.value;
                 }
             });
         }

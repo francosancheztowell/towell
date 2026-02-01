@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class VincularTejido
 {
@@ -21,7 +22,7 @@ class VincularTejido
     {
         $request->validate([
             'registros_ids' => 'required|array|min:2',
-            'registros_ids.*' => 'required|integer|exists:ReqProgramaTejido,Id',
+            'registros_ids.*' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
         ]);
 
         $registrosIds = $request->input('registros_ids');

@@ -248,7 +248,7 @@ class DateHelpers
                 // Ultimo flag
                 $ultimo = ($i === ($todos->count() - 1)) ? '1' : '0';
 
-                DB::table('ReqProgramaTejido')->where('Id', $row->Id)->update(array_merge([
+                DB::table(ReqProgramaTejido::tableName())->where('Id', $row->Id)->update(array_merge([
                     'FechaInicio' => $tmp->FechaInicio,
                     'FechaFinal'  => $tmp->FechaFinal,
                     'EnProceso'   => 0,

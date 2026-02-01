@@ -201,3 +201,63 @@ Route::post('/programa-tejido/calcular-totales-dividir', [DividirTejido::class, 
 Route::get('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'index']);
 Route::get('/programa-tejido/columnas/visibles', [ColumnasProgramaTejidoController::class, 'getColumnasVisibles']);
 Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'store']);
+
+// ====== RUTAS DE MUESTRAS (reusa ProgramaTejido) ======
+Route::get('/planeacion/muestras', [ProgramaTejidoController::class, 'index'])->name('muestras.index');
+
+Route::get('/planeacion/muestras/liberar-ordenes', [LiberarOrdenesController::class, 'index'])->name('muestras.liberar-ordenes');
+Route::post('/planeacion/muestras/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])->name('muestras.liberar-ordenes.procesar');
+Route::get('/planeacion/muestras/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'obtenerBomYNombre'])->name('muestras.liberar-ordenes.bom');
+Route::get('/planeacion/muestras/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('muestras.liberar-ordenes.tipo-hilo');
+Route::get('/planeacion/muestras/liberar-ordenes/codigo-dibujo', [LiberarOrdenesController::class, 'obtenerCodigoDibujo'])->name('muestras.liberar-ordenes.codigo-dibujo');
+Route::get('/planeacion/muestras/liberar-ordenes/opciones-hilos', [LiberarOrdenesController::class, 'obtenerOpcionesHilos'])->name('muestras.liberar-ordenes.opciones-hilos');
+Route::post('/planeacion/muestras/liberar-ordenes/guardar-campos', [LiberarOrdenesController::class, 'guardarCamposEditables'])->name('muestras.liberar-ordenes.guardar-campos');
+
+Route::get('/planeacion/muestras/reimprimir-ordenes/{id}', [ReimprimirOrdenesController::class, 'reimprimir'])->name('planeacion.muestras.reimprimir-ordenes');
+
+Route::post('/planeacion/muestras/descargar-programa', [DescargarProgramaController::class, 'descargar'])->name('muestras.descargar-programa');
+Route::post('/planeacion/muestras/{id}/prioridad/mover', [ProgramaTejidoController::class, 'moveToPosition'])->name('muestras.prioridad.mover');
+Route::post('/planeacion/muestras/{id}/verificar-cambio-telar', [ProgramaTejidoController::class, 'verificarCambioTelar'])->name('muestras.verificar-cambio-telar');
+Route::post('/planeacion/muestras/{id}/cambiar-telar', [ProgramaTejidoController::class, 'cambiarTelar'])->name('muestras.cambiar-telar');
+Route::post('/planeacion/muestras/duplicar-telar', [ProgramaTejidoController::class, 'duplicarTelar'])->name('muestras.duplicar-telar');
+Route::post('/planeacion/muestras/dividir-telar', [ProgramaTejidoController::class, 'dividirTelar'])->name('muestras.dividir-telar');
+Route::post('/planeacion/muestras/dividir-saldo', [ProgramaTejidoController::class, 'dividirSaldo'])->name('muestras.dividir-saldo');
+Route::post('/planeacion/muestras/vincular-telar', [ProgramaTejidoController::class, 'vincularTelar'])->name('muestras.vincular-telar');
+Route::post('/planeacion/muestras/vincular-registros-existentes', [ProgramaTejidoController::class, 'vincularRegistrosExistentes'])->name('muestras.vincular-registros-existentes');
+Route::post('/planeacion/muestras/{id}/desvincular', [ProgramaTejidoController::class, 'desvincularRegistro'])->name('muestras.desvincular');
+Route::get('/planeacion/muestras/registros-ord-compartida/{ordCompartida}', [ProgramaTejidoController::class, 'getRegistrosPorOrdCompartida'])->name('muestras.registros-ord-compartida');
+Route::get('/planeacion/muestras/balancear', [ProgramaTejidoController::class, 'balancear'])->name('muestras.balancear');
+Route::get('/planeacion/muestras/{id}/detalles-balanceo', [ProgramaTejidoController::class, 'detallesBalanceo'])->name('muestras.detalles-balanceo');
+Route::post('/planeacion/muestras/preview-fechas-balanceo', [ProgramaTejidoController::class, 'previewFechasBalanceo'])->name('muestras.preview-fechas-balanceo');
+Route::post('/planeacion/muestras/actualizar-pedidos-balanceo', [ProgramaTejidoController::class, 'actualizarPedidosBalanceo'])->name('muestras.actualizar-pedidos-balanceo');
+Route::post('/planeacion/muestras/balancear-automatico', [ProgramaTejidoController::class, 'balancearAutomatico'])->name('muestras.balancear-automatico');
+Route::get('/planeacion/muestras/ver-detalles-grupo-balanceo/{ordCompartida}', [BalancearTejido::class, 'verDetallesGrupoBalanceo'])->name('muestras.verdetallesgrupobalanceo');
+Route::put('/planeacion/muestras/{id}', [ProgramaTejidoController::class, 'update'])->name('muestras.update');
+Route::delete('/planeacion/muestras/{id}', [ProgramaTejidoController::class, 'destroy'])->name('muestras.destroy');
+Route::get('/planeacion/muestras/all-registros-json', [ProgramaTejidoController::class, 'getAllRegistrosJson'])->name('muestras.all-registros-json');
+Route::post('/planeacion/muestras/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('muestras.actualizar-calendarios-masivo');
+Route::post('/planeacion/muestras/{id}/reprogramar', [ProgramaTejidoController::class, 'actualizarReprogramar'])->name('muestras.reprogramar');
+Route::get('/planeacion/muestras-line', [ReqProgramaTejidoLineController::class, 'index'])->name('planeacion.muestras-line');
+
+Route::get('/muestras/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
+Route::get('/muestras/salon-tejido-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions'])->name('muestras.salon-tejido-options');
+Route::get('/muestras/tamano-clave-by-salon', [ProgramaTejidoController::class, 'getTamanoClaveBySalon']);
+Route::get('/muestras/flogs-id-options', [ProgramaTejidoController::class, 'getFlogsIdOptions']);
+Route::get('/muestras/flogs-id-from-twflogs', [ProgramaTejidoController::class, 'getFlogsIdFromTwFlogsTable']);
+Route::get('/muestras/descripcion-by-idflog/{idflog}', [ProgramaTejidoController::class, 'getDescripcionByIdFlog']);
+Route::get('/muestras/flog-by-item', [ProgramaTejidoController::class, 'getFlogByItem']);
+Route::get('/muestras/flogs-by-tamano-clave', [ProgramaTejidoController::class, 'getFlogsByTamanoClave']);
+Route::get('/muestras/calendario-id-options', [ProgramaTejidoController::class, 'getCalendarioIdOptions']);
+Route::get('/muestras/calendario-lineas/{calendarioId}', [ProgramaTejidoController::class, 'getCalendarioLineas'])->name('muestras.calendario-lineas');
+Route::get('/muestras/aplicacion-id-options', [ProgramaTejidoController::class, 'getAplicacionIdOptions']);
+Route::match(['get', 'post'], '/muestras/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
+Route::get('/muestras/telares-by-salon', [ProgramaTejidoController::class, 'getTelaresBySalon']);
+Route::get('/muestras/ultima-fecha-final-telar', [ProgramaTejidoController::class, 'getUltimaFechaFinalTelar']);
+Route::get('/muestras/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
+Route::get('/muestras/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
+Route::get('/muestras/velocidad-std', [ProgramaTejidoController::class, 'getVelocidadStd']);
+Route::get('/muestras/eficiencia-velocidad-std', [ProgramaTejidoController::class, 'getEficienciaVelocidadStd']);
+Route::post('/muestras/calcular-totales-dividir', [DividirTejido::class, 'calcularTotalesDividir']);
+Route::get('/muestras/columnas', [ColumnasProgramaTejidoController::class, 'index']);
+Route::get('/muestras/columnas/visibles', [ColumnasProgramaTejidoController::class, 'getColumnasVisibles']);
+Route::post('/muestras/columnas', [ColumnasProgramaTejidoController::class, 'store']);

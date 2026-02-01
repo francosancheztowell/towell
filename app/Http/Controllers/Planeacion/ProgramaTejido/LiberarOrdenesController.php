@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -295,7 +296,7 @@ class LiberarOrdenesController extends Controller
 
         $data = $request->validate([
             'registros' => 'required|array|min:1',
-            'registros.*.id' => 'required|integer|exists:ReqProgramaTejido,Id',
+            'registros.*.id' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
             'registros.*.prioridad' => 'nullable|string|max:100',
             'registros.*.bomId' => 'nullable|string|max:20',
             'registros.*.bomName' => 'nullable|string|max:60',
@@ -922,7 +923,7 @@ class LiberarOrdenesController extends Controller
     {
         try {
             $data = $request->validate([
-                'id' => 'required|integer|exists:ReqProgramaTejido,Id',
+                'id' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
                 'field' => 'required|string|in:MtsRollo,PzasRollo,TotalRollos,TotalPzas,Repeticiones,SaldoMarbete,Densidad,CombinaTrama',
                 'value' => 'nullable',
             ]);

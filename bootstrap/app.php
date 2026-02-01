@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Esto permite que los triggers capturen información del usuario
         $middleware->web(append: [
             \App\Http\Middleware\SetSqlContextInfo::class,
+            \App\Http\Middleware\ProgramaTejidoContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

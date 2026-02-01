@@ -132,7 +132,7 @@ class DragAndDropTejido
                 if (!empty($idsAfectados)) {
                     // Evitar colisiones temporales con el índice único (telar+posición)
                     // IMPORTANTE: Solo actualizar registros del mismo telar para evitar afectar otros telares
-                    DB::table('ReqProgramaTejido')
+                    DB::table(ReqProgramaTejido::tableName())
                         ->whereIn('Id', $idsAfectados)
                         ->where('SalonTejidoId', $registro->SalonTejidoId)
                         ->where('NoTelarId', $registro->NoTelarId)
@@ -148,7 +148,7 @@ class DragAndDropTejido
                         $dataU['Posicion'] = (int)$dataU['Posicion'];
                     }
 
-                    DB::table('ReqProgramaTejido')
+                    DB::table(ReqProgramaTejido::tableName())
                         ->where('Id', $idU)
                         ->where('SalonTejidoId', $registro->SalonTejidoId)
                         ->where('NoTelarId', $registro->NoTelarId)

@@ -1,6 +1,6 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
-@section('page-title', 'Programa de Tejido')
+@section('page-title', $pageTitle ?? 'Programa de Tejido')
 
 @section('content')
 <div class="w-full pt-page">
@@ -585,5 +585,10 @@
 @endsection
 
 @push('scripts')
-  {!! view('modulos.programa-tejido.scripts.main', ['columns' => $columns ?? []])->render() !!}
+  {!! view('modulos.programa-tejido.scripts.main', [
+    'columns' => $columns ?? [],
+    'basePath' => $basePath ?? null,
+    'apiPath' => $apiPath ?? null,
+    'linePath' => $linePath ?? null,
+  ])->render() !!}
 @endpush

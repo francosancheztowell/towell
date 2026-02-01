@@ -20,7 +20,7 @@
                 bg="bg-black"
                 text=""
                 iconColor="text-white"
-                module="Programa Tejido"
+                module="{{ $modulePermission ?? 'Programa Tejido' }}"
                 onclick="toggleDragDropMode()"
                 title="Activar/Desactivar arrastrar filas"/>
 
@@ -30,19 +30,19 @@
             <x-navbar.button-report
                 onclick="descargarPrograma()"
                 title="Descargar programa"
-                module="Programa Tejido"
+                module="{{ $modulePermission ?? 'Programa Tejido' }}"
                 icon="fa-download"
                 bg="bg-blue-500"
                 iconColor="text-white"
                 hoverBg="hover:bg-blue-600"
-                module="Programa Tejido"
+                module="{{ $modulePermission ?? 'Programa Tejido' }}"
                 class="text-sm" />
 
             <!-- Liberar órdenes -->
             <x-navbar.button-report
                 onclick="mostrarModalDiasLiberar()"
                 title="Liberar órdenes"
-                module="Programa Tejido"
+                module="{{ $modulePermission ?? 'Programa Tejido' }}"
                 icon="fa-unlock"
                 bg="bg-stone-500"
                 iconColor="text-white"
@@ -72,7 +72,7 @@
         id="btnVincularExistentes"
         onclick="vincularRegistrosExistentes()"
         title="Vincular registros existentes - Click para activar modo selección múltiple"
-        module="Programa Tejido"
+        module="{{ $modulePermission ?? 'Programa Tejido' }}"
         icon="fa-link"
         text=""
         bg="bg-blue-500"
@@ -105,7 +105,7 @@
                         onclick="document.getElementById('actualizarDropdownMenu').classList.toggle('hidden')"
                         title="Actualizar Calendarios"
                         text="Actualizar Calendarios"
-                        module="Programa Tejido"
+                        module="{{ $modulePermission ?? 'Programa Tejido' }}"
                         icon="fa-calendar-days"
                         bg="bg-white"
                         iconColor="text-blue-500"

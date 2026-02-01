@@ -50,7 +50,7 @@ class ReqProgramaTejidoObserver
                     }
                 }
                 if (!empty($formulasParaGuardar)) {
-                    DB::table('ReqProgramaTejido')
+                    DB::table(ReqProgramaTejido::tableName())
                         ->where('Id', $programa->Id)
                         ->update($formulasParaGuardar);
                 }
@@ -316,7 +316,7 @@ class ReqProgramaTejidoObserver
 
     private function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        $stdToaHraAnteriorRaw = DB::table('ReqProgramaTejido')
+        $stdToaHraAnteriorRaw = DB::table(ReqProgramaTejido::tableName())
             ->where('Id', $programa->Id)
             ->value('StdToaHra');
         $stdToaHraAnterior = $stdToaHraAnteriorRaw !== null ? (float) $stdToaHraAnteriorRaw : 0;

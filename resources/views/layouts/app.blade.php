@@ -293,7 +293,7 @@
   @stack('scripts')
 
   <!-- Scripts específicos -->
-  @if(request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido'))
+  @if(request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido') || request()->routeIs('muestras.index') || request()->is('planeacion/muestras'))
     <script src="{{ asset('js/programa-tejido-menu.js') }}"></script>
   @endif
 
