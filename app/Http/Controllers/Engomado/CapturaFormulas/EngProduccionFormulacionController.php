@@ -292,4 +292,79 @@ class EngProduccionFormulacionController extends Controller
             return redirect()->back()->with('error', 'Error al eliminar la formulación: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Obtener calibres para selects de fórmula (ItemGroupId = 'MAT P ENG')
+     */
+    public function getCalibresFormula()
+    {
+        try {
+            $items = DB::connection('sqlsrv_ti')
+                ->table('InventTable')
+                ->select('ItemId', 'ItemName')
+                ->where('ItemGroupId', 'MAT P ENG')
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('ItemId')
+                ->distinct()
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $items]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo calibres de fórmula', ['exception' => $e]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Obtener fibras para selects de fórmula (basado en ItemGroupId = 'MAT P ENG')
+     */
+    public function getFibrasFormula(Request $request)
+    {
+        $itemId = $request->query('itemId');
+        if (!$itemId) {
+            return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
+        }
+
+        try {
+            $fibras = DB::connection('sqlsrv_ti')
+                ->table('ConfigTable')
+                ->select('ConfigId')
+                ->where('ItemId', $itemId)
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('ConfigId')
+                ->distinct()
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $fibras]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo fibras de fórmula', ['exception' => $e, 'itemId' => $itemId]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Obtener colores para selects de fórmula (basado en ItemGroupId = 'MAT P ENG')
+     */
+    public function getColoresFormula(Request $request)
+    {
+        $itemId = $request->query('itemId');
+        if (!$itemId) {
+            return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
+        }
+
+        try {
+            $colores = DB::connection('sqlsrv_ti')
+                ->table('InventColor')
+                ->select('InventColorId', 'Name')
+                ->where('ItemId', $itemId)
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('InventColorId')
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $colores]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo colores de fórmula', ['exception' => $e, 'itemId' => $itemId]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

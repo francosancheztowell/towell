@@ -708,7 +708,13 @@
             }
 
             const litrosInput = document.getElementById('create_litros');
-            if (litrosInput) litrosInput.value = litrosTexto || '';
+            if (litrosInput) {
+                litrosInput.value = litrosTexto || '';
+                litrosCreateFormula = parseFloat(litrosTexto) || 0;
+                if (componentesCreateData.length > 0) {
+                    renderizarTablaComponentesCreate();
+                }
+            }
             const tiempoInput = document.getElementById('create_tiempo');
             if (tiempoInput) tiempoInput.value = tiempoTexto || '';
             const solidosInput = document.getElementById('create_solidos');
@@ -1141,6 +1147,7 @@
         let componentesCreateData = [];
         let formulaCreateActual = '';
         let kilosCreateFormula = 0;
+        let litrosCreateFormula = 0;
 
         function abrirModalComponentes(kilos = 0) {
             if (!formulaActual) {
@@ -1499,9 +1506,9 @@
 
         // Cache y rutas para materiales
         const componenteMaterialRoutes = {
-            calibres: "{{ route('tejido.produccion.reenconado.calibres') }}",
-            fibras: "{{ route('tejido.produccion.reenconado.fibras') }}",
-            colores: "{{ route('tejido.produccion.reenconado.colores') }}"
+            calibres: "{{ route('eng-formulacion.calibres') }}",
+            fibras: "{{ route('eng-formulacion.fibras') }}",
+            colores: "{{ route('eng-formulacion.colores') }}"
         };
 
         const componenteMaterialCache = {
@@ -1524,7 +1531,7 @@
             if (componenteMaterialCache.calibres) return componenteMaterialCache.calibres;
             try {
                 const data = await fetchComponenteJson(componenteMaterialRoutes.calibres);
-                const items = (data?.data || []).map(i => i.ItemId).filter(Boolean);
+                const items = (data?.data || []).filter(i => i.ItemId);
                 componenteMaterialCache.calibres = items;
                 return items;
             } catch (e) {
@@ -1556,8 +1563,15 @@
 
             options.forEach((opt) => {
                 const option = document.createElement('option');
-                option.value = opt;
-                option.textContent = opt;
+                // Si es un objeto con ItemId, usarlo, sino es string simple
+                if (typeof opt === 'object' && opt.ItemId) {
+                    option.value = opt.ItemId;
+                    option.textContent = opt.ItemId;
+                    option.setAttribute('data-itemname', opt.ItemName || '');
+                } else {
+                    option.value = opt;
+                    option.textContent = opt;
+                }
                 select.appendChild(option);
             });
 
@@ -1609,11 +1623,26 @@
             // Event listener para cuando cambie el calibre
             calibreEl.addEventListener('change', async (e) => {
                 const itemId = e.target.value;
+                const itemNameEl = row.querySelector('[data-field="ItemName"]');
+                
                 if (itemId) {
+                    // Obtener ItemName del option seleccionado
+                    const selectedOption = e.target.options[e.target.selectedIndex];
+                    const itemName = selectedOption.getAttribute('data-itemname') || '';
+                    if (itemNameEl) itemNameEl.value = itemName;
+                    
+                    // Actualizar índice en componentesCreateData
+                    const index = parseInt(calibreEl.getAttribute('data-index'));
+                    if (componentesCreateData[index]) {
+                        componentesCreateData[index].ItemId = itemId;
+                        componentesCreateData[index].ItemName = itemName;
+                    }
+                    
                     setComponenteSelectOptions(fibraEl, [], 'Cargando...');
                     const fibras = await getComponenteFibras(itemId);
                     setComponenteSelectOptions(fibraEl, fibras, 'Selecciona fibra');
                 } else {
+                    if (itemNameEl) itemNameEl.value = '';
                     setComponenteSelectOptions(fibraEl, [], 'Selecciona calibre primero');
                 }
             });
@@ -1641,7 +1670,7 @@
                 row.className = 'hover:bg-blue-50 transition-colors';
 
                 const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
-                const consumoTotal = consumoUnitario * kilosCreateFormula;
+                const consumoTotal = consumoUnitario * litrosCreateFormula;
                 const disabledAttr = viewOnlyMode ? 'disabled' : '';
                 const disabledClass = viewOnlyMode ? 'bg-gray-100 cursor-not-allowed' : '';
 
@@ -1798,6 +1827,17 @@
                 kilosCreateFormula = parseFloat(kilosInput.value) || 0;
                 kilosInput.addEventListener('input', function() {
                     kilosCreateFormula = parseFloat(this.value) || 0;
+                    if (componentesCreateData.length > 0) {
+                        renderizarTablaComponentesCreate();
+                    }
+                });
+            }
+
+            const litrosInput = document.getElementById('create_litros');
+            if (litrosInput) {
+                litrosCreateFormula = parseFloat(litrosInput.value) || 0;
+                litrosInput.addEventListener('input', function() {
+                    litrosCreateFormula = parseFloat(this.value) || 0;
                     if (componentesCreateData.length > 0) {
                         renderizarTablaComponentesCreate();
                     }
