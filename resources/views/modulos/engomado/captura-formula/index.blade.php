@@ -154,7 +154,7 @@
 
     <!-- Modal Crear/Editar -->
     <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div id="createModalContent" class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div id="create_modal_header" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
                 <h3 id="create_modal_title" class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
                 <button onclick="cerrarModalCreate()" class="text-white hover:text-gray-200 transition">
@@ -660,7 +660,16 @@
 
             // Color azul para crear
             const header = document.getElementById('create_modal_header');
-            header.className = 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+            if (header) {
+                header.className = 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+            }
+
+            // Restaurar altura normal del modal
+            const modalContent = document.getElementById('createModalContent');
+            if (modalContent) {
+                modalContent.classList.remove('max-h-[70vh]');
+                modalContent.classList.add('max-h-[90vh]');
+            }
 
             // LIMPIAR todos los campos (para crear nuevo)
             document.getElementById('create_olla').value = '';
@@ -797,7 +806,16 @@
 
             // Cambiar color del header a amarillo para editar
             const header = document.getElementById('create_modal_header');
-            header.className = 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+            if (header) {
+                header.className = 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+            }
+
+            // Restaurar altura normal del modal
+            const modalContent = document.getElementById('createModalContent');
+            if (modalContent) {
+                modalContent.classList.remove('max-h-[70vh]');
+                modalContent.classList.add('max-h-[90vh]');
+            }
 
             // Cargar datos del registro seleccionado
             const cells = selectedRow.cells;
@@ -861,11 +879,20 @@
             }
 
             // Configurar modal para VER
-            document.getElementById('create_modal_title').textContent = 'Ver Formulación';
+            document.getElementById('create_modal_title').textContent = 'Visualización de Fórmula';
 
-            // Cambiar color del header a naranja para ver
+            // Cambiar color del header a azul para ver
             const header = document.getElementById('create_modal_header');
-            header.className = 'bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+            if (header) {
+                header.className = 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
+            }
+
+            // Reducir altura del modal en modo ver
+            const modalContent = document.getElementById('createModalContent');
+            if (modalContent) {
+                modalContent.classList.remove('max-h-[90vh]');
+                modalContent.classList.add('max-h-[70vh]');
+            }
 
             // Cargar datos del registro seleccionado (igual que editar)
             const cells = selectedRow.cells;
@@ -946,9 +973,16 @@
             const fields = modal.querySelectorAll('input, select, textarea');
             fields.forEach(field => {
                 if (isReadOnly) {
-                    field.setAttribute('disabled', 'disabled');
+                    field.setAttribute('readonly', 'readonly');
+                    field.classList.add('bg-gray-50', 'text-gray-700', 'cursor-not-allowed');
+                    if (field.tagName === 'SELECT') {
+                        field.setAttribute('disabled', 'disabled');
+                        field.classList.add('pointer-events-none');
+                    }
                 } else {
+                    field.removeAttribute('readonly');
                     field.removeAttribute('disabled');
+                    field.classList.remove('bg-gray-50', 'text-gray-700', 'cursor-not-allowed', 'pointer-events-none');
                 }
             });
 
