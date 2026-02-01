@@ -95,12 +95,16 @@ Route::post('eng-bpm-line/{folio}/toggle', [EngBpmLineController::class, 'toggle
 Route::patch('eng-bpm-line/{folio}/terminar', [EngBpmLineController::class, 'terminar'])->name('eng-bpm-line.terminar');
 Route::patch('eng-bpm-line/{folio}/autorizar', [EngBpmLineController::class, 'autorizar'])->name('eng-bpm-line.autorizar');
 Route::patch('eng-bpm-line/{folio}/rechazar', [EngBpmLineController::class, 'rechazar'])->name('eng-bpm-line.rechazar');
+// Rutas específicas ANTES del resource para evitar conflictos
+Route::get('eng-formulacion/validar-folio', [EngProduccionFormulacionController::class, 'validarFolio'])->name('eng-formulacion.validar-folio');
+Route::get('eng-formulacion/componentes/formula', [EngProduccionFormulacionController::class, 'getComponentesFormula'])->name('eng-formulacion.componentes');
+Route::get('eng-formulacion/calibres-formula', [EngProduccionFormulacionController::class, 'getCalibresFormula'])->name('eng-formulacion.calibres');
+Route::get('eng-formulacion/fibras-formula', [EngProduccionFormulacionController::class, 'getFibrasFormula'])->name('eng-formulacion.fibras');
+Route::get('eng-formulacion/colores-formula', [EngProduccionFormulacionController::class, 'getColoresFormula'])->name('eng-formulacion.colores');
 
 Route::resource('eng-formulacion', EngProduccionFormulacionController::class)
     ->parameters(['eng-formulacion' => 'folio'])
     ->names('eng-formulacion');
-Route::get('eng-formulacion/validar-folio', [EngProduccionFormulacionController::class, 'validarFolio'])->name('eng-formulacion.validar-folio');
-Route::get('eng-formulacion/componentes/formula', [EngProduccionFormulacionController::class, 'getComponentesFormula'])->name('eng-formulacion.componentes');
 
 Route::resource('urd-eng-nucleos', UrdEngNucleosController::class)
     ->parameters(['urd-eng-nucleos' => 'urdEngNucleo'])
