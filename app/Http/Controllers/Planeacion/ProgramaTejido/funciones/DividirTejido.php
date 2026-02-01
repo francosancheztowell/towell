@@ -593,6 +593,9 @@ class DividirTejido
                         'OrdCompartidaLider' => 1,
                         'UpdatedAt' => now()
                     ]);
+
+                // Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
+                \App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido::actualizarOrdPrincipalPorOrdCompartida($nuevoOrdCompartida);
             }
 
             DBFacade::commit();

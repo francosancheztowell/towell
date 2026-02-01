@@ -29,14 +29,15 @@ class CatCodificados extends Model
         'CalibreComb32', 'FibraComb3', 'CodColorC3', 'NomColorC3', 'PasadasComb3', 'CalibreComb4',
         'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4', 'PasadasComb4', 'CalibreComb5',
         'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'PasadasComb5', 'Total', 'RespInicio',
-        'HrInicio', 'HrTermino', 'MinutosCambio', 'PesoMuestra', 'RegAlinacion', 'Supervisor', 'OBSParaPro',
+        'HrInicio', 'HrTermino', 'MinutosCambio', 'RegAlinacion', 'Supervisor', 'OBSParaPro',
         'CantidadProducir_2', 'Tejidas', 'pzaXrollo', 'OrdenTejido', 'JulioRizo', 'JulioPie', 'EfiInicial',
-        'EfiFinal', 'DesperdicioTrama', 'Pedido', 'Produccion', 'Saldos', 'OrdCompartida',
+        'EfiFinal', 'DesperdicioTrama', 'Pedido', 'Produccion', 'Saldos', 'TotalSegundas', 'OrdCompartida',
         'OrdCompartidaLider', 'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'CombinaTram', 'BomId',
         'BomName', 'CreaProd', 'EficienciaSTD', 'Densidad', 'HiloAX', 'ActualizaLmat', 'FechaCreacion',
         'HoraCreacion', 'UsuarioCrea', 'FechaModificacion', 'HoraModificacion', 'UsuarioModifica',
         'CategoriaCalidad', 'CustName',
-        'OrdPrincipal',
+        'PesoMuestra', 'OrdPrincipal',
+        'FechaArranque', 'FechaFinaliza',
     ];
 
     protected $fillable = self::COLUMNS;
@@ -51,6 +52,7 @@ class CatCodificados extends Model
         'Pedido' => 'float',
         'Produccion' => 'float',
         'Saldos' => 'float',
+        'TotalSegundas' => 'float',
         'OrdCompartida' => 'integer', // Permitir null
         'OrdCompartidaLider' => 'integer', // Permitir null (BIT o INT según schema)
         // Nuevos campos agregados
@@ -64,6 +66,7 @@ class CatCodificados extends Model
         'CreaProd' => 'boolean', // BIT DEFAULT 1 en SQL Server
         'EficienciaSTD' => 'string', // VARCHAR en SQL Server
         'Densidad' => 'float', // REAL en SQL Server
+        'PesoMuestra' => 'float', // REAL NULL en SQL Server
         'HiloAX' => 'string', // VARCHAR(30) en SQL Server
         'ActualizaLmat' => 'boolean', // BIT DEFAULT 1 en SQL Server
         // Campos de auditoría
@@ -76,5 +79,7 @@ class CatCodificados extends Model
         'CategoriaCalidad' => 'string', // VARCHAR(50) en SQL Server
         'CustName' => 'string', // NVARCHAR(150) en SQL Server
         'OrdPrincipal' => 'integer', // INT NULL en SQL Server
+        'FechaArranque' => 'datetime', // DATETIME NULL en SQL Server
+        'FechaFinaliza' => 'datetime', // DATETIME NULL en SQL Server
     ];
 }

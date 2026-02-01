@@ -1472,6 +1472,8 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? 0;
             $catCodificado->CategoriaCalidad = $registro->CategoriaCalidad ?? null;
             $catCodificado->CustName = $registro->CustName ?? null;
+            $catCodificado->PesoMuestra = $registro->PesoMuestra ?? null;
+            $catCodificado->OrdPrincipal = $registro->OrdPrincipal ?? null;
 
             // Densidad: usar del registro si está disponible, sino calcular o usar PesoGRM2
             $catCodificado->Densidad = $registro->Densidad ?? null;
@@ -1498,6 +1500,8 @@ class OrdenDeCambioFelpaController extends Controller
 
             $catCodificado->save();
 
+            // Actualizar ReqModelosCodificados con OrdPrincipal y PesoMuestra
+            $this->actualizarReqModelosCodificadosDesdeLiberacion($registro);
 
         } catch (\Exception $e) {
             Log::error('Error al crear registro en CatCodificados', [
@@ -1506,6 +1510,86 @@ class OrdenDeCambioFelpaController extends Controller
                 'orden_tejido' => $registro->NoProduccion ?? '',
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Actualiza ReqModelosCodificados con OrdPrincipal y PesoMuestra desde ReqProgramaTejido.
+     * Busca por TamanoClave, ClaveModelo o OrdenTejido (NoProduccion).
+     *
+     * @param ReqProgramaTejido $registro
+     * @return void
+     */
+    protected function actualizarReqModelosCodificadosDesdeLiberacion(ReqProgramaTejido $registro): void
+    {
+        try {
+            $tamanoClave = trim((string) ($registro->TamanoClave ?? ''));
+            $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+            $salonTejidoId = trim((string) ($registro->SalonTejidoId ?? ''));
+
+            if (empty($tamanoClave) && empty($noProduccion)) {
+                return;
+            }
+
+            $query = ReqModelosCodificados::query();
+
+            // Buscar por OrdenTejido (NoProduccion) si está disponible
+            if (!empty($noProduccion)) {
+                $query->where('OrdenTejido', $noProduccion);
+            } elseif (!empty($tamanoClave)) {
+                // Si no hay OrdenTejido, buscar por TamanoClave
+                $query->where('TamanoClave', $tamanoClave);
+                // Si hay SalonTejidoId, filtrar por él también
+                if (!empty($salonTejidoId)) {
+                    $query->where('SalonTejidoId', $salonTejidoId);
+                }
+            } else {
+                return;
+            }
+
+            $modelos = $query->get();
+
+            if ($modelos->isEmpty()) {
+                return;
+            }
+
+            // Obtener valores a actualizar
+            $pesoMuestra = $registro->PesoMuestra !== null ? (float) $registro->PesoMuestra : null;
+            $ordPrincipalRaw = $registro->OrdPrincipal;
+            $ordPrincipal = null;
+            if ($ordPrincipalRaw !== null && $ordPrincipalRaw !== '') {
+                $ordPrincipalStr = trim((string) $ordPrincipalRaw);
+                // Si es numérico, convertir a int; si no, intentar parsearlo
+                if (is_numeric($ordPrincipalStr)) {
+                    $ordPrincipal = (int) $ordPrincipalStr;
+                } elseif ($ordPrincipalStr !== '') {
+                    // Si no es numérico pero tiene valor, intentar guardarlo (puede fallar si la columna es INT)
+                    $ordPrincipal = $ordPrincipalStr;
+                }
+            }
+
+            // Actualizar todos los registros encontrados
+            foreach ($modelos as $modelo) {
+                $updated = false;
+                if ($pesoMuestra !== null) {
+                    $modelo->PesoMuestra = $pesoMuestra;
+                    $updated = true;
+                }
+                if ($ordPrincipal !== null) {
+                    $modelo->OrdPrincipal = $ordPrincipal;
+                    $updated = true;
+                }
+                if ($updated) {
+                    $modelo->save();
+                }
+            }
+        } catch (\Throwable $e) {
+            // Loggear error pero no fallar la operación principal
+            Log::warning('Error al actualizar ReqModelosCodificados desde liberación (OrdenDeCambioFelpa)', [
+                'no_produccion' => $registro->NoProduccion ?? null,
+                'tamano_clave' => $registro->TamanoClave ?? null,
+                'error' => $e->getMessage()
             ]);
         }
     }

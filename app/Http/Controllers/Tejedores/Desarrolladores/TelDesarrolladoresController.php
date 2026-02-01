@@ -699,6 +699,9 @@ class TelDesarrolladoresController extends Controller
                                 // Asignar OrdCompartidaLider = 1 al registro con FechaInicio más antigua
                                 $nuevoLider->OrdCompartidaLider = 1;
                                 $nuevoLider->saveQuietly();
+
+                                // Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
+                                \App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido::actualizarOrdPrincipalPorOrdCompartida($ordCompartida);
                             }
                         }
                     }

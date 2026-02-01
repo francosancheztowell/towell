@@ -553,6 +553,9 @@ class LiberarOrdenesController extends Controller
                 // Actualizar CatCodificados con los mismos campos
                 $this->actualizarCatCodificados($registro);
 
+                // Actualizar ReqModelosCodificados con OrdPrincipal y PesoMuestra
+                $this->actualizarReqModelosCodificados($registro);
+
                 // Recargar el registro con los campos necesarios para la orden de cambio
                 $registroActualizado = ReqProgramaTejido::find($id);
 
@@ -1160,6 +1163,8 @@ class LiberarOrdenesController extends Controller
                 'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
                 'CategoriaCalidad' => $registro->CategoriaCalidad,
                 'CustName' => $registro->CustName,
+                'PesoMuestra' => $registro->PesoMuestra,
+                'OrdPrincipal' => $registro->OrdPrincipal,
             ];
 
             $updated = false;
@@ -1206,6 +1211,28 @@ class LiberarOrdenesController extends Controller
                 $updated = true;
             }
 
+            // FORZAR asignación de PesoMuestra SIEMPRE (incluso si es null)
+            if (in_array('PesoMuestra', $columns, true)) {
+                $registroCodificado->PesoMuestra = $registro->PesoMuestra !== null ? (float) $registro->PesoMuestra : null;
+                $updated = true;
+            }
+
+            // FORZAR asignación de OrdPrincipal SIEMPRE (incluso si es null)
+            if (in_array('OrdPrincipal', $columns, true)) {
+                $ordPrincipalRaw = $registro->OrdPrincipal;
+                $ordPrincipalValue = null;
+                if ($ordPrincipalRaw !== null && $ordPrincipalRaw !== '') {
+                    $ordPrincipalStr = trim((string) $ordPrincipalRaw);
+                    if (is_numeric($ordPrincipalStr)) {
+                        $ordPrincipalValue = (int) $ordPrincipalStr;
+                    } elseif ($ordPrincipalStr !== '') {
+                        $ordPrincipalValue = $ordPrincipalStr;
+                    }
+                }
+                $registroCodificado->OrdPrincipal = $ordPrincipalValue;
+                $updated = true;
+            }
+
             // Aplicar campos de auditoría: primero creación si no existen, luego modificación
             // Usar false para aplicar ambos (creación y modificación)
             AuditoriaHelper::aplicarCamposAuditoria($registroCodificado, false);
@@ -1242,6 +1269,86 @@ class LiberarOrdenesController extends Controller
                 }
             }
         } catch (\Throwable $e) {
+        }
+    }
+
+    /**
+     * Actualiza ReqModelosCodificados con OrdPrincipal y PesoMuestra desde ReqProgramaTejido.
+     * Busca por TamanoClave, ClaveModelo o OrdenTejido (NoProduccion).
+     *
+     * @param ReqProgramaTejido $registro
+     * @return void
+     */
+    private function actualizarReqModelosCodificados(ReqProgramaTejido $registro): void
+    {
+        try {
+            $tamanoClave = trim((string) ($registro->TamanoClave ?? ''));
+            $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+            $salonTejidoId = trim((string) ($registro->SalonTejidoId ?? ''));
+
+            if (empty($tamanoClave) && empty($noProduccion)) {
+                return;
+            }
+
+            $query = ReqModelosCodificados::query();
+
+            // Buscar por OrdenTejido (NoProduccion) si está disponible
+            if (!empty($noProduccion)) {
+                $query->where('OrdenTejido', $noProduccion);
+            } elseif (!empty($tamanoClave)) {
+                // Si no hay OrdenTejido, buscar por TamanoClave
+                $query->where('TamanoClave', $tamanoClave);
+                // Si hay SalonTejidoId, filtrar por él también
+                if (!empty($salonTejidoId)) {
+                    $query->where('SalonTejidoId', $salonTejidoId);
+                }
+            } else {
+                return;
+            }
+
+            $modelos = $query->get();
+
+            if ($modelos->isEmpty()) {
+                return;
+            }
+
+            // Obtener valores a actualizar
+            $pesoMuestra = $registro->PesoMuestra !== null ? (float) $registro->PesoMuestra : null;
+            $ordPrincipalRaw = $registro->OrdPrincipal;
+            $ordPrincipal = null;
+            if ($ordPrincipalRaw !== null && $ordPrincipalRaw !== '') {
+                $ordPrincipalStr = trim((string) $ordPrincipalRaw);
+                // Si es numérico, convertir a int; si no, intentar parsearlo
+                if (is_numeric($ordPrincipalStr)) {
+                    $ordPrincipal = (int) $ordPrincipalStr;
+                } elseif ($ordPrincipalStr !== '') {
+                    // Si no es numérico pero tiene valor, intentar guardarlo (puede fallar si la columna es INT)
+                    $ordPrincipal = $ordPrincipalStr;
+                }
+            }
+
+            // Actualizar todos los registros encontrados
+            foreach ($modelos as $modelo) {
+                $updated = false;
+                if ($pesoMuestra !== null) {
+                    $modelo->PesoMuestra = $pesoMuestra;
+                    $updated = true;
+                }
+                if ($ordPrincipal !== null) {
+                    $modelo->OrdPrincipal = $ordPrincipal;
+                    $updated = true;
+                }
+                if ($updated) {
+                    $modelo->save();
+                }
+            }
+        } catch (\Throwable $e) {
+            // Loggear error pero no fallar la operación principal
+            Log::warning('Error al actualizar ReqModelosCodificados desde liberación', [
+                'no_produccion' => $registro->NoProduccion ?? null,
+                'tamano_clave' => $registro->TamanoClave ?? null,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 

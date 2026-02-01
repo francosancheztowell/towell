@@ -78,6 +78,8 @@
                         'EfiInicial' => 'Eficiencia de Inicio',
                         'EfiFinal' => 'Eficiencia Final',
                         'DesperdicioTrama' => 'Desperdicio Trama',
+                        'PesoMuestra' => 'Peso Muestra',
+                        'OrdPrincipal' => 'Ord. Principal',
                     ];
 
                     /**
@@ -89,6 +91,7 @@
                         // Encabezado principal
                         'OrdenTejido',          // Num de Orden
                         'OrdPrincipal',
+                        'PesoMuestra',          // Peso Muestra
                         'FechaTejido',         // Fecha Orden
                         'FechaCumplimiento',    // Fecha Cumplimiento
                         'Departamento',
@@ -149,7 +152,6 @@
                         'HrInicio',
                         'HrTermino',
                         'MinutosCambio',
-                        'PesoMuestra',
                         'RegAlinacion',
                         'OBSParaPro',
 
@@ -568,72 +570,81 @@
                     title: 'Peso Muestra',
                     html: `
                         <div class="text-left space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Orden Tejido</label>
-                                <select
-                                    id="swal-orden-tejido"
-                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 appearance-none cursor-pointer swal-select-orden"
-                                >
-                                    <option value="">Seleccione una orden en proceso...</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
-                                <input
-                                    type="text"
-                                    id="swal-telar"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none"
-                                    placeholder="Los trae del cat codificados"
-                                    value="${telar}"
-                                    readonly
-                                    title="solo para visualización"
-                                >
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Articulo</label>
-                                <input
-                                    type="text"
-                                    id="swal-articulo"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none"
-                                    placeholder="De cat codificados"
-                                    value="${articulo}"
-                                    readonly
-                                    title="solo para visualización"
-                                >
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Peso Muestra</label>
-                                <input
-                                    type="text"
-                                    id="swal-peso-muestra"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="lo obtiene de catcodificacos y se puede editar"
-                                    value="${pesoMuestra}"
-                                >
-                            </div>
-                            <div>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        id="swal-act-lmat"
-                                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                        ${actLmat ? 'checked' : ''}
+                            <div class="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Orden Tejido</label>
+                                    <select
+                                        id="swal-orden-tejido"
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 appearance-none cursor-pointer swal-select-orden"
                                     >
-                                    <span class="text-sm font-medium text-gray-700">Act Lmat</span>
-                                </label>
+                                        <option value="">Seleccione una orden en proceso...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Telar</label>
+                                    <input
+                                        type="text"
+                                        id="swal-telar"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none"
+                                        placeholder="Los trae del cat codificados"
+                                        value="${telar}"
+                                        readonly
+                                        title="solo para visualización"
+                                    >
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Articulo</label>
+                                    <input
+                                        type="text"
+                                        id="swal-articulo"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none"
+                                        placeholder="De cat codificados"
+                                        value="${articulo}"
+                                        readonly
+                                        title="solo para visualización"
+                                    >
+                                </div>
                             </div>
-                            <div id="swal-lista-mat-container" class="${actLmat ? '' : 'hidden'}">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Lista Mat (BomId)</label>
-                                <input
-                                    type="text"
-                                    id="swal-lista-mat"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="lo obtiene de catcodificacos y se puede editar"
-                                    value="${bomId}"
-                                >
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-gray-200 pt-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Peso Muestra</label>
+                                    <input
+                                        type="number"
+                                        id="swal-peso-muestra"
+                                        step="any"
+                                        min="0"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="lo obtiene de catcodificacos y se puede editar"
+                                        value="${pesoMuestra !== '' && pesoMuestra !== null && pesoMuestra !== undefined ? Number(pesoMuestra) : ''}"
+                                    >
+                                </div>
+                                <div class="flex items-end pb-1">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            id="swal-act-lmat"
+                                            class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            ${actLmat ? 'checked' : ''}
+                                        >
+                                        <span class="text-sm font-medium text-gray-700">Act Lmat</span>
+                                    </label>
+                                </div>
+                                <div id="swal-lista-mat-container">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Lista L Mat (BomId) <span id="swal-lista-mat-req" class="text-red-500 ${actLmat ? '' : 'hidden'}">*</span></label>
+                                    <input
+                                        type="text"
+                                        id="swal-lista-mat"
+                                        list="swal-lista-mat-options"
+                                        autocomplete="off"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${actLmat ? '' : 'bg-gray-100 cursor-not-allowed'}"
+                                        placeholder="Escriba o elija de la lista (desde L.Mat en TI)"
+                                        value="${bomId}"
+                                        ${actLmat ? '' : 'disabled readonly'}
+                                    >
+                                    <datalist id="swal-lista-mat-options"></datalist>
+                                    <p id="swal-lista-mat-message" class="text-xs text-gray-500 mt-1 hidden"></p>
+                                </div>
                             </div>
                         </div>
                     `,
@@ -644,24 +655,132 @@
                     confirmButtonColor: '#3b82f6',
                     cancelButtonColor: '#6b7280',
                     didOpen: () => {
-                        // Mostrar/ocultar campo Lista Mat según checkbox Act Lmat
+                        // Habilitar/bloquear campo Lista Mat según checkbox Act Lmat (siempre visible)
                         const actLmatCheckbox = document.getElementById('swal-act-lmat');
-                        const listaMatContainer = document.getElementById('swal-lista-mat-container');
+                        const listaMatInputRef = document.getElementById('swal-lista-mat');
 
-                        if (actLmatCheckbox && listaMatContainer) {
-                            actLmatCheckbox.addEventListener('change', function() {
-                                if (this.checked) {
-                                    listaMatContainer.classList.remove('hidden');
-                                } else {
-                                    listaMatContainer.classList.add('hidden');
-                                }
-                            });
+                        function actualizarEstadoListaMat() {
+                            const inp = document.getElementById('swal-lista-mat');
+                            const reqSpan = document.getElementById('swal-lista-mat-req');
+                            if (!inp) return;
+                            const activo = actLmatCheckbox && actLmatCheckbox.checked;
+                            inp.disabled = !activo;
+                            inp.readOnly = !activo;
+                            inp.classList.toggle('bg-gray-100', !activo);
+                            inp.classList.toggle('cursor-not-allowed', !activo);
+                            if (reqSpan) reqSpan.classList.toggle('hidden', !activo);
+                            if (!activo) inp.value = '';
+                        }
+
+                        if (actLmatCheckbox && listaMatInputRef) {
+                            actLmatCheckbox.addEventListener('change', actualizarEstadoListaMat);
+                            actualizarEstadoListaMat();
                         }
 
                         // GET órdenes en proceso (ReqProgramaTejido) y rellenar select
                         const selectOrden = document.getElementById('swal-orden-tejido');
                         const telarInput = document.getElementById('swal-telar');
                         const articuloInput = document.getElementById('swal-articulo');
+                        const pesoMuestraInput = document.getElementById('swal-peso-muestra');
+                        const listaMatInput = document.getElementById('swal-lista-mat');
+                        const listaMatOptions = document.getElementById('swal-lista-mat-options');
+                        const listaMatMessage = document.getElementById('swal-lista-mat-message');
+
+                        function actualizarDatalistLmat(opciones, mostrarMensajeSinResultados) {
+                            if (!listaMatOptions) return;
+                            listaMatOptions.innerHTML = '';
+                            if (listaMatMessage) {
+                                listaMatMessage.classList.add('hidden');
+                                listaMatMessage.textContent = '';
+                            }
+                            if (opciones && Array.isArray(opciones) && opciones.length > 0) {
+                                opciones.forEach(function(item) {
+                                    const opt = document.createElement('option');
+                                    opt.value = (item.bomId != null) ? String(item.bomId) : '';
+                                    opt.label = (item.bomName != null) ? String(item.bomName) : opt.value;
+                                    if (opt.value) listaMatOptions.appendChild(opt);
+                                });
+                            } else if (listaMatMessage && (mostrarMensajeSinResultados === undefined || mostrarMensajeSinResultados)) {
+                                listaMatMessage.textContent = 'Sin resultados. Escriba para buscar L.Mat (búsqueda libre sin filtro de tamaño).';
+                                listaMatMessage.classList.remove('hidden');
+                            }
+                        }
+
+                        function buscarBomLibre(term, callback) {
+                            const t = (term || '').toString().trim();
+                            if (t.length < 2) {
+                                if (callback) callback([]);
+                                return;
+                            }
+                            fetch('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias?freeMode=1&term=' + encodeURIComponent(t), { headers: { 'Accept': 'application/json' } })
+                                .then(resp => resp.json())
+                                .then(json => {
+                                    if (json.success && Array.isArray(json.data)) {
+                                        const items = json.data.map(function(r) { return { bomId: r.bomId, bomName: r.bomName }; });
+                                        if (callback) callback(items);
+                                    } else if (callback) callback([]);
+                                })
+                                .catch(function() { if (callback) callback([]); });
+                        }
+
+                        var debounceBuscarBom = null;
+                        if (listaMatInput) {
+                            listaMatInput.addEventListener('input', function() {
+                                const val = this.value.trim();
+                                clearTimeout(debounceBuscarBom);
+                                if (val.length < 2) {
+                                    actualizarDatalistLmat([], false);
+                                    if (listaMatMessage) {
+                                        listaMatMessage.textContent = val.length > 0 ? 'Escriba al menos 2 caracteres para buscar.' : 'Escriba para buscar L.Mat (búsqueda libre sin filtro de tamaño).';
+                                        listaMatMessage.classList.remove('hidden');
+                                    }
+                                    return;
+                                }
+                                debounceBuscarBom = setTimeout(function() {
+                                    buscarBomLibre(val, function(opciones) {
+                                        actualizarDatalistLmat(opciones, opciones.length === 0);
+                                    });
+                                }, 300);
+                            });
+                            listaMatInput.addEventListener('focus', function() {
+                                const val = this.value.trim();
+                                if (val.length >= 2) buscarBomLibre(val, function(opciones) { actualizarDatalistLmat(opciones, false); });
+                            });
+                        }
+
+                        function cargarCatCodificadosPorOrden(orden) {
+                            const ord = (orden || '').toString().trim();
+                            if (!ord) {
+                                if (pesoMuestraInput) pesoMuestraInput.value = '';
+                                if (actLmatCheckbox) actLmatCheckbox.checked = false;
+                                if (listaMatInput) listaMatInput.value = '';
+                                if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
+                                actualizarDatalistLmat([]);
+                                return;
+                            }
+                            fetch('/planeacion/codificacion/api/catcodificados-por-orden/' + encodeURIComponent(ord), { headers: { 'Accept': 'application/json' } })
+                                .then(resp => resp.json())
+                                .then(json => {
+                                    if (!json.s) return;
+                                    const d = json.d;
+                                    if (!d) {
+                                        if (pesoMuestraInput) pesoMuestraInput.value = '';
+                                        if (actLmatCheckbox) actLmatCheckbox.checked = false;
+                                        if (listaMatInput) listaMatInput.value = '';
+                                        if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
+                                        actualizarDatalistLmat([]);
+                                        return;
+                                    }
+                                    if (pesoMuestraInput) pesoMuestraInput.value = (d.pesoMuestra != null && d.pesoMuestra !== '') ? Number(d.pesoMuestra) : '';
+                                    if (actLmatCheckbox) actLmatCheckbox.checked = d.actualizaLmat === true || d.actualizaLmat === 1;
+                                    if (listaMatInput) listaMatInput.value = d.bomId != null ? String(d.bomId) : '';
+                                    if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
+                                    actualizarDatalistLmat(d.listaLmat || []);
+                                    if (telarInput && (d.telarId != null && d.telarId !== '')) telarInput.value = String(d.telarId);
+                                    if (articuloInput && (d.itemId != null || d.nombre != null)) articuloInput.value = (d.itemId != null ? String(d.itemId) : '') || (d.nombre != null ? String(d.nombre) : '');
+                                })
+                                .catch(() => {});
+                        }
 
                         if (selectOrden) {
                             fetch('/planeacion/codificacion/api/ordenes-en-proceso', { headers: { 'Accept': 'application/json' } })
@@ -678,15 +797,16 @@
                                             selectOrden.appendChild(opt);
                                         });
                                         if (ordenTejido) selectOrden.value = ordenTejido;
-                                        // Al elegir una orden, rellenar Telar y Articulo
                                         selectOrden.addEventListener('change', function() {
                                             const opt = this.options[this.selectedIndex];
                                             if (opt && opt.value) {
                                                 if (telarInput) telarInput.value = opt.dataset.noTelarId || '';
                                                 if (articuloInput) articuloInput.value = opt.dataset.itemId || opt.dataset.nombreProducto || '';
+                                                cargarCatCodificadosPorOrden(this.value);
                                             } else {
                                                 if (telarInput) telarInput.value = '';
                                                 if (articuloInput) articuloInput.value = '';
+                                                cargarCatCodificadosPorOrden('');
                                             }
                                         });
                                         if (selectOrden.value && selectOrden.dispatchEvent) selectOrden.dispatchEvent(new Event('change'));
@@ -698,13 +818,25 @@
                     },
                     preConfirm: () => {
                         const ordenTejido = document.getElementById('swal-orden-tejido')?.value.trim() || '';
-                        const pesoMuestra = document.getElementById('swal-peso-muestra')?.value.trim() || '';
+                        const pesoMuestraRaw = document.getElementById('swal-peso-muestra')?.value?.trim();
+                        const pesoMuestra = pesoMuestraRaw === '' || pesoMuestraRaw === undefined
+                            ? null
+                            : parseFloat(pesoMuestraRaw);
                         const actLmat = document.getElementById('swal-act-lmat')?.checked || false;
-                        const bomId = document.getElementById('swal-lista-mat')?.value.trim() || '';
+                        const bomIdRaw = document.getElementById('swal-lista-mat')?.value.trim() || '';
+                        const bomId = actLmat ? bomIdRaw : null;
 
                         // Validaciones básicas
                         if (!ordenTejido) {
                             Swal.showValidationMessage('Seleccione una orden en proceso');
+                            return false;
+                        }
+                        if (pesoMuestra !== null && (Number.isNaN(pesoMuestra) || pesoMuestra < 0)) {
+                            Swal.showValidationMessage('Peso Muestra debe ser un número mayor o igual a 0');
+                            return false;
+                        }
+                        if (actLmat && (!bomId || bomId.trim() === '')) {
+                            Swal.showValidationMessage('Lista L Mat (BomId) es obligatoria cuando Act Lmat está activo');
                             return false;
                         }
 
@@ -715,13 +847,54 @@
                             bomId
                         };
                     }
-                }).then((result) => {
+                }).then(async (result) => {
                     if (result.isConfirmed && result.value) {
                         const datos = result.value;
-                        // Aquí puedes hacer la petición al servidor para guardar
-                        console.log('Datos a guardar:', datos);
-                        internalToast('Datos guardados correctamente', 'success');
-                        // TODO: Implementar guardado real con fetch al servidor
+                        try {
+                            Swal.fire({
+                                title: 'Guardando...',
+                                text: 'Por favor espera',
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            });
+
+                            const resp = await fetch('/planeacion/codificacion/api/actualizar-peso-muestra-lmat', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': getCsrf(),
+                                },
+                                body: JSON.stringify({
+                                    ordenTejido: datos.ordenTejido,
+                                    pesoMuestra: datos.pesoMuestra,
+                                    actualizaLmat: datos.actLmat,
+                                    bomId: datos.bomId || null,
+                                }),
+                            });
+
+                            const json = await resp.json();
+
+                            Swal.close();
+
+                            if (!json.s) {
+                                showToast(json.e || 'Error al guardar los datos', 'error');
+                                return;
+                            }
+
+                            showToast(json.message || 'Datos guardados correctamente', 'success');
+                            if (json.actualizados && json.actualizados.length > 0) {
+                                console.log('Actualizados:', json.actualizados);
+                            }
+                            // Recargar tabla con datos frescos (nocache + caché limpiada en backend)
+                            await loadData(true);
+                        } catch (error) {
+                            Swal.close();
+                            showToast('Error al guardar: ' + (error.message || 'Error desconocido'), 'error');
+                            console.error('Error al guardar:', error);
+                        }
                     }
                 });
             }
@@ -729,13 +902,17 @@
             // =========================
             //   CARGA DE DATOS
             // =========================
-            async function loadData() {
+            async function loadData(forceRefresh) {
                 if (!CONFIG.apiUrl || state.loading) return;
 
                 setLoading(true, 'Cargando datos...', '');
 
+                const url = forceRefresh
+                    ? (CONFIG.apiUrl + (CONFIG.apiUrl.indexOf('?') !== -1 ? '&' : '?') + 'nocache=1')
+                    : CONFIG.apiUrl;
+
                 try {
-                    const resp = await fetch(CONFIG.apiUrl, {
+                    const resp = await fetch(url, {
                         method: 'GET',
                         headers: { 'Accept': 'application/json' },
                     });
@@ -1781,6 +1958,7 @@
 
                     const registros = data.registros;
                     const cantidad = registros.length;
+                    const tieneLideres = data.tieneLideres === true;
 
                     const escapeHtml = (t) => {
                         const d = document.createElement('div');
@@ -1793,24 +1971,32 @@
                     html += '<div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">';
                     html += '<table class="w-full text-sm">';
                     html += '<thead class="bg-blue-500 text-white sticky top-0"><tr>';
-                    html += '<th class="px-3 py-2 text-left">Líder</th>';
-                    html += '<th class="px-3 py-2 text-left">Id</th>';
+                    if (tieneLideres) {
+                        html += '<th class="px-3 py-2 text-left">Líder</th>';
+                    }
                     html += '<th class="px-3 py-2 text-left">Orden</th>';
                     html += '<th class="px-3 py-2 text-left">Telar</th>';
                     html += '<th class="px-3 py-2 text-left">Modelo</th>';
                     html += '<th class="px-3 py-2 text-left">Cantidad</th>';
+                    html += '<th class="px-3 py-2 text-left">Producción</th>';
+                    html += '<th class="px-3 py-2 text-left">Saldos</th>';
+                    html += '<th class="px-3 py-2 text-left">Total Segundas</th>';
                     html += '</tr></thead><tbody>';
 
                     registros.forEach(r => {
                         const esLider = r.OrdCompartidaLider === 1 || r.OrdCompartidaLider === true || r.OrdCompartidaLider === '1';
                         const rowClass = esLider ? 'bg-amber-100 font-semibold' : 'bg-white hover:bg-gray-50';
                         html += '<tr class="' + rowClass + '">';
-                        html += '<td class="px-3 py-2">' + (esLider ? '<i class="fas fa-crown text-amber-600" title="OrdCompartidaLider"></i>' : '') + '</td>';
-                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.Id ?? '')) + '</td>';
+                        if (tieneLideres) {
+                            html += '<td class="px-3 py-2">' + (esLider ? '<i class="fas fa-crown text-amber-600" title="OrdCompartidaLider"></i>' : '') + '</td>';
+                        }
                         html += '<td class="px-3 py-2">' + escapeHtml(String(r.OrdenTejido ?? '')) + '</td>';
                         html += '<td class="px-3 py-2">' + escapeHtml(String(r.TelarId ?? '')) + '</td>';
                         html += '<td class="px-3 py-2">' + escapeHtml(String(r.Nombre ?? r.ClaveModelo ?? '')) + '</td>';
                         html += '<td class="px-3 py-2">' + escapeHtml(String(r.Cantidad ?? '')) + '</td>';
+                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.Produccion ?? '')) + '</td>';
+                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.Saldos ?? '')) + '</td>';
+                        html += '<td class="px-3 py-2">' + escapeHtml(String(r.TotalSegundas ?? '')) + '</td>';
                         html += '</tr>';
                     });
 
@@ -1819,7 +2005,7 @@
                     Swal.fire({
                         title: 'Registros compartidos',
                         html: html,
-                        width: '680px',
+                        width: '880px',
                         showConfirmButton: true,
                         confirmButtonText: 'Cerrar',
                         confirmButtonColor: '#3b82f6'

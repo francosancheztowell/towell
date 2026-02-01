@@ -74,6 +74,8 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion', [CatCodificacionController::class, 'index'])->name('codificacion.index');
     Route::get('/codificacion/api/all-fast', [CatCodificacionController::class, 'getAllFast'])->name('codificacion.all-fast');
     Route::get('/codificacion/api/ordenes-en-proceso', [CatCodificacionController::class, 'ordenesEnProceso'])->name('codificacion.ordenes-en-proceso');
+    Route::get('/codificacion/api/catcodificados-por-orden/{ordenTejido}', [CatCodificacionController::class, 'getCatCodificadosPorOrden'])->name('codificacion.catcodificados-por-orden');
+    Route::post('/codificacion/api/actualizar-peso-muestra-lmat', [CatCodificacionController::class, 'actualizarPesoMuestraLmat'])->name('codificacion.actualizar-peso-muestra-lmat');
     Route::get('/codificacion/api/registros-ord-compartida/{ordCompartida}', [CatCodificacionController::class, 'registrosOrdCompartida'])->name('codificacion.registros-ord-compartida');
     Route::post('/codificacion/excel', [CatCodificacionController::class, 'procesarExcel'])->name('codificacion.excel');
     Route::get('/codificacion/excel-progress/{id}', [CatCodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');

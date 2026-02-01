@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Planeacion\CatCodificados;
 use App\Http\Controllers\Controller;
 use App\Imports\CatCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -148,6 +149,248 @@ class CatCodificacionController extends Controller
     }
 
     /**
+     * API: obtener registro de CatCodificados por OrdenTejido para el modal Peso Muestra.
+     * Devuelve ActualizaLmat, PesoMuestra, BomId (Lista Mat) para cargar/actualizar el formulario.
+     */
+    public function getCatCodificadosPorOrden(string $ordenTejido): JsonResponse
+    {
+        try {
+            $ordenTejido = trim($ordenTejido);
+            if ($ordenTejido === '') {
+                return response()->json(['s' => false, 'e' => 'Orden Tejido requerido'], 400);
+            }
+
+            $registro = CatCodificados::query()
+                ->where('OrdenTejido', $ordenTejido)
+                ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'BomId', 'BomName']);
+
+            if (!$registro) {
+                return response()->json([
+                    's' => true,
+                    'd' => null,
+                    'message' => 'No existe registro en CatCodificados para esta orden',
+                ]);
+            }
+
+            $actualizaLmat = $registro->ActualizaLmat === true || $registro->ActualizaLmat === 1 || $registro->ActualizaLmat === '1';
+            $pesoMuestra = $registro->PesoMuestra !== null && $registro->PesoMuestra !== '' ? (float) $registro->PesoMuestra : null;
+            $bomId = $registro->BomId !== null ? (string) $registro->BomId : '';
+            $bomName = $registro->BomName !== null ? (string) $registro->BomName : '';
+
+            // LMAT: consultar en BD sqlsrv_ti (BOMTABLE + BOMVERSION) como en LiberarOrdenesController.
+            // Si no hay InventSizeId, no se filtra por tamaño y se devuelven todos los BOM del artículo.
+            $listaLmat = [];
+            $itemId = $registro->ItemId !== null ? trim((string) $registro->ItemId) : '';
+            $inventSizeId = $registro->InventSizeId !== null && trim((string) $registro->InventSizeId) !== ''
+                ? trim((string) $registro->InventSizeId) : null;
+            if ($itemId !== '') {
+                $listaLmat = $this->queryLmatDesdeTi($itemId, $inventSizeId);
+                // Si tenemos lista y el registro tenía BomId pero no BomName, rellenar BomName desde TI
+                if ($bomId !== '' && $bomName === '' && count($listaLmat) > 0) {
+                    foreach ($listaLmat as $item) {
+                        if (isset($item['bomId']) && (string) $item['bomId'] === $bomId) {
+                            $bomName = isset($item['bomName']) ? (string) $item['bomName'] : '';
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return response()->json([
+                's' => true,
+                'd' => [
+                    'ordenTejido'   => (string) $registro->OrdenTejido,
+                    'telarId'       => $registro->TelarId !== null ? (string) $registro->TelarId : '',
+                    'itemId'        => $registro->ItemId !== null ? (string) $registro->ItemId : '',
+                    'nombre'        => $registro->Nombre ?? $registro->ClaveModelo ?? '',
+                    'actualizaLmat' => $actualizaLmat,
+                    'pesoMuestra'   => $pesoMuestra,
+                    'bomId'         => $bomId,
+                    'bomName'       => $bomName,
+                    'listaLmat'     => $listaLmat,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('CatCodificacionController::getCatCodificadosPorOrden', [
+                'ordenTejido' => $ordenTejido ?? '',
+                'error'       => $e->getMessage(),
+            ]);
+            return response()->json([
+                's' => false,
+                'e' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Actualizar PesoMuestra, ActualizaLmat y BomId en CatCodificados, ReqProgramaTejido y ReqModelosCodificados.
+     */
+    public function actualizarPesoMuestraLmat(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'ordenTejido'   => 'required|string',
+                'pesoMuestra'   => 'nullable|numeric|min:0',
+                'actualizaLmat' => 'required|boolean',
+                'bomId'         => 'nullable|string|max:20',
+            ]);
+
+            $ordenTejido   = trim((string) $validated['ordenTejido']);
+            $pesoMuestra   = isset($validated['pesoMuestra']) && $validated['pesoMuestra'] !== null ? (float) $validated['pesoMuestra'] : null;
+            $actualizaLmat = (bool) $validated['actualizaLmat'];
+            // Si Act Lmat está desactivado, forzar BomId y BomName a null
+            $bomId = $actualizaLmat
+                ? (isset($validated['bomId']) && $validated['bomId'] !== '' && $validated['bomId'] !== null ? trim((string) $validated['bomId']) : null)
+                : null;
+
+            // Obtener BomName desde sqlsrv_ti si tenemos BomId
+            $bomName = null;
+            if ($bomId !== null && $bomId !== '') {
+                // Necesitamos ItemId e InventSizeId para buscar BomName
+                $catCod = CatCodificados::query()
+                    ->where('OrdenTejido', $ordenTejido)
+                    ->first(['ItemId', 'InventSizeId']);
+                if ($catCod && $catCod->ItemId) {
+                    $invSize = $catCod->InventSizeId !== null ? trim((string) $catCod->InventSizeId) : null;
+                    $listaLmat = $this->queryLmatDesdeTi((string) $catCod->ItemId, $invSize !== '' ? $invSize : null);
+                    foreach ($listaLmat as $item) {
+                        if (isset($item['bomId']) && (string) $item['bomId'] === $bomId) {
+                            $bomName = isset($item['bomName']) ? (string) $item['bomName'] : null;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $actualizados = [];
+
+            // 1. Actualizar CatCodificados
+            $catCod = CatCodificados::query()
+                ->where('OrdenTejido', $ordenTejido)
+                ->first();
+            if ($catCod) {
+                $catCod->PesoMuestra   = $pesoMuestra;
+                $catCod->ActualizaLmat  = $actualizaLmat;
+                if ($bomId !== null) {
+                    $catCod->BomId = $bomId;
+                    if ($bomName !== null) {
+                        $catCod->BomName = $bomName;
+                    }
+                } else {
+                    $catCod->BomId     = null;
+                    $catCod->BomName   = null;
+                }
+                $catCod->save();
+                $actualizados[] = 'CatCodificados';
+            }
+
+            // 2. Actualizar ReqProgramaTejido (buscar por NoProduccion = ordenTejido)
+            $reqProg = ReqProgramaTejido::query()
+                ->where('NoProduccion', $ordenTejido)
+                ->get();
+            foreach ($reqProg as $prog) {
+                $prog->PesoMuestra  = $pesoMuestra;
+                $prog->ActualizaLmat = $actualizaLmat;
+                if ($bomId !== null) {
+                    $prog->BomId = $bomId;
+                    if ($bomName !== null) {
+                        $prog->BomName = $bomName;
+                    }
+                } else {
+                    $prog->BomId   = null;
+                    $prog->BomName = null;
+                }
+                $prog->save();
+            }
+            if ($reqProg->count() > 0) {
+                $actualizados[] = 'ReqProgramaTejido (' . $reqProg->count() . ' registro(s))';
+            }
+
+            // 3. Actualizar ReqModelosCodificados (buscar por OrdenTejido)
+            $reqModelos = ReqModelosCodificados::query()
+                ->where('OrdenTejido', $ordenTejido)
+                ->get();
+            foreach ($reqModelos as $modelo) {
+                $modelo->PesoMuestra = $pesoMuestra;
+                $modelo->save();
+            }
+            if ($reqModelos->count() > 0) {
+                $actualizados[] = 'ReqModelosCodificados (' . $reqModelos->count() . ' registro(s))';
+            }
+
+            // Limpiar caché para que la siguiente recarga de la tabla traiga datos actualizados
+            Cache::forget('catcodificacion_fast_all');
+
+            return response()->json([
+                's' => true,
+                'message' => 'Datos actualizados correctamente',
+                'actualizados' => $actualizados,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                's' => false,
+                'e' => 'Validación fallida: ' . implode(', ', $e->errors()),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('CatCodificacionController::actualizarPesoMuestraLmat', [
+                'ordenTejido' => $request->input('ordenTejido', ''),
+                'error'       => $e->getMessage(),
+            ]);
+            return response()->json([
+                's' => false,
+                'e' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Consulta LMAT (Lista de materiales) en la BD sqlsrv_ti (BOMTABLE + BOMVERSION).
+     * Misma lógica que LiberarOrdenesController: si inventSizeId está vacío, no filtra por tamaño
+     * para devolver todos los BOM disponibles del artículo.
+     *
+     * @return array<int, array{bomId: string, bomName: string}>
+     */
+    private function queryLmatDesdeTi(string $itemId, ?string $inventSizeId = null): array
+    {
+        try {
+            $itemId = trim($itemId);
+            if ($itemId === '') {
+                return [];
+            }
+
+            $itemIdWithSuffix = $itemId . '-1';
+            $query = DB::connection('sqlsrv_ti')
+                ->table('BOMTABLE as BT')
+                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+                ->where('BV.ITEMID', $itemIdWithSuffix);
+
+            // Solo filtrar por tamaño si viene informado (igual que LiberarOrdenesController)
+            if ($inventSizeId !== null && trim((string) $inventSizeId) !== '') {
+                $query->where('BT.TWINVENTSIZEID', trim($inventSizeId));
+            }
+
+            $results = $query->orderBy('BT.BOMID')->limit(50)->get();
+
+            if ($results->isEmpty()) {
+                return [];
+            }
+
+            return $results->map(fn ($r) => [
+                'bomId'   => $r->bomId !== null ? (string) $r->bomId : '',
+                'bomName' => $r->bomName !== null ? (string) $r->bomName : '',
+            ])->values()->all();
+        } catch (\Throwable $e) {
+            Log::warning('CatCodificacionController::queryLmatDesdeTi', [
+                'itemId'       => $itemId,
+                'inventSizeId' => $inventSizeId ?? '',
+                'error'        => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * API: datos compactos para carga rápida en tabla (getAllFast).
      * Optimizado para máxima velocidad: cache, cursor, sin query log.
      */
@@ -248,6 +491,89 @@ class CatCodificacionController extends Controller
         }
 
         return $result;
+    }
+
+    /**
+     * API: Obtener registros de CatCodificados que comparten la misma OrdCompartida.
+     * Devuelve todos los registros con el mismo valor de OrdCompartida para mostrar en el modal de balancear.
+     */
+    public function registrosOrdCompartida(string $ordCompartida): JsonResponse
+    {
+        try {
+            $ordCompartida = trim($ordCompartida);
+            if ($ordCompartida === '' || $ordCompartida === '0') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'OrdCompartida requerida',
+                    'registros' => [],
+                ], 400);
+            }
+
+            // Convertir a entero si es posible, sino buscar como string
+            $ordCompartidaInt = is_numeric($ordCompartida) ? (int) $ordCompartida : null;
+
+            $registros = CatCodificados::query()
+                ->where('OrdCompartida', $ordCompartidaInt ?? $ordCompartida)
+                ->orderBy('OrdCompartidaLider', 'desc') // Los líderes primero
+                ->orderBy('Id', 'asc')
+                ->get([
+                    'OrdenTejido',
+                    'TelarId',
+                    'Nombre',
+                    'ClaveModelo',
+                    'Cantidad',
+                    'Produccion',
+                    'Saldos',
+                    'TotalSegundas',
+                    'OrdCompartida',
+                    'OrdCompartidaLider',
+                ])
+                ->map(function ($registro) {
+                    return [
+                        'OrdenTejido' => $registro->OrdenTejido !== null ? (string) $registro->OrdenTejido : '',
+                        'TelarId' => $registro->TelarId !== null ? (string) $registro->TelarId : '',
+                        'Nombre' => $registro->Nombre ?? '',
+                        'ClaveModelo' => $registro->ClaveModelo ?? '',
+                        'Cantidad' => $registro->Cantidad !== null ? (string) $registro->Cantidad : '',
+                        'Produccion' => $registro->Produccion !== null ? (string) $registro->Produccion : '',
+                        'Saldos' => $registro->Saldos !== null ? (string) $registro->Saldos : '',
+                        'TotalSegundas' => $registro->TotalSegundas !== null ? (string) $registro->TotalSegundas : '',
+                        'OrdCompartida' => $registro->OrdCompartida,
+                        'OrdCompartidaLider' => $registro->OrdCompartidaLider,
+                    ];
+                })
+                ->values()
+                ->all();
+
+            // Verificar si hay algún registro con OrdCompartidaLider activo
+            $tieneLideres = false;
+            foreach ($registros as $registro) {
+                $esLider = $registro['OrdCompartidaLider'] === 1 
+                    || $registro['OrdCompartidaLider'] === true 
+                    || $registro['OrdCompartidaLider'] === '1';
+                if ($esLider) {
+                    $tieneLideres = true;
+                    break;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => count($registros) > 0 ? 'Registros encontrados' : 'No se encontraron registros compartidos',
+                'registros' => $registros,
+                'tieneLideres' => $tieneLideres,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('CatCodificacionController::registrosOrdCompartida', [
+                'ordCompartida' => $ordCompartida ?? '',
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener registros compartidos: ' . $e->getMessage(),
+                'registros' => [],
+            ], 500);
+        }
     }
 
     /**
