@@ -72,7 +72,10 @@ Route::prefix('tejedores')->group(function () {
 
 // Legacy URL: mantener rutas tel-bpm.* pero no mostrar el listado por /tel-bpm
 // (La ruta real de navegación es /tejedores/bpmtejedores)
-Route::redirect('/tel-bpm', '/tejedores/bpmtejedores', 301);
+// IMPORTANTE: Solo redirect para GET, no para POST/PUT/DELETE (para que funcione el resource)
+Route::get('/tel-bpm', function() {
+    return redirect('/tejedores/bpmtejedores', 301);
+});
 
 Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
     ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
