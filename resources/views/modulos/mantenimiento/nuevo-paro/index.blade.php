@@ -292,12 +292,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            // Para Jacquard, Itema, Karl Mayer y Smith, usar "Tejido" en la consulta
+            // Para Jacquard, Itema, Karl Mayer, Smith, Tejedores, TRMA, Calidad, Desarrolladores y Supervisores, usar "Tejido" en la consulta
             const depUpper = departamento.toUpperCase().trim();
             let departamentoParaConsulta = departamento;
 
             if (depUpper === 'JACQUARD' || depUpper === 'ITEMA' ||
-                depUpper === 'KARL MAYER' || depUpper === 'KARLMAYER' || depUpper === 'SMITH') {
+                depUpper === 'KARL MAYER' || depUpper === 'KARLMAYER' || depUpper === 'SMITH' ||
+                depUpper === 'TEJEDORES' || depUpper === 'TRMA' || depUpper === 'CALIDAD' || depUpper === 'DESARROLLADORES' || depUpper === 'SUPERVISORES') {
                 departamentoParaConsulta = 'Tejido';
             }
 
@@ -315,27 +316,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectFalla.innerHTML = '<option value=\"\">Seleccione una falla</option>';
                 // Limpiar y cargar Descripción
                 selectDescripcion.innerHTML = '<option value=\"\">Seleccione una descripción</option>';
+                
                 result.data.forEach(item => {
-                    // item puede venir como string o objeto {Id, Falla, Descripcion}
-                    const value = item.Falla ?? item.falla ?? item.Id ?? '';
-                    const label = item.Descripcion ?? item.descripcion ?? item.Falla ?? item.falla ?? value;
-                    // Falla
-                    const optF = document.createElement('option');
-                    optF.value = (item.Falla ?? item.falla ?? value);
-                    optF.textContent = (item.Falla ?? item.falla ?? value);
-                    optF.dataset.desc = (item.Descripcion ?? item.descripcion ?? '');
-                    selectFalla.appendChild(optF);
-                    // Descripción
-                    const optD = document.createElement('option');
-                    optD.value = (item.Descripcion ?? item.descripcion ?? label);
-                    optD.textContent = (item.Descripcion ?? item.descripcion ?? label);
-                    optD.dataset.falla = (item.Falla ?? item.falla ?? value);
-                    selectDescripcion.appendChild(optD);
+                    // Obtener valores de forma segura
+                    const falla = String(item.Falla ?? item.falla ?? '').trim();
+                    const descripcion = String(item.Descripcion ?? item.descripcion ?? '').trim();
+                    
+                    // Solo agregar si hay una falla válida
+                    if (falla) {
+                        // Falla
+                        const optF = document.createElement('option');
+                        optF.value = falla;
+                        optF.textContent = falla;
+                        optF.dataset.desc = descripcion || '';
+                        selectFalla.appendChild(optF);
+                    }
+                    
+                    // Solo agregar descripción si tiene un valor válido
+                    if (descripcion && falla) {
+                        const optD = document.createElement('option');
+                        optD.value = descripcion;
+                        optD.textContent = descripcion;
+                        optD.dataset.falla = falla;
+                        selectDescripcion.appendChild(optD);
+                    }
                 });
-                selectFalla.disabled = false;
-                selectDescripcion.disabled = false;
+                
+                // Solo habilitar si hay opciones disponibles
+                if (selectFalla.options.length > 1) {
+                    selectFalla.disabled = false;
+                }
+                if (selectDescripcion.options.length > 1) {
+                    selectDescripcion.disabled = false;
+                } else {
+                    selectDescripcion.disabled = true;
+                    selectDescripcion.innerHTML = '<option value=\"\">No hay descripciones disponibles</option>';
+                }
             } else {
-                console.error('Error al cargar fallas:', result.error);
+                console.error('Error al cargar fallas:', result.error || 'Error desconocido');
+                console.error('Respuesta completa:', result);
                 selectFalla.innerHTML = '<option value=\"\">Error al cargar fallas</option>';
                 selectFalla.disabled = true;
                 selectDescripcion.innerHTML = '<option value=\"\">Error al cargar descripciones</option>';
@@ -343,6 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Error al cargar fallas:', error);
+            console.error('URL intentada:', url);
             selectFalla.innerHTML = '<option value=\"\">Error al cargar fallas</option>';
             selectFalla.disabled = true;
             selectDescripcion.innerHTML = '<option value=\"\">Error al cargar descripciones</option>';
@@ -561,8 +581,24 @@ document.addEventListener('DOMContentLoaded', function() {
     cargarDepartamentos();
 
     // Submit del formulario
+    let isSubmitting = false;
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+
+        // Prevenir múltiples envíos
+        if (isSubmitting) {
+            return;
+        }
+
+        const btnAceptar = document.getElementById('btn-aceptar');
+        const textoOriginal = btnAceptar.textContent;
+        
+        // Bloquear botón y cambiar texto
+        isSubmitting = true;
+        btnAceptar.disabled = true;
+        btnAceptar.textContent = 'Enviando...';
+        btnAceptar.style.cursor = 'not-allowed';
+        btnAceptar.style.opacity = '0.6';
 
         const formData = new FormData(form);
 
@@ -628,7 +664,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             } else {
-                // Error del servidor
+                // Error del servidor - reabilitar botón
+                isSubmitting = false;
+                btnAceptar.disabled = false;
+                btnAceptar.textContent = textoOriginal;
+                btnAceptar.style.cursor = 'pointer';
+                btnAceptar.style.opacity = '1';
+                
                 const errorMsg = result.error || 'Error al reportar el paro. Por favor, intenta nuevamente.';
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
@@ -641,6 +683,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } catch (error) {
+            // Error de conexión - reabilitar botón
+            isSubmitting = false;
+            btnAceptar.disabled = false;
+            btnAceptar.textContent = textoOriginal;
+            btnAceptar.style.cursor = 'pointer';
+            btnAceptar.style.opacity = '1';
+            
             console.error('Error al reportar paro:', error);
             const errorMsg = 'Error de conexión. Por favor, verifica tu conexión e intenta nuevamente.';
             if (typeof Swal !== 'undefined') {

@@ -31,13 +31,13 @@ class MantenimientoParosController extends Controller
     {
         $usuario = Auth::user();
         $areaUsuario = null;
-        
+
         // Obtener área del usuario desde SYSUsuario
         if ($usuario && $usuario->idusuario) {
             $sysUsuario = SYSUsuario::where('idusuario', $usuario->idusuario)->first();
             $areaUsuario = $sysUsuario->area ?? null;
         }
-        
+
         return view('modulos.mantenimiento.nuevo-paro.index', [
             'areaUsuario' => $areaUsuario
         ]);
@@ -101,7 +101,7 @@ class MantenimientoParosController extends Controller
                 ]);
             }
 
-            // Para Jacquard / Smith / Itema / KarlMayer usamos TelTelaresOperador por usuario
+            // Para Tejedores, Jacquard / Smith / Itema / KarlMayer usamos TelTelaresOperador por usuario
             $usuario = Auth::user();
             $numeroEmpleado = $usuario->numero_empleado ?? null;
 
@@ -111,6 +111,28 @@ class MantenimientoParosController extends Controller
                     'error' => 'Usuario no autenticado o sin número de empleado',
                     'data' => [],
                 ], 401);
+            }
+
+            // Para Tejedores, TRMA, Calidad, Desarrolladores y Supervisores: obtener todos los telares del usuario sin filtrar por salón
+            if (in_array($depUpper, ['TEJEDORES', 'TRAMA', 'CALIDAD', 'DESARROLLADORES', 'SUPERVISORES'], true)) {
+                $maquinas = TelTelaresOperador::query()
+                    ->where('numero_empleado', $numeroEmpleado)
+                    ->select('NoTelarId as MaquinaId')
+                    ->distinct()
+                    ->orderBy('NoTelarId')
+                    ->get()
+                    ->map(function ($item) use ($departamento) {
+                        return [
+                            'MaquinaId'    => $item->MaquinaId,
+                            'Nombre'       => $item->MaquinaId,
+                            'Departamento' => $departamento,
+                        ];
+                    });
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $maquinas,
+                ]);
             }
 
             // Mapear departamento a SalonTejidoId (en TelTelaresOperador está como 'Jacquard' y 'Smith')
@@ -170,7 +192,7 @@ class MantenimientoParosController extends Controller
      *
      * Nota: Para Jacquard, Itema, Karl Mayer y Smith, se usa "Tejido" como departamento
      * en CatParosFallas para obtener las fallas.
-     * 
+     *
      * Si se proporciona tipoFallaId, se filtran las fallas por ese tipo.
      */
     public function fallas(string $departamento, ?string $tipoFallaId = null): JsonResponse
@@ -180,7 +202,7 @@ class MantenimientoParosController extends Controller
 
             // Mapear departamentos de tejido a "Tejido" en CatParosFallas
             $departamentoParaConsulta = $departamento;
-            if (in_array($depUpper, ['JACQUARD', 'ITEMA', 'KARL MAYER', 'KARLMAYER', 'SMITH'], true)) {
+            if (in_array($depUpper, ['JACQUARD', 'ITEMA', 'KARL MAYER', 'KARLMAYER', 'SMITH', 'TEJEDORES', 'TRMA', 'CALIDAD', 'DESARROLLADORES', 'SUPERVISORES'], true)) {
                 $departamentoParaConsulta = 'Tejido';
             }
 
