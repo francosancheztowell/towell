@@ -570,12 +570,17 @@
                 redirect: 'follow'
             });
             
+            const headersObj = {};
+            response.headers.forEach((value, key) => {
+                headersObj[key] = value;
+            });
+            
             console.log('[BPM Tejedores] Respuesta recibida:', {
                 status: response.status,
                 statusText: response.statusText,
                 url: response.url,
                 redirected: response.redirected,
-                headers: Object.fromEntries(response.headers.entries())
+                headers: headersObj
             });
             
             const text = await response.text();
