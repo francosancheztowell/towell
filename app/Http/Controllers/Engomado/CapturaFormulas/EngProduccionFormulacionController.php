@@ -220,7 +220,7 @@ class EngProduccionFormulacionController extends Controller
             // Solo traer componentes vinculados específicamente a este ID, NO por Folio
             // Validar que el ID sea numérico
             $idFormulacion = (int) $id;
-            
+
             // Query directo: SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {id}
             $componentes = EngFormulacionLineModel::where('EngProduccionFormulacionId', $idFormulacion)
                 ->orderBy('Id')
@@ -469,20 +469,20 @@ class EngProduccionFormulacionController extends Controller
                     }
                 }
             });
-            
+
             // Si es una petición JSON (desde AJAX), devolver JSON
             if ($request->expectsJson()) {
                 return response()->json(['success' => true, 'message' => 'Formulación actualizada exitosamente']);
             }
-            
+
             return redirect()->back()->with('success', 'Formulación actualizada exitosamente');
         } catch (\Exception $e) {
             Log::error('Error al actualizar formulación: ' . $e->getMessage());
-            
+
             if ($request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'Error al actualizar la formulación: ' . $e->getMessage()], 500);
             }
-            
+
             return redirect()->back()->with('error', 'Error al actualizar la formulación: ' . $e->getMessage());
         }
     }
@@ -589,7 +589,7 @@ class EngProduccionFormulacionController extends Controller
 
     /**
      * Trunca un string a la longitud máxima especificada
-     * 
+     *
      * @param string|null $value
      * @param int $maxLength
      * @return string|null
@@ -599,9 +599,9 @@ class EngProduccionFormulacionController extends Controller
         if ($value === null || $value === '') {
             return null;
         }
-        
+
         $value = (string) $value;
-        
+
         if (mb_strlen($value) > $maxLength) {
             Log::warning('Valor truncado en EngFormulacionLine', [
                 'valor_original' => $value,
@@ -611,7 +611,7 @@ class EngProduccionFormulacionController extends Controller
             ]);
             return mb_substr($value, 0, $maxLength);
         }
-        
+
         return $value;
     }
 }

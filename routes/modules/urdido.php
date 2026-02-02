@@ -67,6 +67,7 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::get('/modulo-produccion-urdido/hilos-by-julio', [ModuloProduccionUrdidoController::class, 'getHilosByJulio'])->name('modulo.produccion.urdido.hilos.by.julio');
     Route::get('/modulo-produccion-urdido/usuarios-urdido', [ModuloProduccionUrdidoController::class, 'getUsuariosUrdido'])->name('modulo.produccion.urdido.usuarios.urdido');
     Route::post('/modulo-produccion-urdido/guardar-oficial', [ModuloProduccionUrdidoController::class, 'guardarOficial'])->name('modulo.produccion.urdido.guardar.oficial');
+    Route::post('/modulo-produccion-urdido/eliminar-oficial', [ModuloProduccionUrdidoController::class, 'eliminarOficial'])->name('modulo.produccion.urdido.eliminar.oficial');
     Route::post('/modulo-produccion-urdido/actualizar-turno-oficial', [ModuloProduccionUrdidoController::class, 'actualizarTurnoOficial'])->name('modulo.produccion.urdido.actualizar.turno.oficial');
     Route::post('/modulo-produccion-urdido/actualizar-fecha', [ModuloProduccionUrdidoController::class, 'actualizarFecha'])->name('modulo.produccion.urdido.actualizar.fecha');
     Route::post('/modulo-produccion-urdido/actualizar-julio-tara', [ModuloProduccionUrdidoController::class, 'actualizarJulioTara'])->name('modulo.produccion.urdido.actualizar.julio.tara');
