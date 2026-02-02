@@ -158,9 +158,13 @@
                             <option value="">Seleccione…</option>
                             @php
                                 $noRecibe = $operadorUsuario->numero_empleado ?? '';
-                                $operadoresUnicos = ($operadoresEntrega ?? collect())->unique('numero_empleado')->filter(function($op) use ($noRecibe) {
-                                    return $op->numero_empleado !== $noRecibe;
-                                });
+                                // Los operadores ya vienen filtrados del controlador (sin supervisores)
+                                $operadoresUnicos = ($operadoresEntrega ?? collect())
+                                    ->unique('numero_empleado')
+                                    ->filter(function($op) use ($noRecibe) {
+                                        // Excluir el operador que recibe
+                                        return $op->numero_empleado !== $noRecibe;
+                                    });
                             @endphp
                             @foreach($operadoresUnicos as $op)
                                 <option value="{{ $op->numero_empleado }}" data-nombre="{{ $op->nombreEmpl }}" data-turno="{{ $op->Turno }}"

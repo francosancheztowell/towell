@@ -342,6 +342,10 @@ class TelBpmController extends Controller
                 if ($telaresUsuario->isNotEmpty()) {
                     $operadoresEntrega = TelTelaresOperador::query()
                         ->whereIn('NoTelarId', $telaresUsuario)
+                        ->where(function($query) {
+                            $query->where('Supervisor', '!=', 1)
+                                  ->orWhereNull('Supervisor');
+                        }) // Excluir supervisores (Supervisor = 1)
                         ->orderBy('numero_empleado')
                         ->get(['numero_empleado', 'nombreEmpl', 'Turno'])
                         ->groupBy('numero_empleado')
