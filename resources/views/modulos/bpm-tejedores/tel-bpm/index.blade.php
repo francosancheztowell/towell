@@ -587,9 +587,9 @@
             console.log('[BPM Tejedores] Body respuesta (primeros 1000 chars):', text.substring(0, 1000));
             
             // Buscar mensajes de error o éxito en el HTML
-            const errorMatch = text.match(/session\(['"]error['"]\)|@if\(session\(['"]error['"]\)\)|Swal\.fire.*error/i);
-            const successMatch = text.match(/session\(['"]success['"]\)|@if\(session\(['"]success['"]\)\)|Swal\.fire.*success/i);
-            const validationErrors = text.match(/@if\(\$errors->any\(\)\)|@error|validation.*error/i);
+            const errorMatch = text.match(/session\(['"]error['"]\)|Swal\.fire.*error/i);
+            const successMatch = text.match(/session\(['"]success['"]\)|Swal\.fire.*success/i);
+            const validationErrors = text.match(/validation.*error|errors->any/i);
             
             console.log('[BPM Tejedores] Análisis del body:', {
                 tiene_error_session: !!errorMatch,
