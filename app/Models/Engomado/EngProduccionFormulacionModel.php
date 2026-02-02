@@ -13,13 +13,14 @@ class EngProduccionFormulacionModel extends Model
 
     protected $table = 'EngProduccionFormulacion';
 
-    // En tu grid no aparece Id; tomamos Folio como PK (string)
-    protected $primaryKey = 'Folio';
-    public $incrementing = false;
-    protected $keyType = 'string';
+    // Ahora usamos Id como PK, pero mantenemos Folio como clave única para compatibilidad
+    protected $primaryKey = 'Id';
+    public $incrementing = true;
+    protected $keyType = 'int';
     public $timestamps = false;
 
     protected $fillable = [
+        'Id',
         'Folio',
         'fecha',
         'Hora',
@@ -42,17 +43,24 @@ class EngProduccionFormulacionModel extends Model
     ];
 
     protected $casts = [
-        'fecha'          => 'date',
-        'Calibre'        => 'float',
-        'Kilos'          => 'float',
-        'Litros'         => 'float',
+        'Id'            => 'integer',
+        'fecha'         => 'date',
+        'Calibre'       => 'float',
+        'Kilos'         => 'float',
+        'Litros'        => 'float',
         'TiempoCocinado' => 'float',
-        'Solidos'        => 'float',
-        'Viscocidad'     => 'float',
+        'Solidos'       => 'float',
+        'Viscocidad'    => 'float',
     ];
 
-    /** Relación: encabezado → líneas por Folio */
+    /** Relación: encabezado → líneas por Id (nueva relación mejorada) */
     public function lines()
+    {
+        return $this->hasMany(EngFormulacionLineModel::class, 'EngProduccionFormulacionId', 'Id');
+    }
+
+    /** Relación alternativa: encabezado → líneas por Folio (mantener compatibilidad) */
+    public function linesByFolio()
     {
         return $this->hasMany(EngFormulacionLineModel::class, 'Folio', 'Folio');
     }

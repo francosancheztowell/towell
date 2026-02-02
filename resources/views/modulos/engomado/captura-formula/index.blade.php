@@ -88,8 +88,9 @@
             <tbody id="formulaTableBody">
                 @forelse($items as $item)
                     <tr class="formula-row border-b cursor-pointer transition-colors"
-                        onclick="selectRow(this, '{{ $item->Folio }}')"
+                        onclick="selectRow(this, '{{ $item->Folio }}', {{ $item->Id ?? 'null' }})"
                         data-folio="{{ $item->Folio }}"
+                        data-id="{{ $item->Id ?? '' }}"
                         data-fecha="{{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('Y-m-d') : '' }}"
                         data-hora="{{ $item->Hora ? substr($item->Hora, 0, 5) : '' }}"
                         data-status="{{ $item->Status }}"
@@ -287,7 +288,6 @@
                                         <th class="px-4 py-2 text-left font-semibold">Nombre</th>
                                         <th class="px-4 py-2 text-left font-semibold">ConfigId</th>
                                         <th class="px-4 py-2 text-right font-semibold">Consumo Total</th>
-                                        <th class="px-4 py-2 text-center font-semibold">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="create_componentes_tbody" class="bg-white divide-y divide-gray-200">
@@ -616,18 +616,20 @@
     <script>
         let selectedRow = null;
         let selectedFolio = null;
+        let selectedId = null;
         let viewOnlyMode = false;
         let editMode = false;
         const observaciones = {};
         let fechaSortAsc = null;
         const desdeProduccion = {{ $desdeProduccion ? 'true' : 'false' }};
 
-        function selectRow(row, folio) {
+        function selectRow(row, folio, id) {
             document.querySelectorAll('#formulaTable tbody tr.selected').forEach(existing => {
                 existing.classList.remove('selected');
             });
             selectedRow = row;
             selectedFolio = folio;
+            selectedId = id;
             row.classList.add('selected');
 
             enableButtons();
@@ -770,11 +772,23 @@
         }
 
         function openEditModal() {
-            if (!selectedRow || !selectedFolio) {
+            if (!selectedRow || !selectedFolio || !selectedId) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Selección requerida',
                     text: 'Debe seleccionar una fórmula primero',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            // Validar que selectedId sea un número válido
+            const formulacionId = parseInt(selectedId);
+            if (isNaN(formulacionId) || formulacionId <= 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ID inválido',
+                    text: 'El ID de la formulación no es válido: ' + selectedId,
                     confirmButtonColor: '#3b82f6'
                 });
                 return;
@@ -817,51 +831,155 @@
                 modalContent.classList.add('max-h-[90vh]');
             }
 
-            // Cargar datos del registro seleccionado
-            const cells = selectedRow.cells;
-            const ollaTexto = (cells[8]?.textContent || '').trim();
-            const formulaTexto = (cells[9]?.textContent || '').trim();
-            const kilosTexto = (cells[10]?.textContent || '').trim().replace(/,/g, '');
-            const litrosTexto = (cells[11]?.textContent || '').trim().replace(/,/g, '');
-            const tiempoTexto = (cells[12]?.textContent || '').trim().replace(/,/g, '');
-            const solidosTexto = (cells[13]?.textContent || '').trim().replace(/,/g, '');
-            const viscocidadTexto = (cells[14]?.textContent || '').trim().replace(/,/g, '');
+            // Mostrar loading
+            document.getElementById('create_componentes_loading').classList.remove('hidden');
+            document.getElementById('create_componentes_error').classList.add('hidden');
+            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
 
-            // Cargar datos en el formulario
-            const select = document.getElementById('create_folio_prog');
-            if (select) {
-                select.value = selectedFolio;
-                cargarDatosPrograma(select, false);
-            }
+            // IMPORTANTE: Cargar datos completos desde la BD por ID específico
+            // GET directo a EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
+            console.log('Cargando formulación para editar - ID:', formulacionId, 'Folio:', selectedFolio);
+            fetch(`/eng-formulacion/by-id?id=${formulacionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('create_componentes_loading').classList.add('hidden');
+                    document.getElementById('create_componentes_error').classList.add('hidden');
 
-            document.getElementById('create_olla').value = ollaTexto || '';
-            
-            const kilosInput = document.getElementById('create_kilos');
-            if (kilosInput) {
-                kilosInput.value = kilosTexto || '0';
-                kilosCreateFormula = parseFloat(kilosTexto) || 0;
-            }
+                    if (data.success && data.formulacion) {
+                        const form = data.formulacion;
 
-            const litrosInput = document.getElementById('create_litros');
-            if (litrosInput) {
-                litrosInput.value = litrosTexto || '0';
-                litrosCreateFormula = parseFloat(litrosTexto) || 0;
-            }
+                        // Validar que el ID de la formulación coincida
+                        if (parseInt(form.Id) !== formulacionId) {
+                            console.error('Error: El ID de la formulación no coincide', {
+                                esperado: formulacionId,
+                                recibido: form.Id
+                            });
+                            mostrarErrorComponentesCreate('Error: El ID de la formulación no coincide');
+                            return;
+                        }
 
-            document.getElementById('create_tiempo').value = tiempoTexto || '0';
-            document.getElementById('create_solidos').value = solidosTexto || '0';
-            document.getElementById('create_viscocidad').value = viscocidadTexto || '0';
+                        console.log('Formulación cargada para editar:', {
+                            id: form.Id,
+                            folio: form.Folio,
+                            componentes_recibidos: data.componentes ? data.componentes.length : 0
+                        });
 
-            formulaCreateActual = formulaTexto;
-            if (formulaTexto) {
-                cargarComponentesCreate(formulaTexto);
-            }
+                        // IMPORTANTE: En modo editar, NO llamar a cargarDatosPrograma() porque sobrescribe los componentes
+                        // Solo establecer el valor del select sin disparar el evento onchange
+                        const select = document.getElementById('create_folio_prog');
+                        if (select) {
+                            // Guardar el valor actual de componentes antes de cambiar el select
+                            const componentesGuardados = [...componentesCreateData];
+                            
+                            // Remover temporalmente el evento onchange para evitar que se dispare
+                            const originalOnchange = select.getAttribute('onchange');
+                            select.removeAttribute('onchange');
+                            
+                            // Establecer el valor sin disparar eventos
+                            select.value = form.Folio;
+                            
+                            // Restaurar el evento onchange
+                            if (originalOnchange) {
+                                select.setAttribute('onchange', originalOnchange);
+                            }
+                            
+                            // Restaurar los componentes que ya cargamos desde la BD
+                            componentesCreateData = componentesGuardados;
+                            
+                            // Solo llenar los campos ocultos sin cargar componentes desde AX
+                            document.getElementById('create_cuenta').value = form.Cuenta || '';
+                            document.getElementById('create_calibre').value = form.Calibre || '';
+                            document.getElementById('create_tipo').value = form.Tipo || '';
+                            document.getElementById('create_formula').value = form.Formula || '';
+                            formulaCreateActual = form.Formula || '';
+                        }
+
+                        document.getElementById('create_olla').value = form.Olla || '';
+
+                        // Actualizar valores de Kilos y Litros ANTES de renderizar componentes
+                        // para que el cálculo de ConsumoTotal sea correcto
+                        const kilosInput = document.getElementById('create_kilos');
+                        if (kilosInput) {
+                            kilosInput.value = form.Kilos || '0';
+                            kilosCreateFormula = parseFloat(form.Kilos) || 0;
+                        }
+
+                        const litrosInput = document.getElementById('create_litros');
+                        if (litrosInput) {
+                            litrosInput.value = form.Litros || '0';
+                            litrosCreateFormula = parseFloat(form.Litros) || 0;
+                        }
+                        
+                        console.log('Valores actualizados para cálculo (editar):', {
+                            kilos: kilosCreateFormula,
+                            litros: litrosCreateFormula
+                        });
+
+                        document.getElementById('create_tiempo').value = form.TiempoCocinado || '0';
+                        document.getElementById('create_solidos').value = form.Solidos || '0';
+                        document.getElementById('create_viscocidad').value = form.Viscocidad || '0';
+
+                        formulaCreateActual = form.Formula || '';
+
+                        // IMPORTANTE: Cargar componentes desde EngFormulacionLine filtrados por EngProduccionFormulacionId
+                        // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
+                        // NO usar cargarDatosPrograma() porque carga componentes desde AX y sobrescribe estos
+                        if (data.componentes && data.componentes.length > 0) {
+                            console.log('Componentes cargados desde EngFormulacionLine (GET directo por ID):', {
+                                cantidad: data.componentes.length,
+                                ids_componentes: data.componentes.map(c => c.Id),
+                                formulacion_id: formulacionId,
+                                folio: form.Folio,
+                                componentes_detalle: data.componentes
+                            });
+
+                            // Mapear componentes preservando todos los datos
+                            componentesCreateData = data.componentes.map(comp => ({
+                                Id: comp.Id,
+                                ItemId: comp.ItemId || '',
+                                ItemName: comp.ItemName || '',
+                                ConfigId: comp.ConfigId || '',
+                                ConsumoUnitario: comp.ConsumoUnitario || 0,
+                                ConsumoTotal: comp.ConsumoTotal || 0,
+                                Unidad: comp.Unidad || '',
+                                Almacen: comp.Almacen || '',
+                                esNuevo: false // No es nuevo, viene de la BD
+                            }));
+                            
+                            console.log('componentesCreateData después de mapear:', {
+                                cantidad: componentesCreateData.length,
+                                datos: componentesCreateData
+                            });
+                            
+                            renderizarTablaComponentesCreate();
+                            
+                            // Verificar que se renderizaron todos los componentes
+                            const tbody = document.getElementById('create_componentes_tbody');
+                            const filasRenderizadas = tbody ? tbody.querySelectorAll('tr').length : 0;
+                            console.log('Filas renderizadas en la tabla:', filasRenderizadas, 'de', componentesCreateData.length);
+                            
+                            document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
+                        } else {
+                            console.log('No se encontraron componentes para la formulación ID:', formulacionId);
+                            componentesCreateData = [];
+                            renderizarTablaComponentesCreate();
+                            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+                        }
+                    } else {
+                        console.error('Error al cargar formulación:', data.error);
+                        mostrarErrorComponentesCreate(data.error || 'Error al cargar la formulación');
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('create_componentes_loading').classList.add('hidden');
+                    mostrarErrorComponentesCreate('Error de conexión: ' + error.message);
+                });
 
             setCreateModalReadOnly(false);
         }
 
         function openViewModal() {
-            if (!selectedRow || !selectedFolio) {
+            if (!selectedRow || !selectedFolio || !selectedId) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Selección requerida',
@@ -894,44 +1012,102 @@
                 modalContent.classList.add('max-h-[70vh]');
             }
 
-            // Cargar datos del registro seleccionado (igual que editar)
-            const cells = selectedRow.cells;
-            const ollaTexto = (cells[8]?.textContent || '').trim();
-            const formulaTexto = (cells[9]?.textContent || '').trim();
-            const kilosTexto = (cells[10]?.textContent || '').trim().replace(/,/g, '');
-            const litrosTexto = (cells[11]?.textContent || '').trim().replace(/,/g, '');
-            const tiempoTexto = (cells[12]?.textContent || '').trim().replace(/,/g, '');
-            const solidosTexto = (cells[13]?.textContent || '').trim().replace(/,/g, '');
-            const viscocidadTexto = (cells[14]?.textContent || '').trim().replace(/,/g, '');
+            // Mostrar loading
+            document.getElementById('create_componentes_loading').classList.remove('hidden');
+            document.getElementById('create_componentes_error').classList.add('hidden');
+            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
 
-            const select = document.getElementById('create_folio_prog');
-            if (select) {
-                select.value = selectedFolio;
-                cargarDatosPrograma(select, false);
-            }
+            // Cargar datos completos desde la BD por ID (igual que editar)
+            fetch(`/eng-formulacion/by-id?id=${selectedId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('create_componentes_loading').classList.add('hidden');
+                    document.getElementById('create_componentes_error').classList.add('hidden');
 
-            document.getElementById('create_olla').value = ollaTexto || '';
-            
-            const kilosInput = document.getElementById('create_kilos');
-            if (kilosInput) {
-                kilosInput.value = kilosTexto || '0';
-                kilosCreateFormula = parseFloat(kilosTexto) || 0;
-            }
+                    if (data.success && data.formulacion) {
+                        const form = data.formulacion;
 
-            const litrosInput = document.getElementById('create_litros');
-            if (litrosInput) {
-                litrosInput.value = litrosTexto || '0';
-                litrosCreateFormula = parseFloat(litrosTexto) || 0;
-            }
+                        // Validar que el ID de la formulación coincida
+                        if (parseInt(form.Id) !== formulacionId) {
+                            console.error('Error: El ID de la formulación no coincide', {
+                                esperado: formulacionId,
+                                recibido: form.Id
+                            });
+                            mostrarErrorComponentesCreate('Error: El ID de la formulación no coincide');
+                            return;
+                        }
 
-            document.getElementById('create_tiempo').value = tiempoTexto || '0';
-            document.getElementById('create_solidos').value = solidosTexto || '0';
-            document.getElementById('create_viscocidad').value = viscocidadTexto || '0';
+                        console.log('Formulación cargada para editar:', {
+                            id: form.Id,
+                            folio: form.Folio,
+                            componentes_recibidos: data.componentes ? data.componentes.length : 0
+                        });
 
-            formulaCreateActual = formulaTexto;
-            if (formulaTexto) {
-                cargarComponentesCreate(formulaTexto);
-            }
+                        // Cargar datos en el formulario
+                        const select = document.getElementById('create_folio_prog');
+                        if (select) {
+                            select.value = form.Folio;
+                            cargarDatosPrograma(select, false);
+                        }
+
+                        document.getElementById('create_olla').value = form.Olla || '';
+                        
+                        const kilosInput = document.getElementById('create_kilos');
+                        if (kilosInput) {
+                            kilosInput.value = form.Kilos || '0';
+                            kilosCreateFormula = parseFloat(form.Kilos) || 0;
+                        }
+
+                        const litrosInput = document.getElementById('create_litros');
+                        if (litrosInput) {
+                            litrosInput.value = form.Litros || '0';
+                            litrosCreateFormula = parseFloat(form.Litros) || 0;
+                        }
+
+                        document.getElementById('create_tiempo').value = form.TiempoCocinado || '0';
+                        document.getElementById('create_solidos').value = form.Solidos || '0';
+                        document.getElementById('create_viscocidad').value = form.Viscocidad || '0';
+
+                        formulaCreateActual = form.Formula || '';
+
+                        // IMPORTANTE: Cargar componentes desde EngFormulacionLine filtrados por EngProduccionFormulacionId
+                        // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
+                        if (data.componentes && data.componentes.length > 0) {
+                            console.log('Componentes cargados desde EngFormulacionLine (GET directo por ID):', {
+                                cantidad: data.componentes.length,
+                                ids_componentes: data.componentes.map(c => c.Id),
+                                formulacion_id: formulacionId,
+                                folio: form.Folio
+                            });
+
+                            componentesCreateData = data.componentes.map(comp => ({
+                                Id: comp.Id,
+                                ItemId: comp.ItemId || '',
+                                ItemName: comp.ItemName || '',
+                                ConfigId: comp.ConfigId || '',
+                                ConsumoUnitario: comp.ConsumoUnitario || 0,
+                                ConsumoTotal: comp.ConsumoTotal || 0,
+                                Unidad: comp.Unidad || '',
+                                Almacen: comp.Almacen || '',
+                                esNuevo: false // No es nuevo, viene de la BD
+                            }));
+                            renderizarTablaComponentesCreate();
+                            document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
+                        } else {
+                            console.log('No se encontraron componentes para la formulación ID:', formulacionId);
+                            componentesCreateData = [];
+                            renderizarTablaComponentesCreate();
+                            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+                        }
+                    } else {
+                        console.error('Error al cargar formulación:', data.error);
+                        mostrarErrorComponentesCreate(data.error || 'Error al cargar la formulación');
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('create_componentes_loading').classList.add('hidden');
+                    mostrarErrorComponentesCreate('Error de conexión: ' + error.message);
+                });
 
             setCreateModalReadOnly(true);
         }
@@ -1540,6 +1716,9 @@
             });
         }
 
+        /**
+         * Cargar componentes desde AX (para crear nueva formulación)
+         */
         function cargarComponentesCreate(formula) {
             if (!formula) {
                 componentesCreateData = [];
@@ -1562,6 +1741,59 @@
 
                     if (data.success) {
                         componentesCreateData = data.componentes || [];
+                        renderizarTablaComponentesCreate();
+                        document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
+                    } else {
+                        mostrarErrorComponentesCreate(data.error || 'Error al cargar componentes');
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('create_componentes_loading').classList.add('hidden');
+                    mostrarErrorComponentesCreate('Error de conexión: ' + error.message);
+                });
+        }
+
+        /**
+         * Cargar componentes desde EngFormulacionLine por ID (para editar formulación existente)
+         * Esta función se mantiene por compatibilidad, pero ahora se usa getFormulacionById
+         */
+        function cargarComponentesFormulacion(folio, id = null) {
+            if (!id && !folio) {
+                componentesCreateData = [];
+                renderizarTablaComponentesCreate();
+                document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+                document.getElementById('create_componentes_loading').classList.add('hidden');
+                document.getElementById('create_componentes_error').classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('create_componentes_loading').classList.remove('hidden');
+            document.getElementById('create_componentes_error').classList.add('hidden');
+            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+
+            const url = id 
+                ? `/eng-formulacion/componentes/formulacion?id=${encodeURIComponent(id)}`
+                : `/eng-formulacion/componentes/formulacion?folio=${encodeURIComponent(folio)}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('create_componentes_loading').classList.add('hidden');
+                    document.getElementById('create_componentes_error').classList.add('hidden');
+
+                    if (data.success) {
+                        // Convertir los componentes al formato esperado
+                        componentesCreateData = (data.componentes || []).map(comp => ({
+                            Id: comp.Id,
+                            ItemId: comp.ItemId || '',
+                            ItemName: comp.ItemName || '',
+                            ConfigId: comp.ConfigId || '',
+                            ConsumoUnitario: comp.ConsumoUnitario || 0,
+                            ConsumoTotal: comp.ConsumoTotal || 0,
+                            Unidad: comp.Unidad || '',
+                            Almacen: comp.Almacen || '',
+                            esNuevo: false // No es nuevo, viene de la BD
+                        }));
                         renderizarTablaComponentesCreate();
                         document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
                     } else {
@@ -1720,9 +1952,17 @@
 
         function renderizarTablaComponentesCreate() {
             const tbody = document.getElementById('create_componentes_tbody');
-            if (!tbody) return;
+            if (!tbody) {
+                console.error('No se encontró el tbody con id create_componentes_tbody');
+                return;
+            }
 
             tbody.innerHTML = '';
+
+            console.log('renderizarTablaComponentesCreate - Componentes a renderizar:', {
+                cantidad: componentesCreateData.length,
+                datos: componentesCreateData
+            });
 
             if (componentesCreateData.length === 0) {
                 tbody.innerHTML = `
@@ -1736,6 +1976,7 @@
             }
 
             componentesCreateData.forEach((comp, index) => {
+                console.log(`Renderizando componente ${index + 1}/${componentesCreateData.length}:`, comp);
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-blue-50 transition-colors';
 
@@ -1767,13 +2008,6 @@
                             <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
                                 class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
                         </td>
-                        <td class="px-4 py-2 text-center">
-                            <button type="button" onclick="eliminarFilaComponenteCreate(${index})" 
-                                class="text-red-600 hover:text-red-800 transition-colors" ${disabledAttr}
-                                title="Eliminar">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
                     `;
                 } else {
                     row.innerHTML = `
@@ -1793,9 +2027,6 @@
                             <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
                                 class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
                         </td>
-                        <td class="px-4 py-2 text-center">
-                            <span class="text-gray-400">-</span>
-                        </td>
                     `;
                 }
                 
@@ -1805,7 +2036,46 @@
                 if (desdeProduccion && comp.esNuevo) {
                     initComponenteSelectorsForRow(row, comp);
                 }
+                
+                // IMPORTANTE: Agregar listener al campo ConsumoTotal para actualizar ConsumoUnitario cuando cambie
+                // Esto asegura que cuando el usuario edite manualmente el ConsumoTotal,
+                // el ConsumoUnitario se actualice correctamente para que cuando cambien los litros,
+                // el ConsumoTotal se recalcule correctamente
+                const consumoTotalInput = row.querySelector('[data-field="ConsumoTotal"]');
+                if (consumoTotalInput) {
+                    // Remover listeners anteriores si existen para evitar duplicados
+                    const nuevoInput = consumoTotalInput.cloneNode(true);
+                    consumoTotalInput.parentNode.replaceChild(nuevoInput, consumoTotalInput);
+                    
+                    nuevoInput.addEventListener('input', function() {
+                        const nuevoConsumoTotal = parseFloat(this.value) || 0;
+                        const nuevoConsumoUnitario = litrosCreateFormula > 0 
+                            ? nuevoConsumoTotal / litrosCreateFormula 
+                            : 0;
+                        
+                        console.log('ConsumoTotal editado manualmente:', {
+                            index: index,
+                            nuevoConsumoTotal: nuevoConsumoTotal,
+                            nuevoConsumoUnitario: nuevoConsumoUnitario,
+                            litrosActuales: litrosCreateFormula
+                        });
+                        
+                        // Actualizar el valor en componentesCreateData
+                        if (componentesCreateData[index]) {
+                            componentesCreateData[index].ConsumoTotal = nuevoConsumoTotal;
+                            componentesCreateData[index].ConsumoUnitario = nuevoConsumoUnitario;
+                        }
+                    });
+                }
             });
+            
+            // Verificar cuántas filas se agregaron realmente
+            const filasAgregadas = tbody.querySelectorAll('tr').length;
+            console.log('renderizarTablaComponentesCreate - Filas agregadas al DOM:', filasAgregadas, 'de', componentesCreateData.length);
+            
+            if (filasAgregadas !== componentesCreateData.length) {
+                console.error('ERROR: No se renderizaron todos los componentes. Esperados:', componentesCreateData.length, 'Renderizados:', filasAgregadas);
+            }
         }
 
         function agregarFilaComponenteCreate() {
@@ -1843,11 +2113,21 @@
                 const consumoTotal = parseFloat(row.querySelector('[data-field="ConsumoTotal"]')?.value) || 0;
 
                 const original = componentesCreateData[index] || {};
+                
+                // Calcular ConsumoUnitario desde ConsumoTotal si los litros están disponibles
+                // Esto asegura que cuando el usuario edite manualmente el ConsumoTotal,
+                // el ConsumoUnitario se actualice correctamente
+                let consumoUnitario = parseFloat(original.ConsumoUnitario) || 0;
+                if (litrosCreateFormula > 0 && consumoTotal > 0) {
+                    // Si el usuario editó el ConsumoTotal manualmente, recalcular ConsumoUnitario
+                    consumoUnitario = consumoTotal / litrosCreateFormula;
+                }
+                
                 return {
                     ItemId: itemId,
                     ItemName: itemName,
                     ConfigId: configId,
-                    ConsumoUnitario: parseFloat(original.ConsumoUnitario) || 0,
+                    ConsumoUnitario: consumoUnitario,
                     ConsumoTotal: consumoTotal,
                     Unidad: original.Unidad || '',
                     Almacen: original.Almacen || ''
@@ -1912,6 +2192,7 @@
                 kilosCreateFormula = parseFloat(kilosInput.value) || 0;
                 kilosInput.addEventListener('input', function() {
                     kilosCreateFormula = parseFloat(this.value) || 0;
+                    console.log('Kilos cambiados, recalculando componentes:', kilosCreateFormula);
                     if (componentesCreateData.length > 0) {
                         renderizarTablaComponentesCreate();
                     }
@@ -1922,8 +2203,24 @@
             if (litrosInput) {
                 litrosCreateFormula = parseFloat(litrosInput.value) || 0;
                 litrosInput.addEventListener('input', function() {
-                    litrosCreateFormula = parseFloat(this.value) || 0;
+                    const nuevoLitros = parseFloat(this.value) || 0;
+                    console.log('Litros cambiados, recalculando componentes:', {
+                        litrosAnteriores: litrosCreateFormula,
+                        litrosNuevos: nuevoLitros,
+                        componentesCount: componentesCreateData.length
+                    });
+                    litrosCreateFormula = nuevoLitros;
                     if (componentesCreateData.length > 0) {
+                        // Recalcular ConsumoTotal para todos los componentes basado en ConsumoUnitario
+                        componentesCreateData.forEach((comp, idx) => {
+                            const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
+                            comp.ConsumoTotal = consumoUnitario * litrosCreateFormula;
+                            console.log(`Componente ${idx} recalculado:`, {
+                                consumoUnitario: consumoUnitario,
+                                litros: litrosCreateFormula,
+                                consumoTotal: comp.ConsumoTotal
+                            });
+                        });
                         renderizarTablaComponentesCreate();
                     }
                 });
@@ -1931,11 +2228,17 @@
 
             const createForm = document.getElementById('createForm');
             if (createForm) {
-                createForm.addEventListener('submit', function() {
+                createForm.addEventListener('submit', function(e) {
                     const componentes = obtenerComponentesCreateDesdeTabla();
                     const payload = document.getElementById('create_componentes_payload');
                     if (payload) {
                         payload.value = JSON.stringify(componentes);
+                    }
+                    
+                    // Si es edición, también enviar componentes
+                    const method = document.getElementById('create_method');
+                    if (method && method.value === 'PUT') {
+                        // Los componentes se envían en el payload
                     }
                 });
             }

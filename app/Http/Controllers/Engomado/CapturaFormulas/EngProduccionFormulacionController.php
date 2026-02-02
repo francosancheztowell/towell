@@ -20,7 +20,9 @@ class EngProduccionFormulacionController extends Controller
         try {
             $folioFiltro = $request->query('folio');
 
-            $itemsQuery = EngProduccionFormulacionModel::orderBy('Folio', 'desc');
+            // Ordenar por ID descendente para mostrar los más recientes primero
+            // Si hay múltiples registros con el mismo Folio, se distinguen por ID
+            $itemsQuery = EngProduccionFormulacionModel::orderBy('Id', 'desc');
             if (!empty($folioFiltro)) {
                 $itemsQuery->where('Folio', $folioFiltro);
             }
@@ -115,22 +117,26 @@ class EngProduccionFormulacionController extends Controller
             $validated['CveEmpl'] = $programa->CveEmpl;
 
             DB::transaction(function () use ($validated, $folio, $request) {
-                EngProduccionFormulacionModel::create($validated);
+                // Crear el encabezado y obtener el Id generado
+                $formulacion = EngProduccionFormulacionModel::create($validated);
+                $formulacionId = $formulacion->Id;
 
                 $componentesRaw = $request->input('componentes');
                 if ($componentesRaw) {
                     $componentes = json_decode($componentesRaw, true);
                     if (is_array($componentes)) {
                         foreach ($componentes as $comp) {
+                            // Truncar campos de texto para evitar errores de truncamiento en BD
                             EngFormulacionLineModel::create([
                                 'Folio' => $folio,
-                                'ItemId' => $comp['ItemId'] ?? null,
-                                'ItemName' => $comp['ItemName'] ?? null,
-                                'ConfigId' => $comp['ConfigId'] ?? null,
+                                'EngProduccionFormulacionId' => $formulacionId, // Nueva FK
+                                'ItemId' => $this->truncateString($comp['ItemId'] ?? null, 20),
+                                'ItemName' => $this->truncateString($comp['ItemName'] ?? null, 100),
+                                'ConfigId' => $this->truncateString($comp['ConfigId'] ?? null, 20),
                                 'ConsumoUnit' => $comp['ConsumoUnitario'] ?? null,
                                 'ConsumoTotal' => $comp['ConsumoTotal'] ?? null,
-                                'Unidad' => $comp['Unidad'] ?? null,
-                                'InventLocation' => $comp['Almacen'] ?? null,
+                                'Unidad' => $this->truncateString($comp['Unidad'] ?? null, 10),
+                                'InventLocation' => $this->truncateString($comp['Almacen'] ?? null, 20),
                             ]);
                         }
                     }
@@ -187,9 +193,174 @@ class EngProduccionFormulacionController extends Controller
     }
 
     /**
+     * Obtener datos completos de la formulación por ID
+     * Usado para editar formulaciones existentes
+     * IMPORTANTE: Trae componentes SOLO por EngProduccionFormulacionId (no por Folio)
+     */
+    public function getFormulacionById(Request $request)
+    {
+        try {
+            $id = $request->query('id');
+
+            if (!$id) {
+                return response()->json(['error' => 'No se proporcionó el ID'], 400);
+            }
+
+            // Obtener formulación por ID
+            $formulacion = EngProduccionFormulacionModel::find($id);
+
+            if (!$formulacion) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se encontró la formulación con ID: ' . $id
+                ], 404);
+            }
+
+            // IMPORTANTE: SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {id}
+            // Solo traer componentes vinculados específicamente a este ID, NO por Folio
+            // Validar que el ID sea numérico
+            $idFormulacion = (int) $id;
+            
+            // Query directo: SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {id}
+            $componentes = EngFormulacionLineModel::where('EngProduccionFormulacionId', $idFormulacion)
+                ->orderBy('Id')
+                ->get();
+
+            // Verificar que todos los componentes pertenezcan al ID correcto
+            $componentesInvalidos = $componentes->filter(function($line) use ($idFormulacion) {
+                return (int)$line->EngProduccionFormulacionId !== $idFormulacion;
+            });
+
+            if ($componentesInvalidos->count() > 0) {
+                Log::warning('Se encontraron componentes con EngProduccionFormulacionId incorrecto', [
+                    'formulacion_id_esperado' => $idFormulacion,
+                    'componentes_invalidos' => $componentesInvalidos->pluck('Id')->toArray()
+                ]);
+            }
+
+            $componentes = $componentes->map(function ($line) {
+                return [
+                    'Id' => $line->Id,
+                    'ItemId' => $line->ItemId,
+                    'ItemName' => $line->ItemName,
+                    'ConfigId' => $line->ConfigId,
+                    'ConsumoUnitario' => $line->ConsumoUnit,
+                    'ConsumoTotal' => $line->ConsumoTotal,
+                    'Unidad' => $line->Unidad,
+                    'Almacen' => $line->InventLocation,
+                ];
+            });
+
+            // Log para verificar que solo trae los componentes del ID específico
+            Log::info('Obteniendo formulación por ID para editar', [
+                'formulacion_id' => $idFormulacion,
+                'folio' => $formulacion->Folio,
+                'componentes_encontrados' => $componentes->count(),
+                'componentes_ids' => $componentes->pluck('Id')->toArray(),
+                'sql_query' => 'SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = ' . $idFormulacion
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'formulacion' => [
+                    'Id' => $formulacion->Id,
+                    'Folio' => $formulacion->Folio,
+                    'fecha' => $formulacion->fecha ? $formulacion->fecha->format('Y-m-d') : null,
+                    'Hora' => $formulacion->Hora,
+                    'MaquinaId' => $formulacion->MaquinaId,
+                    'Cuenta' => $formulacion->Cuenta,
+                    'Calibre' => $formulacion->Calibre,
+                    'Tipo' => $formulacion->Tipo,
+                    'CveEmpl' => $formulacion->CveEmpl,
+                    'NomEmpl' => $formulacion->NomEmpl,
+                    'Olla' => $formulacion->Olla,
+                    'Formula' => $formulacion->Formula,
+                    'Kilos' => $formulacion->Kilos,
+                    'Litros' => $formulacion->Litros,
+                    'ProdId' => $formulacion->ProdId,
+                    'TiempoCocinado' => $formulacion->TiempoCocinado,
+                    'Solidos' => $formulacion->Solidos,
+                    'Viscocidad' => $formulacion->Viscocidad,
+                    'Status' => $formulacion->Status,
+                    'obs_calidad' => $formulacion->obs_calidad,
+                ],
+                'componentes' => $componentes,
+                'total' => $componentes->count(),
+                'vacio' => $componentes->isEmpty()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener formulación por ID: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'error' => 'Error al obtener formulación: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener componentes guardados desde EngFormulacionLine por ID de formulación
+     * Usado para editar formulaciones existentes
+     */
+    public function getComponentesFormulacion(Request $request)
+    {
+        try {
+            $id = $request->query('id');
+            $folio = $request->query('folio'); // Mantener compatibilidad con Folio
+
+            if (!$id && !$folio) {
+                return response()->json(['error' => 'No se proporcionó el ID ni el Folio'], 400);
+            }
+
+            // Priorizar búsqueda por ID (EngProduccionFormulacionId)
+            // IMPORTANTE: Usar EngProduccionFormulacionId para traer solo los componentes vinculados a este ID específico
+            if ($id) {
+                $componentes = EngFormulacionLineModel::byFormulacionId($id)
+                    ->orderBy('Id')
+                    ->get();
+            } else {
+                // Fallback a Folio para compatibilidad (solo si no se proporciona ID)
+                $componentes = EngFormulacionLineModel::where('Folio', $folio)
+                    ->orderBy('Id')
+                    ->get();
+            }
+
+            $componentes = $componentes->map(function ($line) {
+                return [
+                    'Id' => $line->Id,
+                    'ItemId' => $line->ItemId,
+                    'ItemName' => $line->ItemName,
+                    'ConfigId' => $line->ConfigId,
+                    'ConsumoUnitario' => $line->ConsumoUnit,
+                    'ConsumoTotal' => $line->ConsumoTotal,
+                    'Unidad' => $line->Unidad,
+                    'Almacen' => $line->InventLocation,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'componentes' => $componentes,
+                'total' => $componentes->count(),
+                'vacio' => $componentes->isEmpty()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener componentes de formulación: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'error' => 'Error al obtener componentes: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
+    /**
      * Obtener componentes de la fórmula desde AX (BOMVersion + Bom + InventTable + InventDim)
      * JOIN: BOMVersion -> Bom (por BomId) -> InventTable (por ItemId) -> InventDim (por InventDimId)
      * Filtros: BOMVersion.ItemId = Formula, IT.DATAAREAID = 'PRO', B.DATAAREAID = 'PRO', ID.DATAAREAID = 'PRO'
+     * Usado para crear nuevas formulaciones
      */
     public function getComponentesFormula(Request $request)
     {
@@ -261,11 +432,43 @@ class EngProduccionFormulacionController extends Controller
             'Viscocidad' => 'nullable|numeric',
             'Status' => 'nullable|in:Creado,En Proceso,Terminado',
             'obs_calidad' => 'nullable|string',
+            'componentes' => 'nullable|string',
         ]);
 
         try {
-            $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
-            $item->update($validated);
+            DB::transaction(function () use ($validated, $folio, $request) {
+                // Buscar por Folio (mantener compatibilidad)
+                $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
+                $item->update($validated);
+                $formulacionId = $item->Id; // Obtener el ID real de la tabla
+
+                // Actualizar componentes si se proporcionan
+                $componentesRaw = $request->input('componentes');
+                if ($componentesRaw !== null) {
+                    // Eliminar componentes existentes por EngProduccionFormulacionId
+                    // IMPORTANTE: Usar EngProduccionFormulacionId para eliminar solo los componentes vinculados a este ID específico
+                    EngFormulacionLineModel::byFormulacionId($formulacionId)->delete();
+
+                    // Insertar nuevos componentes
+                    $componentes = json_decode($componentesRaw, true);
+                    if (is_array($componentes) && count($componentes) > 0) {
+                        foreach ($componentes as $comp) {
+                            // Truncar campos de texto para evitar errores de truncamiento en BD
+                            EngFormulacionLineModel::create([
+                                'Folio' => $folio, // Mantener Folio para compatibilidad
+                                'EngProduccionFormulacionId' => $formulacionId, // FK principal
+                                'ItemId' => $this->truncateString($comp['ItemId'] ?? null, 20),
+                                'ItemName' => $this->truncateString($comp['ItemName'] ?? null, 100),
+                                'ConfigId' => $this->truncateString($comp['ConfigId'] ?? null, 20),
+                                'ConsumoUnit' => $comp['ConsumoUnitario'] ?? null,
+                                'ConsumoTotal' => $comp['ConsumoTotal'] ?? null,
+                                'Unidad' => $this->truncateString($comp['Unidad'] ?? null, 10),
+                                'InventLocation' => $this->truncateString($comp['Almacen'] ?? null, 20),
+                            ]);
+                        }
+                    }
+                }
+            });
             
             // Si es una petición JSON (desde AJAX), devolver JSON
             if ($request->expectsJson()) {
@@ -289,11 +492,15 @@ class EngProduccionFormulacionController extends Controller
         try {
             DB::beginTransaction();
 
-            // Eliminar líneas asociadas
-            EngFormulacionLineModel::where('Folio', $folio)->delete();
+            // Buscar formulación por Folio para obtener el ID
+            $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
+            $formulacionId = $item->Id;
+
+            // Eliminar líneas asociadas por EngProduccionFormulacionId
+            // IMPORTANTE: Usar EngProduccionFormulacionId para eliminar solo los componentes vinculados a este ID específico
+            EngFormulacionLineModel::byFormulacionId($formulacionId)->delete();
 
             // Eliminar encabezado
-            $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
             $item->delete();
 
             DB::commit();
@@ -378,5 +585,33 @@ class EngProduccionFormulacionController extends Controller
             Log::error('Error obteniendo colores de fórmula', ['exception' => $e, 'itemId' => $itemId]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Trunca un string a la longitud máxima especificada
+     * 
+     * @param string|null $value
+     * @param int $maxLength
+     * @return string|null
+     */
+    private function truncateString($value, $maxLength)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        
+        $value = (string) $value;
+        
+        if (mb_strlen($value) > $maxLength) {
+            Log::warning('Valor truncado en EngFormulacionLine', [
+                'valor_original' => $value,
+                'longitud_original' => mb_strlen($value),
+                'longitud_maxima' => $maxLength,
+                'valor_truncado' => mb_substr($value, 0, $maxLength)
+            ]);
+            return mb_substr($value, 0, $maxLength);
+        }
+        
+        return $value;
     }
 }

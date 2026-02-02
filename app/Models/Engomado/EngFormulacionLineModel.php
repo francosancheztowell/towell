@@ -18,7 +18,9 @@ class EngFormulacionLineModel extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'Id',
         'Folio',
+        'EngProduccionFormulacionId',
         'ItemId',
         'ItemName',
         'ConfigId',
@@ -29,13 +31,20 @@ class EngFormulacionLineModel extends Model
     ];
 
     protected $casts = [
-        'Id'           => 'integer',
-        'ConsumoUnit'  => 'float',
-        'ConsumoTotal' => 'float',
+        'Id'                        => 'integer',
+        'EngProduccionFormulacionId' => 'integer',
+        'ConsumoUnit'               => 'float',
+        'ConsumoTotal'              => 'float',
     ];
 
-    /** Pertenece al encabezado por Folio */
+    /** Pertenece al encabezado por Id (nueva relación mejorada) */
     public function header()
+    {
+        return $this->belongsTo(EngProduccionFormulacionModel::class, 'EngProduccionFormulacionId', 'Id');
+    }
+
+    /** Relación alternativa: pertenece al encabezado por Folio (mantener compatibilidad) */
+    public function headerByFolio()
     {
         return $this->belongsTo(EngProduccionFormulacionModel::class, 'Folio', 'Folio');
     }
@@ -44,5 +53,11 @@ class EngFormulacionLineModel extends Model
     public function scopeByFolio($q, string $folio)
     {
         return $q->where('Folio', $folio);
+    }
+
+    /** Scope útil para obtener líneas por Id del encabezado */
+    public function scopeByFormulacionId($q, int $formulacionId)
+    {
+        return $q->where('EngProduccionFormulacionId', $formulacionId);
     }
 }
