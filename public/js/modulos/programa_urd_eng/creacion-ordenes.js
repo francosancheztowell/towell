@@ -130,7 +130,7 @@
     function normalizeInput(arr) {
         return (arr || []).map(t => ({
             ...t,
-            tipo: normalizarTipo(t.tipo),
+            tipo: normalizarTipo(t.tipo) || 'Rizo',
             hilo: !isBlank(t.hilo) ? String(t.hilo).trim() : null,
             metros: toNumber(t.metros, 0),
             kilos : toNumber(t.kilos, 0),
@@ -146,7 +146,7 @@
         for (const telar of (telares || [])) {
             if (!telar.agrupar) { singles.push(telar); continue; }
 
-            const tipoN = normalizarTipo(telar.tipo);
+            const tipoN = normalizarTipo(telar.tipo) || 'Rizo';
             const up    = String(tipoN || '').toUpperCase();
             const esPie = up === 'PIE';
 
@@ -174,7 +174,7 @@
         for (const t of singles) {
             out.push({
                 telares:[t], telaresStr:t.no_telar, cuenta:t.cuenta || '', calibre:t.calibre || '', hilo:t.hilo || '',
-                tipo: normalizarTipo(t.tipo), urdido:t.urdido || '', tipoAtado:t.tipo_atado || 'Normal', destino:t.destino || '',
+                tipo: normalizarTipo(t.tipo) || 'Rizo', urdido:t.urdido || '', tipoAtado:t.tipo_atado || 'Normal', destino:t.destino || '',
                 fechaReq:t.fecha_req || '', metros:t.metros || 0, kilos:t.kilos || 0, maquinaId: t.urdido || t.maquina_urd || t.maquinaId || ''
             });
         }
@@ -213,7 +213,7 @@
                 <td class="px-2 py-3 text-sm text-center">${g.calibre || '-'}</td>
                 <td class="px-2 py-3 text-sm text-center">${g.hilo || '-'}</td>
                 <td class="px-2 py-3 text-sm text-center">${g.urdido || '-'}</td>
-                <td class="px-2 py-3 text-center"><span class="px-2 py-1 inline-block text-sm font-medium rounded-md ${tipoCls}">${g.tipo || 'N/A'}</span></td>
+                <td class="px-2 py-3 text-center"><span class="px-2 py-1 inline-block text-sm font-medium rounded-md ${tipoCls}">${g.tipo || 'Rizo'}</span></td>
                 <td class="px-2 py-3 text-sm text-center">${g.destino || '-'}</td>
                 <td class="px-2 py-3 text-sm text-center">${fmtNumber(g.metros)}</td>
                 <td class="px-2 py-3 text-sm text-center">${fmtNumber(g.kilos)}</td>
@@ -276,11 +276,10 @@
             renderTablaMaterialesEngomado([], null);
         }
 
-        // Dependencias de la fila: anchos balona y metraje
+        // Dependencias de la fila: anchos balona y metraje (siempre cargar para poder seleccionar)
         const cuenta = data.grupo?.cuenta || '';
         const tipo   = data.grupo?.tipo || '';
-        if (!isBlank(cuenta) && !isBlank(tipo)) cargarAnchosBalona(cuenta, tipo);
-        else limpiarSelectAnchosBalona();
+        cargarAnchosBalona(cuenta, tipo);
 
         actualizarMetrajeTelas();
     }
@@ -806,20 +805,24 @@
     async function cargarAnchosBalona(cuenta, tipo) {
         try {
             const url = new URL(config.routes.anchosBalona, window.location.origin);
-            if (!isBlank(cuenta)) url.searchParams.set('cuenta', cuenta);
-            if (!isBlank(tipo))   url.searchParams.set('tipo', tipo);
+            if (!isBlank(cuenta)) url.searchParams.set('cuenta', String(cuenta).trim());
+            if (!isBlank(tipo))   url.searchParams.set('tipo', String(tipo).trim());
             const data = await fetchJSON(url.toString());
             const list = (data && data.success && Array.isArray(data.data)) ? data.data : [];
             const select = qs('#inputAnchoBalonas'); if (!select) return;
             select.innerHTML = '<option value="">Seleccione</option>';
             list.forEach(it => {
                 const opt = document.createElement('option');
-                opt.value = it.anchoBalona || '';
-                opt.textContent = it.anchoBalona || '';
+                const val = it.anchoBalona != null ? String(it.anchoBalona) : '';
+                opt.value = val;
+                opt.textContent = val || '(Sin valor)';
                 select.appendChild(opt);
             });
-            if (list.length && list[0].anchoBalona) select.value = list[0].anchoBalona;
-        } catch(e) { limpiarSelectAnchosBalona(); }
+            if (list.length && list[0].anchoBalona != null) select.value = String(list[0].anchoBalona);
+        } catch(e) {
+            const select = qs('#inputAnchoBalonas');
+            if (select) { select.innerHTML = '<option value="">Seleccione (error al cargar)</option>'; select.value = ''; }
+        }
     }
 
     function limpiarSelectAnchosBalona() {
