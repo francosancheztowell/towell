@@ -586,6 +586,48 @@ class ModuloProduccionEngomadoController extends Controller
         }
     }
 
+    public function eliminarOficial(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'registro_id' => 'required|integer',
+                'numero_oficial' => 'required|integer|in:1,2,3',
+            ]);
+
+            $registro = EngProduccionEngomado::find($request->registro_id);
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Registro no encontrado',
+                ], 404);
+            }
+
+            $numeroOficial = (int) $request->numero_oficial;
+
+            $registro->{"CveEmpl{$numeroOficial}"} = null;
+            $registro->{"NomEmpl{$numeroOficial}"} = null;
+            $registro->{"Metros{$numeroOficial}"} = null;
+            $registro->{"Turno{$numeroOficial}"} = null;
+            $registro->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Oficial eliminado correctamente',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar oficial', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al eliminar oficial: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     /**
      * Actualizar turno de un oficial en un registro de producción
      *
