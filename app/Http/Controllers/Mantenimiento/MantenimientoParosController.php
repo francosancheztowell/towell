@@ -9,6 +9,7 @@ use App\Models\Mantenimiento\CatTipoFalla;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use App\Models\Atadores\AtaMaquinasModel;
+use App\Models\Sistema\SysDepartamento;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Http\JsonResponse;
@@ -43,21 +44,13 @@ class MantenimientoParosController extends Controller
     }
     /**
      * Departamentos disponibles para el módulo de mantenimiento.
-     * Fuente: URDCatalogoMaquina.Departamento + Atadores
+     * Fuente: SysDepartamentos.Depto
      */
     public function departamentos(): JsonResponse
     {
-        $departamentos = URDCatalogoMaquina::select('Departamento')
-            ->distinct()
-            ->orderBy('Departamento')
-            ->pluck('Departamento')
+        $departamentos = SysDepartamento::orderBy('Depto')
+            ->pluck('Depto')
             ->toArray();
-
-        // Agregar "Atadores" si no está en la lista
-        if (!in_array('Atadores', $departamentos, true)) {
-            $departamentos[] = 'Atadores';
-            sort($departamentos);
-        }
 
         return response()->json([
             'success' => true,
@@ -572,36 +565,14 @@ class MantenimientoParosController extends Controller
 
     /**
      * Obtener lista de paros/fallas para el reporte.
-     * Filtra por área del usuario (SYSUsuario.area → Depto).
-     * Opcional: ?depto= refina por departamento dentro del área.
+     * Muestra todos los paros sin filtros.
      */
     public function index(Request $request): JsonResponse
     {
         try {
-            $usuario = Auth::user();
-            $areaUsuario = null;
-            if ($usuario && $usuario->idusuario) {
-                $sys = SYSUsuario::where('idusuario', $usuario->idusuario)->first();
-                $areaUsuario = $sys && !empty(trim((string) $sys->area)) ? trim($sys->area) : null;
-            }
-
             $query = ManFallasParos::query()
                 ->orderByDesc('Fecha')
                 ->orderByDesc('Hora');
-
-            if ($areaUsuario !== null && $areaUsuario !== '') {
-                $areaUpper = strtoupper($areaUsuario);
-                if (in_array($areaUpper, ['TEJIDO'], true)) {
-                    $query->whereIn('Depto', ['Jacquard', 'Smith', 'Itema', 'Karl Mayer', 'KARL MAYER', 'KarlMayer']);
-                } else {
-                    $query->where('Depto', $areaUsuario);
-                }
-            }
-
-            $depto = $request->filled('depto') ? trim($request->get('depto')) : null;
-            if ($depto !== null && $depto !== '') {
-                $query->where('Depto', $depto);
-            }
 
             $paros = $query->get([
                 'Id',
@@ -616,6 +587,7 @@ class MantenimientoParosController extends Controller
                 'HoraFin',
                 'NomAtendio',
                 'NomEmpl',
+                'CveEmpl',
             ]);
 
             return response()->json([
@@ -782,5 +754,4 @@ class MantenimientoParosController extends Controller
         }
     }
 }
-
 

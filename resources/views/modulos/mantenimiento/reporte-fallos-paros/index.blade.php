@@ -97,6 +97,14 @@
                 </select>
             </div>
         </div>
+        <div class="mb-4">
+            <label class="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
+                <input type="checkbox" id="filter-solo-mis" class="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500" checked>
+                <span class="text-sm font-medium text-gray-700">
+                    <i class="fa-solid fa-user mr-1"></i>Solo mis solicitudes
+                </span>
+            </label>
+        </div>
         <div class="flex gap-2">
             <button type="button" id="btn-clear-filter" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-blue-500 text-white hover:bg-blue-600 transition text-sm">
                 <i class="fa-solid fa-eraser mr-1"></i>Limpiar
@@ -108,6 +116,13 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const tbodyParos = document.getElementById('tbody-paros');
+    
+    // Información del usuario en sesión
+    const currentUser = {
+        numeroEmpleado: '{{ Auth::user()->numero_empleado ?? '' }}',
+        nombre: '{{ Auth::user()->nombre ?? '' }}'
+    };
+    let mostrarSoloMisSolicitudes = true;
 
     // Ocultar botón de "Paro" en la barra de navegación
     const navLinks = document.querySelectorAll('nav a, header a, .nav a, [role="navigation"] a');
@@ -132,15 +147,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const d = (tr.dataset.depto || '').toString().trim();
             const s = (tr.dataset.status || '').toString().trim();
             const m = (tr.dataset.maquina || '').toString().trim();
+            const usuario = (tr.dataset.usuario || '').toString().trim();
+            const empleado = (tr.dataset.empleado || '').toString().trim();
+            
             const matchDepto = !depto || d === depto;
             const matchStatus = !status || s === status;
             const matchMaquina = !maquina || m === maquina;
-            const show = matchDepto && matchStatus && matchMaquina;
+            
+            // Filtro por usuario en sesión
+            const matchUser = !mostrarSoloMisSolicitudes || 
+                usuario === currentUser.nombre || 
+                empleado === currentUser.numeroEmpleado;
+            
+            const show = matchDepto && matchStatus && matchMaquina && matchUser;
             tr.style.display = show ? '' : 'none';
             if (show) visible++;
         });
 
-        const anyFilter = depto || status || maquina;
+        const anyFilter = depto || status || maquina || mostrarSoloMisSolicitudes;
         if (noResults) {
             noResults.style.display = anyFilter && visible === 0 ? '' : 'none';
         }
@@ -189,6 +213,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     row.dataset.depto = (paro.Depto || '').toString().trim();
                     row.dataset.status = (paro.Estatus || '').toString().trim();
                     row.dataset.maquina = (paro.MaquinaId || '').toString().trim();
+                    row.dataset.usuario = (paro.NomEmpl || '').toString().trim();
+                    row.dataset.empleado = (paro.CveEmpl || '').toString().trim();
                     row.className = 'row-paro cursor-pointer hover:bg-gray-100 transition-colors';
 
                     const fecha = paro.Fecha ? new Date(paro.Fecha).toLocaleDateString('es-MX', {
@@ -290,11 +316,20 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('filter-depto')?.addEventListener('change', applyFilters);
     document.getElementById('filter-status')?.addEventListener('change', applyFilters);
     document.getElementById('filter-maquina')?.addEventListener('change', applyFilters);
+    document.getElementById('filter-solo-mis')?.addEventListener('change', function() {
+        mostrarSoloMisSolicitudes = this.checked;
+        applyFilters();
+    });
     document.getElementById('btn-clear-filter')?.addEventListener('click', function() {
         ['filter-depto', 'filter-status', 'filter-maquina'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
+        const checkboxSoloMis = document.getElementById('filter-solo-mis');
+        if (checkboxSoloMis) {
+            checkboxSoloMis.checked = true;
+            mostrarSoloMisSolicitudes = true;
+        }
         applyFilters();
         closeFiltersModal();
     });
