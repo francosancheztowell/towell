@@ -42,15 +42,16 @@ Telares por Operador
     @endphp
 
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div id="table-scroll-wrapper" class="overflow-auto max-h-[75vh]">
-            <table class="w-full text-base border-collapse">
-                <thead class="bg-blue-500 text-white shadow-[0_2px_4px_rgba(0,0,0,0.08)]">
+        <div id="table-scroll-wrapper" class="overflow-auto max-h-[75vh] min-h-[200px]" style="overflow-x: auto; overflow-y: auto;">
+            <table class="w-full text-base border-collapse relative">
+                <thead class="bg-blue-500 text-white sticky top-0 z-30 shadow-[0_2px_4px_rgba(0,0,0,0.12)]">
                     <tr>
-                        <th class="sticky top-0 z-20 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Número</th>
-                        <th class="sticky top-0 z-20 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Nombre</th>
-                        <th class="sticky top-0 z-20 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Telar</th>
-                        <th class="sticky top-0 z-20 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Turno</th>
-                        <th class="sticky top-0 z-20 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Salón</th>
+                        <th class="sticky top-0 z-30 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Número</th>
+                        <th class="sticky top-0 z-30 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Nombre</th>
+                        <th class="sticky top-0 z-30 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Telar</th>
+                        <th class="sticky top-0 z-30 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Turno</th>
+                        <th class="sticky top-0 z-30 bg-blue-500 px-6 py-4 text-left font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Salón</th>
+                        <th class="sticky top-0 z-30 bg-blue-500 px-6 py-4 text-center font-semibold text-base whitespace-nowrap border-b-2 border-blue-600">Supervisor</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -62,16 +63,24 @@ Telares por Operador
                         data-telar="{{ e($it->NoTelarId) }}"
                         data-turno="{{ e($it->Turno) }}"
                         data-salon="{{ e($it->SalonTejidoId) }}"
+                        data-supervisor="{{ $it->Supervisor ? '1' : '0' }}"
                         aria-selected="false">
                         <td class="px-6 py-4 align-middle font-medium text-gray-700">{{ $it->numero_empleado }}</td>
                         <td class="px-6 py-4 align-middle text-gray-800">{{ $it->nombreEmpl }}</td>
                         <td class="px-6 py-4 align-middle text-gray-800">{{ $it->NoTelarId }}</td>
                         <td class="px-6 py-4 align-middle text-gray-800">{{ $it->Turno }}</td>
                         <td class="px-6 py-4 align-middle text-gray-800">{{ $it->SalonTejidoId }}</td>
+                        <td class="px-6 py-4 align-middle text-center">
+                            @if($it->Supervisor)
+                                <i class="fa-solid fa-check text-green-600" title="Sí"></i>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                             <i class="fa-solid fa-inbox text-5xl mb-3 text-gray-300 block"></i>
                             <p class="text-lg font-medium">Sin registros</p>
                         </td>
@@ -153,6 +162,12 @@ Telares por Operador
                                     <option value="{{ $salon }}">{{ $salon }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="md:col-span-3 flex items-center gap-3">
+                            <input type="checkbox" id="createSupervisor" name="Supervisor" value="1" class="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500">
+                            <label for="createSupervisor" class="text-sm font-semibold text-gray-700 cursor-pointer">
+                                <i class="fa-solid fa-user-tie text-green-600 mr-1"></i>Supervisor
+                            </label>
                         </div>
                     </div>
                     
@@ -252,6 +267,12 @@ Telares por Operador
                             </label>
                             <input type="text" id="editSalon" name="SalonTejidoId" class="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm hover:shadow-md" required>
                         </div>
+                        <div class="md:col-span-3 flex items-center gap-3">
+                            <input type="checkbox" id="editSupervisor" name="Supervisor" value="1" class="w-5 h-5 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500">
+                            <label for="editSupervisor" class="text-sm font-semibold text-gray-700 cursor-pointer">
+                                <i class="fa-solid fa-user-tie text-yellow-600 mr-1"></i>Supervisor
+                            </label>
+                        </div>
                     </div>
                     <div class="flex justify-end gap-4 pt-6 border-t border-gray-200">
                         <button type="button" data-close-modal="editModal" class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md flex items-center gap-2">
@@ -341,14 +362,22 @@ Telares por Operador
         border-left: 4px solid #3b82f6; /* blue-600 */
     }
 
-    /* Encabezado fijo al hacer scroll */
-    #table-scroll-wrapper { overscroll-behavior: contain; }
+    /* Contenedor con scroll: la tabla hace scroll aquí y los encabezados se mantienen visibles */
+    #table-scroll-wrapper {
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
     #table-scroll-wrapper thead th {
         position: sticky;
         top: 0;
-        z-index: 20;
-        background-color: #3b82f6;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        z-index: 30;
+        background-color: #3b82f6 !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+    }
+    #table-scroll-wrapper thead {
+        position: sticky;
+        top: 0;
+        z-index: 30;
     }
 
     /* Animación para modales */
@@ -449,7 +478,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const telar = selectedRow.dataset.telar || '';
         const turno = selectedRow.dataset.turno || '';
         const salon = selectedRow.dataset.salon || '';
-        openEditModal(selectedKey, numero, nombre, telar, turno, salon);
+        const supervisor = selectedRow.dataset.supervisor || '0';
+        openEditModal(selectedKey, numero, nombre, telar, turno, salon, supervisor);
     }
 
     async function handleTopDelete() {
@@ -559,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    function openEditModal(key, numero, nombre, telar, turno = '', salon = '') {
+    function openEditModal(key, numero, nombre, telar, turno = '', salon = '', supervisor = '0') {
         const editEmpSel = document.getElementById('editEmpleado');
         if (editEmpSel) {
             editEmpSel.value = String(numero || '');
@@ -573,6 +603,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (turnoInput) turnoInput.value = String(turno || '');
         const salonInput = document.getElementById('editSalon');
         if (salonInput) salonInput.value = salon || '';
+        const editSupervisor = document.getElementById('editSupervisor');
+        if (editSupervisor) editSupervisor.checked = (supervisor === '1' || supervisor === 'true');
         document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(key));
         openModal('editModal');
     }
@@ -583,7 +615,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const telar = btn.dataset.telar || '';
         const turno = btn.dataset.turno || '';
         const salon = btn.dataset.salon || '';
-        openEditModal(key, numero, nombre, telar, turno, salon);
+        const supervisor = btn.dataset.supervisor || '0';
+        openEditModal(key, numero, nombre, telar, turno, salon, supervisor);
     }
     function deleteOperator(key) {
         Swal.fire({
@@ -803,14 +836,17 @@ document.addEventListener('DOMContentLoaded', function() {
         tr.setAttribute('data-telar', item.NoTelarId || '');
         tr.setAttribute('data-turno', item.Turno || '');
         tr.setAttribute('data-salon', item.SalonTejidoId || '');
+        tr.setAttribute('data-supervisor', item.Supervisor ? '1' : '0');
         tr.setAttribute('aria-selected', 'false');
         
+        const supervisorCell = item.Supervisor ? '<i class="fa-solid fa-check text-green-600" title="Sí"></i>' : '<span class="text-gray-400">—</span>';
         tr.innerHTML = `
             <td class="px-6 py-4 align-middle font-medium text-gray-700">${escapeHtml(item.numero_empleado || '')}</td>
             <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(item.nombreEmpl || '')}</td>
             <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(item.NoTelarId || '')}</td>
             <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(item.Turno || '')}</td>
             <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(item.SalonTejidoId || '')}</td>
+            <td class="px-6 py-4 align-middle text-center">${supervisorCell}</td>
         `;
         
         // Agregar event listener para selección
@@ -837,7 +873,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (visibleRows.length === 0 && !emptyRow) {
             const emptyTr = document.createElement('tr');
             emptyTr.innerHTML = `
-                <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                     <i class="fa-solid fa-inbox text-5xl mb-3 text-gray-300 block"></i>
                     <p class="text-lg font-medium">Sin registros</p>
                 </td>
@@ -856,14 +892,16 @@ document.addEventListener('DOMContentLoaded', function() {
         row.setAttribute('data-telar', item.NoTelarId || '');
         row.setAttribute('data-turno', item.Turno || '');
         row.setAttribute('data-salon', item.SalonTejidoId || '');
+        row.setAttribute('data-supervisor', item.Supervisor ? '1' : '0');
         
         const cells = row.querySelectorAll('td');
-        if (cells.length >= 5) {
+        if (cells.length >= 6) {
             cells[0].textContent = item.numero_empleado || '';
             cells[1].textContent = item.nombreEmpl || '';
             cells[2].textContent = item.NoTelarId || '';
             cells[3].textContent = item.Turno || '';
             cells[4].textContent = item.SalonTejidoId || '';
+            cells[5].innerHTML = item.Supervisor ? '<i class="fa-solid fa-check text-green-600" title="Sí"></i>' : '<span class="text-gray-400">—</span>';
         }
     }
 
@@ -906,6 +944,8 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('nombreEmpl', nombre.value);
             formData.append('Turno', turno.value);
             formData.append('SalonTejidoId', salon.value);
+            const createSupervisor = document.getElementById('createSupervisor');
+            formData.append('Supervisor', (createSupervisor && createSupervisor.checked) ? '1' : '0');
             telaresSeleccionados.forEach((telar, index) => {
                 formData.append(`telares[${index}]`, telar);
             });
@@ -977,6 +1017,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(editForm);
             formData.append('_method', 'PUT');
             formData.append('_token', '{{ csrf_token() }}');
+            const editSupervisor = document.getElementById('editSupervisor');
+            formData.set('Supervisor', (editSupervisor && editSupervisor.checked) ? '1' : '0');
             
             const actionUrl = editForm.getAttribute('action');
             if (!actionUrl) {

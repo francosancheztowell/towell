@@ -64,6 +64,7 @@ class TelTelaresOperadorController extends Controller
             'SalonTejidoId'   => ['required', 'string', 'max:10'],
             'telares'         => ['required', 'array', 'min:1'],
             'telares.*'       => ['required', 'string', 'max:10'],
+            'Supervisor'      => ['nullable', 'boolean'],
         ]);
 
         $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
@@ -91,6 +92,7 @@ class TelTelaresOperadorController extends Controller
                     'NoTelarId'       => $telar,
                     'Turno'           => $data['Turno'] ?? (string)($usuario->turno ?? ''),
                     'SalonTejidoId'   => $data['SalonTejidoId'],
+                    'Supervisor'      => $request->boolean('Supervisor', false),
                 ];
 
                 TelTelaresOperador::create($payload);
@@ -126,6 +128,7 @@ class TelTelaresOperadorController extends Controller
                             'NoTelarId' => $item->NoTelarId,
                             'Turno' => $item->Turno,
                             'SalonTejidoId' => $item->SalonTejidoId,
+                            'Supervisor' => (bool)($item->Supervisor ?? false),
                         ];
                     })
                 ]);
@@ -176,6 +179,7 @@ class TelTelaresOperadorController extends Controller
             'numero_empleado' => ['required', 'string', 'max:30'],
             'NoTelarId'       => ['required', 'string', 'max:10'],
             'SalonTejidoId'   => ['required', 'string', 'max:10'],
+            'Supervisor'      => ['nullable', 'boolean'],
         ]);
 
         // Validación: no permitir duplicar (numero_empleado + NoTelarId) excepto el registro actual
@@ -192,11 +196,32 @@ class TelTelaresOperadorController extends Controller
         $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
         $data['nombreEmpl'] = $usuario->nombre ?? $telTelaresOperador->nombreEmpl;
         $data['Turno'] = (string)($usuario->turno ?? $telTelaresOperador->Turno);
+        $data['Supervisor'] = $request->boolean('Supervisor', false);
 
         try {
             $telTelaresOperador->update($data);
+            $telTelaresOperador->refresh();
         } catch (\Throwable $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Error al actualizar: ' . $e->getMessage()], 422);
+            }
             return back()->withErrors('Error al actualizar: ' . $e->getMessage())->withInput();
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Operador actualizado correctamente.',
+                'data' => [
+                    'Id' => $telTelaresOperador->Id,
+                    'numero_empleado' => $telTelaresOperador->numero_empleado,
+                    'nombreEmpl' => $telTelaresOperador->nombreEmpl,
+                    'NoTelarId' => $telTelaresOperador->NoTelarId,
+                    'Turno' => $telTelaresOperador->Turno,
+                    'SalonTejidoId' => $telTelaresOperador->SalonTejidoId,
+                    'Supervisor' => (bool)($telTelaresOperador->Supervisor ?? false),
+                ],
+            ]);
         }
 
         return redirect()->route('tel-telares-operador.index')
