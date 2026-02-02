@@ -542,6 +542,59 @@
 
     const formCreate = qs('#form-create');
 
+    // Enviar crear por fetch para capturar errores en consola (útil en producción)
+    formCreate?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(formCreate);
+        const submitBtn = formCreate.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+            const response = await fetch(formCreate.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            const contentType = response.headers.get('Content-Type') || '';
+            if (!response.ok) {
+                const text = await response.text();
+                let errorDetail = text;
+                let errorMsg = 'Revisa la consola del navegador (F12 → Console) para ver el detalle.';
+                if (contentType.includes('application/json')) {
+                    try {
+                        const json = JSON.parse(text);
+                        errorDetail = json;
+                        errorMsg = json.error || json.message || errorMsg;
+                    } catch (_) {}
+                }
+                console.error('[BPM Tejedores] Error al crear folio:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: response.url,
+                    body: errorDetail
+                });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al crear folio',
+                    text: errorMsg
+                });
+                if (submitBtn) submitBtn.disabled = false;
+                return;
+            }
+            window.location.href = response.url;
+        } catch (err) {
+            console.error('[BPM Tejedores] Error de red o al crear folio:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: (err && err.message) ? err.message : 'Revisa la consola (F12).'
+            });
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    });
+
     // Seleccionar fila y accionar desde barra superior
     let selected = null;
     const btnConsult = qs('#btn-consult');
