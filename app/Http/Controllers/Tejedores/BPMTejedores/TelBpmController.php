@@ -83,9 +83,19 @@ class TelBpmController extends Controller
     /** Store: Genera folio, crea header y redirige a líneas */
     public function store(Request $request)
     {
+        // Log INMEDIATO al entrar al método (antes de cualquier cosa)
+        Log::error('[BPM DIAG] ===== STORE METHOD CALLED =====', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'all_input' => $request->all(),
+        ]);
+
         $user = Auth::user();
 
         if (!$user) {
+            Log::error('[BPM DIAG] Usuario no autenticado');
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Usuario no autenticado'], 401);
             }
