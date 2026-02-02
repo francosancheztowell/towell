@@ -237,7 +237,7 @@ class DescargarProgramaController extends Controller
             'AnchoToalla' => 'Ancho por Toalla',
             'CodColorTrama' => 'Código Color Tra',
             'ColorTrama' => 'Color Tra',
-            'CalibreComb1' => 'Calibre C1',
+            'CalibreComb12' => 'Calibre C1',
             'FibraComb1' => 'Fibra C1',
             'CodColorComb1' => 'Código Color C1',
             'NombreCC1' => 'Color C1',
