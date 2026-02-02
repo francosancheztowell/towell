@@ -132,10 +132,7 @@ class TelBpmController extends Controller
             // Validar: Entrega y Recibe no pueden ser el mismo operador
             if (!empty($data['CveEmplRec']) && !empty($data['CveEmplEnt']) && $data['CveEmplRec'] === $data['CveEmplEnt']) {
                 Log::error('[BPM DIAG] BPM Tejedores store: rechazado, mismo operador entrega/recibe');
-                if ($request->ajax() || $request->wantsJson()) {
-                    return response()->json(['error' => 'Entrega y Recibe no pueden ser el mismo operador.'], 422);
-                }
-                return back()->with('error', 'Entrega y Recibe no pueden ser el mismo operador.');
+                return redirect()->back()->with('error', 'Entrega y Recibe no pueden ser el mismo operador.');
             }
 
             // Generar folio
@@ -179,14 +176,7 @@ class TelBpmController extends Controller
                 'user_id' => $user->getAuthIdentifier(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'error' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                ], 500);
-            }
-            throw $e;
+            return redirect()->back()->with('error', 'Error al crear el folio: ' . $e->getMessage());
         }
     }
 
