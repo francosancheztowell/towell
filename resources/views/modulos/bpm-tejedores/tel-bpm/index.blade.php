@@ -579,11 +579,32 @@
             });
             
             const text = await response.text();
-            console.log('[BPM Tejedores] Body respuesta (primeros 500 chars):', text.substring(0, 500));
+            console.log('[BPM Tejedores] Body respuesta (primeros 1000 chars):', text.substring(0, 1000));
+            
+            // Buscar mensajes de error o éxito en el HTML
+            const errorMatch = text.match(/session\(['"]error['"]\)|@if\(session\(['"]error['"]\)\)|Swal\.fire.*error/i);
+            const successMatch = text.match(/session\(['"]success['"]\)|@if\(session\(['"]success['"]\)\)|Swal\.fire.*success/i);
+            const validationErrors = text.match(/@if\(\$errors->any\(\)\)|@error|validation.*error/i);
+            
+            console.log('[BPM Tejedores] Análisis del body:', {
+                tiene_error_session: !!errorMatch,
+                tiene_success_session: !!successMatch,
+                tiene_validation_errors: !!validationErrors,
+                url_final: response.url
+            });
             
             // Si es redirect o éxito, seguir con la navegación
             if (response.ok || response.redirected) {
-                window.location.href = response.url || formCreate.action;
+                // Si la URL cambió, es un redirect exitoso
+                if (response.url && response.url !== formCreate.action) {
+                    console.log('[BPM Tejedores] Redirect detectado, navegando a:', response.url);
+                    window.location.href = response.url;
+                } else {
+                    // Misma URL = redirect back (probable error)
+                    console.warn('[BPM Tejedores] Misma URL después del submit - posible error silencioso');
+                    // Recargar para mostrar mensajes flash si los hay
+                    window.location.reload();
+                }
             } else {
                 console.error('[BPM Tejedores] Error en respuesta:', text);
                 alert('Error: ' + response.status + ' ' + response.statusText + '. Revisa la consola (F12)');

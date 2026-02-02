@@ -123,8 +123,12 @@ class TelBpmController extends Controller
             Log::error('[BPM DIAG] BPM Tejedores store: validación fallida', [
                 'errors' => $e->errors(),
                 'user_id' => $user->getAuthIdentifier(),
+                'request_data' => $request->all(),
             ]);
-            throw $e;
+            // Retornar con errores de validación en lugar de lanzar excepción
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput($request->all());
         }
 
         try {
