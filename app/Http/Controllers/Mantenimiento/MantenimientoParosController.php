@@ -44,13 +44,24 @@ class MantenimientoParosController extends Controller
     }
     /**
      * Departamentos disponibles para el módulo de mantenimiento.
-     * Fuente: SysDepartamentos.Depto
+     * Fuente: SysDepartamentos.Depto.
+     * El usuario con id 6 solo recibe Urdido y Engomado.
      */
     public function departamentos(): JsonResponse
     {
-        $departamentos = SysDepartamento::orderBy('Depto')
-            ->pluck('Depto')
-            ->toArray();
+        $usuario = Auth::user();
+        $userId = $usuario ? ($usuario->id ?? $usuario->idusuario ?? null) : null;
+
+        if ($userId === 6) {
+            $departamentos = SysDepartamento::orderBy('Depto')
+                ->whereIn('Depto', ['Urdido', 'Engomado'])
+                ->pluck('Depto')
+                ->toArray();
+        } else {
+            $departamentos = SysDepartamento::orderBy('Depto')
+                ->pluck('Depto')
+                ->toArray();
+        }
 
         return response()->json([
             'success' => true,

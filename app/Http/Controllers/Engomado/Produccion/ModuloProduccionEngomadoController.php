@@ -191,8 +191,8 @@ class ModuloProduccionEngomadoController extends Controller
                         $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
                     }
 
-                    // Obtener metros de la orden (asignar el total completo a cada registro)
-                    $metrosOrden = $orden->Metros ?? 0;
+                    // Metros en producción = Metraje Telas de la orden (guardar en Metros1)
+                    $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
 
                     // Crear los registros faltantes
                     $registrosACrear = [];
@@ -249,8 +249,8 @@ class ModuloProduccionEngomadoController extends Controller
                 ->get();
         }
 
-        // Formatear metros con separador de miles
-        $metros = $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0';
+        // Metros en producción = Metraje Telas de la orden (formateado para vista)
+        $metros = $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : ($orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0');
 
         // Obtener destino (SalonTejidoId)
         $destino = $orden->SalonTejidoId ?? null;

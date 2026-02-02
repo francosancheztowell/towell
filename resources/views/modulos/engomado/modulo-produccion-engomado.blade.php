@@ -221,14 +221,10 @@
                                     $kgNeto = $registro ? ($registro->KgNeto ?? '') : '';
                                     $solidos = $registro ? ($registro->Solidos ?? '') : '';
 
-                                    $metros = '';
-                                    if ($registro) {
-                                        $metros1 = isset($registro->Metros1) && $registro->Metros1 !== null ? (float)$registro->Metros1 : 0;
-                                        $metros2 = isset($registro->Metros2) && $registro->Metros2 !== null ? (float)$registro->Metros2 : 0;
-                                        $metros3 = isset($registro->Metros3) && $registro->Metros3 !== null ? (float)$registro->Metros3 : 0;
-                                        $sumaMetros = $metros1 + $metros2 + $metros3;
-                                        $metros = $sumaMetros > 0 ? $sumaMetros : '';
-                                    }
+                                    // Metros en producción = Metraje Telas de la orden (valor numérico para input type="number")
+                                    $metrosProduccion = isset($orden) && $orden && isset($orden->MetrajeTelas) && $orden->MetrajeTelas !== null && $orden->MetrajeTelas !== ''
+                                        ? (float)$orden->MetrajeTelas
+                                        : '';
 
                                     $tempCanoa1 = $registro && $registro->Canoa1 !== null ? (int)$registro->Canoa1 : 0;
                                     $tempCanoa2 = $registro && $registro->Canoa2 !== null ? (int)$registro->Canoa2 : 0;
@@ -428,14 +424,14 @@
                                         >
                                     </td>
 
-                                    {{-- Metros --}}
+                                    {{-- Metros (valor de Metraje Telas de la orden) --}}
                                     <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-28 max-w-[90px]">
                                         <input
                                             type="number"
                                             disabled
                                             data-field="metros"
                                             class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                            value="{{ $metros }}"
+                                            value="{{ $metrosProduccion }}"
                                         >
                                     </td>
 
