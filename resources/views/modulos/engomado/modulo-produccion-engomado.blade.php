@@ -221,6 +221,16 @@
                                     $kgNeto = $registro ? ($registro->KgNeto ?? '') : '';
                                     $solidos = $registro ? ($registro->Solidos ?? '') : '';
 
+                                    // Metros = suma de Metros1 + Metros2 + Metros3 del registro
+                                    $metros = '';
+                                    if ($registro) {
+                                        $m1 = isset($registro->Metros1) && $registro->Metros1 !== null ? (float)$registro->Metros1 : 0;
+                                        $m2 = isset($registro->Metros2) && $registro->Metros2 !== null ? (float)$registro->Metros2 : 0;
+                                        $m3 = isset($registro->Metros3) && $registro->Metros3 !== null ? (float)$registro->Metros3 : 0;
+                                        $sumaMetros = $m1 + $m2 + $m3;
+                                        $metros = $sumaMetros > 0 ? $sumaMetros : '';
+                                    }
+
                                     $tempCanoa1 = $registro && $registro->Canoa1 !== null ? (int)$registro->Canoa1 : 0;
                                     $tempCanoa2 = $registro && $registro->Canoa2 !== null ? (int)$registro->Canoa2 : 0;
                                     // $tambor = $registro && $registro->Tambor !== null ? (int)$registro->Tambor : 0; // Columna no existe en la tabla
@@ -426,7 +436,7 @@
                                             disabled
                                             data-field="metros"
                                             class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                            value="{{ $metrosProduccion }}"
+                                            value="{{ $metros }}"
                                         >
                                     </td>
 
