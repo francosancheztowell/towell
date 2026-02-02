@@ -261,11 +261,20 @@ class TelBpmController extends Controller
             $userName = (string) ($user->name ?? $user->nombre ?? '');
 
             $codes = collect([$userCode, $userCodeAlt])->filter(fn($v) => $v !== '')->unique()->values()->all();
-            $operadorUsuario = $this->operadorQuery($codes, $userName)->first();
+            
+            // Primero buscar por códigos
+            $operadorUsuario = $this->operadorQuery($codes, '')->first();
+            
+            // Si no encuentra por código, intentar por nombre
+            if (!$operadorUsuario && $userName !== '') {
+                $operadorUsuario = TelTelaresOperador::where('nombreEmpl', 'like', "%{$userName}%")->first();
+            }
+            
             $usuarioEsOperador = (bool) $operadorUsuario;
 
             if ($usuarioEsOperador) {
-                $telaresUsuario = $this->operadorQuery($codes, $userName)
+                // Usar el numero_empleado del operador encontrado para buscar telares
+                $telaresUsuario = TelTelaresOperador::where('numero_empleado', $operadorUsuario->numero_empleado)
                     ->pluck('NoTelarId')
                     ->filter()
                     ->unique()
@@ -339,7 +348,20 @@ class TelBpmController extends Controller
     private function operadorQuery(array $codes, string $userName)
     {
         return TelTelaresOperador::query()
-            ->when(!empty($codes), fn($q) => $q->whereIn('numero_empleado', $codes))
-            ->when(empty($codes) && $userName !== '', fn($q) => $q->where('nombreEmpl', 'like', "%{$userName}%"));
+            ->where(function ($q) use ($codes, $userName) {
+                // Buscar por códigos de empleado (exacto o LIKE para manejar espacios/formatos)
+                if (!empty($codes)) {
+                    $q->where(function ($sub) use ($codes) {
+                        foreach ($codes as $code) {
+                            $sub->orWhere('numero_empleado', $code)
+                                ->orWhere('numero_empleado', 'like', trim($code));
+                        }
+                    });
+                }
+                // Si no hay códigos, buscar por nombre
+                if (empty($codes) && $userName !== '') {
+                    $q->orWhere('nombreEmpl', 'like', "%{$userName}%");
+                }
+            });
     }
 }
