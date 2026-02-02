@@ -92,7 +92,7 @@ class TelBpmController extends Controller
             return redirect()->back()->with('error', 'Debes iniciar sesión para crear un folio.');
         }
 
-        Log::info('BPM Tejedores store: inicio', [
+        Log::error('[BPM DIAG] BPM Tejedores store: inicio', [
             'user_id' => $user->getAuthIdentifier(),
             'user_cve' => $user->cve ?? null,
             'user_numero_empleado' => $user->numero_empleado ?? null,
@@ -110,7 +110,7 @@ class TelBpmController extends Controller
                 'TurnoEntrega'  => ['required','string','max:10'],
             ]);
         } catch (ValidationException $e) {
-            Log::warning('BPM Tejedores store: validación fallida', [
+            Log::error('[BPM DIAG] BPM Tejedores store: validación fallida', [
                 'errors' => $e->errors(),
                 'user_id' => $user->getAuthIdentifier(),
             ]);
@@ -123,7 +123,7 @@ class TelBpmController extends Controller
             $data['NombreEmplRec'] = $data['NombreEmplRec'] ?? (string) ($user->name ?? $user->nombre ?? '');
             $data['TurnoRecibe']   = $data['TurnoRecibe']   ?? (string) request()->get('turno_actual', '1');
 
-            Log::info('BPM Tejedores store: datos después de defaults', [
+            Log::error('[BPM DIAG] BPM Tejedores store: datos después de defaults', [
                 'CveEmplRec' => $data['CveEmplRec'],
                 'CveEmplEnt' => $data['CveEmplEnt'],
                 'TurnoRecibe' => $data['TurnoRecibe'],
@@ -131,17 +131,17 @@ class TelBpmController extends Controller
 
             // Validar: Entrega y Recibe no pueden ser el mismo operador
             if (!empty($data['CveEmplRec']) && !empty($data['CveEmplEnt']) && $data['CveEmplRec'] === $data['CveEmplEnt']) {
-                Log::info('BPM Tejedores store: rechazado, mismo operador entrega/recibe');
+                Log::error('[BPM DIAG] BPM Tejedores store: rechazado, mismo operador entrega/recibe');
                 return back()->with('error', 'Entrega y Recibe no pueden ser el mismo operador.');
             }
 
             // Generar folio
-            Log::info('BPM Tejedores store: generando folio');
+            Log::error('[BPM DIAG] BPM Tejedores store: generando folio');
             $folio = $this->generarFolio();
-            Log::info('BPM Tejedores store: folio generado', ['folio' => $folio]);
+            Log::error('[BPM DIAG] BPM Tejedores store: folio generado', ['folio' => $folio]);
 
             // Crear header
-            Log::info('BPM Tejedores store: creando header TelBPM');
+            Log::error('[BPM DIAG] BPM Tejedores store: creando header TelBPM');
             TelBpmModel::create([
                 'Folio'            => $folio,
                 'Fecha'            => Carbon::now(),
@@ -155,21 +155,21 @@ class TelBpmController extends Controller
                 'NomEmplAutoriza'  => null,
                 'Status'           => self::EST_CREADO,
             ]);
-            Log::info('BPM Tejedores store: header creado OK', ['folio' => $folio]);
+            Log::error('[BPM DIAG] BPM Tejedores store: header creado OK', ['folio' => $folio]);
 
             // Inicializar líneas del checklist
-            Log::info('BPM Tejedores store: inicializando líneas checklist', [
+            Log::error('[BPM DIAG] BPM Tejedores store: inicializando líneas checklist', [
                 'folio' => $folio,
                 'cveEmplRec' => $data['CveEmplRec'],
             ]);
             $this->inicializarLineasChecklist($folio, $data['CveEmplRec'], $data['TurnoRecibe']);
-            Log::info('BPM Tejedores store: completado OK', ['folio' => $folio]);
+            Log::error('[BPM DIAG] BPM Tejedores store: completado OK', ['folio' => $folio]);
 
             return redirect()
                 ->route('tel-bpm-line.index', $folio)
                 ->with('success', "Folio $folio creado. Completa el checklist.");
         } catch (\Throwable $e) {
-            Log::error('BPM Tejedores store: error al crear folio', [
+            Log::error('[BPM DIAG] BPM Tejedores store: error al crear folio', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -217,7 +217,7 @@ class TelBpmController extends Controller
     /** Genera un nuevo folio único */
     private function generarFolio(): string
     {
-        Log::info('BPM Tejedores generarFolio: inicio', ['modulo' => self::FOLIO_KEY]);
+        Log::error('[BPM DIAG] BPM Tejedores generarFolio: inicio', ['modulo' => self::FOLIO_KEY]);
 
         try {
             return DB::transaction(function () {
@@ -225,22 +225,22 @@ class TelBpmController extends Controller
                 $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
 
                 if (!$row) {
-                    Log::info('BPM Tejedores generarFolio: no existe fila en SSYSFoliosSecuencias, creando');
+                    Log::error('[BPM DIAG] BPM Tejedores generarFolio: no existe fila en SSYSFoliosSecuencias, creando');
                     $maxFolio = DB::table('TelBPM')->where('Folio', 'like', 'BT%')->orderBy('Folio', 'desc')->value('Folio');
                     $start = $maxFolio ? (int) substr($maxFolio, strlen('BT')) : 0;
-                    Log::info('BPM Tejedores generarFolio: maxFolio en TelBPM', ['maxFolio' => $maxFolio, 'start' => $start]);
+                    Log::error('[BPM DIAG] BPM Tejedores generarFolio: maxFolio en TelBPM', ['maxFolio' => $maxFolio, 'start' => $start]);
                     SSYSFoliosSecuencia::create(['modulo' => self::FOLIO_KEY, 'prefijo' => 'BT', 'consecutivo' => $start]);
                     $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
 
                     if (!$row) {
-                        Log::error('BPM Tejedores generarFolio: no se pudo crear fila en SSYSFoliosSecuencias para modulo=' . self::FOLIO_KEY);
+                        Log::error('[BPM DIAG] BPM Tejedores generarFolio: no se pudo crear fila en SSYSFoliosSecuencias para modulo=' . self::FOLIO_KEY);
                         throw new \RuntimeException('No existe configuración de folio para BPM Tejedores en SSYSFoliosSecuencias y no se pudo crear.');
                     }
                 }
 
                 $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');
                 $currConsec = (int)($row->consecutivo ?? ($row->Consecutivo ?? 0));
-                Log::info('BPM Tejedores generarFolio: row leída', [
+                Log::error('[BPM DIAG] BPM Tejedores generarFolio: row leída', [
                     'prefijo' => $prefijo,
                     'currConsec' => $currConsec,
                     'row_keys' => $row ? array_keys((array) $row) : [],
@@ -260,13 +260,13 @@ class TelBpmController extends Controller
                 try {
                     $f = SSYSFoliosSecuencia::nextFolio(self::FOLIO_KEY, self::PAD_LENGTH);
                 } catch (\Throwable $e) {
-                    Log::info('BPM Tejedores generarFolio: nextFolio por módulo falló, usando por prefijo', [
+                    Log::error('[BPM DIAG] BPM Tejedores generarFolio: nextFolio por módulo falló, usando por prefijo', [
                         'error' => $e->getMessage(),
                     ]);
                     $f = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH);
                 }
                 $folio = $f['folio'];
-                Log::info('BPM Tejedores generarFolio: folio generado', ['folio' => $folio]);
+                Log::error('[BPM DIAG] BPM Tejedores generarFolio: folio generado', ['folio' => $folio]);
 
                 // Si por alguna razón sigue duplicado, incrementar hasta encontrar libre
                 $guard = 0;
@@ -279,7 +279,7 @@ class TelBpmController extends Controller
                 return $folio;
             });
         } catch (\Throwable $e) {
-            Log::error('BPM Tejedores generarFolio: excepción', [
+            Log::error('[BPM DIAG] BPM Tejedores generarFolio: excepción', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -336,7 +336,7 @@ class TelBpmController extends Controller
     /** Inicializa las líneas del checklist para un folio */
     private function inicializarLineasChecklist(string $folio, string $cveEmplRec, string $turnoRecibe): void
     {
-        Log::info('BPM Tejedores inicializarLineasChecklist: inicio', [
+        Log::error('[BPM DIAG] BPM Tejedores inicializarLineasChecklist: inicio', [
             'folio' => $folio,
             'cveEmplRec' => $cveEmplRec,
             'turnoRecibe' => $turnoRecibe,
@@ -354,7 +354,7 @@ class TelBpmController extends Controller
             $countTelares = $telares->count();
             $salonPorTelar = $asignados->mapWithKeys(fn($r) => [$r->NoTelarId => $r->SalonTejidoId])->all();
 
-            Log::info('BPM Tejedores inicializarLineasChecklist: datos obtenidos', [
+            Log::error('[BPM DIAG] BPM Tejedores inicializarLineasChecklist: datos obtenidos', [
                 'folio' => $folio,
                 'actividades_count' => $countActividades,
                 'telares_count' => $countTelares,
@@ -362,11 +362,11 @@ class TelBpmController extends Controller
             ]);
 
             if ($actividades->isEmpty()) {
-                Log::warning('BPM Tejedores inicializarLineasChecklist: sin actividades (TelActividadesBPM vacío o sin registros). No se crean líneas.');
+                Log::error('[BPM DIAG] BPM Tejedores inicializarLineasChecklist: sin actividades (TelActividadesBPM vacío o sin registros). No se crean líneas.');
                 return;
             }
             if ($telares->isEmpty()) {
-                Log::warning('BPM Tejedores inicializarLineasChecklist: sin telares para CveEmplRec', [
+                Log::error('[BPM DIAG] BPM Tejedores inicializarLineasChecklist: sin telares para CveEmplRec', [
                     'cveEmplRec' => $cveEmplRec,
                     'asignados_count' => $asignados->count(),
                 ]);
@@ -399,12 +399,12 @@ class TelBpmController extends Controller
                 }
             });
 
-            Log::info('BPM Tejedores inicializarLineasChecklist: líneas creadas', [
+            Log::error('[BPM DIAG] BPM Tejedores inicializarLineasChecklist: líneas creadas', [
                 'folio' => $folio,
                 'insertados' => $insertados,
             ]);
         } catch (\Throwable $e) {
-            Log::error('BPM Tejedores inicializarLineasChecklist: error', [
+            Log::error('[BPM DIAG] BPM Tejedores inicializarLineasChecklist: error', [
                 'folio' => $folio,
                 'cveEmplRec' => $cveEmplRec,
                 'message' => $e->getMessage(),
