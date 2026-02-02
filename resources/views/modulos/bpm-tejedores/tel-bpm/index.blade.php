@@ -541,6 +541,58 @@
     });
 
     const formCreate = qs('#form-create');
+    
+    // Interceptar submit para capturar respuesta y ver qué pasa
+    formCreate?.addEventListener('submit', async function(e) {
+        e.preventDefault(); // Prevenir submit normal temporalmente para debug
+        
+        const formData = new FormData(formCreate);
+        const dataObj = {};
+        for (let [key, value] of formData.entries()) {
+            dataObj[key] = value;
+        }
+        
+        console.log('[BPM Tejedores] Enviando formulario...', {
+            action: formCreate.action,
+            method: formCreate.method,
+            csrf_token: dataObj._token ? 'presente' : 'FALTA',
+            data: dataObj
+        });
+        
+        try {
+            const response = await fetch(formCreate.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                },
+                redirect: 'follow'
+            });
+            
+            console.log('[BPM Tejedores] Respuesta recibida:', {
+                status: response.status,
+                statusText: response.statusText,
+                url: response.url,
+                redirected: response.redirected,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+            
+            const text = await response.text();
+            console.log('[BPM Tejedores] Body respuesta (primeros 500 chars):', text.substring(0, 500));
+            
+            // Si es redirect o éxito, seguir con la navegación
+            if (response.ok || response.redirected) {
+                window.location.href = response.url || formCreate.action;
+            } else {
+                console.error('[BPM Tejedores] Error en respuesta:', text);
+                alert('Error: ' + response.status + ' ' + response.statusText + '. Revisa la consola (F12)');
+            }
+        } catch (err) {
+            console.error('[BPM Tejedores] Error de red:', err);
+            alert('Error de red: ' + err.message + '. Revisa la consola (F12)');
+        }
+    });
 
     // Seleccionar fila y accionar desde barra superior
     let selected = null;
@@ -686,10 +738,12 @@
 @if(session('error'))
 <script>
   (function(){
+    const errorMsg = @json(session('error'));
+    console.error('[BPM Tejedores] Error desde servidor:', errorMsg);
     Swal.fire({
-      icon: 'warning',
-      title: 'Aviso',
-      text: @json(session('error')),
+      icon: 'error',
+      title: 'Error',
+      text: errorMsg,
       confirmButtonText: 'Entendido'
     });
   })();
