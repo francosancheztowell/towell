@@ -208,6 +208,20 @@
                 <div class="">
                     <div class="px-4 sm:px-6 py-2 sm:py-3">
 
+                        <!-- Acciones rápidas de permisos -->
+                        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-2">
+                            <button type="button"
+                                class="px-3 py-2 text-sm font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                                onclick="seleccionarTodos()">
+                                Seleccionar todos
+                            </button>
+                            <button type="button"
+                                class="px-3 py-2 text-sm font-medium rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200"
+                                onclick="deseleccionarTodos()">
+                                Deseleccionar todos
+                            </button>
+                        </div>
+
                         <!-- Versión móvil: cards con header sticky -->
                         <div class="block sm:hidden ">
                             <div class="border border-gray-200 rounded shadow-sm overflow-hidden flex flex-col" style="height: 200px;">
@@ -507,11 +521,17 @@
         function seleccionarTodos() {
             const checkboxes = document.querySelectorAll('input[type="checkbox"][name*="modulo_"]');
             checkboxes.forEach(checkbox => checkbox.checked = true);
+
+            const headerCheckboxes = document.querySelectorAll('#selectAllAcceso, #selectAllCrear, #selectAllModificar, #selectAllEliminar, #selectAllRegistrar');
+            headerCheckboxes.forEach(checkbox => checkbox.checked = true);
         }
 
         function deseleccionarTodos() {
             const checkboxes = document.querySelectorAll('input[type="checkbox"][name*="modulo_"]');
             checkboxes.forEach(checkbox => checkbox.checked = false);
+
+            const headerCheckboxes = document.querySelectorAll('#selectAllAcceso, #selectAllCrear, #selectAllModificar, #selectAllEliminar, #selectAllRegistrar');
+            headerCheckboxes.forEach(checkbox => checkbox.checked = false);
         }
 
         // Funciones para toggle de todas las columnas
@@ -535,73 +555,7 @@
             eliminarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
         }
 
-        @if($isEdit && $usuario)
-        // Actualización de permisos en tiempo real (solo en modo edición)
-        function actualizarPermiso(checkbox) {
-            const name = checkbox.name; // Ej: modulo_5_acceso
-            const parts = name.split('_'); // ['modulo', '5', 'acceso']
-            const idrol = parts[1];
-            const campo = parts[2];
-            const valor = checkbox.checked;
-
-            // Mostrar loading en el checkbox
-            checkbox.disabled = true;
-
-            fetch('{{ route("configuracion.usuarios.permisos.update", $usuario->idusuario) }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    idrol: idrol,
-                    campo: campo,
-                    valor: valor ? 1 : 0
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                checkbox.disabled = false;
-                if (data.success) {
-                    // Mostrar feedback visual
-                    checkbox.parentElement.classList.add('bg-green-50');
-                    setTimeout(() => {
-                        checkbox.parentElement.classList.remove('bg-green-50');
-                    }, 500);
-                } else {
-                    // Revertir el cambio si falla
-                    checkbox.checked = !valor;
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'No se pudo actualizar el permiso',
-                        confirmButtonColor: '#2563eb'
-                    });
-                }
-            })
-            .catch(error => {
-                checkbox.disabled = false;
-                checkbox.checked = !valor;
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de conexión',
-                    text: 'No se pudo conectar con el servidor',
-                    confirmButtonColor: '#2563eb'
-                });
-            });
-        }
-
-        // Agregar event listeners a todos los checkboxes de permisos
-        document.addEventListener('DOMContentLoaded', function() {
-            const permisoCheckboxes = document.querySelectorAll('input[type="checkbox"][name*="modulo_"]');
-            permisoCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    actualizarPermiso(this);
-                });
-            });
-        });
-        @endif
+        // Los permisos se guardan al enviar el formulario (Actualizar Usuario)
 
     </script>
 @endsection

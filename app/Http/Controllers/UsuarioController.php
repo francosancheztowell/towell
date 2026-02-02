@@ -212,9 +212,13 @@ class UsuarioController extends Controller
             $data = $request->validated();
             $foto = $request->hasFile('foto') ? $request->file('foto') : null;
 
-            // NO procesar permisos en edición, se guardan por AJAX en tiempo real
-            // Solo actualizar datos del usuario
-            $actualizado = $this->usuarioService->update($id, $data, $foto, []);
+            // Extraer permisos del request (todos los campos que empiezan con "modulo_")
+            $permisos = array_filter($request->all(), function($key) {
+                return strpos($key, 'modulo_') === 0;
+            }, ARRAY_FILTER_USE_KEY);
+
+            // Actualizar usuario y permisos desde el formulario
+            $actualizado = $this->usuarioService->update($id, $data, $foto, $permisos);
 
             if (!$actualizado) {
                 return redirect()->route('configuracion.usuarios.select')

@@ -65,10 +65,8 @@ class UsuarioService
         // Actualizar usuario
         $actualizado = $this->usuarioRepository->update($id, $data);
 
-        // Guardar permisos si se proporcionan
-        if (!empty($permisos)) {
-            $this->permissionService->guardarPermisos($permisos, $id);
-        }
+        // Guardar permisos desde el formulario (aunque estén en blanco)
+        $this->permissionService->guardarPermisos($permisos, $id);
 
         if ($actualizado) {
         }
