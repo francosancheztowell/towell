@@ -109,6 +109,7 @@ class ModuloProduccionEngomadoController extends Controller
                 'orden' => null,
                 'julios' => collect([]),
                 'metros' => '0',
+                'metrosProduccion' => null,
                 'destino' => null,
                 'hilo' => null,
                 'tipoAtado' => null,
@@ -273,6 +274,7 @@ class ModuloProduccionEngomadoController extends Controller
         $noTelas = $orden->NoTelas ?? null;
         $anchoBalonas = $orden->AnchoBalonas ?? null;
         $metrajeTelas = $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : null;
+        $metrosProduccion = $orden->MetrajeTelas ?? $orden->Metros ?? null;
         $cuendeadosMin = $orden->Cuentados ?? null;
         $loteProveedor = $orden->LoteProveedor ?? null;
 
@@ -316,6 +318,7 @@ class ModuloProduccionEngomadoController extends Controller
             'noTelas' => $noTelas,
             'anchoBalonas' => $anchoBalonas,
             'metrajeTelas' => $metrajeTelas,
+            'metrosProduccion' => $metrosProduccion,
             'cuendeadosMin' => $cuendeadosMin,
             'loteProveedor' => $loteProveedor,
             'mermaGoma' => $mermaGoma,

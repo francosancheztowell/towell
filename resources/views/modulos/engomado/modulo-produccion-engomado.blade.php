@@ -221,11 +221,6 @@
                                     $kgNeto = $registro ? ($registro->KgNeto ?? '') : '';
                                     $solidos = $registro ? ($registro->Solidos ?? '') : '';
 
-                                    // Metros en producción = Metraje Telas de la orden (valor numérico para input type="number")
-                                    $metrosProduccion = isset($orden) && $orden && isset($orden->MetrajeTelas) && $orden->MetrajeTelas !== null && $orden->MetrajeTelas !== ''
-                                        ? (float)$orden->MetrajeTelas
-                                        : '';
-
                                     $tempCanoa1 = $registro && $registro->Canoa1 !== null ? (int)$registro->Canoa1 : 0;
                                     $tempCanoa2 = $registro && $registro->Canoa2 !== null ? (int)$registro->Canoa2 : 0;
                                     // $tambor = $registro && $registro->Tambor !== null ? (int)$registro->Tambor : 0; // Columna no existe en la tabla
