@@ -29,7 +29,7 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
         ->name('configuracion.catalogos-nucleos');
     Route::get('/configuracion/catalogos-nucleos', [UrdEngNucleosController::class, 'index'])
         ->name('configuracion.catalogos-nucleos.legacy');
-    
+
     // Catálogo de Julios para Engomado
     Route::get('/configuracion/catalogojulioseng', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'catalogosJulios'])
         ->name('configuracion.catalogos.julios');

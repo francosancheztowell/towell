@@ -24,7 +24,7 @@
                 <thead>
                     <tr class="bg-blue-500">
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Telar</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Fecha Req</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Fecha</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Cuenta</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Calibre</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Hilo</th>
@@ -508,11 +508,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const tipoSelects = document.querySelectorAll('select[data-field="tipo"]');
         tipoSelects.forEach(select => {
             const telarId = select.dataset.telarId || '';
-            
+
             select.addEventListener('change', async function() {
                 const valor = this.value;
                 const tipoNormalizado = normalizarTipo(valor);
-                
+
                 // Actualizar estilo del select según el tipo
                 if (tipoNormalizado === 'Rizo') {
                     this.style.backgroundColor = '#fee2e2';
@@ -521,15 +521,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     this.style.backgroundColor = '#ccfbf1';
                     this.style.color = '#0f766e';
                 }
-                
+
                 await guardarCampoTelar('tipo', valor, telarId, valor);
-                
+
                 // Actualizar el telar en telaresData (solo en memoria, sin recargar tabla)
                 const telarEnData = telaresData.find(t => String(t.no_telar || '') === telarId);
                 if (telarEnData) {
                     telarEnData.tipo = tipoNormalizado;
                 }
-                
+
                 // NO recargar la tabla para preservar metros y kilos en el resumen
                 // Solo se actualiza en memoria y en las tablas de programas
             });

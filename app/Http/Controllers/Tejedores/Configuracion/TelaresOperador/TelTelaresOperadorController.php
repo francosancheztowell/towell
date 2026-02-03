@@ -80,7 +80,7 @@ class TelTelaresOperadorController extends Controller
                     ->where('numero_empleado', $data['numero_empleado'])
                     ->where('NoTelarId', $telar)
                     ->exists();
-                
+
                 if ($yaExiste) {
                     $duplicados[] = $telar;
                     continue;
@@ -139,7 +139,7 @@ class TelTelaresOperadorController extends Controller
                 ->with('success', $mensaje);
         } catch (\Throwable $e) {
             DB::rollBack();
-            
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,

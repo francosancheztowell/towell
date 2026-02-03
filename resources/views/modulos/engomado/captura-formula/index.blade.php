@@ -870,22 +870,22 @@
                         if (select) {
                             // Guardar el valor actual de componentes antes de cambiar el select
                             const componentesGuardados = [...componentesCreateData];
-                            
+
                             // Remover temporalmente el evento onchange para evitar que se dispare
                             const originalOnchange = select.getAttribute('onchange');
                             select.removeAttribute('onchange');
-                            
+
                             // Establecer el valor sin disparar eventos
                             select.value = form.Folio;
-                            
+
                             // Restaurar el evento onchange
                             if (originalOnchange) {
                                 select.setAttribute('onchange', originalOnchange);
                             }
-                            
+
                             // Restaurar los componentes que ya cargamos desde la BD
                             componentesCreateData = componentesGuardados;
-                            
+
                             // Solo llenar los campos ocultos sin cargar componentes desde AX
                             document.getElementById('create_cuenta').value = form.Cuenta || '';
                             document.getElementById('create_calibre').value = form.Calibre || '';
@@ -909,7 +909,7 @@
                             litrosInput.value = form.Litros || '0';
                             litrosCreateFormula = parseFloat(form.Litros) || 0;
                         }
-                        
+
                         console.log('Valores actualizados para cálculo (editar):', {
                             kilos: kilosCreateFormula,
                             litros: litrosCreateFormula
@@ -945,19 +945,19 @@
                                 Almacen: comp.Almacen || '',
                                 esNuevo: false // No es nuevo, viene de la BD
                             }));
-                            
+
                             console.log('componentesCreateData después de mapear:', {
                                 cantidad: componentesCreateData.length,
                                 datos: componentesCreateData
                             });
-                            
+
                             renderizarTablaComponentesCreate();
-                            
+
                             // Verificar que se renderizaron todos los componentes
                             const tbody = document.getElementById('create_componentes_tbody');
                             const filasRenderizadas = tbody ? tbody.querySelectorAll('tr').length : 0;
                             console.log('Filas renderizadas en la tabla:', filasRenderizadas, 'de', componentesCreateData.length);
-                            
+
                             document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
                         } else {
                             console.log('No se encontraron componentes para la formulación ID:', formulacionId);
@@ -1051,7 +1051,7 @@
                         }
 
                         document.getElementById('create_olla').value = form.Olla || '';
-                        
+
                         const kilosInput = document.getElementById('create_kilos');
                         if (kilosInput) {
                             kilosInput.value = form.Kilos || '0';
@@ -1771,7 +1771,7 @@
             document.getElementById('create_componentes_error').classList.add('hidden');
             document.getElementById('create_componentes_tabla_container').classList.add('hidden');
 
-            const url = id 
+            const url = id
                 ? `/eng-formulacion/componentes/formulacion?id=${encodeURIComponent(id)}`
                 : `/eng-formulacion/componentes/formulacion?folio=${encodeURIComponent(folio)}`;
 
@@ -1895,14 +1895,14 @@
         async function initComponenteSelectorsForRow(row, comp) {
             const calibreEl = row.querySelector('[data-field="ItemId"]');
             const fibraEl = row.querySelector('[data-field="ConfigId"]');
-            
+
             if (!calibreEl || !fibraEl) return;
 
             // Cargar calibres
             setComponenteSelectOptions(calibreEl, [], 'Cargando...');
             const calibres = await getComponenteCalibres();
             setComponenteSelectOptions(calibreEl, calibres, 'Selecciona calibre', comp.ItemId || '');
-            
+
             if (comp.ItemId) {
                 ensureComponenteOption(calibreEl, comp.ItemId, comp.ItemId);
                 calibreEl.value = comp.ItemId;
@@ -1913,7 +1913,7 @@
                 setComponenteSelectOptions(fibraEl, [], 'Cargando...');
                 const fibras = await getComponenteFibras(comp.ItemId);
                 setComponenteSelectOptions(fibraEl, fibras, 'Selecciona fibra', comp.ConfigId || '');
-                
+
                 if (comp.ConfigId) {
                     ensureComponenteOption(fibraEl, comp.ConfigId, comp.ConfigId);
                     fibraEl.value = comp.ConfigId;
@@ -1926,20 +1926,20 @@
             calibreEl.addEventListener('change', async (e) => {
                 const itemId = e.target.value;
                 const itemNameEl = row.querySelector('[data-field="ItemName"]');
-                
+
                 if (itemId) {
                     // Obtener ItemName del option seleccionado
                     const selectedOption = e.target.options[e.target.selectedIndex];
                     const itemName = selectedOption.getAttribute('data-itemname') || '';
                     if (itemNameEl) itemNameEl.value = itemName;
-                    
+
                     // Actualizar índice en componentesCreateData
                     const index = parseInt(calibreEl.getAttribute('data-index'));
                     if (componentesCreateData[index]) {
                         componentesCreateData[index].ItemId = itemId;
                         componentesCreateData[index].ItemName = itemName;
                     }
-                    
+
                     setComponenteSelectOptions(fibraEl, [], 'Cargando...');
                     const fibras = await getComponenteFibras(itemId);
                     setComponenteSelectOptions(fibraEl, fibras, 'Selecciona fibra');
@@ -2029,14 +2029,14 @@
                         </td>
                     `;
                 }
-                
+
                 tbody.appendChild(row);
 
                 // Inicializar selects en cascada solo si viene desde producción Y es fila nueva
                 if (desdeProduccion && comp.esNuevo) {
                     initComponenteSelectorsForRow(row, comp);
                 }
-                
+
                 // IMPORTANTE: Agregar listener al campo ConsumoTotal para actualizar ConsumoUnitario cuando cambie
                 // Esto asegura que cuando el usuario edite manualmente el ConsumoTotal,
                 // el ConsumoUnitario se actualice correctamente para que cuando cambien los litros,
@@ -2046,20 +2046,20 @@
                     // Remover listeners anteriores si existen para evitar duplicados
                     const nuevoInput = consumoTotalInput.cloneNode(true);
                     consumoTotalInput.parentNode.replaceChild(nuevoInput, consumoTotalInput);
-                    
+
                     nuevoInput.addEventListener('input', function() {
                         const nuevoConsumoTotal = parseFloat(this.value) || 0;
-                        const nuevoConsumoUnitario = litrosCreateFormula > 0 
-                            ? nuevoConsumoTotal / litrosCreateFormula 
+                        const nuevoConsumoUnitario = litrosCreateFormula > 0
+                            ? nuevoConsumoTotal / litrosCreateFormula
                             : 0;
-                        
+
                         console.log('ConsumoTotal editado manualmente:', {
                             index: index,
                             nuevoConsumoTotal: nuevoConsumoTotal,
                             nuevoConsumoUnitario: nuevoConsumoUnitario,
                             litrosActuales: litrosCreateFormula
                         });
-                        
+
                         // Actualizar el valor en componentesCreateData
                         if (componentesCreateData[index]) {
                             componentesCreateData[index].ConsumoTotal = nuevoConsumoTotal;
@@ -2068,11 +2068,11 @@
                     });
                 }
             });
-            
+
             // Verificar cuántas filas se agregaron realmente
             const filasAgregadas = tbody.querySelectorAll('tr').length;
             console.log('renderizarTablaComponentesCreate - Filas agregadas al DOM:', filasAgregadas, 'de', componentesCreateData.length);
-            
+
             if (filasAgregadas !== componentesCreateData.length) {
                 console.error('ERROR: No se renderizaron todos los componentes. Esperados:', componentesCreateData.length, 'Renderizados:', filasAgregadas);
             }
@@ -2113,7 +2113,7 @@
                 const consumoTotal = parseFloat(row.querySelector('[data-field="ConsumoTotal"]')?.value) || 0;
 
                 const original = componentesCreateData[index] || {};
-                
+
                 // Calcular ConsumoUnitario desde ConsumoTotal si los litros están disponibles
                 // Esto asegura que cuando el usuario edite manualmente el ConsumoTotal,
                 // el ConsumoUnitario se actualice correctamente
@@ -2122,7 +2122,7 @@
                     // Si el usuario editó el ConsumoTotal manualmente, recalcular ConsumoUnitario
                     consumoUnitario = consumoTotal / litrosCreateFormula;
                 }
-                
+
                 return {
                     ItemId: itemId,
                     ItemName: itemName,
@@ -2234,7 +2234,7 @@
                     if (payload) {
                         payload.value = JSON.stringify(componentes);
                     }
-                    
+
                     // Si es edición, también enviar componentes
                     const method = document.getElementById('create_method');
                     if (method && method.value === 'PUT') {
@@ -2299,7 +2299,7 @@
                 });
 
                 const data = await response.json();
-                
+
                 if (!response.ok || !data.success) {
                     throw new Error(data.message || 'Error al guardar');
                 }

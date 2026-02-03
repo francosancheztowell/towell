@@ -610,7 +610,7 @@ class ProgramarUrdidoController extends Controller
                 return response()->json([
                     'success' => false,
                     'error' => 'No autorizado',
-                ], 403);
+                ], 200);
             }
 
             $request->validate([
@@ -948,7 +948,7 @@ class ProgramarUrdidoController extends Controller
                 return response()->json([
                     'success' => false,
                     'error' => 'No autorizado',
-                ], 403);
+                ], 200);
             }
 
             $request->validate([

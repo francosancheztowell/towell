@@ -251,17 +251,17 @@
             const baseUrl = '{{ route('urdido.editar.ordenes.programadas') }}';
             const ordenId = String(ordenSeleccionada.id).trim();
             const url = baseUrl + '?orden_id=' + encodeURIComponent(ordenId) + '&from=reimpresion';
-            
+
             console.log('=== INICIANDO NAVEGACIÓN ===');
             console.log('URL completa:', url);
             console.log('Orden seleccionada:', ordenSeleccionada);
             console.log('Orden ID (raw):', ordenSeleccionada.id);
             console.log('Orden ID (string):', ordenId);
             console.log('Base URL:', baseUrl);
-            
+
             // Navegación directa sin try-catch para ver errores reales
             window.location.href = url;
-            
+
             return false;
         };
 
