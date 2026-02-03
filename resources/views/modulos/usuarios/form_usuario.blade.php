@@ -555,6 +555,11 @@
             eliminarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
         }
 
+        function toggleAllRegistrar(checkbox) {
+            const registrarCheckboxes = document.querySelectorAll('.checkbox-registrar');
+            registrarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
         // Los permisos se guardan al enviar el formulario (Actualizar Usuario)
 
     </script>
