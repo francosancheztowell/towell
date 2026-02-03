@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Mantenimiento\MantenimientoParosController;
 use App\Http\Controllers\Mantenimiento\CatalogosFallasController;
+use App\Http\Controllers\Mantenimiento\ManOperadoresMantenimientoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,12 @@ Route::get('/mantenimiento/catalogodefallas', [CatalogosFallasController::class,
 Route::post('/mantenimiento/catalogodefallas', [CatalogosFallasController::class, 'store'])->name('mantenimiento.catalogos-fallas.store');
 Route::put('/mantenimiento/catalogodefallas/{catalogosFalla}', [CatalogosFallasController::class, 'update'])->name('mantenimiento.catalogos-fallas.update');
 Route::delete('/mantenimiento/catalogodefallas/{catalogosFalla}', [CatalogosFallasController::class, 'destroy'])->name('mantenimiento.catalogos-fallas.destroy');
+
+// CRUD Operadores de Mantenimiento
+Route::get('/mantenimiento/operadores-mantenimiento', [ManOperadoresMantenimientoController::class, 'index'])->name('mantenimiento.operadores-mantenimiento.index');
+Route::post('/mantenimiento/operadores-mantenimiento', [ManOperadoresMantenimientoController::class, 'store'])->name('mantenimiento.operadores-mantenimiento.store');
+Route::put('/mantenimiento/operadores-mantenimiento/{operador}', [ManOperadoresMantenimientoController::class, 'update'])->name('mantenimiento.operadores-mantenimiento.update');
+Route::delete('/mantenimiento/operadores-mantenimiento/{operador}', [ManOperadoresMantenimientoController::class, 'destroy'])->name('mantenimiento.operadores-mantenimiento.destroy');
 
 Route::get('/api/mantenimiento/departamentos', [MantenimientoParosController::class, 'departamentos'])
     ->name('api.mantenimiento.departamentos');

@@ -5,16 +5,19 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         {{-- Botón de Filtros --}}
-        <x-navbar.button-report
-        id="btn-open-filters"
-        title="Filtros"
-        icon="fa-filter"
-        text="Filtrar"
-        module="Programa Atadores"
-        iconColor="text-white"
-        hoverBg="hover:bg-green-600"
-        class="text-white"
-        bg="bg-green-600" />
+        <span class="inline-flex items-center">
+            <x-navbar.button-report
+            id="btn-open-filters"
+            title="Filtros"
+            icon="fa-filter"
+            text="Filtrar"
+            module="Programa Atadores"
+            iconColor="text-white"
+            hoverBg="hover:bg-green-600"
+            class="text-white"
+            bg="bg-green-600" />
+            <span id="filter-badge" class="hidden ml-1 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full" aria-label="Filtro activo"></span>
+        </span>
         <x-navbar.button-create
         id="btnIniciarAtado"
         onclick="iniciarAtado()"
@@ -68,6 +71,11 @@
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
                 <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
                 <div class="font-semibold text-sm">Terminados</div>
+            </button>
+            <button type="button" id="btn-filter-autorizados" onclick="aplicarFiltro('autorizados')"
+                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
+                <i class="fa-solid fa-thumbs-up text-2xl mb-2 block"></i>
+                <div class="font-semibold text-sm">Autorizado</div>
             </button>
         </div>
     </div>
@@ -246,7 +254,28 @@ function cerrarModalFiltros() {
 }
 
 // Toggle de un filtro (permite elegir 2 o más). Ver Todos limpia el resto.
+// "Autorizado" hace GET al servidor con ?filtro=autorizados para traer solo esos registros de AtaMontadoTelas.
 function aplicarFiltro(tipo) {
+    const baseUrl = @json(route('atadores.programa'));
+
+    if (tipo === 'autorizados') {
+        const idx = filterState.filtros.indexOf('autorizados');
+        if (idx >= 0) {
+            filterState.filtros.splice(idx, 1);
+            cerrarModalFiltros();
+            if (filterState.filtros.length === 0) {
+                window.location.href = baseUrl;
+            } else {
+                updateFilterButtons();
+                applyFilters();
+            }
+        } else {
+            cerrarModalFiltros();
+            window.location.href = baseUrl + '?filtro=autorizados';
+        }
+        return;
+    }
+
     if (tipo === 'todos') {
         filterState.filtros = [];
     } else {
@@ -277,9 +306,12 @@ function statusMatchesFilter(status, noTelar, filterKey) {
         case 'terminados':
             let ok = status === 'Terminado';
             if (filterState.esTejedor && filterState.telaresUsuario.length > 0) {
-                ok = ok && filterState.telaresUsuario.includes(noTelar);
+                const noTelarStr = String(noTelar || '');
+                ok = ok && filterState.telaresUsuario.some(t => String(t) === noTelarStr);
             }
             return ok;
+        case 'autorizados':
+            return status === 'Autorizado';
         default:
             return false;
     }
@@ -310,10 +342,11 @@ function applyFilters() {
     });
 
     const filterBadge = document.getElementById('filter-badge');
-    if (filtros.length > 0) {
-        filterBadge?.classList.remove('hidden');
-    } else {
-        filterBadge?.classList.add('hidden');
+    if (filtros.length > 0 && filterBadge) {
+        filterBadge.textContent = filtros.length;
+        filterBadge.classList.remove('hidden');
+    } else if (filterBadge) {
+        filterBadge.classList.add('hidden');
     }
 
     // Mostrar mensaje si no hay resultados
@@ -343,7 +376,8 @@ function updateFilterButtons() {
         document.getElementById('btn-filter-activo'),
         document.getElementById('btn-filter-en-proceso'),
         document.getElementById('btn-filter-calificados'),
-        document.getElementById('btn-filter-terminados')
+        document.getElementById('btn-filter-terminados'),
+        document.getElementById('btn-filter-autorizados')
     ];
 
     const keyToBtn = {
@@ -353,7 +387,8 @@ function updateFilterButtons() {
         'activo-proceso': [btns[2], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
         'en-proceso': [btns[3], 'bg-yellow-100', 'border-yellow-400', 'text-yellow-800'],
         'calificados': [btns[4], 'bg-amber-100', 'border-amber-400', 'text-amber-800'],
-        'terminados': [btns[5], 'bg-purple-100', 'border-purple-400', 'text-purple-800']
+        'terminados': [btns[5], 'bg-purple-100', 'border-purple-400', 'text-purple-800'],
+        'autorizados': [btns[6], 'bg-emerald-100', 'border-emerald-400', 'text-emerald-800']
     };
 
     const activeClasses = [
@@ -362,7 +397,8 @@ function updateFilterButtons() {
         'bg-yellow-100', 'border-yellow-400', 'text-yellow-800',
         'bg-purple-100', 'border-purple-400', 'text-purple-800',
         'bg-amber-100', 'border-amber-400', 'text-amber-800',
-        'bg-teal-100', 'border-teal-400', 'text-teal-800'
+        'bg-teal-100', 'border-teal-400', 'text-teal-800',
+        'bg-emerald-100', 'border-emerald-400', 'text-emerald-800'
     ];
 
     btns.forEach(btn => {

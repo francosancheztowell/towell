@@ -66,51 +66,103 @@ class AtadoresController extends Controller
         ->whereNotNull('tej_inventario_telares.no_julio')
         ->where('tej_inventario_telares.no_julio', '!=', ''); // No_julio debe estar lleno
 
-        // Determinar filtro por defecto según área/puesto (solo para mostrar en el frontend)
-        // El filtrado real se hace en el cliente sin recargar
-        $filtroAplicado = 'todos'; // Por defecto mostrar todos
-        $telaresUsuario = []; // Telares del usuario si es tejedor
-
-        // Verificar si es tejedor (área Smith, Itema o Jacquard)
+        // Verificar rol/área para visibilidad y filtros
         $areaUpper = strtoupper(trim($area));
-        $esTejedor = in_array($areaUpper, ['SMITH', 'ITEMA', 'JACQUARD']);
-
-        // Si no hay filtro personalizado, determinar el filtro por defecto según área/puesto
+        $esTejedor = in_array($areaUpper, ['Tejedores']);
         $areaNorm = strtolower(trim((string) $area));
         $puestoNorm = strtolower(trim((string) $puesto));
-        $esAreaAtadores = in_array($areaNorm, ['atador', 'atadores'], true);
+        $esAreaAtadores = in_array($areaNorm, ['atador', 'Atadores'], true);
+        $esSupervisor = ($puestoNorm === 'Supervisor');
 
+        $telaresUsuario = [];
+        if ($esTejedor) {
+            $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
+                ->pluck('NoTelarId')
+                ->toArray();
+        }
+
+        // Filtro por defecto según área/puesto (frontend)
+        $filtroAplicado = 'todos';
         if (!$filtroPersonalizado) {
             if ($esTejedor) {
-                // Tejedor: obtener sus telares y aplicar filtro terminados
                 $filtroAplicado = 'terminados';
-                $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
-                    ->pluck('NoTelarId')
-                    ->toArray();
             } elseif ($esAreaAtadores || in_array($puestoNorm, ['atador', 'atadores'], true)) {
-                // Área Atadores (o puesto atador/atadores): ver solo Activo por defecto
+                // Área atador: ver Activo y En Proceso
                 $filtroAplicado = 'activo';
-            } elseif ($puestoNorm === 'supervisor') {
-                $filtroAplicado = 'terminados';
+            } elseif ($esSupervisor) {
+                $filtroAplicado = 'calificados';
             }
         } else {
             $filtroAplicado = $filtroPersonalizado;
-            // Si el usuario es tejedor, obtener sus telares para el filtro
-            if ($esTejedor) {
-                $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
-                    ->pluck('NoTelarId')
-                    ->toArray();
-            }
         }
 
-        // No aplicar filtros en el servidor - se harán en el cliente
-        // Siempre devolver todos los registros
+        // Filtro "Autorizado": consultar directamente AtaMontadoTelas (todos los Autorizado) y combinar con inventario
+        if ($filtroPersonalizado === 'autorizados') {
+            $inventarioTelares = $this->getAutorizadosParaVista();
+        } else {
+            if ($esTejedor) {
+                // Tejedores: en servidor solo sus telares y solo status Terminado
+                if (empty($telaresUsuario)) {
+                    $query->whereRaw('0 = 1'); // Sin telares asignados: no mostrar registros
+                } else {
+                    $query->whereIn('tej_inventario_telares.no_telar', $telaresUsuario)
+                        ->where('AtaMontadoTelas.Estatus', 'Terminado');
+                }
+            }
 
-        $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
-            ->orderBy('tej_inventario_telares.turno', 'asc')
-            ->get();
+            $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
+                ->orderBy('tej_inventario_telares.turno', 'asc')
+                ->get();
+        }
 
         return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor'));
+    }
+
+    /**
+     * Obtiene todos los registros con Estatus = 'Autorizado' desde AtaMontadoTelas
+     * y los combina con tej_inventario_telares cuando exista coincidencia (NoJulio + NoProduccion).
+     * Así se muestran todos los autorizados aunque no tengan fila en inventario.
+     */
+    protected function getAutorizadosParaVista()
+    {
+        $autorizados = AtaMontadoTelasModel::where('Estatus', 'Autorizado')
+            ->orderBy('Fecha', 'asc')
+            ->orderBy('Turno', 'asc')
+            ->get();
+
+        return $autorizados->map(function ($ata) {
+            $inv = TejInventarioTelares::where('no_julio', (string) $ata->NoJulio)
+                ->where('no_orden', (string) $ata->NoProduccion)
+                ->first();
+
+            if ($inv) {
+                $inv->setAttribute('status_proceso', 'Autorizado');
+                return $inv;
+            }
+
+            return (object) [
+                'id' => $ata->Id,
+                'fecha' => Carbon::parse($ata->Fecha),
+                'status_proceso' => 'Autorizado',
+                'turno' => $ata->Turno,
+                'no_telar' => $ata->NoTelarId,
+                'tipo' => $ata->Tipo,
+                'no_julio' => $ata->NoJulio,
+                'localidad' => null,
+                'metros' => $ata->Metros,
+                'no_orden' => $ata->NoProduccion,
+                'tipo_atado' => null,
+                'cuenta' => null,
+                'calibre' => null,
+                'hilo' => null,
+                'LoteProveedor' => $ata->LoteProveedor,
+                'NoProveedor' => $ata->NoProveedor,
+                'horaParo' => $ata->HoraParo,
+                'ConfigId' => $ata->ConfigId,
+                'InventSizeId' => $ata->InventSizeId,
+                'InventColorId' => $ata->InventColorId,
+            ];
+        });
     }
 
     public function iniciarAtado(Request $request)

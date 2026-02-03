@@ -1104,7 +1104,11 @@ class ReservarProgramarController extends Controller
     private function normalizeDate($v): ?string
     {
         if ($v === null) return null;
-        try { return ($v instanceof Carbon ? $v : Carbon::parse($v))->toIso8601String(); }
+        try { 
+            $date = $v instanceof Carbon ? $v : Carbon::parse($v);
+            // Devolver solo la fecha en formato YYYY-MM-DD para evitar problemas de zona horaria
+            return $date->format('Y-m-d');
+        }
         catch (\Throwable) { return null; }
     }
 

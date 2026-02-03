@@ -69,6 +69,13 @@
         return \Carbon\Carbon::parse($value)->format('d/m/Y');
     };
 
+    $formatPedido = function ($value) {
+        if ($value === null || $value === '') {
+            return '-';
+        }
+        return number_format((float) $value, 2, '.', '');
+    };
+
     $rowClass = 'flex items-start';
     $labelClass = 'text-sm text-gray-500 uppercase tracking-wide w-20 flex-shrink-0';
     $labelClassXs = 'text-xs text-gray-500 uppercase tracking-wide w-20 flex-shrink-0';
@@ -160,7 +167,7 @@
                     </div>
                     <div class="{{ $rowClass }}">
                         <span class="{{ $labelClass }}">Pedido:</span>
-                        <span class="{{ $valueClass }}">{{ $telar->Saldos ?? '-' }}</span>
+                        <span class="{{ $valueClass }}">{{ $formatPedido($telar->Saldos ?? null) }}</span>
                     </div>
                     <div class="{{ $rowClass }}">
                         <span class="{{ $labelClass }}">Producción:</span>
@@ -234,7 +241,7 @@
                         <div class="space-y-2">
                             <div class="{{ $rowClass }}">
                                 <span class="{{ $labelClassXs }}">Pedido:</span>
-                                <span class="{{ $valueClass }}">{{ $ordenSig->Saldos ?? '-' }}</span>
+                                <span class="{{ $valueClass }}">{{ $formatPedido($ordenSig->Saldos ?? null) }}</span>
                             </div>
                             <div class="{{ $rowClass }}">
                                 <span class="{{ $labelClassXs }}">Inicio:</span>
