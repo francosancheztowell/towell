@@ -603,8 +603,7 @@
             ['Cantidad', 'La cantidad es requerida'],
             ['Conos', 'Los conos son requeridos'],
             ['Horas', 'Las horas son requeridas'],
-            ['Eficiencia', 'La eficiencia es requerida'],
-            ['Obs', 'Las observaciones son requeridas']
+            ['Eficiencia', 'La eficiencia es requerida']
         ];
 
         for (const [key, msg] of requiredFields) {
