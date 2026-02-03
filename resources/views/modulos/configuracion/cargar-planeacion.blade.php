@@ -41,6 +41,20 @@
                     </div>
                 </div>
 
+                <!-- Modo de importación -->
+                <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <label class="flex items-start cursor-pointer">
+                        <input type="checkbox" id="modoActualizacion" name="modo_actualizacion" class="mt-1 mr-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900">Modo Actualización</span>
+                            <p class="text-xs text-gray-600 mt-1">
+                                Si está marcado, solo actualizará registros existentes sin eliminar los demás. 
+                                Recalculará fechas y EnProceso para cada telar basándose en el registro que inicia primero.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
                 <!-- Instrucciones compactas -->
                 <div class="mb-4">
                     <h3 class="text-sm font-medium text-gray-900 mb-2">Instrucciones:</h3>
@@ -56,7 +70,7 @@
                             </li>
                             <li class="flex items-start">
                                 <i class="fas fa-check text-green-500 mr-1 mt-0.5 text-xs"></i>
-                                <span>Datos se importarán a la tabla ReqProgramaTejido</span>
+                                <span id="modo-texto">Datos se importarán a la tabla ReqProgramaTejido (se eliminarán registros existentes)</span>
                             </li>
                         </ul>
                     </div>
@@ -99,6 +113,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressSection = document.getElementById('progress-section');
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
+
+    // Manejar cambio de modo
+    const modoActualizacion = document.getElementById('modoActualizacion');
+    const modoTexto = document.getElementById('modo-texto');
+    
+    modoActualizacion.addEventListener('change', function() {
+        if (this.checked) {
+            modoTexto.textContent = 'Datos se actualizarán en la tabla ReqProgramaTejido (NO se eliminarán registros existentes)';
+        } else {
+            modoTexto.textContent = 'Datos se importarán a la tabla ReqProgramaTejido (se eliminarán registros existentes)';
+        }
+    });
 
     // Manejar selección de archivo
     fileInput.addEventListener('change', function(e) {
@@ -179,7 +205,13 @@ document.addEventListener('DOMContentLoaded', function() {
             progressBar.style.width = progress + '%';
         }, 200);
 
-        fetch('/configuracion/cargar-planeacion/upload', {
+        // Determinar ruta según modo de actualización
+        const esModoActualizacion = modoActualizacion.checked;
+        const ruta = esModoActualizacion 
+            ? '/configuracion/utileria/cargarplaneacion/upload-update'
+            : '/configuracion/cargar-planeacion/upload';
+
+        fetch(ruta, {
             method: 'POST',
             body: formData
         })
@@ -208,9 +240,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 progressBar.classList.add('bg-green-600');
 
                 setTimeout(() => {
-                    Swal.fire({
-                        title: '¡Archivo procesado exitosamente!',
-                        html: `
+                    const titulo = esModoActualizacion 
+                        ? '¡Archivo actualizado exitosamente!'
+                        : '¡Archivo procesado exitosamente!';
+                    
+                    const htmlContent = esModoActualizacion
+                        ? `
+                            <div class="text-left">
+                                <p><strong>Registros procesados:</strong> ${data.processed || 0}</p>
+                                <p><strong>Registros actualizados:</strong> ${data.updated || 0}</p>
+                                <p><strong>Registros creados:</strong> ${data.created || 0}</p>
+                                <p><strong>Registros omitidos:</strong> ${data.skipped || 0}</p>
+                                <hr class="my-3">
+                                <p><strong>Total antes:</strong> ${data.total_before || 0}</p>
+                                <p><strong>Total después:</strong> ${data.total_after || 0}</p>
+                                <p class="text-xs text-gray-500 mt-2">Nota: Las fechas y EnProceso fueron recalculadas para cada telar.</p>
+                            </div>
+                        `
+                        : `
                             <div class="text-left">
                                 <p><strong>Registros eliminados:</strong> ${data.deleted || 0}</p>
                                 <p><strong>Registros procesados:</strong> ${data.processed || 0}</p>
@@ -220,7 +267,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <p><strong>Total antes:</strong> ${data.total_before || 0}</p>
                                 <p><strong>Total después:</strong> ${data.total_after || 0}</p>
                             </div>
-                        `,
+                        `;
+
+                    Swal.fire({
+                        title: titulo,
+                        html: htmlContent,
                         icon: 'success',
                         confirmButtonText: 'Continuar',
                         confirmButtonColor: '#3b82f6'
