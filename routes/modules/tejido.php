@@ -84,6 +84,7 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
 
     Route::get('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'index'])->name('secuencia-inv-telas.index');
     Route::post('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'store'])->name('secuencia-inv-telas.store');
+    Route::post('/secuencia-inv-telas/orden', [SecuenciaInvTelasController::class, 'updateOrden'])->name('secuencia-inv-telas.orden');
     Route::put('/secuencia-inv-telas/{id}', [SecuenciaInvTelasController::class, 'update'])->name('secuencia-inv-telas.update');
     Route::delete('/secuencia-inv-telas/{id}', [SecuenciaInvTelasController::class, 'destroy'])->name('secuencia-inv-telas.destroy');
 
