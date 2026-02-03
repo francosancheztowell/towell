@@ -758,12 +758,12 @@ class MarcasController extends Controller
         try {
             return DB::table('InvSecuenciaMarcas')
                 ->orderBy('Orden', 'asc')
-                ->select('NoTelarId', 'SalonId')
+                ->select('NoTelarId', 'SalonTejidoId')
                 ->get()
                 ->map(function ($row) {
                     return (object)[
                         'NoTelarId' => $row->NoTelarId,
-                        'SalonId' => $row->SalonId
+                        'SalonId' => $row->SalonTejidoId
                     ];
                 });
         } catch (\Exception $e) {

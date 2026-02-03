@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTelas\SecuenciaInvTelasController;
 use App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTrama\SecuenciaInvTramaController;
+use App\Http\Controllers\Tejido\Configuracion\SecuenciaMarcasFinales\SecuenciaMarcasFinalesController;
 use App\Http\Controllers\Tejido\CortesEficiencia\CortesEficienciaController;
 use App\Http\Controllers\Tejido\InventarioTelas\TelaresController;
 use App\Http\Controllers\Tejido\InventarioTrama\ConsultarRequerimientoController;
@@ -55,6 +56,12 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::redirect('/produccionreenconadocabezuela', '/tejido/produccion-reenconado', 301);
     Route::redirect('/configurar/secuenciainvtelas', '/tejido/secuencia-inv-telas', 301);
     Route::redirect('/configurar/secuenciainvtrama', '/tejido/secuencia-inv-trama', 301);
+
+    Route::get('/configurar/secuenciamarcasfinales', [SecuenciaMarcasFinalesController::class, 'index'])->name('secuencia-marcas-finales.index');
+    Route::post('/configurar/secuenciamarcasfinales', [SecuenciaMarcasFinalesController::class, 'store'])->name('secuencia-marcas-finales.store');
+    Route::post('/configurar/secuenciamarcasfinales/orden', [SecuenciaMarcasFinalesController::class, 'updateOrden'])->name('secuencia-marcas-finales.orden');
+    Route::put('/configurar/secuenciamarcasfinales/{id}', [SecuenciaMarcasFinalesController::class, 'update'])->name('secuencia-marcas-finales.update');
+    Route::delete('/configurar/secuenciamarcasfinales/{id}', [SecuenciaMarcasFinalesController::class, 'destroy'])->name('secuencia-marcas-finales.destroy');
 
     Route::get('/produccion-reenconado', [ProduccionReenconadoCabezuelaController::class, 'index'])
         ->name('produccion.reenconado');

@@ -158,7 +158,10 @@
                                         data-type="{{ $col['key'] }}"
                                         @if(!$puedeEditar) disabled @endif>
                                         <span class="{{ $textClasses }}">
-                                            {{ $col['key'] === 'efi' ? '0%' : '0' }}
+                                            @if($col['key'] === 'efi') 0%
+                                            @elseif($col['key'] === 'marcas') 0
+                                            @else 0
+                                            @endif
                                         </span>
                                         @if($puedeEditar)
                                             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,6 +357,10 @@ function toggleValorSelector(btn) {
             const rec = parseInt(btn.dataset.recommended || 'NaN', 10);
             if (!Number.isNaN(rec)) currentValue = rec;
         }
+        // Solo en el modal del botón Marcas: si el valor es 0, mostrar 100 por defecto en el selector
+        if (tipo === 'marcas' && currentValue === 0) {
+            currentValue = 100;
+        }
         buildNumberOptions(selector, tipo, currentValue);
 
         // Determinar si debe abrir hacia arriba o abajo según la posición en la ventana
@@ -395,7 +402,12 @@ function buildNumberOptions(selector, tipo, current) {
         opt.className = 'number-option shrink-0 w-12 h-10 text-center rounded-md border border-gray-300 bg-white text-base font-medium hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500';
         opt.dataset.value = String(i);
         opt.textContent = String(i);
-        if (i === current) opt.classList.add('bg-blue-600','text-white','border-blue-600');
+        if (i === current) {
+            opt.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+            opt.style.setProperty('background-color', '#3b82f6');
+            opt.style.setProperty('color', '#ffffff');
+            opt.style.setProperty('border-color', '#3b82f6');
+        }
         frag.appendChild(opt);
     }
     container.appendChild(frag);
