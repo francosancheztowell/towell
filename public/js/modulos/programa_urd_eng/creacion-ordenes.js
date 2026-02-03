@@ -132,6 +132,7 @@
             ...t,
             tipo: normalizarTipo(t.tipo) || 'Rizo',
             hilo: !isBlank(t.hilo) ? String(t.hilo).trim() : null,
+            tamano: !isBlank(t.tamano) ? String(t.tamano).trim() : null,
             metros: toNumber(t.metros, 0),
             kilos : toNumber(t.kilos, 0),
             agrupar: !!t.agrupar
@@ -153,6 +154,7 @@
             const cuenta   = String(telar.cuenta || '').trim();
             const calibre  = !isBlank(telar.calibre) ? parseFloat(telar.calibre).toFixed(2) : '';
             const hilo     = esPie ? '' : (!isBlank(telar.hilo) ? String(telar.hilo).trim() : '');
+            const tamano   = !isBlank(telar.tamano) ? String(telar.tamano).trim() : '';
             const urdido   = String(telar.urdido || '').trim();
             const tipoAtado= String(telar.tipo_atado || 'Normal').trim();
             const destino  = String(telar.destino || '').trim();
@@ -162,7 +164,7 @@
                 : `${cuenta}|${hilo}|${calibre}|${up}|${urdido}|${tipoAtado}|${destino}`;
 
             if (!grupos[clave]) {
-                grupos[clave] = { telares:[], cuenta, calibre, hilo, tipo:tipoN, urdido, tipoAtado, destino,
+                grupos[clave] = { telares:[], cuenta, calibre, hilo, tamano, tipo:tipoN, urdido, tipoAtado, destino,
                                   fechaReq: telar.fecha_req || '', metros:0, kilos:0, maquinaId: telar.urdido || telar.maquina_urd || telar.maquinaId || '' };
             }
             grupos[clave].telares.push(telar);
@@ -173,7 +175,7 @@
         const out = Object.values(grupos).map(g => ({ ...g, telaresStr: g.telares.map(t=>t.no_telar).join(',') }));
         for (const t of singles) {
             out.push({
-                telares:[t], telaresStr:t.no_telar, cuenta:t.cuenta || '', calibre:t.calibre || '', hilo:t.hilo || '',
+                telares:[t], telaresStr:t.no_telar, cuenta:t.cuenta || '', calibre:t.calibre || '', hilo:t.hilo || '', tamano:t.tamano || '',
                 tipo: normalizarTipo(t.tipo) || 'Rizo', urdido:t.urdido || '', tipoAtado:t.tipo_atado || 'Normal', destino:t.destino || '',
                 fechaReq:t.fecha_req || '', metros:t.metros || 0, kilos:t.kilos || 0, maquinaId: t.urdido || t.maquina_urd || t.maquinaId || ''
             });
@@ -187,7 +189,7 @@
         tbody.innerHTML = '';
 
         if (!telaresData.length) {
-            tbody.innerHTML = `<tr><td colspan="11" class="px-4 py-8 text-center text-gray-500">
+            tbody.innerHTML = `<tr><td colspan="12" class="px-4 py-8 text-center text-gray-500">
                 <i class="fa-solid fa-circle-info text-gray-400 mb-2"></i><p>No hay telares seleccionados.</p></td></tr>`;
             return;
         }
@@ -212,6 +214,7 @@
                 <td class="px-2 py-3 text-sm text-center">${g.cuenta || '-'}</td>
                 <td class="px-2 py-3 text-sm text-center">${g.calibre || '-'}</td>
                 <td class="px-2 py-3 text-sm text-center">${g.hilo || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">${g.tamano || '-'}</td>
                 <td class="px-2 py-3 text-sm text-center">${g.urdido || '-'}</td>
                 <td class="px-2 py-3 text-center"><span class="px-2 py-1 inline-block text-sm font-medium rounded-md ${tipoCls}">${g.tipo || 'Rizo'}</span></td>
                 <td class="px-2 py-3 text-sm text-center">${g.destino || '-'}</td>
@@ -1155,6 +1158,8 @@
                 fechaReq: grupo.fechaReq || '',
                 fibra: grupo.hilo || '',
                 hilo: grupo.hilo || '',
+                tamano: grupo.tamano || '',
+                inventSizeId: grupo.tamano || '',
                 metros: grupo.metros || 0,
                 kilos: grupo.kilos || 0,
                 noProduccion: grupo.noProduccion || '',

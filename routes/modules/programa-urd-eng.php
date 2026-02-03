@@ -39,6 +39,8 @@ Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () 
     Route::get('/maquinas-engomado', [ReservarProgramarController::class, 'getMaquinasEngomado'])->name('maquinas.engomado');
     Route::get('/nucleos', [UrdEngNucleosController::class, 'getNucleos'])->name('nucleos');
     Route::post('/crear-ordenes', [ProgramarUrdEngController::class, 'crearOrdenes'])->name('crear.ordenes');
+    Route::get('/hilos', [ReservarProgramarController::class, 'obtenerHilos'])->name('hilos');
+    Route::get('/tamanos', [ReservarProgramarController::class, 'obtenerTamanos'])->name('tamanos');
 });
 
 Route::post('/guardar-requerimiento', [RequerimientoController::class, 'store']);

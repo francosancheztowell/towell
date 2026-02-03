@@ -28,6 +28,7 @@
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Cuenta</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Calibre</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Hilo</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Tamaño</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Urdido</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Tipo</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Destino</th>
@@ -87,12 +88,16 @@ document.addEventListener('DOMContentLoaded', () => {
     /* =================== Estado & Constantes =================== */
     const RUTA_RESUMEN = '{{ route("programa.urd.eng.programacion.resumen.semanas") }}';
     const RUTA_ACTUALIZAR_TELAR = '{{ route("programa.urd.eng.actualizar.telar") }}';
+    const RUTA_HILOS = '{{ route("programa.urd.eng.hilos") }}';
+    const RUTA_TAMANOS = '{{ route("programa.urd.eng.tamanos") }}';
     const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
     const opciones = {
         urdido: @json($opcionesUrdido ?? []),
         tipoAtado: ['Normal', 'Especial'],
-        destino: ['JACQUARD', 'SMIT', 'SULZER', 'SMITH']
+        destino: ['JACQUARD', 'SMIT', 'SULZER', 'SMITH'],
+        hilos: [], // Se cargará dinámicamente desde TI_PRO
+        tamanos: [] // Se cargará dinámicamente desde TI_PRO
     };
 
     // Función para mapear salón a destino (ITEMA y SMITH ambos usan SMIT)
@@ -197,6 +202,54 @@ document.addEventListener('DOMContentLoaded', () => {
         return { valido:true, tipo:tipoNormalizado, calibre:calBase, hilo:esPie ? null : hiloBase, salon:salonBase };
     }
 
+    /* =================== Cargar hilos desde TI_PRO =================== */
+    async function cargarHilos() {
+        try {
+            const response = await fetch(RUTA_HILOS, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success && Array.isArray(result.data)) {
+                opciones.hilos = result.data.map(item => item.ConfigId || '').filter(Boolean);
+            } else {
+                console.warn('No se pudieron cargar los hilos:', result.message || 'Respuesta inválida');
+                opciones.hilos = [];
+            }
+        } catch (error) {
+            console.error('Error al cargar hilos:', error);
+            opciones.hilos = [];
+        }
+    }
+
+    /* =================== Cargar tamaños desde TI_PRO =================== */
+    async function cargarTamanos() {
+        try {
+            const response = await fetch(RUTA_TAMANOS, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success && Array.isArray(result.data)) {
+                opciones.tamanos = result.data.map(item => item.InventSizeId || '').filter(Boolean);
+            } else {
+                console.warn('No se pudieron cargar los tamaños:', result.message || 'Respuesta inválida');
+                opciones.tamanos = [];
+            }
+        } catch (error) {
+            console.error('Error al cargar tamaños:', error);
+            opciones.tamanos = [];
+        }
+    }
+
     /* =================== Render principal =================== */
     function crearFila(telar, index) {
         const fechaISO = telar.fecha_req || todayISO();
@@ -210,6 +263,28 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.className = ' hover:bg-gray-50';
         tr.dataset.index = index;
         tr.dataset.telarId = telar.no_telar || '';
+
+        // Construir opciones del select de hilo
+        const hiloActual = telar.hilo || '';
+        const opcionesHilo = opciones.hilos.map(hilo => {
+            const selected = hilo === hiloActual ? 'selected' : '';
+            return `<option value="${hilo}" ${selected}>${hilo}</option>`;
+        }).join('');
+        // Agregar opción vacía al inicio si no hay hilo seleccionado
+        const selectHiloHTML = hiloActual && !opciones.hilos.includes(hiloActual)
+            ? `<option value="${hiloActual}" selected>${hiloActual}</option>${opcionesHilo}`
+            : `<option value="">Seleccione...</option>${opcionesHilo}`;
+
+        // Construir opciones del select de tamaño
+        const tamanoActual = telar.tamano || telar.tamaño || telar.inventSizeId || '';
+        const opcionesTamano = opciones.tamanos.map(tamano => {
+            const selected = tamano === tamanoActual ? 'selected' : '';
+            return `<option value="${tamano}" ${selected}>${tamano}</option>`;
+        }).join('');
+        // Agregar opción vacía al inicio si no hay tamaño seleccionado
+        const selectTamanoHTML = tamanoActual && !opciones.tamanos.includes(tamanoActual)
+            ? `<option value="${tamanoActual}" selected>${tamanoActual}</option>${opcionesTamano}`
+            : `<option value="">Seleccione...</option>${opcionesTamano}`;
 
         tr.innerHTML = `
             <td class="px-2 py-3 w-20">
@@ -225,7 +300,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="number" step="0.01" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}">
             </td>
             <td class="px-2 py-3 w-24">
-                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.hilo ?? ''}" data-field="hilo" data-telar-id="${telar.no_telar || ''}">
+                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" data-telar-id="${telar.no_telar || ''}">
+                    ${selectHiloHTML}
+                </select>
+            </td>
+            <td class="px-2 py-3 w-24">
+                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tamano" data-telar-id="${telar.no_telar || ''}">
+                    ${selectTamanoHTML}
+                </select>
             </td>
             <td class="px-2 py-3 w-28">
                 <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido">
@@ -336,6 +418,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Agregar event listeners para campos editables (cuenta, calibre, hilo, tipo)
         agregarEventListenersCamposEditables();
+
+        // Autocompletar tamaño inicialmente si las filas ya tienen cuenta y calibre
+        const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
+        filas.forEach(fila => {
+            autocompletarTamano(fila);
+        });
 
         // Mantener dataset filtrado para el resumen
         telaresData = filtrados;
@@ -471,6 +559,69 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Función para autocompletar tamaño basándose en cuenta y calibre
+    function autocompletarTamano(fila) {
+        if (!fila) return;
+
+        const cuentaInput = fila.querySelector('input[data-field="cuenta"]');
+        const calibreInput = fila.querySelector('input[data-field="calibre"]');
+        const tamanoSelect = fila.querySelector('select[data-field="tamano"]');
+
+        if (!cuentaInput || !calibreInput || !tamanoSelect) return;
+
+        const cuenta = cuentaInput.value.trim();
+        let calibre = calibreInput.value.trim();
+
+        // Si ambos campos tienen valores, construir el tamaño esperado
+        if (cuenta && calibre) {
+            // Normalizar calibre: remover espacios y asegurar formato correcto
+            calibre = calibre.replace(/\s+/g, '');
+            
+            // Formato: cuenta-calibre/1 (ejemplo: 4112-12/1 o 4112-12.5/1)
+            const tamanoEsperado = `${cuenta}-${calibre}/1`;
+
+            // Buscar si existe exactamente ese valor en las opciones
+            const opcionExacta = Array.from(tamanoSelect.options).find(opt => opt.value === tamanoEsperado);
+            
+            if (opcionExacta) {
+                // Si existe exactamente, seleccionarlo
+                tamanoSelect.value = tamanoEsperado;
+                // Disparar evento change para guardar solo si cambió el valor
+                if (tamanoSelect.dataset.valorAnterior !== tamanoEsperado) {
+                    tamanoSelect.dataset.valorAnterior = tamanoEsperado;
+                    tamanoSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            } else {
+                // Si no existe exactamente, buscar el más cercano (que empiece con cuenta-calibre)
+                const opcionCercana = Array.from(tamanoSelect.options).find(opt => {
+                    return opt.value && opt.value.startsWith(`${cuenta}-${calibre}`);
+                });
+
+                if (opcionCercana) {
+                    tamanoSelect.value = opcionCercana.value;
+                    if (tamanoSelect.dataset.valorAnterior !== opcionCercana.value) {
+                        tamanoSelect.dataset.valorAnterior = opcionCercana.value;
+                        tamanoSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                } else {
+                    // Si no hay coincidencia, agregar la opción esperada al select si no existe
+                    const yaExiste = Array.from(tamanoSelect.options).some(opt => opt.value === tamanoEsperado);
+                    if (!yaExiste) {
+                        const nuevaOpcion = document.createElement('option');
+                        nuevaOpcion.value = tamanoEsperado;
+                        nuevaOpcion.textContent = tamanoEsperado;
+                        nuevaOpcion.selected = true;
+                        tamanoSelect.appendChild(nuevaOpcion);
+                        if (tamanoSelect.dataset.valorAnterior !== tamanoEsperado) {
+                            tamanoSelect.dataset.valorAnterior = tamanoEsperado;
+                            tamanoSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Función para agregar event listeners a campos editables (cuenta, calibre, hilo, tipo)
     function agregarEventListenersCamposEditables() {
         // Función para guardar cambios con debounce
@@ -482,8 +633,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 800); // Esperar 800ms después del último cambio
         };
 
-        // Event listeners para cuenta, calibre, hilo
-        const camposTexto = ['cuenta', 'calibre', 'hilo'];
+        // Event listeners para cuenta, calibre
+        const camposTexto = ['cuenta', 'calibre'];
         camposTexto.forEach(campo => {
             const inputs = document.querySelectorAll(`input[data-field="${campo}"]`);
             inputs.forEach(input => {
@@ -495,12 +646,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.addEventListener('blur', async function() {
                     const valor = this.value.trim();
                     await guardarCampoTelar(campo, valor, telarId, tipo);
+                    // Autocompletar tamaño cuando cambie cuenta o calibre
+                    autocompletarTamano(fila);
                 });
 
                 input.addEventListener('input', function() {
                     const valor = this.value.trim();
                     debounceGuardar(campo, valor, telarId, tipo);
+                    // Autocompletar tamaño cuando cambie cuenta o calibre
+                    autocompletarTamano(fila);
                 });
+            });
+        });
+
+        // Event listener para hilo (select)
+        const hiloSelects = document.querySelectorAll('select[data-field="hilo"]');
+        hiloSelects.forEach(select => {
+            const telarId = select.dataset.telarId || '';
+            const fila = select.closest('tr');
+            const tipoSelect = fila?.querySelector('select[data-field="tipo"]');
+            const tipo = tipoSelect?.value || '';
+
+            select.addEventListener('change', async function() {
+                const valor = this.value.trim();
+                await guardarCampoTelar('hilo', valor, telarId, tipo);
+            });
+        });
+
+        // Event listener para tamaño (select)
+        const tamanoSelects = document.querySelectorAll('select[data-field="tamano"]');
+        tamanoSelects.forEach(select => {
+            const telarId = select.dataset.telarId || '';
+            const fila = select.closest('tr');
+            const tipoSelect = fila?.querySelector('select[data-field="tipo"]');
+            const tipo = tipoSelect?.value || '';
+
+            select.addEventListener('change', async function() {
+                const valor = this.value.trim();
+                await guardarCampoTelar('tamano', valor, telarId, tipo);
             });
         });
 
@@ -1098,7 +1281,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const fechaReq = fila.querySelector('input[data-field="fecha_req"]')?.value || '';
             const cuenta = fila.querySelector('input[data-field="cuenta"]')?.value || '';
             const calibre = fila.querySelector('input[data-field="calibre"]')?.value || '';
-            const hilo = fila.querySelector('input[data-field="hilo"]')?.value || '';
+            const hilo = fila.querySelector('select[data-field="hilo"]')?.value || fila.querySelector('input[data-field="hilo"]')?.value || '';
+            const tamano = fila.querySelector('select[data-field="tamano"]')?.value || '';
             const urdido = fila.querySelector('select[data-field="urdido"]')?.value || '';
             // Obtener tipo desde el select (Rizo/Pie); si queda vacío usar valor del select o 'Rizo'
             const tipoSelect = fila.querySelector('select[data-field="tipo"]');
@@ -1117,6 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     cuenta: cuenta,
                     calibre: calibre,
                     hilo: hilo,
+                    tamano: tamano,
                     urdido: urdido,
                     tipo: tipo,
                     destino: destino,
@@ -1139,7 +1324,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /* =================== Init =================== */
-    renderTabla();
+    // Cargar hilos y tamaños primero, luego renderizar tabla
+    Promise.all([cargarHilos(), cargarTamanos()]).then(() => {
+        renderTabla();
+    }).catch(error => {
+        console.error('Error al inicializar:', error);
+        renderTabla(); // Renderizar tabla de todas formas aunque falle la carga
+    });
 });
 </script>
 @endsection

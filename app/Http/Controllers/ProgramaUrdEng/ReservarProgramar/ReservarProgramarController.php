@@ -1638,4 +1638,67 @@ class ReservarProgramarController extends Controller
             return response()->json(['error' => 'Error al buscar BOM de engomado'], 500);
         }
     }
+
+    /**
+     * Obtener lista de hilos (ConfigId) desde TI_PRO.ConfigTable
+     * Filtrado por ITEMID = "JULIO-URDIDO"
+     */
+    public function obtenerHilos()
+    {
+        try {
+            $hilos = DB::connection('sqlsrv_ti')
+                ->table('ConfigTable')
+                ->select('ConfigId')
+                ->where('ItemId', 'JULIO-URDIDO')
+                ->orderBy('ConfigId')
+                ->distinct()
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $hilos
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo hilos desde TI_PRO', [
+                'exception' => $e,
+                'message' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los hilos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener lista de tamaños (InventSizeId) desde TI_PRO.InventSize
+     * Filtrado por ITEMID = "JULIO-URDIDO"
+     */
+    public function obtenerTamanos()
+    {
+        try {
+            $tamanos = DB::connection('sqlsrv_ti')
+                ->table('InventSize')
+                ->select('InventSizeId')
+                ->where('ItemId', 'JULIO-URDIDO')
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('InventSizeId')
+                ->distinct()
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $tamanos
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo tamaños desde TI_PRO', [
+                'exception' => $e,
+                'message' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los tamaños: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
