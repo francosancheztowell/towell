@@ -5,7 +5,6 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         {{-- Botón de Filtros --}}
-        <span class="inline-flex items-center">
             <x-navbar.button-report
             id="btn-open-filters"
             title="Filtros"
@@ -16,8 +15,6 @@
             hoverBg="hover:bg-green-600"
             class="text-white"
             bg="bg-green-600" />
-            <span id="filter-badge" class="hidden ml-1 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full" aria-label="Filtro activo"></span>
-        </span>
         <x-navbar.button-create
         id="btnIniciarAtado"
         onclick="iniciarAtado()"
@@ -318,6 +315,7 @@ function statusMatchesFilter(status, noTelar, filterKey) {
 }
 
 // Función para aplicar filtros a las filas (varios filtros = unión: se muestra si coincide con alguno)
+// NOTA: El backend ya filtra por rol/área, así que estos filtros son adicionales del usuario
 function applyFilters() {
     const rows = document.querySelectorAll('.table-row');
     const tbody = document.getElementById('tb-body');
@@ -329,9 +327,12 @@ function applyFilters() {
         const noTelar = row.getAttribute('data-telar') || '';
         let show = true;
 
+        // Solo aplicar filtros si el usuario los ha seleccionado explícitamente
+        // Si filtros está vacío, mostrar todos los registros que el backend ya filtró
         if (filtros.length > 0) {
             show = filtros.some(f => statusMatchesFilter(status, noTelar, f));
         }
+        // Si no hay filtros seleccionados, mostrar todas las filas (el backend ya filtró por rol)
 
         if (show) {
             row.style.display = '';
@@ -489,7 +490,12 @@ document.getElementById('btn-open-filters')?.addEventListener('click', mostrarMo
 // Inicializar filtros y orden al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     updateFilterButtons();
-    applyFilters();
+    // El backend ya filtró los datos por rol, así que solo aplicar filtros si el usuario los cambió
+    // Si filtroAplicado es 'todos', mostrar todos los registros que el backend trajo
+    if (filterState.filtros.length > 0) {
+        applyFilters();
+    }
+    // Si no hay filtros, todas las filas ya están visibles (el backend ya filtró por rol)
     updateSortIcons();
 });
 

@@ -68,11 +68,13 @@ class AtadoresController extends Controller
 
         // Verificar rol/área para visibilidad y filtros
         $areaUpper = strtoupper(trim($area));
-        $esTejedor = in_array($areaUpper, ['Tejedores']);
         $areaNorm = strtolower(trim((string) $area));
         $puestoNorm = strtolower(trim((string) $puesto));
-        $esAreaAtadores = in_array($areaNorm, ['atador', 'Atadores'], true);
-        $esSupervisor = ($puestoNorm === 'Supervisor');
+
+        // Detectar si es tejedor (puede ser "Tejedores", "TEJEDORES", "tejedores", etc.)
+        $esTejedor = in_array($areaUpper, ['TEJEDORES', 'TEJEDOR']);
+        $esAreaAtadores = in_array($areaNorm, ['atador', 'atadores'], true);
+        $esSupervisor = (strtolower(trim($puesto)) === 'supervisor');
 
         $telaresUsuario = [];
         if ($esTejedor) {
@@ -82,32 +84,49 @@ class AtadoresController extends Controller
         }
 
         // Filtro por defecto según área/puesto (frontend)
+        // IMPORTANTE: El backend ya filtra los datos por rol, así que 'todos' aquí significa
+        // "mostrar todos los registros que el backend ya filtró por rol"
         $filtroAplicado = 'todos';
-        if (!$filtroPersonalizado) {
-            if ($esTejedor) {
-                $filtroAplicado = 'terminados';
-            } elseif ($esAreaAtadores || in_array($puestoNorm, ['atador', 'atadores'], true)) {
-                // Área atador: ver Activo y En Proceso
-                $filtroAplicado = 'activo';
-            } elseif ($esSupervisor) {
-                $filtroAplicado = 'calificados';
-            }
-        } else {
+        if ($filtroPersonalizado) {
             $filtroAplicado = $filtroPersonalizado;
         }
+        // Si no hay filtro personalizado, el backend ya filtró por rol:
+        // - Tejedores: solo sus telares con Terminado
+        // - Atadores: todos los telares con Activo/En Proceso
+        // - Supervisor: todos los telares con Calificado (no Autorizado)
+        // En estos casos, filtroAplicado = 'todos' para que el frontend muestre todo lo que el backend trajo
 
+        // Aplicar filtros según rol/área ANTES de ejecutar la consulta
         // Filtro "Autorizado": consultar directamente AtaMontadoTelas (todos los Autorizado) y combinar con inventario
         if ($filtroPersonalizado === 'autorizados') {
             $inventarioTelares = $this->getAutorizadosParaVista();
         } else {
+            // Tejedores: filtrar por sus telares y solo status Terminado
             if ($esTejedor) {
-                // Tejedores: en servidor solo sus telares y solo status Terminado
                 if (empty($telaresUsuario)) {
                     $query->whereRaw('0 = 1'); // Sin telares asignados: no mostrar registros
                 } else {
                     $query->whereIn('tej_inventario_telares.no_telar', $telaresUsuario)
                         ->where('AtaMontadoTelas.Estatus', 'Terminado');
                 }
+            }
+            // Atador: todos los telares, solo Activo y En Proceso (sin filtrar por operador)
+            elseif ($esAreaAtadores || in_array($puestoNorm, ['atador', 'atadores'], true)) {
+                // Solo Activo (sin registro en AtaMontadoTelas) o En Proceso
+                $query->where(function ($q) {
+                    $q->whereNull('AtaMontadoTelas.Estatus')
+                      ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
+                });
+            }
+            // Supervisor: solo Calificados (no Autorizado)
+            elseif ($esSupervisor) {
+                // Supervisor siempre ve solo Calificados, sin importar el filtro personalizado
+                $query->where('AtaMontadoTelas.Estatus', 'Calificado');
+            }
+            // Si no es ninguno de los roles anteriores y no hay filtro personalizado,
+            // no mostrar registros (solo usuarios con rol definido pueden ver datos)
+            elseif (!$filtroPersonalizado) {
+                $query->whereRaw('0 = 1'); // No mostrar registros si no tiene rol válido
             }
 
             $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
