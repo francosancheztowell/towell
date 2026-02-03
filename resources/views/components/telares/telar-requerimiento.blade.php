@@ -1365,10 +1365,28 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 const fechaEsPosterior = timestampRegistro > timestampUltimoDia;
 
                 let tablaDestino = null;
-                if (fechaEsAnterior || fechaEsPosterior) {
+                
+                // Calcular diferencia de días (puede ser negativa si es anterior)
+                const diferenciaDias = Math.floor((timestampRegistro - timestampHoy) / (1000 * 60 * 60 * 24));
+                
+                if (fechaEsAnterior) {
+                    // Si la fecha es anterior a hoy, solo mostrar en la primera tabla si está dentro de los últimos 7 días
+                    // Si es muy anterior (más de 7 días), no mostrarla
+                    if (diferenciaDias >= -6 && diferenciaDias < 0) {
+                        // Está dentro del rango visible (últimos 7 días), calcular qué tabla corresponde
+                        // La tabla 0 es hoy, tabla 1 es mañana, etc.
+                        // Para fechas anteriores: diferenciaDias = -1 significa ayer, -2 significa hace 2 días, etc.
+                        // Pero solo tenemos 7 tablas (0-6), así que si es anterior, usar la primera tabla
+                        tablaDestino = todasLasTablasDelTelar[0];
+                    } else {
+                        // Muy anterior, no mostrar
+                        return;
+                    }
+                } else if (fechaEsPosterior) {
+                    // Fecha posterior al último día visible, usar primera tabla
                     tablaDestino = todasLasTablasDelTelar[0];
                 } else {
-                    const diferenciaDias = Math.floor((timestampRegistro - timestampHoy) / (1000 * 60 * 60 * 24));
+                    // Fecha dentro del rango visible
                     if (diferenciaDias >= 0 && diferenciaDias < todasLasTablasDelTelar.length) {
                         tablaDestino = todasLasTablasDelTelar[diferenciaDias];
                     }
@@ -1396,7 +1414,14 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 registrosFiltrados: registrosFiltrados.length,
                 filtroAplicado: filtros,
                 telarId: telarId,
-                tipo: tipo
+                tipo: tipo,
+                hoy: hoy.toISOString().split('T')[0],
+                ultimoDia: ultimoDia.toISOString().split('T')[0],
+                registrosDetalle: registrosFiltrados.map(reg => ({
+                    fecha: reg.fecha,
+                    turno: reg.turno,
+                    tipo: reg.tipo
+                }))
             });
 
             window.cargandoRequerimientosPorTelar[key] = false;
