@@ -167,7 +167,6 @@
                                         <input id="foto" name="foto" type="file" accept="image/*"
                                             class="block w-full text-sm text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                             onchange="previewImage(event)">
-                                        <p class="mt-1 text-xs text-gray-500">Formatos: JPG, PNG. Tamaño sugerido 512×512px</p>
                                     </div>
 
                                     <!-- Preview -->
@@ -252,32 +251,37 @@
                                                 <div class="flex flex-col gap-0.5">
                                                     <label class="flex items-center justify-center">
                                                         <input type="checkbox" name="modulo_{{ $modulo->idrol }}_acceso" value="1"
-                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
-                                                            {{ old("modulo_{$modulo->idrol}_acceso", $permisos->acceso ?? false) ? 'checked' : '' }}>
+                                                            data-idrol="{{ $modulo->idrol }}" data-permiso="acceso" data-nivel="{{ (int)$modulo->Nivel }}"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5 checkbox-acceso"
+                                                            {{ $isEdit ? (old("modulo_{$modulo->idrol}_acceso", $permisos->acceso ?? false) ? 'checked' : '') : 'checked' }}>
                                                         <span class="text-[8px] text-gray-700">Acceso</span>
                                                     </label>
                                                     <label class="flex items-center justify-center">
                                                         <input type="checkbox" name="modulo_{{ $modulo->idrol }}_crear" value="1"
-                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
-                                                            {{ old("modulo_{$modulo->idrol}_crear", $permisos->crear ?? false) ? 'checked' : '' }}>
+                                                            data-idrol="{{ $modulo->idrol }}" data-permiso="crear" data-nivel="{{ (int)$modulo->Nivel }}"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5 checkbox-crear"
+                                                            {{ $isEdit ? (old("modulo_{$modulo->idrol}_crear", $permisos->crear ?? false) ? 'checked' : '') : 'checked' }}>
                                                         <span class="text-[8px] text-gray-700">Crear</span>
                                                     </label>
                                                     <label class="flex items-center justify-center">
                                                         <input type="checkbox" name="modulo_{{ $modulo->idrol }}_modificar" value="1"
-                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
-                                                            {{ old("modulo_{$modulo->idrol}_modificar", $permisos->modificar ?? false) ? 'checked' : '' }}>
+                                                            data-idrol="{{ $modulo->idrol }}" data-permiso="modificar" data-nivel="{{ (int)$modulo->Nivel }}"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5 checkbox-modificar"
+                                                            {{ $isEdit ? (old("modulo_{$modulo->idrol}_modificar", $permisos->modificar ?? false) ? 'checked' : '') : 'checked' }}>
                                                         <span class="text-[8px] text-gray-700">Modificar</span>
                                                     </label>
                                                     <label class="flex items-center justify-center">
                                                         <input type="checkbox" name="modulo_{{ $modulo->idrol }}_eliminar" value="1"
-                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
-                                                            {{ old("modulo_{$modulo->idrol}_eliminar", $permisos->eliminar ?? false) ? 'checked' : '' }}>
+                                                            data-idrol="{{ $modulo->idrol }}" data-permiso="eliminar" data-nivel="{{ (int)$modulo->Nivel }}"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5 checkbox-eliminar"
+                                                            {{ $isEdit ? (old("modulo_{$modulo->idrol}_eliminar", $permisos->eliminar ?? false) ? 'checked' : '') : 'checked' }}>
                                                         <span class="text-[8px] text-gray-700">Eliminar</span>
                                                     </label>
                                                     <label class="flex items-center justify-center">
                                                         <input type="checkbox" name="modulo_{{ $modulo->idrol }}_registrar" value="1"
-                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5"
-                                                            {{ old("modulo_{$modulo->idrol}_registrar", $permisos->registrar ?? false) ? 'checked' : '' }}>
+                                                            data-idrol="{{ $modulo->idrol }}" data-permiso="registrar" data-nivel="{{ (int)$modulo->Nivel }}"
+                                                            class="h-2 w-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-0.5 checkbox-registrar"
+                                                            {{ $isEdit ? (old("modulo_{$modulo->idrol}_registrar", $permisos->registrar ?? false) ? 'checked' : '') : 'checked' }}>
                                                         <span class="text-[8px] text-gray-700">Registrar</span>
                                                     </label>
                                                 </div>
@@ -392,6 +396,7 @@
                                         <!-- Acceso -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_acceso" value="1"
+                                                data-idrol="{{ $modulo->idrol }}" data-permiso="acceso" data-nivel="{{ (int)$modulo->Nivel }}"
                                                 class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-acceso"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_acceso", $permisos->acceso ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
@@ -399,6 +404,7 @@
                                         <!-- Crear -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_crear" value="1"
+                                                data-idrol="{{ $modulo->idrol }}" data-permiso="crear" data-nivel="{{ (int)$modulo->Nivel }}"
                                                 class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-crear"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_crear", $permisos->crear ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
@@ -406,6 +412,7 @@
                                         <!-- Modificar -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_modificar" value="1"
+                                                data-idrol="{{ $modulo->idrol }}" data-permiso="modificar" data-nivel="{{ (int)$modulo->Nivel }}"
                                                 class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-modificar"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_modificar", $permisos->modificar ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
@@ -413,6 +420,7 @@
                                         <!-- Eliminar -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_eliminar" value="1"
+                                                data-idrol="{{ $modulo->idrol }}" data-permiso="eliminar" data-nivel="{{ (int)$modulo->Nivel }}"
                                                 class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-eliminar"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_eliminar", $permisos->eliminar ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
@@ -420,6 +428,7 @@
                                         <!-- Registrar -->
                                         <div class="flex items-center justify-center">
                                             <input type="checkbox" name="modulo_{{ $modulo->idrol }}_registrar" value="1"
+                                                data-idrol="{{ $modulo->idrol }}" data-permiso="registrar" data-nivel="{{ (int)$modulo->Nivel }}"
                                                 class="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer checkbox-registrar"
                                                 {{ $isEdit ? (old("modulo_{$modulo->idrol}_registrar", $permisos->registrar ?? false) ? 'checked' : '') : 'checked' }}>
                                         </div>
@@ -464,6 +473,9 @@
 
     <!-- Scripts -->
     <script>
+        // Jerarquía: para cada idrol de Nivel 1, lista de idrol de descendientes (Nivel 2 y 3)
+        window.MODULOS_DESCENDIENTES = @json($modulosDescendientes ?? []);
+
         // Habilitar uso de Str en blade (@php ya maneja el helper arriba)
         document.addEventListener('DOMContentLoaded', function() {
         // Mostrar / ocultar contraseña
@@ -517,48 +529,216 @@
             reader.readAsDataURL(file);
         }
 
+        // Función para actualizar el estado del checkbox del header basado en los checkboxes individuales
+        function updateHeaderCheckbox(headerId, selector) {
+            const headerCheckbox = document.getElementById(headerId);
+            if (!headerCheckbox) return;
+
+            const checkboxes = document.querySelectorAll(selector);
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const totalCount = checkboxes.length;
+
+            // Actualizar estado del header: checked si todos están marcados, indeterminate si algunos, unchecked si ninguno
+            if (checkedCount === 0) {
+                headerCheckbox.checked = false;
+                headerCheckbox.indeterminate = false;
+            } else if (checkedCount === totalCount) {
+                headerCheckbox.checked = true;
+                headerCheckbox.indeterminate = false;
+            } else {
+                headerCheckbox.checked = false;
+                headerCheckbox.indeterminate = true;
+            }
+        }
+
         // Funciones para selección rápida de permisos
         function seleccionarTodos() {
             const checkboxes = document.querySelectorAll('input[type="checkbox"][name*="modulo_"]');
-            checkboxes.forEach(checkbox => checkbox.checked = true);
+            // Agrupar por name para sincronizar correctamente
+            const checkboxesPorName = {};
+            checkboxes.forEach(checkbox => {
+                if (!checkboxesPorName[checkbox.name]) {
+                    checkboxesPorName[checkbox.name] = [];
+                }
+                checkboxesPorName[checkbox.name].push(checkbox);
+            });
 
-            const headerCheckboxes = document.querySelectorAll('#selectAllAcceso, #selectAllCrear, #selectAllModificar, #selectAllEliminar, #selectAllRegistrar');
-            headerCheckboxes.forEach(checkbox => checkbox.checked = true);
+            // Marcar todos y sincronizar
+            Object.keys(checkboxesPorName).forEach(name => {
+                checkboxesPorName[name].forEach(cb => cb.checked = true);
+            });
+
+            // Actualizar headers
+            updateHeaderCheckbox('selectAllAcceso', '.checkbox-acceso');
+            updateHeaderCheckbox('selectAllCrear', '.checkbox-crear');
+            updateHeaderCheckbox('selectAllModificar', '.checkbox-modificar');
+            updateHeaderCheckbox('selectAllEliminar', '.checkbox-eliminar');
+            updateHeaderCheckbox('selectAllRegistrar', '.checkbox-registrar');
         }
 
         function deseleccionarTodos() {
             const checkboxes = document.querySelectorAll('input[type="checkbox"][name*="modulo_"]');
-            checkboxes.forEach(checkbox => checkbox.checked = false);
+            // Agrupar por name para sincronizar correctamente
+            const checkboxesPorName = {};
+            checkboxes.forEach(checkbox => {
+                if (!checkboxesPorName[checkbox.name]) {
+                    checkboxesPorName[checkbox.name] = [];
+                }
+                checkboxesPorName[checkbox.name].push(checkbox);
+            });
 
-            const headerCheckboxes = document.querySelectorAll('#selectAllAcceso, #selectAllCrear, #selectAllModificar, #selectAllEliminar, #selectAllRegistrar');
-            headerCheckboxes.forEach(checkbox => checkbox.checked = false);
+            // Desmarcar todos y sincronizar
+            Object.keys(checkboxesPorName).forEach(name => {
+                checkboxesPorName[name].forEach(cb => cb.checked = false);
+            });
+
+            // Actualizar headers
+            updateHeaderCheckbox('selectAllAcceso', '.checkbox-acceso');
+            updateHeaderCheckbox('selectAllCrear', '.checkbox-crear');
+            updateHeaderCheckbox('selectAllModificar', '.checkbox-modificar');
+            updateHeaderCheckbox('selectAllEliminar', '.checkbox-eliminar');
+            updateHeaderCheckbox('selectAllRegistrar', '.checkbox-registrar');
         }
 
-        // Funciones para toggle de todas las columnas
+        // Funciones para toggle de todas las columnas (ya actualizan todos los checkboxes, incluido el otro bloque)
         function toggleAllAcceso(checkbox) {
-            const accesoCheckboxes = document.querySelectorAll('.checkbox-acceso');
-            accesoCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+            const shouldCheck = checkbox.checked || checkbox.indeterminate;
+            document.querySelectorAll('.checkbox-acceso').forEach(cb => { cb.checked = shouldCheck; });
+            updateHeaderCheckbox('selectAllAcceso', '.checkbox-acceso');
         }
 
         function toggleAllCrear(checkbox) {
-            const crearCheckboxes = document.querySelectorAll('.checkbox-crear');
-            crearCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+            const shouldCheck = checkbox.checked || checkbox.indeterminate;
+            document.querySelectorAll('.checkbox-crear').forEach(cb => { cb.checked = shouldCheck; });
+            updateHeaderCheckbox('selectAllCrear', '.checkbox-crear');
         }
 
         function toggleAllModificar(checkbox) {
-            const modificarCheckboxes = document.querySelectorAll('.checkbox-modificar');
-            modificarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+            const shouldCheck = checkbox.checked || checkbox.indeterminate;
+            document.querySelectorAll('.checkbox-modificar').forEach(cb => { cb.checked = shouldCheck; });
+            updateHeaderCheckbox('selectAllModificar', '.checkbox-modificar');
         }
 
         function toggleAllEliminar(checkbox) {
-            const eliminarCheckboxes = document.querySelectorAll('.checkbox-eliminar');
-            eliminarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+            const shouldCheck = checkbox.checked || checkbox.indeterminate;
+            document.querySelectorAll('.checkbox-eliminar').forEach(cb => { cb.checked = shouldCheck; });
+            updateHeaderCheckbox('selectAllEliminar', '.checkbox-eliminar');
         }
 
         function toggleAllRegistrar(checkbox) {
-            const registrarCheckboxes = document.querySelectorAll('.checkbox-registrar');
-            registrarCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+            const shouldCheck = checkbox.checked || checkbox.indeterminate;
+            document.querySelectorAll('.checkbox-registrar').forEach(cb => { cb.checked = shouldCheck; });
+            updateHeaderCheckbox('selectAllRegistrar', '.checkbox-registrar');
         }
+
+        // Variable para evitar bucles infinitos durante la sincronización/cascada
+        let sincronizando = false;
+
+        // Sincronizar por data-idrol y data-permiso (más rápido que buscar por name)
+        function sincronizarCheckboxPorIdrolPermiso(idrol, permiso, checked) {
+            if (sincronizando) return;
+            sincronizando = true;
+            const selector = `input[type="checkbox"][data-idrol="${idrol}"][data-permiso="${permiso}"]`;
+            document.querySelectorAll(selector).forEach(cb => {
+                if (cb.checked !== checked) cb.checked = checked;
+            });
+            sincronizando = false;
+        }
+
+        // Sincronizar el checkbox duplicado (otro bloque) y opcionalmente cascada si es Nivel 1
+        function sincronizarCheckboxDuplicado(checkboxCambiado) {
+            const idrol = checkboxCambiado.getAttribute('data-idrol');
+            const permiso = checkboxCambiado.getAttribute('data-permiso');
+            const nivel = parseInt(checkboxCambiado.getAttribute('data-nivel'), 10);
+            const checked = checkboxCambiado.checked;
+            if (!idrol || !permiso) return;
+
+            sincronizarCheckboxPorIdrolPermiso(idrol, permiso, checked);
+
+            // Cascada: si es módulo Nivel 1, aplicar mismo valor a todos los descendientes (Nivel 2 y 3)
+            if (nivel === 1 && window.MODULOS_DESCENDIENTES && window.MODULOS_DESCENDIENTES[idrol]) {
+                window.MODULOS_DESCENDIENTES[idrol].forEach(function(idrolHijo) {
+                    sincronizarCheckboxPorIdrolPermiso(idrolHijo, permiso, checked);
+                });
+            }
+        }
+
+        // Función para deshabilitar/habilitar checkboxes según el bloque visible
+        function gestionarBloquesVisibles() {
+            // Buscar los bloques usando selectores más específicos
+            const mobileBlock = document.querySelector('.block.sm\\:hidden');
+            const desktopBlock = document.querySelector('.hidden.sm\\:block');
+
+            if (!mobileBlock || !desktopBlock) return;
+
+            // Verificar qué bloque está visible usando window.getComputedStyle
+            const mobileStyle = window.getComputedStyle(mobileBlock);
+            const desktopStyle = window.getComputedStyle(desktopBlock);
+
+            const mobileVisible = mobileStyle.display !== 'none' && mobileStyle.visibility !== 'hidden';
+            const desktopVisible = desktopStyle.display !== 'none' && desktopStyle.visibility !== 'hidden';
+
+            if (mobileVisible) {
+                // Si el bloque móvil está visible, deshabilitar los del desktop
+                desktopBlock.querySelectorAll('input[type="checkbox"][name*="modulo_"]').forEach(cb => {
+                    cb.disabled = true;
+                });
+                // Habilitar los del móvil
+                mobileBlock.querySelectorAll('input[type="checkbox"][name*="modulo_"]').forEach(cb => {
+                    cb.disabled = false;
+                });
+            } else if (desktopVisible) {
+                // Si el bloque desktop está visible, deshabilitar los del móvil
+                mobileBlock.querySelectorAll('input[type="checkbox"][name*="modulo_"]').forEach(cb => {
+                    cb.disabled = true;
+                });
+                // Habilitar los del desktop
+                desktopBlock.querySelectorAll('input[type="checkbox"][name*="modulo_"]').forEach(cb => {
+                    cb.disabled = false;
+                });
+            }
+        }
+
+        // Sincronizar headers cuando se cambian checkboxes individuales
+        document.addEventListener('DOMContentLoaded', function() {
+            // Gestionar bloques visibles al cargar
+            gestionarBloquesVisibles();
+
+            // Función helper para agregar listeners con sincronización
+            function agregarListenerConSincronizacion(selector, headerId, headerSelector) {
+                document.querySelectorAll(selector).forEach(cb => {
+                    cb.addEventListener('change', function() {
+                        // Sincronizar el checkbox duplicado en el otro bloque
+                        sincronizarCheckboxDuplicado(this);
+                        // Actualizar el header
+                        updateHeaderCheckbox(headerId, headerSelector);
+                    });
+                });
+            }
+
+            // Listeners para actualizar headers y sincronizar checkboxes duplicados
+            agregarListenerConSincronizacion('.checkbox-acceso', 'selectAllAcceso', '.checkbox-acceso');
+            agregarListenerConSincronizacion('.checkbox-crear', 'selectAllCrear', '.checkbox-crear');
+            agregarListenerConSincronizacion('.checkbox-modificar', 'selectAllModificar', '.checkbox-modificar');
+            agregarListenerConSincronizacion('.checkbox-eliminar', 'selectAllEliminar', '.checkbox-eliminar');
+            agregarListenerConSincronizacion('.checkbox-registrar', 'selectAllRegistrar', '.checkbox-registrar');
+
+            // Inicializar estado de los headers al cargar la página
+            updateHeaderCheckbox('selectAllAcceso', '.checkbox-acceso');
+            updateHeaderCheckbox('selectAllCrear', '.checkbox-crear');
+            updateHeaderCheckbox('selectAllModificar', '.checkbox-modificar');
+            updateHeaderCheckbox('selectAllEliminar', '.checkbox-eliminar');
+            updateHeaderCheckbox('selectAllRegistrar', '.checkbox-registrar');
+
+            // Gestionar bloques cuando cambia el tamaño de la ventana
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(function() {
+                    gestionarBloquesVisibles();
+                }, 100);
+            });
+        });
 
         // Los permisos se guardan al enviar el formulario (Actualizar Usuario)
 

@@ -103,12 +103,15 @@ class UsuarioController extends Controller
         $modulos = $this->moduloService->getAllModulos();
         $departamentos = SysDepartamentos::orderBy('Depto')->get();
 
+        $modulosDescendientes = $this->obtenerDescendientesPorIdrolRaiz($modulos);
+
         return view('modulos.usuarios.form_usuario', [
             'usuario' => null,
             'modulos' => $modulos,
             'permisosUsuario' => collect(),
             'departamentos' => $departamentos,
-            'isEdit' => false
+            'isEdit' => false,
+            'modulosDescendientes' => $modulosDescendientes
         ]);
     }
 
@@ -194,12 +197,15 @@ class UsuarioController extends Controller
         $permisosUsuario = $this->permissionService->getAllPermisosUsuario($usuario->idusuario);
         $departamentos = SysDepartamentos::orderBy('Depto')->get();
 
+        $modulosDescendientes = $this->obtenerDescendientesPorIdrolRaiz($modulos);
+
         return view('modulos.usuarios.form_usuario', [
             'usuario' => $usuario,
             'modulos' => $modulos,
             'permisosUsuario' => $permisosUsuario,
             'departamentos' => $departamentos,
-            'isEdit' => true
+            'isEdit' => true,
+            'modulosDescendientes' => $modulosDescendientes
         ]);
     }
 
@@ -624,5 +630,43 @@ class UsuarioController extends Controller
                 'rutaPadre' => '/produccionProceso'
             ]);
         }
+    }
+
+    /**
+     * Obtener para cada módulo de Nivel 1 el listado de idrol de sus descendientes (Nivel 2 y 3).
+     * Se usa en el formulario de usuario para cascada de permisos.
+     *
+     * @param \Illuminate\Support\Collection $modulos
+     * @return array [ idrol_raiz => [ idrol_hijo1, idrol_hijo2, ... ], ... ]
+     */
+    private function obtenerDescendientesPorIdrolRaiz($modulos): array
+    {
+        $porOrden = $modulos->keyBy('orden');
+        $descendientes = [];
+
+        foreach ($modulos as $m) {
+            if ((int) $m->Nivel === 1) {
+                $descendientes[$m->idrol] = [];
+            }
+        }
+
+        foreach ($modulos as $m) {
+            if ((int) $m->Nivel === 2 && $m->Dependencia !== null) {
+                $raiz = $porOrden->get($m->Dependencia);
+                if ($raiz && (int) $raiz->Nivel === 1) {
+                    $descendientes[$raiz->idrol][] = $m->idrol;
+                }
+            } elseif ((int) $m->Nivel === 3 && $m->Dependencia !== null) {
+                $padre = $porOrden->get($m->Dependencia);
+                if ($padre && (int) $padre->Nivel === 2 && $padre->Dependencia !== null) {
+                    $raiz = $porOrden->get($padre->Dependencia);
+                    if ($raiz && (int) $raiz->Nivel === 1) {
+                        $descendientes[$raiz->idrol][] = $m->idrol;
+                    }
+                }
+            }
+        }
+
+        return $descendientes;
     }
 }
