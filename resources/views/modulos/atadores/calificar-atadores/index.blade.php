@@ -341,9 +341,11 @@ const currentUser = {!! auth()->check() ? json_encode(['numero_empleado' => auth
 @if($montadoTelas->isNotEmpty())
     const currentNoJulio = '{{ $montadoTelas->first()->NoJulio }}';
     const currentNoOrden = '{{ $montadoTelas->first()->NoProduccion }}';
+    const esSoloLectura = '{{ $montadoTelas->first()->Estatus }}' === 'Autorizado';
 @else
     const currentNoJulio = null;
     const currentNoOrden = null;
+    const esSoloLectura = false;
 @endif
 
 // Información de actividades para validación
@@ -764,6 +766,11 @@ function guardarMerga(valor){
         console.warn('Merma vacía, no se guardará');
         return;
     }
+    
+    if (!valor || valor === '') {
+        console.warn('Merma vacía, no se guardará');
+        return;
+    }
 
     // Validar que sea un número válido
     const mergaNum = parseFloat(valor);
@@ -816,7 +823,7 @@ function guardarMerga(valor){
                     indicator.classList.add('hidden');
                 }, 2000);
             }
-            console.log('Merma guardada exitosamente:', res.mergaKg);
+            console.log('Merma guardada exitosamente:', res.mergaKg || mergaNum);
         } else {
             console.error('Error al guardar merma:', res.message);
             Swal.fire({ 
@@ -827,7 +834,7 @@ function guardarMerga(valor){
         }
     })
     .catch(err => {
-        console.error('Error de red al guardar merma:', err);
+        console.error('Error de red al guardar merga:', err);
         Swal.fire({ 
             icon: 'error', 
             title: 'Error de conexión', 
@@ -938,21 +945,27 @@ function toggleActividad(actividadId, checked){
     })
     .then(r => r.json())
     .then(res => {
+        console.log('Respuesta de toggleActividad:', res);
         if(res.ok){
             // Actualizar el operador en la tabla dinámicamente
             const fila = document.getElementById('actividad-' + actividadId);
             const celdaOperador = fila ? fila.querySelector('.operador-cell') : null;
+            console.log('Celda operador encontrada:', celdaOperador);
             if (fila && celdaOperador) {
                 if (checked) {
                     // Si el backend provee operador, úsalo; si no, refleja usuario actual
                     const operadorTexto = res.operador
                         ? String(res.operador)
                         : (currentUser ? `${currentUser.numero_empleado} - ${currentUser.nombre || ''}` : '-');
+                    console.log('Actualizando operador a:', operadorTexto);
                     celdaOperador.textContent = operadorTexto.trim();
                 } else {
                     // Al desmarcar, limpiar operador
+                    console.log('Limpiando operador');
                     celdaOperador.textContent = '-';
                 }
+            } else {
+                console.warn('No se encontró la fila o celda operador para actividad:', actividadId);
             }
 
             // Actualizar el estado en actividadesData
