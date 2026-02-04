@@ -2060,6 +2060,21 @@ class ProgramaTejidoController extends Controller
                         }
 
                         $cambio = ($oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
+                        
+                        // Auditoría: cambio de FechaInicio al actualizar calendarios
+                        if ($oldInicioStr !== $inicioStr) {
+                            $enProceso = ($p->EnProceso == 1 || $p->EnProceso === true);
+                            \App\Helpers\AuditoriaHelper::logCambioFechaInicio(
+                                'ReqProgramaTejido',
+                                $p->Id,
+                                $oldInicioStr,
+                                $inicioStr,
+                                'Actualizar Calendarios',
+                                $request,
+                                $enProceso
+                            );
+                        }
+                        
                         $p->FechaInicio = $inicioStr;
                         $p->FechaFinal = $finStr;
 

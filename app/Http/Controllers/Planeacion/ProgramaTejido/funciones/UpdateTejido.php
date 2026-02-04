@@ -12,6 +12,7 @@ use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Helpers\AuditoriaHelper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -27,7 +28,8 @@ class UpdateTejido
 
         foreach ([
             'programar_prod','entrega_produc','entrega_pt','entrega_cte','fecha_final',
-            'pedido','no_tiras','peine','largo_crudo','luchaje','peso_crudo','pt_vs_cte'
+            'pedido','no_tiras','peine','largo_crudo','luchaje','peso_crudo','pt_vs_cte',
+            'ancho','ancho_toalla'
         ] as $k) {
             if ($request->has($k) && is_string($request->input($k)) && trim($request->input($k)) === '') {
                 $request->merge([$k => null]);
@@ -54,6 +56,8 @@ class UpdateTejido
             'entrega_cte'   => ['sometimes','nullable','date'],
             'pt_vs_cte'     => ['sometimes','nullable','numeric'],
             'fecha_final'   => ['sometimes','nullable','date'],
+            'ancho'         => ['sometimes','nullable','numeric','min:0'],
+            'ancho_toalla'  => ['sometimes','nullable','numeric','min:0'],
         ]);
 
         // Snapshot
@@ -160,6 +164,22 @@ class UpdateTejido
             $afectaFormulas = true;
         }
 
+        // Ancho / AnchoToalla: al editar solo se recalcula PesoGRM2
+        $editoAncho = false;
+        if (array_key_exists('ancho_toalla', $data)) {
+            $valor = $data['ancho_toalla'] !== null && $data['ancho_toalla'] !== '' ? (float)$data['ancho_toalla'] : null;
+            $registro->AnchoToalla = $valor;
+            $registro->Ancho = $valor;
+            $editoAncho = true;
+        }
+        if (array_key_exists('ancho', $data)) {
+            $valor = $data['ancho'] !== null && $data['ancho'] !== '' ? (float)$data['ancho'] : null;
+            $registro->Ancho = $valor;
+            $registro->AnchoToalla = $valor;
+            $editoAncho = true;
+        }
+        // No marcar $afectaFormulas: al editar solo ancho solo se recalcula PesoGRM2 más abajo
+
         if (array_key_exists('entrega_produc', $data)) {
             if ($data['entrega_produc']) DateHelpers::setSafeDate($registro, 'EntregaProduc', $data['entrega_produc']);
             else $registro->EntregaProduc = null;
@@ -195,8 +215,21 @@ class UpdateTejido
             if ($afectaCalendario && !empty($registro->CalendarioId)) {
                 $snap = self::snapInicioAlCalendario($registro->CalendarioId, $inicio);
                 if ($snap && !$snap->equalTo($inicio)) {
+                    $fechaInicioAnterior = $registro->FechaInicio;
+                    $enProceso = ($registro->EnProceso == 1 || $registro->EnProceso === true);
                     $registro->FechaInicio = $snap->format('Y-m-d H:i:s');
                     $inicio = $snap;
+                    
+                    // Auditoría: cambio de FechaInicio por snap al calendario
+                    AuditoriaHelper::logCambioFechaInicio(
+                        'ReqProgramaTejido',
+                        $registro->Id,
+                        $fechaInicioAnterior,
+                        $registro->FechaInicio,
+                        'Snap Calendario',
+                        $request,
+                        $enProceso
+                    );
                 }
             }
 
@@ -240,6 +273,16 @@ class UpdateTejido
             $formulas = self::calcularFormulasEficiencia($registro);
             foreach ($formulas as $campo => $valor) {
                 $registro->{$campo} = $valor;
+            }
+        }
+
+        // Si se editó ancho/ancho_toalla: recalcular PesoGRM2 (usar LargoCrudo si no hay LargoToalla)
+        if ($editoAncho) {
+            $pesoCrudo   = (float)($registro->PesoCrudo ?? 0);
+            $largo       = (float)($registro->LargoToalla ?? $registro->LargoCrudo ?? 0);
+            $anchoToalla = (float)($registro->AnchoToalla ?? 0);
+            if ($pesoCrudo > 0 && $largo > 0 && $anchoToalla > 0) {
+                $registro->PesoGRM2 = (float) round(($pesoCrudo * 10000) / ($largo * $anchoToalla), 2);
             }
         }
 

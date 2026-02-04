@@ -164,6 +164,18 @@ const uiInlineEditableFields = {
     step: 0.01,
     displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   },
+  Ancho: {
+    type: 'number',
+    min: 0,
+    step: 0.01,
+    displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  },
+  AnchoToalla: {
+    type: 'number',
+    min: 0,
+    step: 0.01,
+    displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  },
   EntregaPT: {
     type: 'date',
     inputFormatter: (v) => toInputDate(v),

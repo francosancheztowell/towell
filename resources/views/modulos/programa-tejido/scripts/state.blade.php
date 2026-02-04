@@ -1,4 +1,4 @@
-﻿// ===== Estado =====
+// ===== Estado =====
 let filters = [];
 let hiddenColumns = [];
 let pinnedColumns = [];
@@ -114,6 +114,7 @@ const createDateTimeFieldConfig = () => ({
 // - Lcr (LargoCrudo)
 // - Luc (Luchaje)
 // - Pcr (PesoCrudo)
+// - Ancho / Ancho por Toalla (Ancho, AnchoToalla)
 // - Fecha Compromiso Prod (EntregaProduc)
 // - Fecha Compromiso Pt (EntregaPT)
 // - Entrega (EntregaCte)
@@ -133,6 +134,8 @@ const inlineEditableFields = {
 	LargoCrudo: { type: 'number', step: '0.01', min: 0 },
 	Luchaje: { type: 'number', step: '0.01', min: 0 },
 	PesoCrudo: { type: 'number', step: '0.01', min: 0 },
+	Ancho: { type: 'number', step: '0.01', min: 0 },
+	AnchoToalla: { type: 'number', step: '0.01', min: 0 },
 	EntregaProduc: createDateFieldConfig(),
 	EntregaPT: createDateFieldConfig(),
 	EntregaCte: createDateTimeFieldConfig(),
@@ -162,6 +165,8 @@ const inlineFieldPayloadMap = {
 	LargoCrudo: 'largo_crudo',
 	Luchaje: 'luchaje',
 	PesoCrudo: 'peso_crudo',
+	Ancho: 'ancho',
+	AnchoToalla: 'ancho_toalla',
 	EntregaProduc: 'entrega_produc',
 	EntregaPT: 'entrega_pt',
 	EntregaCte: 'entrega_cte',

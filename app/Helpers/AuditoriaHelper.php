@@ -172,4 +172,40 @@ class AuditoriaHelper
 
         self::logEvento($tabla, 'DRAGDROP', $detalle, $request);
     }
+
+    /**
+     * Registra un cambio de FechaInicio en la auditoría
+     *
+     * @param string $tabla Nombre de la tabla (ej: 'ReqProgramaTejido')
+     * @param int $registroId ID del registro afectado
+     * @param string|null $fechaAnterior Fecha anterior (formato Y-m-d H:i:s o null)
+     * @param string|null $fechaNueva Fecha nueva (formato Y-m-d H:i:s o null)
+     * @param string $contexto Contexto del cambio (ej: 'Actualizar Calendarios', 'Balancear', 'Snap Calendario', 'Cascada', 'Duplicar', 'Dividir')
+     * @param Request|null $request Request actual (opcional)
+     * @param bool|null $enProceso Si el registro está en proceso (EnProceso = 1). Si es true, se añade advertencia especial
+     * @return void
+     */
+    public static function logCambioFechaInicio(
+        string $tabla,
+        int $registroId,
+        ?string $fechaAnterior,
+        ?string $fechaNueva,
+        string $contexto = 'UPDATE',
+        ?Request $request = null,
+        ?bool $enProceso = null
+    ): void {
+        // Formatear fechas para el detalle
+        $fechaAntStr = $fechaAnterior ? date('d/m/Y H:i', strtotime($fechaAnterior)) : 'N/A';
+        $fechaNuevaStr = $fechaNueva ? date('d/m/Y H:i', strtotime($fechaNueva)) : 'N/A';
+
+        // Solo registrar si realmente cambió
+        if ($fechaAnterior === $fechaNueva) {
+            return;
+        }
+
+        // Construir detalle base
+        $detalle = "Id={$registroId} | FechaInicio: {$fechaAntStr} -> {$fechaNuevaStr} | Contexto: {$contexto}";
+
+        self::logEvento($tabla, 'UPDATE', $detalle, $request);
+    }
 }
