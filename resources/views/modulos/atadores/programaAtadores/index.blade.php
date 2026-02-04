@@ -687,8 +687,11 @@ function iniciarAtado() {
 
     const noJulio = selectedRowElement.getAttribute('data-no-julio');
     const noOrden = selectedRowElement.getAttribute('data-no-orden');
+    const status = selectedRowElement.getAttribute('data-status') || selectedRowElement.getAttribute('data-estatus') || 'Activo';
     const horaParo = selectedRowElement.getAttribute('data-hora-paro') || '';
-    if (!horaParo.trim()) {
+
+    // Si es "Autorizado", permitir acceso sin validar horaParo (solo visualización)
+    if (status !== 'Autorizado' && !horaParo.trim()) {
         Swal.fire({
             icon: 'warning',
             title: 'Atención',

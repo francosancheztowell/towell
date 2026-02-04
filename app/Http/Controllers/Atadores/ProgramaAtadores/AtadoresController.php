@@ -193,14 +193,29 @@ class AtadoresController extends Controller
 
     public function iniciarAtado(Request $request)
     {
-        // Validar que se recibió un ID
+        $noJulioRequest = $request->input('no_julio');
+        $noOrdenRequest = $request->input('no_orden');
+        $id = $request->input('id');
+
+        // Si vienen no_julio y no_orden (ej. fila de Autorizados que puede ser de AtaMontadoTelas sin inventario), intentar ir directo a calificar
+        if ($noJulioRequest && $noOrdenRequest) {
+            $existente = AtaMontadoTelasModel::where('NoJulio', $noJulioRequest)
+                ->where('NoProduccion', $noOrdenRequest)
+                ->whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
+                ->first();
+
+            if ($existente) {
+                return redirect()->route('atadores.calificar', [
+                    'no_julio' => $noJulioRequest,
+                    'no_orden' => $noOrdenRequest
+                ])->with('info', $existente->Estatus === 'Autorizado' ? 'Visualizando registro autorizado (solo lectura)' : 'Continuando con atado en proceso');
+            }
+        }
+
+        // Validar que se recibió un ID cuando no hay no_julio/no_orden
         if (!$request->has('id')) {
             return redirect()->route('atadores.programa')->with('error', 'Debe seleccionar un registro');
         }
-
-        $id = $request->input('id');
-        $noJulioRequest = $request->input('no_julio');
-        $noOrdenRequest = $request->input('no_orden');
 
         // Obtener el registro específico del inventario de telares
         $item = TejInventarioTelares::find($id);
@@ -210,7 +225,6 @@ class AtadoresController extends Controller
         }
 
         // Validar que los datos del registro coincidan con los enviados desde el frontend
-        // Esto asegura que se está seleccionando el registro correcto
         if ($noJulioRequest && $item->no_julio != $noJulioRequest) {
             return redirect()->route('atadores.programa')->with('error', 'Los datos del No. Julio no coinciden. Por favor, seleccione el registro nuevamente.');
         }
@@ -224,18 +238,17 @@ class AtadoresController extends Controller
             return redirect()->route('atadores.programa')->with('error', 'El registro seleccionado no tiene los datos necesarios (No. Julio o No. Orden)');
         }
 
-        // Verificar si ya existe un atado para este mismo NoJulio y NoOrden (en cualquier estado activo)
+        // Verificar si ya existe un atado para este mismo NoJulio y NoOrden (en cualquier estado activo o Autorizado)
         $existente = AtaMontadoTelasModel::where('NoJulio', $item->no_julio)
             ->where('NoProduccion', $item->no_orden)
-            ->whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado'])
+            ->whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
             ->first();
 
         if ($existente) {
-            // Si ya existe, redirigir a calificar con los parámetros del registro correcto
             return redirect()->route('atadores.calificar', [
                 'no_julio' => $item->no_julio,
                 'no_orden' => $item->no_orden
-            ])->with('info', 'Continuando con atado en proceso');
+            ])->with('info', $existente->Estatus === 'Autorizado' ? 'Visualizando registro autorizado (solo lectura)' : 'Continuando con atado en proceso');
         }
 
         // NO eliminar otros procesos en estado 'En Proceso'
@@ -313,16 +326,16 @@ class AtadoresController extends Controller
 
         // Si se proporcionan parámetros, filtrar por ellos para obtener el registro específico
         if ($noJulio && $noOrden) {
-            // Buscar el registro específico en cualquier estado activo
-            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado'])
+            // Buscar el registro específico en cualquier estado activo o Autorizado
+            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
                 ->where('NoJulio', $noJulio)
                 ->where('NoProduccion', $noOrden)
                 ->orderBy('Fecha', 'desc')
                 ->orderBy('Turno', 'desc')
                 ->get();
         } else {
-            // Si no se proporcionan parámetros, obtener todos los procesos activos
-            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado'])
+            // Si no se proporcionan parámetros, obtener todos los procesos activos (incluyendo Autorizado)
+            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
                 ->orderBy('Fecha', 'desc')
                 ->orderBy('Turno', 'desc')
                 ->get();

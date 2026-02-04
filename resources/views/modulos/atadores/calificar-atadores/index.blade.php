@@ -33,7 +33,21 @@
     @if($montadoTelas->isNotEmpty())
         @php
             $item = $montadoTelas->first();
+            $esAutorizado = $item->Estatus === 'Autorizado';
         @endphp
+
+        @if($esAutorizado)
+        <!-- Alerta de solo lectura para registros Autorizados -->
+        <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-r-md">
+            <div class="flex items-center">
+                <i class="fas fa-info-circle text-green-600 text-xl mr-3"></i>
+                <div>
+                    <h3 class="text-green-800 font-semibold">Registro Autorizado - Modo Solo Lectura</h3>
+                    <p class="text-green-700 text-sm mt-1">Este registro ha sido autorizado y está disponible solo para visualización. No se pueden realizar modificaciones.</p>
+                </div>
+            </div>
+        </div>
+        @endif
 
         <!-- Resumen del Atado (4 bloques combinados + comentarios) -->
         <div class="bg-white rounded-lg shadow-md p-4 mb-6">
@@ -180,7 +194,7 @@
                         placeholder="Escriba aquí las observaciones sobre el atado..."
                         oninput="handleObservacionesChange()"
                         @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif>{{ $item->Obs }}</textarea>
-                    
+
                 </form>
                 @if($item->comments_ata)
                     <p class="text-sm text-gray-700 mt-2"><strong>Comentarios del Atador:</strong> {{ $item->comments_ata }}</p>
@@ -391,6 +405,11 @@ function handleMergaChange(valor) {
 
 
 function guardarObservacionesAuto() {
+    if (esSoloLectura) {
+        console.log('Registro autorizado: solo lectura, no se puede guardar');
+        return;
+    }
+
     const observaciones = document.getElementById('observaciones').value;
     const autoSaveIndicator = document.getElementById('autoSaveIndicator');
     const savedIndicator = document.getElementById('savedIndicator');
@@ -592,7 +611,7 @@ async function calificarTejedor(){
                 const cveTej = document.getElementById('valCveTejedor');
                 const nomTej = document.getElementById('valNomTejedor');
                 const dashTej = document.getElementById('tejedorDash');
-                
+
                 if (cveTej) cveTej.textContent = res.tejedor.cve || currentUser.numero_empleado || '-';
                 if (nomTej) nomTej.textContent = res.tejedor.nombre || currentUser.nombre || '';
                 if (dashTej) dashTej.classList.remove('hidden');
@@ -698,6 +717,15 @@ async function autorizaSupervisor(){
 function guardarObservaciones(event){
     event.preventDefault();
 
+    if (esSoloLectura) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Solo Lectura',
+            text: 'Este registro está autorizado y no se pueden realizar modificaciones'
+        });
+        return;
+    }
+
     const observaciones = document.getElementById('observaciones').value;
 
     fetch('{{ route('atadores.save') }}', {
@@ -732,6 +760,10 @@ function guardarObservaciones(event){
 
 // Guardar Merga Kg
 function guardarMerga(valor){
+    if (esSoloLectura) {
+        console.log('Registro autorizado: solo lectura, no se puede guardar');
+        return;
+    }
     if (!valor || valor === '') return;
 
     fetch('{{ route('atadores.save') }}', {
@@ -812,6 +844,13 @@ function toggleMaquina(maquinaId, checked){
 
 // Toggle estado de actividad y guardar en DB
 function toggleActividad(actividadId, checked){
+    if (esSoloLectura) {
+        console.log('Registro autorizado: solo lectura, no se puede modificar');
+        // Revertir checkbox
+        const checkbox = document.querySelector(`input[onchange*="toggleActividad('${actividadId}'"]`);
+        if (checkbox) checkbox.checked = !checked;
+        return;
+    }
     // Regla: solo el usuario que marcó puede desmarcar su propia actividad
     try {
         if (!checked) {
