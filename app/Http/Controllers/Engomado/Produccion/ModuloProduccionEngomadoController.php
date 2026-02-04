@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ModuloProduccionEngomadoController extends Controller
 {
@@ -109,6 +110,7 @@ class ModuloProduccionEngomadoController extends Controller
                 'orden' => null,
                 'julios' => collect([]),
                 'metros' => '0',
+                'metrosProduccion' => null,
                 'destino' => null,
                 'hilo' => null,
                 'tipoAtado' => null,
@@ -172,7 +174,9 @@ class ModuloProduccionEngomadoController extends Controller
             try {
                 // Verificar que el Folio existe en EngProgramaEngomado
                 if (!$orden || !$orden->Folio) {
-                    // Folio no válido
+                    Log::warning('No se pueden crear registros - Folio no válido', [
+                        'orden' => $orden ? $orden->Folio : 'null'
+                    ]);
                 } else {
                     // Contar cuántos registros ya existen para este folio
                     $registrosExistentes = $registrosProduccion->count();
@@ -180,77 +184,132 @@ class ModuloProduccionEngomadoController extends Controller
                     // Calcular cuántos registros faltan
                     $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
 
-                    // Obtener datos del usuario actual para asignar automáticamente
-                    $usuarioActual = Auth::user();
-                    $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
-                    $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
-                    $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
+                    // Log para depuración
+                    Log::info('Verificando registros de producción Engomado', [
+                        'folio' => $orden->Folio,
+                        'no_telas' => $orden->NoTelas ?? 0,
+                        'total_registros_necesarios' => $totalRegistros,
+                        'registros_existentes' => $registrosExistentes,
+                        'registros_faltantes' => $registrosFaltantes,
+                    ]);
 
-                    // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
-                    if (!$turnoUsuario) {
-                        $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
-                    }
+                    // Si ya existen todos los registros necesarios, no crear más
+                    if ($registrosFaltantes > 0) {
+                        // Obtener datos del usuario actual para asignar automáticamente
+                        $usuarioActual = Auth::user();
+                        $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
+                        $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
+                        $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
 
-                    // Obtener metros de la orden (asignar el total completo a cada registro)
-                    $metrosOrden = $orden->Metros ?? 0;
-
-                    // Crear los registros faltantes
-                    $registrosACrear = [];
-                    for ($i = 0; $i < $registrosFaltantes; $i++) {
-                        // Preparar datos del registro (solo campos que existen en la tabla)
-                        $registroData = [
-                            'Folio' => $orden->Folio,
-                            'NoJulio' => null, // NoJulio debe ser null al crear los registros
-                            'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
-                        ];
-                        if ($solidosFormulacion !== null) {
-                            $registroData['Solidos'] = $solidosFormulacion;
+                        // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
+                        if (!$turnoUsuario) {
+                            $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
                         }
 
-                        // Solo agregar campos de oficial si tienen valores
-                        if (!empty($claveUsuario)) {
-                            $registroData['CveEmpl1'] = $claveUsuario;
-                        }
-                        if (!empty($nombreUsuario)) {
-                            $registroData['NomEmpl1'] = $nombreUsuario;
-                        }
-                        if ($metrosOrden > 0) {
-                            $registroData['Metros1'] = round($metrosOrden, 2);
-                        }
-                        if (!empty($turnoUsuario)) {
-                            $registroData['Turno1'] = (int)$turnoUsuario;
-                        }
+                        // Metros en producción = Metraje Telas de la orden (guardar en Metros1)
+                        $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
 
-                        $registrosACrear[] = $registroData;
-                    }
-
-                    // Crear todos los registros en lote si hay alguno
-                    if (count($registrosACrear) > 0) {
-                        foreach ($registrosACrear as $index => $registroData) {
-                            try {
-                                EngProduccionEngomado::create($registroData);
-                            } catch (\Illuminate\Database\QueryException $e) {
-                                // Continuar con el siguiente registro aunque falle uno
-                                continue;
-                            } catch (\Throwable $e) {
-                                // Continuar con el siguiente registro aunque falle uno
-                                continue;
+                        // Crear los registros faltantes
+                        $registrosACrear = [];
+                        for ($i = 0; $i < $registrosFaltantes; $i++) {
+                            // Preparar datos del registro (solo campos que existen en la tabla)
+                            $registroData = [
+                                'Folio' => $orden->Folio,
+                                'NoJulio' => null, // NoJulio debe ser null al crear los registros
+                                'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
+                            ];
+                            if ($solidosFormulacion !== null) {
+                                $registroData['Solidos'] = $solidosFormulacion;
                             }
+
+                            // Solo agregar campos de oficial si tienen valores
+                            if (!empty($claveUsuario)) {
+                                $registroData['CveEmpl1'] = $claveUsuario;
+                            }
+                            if (!empty($nombreUsuario)) {
+                                $registroData['NomEmpl1'] = $nombreUsuario;
+                            }
+                            if ($metrosOrden > 0) {
+                                $registroData['Metros1'] = round($metrosOrden, 2);
+                            }
+                            if (!empty($turnoUsuario)) {
+                                $registroData['Turno1'] = (int)$turnoUsuario;
+                            }
+
+                            $registrosACrear[] = $registroData;
                         }
+
+                        // Crear todos los registros en lote si hay alguno
+                        if (count($registrosACrear) > 0) {
+                            Log::info('Creando registros de producción Engomado', [
+                                'folio' => $orden->Folio,
+                                'no_telas' => $orden->NoTelas ?? 0,
+                                'total_registros_necesarios' => $totalRegistros,
+                                'registros_a_crear' => count($registrosACrear),
+                            ]);
+
+                            $registrosCreados = 0;
+                            foreach ($registrosACrear as $index => $registroData) {
+                                try {
+                                    EngProduccionEngomado::create($registroData);
+                                    $registrosCreados++;
+                                } catch (\Illuminate\Database\QueryException $e) {
+                                    Log::error('Error al crear registro de producción Engomado (QueryException)', [
+                                        'folio' => $orden->Folio,
+                                        'index' => $index,
+                                        'error' => $e->getMessage(),
+                                        'data' => $registroData
+                                    ]);
+                                    // Continuar con el siguiente registro aunque falle uno
+                                    continue;
+                                } catch (\Throwable $e) {
+                                    Log::error('Error al crear registro de producción Engomado', [
+                                        'folio' => $orden->Folio,
+                                        'index' => $index,
+                                        'error' => $e->getMessage(),
+                                        'trace' => $e->getTraceAsString(),
+                                        'data' => $registroData
+                                    ]);
+                                    // Continuar con el siguiente registro aunque falle uno
+                                    continue;
+                                }
+                            }
+
+                            Log::info('Registros de producción Engomado creados', [
+                                'folio' => $orden->Folio,
+                                'registros_creados' => $registrosCreados,
+                                'registros_intentados' => count($registrosACrear),
+                            ]);
+                        }
+                    } else {
+                        Log::info('No se crearán registros adicionales - ya existen todos los necesarios', [
+                            'folio' => $orden->Folio,
+                            'total_registros_necesarios' => $totalRegistros,
+                            'registros_existentes' => $registrosExistentes,
+                        ]);
                     }
                 }
             } catch (\Throwable $e) {
-                // Error al crear registros
+                Log::error('Error general al crear registros en EngProduccionEngomado', [
+                    'folio' => $orden ? $orden->Folio : 'null',
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
             }
 
             // Recargar los registros después de crear los faltantes
             $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)
                 ->orderBy('Id')
                 ->get();
+        } else {
+            Log::warning('No se crearán registros - totalRegistros es 0', [
+                'folio' => $orden ? $orden->Folio : 'null',
+                'no_telas' => $orden ? ($orden->NoTelas ?? 0) : 0,
+            ]);
         }
 
-        // Formatear metros con separador de miles
-        $metros = $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0';
+        // Metros en producción = Metraje Telas de la orden (formateado para vista)
+        $metros = $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : ($orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0');
 
         // Obtener destino (SalonTejidoId)
         $destino = $orden->SalonTejidoId ?? null;
@@ -273,6 +332,7 @@ class ModuloProduccionEngomadoController extends Controller
         $noTelas = $orden->NoTelas ?? null;
         $anchoBalonas = $orden->AnchoBalonas ?? null;
         $metrajeTelas = $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : null;
+        $metrosProduccion = $orden->MetrajeTelas ?? $orden->Metros ?? null;
         $cuendeadosMin = $orden->Cuentados ?? null;
         $loteProveedor = $orden->LoteProveedor ?? null;
 
@@ -316,6 +376,7 @@ class ModuloProduccionEngomadoController extends Controller
             'noTelas' => $noTelas,
             'anchoBalonas' => $anchoBalonas,
             'metrajeTelas' => $metrajeTelas,
+            'metrosProduccion' => $metrosProduccion,
             'cuendeadosMin' => $cuendeadosMin,
             'loteProveedor' => $loteProveedor,
             'mermaGoma' => $mermaGoma,
@@ -521,6 +582,48 @@ class ModuloProduccionEngomadoController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al guardar oficial: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function eliminarOficial(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'registro_id' => 'required|integer',
+                'numero_oficial' => 'required|integer|in:1,2,3',
+            ]);
+
+            $registro = EngProduccionEngomado::find($request->registro_id);
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Registro no encontrado',
+                ], 404);
+            }
+
+            $numeroOficial = (int) $request->numero_oficial;
+
+            $registro->{"CveEmpl{$numeroOficial}"} = null;
+            $registro->{"NomEmpl{$numeroOficial}"} = null;
+            $registro->{"Metros{$numeroOficial}"} = null;
+            $registro->{"Turno{$numeroOficial}"} = null;
+            $registro->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Oficial eliminado correctamente',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar oficial', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al eliminar oficial: ' . $e->getMessage(),
             ], 500);
         }
     }

@@ -13,31 +13,40 @@
 
 @section('content')
 <div class="container-fluid px-4 py-6">
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="overflow-x-auto h-[600px]">
-            <table id="mainTable" class="border-collapse w-full">
-                <thead>
-                    <tr class="border border-gray-300 px-2 py-2 text-center font-light text-white text-sm bg-blue-500">
-                        <th class="py-2 px-4">NoTelar</th>
-                        <th class="py-2 px-4">TipoTelar</th>
-                        <th class="py-2 px-4">Secuencia</th>
-
+    <div class="rounded-xl shadow-sm overflow-hidden bg-white">
+        <div class="overflow-x-auto overflow-y-auto max-h-[600px]">
+            <table id="mainTable" class="w-full border-collapse">
+                <thead class="sticky top-0 z-10">
+                    <tr class="bg-blue-500 text-white text-sm font-medium">
+                        <th class="py-3 px-4 text-left w-12"></th>
+                        <th class="py-3 px-4 text-center">Telar</th>
+                        <th class="py-3 px-4 text-center">Tipo telar</th>
+                        <th class="py-3 px-4 text-center">Secuencia</th>
                     </tr>
                 </thead>
-                <tbody id="secuencia-inv-telas-body" class="bg-white text-black">
-                    @foreach ($registros as $item)
-                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer border-b"
-                            onclick="selectRow(this, '{{ $item->Id }}')"
-                            ondblclick="deselectRow(this)"
+                <tbody id="secuencia-inv-telas-body">
+                    @foreach ($registros as $index => $item)
+                        <tr class="secuencia-row text-center transition cursor-pointer {{ $index % 2 === 0 ? 'bg-white' : 'bg-gray-100' }} hover:opacity-90"
+                            draggable="true"
+                            ondragstart="handleDragStart(event)"
+                            ondragend="handleDragEnd(event)"
+                            ondragover="handleDragOver(event)"
+                            ondragleave="handleDragLeave(event)"
+                            ondrop="handleDrop(event)"
                             data-id="{{ $item->Id }}"
                             data-notelar="{{ $item->NoTelar }}"
                             data-tipotelar="{{ $item->TipoTelar }}"
                             data-secuencia="{{ $item->Secuencia }}"
                             data-observaciones="{{ $item->Observaciones ?? '' }}"
+                            onclick="selectRow(this, '{{ $item->Id }}')"
+                            ondblclick="deselectRow(this)"
                         >
-                            <td class="py-2 px-4 border-b">{{ $item->NoTelar }}</td>
-                            <td class="py-2 px-4 border-b">{{ $item->TipoTelar }}</td>
-                            <td class="py-2 px-4 border-b">{{ $item->Secuencia }}</td>
+                            <td class="py-3 px-2 text-gray-400 cursor-grab active:cursor-grabbing" title="Arrastrar para reordenar">
+                                <i class="fas fa-grip-vertical"></i>
+                            </td>
+                            <td class="py-3 px-4">{{ $item->NoTelar }}</td>
+                            <td class="py-3 px-4">{{ $item->TipoTelar }}</td>
+                            <td class="py-3 px-4">{{ $item->Secuencia }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -46,6 +55,14 @@
     </div>
 </div>
 
+<style>
+.secuencia-row { transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, opacity 0.2s ease; }
+.secuencia-row.dragging { opacity: 0.6; transform: scale(0.98); box-shadow: 0 8px 24px rgba(0,0,0,0.15); background-color: #dbeafe !important; z-index: 10; }
+.secuencia-row.drag-over-top { box-shadow: 0 -4px 0 0 #3b82f6 inset; background-color: #eff6ff !important; }
+.secuencia-row.drag-over-bottom { box-shadow: 0 4px 0 0 #3b82f6 inset; background-color: #eff6ff !important; }
+.secuencia-row.drop-success { animation: dropSuccess 0.5s ease; }
+@keyframes dropSuccess { 0% { background-color: #bbf7d0 !important; } 100% { background-color: inherit; } }
+</style>
 
 <script>
 /* ===========================
@@ -53,28 +70,12 @@
 =========================== */
 let selectedRow = null;
 let selectedId = null;
-
-let datosOriginales = @json($registros);
-let datosActuales = datosOriginales;
+let draggedRow = null;
+let isDragging = false;
 
 /* ===========================
    Helpers UI
 =========================== */
-function crearToast(icon, msg, ms = 1500) {
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: ms,
-        timerProgressBar: true,
-        didOpen: (t) => {
-            t.addEventListener('mouseenter', Swal.stopTimer);
-            t.addEventListener('mouseleave', Swal.resumeTimer);
-        }
-    });
-    Toast.fire({ icon, title: msg });
-}
-
 function enableButtons() {
     const e = document.getElementById('btn-editar');
     const d = document.getElementById('btn-eliminar');
@@ -105,13 +106,15 @@ function disableButtons() {
    Selección de filas
 =========================== */
 function selectRow(row, id) {
-    document.querySelectorAll('#secuencia-inv-telas-body tr').forEach(r => {
-        r.classList.remove('bg-blue-500','text-white');
-        r.classList.add('hover:bg-blue-50');
+    if (isDragging) return;
+    const tbody = document.getElementById('secuencia-inv-telas-body');
+    const rows = tbody ? tbody.querySelectorAll('tr.secuencia-row') : [];
+    rows.forEach((r, idx) => {
+        r.classList.remove('bg-blue-500', 'text-white');
+        r.classList.add(idx % 2 === 0 ? 'bg-white' : 'bg-gray-100');
     });
-    row.classList.remove('hover:bg-blue-50');
-    row.classList.add('bg-blue-500','text-white');
-
+    row.classList.remove('bg-white', 'bg-gray-100');
+    row.classList.add('bg-blue-500', 'text-white');
     selectedRow = row;
     selectedId = id;
     enableButtons();
@@ -119,11 +122,105 @@ function selectRow(row, id) {
 
 function deselectRow(row) {
     if (!row.classList.contains('bg-blue-500')) return;
-    row.classList.remove('bg-blue-500','text-white');
-    row.classList.add('hover:bg-blue-50');
+    const tbody = document.getElementById('secuencia-inv-telas-body');
+    const rows = tbody ? tbody.querySelectorAll('tr.secuencia-row') : [];
+    rows.forEach((r, idx) => {
+        r.classList.remove('bg-blue-500', 'text-white');
+        r.classList.add(idx % 2 === 0 ? 'bg-white' : 'bg-gray-100');
+    });
     selectedRow = null;
     selectedId = null;
     disableButtons();
+}
+
+/* ===========================
+   Drag and drop (reordenar)
+=========================== */
+function handleDragStart(e) {
+    const tr = e.target.closest('tr');
+    if (!tr || !tr.classList.contains('secuencia-row')) return;
+    draggedRow = tr;
+    isDragging = true;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', tr.getAttribute('data-id'));
+    tr.classList.add('dragging');
+    e.dataTransfer.setDragImage(tr, 0, 0);
+}
+
+function handleDragEnd(e) {
+    if (draggedRow) {
+        draggedRow.classList.remove('dragging');
+        draggedRow = null;
+    }
+    isDragging = false;
+    document.querySelectorAll('#secuencia-inv-telas-body tr.secuencia-row').forEach(r => {
+        r.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const tr = e.target.closest('tr');
+    if (!tr || tr === draggedRow || !tr.classList.contains('secuencia-row')) return;
+    document.querySelectorAll('#secuencia-inv-telas-body tr.secuencia-row').forEach(r => {
+        r.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+    const rect = tr.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) tr.classList.add('drag-over-top');
+    else tr.classList.add('drag-over-bottom');
+}
+
+function handleDragLeave(e) {
+    const tr = e.target.closest('tr');
+    if (tr) tr.classList.remove('drag-over-top', 'drag-over-bottom');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const targetTr = e.target.closest('tr');
+    if (!targetTr || !draggedRow || targetTr === draggedRow || !targetTr.classList.contains('secuencia-row')) return;
+    targetTr.classList.remove('drag-over-top', 'drag-over-bottom');
+    const tbody = document.getElementById('secuencia-inv-telas-body');
+    const rect = targetTr.getBoundingClientRect();
+    const insertBefore = e.clientY < rect.top + rect.height / 2;
+    if (insertBefore) targetTr.parentNode.insertBefore(draggedRow, targetTr);
+    else targetTr.parentNode.insertBefore(draggedRow, targetTr.nextSibling);
+    draggedRow.classList.remove('dragging');
+    draggedRow.classList.add('drop-success');
+    setTimeout(() => draggedRow.classList.remove('drop-success'), 500);
+    renumberOrdenAndSave(tbody);
+    draggedRow = null;
+    isDragging = false;
+}
+
+function renumberOrdenAndSave(tbody) {
+    const rows = tbody.querySelectorAll('tr.secuencia-row');
+    const orden = [];
+    rows.forEach((row, index) => {
+        const num = index + 1;
+        row.setAttribute('data-secuencia', num);
+        row.querySelector('td:nth-child(4)').textContent = num;
+        orden.push({ Id: parseInt(row.getAttribute('data-id'), 10), Secuencia: num });
+        row.classList.remove('bg-white', 'bg-gray-100');
+        row.classList.add(index % 2 === 0 ? 'bg-white' : 'bg-gray-100');
+    });
+    fetch('{{ route("tejido.secuencia-inv-telas.orden") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ orden })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && typeof Swal !== 'undefined')
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Orden guardado', showConfirmButton: false, timer: 1200 });
+        else if (data && !data.success && typeof Swal !== 'undefined')
+            Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'No se pudo guardar el orden' });
+    })
+    .catch(() => { if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red al guardar el orden' }); });
 }
 
 /* ===========================
@@ -366,6 +463,9 @@ function eliminarSecuenciaInvTelas() {
 =========================== */
 document.addEventListener('DOMContentLoaded', () => {
     disableButtons();
+    document.getElementById('secuencia-inv-telas-body')?.addEventListener('click', (e) => {
+        if (isDragging) e.stopPropagation();
+    });
 });
 </script>
 @endsection

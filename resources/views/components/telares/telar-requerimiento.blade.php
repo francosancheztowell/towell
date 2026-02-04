@@ -46,6 +46,14 @@
     $modalConfirmButtonClass = 'px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 border border-transparent rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg transition-all duration-200';
 @endphp
 
+<style>
+    /* Fechas anteriores a hoy en el calendario: encabezado en color naranja/ámbar */
+    th.calendario-fecha-anterior {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+        border-left: 3px solid #b45309;
+    }
+</style>
+
 <div class="{{ $containerClass }}">
     <div class="md:flex md:flex-col lg:flex-row">
         <!-- Información de cuentas -->
@@ -92,16 +100,17 @@
                 <b id="fecha-{{ $telar->Telar }}"></b>
             </div>
 
-            <!-- Calendario de turnos generado dinámicamente -->
+            <!-- Calendario: por defecto hoy es la primera columna; JS puede ajustar si hay registros con fecha anterior -->
             <div class="flex gap-1 overflow-x-auto pb-2">
         @for($dia = 0; $dia < $dias; $dia++)
             @php
-                $fecha = \Carbon\Carbon::now()->addDays($dia)->format('d/m');
+                // Por defecto: día 0 = hoy, 1 = hoy+1, ... 6 = hoy+6 (JS actualizará si hay fechas anteriores)
+                $fechaCarbon = \Carbon\Carbon::now()->addDays($dia);
+                $fecha = $fechaCarbon->format('d/m');
                 $claseTabla = 't' . ($dia + 1);
                 $prefijoId = $telar->Telar . '_' . $claseTabla;
-                // Mapeo de días en español
                 $diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-                $diaSemana = $diasSemana[\Carbon\Carbon::now()->addDays($dia)->dayOfWeek];
+                $diaSemana = $diasSemana[$fechaCarbon->dayOfWeek];
             @endphp
 
             <table class="{{ $calendarTableClass }}">
@@ -320,6 +329,7 @@
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
 
+        // Por defecto: columna 0 = hoy, 1 = hoy+1, ... (loadRequerimientos ajusta si hay fechas anteriores)
         todasLasTablasDelTelar.forEach((tabla, index) => {
             const thHeader = tabla.querySelector('th');
             if (thHeader && !thHeader.getAttribute('data-fecha-completa')) {
@@ -501,10 +511,14 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         // Marcar este checkbox como cambio reciente para preservarlo durante la recarga
         checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
 
+        // Usar la fecha real del registro si existe (cuando el registro se mostró en otra columna, ej. 02/02 en columna de hoy 03/02)
+        const fechaRealRegistro = checkbox.getAttribute('data-fecha-original');
+        const fechaParaEliminar = (fechaRealRegistro && fechaRealRegistro.match(/^\d{4}-\d{2}-\d{2}$/)) ? fechaRealRegistro : fechaConvertida;
+
         const datosEliminar = {
             no_telar: String(telarId),
             tipo: tipo === 'rizo' ? 'Rizo' : 'Pie',
-            fecha: fechaConvertida,
+            fecha: fechaParaEliminar,
             turno: parseInt(numeroTurno)
         };
 
@@ -860,30 +874,50 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 });
             });
 
-            // Obtener el rango de fechas del calendario (primer día = hoy, último día = hoy + 6)
+            // Por defecto primera columna = hoy; si hay registros con fecha anterior, primerDia = min(esa fecha, hoy)
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
+            let primerDia = new Date(hoy);
+            primerDia.setHours(0, 0, 0, 0);
             const ultimoDia = new Date(hoy);
-            ultimoDia.setDate(hoy.getDate() + 6); // 7 días totales (hoy + 6 días más)
+            ultimoDia.setDate(hoy.getDate() + 6);
             ultimoDia.setHours(23, 59, 59, 999);
 
-            // Función para convertir fecha ISO (YYYY-MM-DD) a objeto Date
+            // Función para convertir fecha ISO (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss.fffZ) a objeto Date
             function parseFechaISO(fechaISO) {
                 if (!fechaISO) return null;
-                const partes = fechaISO.split('-');
+
+                // Extraer solo la parte de la fecha (antes de la T si existe)
+                let fechaStr = fechaISO;
+                if (fechaISO.includes('T')) {
+                    fechaStr = fechaISO.split('T')[0];
+                }
+
+                // También manejar si viene con espacio en lugar de T
+                if (fechaStr.includes(' ')) {
+                    fechaStr = fechaStr.split(' ')[0];
+                }
+
+                const partes = fechaStr.split('-');
                 if (partes.length !== 3) return null;
+
                 const año = parseInt(partes[0]);
                 const mes = parseInt(partes[1]) - 1; // Los meses en JS van de 0-11
                 const dia = parseInt(partes[2]);
+
                 if (isNaN(año) || isNaN(mes) || isNaN(dia)) return null;
+
                 try {
+                    // Crear fecha en hora local (no UTC) para evitar problemas de zona horaria
                     const fecha = new Date(año, mes, dia);
                     fecha.setHours(0, 0, 0, 0);
+
                     // Validar que la fecha es válida
                     if (fecha.getFullYear() === año && fecha.getMonth() === mes && fecha.getDate() === dia) {
                         return fecha;
                     }
                 } catch (e) {
+                    console.error('Error al parsear fecha:', fechaISO, e);
                 }
                 return null;
             }
@@ -924,39 +958,6 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 return coincide;
             });
 
-            // PASO 1: Identificar si hay fechas antiguas Y si hay registros dentro del rango
-            let fechaMasAntiguaEnPrimeraTabla = null;
-            let hayRegistrosEnRango = false;
-
-            registrosTelar.forEach(reg => {
-                const fechaISO = reg.fecha;
-                const fechaRegistro = parseFechaISO(fechaISO);
-
-                if (fechaRegistro) {
-                    const timestampRegistro = fechaRegistro.getTime();
-                    const timestampHoy = hoy.getTime();
-                    const timestampUltimoDia = ultimoDia.getTime();
-                    const fechaEsAnterior = timestampRegistro < timestampHoy;
-                    const fechaEsPosterior = timestampRegistro > timestampUltimoDia;
-                    const fechaEnRango = !fechaEsAnterior && !fechaEsPosterior;
-
-                    // Si hay registros dentro del rango, marcarlo
-                    if (fechaEnRango) {
-                        hayRegistrosEnRango = true;
-                    }
-
-                    // Si la fecha es anterior, rastrearla para actualizar el header
-                    // PERO solo si NO hay registros dentro del rango
-                    if (fechaEsAnterior && fechaRegistro && !hayRegistrosEnRango) {
-                        if (!fechaMasAntiguaEnPrimeraTabla || fechaRegistro < fechaMasAntiguaEnPrimeraTabla) {
-                            fechaMasAntiguaEnPrimeraTabla = fechaRegistro;
-                        }
-                    }
-                }
-            });
-
-            // PASO 2: Actualizar headers ANTES de procesar registros
-            // Función para formatear fecha
             function formatearFechaHeader(fechaObj) {
                 const dia = fechaObj.getDate();
                 const mes = fechaObj.getMonth() + 1;
@@ -967,110 +968,52 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 return { fechaFormateada, diaSemana, año, mes, dia };
             }
 
-            // Si hay fechas antiguas Y NO hay registros dentro del rango, actualizar TODOS los headers primero
-            // Si hay registros dentro del rango, mantener las fechas originales de las tablas
-            if (fechaMasAntiguaEnPrimeraTabla && !hayRegistrosEnRango) {
-                // Actualizar la primera tabla con la fecha antigua
-                const thHeaderPrimera = primeraTabla.querySelector('th');
-                if (thHeaderPrimera) {
-                    const fechaOriginalHeader = thHeaderPrimera.getAttribute('data-fecha-original-header') || thHeaderPrimera.innerText.trim();
-                    if (!thHeaderPrimera.getAttribute('data-fecha-original-header')) {
-                        thHeaderPrimera.setAttribute('data-fecha-original-header', fechaOriginalHeader);
+            // Si hay registros con fecha anterior a hoy, usar la más antigua como primera columna (máx 6 días atrás)
+            let minFechaRegistro = null;
+            registrosTelar.forEach(reg => {
+                const f = parseFechaISO(reg.fecha);
+                if (f && f.getTime() < hoy.getTime()) {
+                    if (!minFechaRegistro || f.getTime() < minFechaRegistro.getTime()) {
+                        minFechaRegistro = new Date(f);
+                        minFechaRegistro.setHours(0, 0, 0, 0);
                     }
-
-                    const fechaFormateada1 = formatearFechaHeader(fechaMasAntiguaEnPrimeraTabla);
-                    thHeaderPrimera.innerHTML = `
-                        <div class="text-xs leading-tight">${fechaFormateada1.fechaFormateada}</div>
-                        <div class="text-xs opacity-75 leading-tight">${fechaFormateada1.diaSemana}</div>
-                    `;
-                    thHeaderPrimera.setAttribute('data-fecha-original', fechaMasAntiguaEnPrimeraTabla.toISOString().split('T')[0]);
-                    thHeaderPrimera.setAttribute('data-fecha-completa', `${fechaFormateada1.año}-${String(fechaFormateada1.mes).padStart(2, '0')}-${String(fechaFormateada1.dia).padStart(2, '0')}`);
-                    thHeaderPrimera.classList.add('fecha-modificada');
-                    thHeaderPrimera.style.backgroundColor = '#fef3c7';
-                    thHeaderPrimera.style.borderLeft = '3px solid #f59e0b';
                 }
+            });
+            if (minFechaRegistro) {
+                const limiteAtras = new Date(hoy);
+                limiteAtras.setDate(hoy.getDate() - 6);
+                limiteAtras.setHours(0, 0, 0, 0);
+                if (minFechaRegistro.getTime() < limiteAtras.getTime()) {
+                    primerDia.setTime(limiteAtras.getTime());
+                } else {
+                    primerDia.setTime(minFechaRegistro.getTime());
+                }
+            }
 
-                // Actualizar las demás tablas: segunda = hoy, tercera = hoy+1, etc.
-                // La última tabla se oculta (se recorta)
-                todasLasTablasDelTelar.forEach((tabla, index) => {
-                    if (index === 0) return; // Ya actualizamos la primera
-
-                    const thHeader = tabla.querySelector('th');
-                    if (!thHeader) return;
-
-                    // Calcular nueva fecha: hoy + (index - 1) días
-                    // index 1 = hoy (segunda tabla)
-                    // index 2 = hoy + 1 (tercera tabla)
-                    // etc.
-                    const nuevaFecha = new Date(hoy);
-                    nuevaFecha.setDate(hoy.getDate() + (index - 1));
-
-                    // Si excede el rango original (hoy+6), ocultar tabla
-                    const fechaOriginalUltimaTabla = new Date(hoy);
-                    fechaOriginalUltimaTabla.setDate(hoy.getDate() + 6);
-
-                    if (nuevaFecha > fechaOriginalUltimaTabla) {
-                        tabla.style.display = 'none';
-                        return;
-                    }
-
-                    // Guardar fecha original del header
-                    if (!thHeader.getAttribute('data-fecha-original-header')) {
-                        thHeader.setAttribute('data-fecha-original-header', thHeader.innerText.trim());
-                    }
-
-                    const fechaFormateada = formatearFechaHeader(nuevaFecha);
+            // Actualizar headers: columna i = primerDia + i. Fechas anteriores a hoy = otro color.
+            todasLasTablasDelTelar.forEach((tabla, index) => {
+                tabla.style.display = '';
+                const thHeader = tabla.querySelector('th');
+                if (thHeader) {
+                    const fechaColumna = new Date(primerDia);
+                    fechaColumna.setDate(primerDia.getDate() + index);
+                    const fechaFormateada = formatearFechaHeader(fechaColumna);
+                    const fechaCompletaEsperada = `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`;
+                    thHeader.setAttribute('data-fecha-completa', fechaCompletaEsperada);
                     thHeader.innerHTML = `
                         <div class="text-xs leading-tight">${fechaFormateada.fechaFormateada}</div>
                         <div class="text-xs opacity-75 leading-tight">${fechaFormateada.diaSemana}</div>
                     `;
-                    thHeader.setAttribute('data-fecha-completa', `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`);
-                    thHeader.classList.remove('fecha-modificada');
+                    thHeader.classList.remove('fecha-modificada', 'calendario-fecha-anterior');
                     thHeader.style.backgroundColor = '';
                     thHeader.style.borderLeft = '';
-                });
-            } else {
-                // Si no hay fechas antiguas o hay registros en rango, asegurar que todas las tablas estén visibles
-                // y establecer las fechas correctas basadas en el índice
-                todasLasTablasDelTelar.forEach((tabla, index) => {
-                    tabla.style.display = '';
-                    const thHeader = tabla.querySelector('th');
-                    if (thHeader) {
-                        // Calcular la fecha original basada en el índice (tabla 0 = hoy, tabla 1 = hoy+1, etc.)
-                        const fechaOriginal = new Date(hoy);
-                        fechaOriginal.setDate(hoy.getDate() + index);
-                        const fechaFormateada = formatearFechaHeader(fechaOriginal);
-                        const fechaCompletaEsperada = `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`;
-
-                        // Siempre asegurar que el atributo data-fecha-completa esté correcto
-                        thHeader.setAttribute('data-fecha-completa', fechaCompletaEsperada);
-
-                        // Si hay registros en rango, restaurar fecha original del header si fue modificado
-                        if (hayRegistrosEnRango) {
-                            const fechaCompletaActual = thHeader.getAttribute('data-fecha-completa');
-
-                            // Verificar si el contenido visual necesita actualizarse
-                            const fechaVisualActual = thHeader.innerText.trim();
-                            const fechaVisualEsperada = `${fechaFormateada.fechaFormateada}\n${fechaFormateada.diaSemana}`;
-
-                            // Solo actualizar el contenido visual si no coincide
-                            if (!fechaVisualActual.includes(fechaFormateada.fechaFormateada)) {
-                                thHeader.innerHTML = `
-                                    <div class="text-xs leading-tight">${fechaFormateada.fechaFormateada}</div>
-                                    <div class="text-xs opacity-75 leading-tight">${fechaFormateada.diaSemana}</div>
-                                `;
-                            }
-
-                            // Limpiar estilos de fecha modificada
-                            thHeader.classList.remove('fecha-modificada');
-                            thHeader.style.backgroundColor = '';
-                            thHeader.style.borderLeft = '';
-                        }
+                    if (fechaColumna.getTime() < hoy.getTime()) {
+                        thHeader.classList.add('calendario-fecha-anterior');
                     }
-                });
-            }
+                }
+            });
 
-            // PASO 3: Procesar registros y marcarlos usando los headers actualizados
+            // PASO 3: Procesar registros y marcarlos
             registrosTelar.forEach(reg => {
                 const tipo = (reg.tipo || '').toLowerCase();
                 const fechaISO = reg.fecha;
@@ -1081,61 +1024,38 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
 
                 if (fechaRegistro) {
                     const timestampRegistro = fechaRegistro.getTime();
-                    const timestampHoy = hoy.getTime();
+                    const timestampPrimerDia = primerDia.getTime();
                     const timestampUltimoDia = ultimoDia.getTime();
-                    const fechaEsAnterior = timestampRegistro < timestampHoy;
-                    const fechaEsPosterior = timestampRegistro > timestampUltimoDia;
+                    // Diferencia en días respecto al primer día del calendario (hoy o primera fecha anterior con registro)
+                    const diferenciaDias = Math.floor((timestampRegistro - timestampPrimerDia) / (1000 * 60 * 60 * 24));
 
-                    if (fechaEsAnterior || fechaEsPosterior) {
-                        // Fecha fuera del rango: usar primera tabla
+                    if (diferenciaDias < 0) {
+                        // Fecha anterior al primer día visible
                         usarPrimeraFecha = true;
                         tablaDestino = obtenerPrimeraTabla();
+                    } else if (diferenciaDias >= todasLasTablasDelTelar.length) {
+                        // Fecha posterior al último día visible
+                        usarPrimeraFecha = true;
+                        tablaDestino = todasLasTablasDelTelar[todasLasTablasDelTelar.length - 1];
                     } else {
-                        // Fecha dentro del rango: calcular qué tabla corresponde
-                        // Calcular la diferencia en días desde hoy
-                        const diferenciaDias = Math.floor((timestampRegistro - timestampHoy) / (1000 * 60 * 60 * 24));
-
-                        // La tabla correspondiente es la del índice = diferenciaDias
-                        // tabla 0 = hoy (diferencia 0), tabla 1 = hoy+1 (diferencia 1), etc.
+                        // Fecha dentro del rango: columna 0 = ayer, 1 = hoy, etc.
                         if (diferenciaDias >= 0 && diferenciaDias < todasLasTablasDelTelar.length) {
                             tablaDestino = todasLasTablasDelTelar[diferenciaDias];
-
-                            // Verificar que la tabla tenga la fecha correcta
-                            if (tablaDestino) {
-                                const th = tablaDestino.querySelector('th');
-                                if (th) {
-                                    const fechaCompletaAttr = th.getAttribute('data-fecha-completa');
-                                    // Si la fecha no coincide, actualizarla
-                                    if (fechaCompletaAttr !== fechaISO) {
-                                        const fechaFormateada = formatearFechaHeader(fechaRegistro);
-                                        th.innerHTML = `
-                                            <div class="text-xs leading-tight">${fechaFormateada.fechaFormateada}</div>
-                                            <div class="text-xs opacity-75 leading-tight">${fechaFormateada.diaSemana}</div>
-                                        `;
-                                        th.setAttribute('data-fecha-completa', fechaISO);
-                                    }
-                                }
-                            }
                         } else {
-                            // Si el índice está fuera de rango, buscar por atributo como fallback
-                            let thFecha = null;
+                            // Fuera de rango: buscar columna por fecha en data-fecha-completa (formato YYYY-MM-DD)
+                            const fechaNorm = `${fechaRegistro.getFullYear()}-${String(fechaRegistro.getMonth() + 1).padStart(2, '0')}-${String(fechaRegistro.getDate()).padStart(2, '0')}`;
+                            let tablaEncontrada = null;
                             todasLasTablasDelTelar.forEach(tabla => {
-                                if (tabla.style.display === 'none') return;
                                 const th = tabla.querySelector('th');
-                                if (th) {
-                                    const fechaCompletaAttr = th.getAttribute('data-fecha-completa');
-                                    if (fechaCompletaAttr === fechaISO) {
-                                        thFecha = th;
-                                    }
+                                if (th && th.getAttribute('data-fecha-completa') === fechaNorm) {
+                                    tablaEncontrada = tabla;
                                 }
                             });
-
-                            if (thFecha) {
-                                tablaDestino = thFecha.closest('table');
+                            if (tablaEncontrada) {
+                                tablaDestino = tablaEncontrada;
                             } else {
-                                // Último fallback: usar primera tabla
                                 usarPrimeraFecha = true;
-                                tablaDestino = obtenerPrimeraTabla();
+                                tablaDestino = diferenciaDias < 0 ? obtenerPrimeraTabla() : todasLasTablasDelTelar[todasLasTablasDelTelar.length - 1];
                             }
                         }
                     }
@@ -1169,9 +1089,11 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                         const cambioReciente = cb.getAttribute('data-cambio-reciente');
                         if (!cambioReciente) {
                             cb.checked = true;
+                            // Guardar siempre la fecha real del registro (YYYY-MM-DD) para enviar al backend al desmarcar
+                            const fechaNorm = fechaRegistro ? `${fechaRegistro.getFullYear()}-${String(fechaRegistro.getMonth() + 1).padStart(2, '0')}-${String(fechaRegistro.getDate()).padStart(2, '0')}` : (fechaISO && fechaISO.split('T')[0]) || '';
+                            if (fechaNorm) cb.setAttribute('data-fecha-original', fechaNorm);
                             if (usarPrimeraFecha && fechaISO) {
                                 cb.title = `Fecha original: ${fechaISO} (mostrado en primera fecha del calendario)`;
-                                cb.setAttribute('data-fecha-original', fechaISO);
                                 cb.classList.add('fecha-antigua');
                             }
                         } else {
@@ -1324,17 +1246,22 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 });
             });
 
-            // Obtener el rango de fechas del calendario
+            // Primera columna = hoy; si hay registros con fecha anterior, incluir esas fechas y colorearlas
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
+            let primerDia = new Date(hoy);
+            primerDia.setHours(0, 0, 0, 0);
             const ultimoDia = new Date(hoy);
             ultimoDia.setDate(hoy.getDate() + 6);
             ultimoDia.setHours(23, 59, 59, 999);
 
-            // Función para convertir fecha ISO (YYYY-MM-DD) a objeto Date
+            // Función para convertir fecha ISO (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss.fffZ) a objeto Date
             function parseFechaISO(fechaISO) {
                 if (!fechaISO) return null;
-                const partes = fechaISO.split('-');
+                let fechaStr = fechaISO;
+                if (fechaISO.includes('T')) fechaStr = fechaISO.split('T')[0];
+                if (fechaStr.includes(' ')) fechaStr = fechaStr.split(' ')[0];
+                const partes = fechaStr.split('-');
                 if (partes.length !== 3) return null;
                 const año = parseInt(partes[0]);
                 const mes = parseInt(partes[1]) - 1;
@@ -1343,15 +1270,61 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 try {
                     const fecha = new Date(año, mes, dia);
                     fecha.setHours(0, 0, 0, 0);
-                    if (fecha.getFullYear() === año && fecha.getMonth() === mes && fecha.getDate() === dia) {
-                        return fecha;
-                    }
-                } catch (e) {
-                }
+                    if (fecha.getFullYear() === año && fecha.getMonth() === mes && fecha.getDate() === dia) return fecha;
+                } catch (e) { console.error('Error al parsear fecha:', fechaISO, e); }
                 return null;
             }
 
-            // Marcar solo los checkboxes que corresponden a la fibra seleccionada
+            function formatearFechaHeader(fechaObj) {
+                const dia = fechaObj.getDate();
+                const mes = fechaObj.getMonth() + 1;
+                const año = fechaObj.getFullYear();
+                const fechaFormateada = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
+                const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                const diaSemana = diasSemana[fechaObj.getDay()];
+                return { fechaFormateada, diaSemana, año, mes, dia };
+            }
+
+            // Si hay registros con fecha anterior a hoy, usar la más antigua como primera columna (máx 6 días atrás)
+            let minFechaRegistro = null;
+            registrosFiltrados.forEach(reg => {
+                const f = parseFechaISO(reg.fecha);
+                if (f && f.getTime() < hoy.getTime()) {
+                    if (!minFechaRegistro || f.getTime() < minFechaRegistro.getTime()) {
+                        minFechaRegistro = new Date(f);
+                        minFechaRegistro.setHours(0, 0, 0, 0);
+                    }
+                }
+            });
+            if (minFechaRegistro) {
+                const limiteAtras = new Date(hoy);
+                limiteAtras.setDate(hoy.getDate() - 6);
+                limiteAtras.setHours(0, 0, 0, 0);
+                if (minFechaRegistro.getTime() < limiteAtras.getTime()) primerDia.setTime(limiteAtras.getTime());
+                else primerDia.setTime(minFechaRegistro.getTime());
+            }
+
+            // Actualizar headers: columna i = primerDia + i; fechas anteriores a hoy = otro color
+            todasLasTablasDelTelar.forEach((tabla, index) => {
+                const thHeader = tabla.querySelector('th');
+                if (thHeader) {
+                    const fechaColumna = new Date(primerDia);
+                    fechaColumna.setDate(primerDia.getDate() + index);
+                    const fechaFormateada = formatearFechaHeader(fechaColumna);
+                    const fechaCompletaEsperada = `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`;
+                    thHeader.setAttribute('data-fecha-completa', fechaCompletaEsperada);
+                    thHeader.innerHTML = `
+                        <div class="text-xs leading-tight">${fechaFormateada.fechaFormateada}</div>
+                        <div class="text-xs opacity-75 leading-tight">${fechaFormateada.diaSemana}</div>
+                    `;
+                    thHeader.classList.remove('fecha-modificada', 'calendario-fecha-anterior');
+                    thHeader.style.backgroundColor = '';
+                    thHeader.style.borderLeft = '';
+                    if (fechaColumna.getTime() < hoy.getTime()) thHeader.classList.add('calendario-fecha-anterior');
+                }
+            });
+
+            // Marcar checkboxes según fecha del registro
             registrosFiltrados.forEach(reg => {
                 const fechaISO = reg.fecha;
                 const fechaRegistro = parseFechaISO(fechaISO);
@@ -1359,22 +1332,32 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 if (!fechaRegistro) return;
 
                 const timestampRegistro = fechaRegistro.getTime();
-                const timestampHoy = hoy.getTime();
+                const timestampPrimerDia = primerDia.getTime();
                 const timestampUltimoDia = ultimoDia.getTime();
-                const fechaEsAnterior = timestampRegistro < timestampHoy;
-                const fechaEsPosterior = timestampRegistro > timestampUltimoDia;
+
+                // Diferencia en días respecto al primer día del calendario (hoy o primera fecha con registro anterior)
+                const diferenciaDias = Math.floor((timestampRegistro - timestampPrimerDia) / (1000 * 60 * 60 * 24));
 
                 let tablaDestino = null;
-                if (fechaEsAnterior || fechaEsPosterior) {
-                    tablaDestino = todasLasTablasDelTelar[0];
+
+                if (diferenciaDias < 0) {
+                    // Fecha anterior al primer día visible, no mostrar
+                    return;
+                }
+                if (diferenciaDias < todasLasTablasDelTelar.length) {
+                    tablaDestino = todasLasTablasDelTelar[diferenciaDias];
                 } else {
-                    const diferenciaDias = Math.floor((timestampRegistro - timestampHoy) / (1000 * 60 * 60 * 24));
-                    if (diferenciaDias >= 0 && diferenciaDias < todasLasTablasDelTelar.length) {
-                        tablaDestino = todasLasTablasDelTelar[diferenciaDias];
-                    }
+                    // Fecha posterior al último día visible, mostrar en última columna
+                    tablaDestino = todasLasTablasDelTelar[todasLasTablasDelTelar.length - 1];
                 }
 
                 if (!tablaDestino) return;
+
+                // Fecha del registro en YYYY-MM-DD para data-fecha-original (al desmarcar se envía esta fecha al backend)
+                const y = fechaRegistro.getFullYear();
+                const m = String(fechaRegistro.getMonth() + 1).padStart(2, '0');
+                const d = String(fechaRegistro.getDate()).padStart(2, '0');
+                const fechaRegistroStr = `${y}-${m}-${d}`;
 
                 // Marcar checkbox
                 const valorEsperado = `${tipo}${reg.turno}`;
@@ -1388,6 +1371,8 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                             return;
                         }
                         cb.checked = true;
+                        // Guardar la fecha real del registro para que al desmarcar se envíe la fecha correcta al backend (evita "Registro no encontrado" cuando la columna muestra otro día)
+                        cb.setAttribute('data-fecha-original', fechaRegistroStr);
                     }
                 });
             });
@@ -1396,7 +1381,14 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 registrosFiltrados: registrosFiltrados.length,
                 filtroAplicado: filtros,
                 telarId: telarId,
-                tipo: tipo
+                tipo: tipo,
+                hoy: hoy.toISOString().split('T')[0],
+                ultimoDia: ultimoDia.toISOString().split('T')[0],
+                registrosDetalle: registrosFiltrados.map(reg => ({
+                    fecha: reg.fecha,
+                    turno: reg.turno,
+                    tipo: reg.tipo
+                }))
             });
 
             window.cargandoRequerimientosPorTelar[key] = false;
@@ -1999,7 +1991,7 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 window.statusUrdido = result.status_urdido || null;
                 // Convertir explícitamente a booleano: si viene false, es false; si viene true o undefined, es true
                 window.puedeEliminar = result.puede_eliminar === false ? false : (result.puede_eliminar === true ? true : true);
-                
+
                 // Debug: mostrar los valores recibidos
                 console.log('Valores recibidos del servidor:', {
                     status_urdido: result.status_urdido,
@@ -2145,11 +2137,11 @@ window.mostrarModalTelaReservada = function() {
         } else {
             console.error('Error: No se encontró el elemento modalTelaReservadaTitulo en el modal');
         }
-        
+
         // Si no se puede eliminar (Status diferente a "Programado"), cambiar mensajes
         // Verificar explícitamente: puedeEliminar debe ser false Y statusUrdido debe existir
         const debeBloquear = (puedeEliminar === false) && (statusUrdido !== null && statusUrdido !== '');
-        
+
         console.log('Evaluando condición de bloqueo:', {
             puedeEliminar: puedeEliminar,
             puedeEliminarEsFalse: puedeEliminar === false,
@@ -2158,7 +2150,7 @@ window.mostrarModalTelaReservada = function() {
             debeBloquear: debeBloquear,
             condicion: !puedeEliminar && statusUrdido
         });
-        
+
         if (debeBloquear) {
             console.log('BLOQUEANDO BOTÓN - Status diferente de Programado detectado');
             // Determinar el mensaje según el Status
@@ -2170,17 +2162,17 @@ window.mostrarModalTelaReservada = function() {
             } else {
                 mensajeEstado = `Este registro tiene Status "${statusUrdido}" en urdido`;
             }
-            
+
             if (descripcionModal) {
                 descripcionModal.textContent = mensajeEstado + '. No se puede eliminar ni actualizar.';
                 descripcionModal.innerHTML = mensajeEstado + '. No se puede eliminar ni actualizar.'; // Asegurar también innerHTML
             }
-            
+
             if (textoEliminar) {
                 textoEliminar.textContent = mensajeEstado;
                 textoEliminar.innerHTML = mensajeEstado; // Asegurar también innerHTML
             }
-            
+
             // Bloquear el botón de eliminar y cambiar a estilo gris
             if (btnEliminar) {
                 btnEliminar.disabled = true;
@@ -2190,7 +2182,7 @@ window.mostrarModalTelaReservada = function() {
                 btnEliminar.style.pointerEvents = 'none';
                 btnEliminar.style.backgroundColor = '#9ca3af'; // Gris-400
                 btnEliminar.onclick = null; // Remover el onclick para evitar que se ejecute
-                
+
                 // Cambiar el texto del botón para mostrar el mensaje
                 const btnContent = btnEliminar.querySelector('div');
                 if (btnContent) {
@@ -2210,7 +2202,7 @@ window.mostrarModalTelaReservada = function() {
                     }
                 }
             }
-            
+
             // Bloquear también el botón de actualizar y cambiar a estilo gris
             if (btnActualizar) {
                 btnActualizar.disabled = true;
@@ -2220,7 +2212,7 @@ window.mostrarModalTelaReservada = function() {
                 btnActualizar.style.pointerEvents = 'none';
                 btnActualizar.style.backgroundColor = '#9ca3af'; // Gris-400
                 btnActualizar.onclick = null; // Remover el onclick para evitar que se ejecute
-                
+
                 // Cambiar el texto del botón
                 const spanActualizar = btnActualizar.querySelector('span.text-base');
                 if (spanActualizar) {
@@ -2249,7 +2241,7 @@ window.mostrarModalTelaReservada = function() {
             } else {
                 console.error('Error: No se encontró el elemento modalTelaReservadaEliminarTexto en el modal');
             }
-            
+
             // Asegurar que los botones estén habilitados
             if (btnEliminar) {
                 btnEliminar.disabled = false;
@@ -2259,7 +2251,7 @@ window.mostrarModalTelaReservada = function() {
                 btnEliminar.style.pointerEvents = 'auto';
                 btnEliminar.style.backgroundColor = ''; // Resetear estilo inline
                 btnEliminar.onclick = confirmarEliminarConReserva; // Restaurar onclick
-                
+
                 // Restaurar el texto del botón
                 const btnContent = btnEliminar.querySelector('div');
                 if (btnContent) {
@@ -2273,7 +2265,7 @@ window.mostrarModalTelaReservada = function() {
                     }
                 }
             }
-            
+
             // Asegurar que el botón de actualizar esté habilitado
             if (btnActualizar) {
                 btnActualizar.disabled = false;
@@ -2283,7 +2275,7 @@ window.mostrarModalTelaReservada = function() {
                 btnActualizar.style.pointerEvents = 'auto';
                 btnActualizar.style.backgroundColor = ''; // Resetear estilo inline
                 btnActualizar.onclick = mostrarCalendarioParaActualizar; // Restaurar onclick
-                
+
                 // Restaurar el texto del botón
                 const spanActualizar = btnActualizar.querySelector('span.text-base');
                 if (spanActualizar) {
@@ -2303,7 +2295,7 @@ window.mostrarModalTelaReservada = function() {
         if (textoEliminar) {
             textoEliminar.textContent = 'Si elimina el registro elimina la reserva';
         }
-        
+
         // Asegurar que los botones estén habilitados para reservado
         if (btnEliminar) {
             btnEliminar.disabled = false;
@@ -2313,7 +2305,7 @@ window.mostrarModalTelaReservada = function() {
             btnEliminar.style.pointerEvents = 'auto';
             btnEliminar.style.backgroundColor = ''; // Resetear estilo inline
             btnEliminar.onclick = confirmarEliminarConReserva; // Restaurar onclick
-            
+
             // Restaurar el texto del botón
             const btnContent = btnEliminar.querySelector('div');
             if (btnContent) {
@@ -2327,7 +2319,7 @@ window.mostrarModalTelaReservada = function() {
                 }
             }
         }
-        
+
         // Asegurar que el botón de actualizar esté habilitado para reservado
         if (btnActualizar) {
             btnActualizar.disabled = false;
@@ -2337,7 +2329,7 @@ window.mostrarModalTelaReservada = function() {
             btnActualizar.style.pointerEvents = 'auto';
             btnActualizar.style.backgroundColor = ''; // Resetear estilo inline
             btnActualizar.onclick = mostrarCalendarioParaActualizar; // Restaurar onclick
-            
+
             // Restaurar el texto del botón
             const spanActualizar = btnActualizar.querySelector('span.text-base');
             if (spanActualizar) {
@@ -2415,7 +2407,7 @@ window.mostrarModalCalendarioSemanal = function() {
         const año = fecha.getFullYear();
         const fechaISO = `${año}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
         const fechaFormato = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
-        
+
         // Obtener el día de la semana (0 = domingo, 1 = lunes, etc.)
         const diaSemanaNum = fecha.getDay();
         const nombreDia = nombresDias[diaSemanaNum];

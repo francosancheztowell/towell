@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('page-title', 'Secuencia de Trama')
+@section('page-title', 'Secuencia Marcas Finales')
 
 @section('navbar-right')
     <x-buttons.inventory-sequence-actions
-        modulo="Secuencia Inv Trama"
-        onCreate="agregarSecuenciaInvTrama"
-        onEdit="editarSecuenciaInvTrama"
-        onDelete="eliminarSecuenciaInvTrama"
+        modulo="Secuencia Marcas Finales"
+        onCreate="agregarSecuenciaMarcasFinales"
+        onEdit="editarSecuenciaMarcasFinales"
+        onDelete="eliminarSecuenciaMarcasFinales"
     />
 @endsection
 
@@ -20,11 +20,11 @@
                     <tr class="bg-blue-500 text-white text-sm font-medium">
                         <th class="py-3 px-4 text-left w-12"></th>
                         <th class="py-3 px-4 text-center">Telar</th>
-                        <th class="py-3 px-4 text-center">Tipo telar</th>
-                        <th class="py-3 px-4 text-center">Secuencia</th>
+                        <th class="py-3 px-4 text-center">Salón</th>
+                        <th class="py-3 px-4 text-center">Orden</th>
                     </tr>
                 </thead>
-                <tbody id="secuencia-inv-trama-body">
+                <tbody id="secuencia-marcas-finales-body">
                     @foreach ($registros as $index => $item)
                         <tr class="secuencia-row text-center transition cursor-pointer {{ $index % 2 === 0 ? 'bg-white' : 'bg-gray-100' }} hover:opacity-90"
                             draggable="true"
@@ -33,20 +33,20 @@
                             ondragover="handleDragOver(event)"
                             ondragleave="handleDragLeave(event)"
                             ondrop="handleDrop(event)"
-                            data-id="{{ $item->id }}"
-                            data-notelar="{{ $item->NoTelar }}"
-                            data-tipotelar="{{ $item->TipoTelar }}"
-                            data-secuencia="{{ $item->Secuencia }}"
+                            data-id="{{ $item->NoTelarId }}"
+                            data-notelarid="{{ $item->NoTelarId }}"
+                            data-salontejidoid="{{ $item->SalonTejidoId ?? '' }}"
+                            data-orden="{{ $item->Orden }}"
                             data-row-index="{{ $index }}"
-                            onclick="selectRow(this, '{{ $item->id }}')"
+                            onclick="selectRow(this, '{{ $item->NoTelarId }}')"
                             ondblclick="deselectRow(this)"
                         >
                             <td class="py-3 px-2 text-gray-400 cursor-grab active:cursor-grabbing" title="Arrastrar para reordenar">
                                 <i class="fas fa-grip-vertical"></i>
                             </td>
-                            <td class="py-3 px-4">{{ $item->NoTelar }}</td>
-                            <td class="py-3 px-4">{{ $item->TipoTelar }}</td>
-                            <td class="py-3 px-4">{{ $item->Secuencia }}</td>
+                            <td class="py-3 px-4">{{ $item->NoTelarId }}</td>
+                            <td class="py-3 px-4">{{ $item->SalonTejidoId }}</td>
+                            <td class="py-3 px-4">{{ $item->Orden }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -84,34 +84,16 @@
 }
 </style>
 
-
-
 <script>
 /* ===========================
    Estado y datos
 =========================== */
 let selectedRow = null;
 let selectedId = null;
-let isDragging = false;
 
 /* ===========================
    Helpers UI
 =========================== */
-function crearToast(icon, msg, ms = 1500) {
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: ms,
-        timerProgressBar: true,
-        didOpen: (t) => {
-            t.addEventListener('mouseenter', Swal.stopTimer);
-            t.addEventListener('mouseleave', Swal.resumeTimer);
-        }
-    });
-    Toast.fire({ icon, title: msg });
-}
-
 function enableButtons() {
     const e = document.getElementById('btn-editar');
     const d = document.getElementById('btn-eliminar');
@@ -143,7 +125,7 @@ function disableButtons() {
 =========================== */
 function selectRow(row, id) {
     if (isDragging) return;
-    const tbody = document.getElementById('secuencia-inv-trama-body');
+    const tbody = document.getElementById('secuencia-marcas-finales-body');
     const rows = tbody ? tbody.querySelectorAll('tr.secuencia-row') : [];
     rows.forEach((r, idx) => {
         r.classList.remove('bg-blue-500', 'text-white');
@@ -159,7 +141,7 @@ function selectRow(row, id) {
 
 function deselectRow(row) {
     if (!row.classList.contains('bg-blue-500')) return;
-    const tbody = document.getElementById('secuencia-inv-trama-body');
+    const tbody = document.getElementById('secuencia-marcas-finales-body');
     const rows = tbody ? tbody.querySelectorAll('tr.secuencia-row') : [];
     rows.forEach((r, idx) => {
         r.classList.remove('bg-blue-500', 'text-white');
@@ -173,31 +155,26 @@ function deselectRow(row) {
 /* ===========================
    Crear (Agregar)
 =========================== */
-function agregarSecuenciaInvTrama() {
+function agregarSecuenciaMarcasFinales() {
     Swal.fire({
-        title: 'Crear Nueva Secuencia Inv Trama',
+        title: 'Crear Secuencia Marcas Finales',
         html: `
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">NoTelar *</label>
-                    <input id="swal-notelar" type="number" class="w-full px-2 py-2 border border-gray-300 rounded text-center"
+                    <label class="block text-xs font-medium text-gray-600 mb-1">NoTelarId *</label>
+                    <input id="swal-notelarid" type="number" class="w-full px-2 py-2 border border-gray-300 rounded text-center"
                            placeholder="Ej: 201" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">TipoTelar *</label>
-                    <select id="swal-tipotelar" class="w-full px-2 py-2 border border-gray-300 rounded text-center" required>
-                        <option value="">Seleccione...</option>
-                        <option value="JACQUARD">JACQUARD</option>
-                        <option value="ITEMA">ITEMA</option>
-                        <option value="SULZER">SULZER</option>
-                        <option value="SMIT">SMIT</option>
-                    </select>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">SalonTejidoId *</label>
+                    <input id="swal-salontejidoid" type="text" class="w-full px-2 py-2 border border-gray-300 rounded text-center"
+                           placeholder="Ej: Jacquard" maxlength="100" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Secuencia *</label>
-                    <input id="swal-secuencia" type="number" step="1"
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Orden</label>
+                    <input id="swal-orden" type="number" step="1" min="1"
                            class="w-full px-2 py-2 border border-gray-300 rounded text-center"
-                           placeholder="Ej: 1" required>
+                           placeholder="Auto">
                 </div>
             </div>
         `,
@@ -208,34 +185,30 @@ function agregarSecuenciaInvTrama() {
         confirmButtonColor: '#255be6',
         cancelButtonColor: '#6c757d',
         preConfirm: () => {
-            const NoTelar = document.getElementById('swal-notelar').value;
-            const TipoTelar = document.getElementById('swal-tipotelar').value.trim();
-            const Secuencia = document.getElementById('swal-secuencia').value;
+            const NoTelarId = document.getElementById('swal-notelarid').value;
+            const SalonTejidoId = document.getElementById('swal-salontejidoid').value.trim();
+            const Orden = document.getElementById('swal-orden').value;
 
-            if (!NoTelar) {
-                Swal.showValidationMessage('El campo NoTelar es requerido');
+            if (!NoTelarId) {
+                Swal.showValidationMessage('El campo NoTelarId es requerido');
                 return false;
             }
-            if (!TipoTelar) {
-                Swal.showValidationMessage('El campo TipoTelar es requerido');
-                return false;
-            }
-            if (!Secuencia) {
-                Swal.showValidationMessage('El campo Secuencia es requerido');
+            if (!SalonTejidoId) {
+                Swal.showValidationMessage('El campo SalonTejidoId es requerido');
                 return false;
             }
 
             return {
-                NoTelar: parseInt(NoTelar),
-                TipoTelar,
-                Secuencia: parseInt(Secuencia)
+                NoTelarId: parseInt(NoTelarId),
+                SalonTejidoId: SalonTejidoId,
+                Orden: Orden ? parseInt(Orden) : null
             };
         }
     }).then((res) => {
         if (!res.isConfirmed) return;
-        Swal.fire({ title: 'Creando...', allowOutsideClick: false, showConfirmButton: false, didOpen: Swal.showLoading });
+        Swal.fire({ title: 'Creando...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
 
-        fetch('{{ route("tejido.secuencia-inv-trama.store") }}', {
+        fetch('{{ route("tejido.secuencia-marcas-finales.store") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -243,8 +216,12 @@ function agregarSecuenciaInvTrama() {
             },
             body: JSON.stringify(res.value)
         })
-        .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || `HTTP ${r.status}`); }))
-        .then(data => {
+        .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+        .then(({ ok, status, data }) => {
+            if (!ok) {
+                const msg = (data && data.errors && data.errors.NoTelarId) ? data.errors.NoTelarId[0] : (data && data.message) || 'Error al crear';
+                throw new Error(msg);
+            }
             if (!data.success) throw new Error(data.message || 'Error al crear');
             Swal.fire({ icon:'success', title:'¡Registro creado!', timer:2000, showConfirmButton:false })
                 .then(() => location.reload());
@@ -256,40 +233,35 @@ function agregarSecuenciaInvTrama() {
 /* ===========================
    Editar
 =========================== */
-function editarSecuenciaInvTrama() {
+function editarSecuenciaMarcasFinales() {
     if (!selectedRow || !selectedId) {
         Swal.fire({ title:'Error', text:'Por favor selecciona un registro para editar', icon:'warning' });
         return;
     }
 
-    const notelarActual = selectedRow.getAttribute('data-notelar');
-    const tipotelarActual = selectedRow.getAttribute('data-tipotelar');
-    const secuenciaActual = selectedRow.getAttribute('data-secuencia');
+    const notelaridActual = selectedRow.getAttribute('data-notelarid');
+    const salontejidoidActual = selectedRow.getAttribute('data-salontejidoid') || '';
+    const ordenActual = selectedRow.getAttribute('data-orden');
 
     Swal.fire({
-        title: 'Editar Secuencia Inv Trama',
+        title: 'Editar Secuencia Marcas Finales',
         html: `
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">NoTelar *</label>
-                    <input id="swal-notelar-edit" type="number" class="w-full px-2 py-2 border border-gray-300 rounded text-center"
-                           required value="${notelarActual}">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">NoTelarId *</label>
+                    <input id="swal-notelarid-edit" type="number" class="w-full px-2 py-2 border border-gray-300 rounded text-center"
+                           required value="${notelaridActual}">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">TipoTelar *</label>
-                    <select id="swal-tipotelar-edit" class="w-full px-2 py-2 border border-gray-300 rounded text-center" required>
-                        <option value="">Seleccione...</option>
-                        <option value="JACQUARD" ${tipotelarActual === 'JACQUARD' ? 'selected' : ''}>JACQUARD</option>
-                        <option value="ITEMA" ${tipotelarActual === 'ITEMA' ? 'selected' : ''}>ITEMA</option>
-                        <option value="SULZER" ${tipotelarActual === 'SULZER' ? 'selected' : ''}>SULZER</option>
-                        <option value="SMIT" ${tipotelarActual === 'SMIT' ? 'selected' : ''}>SMIT</option>
-                    </select>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">SalonTejidoId *</label>
+                    <input id="swal-salontejidoid-edit" type="text" class="w-full px-2 py-2 border border-gray-300 rounded text-center"
+                           maxlength="100" required value="${salontejidoidActual.replace(/"/g, '&quot;')}">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Secuencia *</label>
-                    <input id="swal-secuencia-edit" type="number" step="1"
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Orden *</label>
+                    <input id="swal-orden-edit" type="number" step="1" min="1"
                            class="w-full px-2 py-2 border border-gray-300 rounded text-center"
-                           required value="${secuenciaActual}">
+                           required value="${ordenActual}">
                 </div>
             </div>
         `,
@@ -300,34 +272,34 @@ function editarSecuenciaInvTrama() {
         confirmButtonColor: '#ffc107',
         cancelButtonColor: '#6c757d',
         preConfirm: () => {
-            const NoTelar = document.getElementById('swal-notelar-edit').value;
-            const TipoTelar = document.getElementById('swal-tipotelar-edit').value.trim();
-            const Secuencia = document.getElementById('swal-secuencia-edit').value;
+            const NoTelarId = document.getElementById('swal-notelarid-edit').value;
+            const SalonTejidoId = document.getElementById('swal-salontejidoid-edit').value.trim();
+            const Orden = document.getElementById('swal-orden-edit').value;
 
-            if (!NoTelar) {
-                Swal.showValidationMessage('El campo NoTelar es requerido');
+            if (!NoTelarId) {
+                Swal.showValidationMessage('El campo NoTelarId es requerido');
                 return false;
             }
-            if (!TipoTelar) {
-                Swal.showValidationMessage('El campo TipoTelar es requerido');
+            if (!SalonTejidoId) {
+                Swal.showValidationMessage('El campo SalonTejidoId es requerido');
                 return false;
             }
-            if (!Secuencia) {
-                Swal.showValidationMessage('El campo Secuencia es requerido');
+            if (!Orden) {
+                Swal.showValidationMessage('El campo Orden es requerido');
                 return false;
             }
 
             return {
-                NoTelar: parseInt(NoTelar),
-                TipoTelar,
-                Secuencia: parseInt(Secuencia)
+                NoTelarId: parseInt(NoTelarId),
+                SalonTejidoId: SalonTejidoId,
+                Orden: parseInt(Orden)
             };
         }
     }).then((res) => {
         if (!res.isConfirmed) return;
-        Swal.fire({ title:'Actualizando...', allowOutsideClick:false, showConfirmButton:false, didOpen:Swal.showLoading });
+        Swal.fire({ title:'Actualizando...', allowOutsideClick:false, showConfirmButton:false, didOpen: () => Swal.showLoading() });
 
-        fetch(`{{ route("tejido.secuencia-inv-trama.update", ":id") }}`.replace(':id', selectedId), {
+        fetch(`{{ route("tejido.secuencia-marcas-finales.update", ["id" => ":id"]) }}`.replace(':id', selectedId), {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -335,8 +307,12 @@ function editarSecuenciaInvTrama() {
             },
             body: JSON.stringify(res.value)
         })
-        .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || `HTTP ${r.status}`); }))
-        .then(data => {
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok) {
+                const msg = (data && data.errors && data.errors.NoTelarId) ? data.errors.NoTelarId[0] : (data && data.message) || 'Error al actualizar';
+                throw new Error(msg);
+            }
             if (!data.success) throw new Error(data.message || 'Error al actualizar');
             Swal.fire({ icon:'success', title:'¡Registro actualizado!', timer:1800, showConfirmButton:false })
                 .then(() => location.reload());
@@ -348,18 +324,18 @@ function editarSecuenciaInvTrama() {
 /* ===========================
    Eliminar
 =========================== */
-function eliminarSecuenciaInvTrama() {
+function eliminarSecuenciaMarcasFinales() {
     if (!selectedRow || !selectedId) {
         Swal.fire({ title:'Error', text:'Selecciona un registro para eliminar', icon:'warning' });
         return;
     }
 
-    const notelar = selectedRow.getAttribute('data-notelar');
-    const tipotelar = selectedRow.getAttribute('data-tipotelar');
+    const notelarid = selectedRow.getAttribute('data-notelarid');
+    const salon = selectedRow.getAttribute('data-salontejidoid');
 
     Swal.fire({
         title: '¿Eliminar Registro?',
-        text: `¿Estás seguro de eliminar el telar ${notelar} (${tipotelar})?`,
+        text: `¿Estás seguro de eliminar el telar ${notelarid} (${salon})?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
@@ -369,18 +345,19 @@ function eliminarSecuenciaInvTrama() {
     }).then((result) => {
         if (!result.isConfirmed) return;
 
-        Swal.fire({ title:'Eliminando...', allowOutsideClick:false, showConfirmButton:false, didOpen:Swal.showLoading });
+        Swal.fire({ title:'Eliminando...', allowOutsideClick:false, showConfirmButton:false, didOpen: () => Swal.showLoading() });
 
-        fetch(`{{ route("tejido.secuencia-inv-trama.destroy", ":id") }}`.replace(':id', selectedId), {
+        fetch(`{{ route("tejido.secuencia-marcas-finales.destroy", ["id" => ":id"]) }}`.replace(':id', selectedId), {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             }
         })
-        .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || `HTTP ${r.status}`); }))
-        .then(data => {
-            if (!data.success) throw new Error(data.message || 'Error al eliminar');
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok) throw new Error(data && data.message ? data.message : 'Error al eliminar');
+            if (data && !data.success) throw new Error(data.message || 'Error al eliminar');
             Swal.fire({ icon:'success', title:'¡Registro eliminado!', timer:1800, showConfirmButton:false })
                 .then(() => location.reload());
         })
@@ -392,6 +369,7 @@ function eliminarSecuenciaInvTrama() {
    Drag and drop (reordenar)
 =========================== */
 let draggedRow = null;
+let isDragging = false;
 
 function handleDragStart(e) {
     const tr = e.target.closest('tr');
@@ -410,7 +388,7 @@ function handleDragEnd(e) {
         draggedRow = null;
     }
     isDragging = false;
-    document.querySelectorAll('#secuencia-inv-trama-body tr.secuencia-row').forEach(r => {
+    document.querySelectorAll('#secuencia-marcas-finales-body tr.secuencia-row').forEach(r => {
         r.classList.remove('drag-over-top', 'drag-over-bottom');
     });
 }
@@ -420,7 +398,7 @@ function handleDragOver(e) {
     e.dataTransfer.dropEffect = 'move';
     const tr = e.target.closest('tr');
     if (!tr || tr === draggedRow || !tr.classList.contains('secuencia-row')) return;
-    document.querySelectorAll('#secuencia-inv-trama-body tr.secuencia-row').forEach(r => {
+    document.querySelectorAll('#secuencia-marcas-finales-body tr.secuencia-row').forEach(r => {
         r.classList.remove('drag-over-top', 'drag-over-bottom');
     });
     const rect = tr.getBoundingClientRect();
@@ -443,7 +421,7 @@ function handleDrop(e) {
     if (!targetTr || !draggedRow || targetTr === draggedRow || !targetTr.classList.contains('secuencia-row')) return;
     targetTr.classList.remove('drag-over-top', 'drag-over-bottom');
 
-    const tbody = document.getElementById('secuencia-inv-trama-body');
+    const tbody = document.getElementById('secuencia-marcas-finales-body');
     const rect = targetTr.getBoundingClientRect();
     const insertBefore = e.clientY < rect.top + rect.height / 2;
 
@@ -457,28 +435,24 @@ function handleDrop(e) {
     draggedRow.classList.add('drop-success');
     setTimeout(() => draggedRow.classList.remove('drop-success'), 500);
 
-    renumberSecuenciaAndSave(tbody);
+    renumberOrdenAndSave(tbody);
     draggedRow = null;
     isDragging = false;
 }
 
-function renumberSecuenciaAndSave(tbody) {
+function renumberOrdenAndSave(tbody) {
     const rows = tbody.querySelectorAll('tr.secuencia-row');
     const orden = [];
     rows.forEach((row, index) => {
         const num = index + 1;
-        row.setAttribute('data-secuencia', num);
+        row.setAttribute('data-orden', num);
         row.querySelector('td:nth-child(4)').textContent = num;
-        orden.push({ Id: parseInt(row.getAttribute('data-id'), 10), Secuencia: num });
-        row.classList.remove('bg-blue-500', 'text-white', 'bg-white', 'bg-gray-100');
+        orden.push({ NoTelarId: parseInt(row.getAttribute('data-notelarid'), 10), Orden: num });
+        row.classList.remove('bg-white', 'bg-gray-100');
         row.classList.add(index % 2 === 0 ? 'bg-white' : 'bg-gray-100');
     });
-    if (selectedRow && selectedRow.parentNode === tbody) {
-        selectedRow.classList.remove('bg-white', 'bg-gray-100');
-        selectedRow.classList.add('bg-blue-500', 'text-white');
-    }
 
-    fetch('{{ route("tejido.secuencia-inv-trama.orden") }}', {
+    fetch('{{ route("tejido.secuencia-marcas-finales.orden") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -499,15 +473,11 @@ function renumberSecuenciaAndSave(tbody) {
     });
 }
 
-/* ===========================
-   Bootstrap
-=========================== */
 document.addEventListener('DOMContentLoaded', () => {
     disableButtons();
-    document.getElementById('secuencia-inv-trama-body')?.addEventListener('click', (e) => {
+    document.getElementById('secuencia-marcas-finales-body')?.addEventListener('click', (e) => {
         if (isDragging) e.stopPropagation();
     });
 });
 </script>
 @endsection
-

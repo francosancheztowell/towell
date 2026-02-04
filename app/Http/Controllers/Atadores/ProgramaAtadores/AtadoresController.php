@@ -66,63 +66,156 @@ class AtadoresController extends Controller
         ->whereNotNull('tej_inventario_telares.no_julio')
         ->where('tej_inventario_telares.no_julio', '!=', ''); // No_julio debe estar lleno
 
-        // Determinar filtro por defecto según área/puesto (solo para mostrar en el frontend)
-        // El filtrado real se hace en el cliente sin recargar
-        $filtroAplicado = 'todos'; // Por defecto mostrar todos
-        $telaresUsuario = []; // Telares del usuario si es tejedor
-
-        // Verificar si es tejedor (área Smith, Itema o Jacquard)
+        // Verificar rol/área para visibilidad y filtros
         $areaUpper = strtoupper(trim($area));
-        $esTejedor = in_array($areaUpper, ['SMITH', 'ITEMA', 'JACQUARD']);
-
-        // Si no hay filtro personalizado, determinar el filtro por defecto según área/puesto
         $areaNorm = strtolower(trim((string) $area));
         $puestoNorm = strtolower(trim((string) $puesto));
-        $esAreaAtadores = in_array($areaNorm, ['atador', 'atadores'], true);
 
-        if (!$filtroPersonalizado) {
-            if ($esTejedor) {
-                // Tejedor: obtener sus telares y aplicar filtro terminados
-                $filtroAplicado = 'terminados';
-                $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
-                    ->pluck('NoTelarId')
-                    ->toArray();
-            } elseif ($esAreaAtadores || in_array($puestoNorm, ['atador', 'atadores'], true)) {
-                // Área Atadores (o puesto atador/atadores): ver solo Activo por defecto
-                $filtroAplicado = 'activo';
-            } elseif ($puestoNorm === 'supervisor') {
-                $filtroAplicado = 'terminados';
-            }
-        } else {
-            $filtroAplicado = $filtroPersonalizado;
-            // Si el usuario es tejedor, obtener sus telares para el filtro
-            if ($esTejedor) {
-                $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
-                    ->pluck('NoTelarId')
-                    ->toArray();
-            }
+        // Detectar si es tejedor (puede ser "Tejedores", "TEJEDORES", "tejedores", etc.)
+        $esTejedor = in_array($areaUpper, ['TEJEDORES', 'TEJEDOR']);
+        $esAreaAtadores = in_array($areaNorm, ['atador', 'atadores'], true);
+        $esSupervisor = (strtolower(trim($puesto)) === 'supervisor');
+
+        $telaresUsuario = [];
+        if ($esTejedor) {
+            $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
+                ->pluck('NoTelarId')
+                ->toArray();
         }
 
-        // No aplicar filtros en el servidor - se harán en el cliente
-        // Siempre devolver todos los registros
+        // Filtro por defecto según área/puesto (frontend)
+        // IMPORTANTE: El backend ya filtra los datos por rol, así que 'todos' aquí significa
+        // "mostrar todos los registros que el backend ya filtró por rol"
+        $filtroAplicado = 'todos';
+        if ($filtroPersonalizado) {
+            $filtroAplicado = $filtroPersonalizado;
+        }
+        // Si no hay filtro personalizado, el backend ya filtró por rol:
+        // - Tejedores: solo sus telares con Terminado
+        // - Atadores: todos los telares con Activo/En Proceso
+        // - Supervisor: todos los telares con Calificado (no Autorizado)
+        // En estos casos, filtroAplicado = 'todos' para que el frontend muestre todo lo que el backend trajo
 
-        $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
-            ->orderBy('tej_inventario_telares.turno', 'asc')
+        // Aplicar filtros según rol/área ANTES de ejecutar la consulta
+        // Si el usuario usó el botón de filtrar (filtro personalizado presente), mostrar TODOS sin restricción por área/cargo
+        if ($filtroPersonalizado === 'autorizados') {
+            $inventarioTelares = $this->getAutorizadosParaVista();
+        } elseif ($filtroPersonalizado !== null) {
+            // Cualquier otro filtro elegido en el modal: traer todos los registros sin filtrar por área/cargo
+            $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
+                ->orderBy('tej_inventario_telares.turno', 'asc')
+                ->get();
+        } else {
+            // Sin filtro personalizado: aplicar restricción por rol/área
+            // Tejedores: filtrar por sus telares y solo status Terminado
+            if ($esTejedor) {
+                if (empty($telaresUsuario)) {
+                    $query->whereRaw('0 = 1'); // Sin telares asignados: no mostrar registros
+                } else {
+                    $query->whereIn('tej_inventario_telares.no_telar', $telaresUsuario)
+                        ->where('AtaMontadoTelas.Estatus', 'Terminado');
+                }
+            }
+            // Atador: todos los telares, solo Activo y En Proceso (sin filtrar por operador)
+            elseif ($esAreaAtadores || in_array($puestoNorm, ['atador', 'atadores'], true)) {
+                // Solo Activo (sin registro en AtaMontadoTelas) o En Proceso
+                $query->where(function ($q) {
+                    $q->whereNull('AtaMontadoTelas.Estatus')
+                      ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
+                });
+            }
+            // Supervisor: solo Calificados (no Autorizado)
+            elseif ($esSupervisor) {
+                $query->where('AtaMontadoTelas.Estatus', 'Calificado');
+            }
+            // Si no es ninguno de los roles anteriores, no mostrar registros
+            else {
+                $query->whereRaw('0 = 1'); // No mostrar registros si no tiene rol válido
+            }
+
+            $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
+                ->orderBy('tej_inventario_telares.turno', 'asc')
+                ->get();
+        }
+
+        $vista = $request->get('vista'); // filtros cliente separados por coma cuando filtro=todos
+        $filtroGlobalActivo = $filtroPersonalizado !== null; // true = se usó el botón filtrar, backend devolvió todos
+
+        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor', 'vista', 'filtroGlobalActivo'));
+    }
+
+    /**
+     * Obtiene todos los registros con Estatus = 'Autorizado' desde AtaMontadoTelas
+     * y los combina con tej_inventario_telares cuando exista coincidencia (NoJulio + NoProduccion).
+     * Así se muestran todos los autorizados aunque no tengan fila en inventario.
+     */
+    protected function getAutorizadosParaVista()
+    {
+        $autorizados = AtaMontadoTelasModel::where('Estatus', 'Autorizado')
+            ->orderBy('Fecha', 'asc')
+            ->orderBy('Turno', 'asc')
             ->get();
 
-        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor'));
+        return $autorizados->map(function ($ata) {
+            $inv = TejInventarioTelares::where('no_julio', (string) $ata->NoJulio)
+                ->where('no_orden', (string) $ata->NoProduccion)
+                ->first();
+
+            if ($inv) {
+                $inv->setAttribute('status_proceso', 'Autorizado');
+                return $inv;
+            }
+
+            return (object) [
+                'id' => $ata->Id,
+                'fecha' => Carbon::parse($ata->Fecha),
+                'status_proceso' => 'Autorizado',
+                'turno' => $ata->Turno,
+                'no_telar' => $ata->NoTelarId,
+                'tipo' => $ata->Tipo,
+                'no_julio' => $ata->NoJulio,
+                'localidad' => null,
+                'metros' => $ata->Metros,
+                'no_orden' => $ata->NoProduccion,
+                'tipo_atado' => null,
+                'cuenta' => null,
+                'calibre' => null,
+                'hilo' => null,
+                'LoteProveedor' => $ata->LoteProveedor,
+                'NoProveedor' => $ata->NoProveedor,
+                'horaParo' => $ata->HoraParo,
+                'ConfigId' => $ata->ConfigId,
+                'InventSizeId' => $ata->InventSizeId,
+                'InventColorId' => $ata->InventColorId,
+            ];
+        });
     }
 
     public function iniciarAtado(Request $request)
     {
-        // Validar que se recibió un ID
+        $noJulioRequest = $request->input('no_julio');
+        $noOrdenRequest = $request->input('no_orden');
+        $id = $request->input('id');
+
+        // Si vienen no_julio y no_orden (ej. fila de Autorizados que puede ser de AtaMontadoTelas sin inventario), intentar ir directo a calificar
+        if ($noJulioRequest && $noOrdenRequest) {
+            $existente = AtaMontadoTelasModel::where('NoJulio', $noJulioRequest)
+                ->where('NoProduccion', $noOrdenRequest)
+                ->whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
+                ->first();
+
+            if ($existente) {
+                return redirect()->route('atadores.calificar', [
+                    'no_julio' => $noJulioRequest,
+                    'no_orden' => $noOrdenRequest
+                ])->with('info', $existente->Estatus === 'Autorizado' ? 'Visualizando registro autorizado (solo lectura)' : 'Continuando con atado en proceso');
+            }
+        }
+
+        // Validar que se recibió un ID cuando no hay no_julio/no_orden
         if (!$request->has('id')) {
             return redirect()->route('atadores.programa')->with('error', 'Debe seleccionar un registro');
         }
-
-        $id = $request->input('id');
-        $noJulioRequest = $request->input('no_julio');
-        $noOrdenRequest = $request->input('no_orden');
 
         // Obtener el registro específico del inventario de telares
         $item = TejInventarioTelares::find($id);
@@ -132,7 +225,6 @@ class AtadoresController extends Controller
         }
 
         // Validar que los datos del registro coincidan con los enviados desde el frontend
-        // Esto asegura que se está seleccionando el registro correcto
         if ($noJulioRequest && $item->no_julio != $noJulioRequest) {
             return redirect()->route('atadores.programa')->with('error', 'Los datos del No. Julio no coinciden. Por favor, seleccione el registro nuevamente.');
         }
@@ -146,18 +238,17 @@ class AtadoresController extends Controller
             return redirect()->route('atadores.programa')->with('error', 'El registro seleccionado no tiene los datos necesarios (No. Julio o No. Orden)');
         }
 
-        // Verificar si ya existe un atado para este mismo NoJulio y NoOrden (en cualquier estado activo)
+        // Verificar si ya existe un atado para este mismo NoJulio y NoOrden (en cualquier estado activo o Autorizado)
         $existente = AtaMontadoTelasModel::where('NoJulio', $item->no_julio)
             ->where('NoProduccion', $item->no_orden)
-            ->whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado'])
+            ->whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
             ->first();
 
         if ($existente) {
-            // Si ya existe, redirigir a calificar con los parámetros del registro correcto
             return redirect()->route('atadores.calificar', [
                 'no_julio' => $item->no_julio,
                 'no_orden' => $item->no_orden
-            ])->with('info', 'Continuando con atado en proceso');
+            ])->with('info', $existente->Estatus === 'Autorizado' ? 'Visualizando registro autorizado (solo lectura)' : 'Continuando con atado en proceso');
         }
 
         // NO eliminar otros procesos en estado 'En Proceso'
@@ -235,16 +326,16 @@ class AtadoresController extends Controller
 
         // Si se proporcionan parámetros, filtrar por ellos para obtener el registro específico
         if ($noJulio && $noOrden) {
-            // Buscar el registro específico en cualquier estado activo
-            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado'])
+            // Buscar el registro específico en cualquier estado activo o Autorizado
+            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
                 ->where('NoJulio', $noJulio)
                 ->where('NoProduccion', $noOrden)
                 ->orderBy('Fecha', 'desc')
                 ->orderBy('Turno', 'desc')
                 ->get();
         } else {
-            // Si no se proporcionan parámetros, obtener todos los procesos activos
-            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado'])
+            // Si no se proporcionan parámetros, obtener todos los procesos activos (incluyendo Autorizado)
+            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
                 ->orderBy('Fecha', 'desc')
                 ->orderBy('Turno', 'desc')
                 ->get();

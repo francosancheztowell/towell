@@ -1123,35 +1123,41 @@ class TelDesarrolladoresController extends Controller
                 // SIEMPRE actualizar los programas de ReqProgramaTejido, independientemente de si se actualizó ReqModelosCodificados
                 // Usar los datos de CatCodificados que acabamos de guardar
                 $ordenTejido = $validated['NoProduccion'];
-                $salonTejido = $departamento ?: data_get($ordenData, 'SalonTejidoId');
+                $noTelarId = $validated['NoTelarId'];
 
+                // Primero obtener el programa del TELAR SELECCIONADO (sin depender del salón) para que siempre se encuentre
+                // y se use su SalonTejidoId real (evita fallos cuando la misma producción existe en varios salones)
+                $programaDelTelar = ReqProgramaTejido::where('NoProduccion', $ordenTejido)
+                    ->where('NoTelarId', $noTelarId)
+                    ->first();
 
+                $salonTejido = $programaDelTelar
+                    ? $programaDelTelar->SalonTejidoId
+                    : ($departamento ?: data_get($ordenData, 'SalonTejidoId'));
+
+                if (!$programaDelTelar) {
+                    Log::warning('TelDesarrolladoresController::store - No existe ReqProgramaTejido para el telar y producción seleccionados', [
+                        'NoTelarId' => $noTelarId,
+                        'NoProduccion' => $ordenTejido,
+                    ]);
+                }
 
                 if ($ordenTejido && $salonTejido) {
-                    // Primero obtener el programa del telar actual para verificar si tiene OrdCompartida
-                    $programaInicial = ReqProgramaTejido::where('NoProduccion', $ordenTejido)
+                    // Programa inicial: el del telar si existe; si no, buscar por salón + telar
+                    $programaInicial = $programaDelTelar ?? ReqProgramaTejido::where('NoProduccion', $ordenTejido)
                         ->where('SalonTejidoId', $salonTejido)
-                        ->where('NoTelarId', $validated['NoTelarId'])
+                        ->where('NoTelarId', $noTelarId)
                         ->first();
 
-
-
-                    // Si tiene OrdCompartida, buscar TODOS los programas compartidos
+                    // Si tiene OrdCompartida, buscar TODOS los programas compartidos; si no, por NoProduccion + SalonTejidoId
                     $programas = collect();
                     if ($programaInicial && !empty($programaInicial->OrdCompartida)) {
                         $ordCompartida = (int) $programaInicial->OrdCompartida;
-
-                        // Buscar todos los programas con la misma OrdCompartida
-                        $programas = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
-                            ->get();
-
+                        $programas = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)->get();
                     } else {
-
-                        // Si no tiene OrdCompartida, buscar solo por NoProduccion y SalonTejidoId
                         $programas = ReqProgramaTejido::where('NoProduccion', $ordenTejido)
                             ->where('SalonTejidoId', $salonTejido)
                             ->get();
-
                     }
 
                     if ($programas->isNotEmpty()) {
@@ -1224,26 +1230,32 @@ class TelDesarrolladoresController extends Controller
 
 
 
-                        // Obtener el programa del telar actual para moverlo a proceso
-                        $programaEnTelar = $programas->firstWhere('NoTelarId', $validated['NoTelarId']);
-
+                        // Obtener el programa del telar actual para moverlo a proceso (siempre debería estar al derivar salón del programa del telar)
+                        $programaEnTelar = $programas->firstWhere('NoTelarId', $noTelarId);
 
                         if ($programaEnTelar) {
-
                             $this->moverRegistroEnProceso($programaEnTelar);
-
                             // Enviar notificación a Telegram después de completar todo el proceso
                             $this->enviarNotificacionTelegram($validated, $programaEnTelar, $codigoDibujo);
                         } else {
-
+                            Log::warning('TelDesarrolladoresController::store - Programa del telar no está en la lista de programas', [
+                                'NoTelarId' => $noTelarId,
+                                'NoProduccion' => $ordenTejido,
+                                'SalonTejidoId' => $salonTejido,
+                            ]);
                         }
                     } else {
-
+                        Log::warning('TelDesarrolladoresController::store - No hay programas ReqProgramaTejido para actualizar', [
+                            'NoTelarId' => $noTelarId,
+                            'NoProduccion' => $ordenTejido,
+                            'SalonTejidoId' => $salonTejido,
+                        ]);
                     }
                 } else {
                     Log::warning('TelDesarrolladoresController::store - Faltan datos para buscar programas', [
                         'ordenTejido' => $ordenTejido,
-                        'salonTejido' => $salonTejido
+                        'salonTejido' => $salonTejido,
+                        'programaDelTelarExiste' => $programaDelTelar !== null,
                     ]);
                 }
             if ($request->ajax()) {

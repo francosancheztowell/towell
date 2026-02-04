@@ -22,5 +22,10 @@ class TelTelaresOperador extends Model
         'NoTelarId',
         'Turno',
         'SalonTejidoId',
+        'Supervisor',
+    ];
+
+    protected $casts = [
+        'Supervisor' => 'boolean',
     ];
 }

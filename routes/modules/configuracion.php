@@ -52,6 +52,7 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () {
         Route::view('/cargarcatalogos', 'modulos/cargar-catalogos')->name('cargar-catalogos');
         Route::get('/cargarplaneacion', [ConfiguracionController::class, 'cargarPlaneacion'])->name('cargar-planeacion');
         Route::post('/cargarplaneacion/upload', [ConfiguracionController::class, 'procesarExcel'])->name('cargar-planeacion.upload');
+        Route::post('/cargarplaneacion/upload-update', [ConfiguracionController::class, 'procesarExcelUpdate'])->name('cargar-planeacion.upload-update');
     });
 
     Route::get('/cargar-planeacion', [ConfiguracionController::class, 'cargarPlaneacion'])->name('cargar.planeacion');

@@ -112,6 +112,12 @@
       }
       .telar-section .col-label.center { top: 50%; transform: translateY(-50%); }
 
+      /* Fechas anteriores a hoy: otro color (naranja/ámbar) en el encabezado del calendario */
+      .telar-section th.calendario-fecha-anterior {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+        border-left: 3px solid #b45309;
+      }
+
       /* Checkboxes más grandes y labels alineados */
       .telar-section input[type="checkbox"] { width: 22px; height: 22px; accent-color: #2563eb; }
       .telar-section label { display:inline-flex; align-items:center; gap: 6px; }

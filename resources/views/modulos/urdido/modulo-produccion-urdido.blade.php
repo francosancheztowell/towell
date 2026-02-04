@@ -154,8 +154,8 @@
                     </tr>
                     <!-- Cabecera de la tabla de producción -->
                     <tr>
-                        <th class="py-2 px-1 md:px-1.5 text-center font-semibold sticky left-0 z-30 text-xs md:text-md w-16 md:w-14 lg:w-20">Fecha</th>
-                        <th class="py-2 px-1 md:px-1 text-center font-semibold text-md w-24 md:w-28 lg:w-32">Oficial</th>
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold sticky left-0 z-30 text-xs md:text-md" style="width: 3rem; min-width: 3rem; max-width: 3rem;">Fecha</th>
+                        <th class="py-2 px-1 md:px-1 text-left font-semibold text-md" style="width: 3.5rem; min-width: 3.5rem; max-width: 3.5rem;">Oficial</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md w-20 max-w-[60px]">Turno</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-32 max-w-[110px]">H. Fin</th>
@@ -225,6 +225,8 @@
                                     $registroId = $registro ? $registro->Id : null;
 
                                     $oficiales = [];
+                                    $primerOficialNombre = '';
+                                    $primerOficialNombreCompleto = '';
                                     for ($i = 1; $i <= 3; $i++) {
                                         $nomEmpl = $registro ? ($registro->{"NomEmpl{$i}"} ?? null) : null;
                                         if ($nomEmpl) {
@@ -235,16 +237,23 @@
                                                 'metros' => $registro->{"Metros{$i}"} ?? null,
                                                 'turno' => $registro->{"Turno{$i}"} ?? null,
                                             ];
+                                            // Solo tomar el primer oficial para mostrar
+                                            if ($i === 1 && !$primerOficialNombre) {
+                                                $primerOficialNombreCompleto = $nomEmpl;
+                                                // Truncar a máximo 12 caracteres
+                                                $primerOficialNombre = mb_strlen($nomEmpl) > 12 ? mb_substr($nomEmpl, 0, 12) . '...' : $nomEmpl;
+                                            }
                                         }
                                     }
                                     $tieneOficiales = count($oficiales) > 0;
+                                    $textoOficiales = $primerOficialNombre ?: '';
                                     // Obtener turno del primer oficial si existe
                                     $turnoInicial = $tieneOficiales && isset($oficiales[0]['turno']) ? (string)$oficiales[0]['turno'] : '';
                                 @endphp
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
                                     {{-- Fecha --}}
-                                <td class="px-1 md:px-1.5 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 z-10 border-r border-gray-200 w-16 md:w-14 lg:w-20">
+                                <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 z-10 border-r border-gray-200" style="width: 3rem; min-width: 3rem; max-width: 3rem;">
                             <div class="flex items-center justify-center gap-0.5 relative">
                                 @php
                                     $fechaGuardada = $registro && $registro->Fecha ? date('Y-m-d', strtotime($registro->Fecha)) : null;
@@ -261,7 +270,7 @@
                                 >
                                 <button
                                     type="button"
-                                    class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-md bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
+                                    class="w-full border border-gray-300 rounded px-1 py-0.5 text-xs bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
                                     data-registro-id="{{ $registroId }}"
                                 >
                                     <span class="fecha-display-text text-gray-900 font-medium">
@@ -272,48 +281,28 @@
                         </td>
 
                                     {{-- Oficial --}}
-                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-24 md:w-28 lg:w-32">
-                                        <div class="flex items-center justify-center gap-1">
-                                            @if($tieneOficiales)
-                                                <select
-                                                    data-field="oficial"
-                                                    class="w-full border border-gray-300 rounded px-1.5 md:px-2 py-0.5 md:py-1 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 oficial-select"
-                                                    data-registro-id="{{ $registroId }}"
-                                                >
-                                                    <option value="">Seleccionar oficial...</option>
-                                                    @foreach($oficiales as $index => $oficial)
-                                                        <option
-                                                            value="{{ $oficial['numero'] }}"
-                                                            data-numero="{{ $oficial['numero'] }}"
-                                                            data-nombre="{{ $oficial['nombre'] }}"
-                                                            data-clave="{{ $oficial['clave'] }}"
-                                                            data-metros="{{ $oficial['metros'] }}"
-                                                            data-turno="{{ $oficial['turno'] }}"
-                                                            {{ $index === 0 ? 'selected' : '' }}
-                                                        >
-                                                            {{ $oficial['nombre'] }}
-                                                        </option>
-                                                    @endforeach
-                            </select>
-                                            @else
-                                                <div class="w-full flex items-center justify-center text-gray-400">
-                                                    <span class="text-xs italic">Sin oficiales</span>
-                                                </div>
-                                            @endif
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-left whitespace-nowrap" style="width: 3.5rem; min-width: 3.5rem; max-width: 3.5rem;">
+                                        <div class="flex items-center justify-start gap-1">
+                                            <span 
+                                                class="oficial-texto w-full text-xs text-gray-900 px-1 md:px-1 py-0.5 md:py-1 truncate text-left {{ !$tieneOficiales ? 'text-gray-400 italic' : '' }}"
+                                                data-registro-id="{{ $registroId }}"
+                                                data-oficiales-json="{{ $tieneOficiales ? json_encode($oficiales) : '[]' }}"
+                                                title="{{ $primerOficialNombreCompleto ?: 'Sin oficiales' }}"
+                                            >
+                                                {{ $textoOficiales ?: 'Sin oficiales' }}
+                                            </span>
 
                                             @php
                                                 $cantidadOficiales = count($oficiales);
-                                                $puedeAgregar = $cantidadOficiales < 3;
                                             @endphp
                                             <button
                                                 type="button"
-                                                class="btn-agregar-oficial flex-shrink-0 p-1 md:p-1.5 {{ $puedeAgregar ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed opacity-50' }} rounded transition-colors"
+                                                class="btn-agregar-oficial flex-shrink-0 p-1 md:p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                                                 data-registro-id="{{ $registroId }}"
                                                 data-cantidad-oficiales="{{ $cantidadOficiales }}"
-                                                title="{{ $puedeAgregar ? 'Agregar oficial' : 'Máximo de 3 oficiales alcanzado' }}"
-                                                {{ !$puedeAgregar ? 'disabled' : '' }}
+                                                title="Agregar oficial"
                                             >
-                                                <i class="fa-solid fa-plus-circle text-base md:text-lg"></i>
+                                                <i class="fa-solid fa-plus-circle text-sm md:text-base"></i>
                                             </button>
                                         </div>
                         </td>
@@ -602,6 +591,7 @@
                                 <th class="px-3 py-2 text-left text-md font-semibold text-gray-700 border border-gray-300 hidden">Nombre</th>
                                 <th class="px-3 py-2 text-left text-md font-semibold text-gray-700 border border-gray-300">Turno</th>
                                 <th class="px-3 py-2 text-left text-md font-semibold text-gray-700 border border-gray-300">Metros</th>
+                                <th class="px-3 py-2 text-center text-md font-semibold text-gray-700 border border-gray-300 w-20">Eliminar</th>
                             </tr>
                         </thead>
                         <tbody id="oficiales-existentes" class="bg-white">
@@ -805,22 +795,21 @@
 
                     // Inicializar valor anterior del oficial en cada fila y actualizar turno
                     tablaBody.querySelectorAll('tr').forEach(row => {
-                        const oficialSelect = row.querySelector('.oficial-select');
-                        if (oficialSelect) {
-                            // Si hay un oficial seleccionado, establecer el valor anterior
-                            if (oficialSelect.value) {
-                                oficialSelect.setAttribute('data-oficial-anterior', oficialSelect.value);
-                            }
-
-                            // Actualizar turno automáticamente si hay un oficial seleccionado
-                            const selectedOption = oficialSelect.options[oficialSelect.selectedIndex];
-                            if (selectedOption && selectedOption.value) {
-                                const turnoSelect = row.querySelector('select[data-field="turno"]');
-                                if (turnoSelect) {
-                                    const turno = selectedOption.getAttribute('data-turno');
-                                    if (turno) {
-                                        turnoSelect.value = turno;
+                        const oficialTexto = row.querySelector('.oficial-texto');
+                        if (oficialTexto) {
+                            // Obtener turno del primer oficial si existe
+                            const oficialesJson = oficialTexto.getAttribute('data-oficiales-json');
+                            if (oficialesJson) {
+                                try {
+                                    const oficiales = JSON.parse(oficialesJson);
+                                    if (oficiales.length > 0 && oficiales[0].turno) {
+                                        const turnoSelect = row.querySelector('select[data-field="turno"]');
+                                        if (turnoSelect) {
+                                            turnoSelect.value = oficiales[0].turno;
+                                        }
                                     }
+                                } catch (e) {
+                                    console.error('Error al parsear oficiales:', e);
                                 }
                             }
                         }
@@ -898,58 +887,28 @@
                             target.setAttribute('data-valor-anterior', noJulioValue);
                         }
 
-                        // Oficial seleccionado -> actualiza turno
-                        if (target.classList.contains('oficial-select')) {
-                            const row = target.closest('tr');
-                            const turnoSelect = row ? row.querySelector('select[data-field="turno"]') : null;
-                            const selectedOption = target.options[target.selectedIndex];
-
-                            if (!turnoSelect) return;
-
-                            if (selectedOption && selectedOption.value) {
-                                const turno = selectedOption.getAttribute('data-turno');
-                                turnoSelect.value = turno || '';
-                                target.setAttribute('data-oficial-anterior', selectedOption.value);
-                                if (!autoFillOficialDone) {
-                                    autoFillOficialDone = true;
-                                    const valor = selectedOption.value;
-                                    const optionTemplate = selectedOption;
-                                    const selects = tablaBody.querySelectorAll('.oficial-select');
-                                    selects.forEach(select => {
-                                        let opt = select.querySelector(`option[value="${valor}"]`);
-                                        if (!opt && optionTemplate) {
-                                            const clone = optionTemplate.cloneNode(true);
-                                            clone.removeAttribute('selected');
-                                            select.appendChild(clone);
-                                            opt = clone;
-                                        }
-                                        if (!opt) return;
-                                        select.value = valor;
-                                        select.setAttribute('data-oficial-anterior', valor);
-                                        const rowSelect = select.closest('tr');
-                                        const turnoSel = rowSelect ? rowSelect.querySelector('select[data-field="turno"]') : null;
-                                        const optSel = select.options[select.selectedIndex];
-                                        if (turnoSel) {
-                                            turnoSel.value = optSel && optSel.value ? (optSel.getAttribute('data-turno') || '') : '';
-                                        }
-                                    });
-                                }
-                            } else {
-                                turnoSelect.value = '';
-                            }
-                        }
+                        // El oficial ahora es texto, no hay cambio directo en la tabla
 
                         // Cambio manual del turno
                         if (target.getAttribute('data-field') === 'turno' && target.tagName === 'SELECT') {
                             const row = target.closest('tr');
                             const registroId = row ? row.getAttribute('data-registro-id') : null;
                             const turnoValue = target.value;
-                            const oficialSelect = row ? row.querySelector('.oficial-select') : null;
+                            const oficialTexto = row ? row.querySelector('.oficial-texto') : null;
 
-                            if (oficialSelect && oficialSelect.value && registroId && turnoValue) {
-                                const numeroOficial = oficialSelect.value;
-                                const nombreOficial = oficialSelect.options[oficialSelect.selectedIndex].textContent;
-                                actualizarTurnoOficial(registroId, numeroOficial, turnoValue, nombreOficial);
+                            if (oficialTexto && registroId && turnoValue) {
+                                const oficialesJson = oficialTexto.getAttribute('data-oficiales-json');
+                                if (oficialesJson) {
+                                    try {
+                                        const oficiales = JSON.parse(oficialesJson);
+                                        if (oficiales.length > 0) {
+                                            const primerOficial = oficiales[0];
+                                            actualizarTurnoOficial(registroId, primerOficial.numero, turnoValue, primerOficial.nombre);
+                                        }
+                                    } catch (e) {
+                                        console.error('Error al parsear oficiales:', e);
+                                    }
+                                }
                             }
                         }
 
@@ -1006,10 +965,11 @@
                     const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                     if (!row) return false;
 
-                    const oficialSelect = row.querySelector('.oficial-select');
-                    if (!oficialSelect) return false;
+                    const oficialTexto = row.querySelector('.oficial-texto');
+                    if (!oficialTexto) return false;
 
-                    return oficialSelect.value !== null && oficialSelect.value !== '';
+                    const texto = oficialTexto.textContent.trim();
+                    return texto !== null && texto !== '' && texto !== 'Sin oficiales';
                 }
 
                 function mostrarAlertaOficialRequerido() {
@@ -1733,7 +1693,7 @@
                     }
                 }
 
-                function poblarSelectUsuarios(selectElement, claveSeleccionada) {
+                function poblarSelectUsuarios(selectElement, claveSeleccionada, seleccionarPorDefecto = false) {
                     if (!selectElement || !usuariosUrdido.length) return;
 
                     // Limpiar opciones existentes excepto la primera
@@ -1742,6 +1702,7 @@
                     }
 
                     let usuarioSeleccionado = null;
+                    let debeSeleccionar = seleccionarPorDefecto || selectElement.hasAttribute('data-seleccionar-por-defecto');
 
                     // Agregar usuarios
                     usuariosUrdido.forEach(usuario => {
@@ -1751,10 +1712,12 @@
                         option.setAttribute('data-numero-empleado', usuario.numero_empleado);
                         option.setAttribute('data-nombre', usuario.nombre);
 
-                        // Seleccionar si coincide con la clave
-                        if (claveSeleccionada && usuario.numero_empleado === claveSeleccionada) {
+                        // Seleccionar si coincide con la clave o si debe seleccionarse por defecto
+                        if ((claveSeleccionada && usuario.numero_empleado === claveSeleccionada) || 
+                            (debeSeleccionar && !usuarioSeleccionado)) {
                             option.selected = true;
                             usuarioSeleccionado = usuario;
+                            debeSeleccionar = false; // Solo seleccionar el primero si es por defecto
                         }
 
                         selectElement.appendChild(option);
@@ -1764,9 +1727,17 @@
                     if (usuarioSeleccionado) {
                         const numero = selectElement.getAttribute('data-numero');
                         const nombreInput = document.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
+                        const claveInput = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
+                        
                         if (nombreInput) {
                             nombreInput.value = usuarioSeleccionado.nombre;
                         }
+                        if (claveInput) {
+                            claveInput.value = usuarioSeleccionado.numero_empleado;
+                        }
+                        
+                        // Disparar evento change para actualizar otros campos si es necesario
+                        selectElement.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 }
 
@@ -1774,30 +1745,39 @@
                     const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                     if (!row) return;
 
-                    const selectOficial = row.querySelector('.oficial-select');
+                    const oficialTexto = row.querySelector('.oficial-texto');
                     const containerOficiales = document.getElementById('oficiales-existentes');
                     const modalOficialesLista = document.getElementById('modal-oficiales-lista');
 
                     if (!containerOficiales) return;
 
-                    // Obtener oficiales existentes
+                    // Obtener oficiales existentes desde el atributo data-oficiales-json
                     const oficiales = [];
-                    if (selectOficial && selectOficial.options.length > 1) {
-                        Array.from(selectOficial.options).forEach(option => {
-                            if (option.value) {
-                                oficiales.push({
-                                    numero: option.value,
-                                    nombre: option.getAttribute('data-nombre') || option.textContent,
-                                    clave: option.getAttribute('data-clave') || '',
-                                    metros: option.getAttribute('data-metros') || '',
-                                    turno: option.getAttribute('data-turno') || ''
-                                });
+                    if (oficialTexto) {
+                        const oficialesJson = oficialTexto.getAttribute('data-oficiales-json');
+                        if (oficialesJson) {
+                            try {
+                                const oficialesArray = JSON.parse(oficialesJson);
+                                oficiales.push(...oficialesArray);
+                            } catch (e) {
+                                console.error('Error al parsear oficiales:', e);
                             }
-                        });
+                        }
                     }
 
                     // Siempre renderizar 3 filas con inputs
                     containerOficiales.innerHTML = '';
+                    
+                    // Determinar cuál es el primer oficial nuevo (si hay alguno)
+                    let primerOficialNuevo = null;
+                    for (let i = 1; i <= 3; i++) {
+                        const oficialExistente = oficiales.find(o => parseInt(o.numero) === i);
+                        if (!oficialExistente) {
+                            primerOficialNuevo = i;
+                            break;
+                        }
+                    }
+                    
                     for (let i = 1; i <= 3; i++) {
                         const oficial = oficiales.find(o => parseInt(o.numero) === i) || {
                             numero: i,
@@ -1807,6 +1787,9 @@
                             turno: ''
                         };
 
+                        const esNuevo = !oficiales.find(o => parseInt(o.numero) === i);
+                        const debeSeleccionar = esNuevo && i === primerOficialNuevo;
+
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-gray-50';
                         row.innerHTML = `
@@ -1814,6 +1797,7 @@
                                 <select
                                     class="w-full border border-gray-300 rounded px-2 py-1 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-oficial-nombre"
                                     data-numero="${i}"
+                                    ${debeSeleccionar ? 'data-seleccionar-por-defecto="true"' : ''}
                                 >
                                     <option value="">Seleccionar empleado...</option>
                                 </select>
@@ -1856,13 +1840,24 @@
                                     placeholder="0.00"
                                 >
                             </td>
+                            <td class="px-3 py-2 border border-gray-300 text-center">
+                                <button
+                                    type="button"
+                                    class="btn-eliminar-oficial px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors ${oficial.nombre ? '' : 'opacity-50 cursor-not-allowed'}"
+                                    data-numero="${i}"
+                                    title="Eliminar oficial"
+                                    ${!oficial.nombre ? 'disabled' : ''}
+                                >
+                                    <i class="fa-solid fa-trash text-sm"></i>
+                                </button>
+                            </td>
                         `;
                         containerOficiales.appendChild(row);
 
                         // Poblar el select de usuarios después de crear el elemento
                         const selectNombre = row.querySelector('.select-oficial-nombre');
                         if (selectNombre) {
-                            poblarSelectUsuarios(selectNombre, oficial.clave);
+                            poblarSelectUsuarios(selectNombre, oficial.clave, debeSeleccionar);
                         }
                     }
                     modalOficialesLista.classList.remove('hidden');
@@ -1907,6 +1902,12 @@
                             if (nombreInput) {
                                 nombreInput.value = nombre;
                             }
+                            // Habilitar botón eliminar
+                            const btnEliminar = document.querySelector(`.btn-eliminar-oficial[data-numero="${numero}"]`);
+                            if (btnEliminar) {
+                                btnEliminar.disabled = false;
+                                btnEliminar.classList.remove('opacity-50', 'cursor-not-allowed');
+                            }
                         } else {
                             // Si se deselecciona, limpiar campos
                             const claveInput = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
@@ -1918,7 +1919,128 @@
                             if (nombreInput) {
                                 nombreInput.value = '';
                             }
+                            // Deshabilitar botón eliminar
+                            const btnEliminar = document.querySelector(`.btn-eliminar-oficial[data-numero="${numero}"]`);
+                            if (btnEliminar) {
+                                btnEliminar.disabled = true;
+                                btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
+                            }
                         }
+                    }
+                });
+
+                document.addEventListener('click', function (e) {
+                    const btnEliminar = e.target.closest('.btn-eliminar-oficial');
+                    if (!btnEliminar || btnEliminar.disabled) return;
+
+                    e.preventDefault();
+                    const numero = btnEliminar.getAttribute('data-numero');
+                    const registroId = modalRegistroId ? modalRegistroId.value : null;
+                    if (!registroId) return;
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: '¿Eliminar oficial?',
+                            text: 'Se eliminará este oficial del registro',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#dc2626',
+                            cancelButtonColor: '#6b7280',
+                            confirmButtonText: 'Sí, eliminar',
+                            cancelButtonText: 'Cancelar'
+                        }).then(async (result) => {
+                            if (result.isConfirmed) {
+                                try {
+                                    const response = await fetch('{{ route('urdido.modulo.produccion.urdido.eliminar.oficial') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                        },
+                                        body: JSON.stringify({ registro_id: registroId, numero_oficial: numero })
+                                    });
+                                    const data = await response.json();
+
+                                    if (data.success) {
+                                        // Limpiar la fila en el modal
+                                        const containerOficiales = document.getElementById('oficiales-existentes');
+                                        const selectNombre = containerOficiales.querySelector(`.select-oficial-nombre[data-numero="${numero}"]`);
+                                        const claveInput = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
+                                        const nombreInput = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
+                                        const turnoSelect = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                                        const metrosInput = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
+
+                                        if (selectNombre) selectNombre.value = '';
+                                        if (claveInput) claveInput.value = '';
+                                        if (nombreInput) nombreInput.value = '';
+                                        if (turnoSelect) turnoSelect.value = '';
+                                        if (metrosInput) metrosInput.value = '';
+                                        btnEliminar.disabled = true;
+                                        btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
+
+                                        // Actualizar tabla principal con oficiales restantes
+                                        const oficialesRestantes = [];
+                                        for (let i = 1; i <= 3; i++) {
+                                            if (parseInt(numero) === i) continue;
+                                            const cl = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${i}"]`);
+                                            const nom = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${i}"]`);
+                                            const turno = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${i}"]`);
+                                            const met = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${i}"]`);
+                                            if (cl && cl.value) {
+                                                oficialesRestantes.push({
+                                                    numero_oficial: i,
+                                                    cve_empl: cl.value,
+                                                    nom_empl: nom ? nom.value : '',
+                                                    turno: turno ? turno.value : null,
+                                                    metros: met && met.value ? parseFloat(met.value) : null
+                                                });
+                                            }
+                                        }
+                                        actualizarOficialesEnTabla(registroId, oficialesRestantes);
+
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Oficial eliminado',
+                                            timer: 1500,
+                                            showConfirmButton: false,
+                                            toast: true,
+                                            position: 'top-end'
+                                        });
+                                    } else {
+                                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error al eliminar' });
+                                    }
+                                } catch (err) {
+                                    console.error(err);
+                                    Swal.fire({ icon: 'error', title: 'Error', text: 'Error al eliminar el oficial' });
+                                }
+                            }
+                        });
+                    } else if (confirm('¿Eliminar oficial?')) {
+                        fetch('{{ route('urdido.modulo.produccion.urdido.eliminar.oficial') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({ registro_id: registroId, numero_oficial: numero })
+                        }).then(r => r.json()).then(data => {
+                            if (data.success) {
+                                const containerOficiales = document.getElementById('oficiales-existentes');
+                                const selectNombre = containerOficiales.querySelector(`.select-oficial-nombre[data-numero="${numero}"]`);
+                                const claveInput = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
+                                const nombreInput = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
+                                const turnoSelect = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                                const metrosInput = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
+                                if (selectNombre) selectNombre.value = '';
+                                if (claveInput) claveInput.value = '';
+                                if (nombreInput) nombreInput.value = '';
+                                if (turnoSelect) turnoSelect.value = '';
+                                if (metrosInput) metrosInput.value = '';
+                                btnEliminar.disabled = true;
+                                btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
+                                location.reload();
+                            }
+                        });
                     }
                 });
 
@@ -1928,6 +2050,128 @@
                     const containerOficiales = document.getElementById('oficiales-existentes');
                     if (containerOficiales) {
                         containerOficiales.innerHTML = '';
+                    }
+                }
+
+                // Función para actualizar oficiales en la tabla sin recargar
+                function actualizarOficialesEnTabla(registroId, oficiales) {
+                    const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                    if (!row) return;
+
+                    const oficialTexto = row.querySelector('.oficial-texto');
+                    if (!oficialTexto) return;
+
+                    // Mostrar solo el primer oficial (oficial actual)
+                    const primerOficial = oficiales.length > 0 ? oficiales[0] : null;
+                    const nombreCompleto = primerOficial && primerOficial.nom_empl ? primerOficial.nom_empl : '';
+                    
+                    // Truncar a máximo 12 caracteres
+                    let textoOficiales = 'Sin oficiales';
+                    if (nombreCompleto) {
+                        textoOficiales = nombreCompleto.length > 12 ? nombreCompleto.substring(0, 12) + '...' : nombreCompleto;
+                    }
+
+                    // Actualizar texto
+                    oficialTexto.textContent = textoOficiales;
+                    oficialTexto.setAttribute('title', nombreCompleto || 'Sin oficiales');
+                    oficialTexto.className = oficialTexto.className.replace('text-gray-400 italic', '');
+                    if (!primerOficial || !primerOficial.nom_empl) {
+                        oficialTexto.classList.add('text-gray-400', 'italic');
+                    } else {
+                        oficialTexto.classList.remove('text-gray-400', 'italic');
+                    }
+
+                    // Actualizar atributo data-oficiales-json
+                    const oficialesParaJson = oficiales.map(o => ({
+                        numero: o.numero_oficial,
+                        nombre: o.nom_empl || '',
+                        clave: o.cve_empl || '',
+                        metros: o.metros || '',
+                        turno: o.turno || ''
+                    }));
+                    oficialTexto.setAttribute('data-oficiales-json', JSON.stringify(oficialesParaJson));
+
+                    // Actualizar turno si hay oficiales
+                    if (oficiales.length > 0 && oficiales[0].turno) {
+                        const turnoSelect = row.querySelector('select[data-field="turno"]');
+                        if (turnoSelect) {
+                            turnoSelect.value = oficiales[0].turno;
+                        }
+                    }
+
+                    // Actualizar Metros (suma de Metros1+Metros2+Metros3 de los oficiales)
+                    const sumaMetros = oficiales.reduce((acc, o) => acc + (parseFloat(o.metros) || 0), 0);
+                    const metrosInput = row.querySelector('input[data-field="metros"]');
+                    if (metrosInput) {
+                        metrosInput.value = sumaMetros > 0 ? sumaMetros : '';
+                    }
+
+                    // Actualizar botón de agregar oficial (siempre habilitado)
+                    const btnAgregar = row.querySelector('.btn-agregar-oficial');
+                    if (btnAgregar) {
+                        btnAgregar.setAttribute('data-cantidad-oficiales', oficiales.length);
+                        btnAgregar.disabled = false;
+                        btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
+                        btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                    }
+                }
+
+                // Función para propagar oficiales hacia abajo (excepto si tienen H. Inicio)
+                async function propagarOficialesHaciaAbajo(registroIdActual, oficiales) {
+                    const tablaBody = document.getElementById('tabla-produccion-body');
+                    if (!tablaBody) return;
+
+                    const todasLasFilas = Array.from(tablaBody.querySelectorAll('tr[data-registro-id]'));
+                    const indiceActual = todasLasFilas.findIndex(row => row.getAttribute('data-registro-id') == registroIdActual);
+
+                    if (indiceActual === -1) return;
+
+                    // Iterar sobre las filas siguientes
+                    for (let i = indiceActual + 1; i < todasLasFilas.length; i++) {
+                        const fila = todasLasFilas[i];
+                        const registroId = fila.getAttribute('data-registro-id');
+                        if (!registroId) continue;
+
+                        // Verificar si tiene H. Inicio
+                        const hInicioInput = fila.querySelector('input[data-field="h_inicio"]');
+                        const tieneHInicio = hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '';
+
+                        // Si tiene H. Inicio, no propagar
+                        if (tieneHInicio) {
+                            break; // Detener la propagación
+                        }
+
+                        // Guardar oficiales en esta fila
+                        try {
+                            let todosGuardados = true;
+                            for (const oficial of oficiales) {
+                                const data = {
+                                    registro_id: registroId,
+                                    numero_oficial: oficial.numero_oficial,
+                                    cve_empl: oficial.cve_empl,
+                                    nom_empl: oficial.nom_empl,
+                                    turno: oficial.turno,
+                                    metros: oficial.metros
+                                };
+
+                                const response = await fetch('{{ route('urdido.modulo.produccion.urdido.guardar.oficial') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify(data)
+                                });
+
+                                const result = await response.json();
+                                if (!result.success) todosGuardados = false;
+                            }
+                            if (todosGuardados) {
+                                actualizarOficialesEnTabla(registroId, oficiales);
+                            }
+                        } catch (error) {
+                            console.error(`Error al propagar oficiales a registro ${registroId}:`, error);
+                        }
                     }
                 }
 
@@ -1996,6 +2240,8 @@
                         // Guardar cada oficial
                         try {
                             let guardados = 0;
+                            let oficialesGuardados = [];
+                            
                             for (const oficial of oficiales) {
                                 const data = {
                                     registro_id: registroId,
@@ -2014,11 +2260,35 @@
                                 const result = await response.json();
                                 if (result.success) {
                                     guardados++;
+                                    oficialesGuardados.push(oficial);
                                 }
                             }
 
                             if (guardados > 0) {
-                                window.location.reload();
+                                // Actualizar la tabla sin recargar
+                                actualizarOficialesEnTabla(registroId, oficialesGuardados);
+                                
+                                // Cerrar el modal
+                                cerrarModalOficial();
+                                
+                                // Mostrar mensaje de éxito
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Oficiales guardados',
+                                        text: 'Los oficiales han sido guardados correctamente',
+                                        timer: 2000,
+                                        showConfirmButton: false,
+                                        toast: true,
+                                        position: 'top-end'
+                                    });
+                                }
+                                
+                                // Propagación hacia abajo (excepto si tienen H. Inicio)
+                                // Esperar un poco para que el mensaje se muestre antes de propagar
+                                setTimeout(() => {
+                                    propagarOficialesHaciaAbajo(registroId, oficialesGuardados);
+                                }, 500);
                             } else {
                                 alert('No se guardaron oficiales. Asegúrate de llenar al menos la clave o nombre.');
                             }
@@ -2053,10 +2323,12 @@
                     }
 
                     // Oficial (requerido)
-                    const oficialSelect = fila.querySelector('.oficial-select');
-                    if (!oficialSelect || !oficialSelect.value) {
+                    const oficialTexto = fila.querySelector('.oficial-texto');
+                    const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
+                    const tieneOficial = textoOficial && textoOficial !== 'Sin oficiales';
+                    if (!oficialTexto || !tieneOficial) {
                         camposFaltantes.push('Oficial');
-                        marcarCampoError(oficialSelect, true);
+                        marcarCampoError(oficialTexto, true);
                         hayErrores = true;
                     }
 

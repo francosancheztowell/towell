@@ -171,8 +171,8 @@
                             <th colspan="6" class="py-1 text-center font-semibold bg-blue-700 text-xs md:text-sm">Temp</th>
                         </tr>
                         <tr>
-                            <th class="py-2 px-1 text-center font-semibold bg-blue-500 text-white text-xs md:text-sm w-24 max-w-[60px]">Fecha</th>
-                            <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-32 max-w-[120px]">Oficial</th>
+                            <th class="py-2 px-1 text-center font-semibold bg-blue-500 text-white text-xs md:text-sm" style="width: 3rem; min-width: 3rem; max-width: 3rem;">Fecha</th>
+                            <th class="py-2 px-1 text-left font-semibold text-xs md:text-sm" style="width: 5rem; min-width: 5rem; max-width: 5rem;">Oficial</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-16 max-w-[50px]">Turno</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm hidden lg:table-cell w-32 max-w-[110px]">H. Final</th>
@@ -221,12 +221,13 @@
                                     $kgNeto = $registro ? ($registro->KgNeto ?? '') : '';
                                     $solidos = $registro ? ($registro->Solidos ?? '') : '';
 
+                                    // Metros = suma de Metros1 + Metros2 + Metros3 del registro
                                     $metros = '';
                                     if ($registro) {
-                                        $metros1 = isset($registro->Metros1) && $registro->Metros1 !== null ? (float)$registro->Metros1 : 0;
-                                        $metros2 = isset($registro->Metros2) && $registro->Metros2 !== null ? (float)$registro->Metros2 : 0;
-                                        $metros3 = isset($registro->Metros3) && $registro->Metros3 !== null ? (float)$registro->Metros3 : 0;
-                                        $sumaMetros = $metros1 + $metros2 + $metros3;
+                                        $m1 = isset($registro->Metros1) && $registro->Metros1 !== null ? (float)$registro->Metros1 : 0;
+                                        $m2 = isset($registro->Metros2) && $registro->Metros2 !== null ? (float)$registro->Metros2 : 0;
+                                        $m3 = isset($registro->Metros3) && $registro->Metros3 !== null ? (float)$registro->Metros3 : 0;
+                                        $sumaMetros = $m1 + $m2 + $m3;
                                         $metros = $sumaMetros > 0 ? $sumaMetros : '';
                                     }
 
@@ -240,6 +241,8 @@
                                     $registroId = $registro ? $registro->Id : null;
 
                                     $oficiales = [];
+                                    $primerOficialNombre = '';
+                                    $primerOficialNombreCompleto = '';
                                     for ($i = 1; $i <= 3; $i++) {
                                         $nomEmpl = $registro ? ($registro->{"NomEmpl{$i}"} ?? null) : null;
                                         if ($nomEmpl) {
@@ -250,15 +253,20 @@
                                                 'metros' => $registro->{"Metros{$i}"} ?? null,
                                                 'turno' => $registro->{"Turno{$i}"} ?? null,
                                             ];
+                                            if ($i === 1 && !$primerOficialNombre) {
+                                                $primerOficialNombreCompleto = $nomEmpl;
+                                                $primerOficialNombre = mb_strlen($nomEmpl) > 12 ? mb_substr($nomEmpl, 0, 12) . '...' : $nomEmpl;
+                                            }
                                         }
                                     }
                                     $tieneOficiales = count($oficiales) > 0;
-                                    $turnoInicial = '';
+                                    $textoOficiales = $primerOficialNombre ?: '';
+                                    $turnoInicial = $tieneOficiales && isset($oficiales[0]['turno']) ? (string)$oficiales[0]['turno'] : '';
                                 @endphp
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
                                     {{-- Fecha --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap bg-white w-16 max-w-[60px]">
+                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap bg-white" style="width: 3rem; min-width: 3rem; max-width: 3rem;">
                                         <div class="flex items-center justify-center gap-0.5 relative">
                                             @php
                                                 $fechaGuardada = $registro && $registro->Fecha ? date('Y-m-d', strtotime($registro->Fecha)) : null;
@@ -275,7 +283,7 @@
                                             >
                                             <button
                                                 type="button"
-                                                class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-md bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
+                                                class="w-full border border-gray-300 rounded px-1 py-0.5 text-xs bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
                                                 data-registro-id="{{ $registroId }}"
                                             >
                                                 <span class="fecha-display-text text-gray-900 font-medium">
@@ -286,48 +294,25 @@
                                     </td>
 
                                     {{-- Oficial --}}
-                                    <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-32 max-w-[120px]">
-                                        <div class="flex items-center justify-center gap-1">
-                                            @if($tieneOficiales)
-                                                <select
-                                                    data-field="oficial"
-                                                    class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 oficial-select"
-                                                    data-registro-id="{{ $registroId }}"
-                                                >
-                                                    <option value="">Seleccionar oficial...</option>
-                                                    @foreach($oficiales as $index => $oficial)
-                                                        <option
-                                                            value="{{ $oficial['numero'] }}"
-                                                            data-numero="{{ $oficial['numero'] }}"
-                                                            data-nombre="{{ $oficial['nombre'] }}"
-                                                            data-clave="{{ $oficial['clave'] }}"
-                                                            data-metros="{{ $oficial['metros'] }}"
-                                                            data-turno="{{ $oficial['turno'] }}"
-                                                            {{ $index === 0 ? 'selected' : '' }}
-                                                        >
-                                                            {{ $oficial['nombre'] }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            @else
-                                                <div class="w-full flex items-center justify-center text-gray-400">
-                                                    <span class="text-xs italic">Sin oficiales</span>
-                                                </div>
-                                            @endif
-
-                                            @php
-                                                $cantidadOficiales = count($oficiales);
-                                                $puedeAgregar = $cantidadOficiales < 3;
-                                            @endphp
+                                    <td class="px-1 py-1 md:py-1.5 text-left whitespace-nowrap" style="width: 5rem; min-width: 5rem; max-width: 5rem;">
+                                        <div class="flex items-center justify-start gap-1">
+                                            <span
+                                                class="oficial-texto w-full text-xs text-gray-900 px-1 py-0.5 truncate text-left {{ !$tieneOficiales ? 'text-gray-400 italic' : '' }}"
+                                                data-registro-id="{{ $registroId }}"
+                                                data-oficiales-json="{{ $tieneOficiales ? json_encode($oficiales) : '[]' }}"
+                                                title="{{ $primerOficialNombreCompleto ?? 'Sin oficiales' }}"
+                                            >
+                                                {{ $textoOficiales ?: 'Sin oficiales' }}
+                                            </span>
+                                            @php $cantidadOficiales = count($oficiales); @endphp
                                             <button
                                                 type="button"
-                                                class="btn-agregar-oficial flex-shrink-0 p-1.5 {{ $puedeAgregar ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed opacity-50' }} rounded transition-colors"
+                                                class="btn-agregar-oficial flex-shrink-0 p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                                                 data-registro-id="{{ $registroId }}"
                                                 data-cantidad-oficiales="{{ $cantidadOficiales }}"
-                                                title="{{ $puedeAgregar ? 'Agregar oficial' : 'Máximo de 3 oficiales alcanzado' }}"
-                                                {{ !$puedeAgregar ? 'disabled' : '' }}
+                                                title="Agregar oficial"
                                             >
-                                                <i class="fa-solid fa-plus-circle text-lg"></i>
+                                                <i class="fa-solid fa-plus-circle text-sm"></i>
                                             </button>
                                         </div>
                                     </td>
@@ -428,7 +413,7 @@
                                         >
                                     </td>
 
-                                    {{-- Metros --}}
+                                    {{-- Metros (valor de Metraje Telas de la orden) --}}
                                     <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-28 max-w-[90px]">
                                         <input
                                             type="number"
@@ -728,6 +713,7 @@
                                 <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700 border border-gray-300 hidden">Nombre</th>
                                 <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700 border border-gray-300">Turno</th>
                                 <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700 border border-gray-300">Metros</th>
+                                <th class="px-3 py-2 text-center text-sm font-semibold text-gray-700 border border-gray-300 w-20">Eliminar</th>
                             </tr>
                         </thead>
                         <tbody id="oficiales-existentes" class="bg-white">
@@ -937,10 +923,10 @@
             function verificarOficialSeleccionado(registroId) {
                 const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                 if (!row) return false;
-                const oficialSelect = row.querySelector('.oficial-select');
-                if (!oficialSelect) return false;
-
-                return !!oficialSelect.value;
+                const oficialTexto = row.querySelector('.oficial-texto');
+                if (!oficialTexto) return false;
+                const texto = oficialTexto.textContent.trim();
+                return texto && texto !== 'Sin oficiales';
             }
 
             function mostrarAlertaOficialRequerido() {
@@ -1033,12 +1019,19 @@
 
                         const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                         if (row) {
-                            const oficialSelect = row.querySelector('.oficial-select');
-                            if (oficialSelect && oficialSelect.value === String(numeroOficial)) {
-                                const selectedOption = oficialSelect.options[oficialSelect.selectedIndex];
-                                if (selectedOption) {
-                                    selectedOption.setAttribute('data-turno', turno);
-                                }
+                            const oficialTexto = row.querySelector('.oficial-texto');
+                            if (oficialTexto) {
+                                try {
+                                    const oficialesJson = oficialTexto.getAttribute('data-oficiales-json');
+                                    if (oficialesJson) {
+                                        const oficiales = JSON.parse(oficialesJson);
+                                        const oficial = oficiales.find(o => parseInt(o.numero) === parseInt(numeroOficial));
+                                        if (oficial) {
+                                            oficial.turno = turno;
+                                            oficialTexto.setAttribute('data-oficiales-json', JSON.stringify(oficiales));
+                                        }
+                                    }
+                                } catch (e) { console.error(e); }
                             }
                         }
                     }
@@ -1375,7 +1368,7 @@
                 }
             }
 
-            function poblarSelectUsuarios(selectElement, claveSeleccionada) {
+            function poblarSelectUsuarios(selectElement, claveSeleccionada, seleccionarPorDefecto = false) {
                 if (!selectElement || !usuariosEngomado.length) return;
 
                 while (selectElement.options.length > 1) {
@@ -1383,6 +1376,7 @@
                 }
 
                 let usuarioSeleccionado = null;
+                let debeSeleccionar = seleccionarPorDefecto || selectElement.hasAttribute('data-seleccionar-por-defecto');
 
                 usuariosEngomado.forEach(usuario => {
                     const option = document.createElement('option');
@@ -1392,9 +1386,10 @@
                     option.setAttribute('data-nombre', usuario.nombre);
                     option.setAttribute('data-turno', usuario.turno || '');
 
-                    if (claveSeleccionada && usuario.numero_empleado === claveSeleccionada) {
+                    if ((claveSeleccionada && usuario.numero_empleado === claveSeleccionada) || (debeSeleccionar && !usuarioSeleccionado)) {
                         option.selected = true;
                         usuarioSeleccionado = usuario;
+                        debeSeleccionar = false;
                     }
 
                     selectElement.appendChild(option);
@@ -1403,16 +1398,14 @@
                 if (usuarioSeleccionado) {
                     const numero = selectElement.getAttribute('data-numero');
                     const nombreInput = document.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
-                    if (nombreInput) {
-                        nombreInput.value = usuarioSeleccionado.nombre;
-                    }
-
+                    const claveInput = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
+                    if (nombreInput) nombreInput.value = usuarioSeleccionado.nombre;
+                    if (claveInput) claveInput.value = usuarioSeleccionado.numero_empleado;
                     if (usuarioSeleccionado.turno) {
                         const turnoSelect = document.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
-                        if (turnoSelect) {
-                            turnoSelect.value = usuarioSeleccionado.turno;
-                        }
+                        if (turnoSelect) turnoSelect.value = usuarioSeleccionado.turno;
                     }
+                    selectElement.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
 
@@ -1420,36 +1413,38 @@
                 const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                 if (!row) return;
 
-                const selectOficial = row.querySelector('.oficial-select');
+                const oficialTexto = row.querySelector('.oficial-texto');
                 const containerOficiales = document.getElementById('oficiales-existentes');
                 const modalOficialesLista = document.getElementById('modal-oficiales-lista');
                 if (!containerOficiales) return;
 
                 const oficiales = [];
-                if (selectOficial && selectOficial.options.length > 1) {
-                    Array.from(selectOficial.options).forEach(option => {
-                        if (option.value) {
-                            oficiales.push({
-                                numero: option.value,
-                                nombre: option.getAttribute('data-nombre') || option.textContent,
-                                clave: option.getAttribute('data-clave') || '',
-                                metros: option.getAttribute('data-metros') || '',
-                                turno: option.getAttribute('data-turno') || ''
-                            });
-                        }
-                    });
+                if (oficialTexto) {
+                    try {
+                        const json = oficialTexto.getAttribute('data-oficiales-json');
+                        if (json) oficiales.push(...JSON.parse(json));
+                    } catch (e) { console.error(e); }
                 }
 
                 containerOficiales.innerHTML = '';
+                let primerOficialNuevo = null;
+                for (let j = 1; j <= 3; j++) {
+                    if (!oficiales.find(o => parseInt(o.numero) === j)) {
+                        primerOficialNuevo = j;
+                        break;
+                    }
+                }
 
                 for (let i = 1; i <= 3; i++) {
                     const oficial = oficiales.find(o => parseInt(o.numero) === i) || {
                         numero: i,
                         nombre: '',
-                        clave: i === 1 ? '{{ $usuarioClave }}' : '',
+                        clave: i === 1 ? '{{ $usuarioClave ?? "" }}' : '',
                         metros: '',
                         turno: ''
                     };
+                    const esNuevo = !oficiales.find(o => parseInt(o.numero) === i);
+                    const debeSeleccionar = esNuevo && i === primerOficialNuevo;
 
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-gray-50';
@@ -1458,31 +1453,18 @@
                             <select
                                 class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-oficial-nombre"
                                 data-numero="${i}"
+                                ${debeSeleccionar ? 'data-seleccionar-por-defecto="true"' : ''}
                             >
                                 <option value="">Seleccionar empleado...</option>
                             </select>
-                            <input
-                                type="hidden"
-                                class="input-oficial-clave"
-                                data-numero="${i}"
-                                value="${oficial.clave || ''}"
-                            >
+                            <input type="hidden" class="input-oficial-clave" data-numero="${i}" value="${oficial.clave || ''}">
                         </td>
                         <td class="px-3 py-2 border border-gray-300 hidden">
-                            <input
-                                type="text"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-50 cursor-not-allowed input-oficial-nombre"
-                                data-numero="${i}"
-                                value="${oficial.nombre || ''}"
-                                placeholder="Se selecciona automáticamente"
-                                readonly
-                            >
+                            <input type="text" class="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-50 cursor-not-allowed input-oficial-nombre"
+                                data-numero="${i}" value="${oficial.nombre || ''}" placeholder="Se selecciona automáticamente" readonly>
                         </td>
                         <td class="px-3 py-2 border border-gray-300">
-                            <select
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-oficial-turno"
-                                data-numero="${i}"
-                            >
+                            <select class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 input-oficial-turno" data-numero="${i}">
                                 <option value="">Seleccionar...</option>
                                 <option value="1" ${oficial.turno === '1' ? 'selected' : ''}>1</option>
                                 <option value="2" ${oficial.turno === '2' ? 'selected' : ''}>2</option>
@@ -1490,22 +1472,22 @@
                             </select>
                         </td>
                         <td class="px-3 py-2 border border-gray-300">
-                            <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 input-oficial-metros"
-                                data-numero="${i}"
-                                value="${oficial.metros || ''}"
-                                placeholder="0.00"
-                            >
+                            <input type="number" step="0.01" min="0"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 input-oficial-metros"
+                                data-numero="${i}" value="${oficial.metros || ''}" placeholder="0.00">
+                        </td>
+                        <td class="px-3 py-2 border border-gray-300 text-center">
+                            <button type="button" class="btn-eliminar-oficial px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded ${oficial.nombre ? '' : 'opacity-50 cursor-not-allowed'}"
+                                data-numero="${i}" title="Eliminar oficial" ${!oficial.nombre ? 'disabled' : ''}>
+                                <i class="fa-solid fa-trash text-sm"></i>
+                            </button>
                         </td>
                     `;
                     containerOficiales.appendChild(tr);
 
                     const selectNombre = tr.querySelector('.select-oficial-nombre');
                     if (selectNombre) {
-                        poblarSelectUsuarios(selectNombre, oficial.clave);
+                        poblarSelectUsuarios(selectNombre, oficial.clave, debeSeleccionar);
                     }
                 }
 
@@ -1532,8 +1514,97 @@
                 modalOficial.classList.add('hidden');
                 modalOficial.style.display = 'none';
                 const containerOficiales = document.getElementById('oficiales-existentes');
-                if (containerOficiales) {
-                    containerOficiales.innerHTML = '';
+                if (containerOficiales) containerOficiales.innerHTML = '';
+            }
+
+            function actualizarOficialesEnTabla(registroId, oficiales) {
+                const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                if (!row) return;
+                const oficialTexto = row.querySelector('.oficial-texto');
+                if (!oficialTexto) return;
+
+                const primerOficial = oficiales.length > 0 ? oficiales[0] : null;
+                const nombreCompleto = primerOficial && primerOficial.nom_empl ? primerOficial.nom_empl : '';
+                let textoOficiales = 'Sin oficiales';
+                if (nombreCompleto) {
+                    textoOficiales = nombreCompleto.length > 12 ? nombreCompleto.substring(0, 12) + '...' : nombreCompleto;
+                }
+
+                oficialTexto.textContent = textoOficiales;
+                oficialTexto.setAttribute('title', nombreCompleto || 'Sin oficiales');
+                oficialTexto.className = oficialTexto.className.replace('text-gray-400 italic', '');
+                if (!primerOficial || !primerOficial.nom_empl) {
+                    oficialTexto.classList.add('text-gray-400', 'italic');
+                } else {
+                    oficialTexto.classList.remove('text-gray-400', 'italic');
+                }
+
+                const oficialesParaJson = oficiales.map(o => ({
+                    numero: o.numero_oficial,
+                    nombre: o.nom_empl || '',
+                    clave: o.cve_empl || '',
+                    metros: o.metros || '',
+                    turno: o.turno || ''
+                }));
+                oficialTexto.setAttribute('data-oficiales-json', JSON.stringify(oficialesParaJson));
+
+                if (oficiales.length > 0 && oficiales[0].turno) {
+                    const turnoSelect = row.querySelector('select[data-field="turno"]');
+                    if (turnoSelect) turnoSelect.value = oficiales[0].turno;
+                }
+
+                const sumaMetros = oficiales.reduce((acc, o) => acc + (parseFloat(o.metros) || 0), 0);
+                const metrosInput = row.querySelector('input[data-field="metros"]');
+                if (metrosInput) metrosInput.value = sumaMetros > 0 ? sumaMetros : '';
+
+                const btnAgregar = row.querySelector('.btn-agregar-oficial');
+                if (btnAgregar) {
+                    btnAgregar.setAttribute('data-cantidad-oficiales', oficiales.length);
+                    btnAgregar.disabled = false;
+                    btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
+                    btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                }
+            }
+
+            async function propagarOficialesHaciaAbajo(registroIdActual, oficiales) {
+                const tablaBody = document.getElementById('tabla-produccion-body');
+                if (!tablaBody) return;
+                const todasLasFilas = Array.from(tablaBody.querySelectorAll('tr[data-registro-id]'));
+                const indiceActual = todasLasFilas.findIndex(row => row.getAttribute('data-registro-id') == registroIdActual);
+                if (indiceActual === -1) return;
+
+                for (let i = indiceActual + 1; i < todasLasFilas.length; i++) {
+                    const fila = todasLasFilas[i];
+                    const registroId = fila.getAttribute('data-registro-id');
+                    if (!registroId) continue;
+
+                    const hInicioInput = fila.querySelector('input[data-field="h_inicio"]');
+                    if (hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '') break;
+
+                    try {
+                        for (const oficial of oficiales) {
+                            const response = await fetch('{{ route('engomado.modulo.produccion.engomado.guardar.oficial') }}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                },
+                                body: JSON.stringify({
+                                    registro_id: registroId,
+                                    numero_oficial: oficial.numero_oficial,
+                                    cve_empl: oficial.cve_empl,
+                                    nom_empl: oficial.nom_empl,
+                                    turno: oficial.turno,
+                                    metros: oficial.metros
+                                })
+                            });
+                            const result = await response.json();
+                            if (!result.success) break;
+                        }
+                        actualizarOficialesEnTabla(registroId, oficiales);
+                    } catch (err) {
+                        console.error('Error propagando oficiales:', err);
+                    }
                 }
             }
 
@@ -1578,23 +1649,20 @@
                     // Precalcular netos
                     tablaBody.querySelectorAll('tr').forEach(calcularNeto);
 
-                    // Inicializar valor anterior del oficial en cada fila y actualizar turno
+                    // Inicializar turno desde oficial-texto en cada fila
                     tablaBody.querySelectorAll('tr').forEach(row => {
-                        const oficialSelect = row.querySelector('.oficial-select');
-                        if (oficialSelect && oficialSelect.value) {
-                            oficialSelect.setAttribute('data-oficial-anterior', oficialSelect.value);
-
-                            // Actualizar turno automáticamente si hay un oficial seleccionado
-                            const selectedOption = oficialSelect.options[oficialSelect.selectedIndex];
-                            if (selectedOption && selectedOption.value) {
-                                const turnoSelect = row.querySelector('select[data-field="turno"]');
-                                if (turnoSelect) {
-                                    const turno = selectedOption.getAttribute('data-turno');
-                                    if (turno) {
-                                        turnoSelect.value = turno;
+                        const oficialTexto = row.querySelector('.oficial-texto');
+                        if (oficialTexto) {
+                            try {
+                                const oficialesJson = oficialTexto.getAttribute('data-oficiales-json');
+                                if (oficialesJson) {
+                                    const oficiales = JSON.parse(oficialesJson);
+                                    if (oficiales.length > 0 && oficiales[0].turno) {
+                                        const turnoSelect = row.querySelector('select[data-field="turno"]');
+                                        if (turnoSelect) turnoSelect.value = oficiales[0].turno;
                                     }
                                 }
-                            }
+                            } catch (e) { console.error(e); }
                         }
                         const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
                         const hFinInput = row.querySelector('input[data-field="h_fin"]');
@@ -1717,75 +1785,21 @@
                                 });
                         }
 
-                        // Oficial -> actualiza turno y limpia campos
-                        if (target.classList.contains('oficial-select')) {
-                            const turnoSelect = row.querySelector('select[data-field="turno"]');
-                            const selectedOption = target.options[target.selectedIndex];
-                            if (!turnoSelect) return;
-
-                            // Guardar el valor anterior del oficial
-                            const valorAnterior = target.getAttribute('data-oficial-anterior') || '';
-                            const valorActual = selectedOption ? selectedOption.value : '';
-
-                            // Si cambió de oficial (y no es la primera carga), limpiar campos
-                            if (valorAnterior && valorAnterior !== valorActual) {
-                                // Limpiar campos relacionados
-                                const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
-                                const hFinInput = row.querySelector('input[data-field="h_fin"]');
-                                const julioSelect = row.querySelector('select.select-julio');
-                                const kgBrutoInput = row.querySelector('input[data-field="kg_bruto"]');
-                                const taraInput = row.querySelector('input[data-field="tara"]');
-                                const kgNetoInput = row.querySelector('input[data-field="kg_neto"]');
-                                const solidosInput = row.querySelector('input[data-field="solidos"]');
-                                const roturasInput = row.querySelector('input[data-field="roturas"]');
-                                const ubicacionSelect = row.querySelector('select[data-field="ubicacion"]');
-                                const canoa1Btn = row.querySelector('button[onclick*="temp_canoa1"]');
-                                const canoa2Btn = row.querySelector('button[onclick*="temp_canoa2"]');
-
-                                if (hInicioInput) hInicioInput.value = '';
-                                if (hFinInput) hFinInput.value = '';
-                                if (julioSelect) {
-                                    const valorInicial = julioSelect.getAttribute('data-valor-inicial') || '';
-                                    julioSelect.value = valorInicial;
-                                }
-                                if (kgBrutoInput) kgBrutoInput.value = '';
-                                if (taraInput) taraInput.value = '';
-                                if (kgNetoInput) kgNetoInput.value = '';
-                                if (solidosInput) solidosInput.value = '';
-                                if (roturasInput) roturasInput.value = '';
-                                if (ubicacionSelect) ubicacionSelect.value = '';
-                                if (canoa1Btn) {
-                                    const display1 = canoa1Btn.querySelector('.quantity-display');
-                                    if (display1) display1.textContent = '0';
-                                }
-                                if (canoa2Btn) {
-                                    const display2 = canoa2Btn.querySelector('.quantity-display');
-                                    if (display2) display2.textContent = '0';
-                                }
-
-                                // Recalcular neto
-                                calcularNeto(row);
-                            }
-
-                            // Actualizar el valor anterior
-                            target.setAttribute('data-oficial-anterior', valorActual);
-
-                            if (selectedOption && selectedOption.value) {
-                                const turno = selectedOption.getAttribute('data-turno');
-                                turnoSelect.value = turno || '';
-                            } else {
-                                turnoSelect.value = '';
-                            }
-                        }
-
                         // Cambio manual de turno
                         if (field === 'turno' && target.tagName === 'SELECT') {
                             const turnoValue = target.value;
-                            const oficialSelect = row.querySelector('.oficial-select');
+                            const oficialTexto = row.querySelector('.oficial-texto');
 
-                            if (oficialSelect && oficialSelect.value && turnoValue) {
-                                const numeroOficial = oficialSelect.value;
-                                actualizarTurnoOficial(registroId, numeroOficial, turnoValue);
+                            if (oficialTexto && turnoValue) {
+                                try {
+                                    const oficialesJson = oficialTexto.getAttribute('data-oficiales-json');
+                                    if (oficialesJson) {
+                                        const oficiales = JSON.parse(oficialesJson);
+                                        if (oficiales.length > 0) {
+                                            actualizarTurnoOficial(registroId, oficiales[0].numero, turnoValue);
+                                        }
+                                    }
+                                } catch (e) { console.error(e); }
                             }
                         }
 
@@ -2058,6 +2072,7 @@
                     const claveInput  = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
                     const nombreInput = document.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
                     const turnoSelect = document.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                    const btnEliminar = document.querySelector(`.btn-eliminar-oficial[data-numero="${numero}"]`);
 
                     if (selectedOption && selectedOption.value) {
                         const numeroEmpleado = selectedOption.value;
@@ -2067,12 +2082,106 @@
                         if (claveInput)  claveInput.value  = numeroEmpleado;
                         if (nombreInput) nombreInput.value = nombre;
                         if (turnoSelect && turno) turnoSelect.value = turno;
+                        if (btnEliminar) {
+                            btnEliminar.disabled = false;
+                            btnEliminar.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
                     } else {
                         if (claveInput)  claveInput.value  = '';
                         if (nombreInput) nombreInput.value = '';
                         if (turnoSelect) turnoSelect.value = '';
-                }
-            });
+                        if (btnEliminar) {
+                            btnEliminar.disabled = true;
+                            btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
+                        }
+                    }
+                });
+
+                document.addEventListener('click', function (e) {
+                    const btnEliminar = e.target.closest('.btn-eliminar-oficial');
+                    if (!btnEliminar || btnEliminar.disabled) return;
+                    e.preventDefault();
+                    const numero = btnEliminar.getAttribute('data-numero');
+                    const registroId = modalRegistroId ? modalRegistroId.value : null;
+                    if (!registroId) return;
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: '¿Eliminar oficial?',
+                            text: 'Se eliminará este oficial del registro',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#dc2626',
+                            cancelButtonColor: '#6b7280',
+                            confirmButtonText: 'Sí, eliminar',
+                            cancelButtonText: 'Cancelar'
+                        }).then(async (result) => {
+                            if (result.isConfirmed) {
+                                try {
+                                    const response = await fetch('{{ route('engomado.modulo.produccion.engomado.eliminar.oficial') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                        },
+                                        body: JSON.stringify({ registro_id: registroId, numero_oficial: numero })
+                                    });
+                                    const data = await response.json();
+
+                                    if (data.success) {
+                                        const containerOficiales = document.getElementById('oficiales-existentes');
+                                        const selectNombre = containerOficiales.querySelector(`.select-oficial-nombre[data-numero="${numero}"]`);
+                                        const claveInput = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
+                                        const nombreInput = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
+                                        const turnoSelect = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                                        const metrosInput = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
+
+                                        if (selectNombre) selectNombre.value = '';
+                                        if (claveInput) claveInput.value = '';
+                                        if (nombreInput) nombreInput.value = '';
+                                        if (turnoSelect) turnoSelect.value = '';
+                                        if (metrosInput) metrosInput.value = '';
+                                        btnEliminar.disabled = true;
+                                        btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
+
+                                        const oficialesRestantes = [];
+                                        for (let i = 1; i <= 3; i++) {
+                                            if (parseInt(numero) === i) continue;
+                                            const cl = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${i}"]`);
+                                            const nom = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${i}"]`);
+                                            const turno = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${i}"]`);
+                                            const met = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${i}"]`);
+                                            if (cl && cl.value) {
+                                                oficialesRestantes.push({
+                                                    numero_oficial: i,
+                                                    cve_empl: cl.value,
+                                                    nom_empl: nom ? nom.value : '',
+                                                    turno: turno ? turno.value : null,
+                                                    metros: met && met.value ? parseFloat(met.value) : null
+                                                });
+                                            }
+                                        }
+                                        actualizarOficialesEnTabla(registroId, oficialesRestantes);
+
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Oficial eliminado',
+                                            timer: 1500,
+                                            showConfirmButton: false,
+                                            toast: true,
+                                            position: 'top-end'
+                                        });
+                                    } else {
+                                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error al eliminar' });
+                                    }
+                                } catch (err) {
+                                    console.error(err);
+                                    Swal.fire({ icon: 'error', title: 'Error', text: 'Error al eliminar el oficial' });
+                                }
+                            }
+                        });
+                    }
+                });
 
             // Listener para campos de merma (Merma con Goma y Merma sin Goma)
             document.addEventListener('change', function (e) {
@@ -2164,6 +2273,7 @@
 
                         try {
                             let guardados = 0;
+                            let oficialesGuardados = [];
                             for (const oficial of oficiales) {
                                 const data = { registro_id: registroId, ...oficial };
 
@@ -2179,11 +2289,25 @@
                                 const result = await response.json();
                                 if (result.success) {
                                     guardados++;
+                                    oficialesGuardados.push(oficial);
                                 }
                             }
 
                             if (guardados > 0) {
-                                window.location.reload();
+                                actualizarOficialesEnTabla(registroId, oficialesGuardados);
+                                cerrarModalOficial();
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Oficiales guardados',
+                                        text: 'Los oficiales han sido guardados correctamente',
+                                        timer: 2000,
+                                        showConfirmButton: false,
+                                        toast: true,
+                                        position: 'top-end'
+                                    });
+                                }
+                                setTimeout(() => propagarOficialesHaciaAbajo(registroId, oficialesGuardados), 500);
                             } else {
                                 alert('No se guardaron oficiales. Asegúrate de llenar al menos la clave o nombre.');
                             }
@@ -2258,10 +2382,12 @@
                     }
 
                     // Oficial (requerido)
-                    const oficialSelect = fila.querySelector('.oficial-select');
-                    if (!oficialSelect || !oficialSelect.value) {
+                    const oficialTexto = fila.querySelector('.oficial-texto');
+                    const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
+                    const tieneOficial = textoOficial && textoOficial !== 'Sin oficiales';
+                    if (!oficialTexto || !tieneOficial) {
                         camposFaltantes.push('Oficial');
-                        marcarCampoError(oficialSelect, true);
+                        marcarCampoError(oficialTexto, true);
                         hayErrores = true;
                     }
 

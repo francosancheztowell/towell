@@ -21,6 +21,7 @@ class EditarOrdenesProgramadasController extends Controller
 {
     /**
      * Verificar si el usuario puede editar órdenes
+     * Permite a cualquier supervisor editar, no solo los de urdido
      */
     private function usuarioPuedeEditar(): bool
     {
@@ -29,17 +30,14 @@ class EditarOrdenesProgramadasController extends Controller
             return false;
         }
 
-        $area = strtolower(trim($usuario->area ?? ''));
         // NO convertir puesto a minúsculas para poder buscar todas las variantes
         $puesto = trim($usuario->puesto ?? '');
 
-        // Verificar área (case-insensitive)
-        $areaValida = $area === 'urdido';
-
         // Verificar puesto - buscar "supervisor" sin importar mayúsculas/minúsculas usando stripos
+        // Permitir a cualquier supervisor editar órdenes de urdido
         $puestoValido = !empty($puesto) && stripos($puesto, 'supervisor') !== false;
 
-        return $areaValida && $puestoValido;
+        return $puestoValido;
     }
 
     /**
@@ -51,9 +49,20 @@ class EditarOrdenesProgramadasController extends Controller
     public function index(Request $request)
     {
         $ordenId = $request->query('orden_id');
+        $fromReimpresion = $request->query('from') === 'reimpresion';
+        $routeBack = $fromReimpresion ? 'urdido.reimpresion.finalizadas' : 'urdido.programar.urdido';
+
+        // Log para debugging
+        Log::info('EditarOrdenesProgramadasController::index', [
+            'orden_id' => $ordenId,
+            'from_reimpresion' => $fromReimpresion,
+            'route_back' => $routeBack,
+            'all_query' => $request->all(),
+        ]);
 
         if (!$ordenId) {
-            return redirect()->route('urdido.programar.urdido')
+            Log::warning('No se proporcionó orden_id');
+            return redirect()->route($routeBack)
                 ->with('error', 'No se proporcionó el ID de la orden');
         }
 
@@ -61,15 +70,26 @@ class EditarOrdenesProgramadasController extends Controller
         $orden = UrdProgramaUrdido::find($ordenId);
 
         if (!$orden) {
-            return redirect()->route('urdido.programar.urdido')
+            Log::warning('Orden no encontrada', ['orden_id' => $ordenId]);
+            return redirect()->route($routeBack)
                 ->with('error', 'Orden no encontrada');
         }
 
-        // Verificar permisos
-        if (!$this->usuarioPuedeEditar()) {
-            return redirect()->route('urdido.programar.urdido')
-                ->with('error', 'No tienes permisos para editar órdenes. Solo supervisores del área Urdido pueden editar.');
+        // Verificar permisos - permitir ver la página pero mostrar advertencia si no puede editar
+        // No redirigir, solo marcar si puede editar o no
+        $puedeEditar = $this->usuarioPuedeEditar();
+        
+        if (!$puedeEditar) {
+            $usuario = Auth::user();
+            Log::warning('Usuario sin permisos para editar', [
+                'usuario_id' => $usuario->id ?? null,
+                'area' => $usuario->area ?? null,
+                'puesto' => $usuario->puesto ?? null,
+            ]);
+            // No redirigir, permitir ver la página pero sin permisos de edición
         }
+
+        Log::info('Mostrando vista de edición', ['orden_id' => $ordenId, 'folio' => $orden->Folio ?? null]);
 
         // Obtener información de engomado si existe
         $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
@@ -100,7 +120,8 @@ class EditarOrdenesProgramadasController extends Controller
             'maquinas' => $maquinas,
             'fibras' => $fibras,
             'julios' => $julios,
-            'puedeEditar' => $this->usuarioPuedeEditar(),
+            'puedeEditar' => $puedeEditar,
+            'fromReimpresion' => $fromReimpresion,
         ]);
     }
 

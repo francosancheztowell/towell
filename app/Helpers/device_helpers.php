@@ -1,5 +1,30 @@
 <?php
 
+if (!function_exists('getClientIpv4')) {
+    /**
+     * Obtiene la dirección IPv4 del cliente cuando esté disponible.
+     *
+     * @return string
+     */
+    function getClientIpv4(): string
+    {
+        $ip = request()->ip() ?? '';
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return $ip;
+        }
+        $forwarded = request()->header('X-Forwarded-For');
+        if ($forwarded) {
+            $ips = array_map('trim', explode(',', $forwarded));
+            foreach ($ips as $candidate) {
+                if (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                    return $candidate;
+                }
+            }
+        }
+        return $ip ?: '0.0.0.0';
+    }
+}
+
 if (!function_exists('getDeviceInfo')) {
     /**
      * Obtiene información del dispositivo basándose en el User Agent
@@ -9,7 +34,7 @@ if (!function_exists('getDeviceInfo')) {
     function getDeviceInfo(): array
     {
         $userAgent = request()->userAgent() ?? '';
-        $ip = request()->ip();
+        $ip = getClientIpv4();
 
         return [
             'tipo' => detectDeviceType($userAgent),
@@ -173,13 +198,13 @@ if (!function_exists('detectDeviceModel')) {
             $model = strtoupper($matches[1]);
             $firstChar = substr($model, 0, 1);
             $modelNum = substr($model, 1, 3);
-            
+
             // Galaxy Tab series (T, X, P)
             if (in_array($firstChar, ['T', 'X', 'P'])) {
                 $tabName = getSamsungTabName($model);
                 return $tabName ?: ('Galaxy Tab SM-' . $model);
             }
-            
+
             // Galaxy S series (S, G para modelos antiguos)
             if ($firstChar === 'S' || $firstChar === 'G') {
                 if ($firstChar === 'S') {
@@ -192,35 +217,35 @@ if (!function_exists('detectDeviceModel')) {
                     return 'Galaxy S Series (SM-G' . $modelNum . ')';
                 }
             }
-            
+
             // Galaxy A series
             if ($firstChar === 'A') {
                 return 'Galaxy A' . $modelNum;
             }
-            
+
             // Galaxy M series
             if ($firstChar === 'M') {
                 return 'Galaxy M' . $modelNum;
             }
-            
+
             // Galaxy F series
             if ($firstChar === 'F') {
                 return 'Galaxy F' . $modelNum;
             }
-            
+
             // Galaxy Note series (N)
             if ($firstChar === 'N') {
                 return 'Galaxy Note SM-N' . $modelNum;
             }
-            
+
             return 'Samsung SM-' . $model;
         }
-        
+
         // Fallback: buscar "Galaxy Tab" en el User Agent
         if (preg_match('/Galaxy\s*Tab\s*([^\s;)]+)?/i', $userAgent, $matches)) {
             return 'Galaxy Tab ' . trim($matches[1] ?? '');
         }
-        
+
         // Samsung sin código SM- pero con Android (probablemente tablet)
         if (preg_match('/samsung/i', $userAgent) && preg_match('/android/i', $userAgent) && !preg_match('/mobile/i', $userAgent)) {
             // Intentar extraer cualquier identificador numérico/alfanumérico después de Samsung
@@ -255,7 +280,7 @@ if (!function_exists('detectDeviceModel')) {
             $model = strtoupper($matches[1]);
             return 'Lenovo ' . $model . ' ' . getLenovoModelName($model);
         }
-        
+
         // Lenovo TAB 2 A10-70, TAB 4 10, etc.
         if (preg_match('/Lenovo\s*TAB\s*([0-9]+\s*[A-Z0-9-]+)/i', $userAgent, $matches)) {
             return 'Lenovo TAB ' . trim($matches[1]);
@@ -265,7 +290,7 @@ if (!function_exists('detectDeviceModel')) {
         if (preg_match('/Lenovo\s+(Tab\s*[A-Z]?\d+[^;)\s]*)/i', $userAgent, $matches)) {
             return 'Lenovo ' . trim($matches[1]);
         }
-        
+
         // Cualquier Lenovo
         if (preg_match('/Lenovo\s+([^;)\s]+)/i', $userAgent, $matches)) {
             return 'Lenovo ' . trim($matches[1]);
@@ -427,7 +452,7 @@ if (!function_exists('getSamsungTabName')) {
     function getSamsungTabName(string $modelCode): string
     {
         $modelCode = strtoupper($modelCode);
-        
+
         // Mapeo de códigos a nombres comerciales
         $models = [
             // Galaxy Tab S Series (Premium)
@@ -455,7 +480,7 @@ if (!function_exists('getSamsungTabName')) {
             'T865' => 'Galaxy Tab S6 LTE',
             'T720' => 'Galaxy Tab S5e',
             'T725' => 'Galaxy Tab S5e LTE',
-            
+
             // Galaxy Tab S Lite (con S Pen)
             'P610' => 'Galaxy Tab S6 Lite',
             'P615' => 'Galaxy Tab S6 Lite LTE',
@@ -463,7 +488,7 @@ if (!function_exists('getSamsungTabName')) {
             'P619' => 'Galaxy Tab S6 Lite (2022) LTE',
             'P620' => 'Galaxy Tab S6 Lite (2024)',
             'P625' => 'Galaxy Tab S6 Lite (2024) LTE',
-            
+
             // Galaxy Tab A Series
             'T500' => 'Galaxy Tab A7',
             'T505' => 'Galaxy Tab A7 LTE',
@@ -476,17 +501,17 @@ if (!function_exists('getSamsungTabName')) {
             'T590' => 'Galaxy Tab A 10.5',
             'T595' => 'Galaxy Tab A 10.5 LTE',
             'T307' => 'Galaxy Tab A 8.4 (2020)',
-            
+
             // Galaxy Tab A8
             'X200' => 'Galaxy Tab A8',
             'X205' => 'Galaxy Tab A8 LTE',
-            
+
             // Galaxy Tab A9
             'X110' => 'Galaxy Tab A9',
             'X115' => 'Galaxy Tab A9 LTE',
             'X210' => 'Galaxy Tab A9+',
             'X215' => 'Galaxy Tab A9+ LTE',
-            
+
             // Galaxy Tab Active (Rugged)
             'T570' => 'Galaxy Tab Active3',
             'T575' => 'Galaxy Tab Active3 LTE',
@@ -494,7 +519,7 @@ if (!function_exists('getSamsungTabName')) {
             'T636' => 'Galaxy Tab Active4 Pro 5G',
             'X300' => 'Galaxy Tab Active5',
             'X306' => 'Galaxy Tab Active5 5G',
-            
+
             // Galaxy Tab E / Tab 4 (Legacy)
             'T560' => 'Galaxy Tab E 9.6',
             'T561' => 'Galaxy Tab E 9.6 LTE',
@@ -505,29 +530,29 @@ if (!function_exists('getSamsungTabName')) {
             'T230' => 'Galaxy Tab 4 7.0',
             'T235' => 'Galaxy Tab 4 7.0 LTE',
         ];
-        
+
         // Buscar coincidencia exacta
         if (isset($models[$modelCode])) {
             return $models[$modelCode];
         }
-        
+
         // Buscar por los primeros 3-4 caracteres (sin sufijo de letra)
         $baseModel = preg_replace('/[A-Z]$/', '', $modelCode);
         if (isset($models[$baseModel])) {
             return $models[$baseModel];
         }
-        
+
         // Identificar serie por patrón
         $firstChar = substr($modelCode, 0, 1);
         $num = (int)substr($modelCode, 1, 3);
-        
+
         if ($firstChar === 'T') {
             if ($num >= 800) return 'Galaxy Tab S Series';
             if ($num >= 500) return 'Galaxy Tab A Series';
             if ($num >= 200) return 'Galaxy Tab A Lite';
             return 'Galaxy Tab';
         }
-        
+
         if ($firstChar === 'X') {
             if ($num >= 700) return 'Galaxy Tab S Series';
             if ($num >= 500) return 'Galaxy Tab S FE';
@@ -535,11 +560,11 @@ if (!function_exists('getSamsungTabName')) {
             if ($num >= 100) return 'Galaxy Tab A9';
             return 'Galaxy Tab';
         }
-        
+
         if ($firstChar === 'P') {
             return 'Galaxy Tab S Lite';
         }
-        
+
         return '';
     }
 }
@@ -554,7 +579,7 @@ if (!function_exists('getLenovoModelName')) {
     function getLenovoModelName(string $modelCode): string
     {
         $modelCode = strtoupper($modelCode);
-        
+
         // Mapeo de códigos a nombres comerciales
         $models = [
             // Tab M10 Series
@@ -570,7 +595,7 @@ if (!function_exists('getLenovoModelName')) {
             'TB-X616F' => '(Tab M10 Plus 3rd Gen)',
             'TB-X616X' => '(Tab M10 Plus 3rd Gen LTE)',
             'TB-128FU' => '(Tab M10 Plus 3rd Gen)',
-            
+
             // Tab M8 Series
             'TB-8505F' => '(Tab M8 HD)',
             'TB-8505X' => '(Tab M8 HD LTE)',
@@ -579,15 +604,15 @@ if (!function_exists('getLenovoModelName')) {
             'TB-8705N' => '(Tab M8 FHD)',
             'TB-300FU' => '(Tab M8 4th Gen)',
             'TB-300XU' => '(Tab M8 4th Gen LTE)',
-            
+
             // Tab M9 Series
             'TB-310FU' => '(Tab M9)',
             'TB-310XU' => '(Tab M9 LTE)',
-            
+
             // Tab M11 Series
             'TB-J616F' => '(Tab M11)',
             'TB-J616X' => '(Tab M11 LTE)',
-            
+
             // Tab P11 Series
             'TB-J606F' => '(Tab P11)',
             'TB-J606L' => '(Tab P11 LTE)',
@@ -597,18 +622,18 @@ if (!function_exists('getLenovoModelName')) {
             'TB-J716F' => '(Tab P11 Pro Gen 2)',
             'TB-138FC' => '(Tab P11 2nd Gen)',
             'TB-138FU' => '(Tab P11 2nd Gen)',
-            
+
             // Tab P12 Series
             'TB-370FU' => '(Tab P12)',
             'TB-371FC' => '(Tab P12 Pro)',
-            
+
             // Yoga Tab Series
             'YT-X705F' => '(Yoga Smart Tab)',
             'YT-X705L' => '(Yoga Smart Tab LTE)',
             'YT-J706F' => '(Yoga Tab 11)',
             'YT-J706X' => '(Yoga Tab 11 LTE)',
             'YT-K606F' => '(Yoga Tab 13)',
-            
+
             // Tab 4 Series (legacy)
             'TB-X304F' => '(Tab 4 10)',
             'TB-X304L' => '(Tab 4 10 LTE)',
@@ -616,19 +641,19 @@ if (!function_exists('getLenovoModelName')) {
             'TB-8504X' => '(Tab 4 8 LTE)',
             'TB-7504F' => '(Tab 4 7)',
             'TB-7504X' => '(Tab 4 7 LTE)',
-            
+
             // Tab E Series
             'TB-X104F' => '(Tab E10)',
             'TB-X104L' => '(Tab E10 LTE)',
             'TB-7104F' => '(Tab E7)',
-            
+
             // Otros modelos comunes
             'TB-7305F' => '(Tab M7)',
             'TB-7305X' => '(Tab M7 LTE)',
             'TB-7306F' => '(Tab M7 Gen 2)',
             'TB-7306X' => '(Tab M7 Gen 2 LTE)',
         ];
-        
+
         return $models[$modelCode] ?? '';
     }
 }

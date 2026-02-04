@@ -4,9 +4,10 @@ namespace App\Models\Inventario;
 
 use Illuminate\Database\Eloquent\Model;
 
-class InvSecuenciaCorteEf extends Model
+class InvSecuenciaMarcas extends Model
 {
-    protected $table = 'InvSecuenciaCorteEf';
+    protected $connection = 'sqlsrv';
+    protected $table = 'dbo.InvSecuenciaMarcas';
     protected $primaryKey = 'NoTelarId';
     public $incrementing = false;
     public $timestamps = false;
@@ -21,6 +22,4 @@ class InvSecuenciaCorteEf extends Model
         'NoTelarId' => 'integer',
         'Orden' => 'integer',
     ];
-
-
 }

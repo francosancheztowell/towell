@@ -15,19 +15,17 @@
                         <span id="filter-badge" class="hidden ml-1 bg-purple-800 text-white text-xs px-2 py-0.5 rounded-full">1</span>
                     </button>
 
-        <x-navbar.button-edit
+        <button
+            type="button"
             id="btnEditarSeleccionado"
-            onclick="editarOrdenSeleccionada()"
-            module="Programa Urdido"
-            checkPermission="true"
+            onclick="editarOrdenSeleccionada();"
+            disabled
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
             title="Editar orden seleccionada"
-            icon="fa-edit"
-            iconColor="text-white"
-            hoverBg="hover:bg-blue-700"
-            bg="bg-blue-600"
-            text="Editar"
-        />
+        >
+            <i class="fas fa-edit"></i>
+            <span>Editar</span>
+        </button>
         <button
             id="btnImprimirSeleccionado"
             onclick="imprimirOrdenSeleccionada()"
@@ -246,11 +244,25 @@
         window.editarOrdenSeleccionada = function() {
             if (!ordenSeleccionada || !ordenSeleccionada.id) {
                 alert('Seleccione una orden para editar');
-                return;
+                return false;
             }
 
-            const url = '{{ route('urdido.editar.ordenes.programadas') }}?orden_id=' + ordenSeleccionada.id;
+            // Construir URL usando route de Laravel
+            const baseUrl = '{{ route('urdido.editar.ordenes.programadas') }}';
+            const ordenId = String(ordenSeleccionada.id).trim();
+            const url = baseUrl + '?orden_id=' + encodeURIComponent(ordenId) + '&from=reimpresion';
+
+            console.log('=== INICIANDO NAVEGACIÓN ===');
+            console.log('URL completa:', url);
+            console.log('Orden seleccionada:', ordenSeleccionada);
+            console.log('Orden ID (raw):', ordenSeleccionada.id);
+            console.log('Orden ID (string):', ordenId);
+            console.log('Base URL:', baseUrl);
+
+            // Navegación directa sin try-catch para ver errores reales
             window.location.href = url;
+
+            return false;
         };
 
         // Imprimir orden seleccionada

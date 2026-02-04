@@ -184,7 +184,8 @@ class ProgramarUrdEngController extends Controller
                 'Cuenta' => $grupo['cuenta'] ?? null,
                 'Calibre' => isset($grupo['calibre']) ? (float)$grupo['calibre'] : null,
                 'FechaReq' => $fechaReq,
-                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
+                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null, // ConfigId (Hilo) se guarda en Fibra
+                'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null, // InventSizeId (Tamaño)
                 'Metros' => isset($grupo['metros']) ? (float)$grupo['metros'] : null,
                 'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
                 'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,
@@ -272,7 +273,8 @@ class ProgramarUrdEngController extends Controller
                 'Cuenta' => $grupo['cuenta'] ?? null,
                 'Calibre' => isset($grupo['calibre']) ? (float)$grupo['calibre'] : null,
                 'FechaReq' => $fechaReq,
-                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
+                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null, // ConfigId (Hilo) se guarda en Fibra
+                'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null, // InventSizeId (Tamaño)
                 'Metros' => isset($grupo['metros']) ? (float)$grupo['metros'] : null,
                 'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
                 'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,

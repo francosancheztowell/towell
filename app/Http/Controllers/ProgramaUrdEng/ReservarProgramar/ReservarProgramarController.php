@@ -9,6 +9,8 @@ use App\Models\Inventario\InvTelasReservadas;
 use App\Models\Planeacion\ReqProgramaTejido;
 
 use App\Models\Urdido\URDCatalogoMaquina;
+use App\Models\Urdido\UrdProgramaUrdido;
+use App\Models\Engomado\EngProgramaEngomado;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InvTelasReservadasController;
 use App\Models\Engomado\EngAnchoBalonaCuenta;
 use Carbon\Carbon;
@@ -70,7 +72,7 @@ class ReservarProgramarController extends Controller
      * El mismo no_orden en InventBatchId (para órdenes programadas)
      * Actualiza las reservas automáticamente si no coinciden
      * Optimizado: usa una sola consulta por batch de telares
-     * 
+     *
      * NOTA: La tabla InvTelasReservadas NO tiene columna NoOrden, solo InventBatchId
      */
     private function validarYActualizarNoOrden($telares)
@@ -222,6 +224,8 @@ class ReservarProgramarController extends Controller
                 'localidad' => ['nullable','string','max:10'],
                 'tipo_atado' => ['nullable','string','in:Normal,Especial'],
                 'hilo'     => ['nullable','string','max:50'],
+                'cuenta'   => ['nullable','string','max:50'],
+                'calibre'  => ['nullable','numeric'],
                 'id'       => ['nullable','integer'], // ID del registro específico (si se proporciona, solo actualiza ese registro)
             ]);
 
@@ -229,76 +233,211 @@ class ReservarProgramarController extends Controller
             $tipo    = $this->normalizeTipo($request->input('tipo'));
             $id      = $request->input('id'); // ID del registro específico
 
-            $update = [];
-            if ($request->filled('metros'))   $update['metros']   = (float)$request->input('metros');
-            if ($request->filled('no_julio')) $update['no_julio'] = (string)$request->input('no_julio');
-            if ($request->filled('no_orden')) $update['no_orden'] = (string)$request->input('no_orden');
-            if ($request->filled('localidad')) $update['localidad'] = (string)$request->input('localidad');
-            if ($request->filled('tipo_atado')) $update['tipo_atado'] = (string)$request->input('tipo_atado');
-            if ($request->filled('hilo')) $update['hilo'] = (string)$request->input('hilo');
+            // Separar campos: los que van SOLO a programas (NO a inventario)
+            $camposParaProgramas = ['cuenta', 'calibre', 'hilo', 'tipo'];
+            $updateProgramas = [];
+            $updateInventario = [];
 
-            if (empty($update)) {
+            // Campos que van a inventario (otros campos)
+            if ($request->filled('metros'))   $updateInventario['metros']   = (float)$request->input('metros');
+            if ($request->filled('no_julio')) $updateInventario['no_julio'] = (string)$request->input('no_julio');
+            if ($request->filled('no_orden')) $updateInventario['no_orden'] = (string)$request->input('no_orden');
+            if ($request->filled('localidad')) $updateInventario['localidad'] = (string)$request->input('localidad');
+            if ($request->filled('tipo_atado')) $updateInventario['tipo_atado'] = (string)$request->input('tipo_atado');
+
+            // Campos que van SOLO a programas (NO a inventario)
+            if ($request->filled('hilo')) $updateProgramas['hilo'] = (string)$request->input('hilo');
+            if ($request->filled('cuenta')) $updateProgramas['cuenta'] = (string)$request->input('cuenta');
+            if ($request->filled('calibre')) $updateProgramas['calibre'] = (float)$request->input('calibre');
+            if ($request->filled('tipo')) $updateProgramas['tipo'] = $this->normalizeTipo($request->input('tipo'));
+
+            if (empty($updateProgramas) && empty($updateInventario)) {
                 return response()->json(['success'=>false,'message'=>'No hay campos para actualizar'], 400);
             }
 
-            // Si se proporciona un ID, actualizar SOLO ese registro específico
-            if ($id) {
-                $telar = TejInventarioTelares::where('id', $id)
-                    ->where('no_telar', $noTelar)
-                    ->where('status', self::STATUS_ACTIVO)
-                    ->first();
+            $actualizadosInventario = 0;
+            $actualizadosUrdido = 0;
+            $actualizadosEngomado = 0;
 
-                if (!$telar) {
-                    return response()->json(['success'=>false,'message'=>'Registro específico no encontrado o no está activo'], 404);
+            // Actualizar inventario SOLO si hay campos para inventario (metros, no_julio, etc.)
+            if (!empty($updateInventario)) {
+                // Si se proporciona un ID, actualizar SOLO ese registro específico
+                if ($id) {
+                    $telar = TejInventarioTelares::where('id', $id)
+                        ->where('no_telar', $noTelar)
+                        ->where('status', self::STATUS_ACTIVO)
+                        ->first();
+
+                    if (!$telar) {
+                        return response()->json(['success'=>false,'message'=>'Registro específico no encontrado o no está activo'], 404);
+                    }
+
+                    $telar->update($updateInventario);
+                    $actualizadosInventario = 1;
+                } else {
+                    // Si NO se proporciona ID, actualizar todos los registros del telar/tipo
+                    $query = TejInventarioTelares::where('no_telar', $noTelar)
+                        ->where('status', self::STATUS_ACTIVO);
+
+                    if ($tipo !== null) $query->where('tipo', $tipo);
+
+                    $telares = $query->get();
+                    if ($telares->isEmpty()) {
+                        return response()->json(['success'=>false,'message'=>'Telar no encontrado o no está activo'], 404);
+                    }
+
+                    foreach ($telares as $telar) {
+                        $telar->update($updateInventario);
+                        $actualizadosInventario++;
+                    }
                 }
-
-                $telar->update($update);
-
-                Log::info('actualizarTelar: Registro específico actualizado', [
-                    'id' => $id,
-                    'no_telar' => $noTelar,
-                    'tipo' => $tipo,
-                    'campos_actualizados' => array_keys($update)
-                ]);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => "Registro específico del telar {$noTelar} actualizado correctamente",
-                    'data'    => $telar->fresh(),
-                ]);
             }
 
-            // Si NO se proporciona ID, mantener comportamiento anterior (actualizar todos los registros del telar/tipo)
-            // Esto es para compatibilidad con código existente que no envía el ID
-            $query = TejInventarioTelares::where('no_telar', $noTelar)
-                ->where('status', self::STATUS_ACTIVO);
-
-            if ($tipo !== null) $query->where('tipo', $tipo);
-
-            $telares = $query->get();
-            if ($telares->isEmpty()) {
-                return response()->json(['success'=>false,'message'=>'Telar no encontrado o no está activo'], 404);
+            // Actualizar programas SOLO si hay campos para programas (cuenta, calibre, hilo, tipo)
+            if (!empty($updateProgramas)) {
+                $tipoParaProgramas = $updateProgramas['tipo'] ?? $tipo;
+                $resultado = $this->actualizarProgramasUrdidoEngomado($noTelar, $tipoParaProgramas, $updateProgramas);
+                $actualizadosUrdido = $resultado['urdido'] ?? 0;
+                $actualizadosEngomado = $resultado['engomado'] ?? 0;
             }
 
-            // Actualizar TODOS los registros activos del telar (y tipo si se especifica)
-            $actualizados = 0;
-            foreach ($telares as $telar) {
-                $telar->update($update);
-                $actualizados++;
+            // Construir mensaje
+            $mensajes = [];
+            if ($actualizadosInventario > 0) {
+                $mensajes[] = "{$actualizadosInventario} registro(s) en TejInventarioTelares";
+            }
+            if ($actualizadosUrdido > 0) {
+                $mensajes[] = "{$actualizadosUrdido} registro(s) en UrdProgramaUrdido";
+            }
+            if ($actualizadosEngomado > 0) {
+                $mensajes[] = "{$actualizadosEngomado} registro(s) en EngProgramaEngomado";
             }
 
-            // Retornar el primer registro actualizado para compatibilidad
-            $telar = $telares->first();
+            $mensaje = "Telar {$noTelar} actualizado";
+            if (!empty($mensajes)) {
+                $mensaje .= ": " . implode(", ", $mensajes);
+            } else {
+                $mensaje .= " (no se encontraron registros para actualizar)";
+            }
+
+
 
             return response()->json([
                 'success' => true,
-                'message' => "Telar {$noTelar} actualizado correctamente ({$actualizados} registro(s))",
-                'data'    => $telar->fresh(),
+                'message' => $mensaje,
+                'detalle' => [
+                    'tej_inventario_telares' => $actualizadosInventario,
+                    'urd_programa_urdido' => $actualizadosUrdido,
+                    'eng_programa_engomado' => $actualizadosEngomado
+                ]
             ]);
         } catch (\Throwable $e) {
             Log::error('actualizarTelar', ['msg' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Error al actualizar el telar: '.$e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Actualizar campos en UrdProgramaUrdido y EngProgramaEngomado cuando se cambian cuenta, calibre, hilo o tipo
+     *
+     * @return array Con las cantidades de registros actualizados ['urdido' => int, 'engomado' => int]
+     */
+    private function actualizarProgramasUrdidoEngomado(string $noTelar, ?string $tipo, array $update): array
+    {
+        $resultado = ['urdido' => 0, 'engomado' => 0];
+
+        try {
+            // Preparar datos para actualizar en las tablas de programas
+            $updateProgramas = [];
+
+            // Mapear campos de TejInventarioTelares a campos de programas
+            if (isset($update['cuenta'])) {
+                $updateProgramas['Cuenta'] = $update['cuenta'];
+            }
+            if (isset($update['calibre'])) {
+                $updateProgramas['Calibre'] = (float)$update['calibre'];
+            }
+            if (isset($update['hilo'])) {
+                $updateProgramas['Fibra'] = $update['hilo']; // En programas se llama Fibra
+            }
+            if (isset($update['tipo'])) {
+                $updateProgramas['RizoPie'] = $this->normalizeTipo($update['tipo']); // En programas se llama RizoPie
+            }
+
+            if (empty($updateProgramas)) {
+                return $resultado; // No hay nada que actualizar
+            }
+
+            // Si estamos actualizando RizoPie (tipo), NO filtrar por tipo actual: buscar todos los registros
+            // del telar y actualizar al nuevo tipo. Si solo actualizamos cuenta/calibre/hilo, filtrar por tipo.
+            $estamosActualizandoTipo = isset($update['tipo']);
+            $filtrarPorTipo = ($tipo !== null) && !$estamosActualizandoTipo;
+
+            // Buscar registros en UrdProgramaUrdido donde el telar esté en NoTelarId
+            // NoTelarId puede contener múltiples telares separados por coma
+            $queryUrdido = UrdProgramaUrdido::where(function($query) use ($noTelar) {
+                $query->where('NoTelarId', $noTelar)
+                      ->orWhere('NoTelarId', 'like', $noTelar . ',%')
+                      ->orWhere('NoTelarId', 'like', '%,' . $noTelar . ',%')
+                      ->orWhere('NoTelarId', 'like', '%,' . $noTelar);
+            });
+
+            if ($filtrarPorTipo) {
+                $tipoNormalizado = $this->normalizeTipo($tipo);
+                if ($tipoNormalizado !== null) {
+                    $queryUrdido->where('RizoPie', $tipoNormalizado);
+                }
+            }
+
+            // Contar registros antes de actualizar
+            $totalUrdido = $queryUrdido->count();
+
+            // Actualizar registros encontrados
+            $actualizadosUrdido = $queryUrdido->update($updateProgramas);
+            $resultado['urdido'] = $actualizadosUrdido;
+
+            // Buscar registros en EngProgramaEngomado donde el telar esté en NoTelarId
+            $queryEngomado = EngProgramaEngomado::where(function($query) use ($noTelar) {
+                $query->where('NoTelarId', $noTelar)
+                      ->orWhere('NoTelarId', 'like', $noTelar . ',%')
+                      ->orWhere('NoTelarId', 'like', '%,' . $noTelar . ',%')
+                      ->orWhere('NoTelarId', 'like', '%,' . $noTelar);
+            });
+
+            if ($filtrarPorTipo) {
+                $tipoNormalizado = $this->normalizeTipo($tipo);
+                if ($tipoNormalizado !== null) {
+                    $queryEngomado->where('RizoPie', $tipoNormalizado);
+                }
+            }
+
+            // Contar registros antes de actualizar
+            $totalEngomado = $queryEngomado->count();
+
+            // Actualizar registros encontrados
+            $actualizadosEngomado = $queryEngomado->update($updateProgramas);
+            $resultado['engomado'] = $actualizadosEngomado;
+
+            Log::info('actualizarProgramasUrdidoEngomado: Programas actualizados', [
+                'no_telar' => $noTelar,
+                'tipo' => $tipo,
+                'campos_actualizados' => array_keys($updateProgramas),
+                'urdido_encontrados' => $totalUrdido,
+                'urdido_actualizados' => $actualizadosUrdido,
+                'engomado_encontrados' => $totalEngomado,
+                'engomado_actualizados' => $actualizadosEngomado
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('actualizarProgramasUrdidoEngomado: Error al actualizar programas', [
+                'no_telar' => $noTelar,
+                'tipo' => $tipo,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            // No lanzar excepción para no interrumpir la actualización principal
+        }
+
+        return $resultado;
     }
 
     public function reservarInventario(Request $request)
@@ -965,7 +1104,11 @@ class ReservarProgramarController extends Controller
     private function normalizeDate($v): ?string
     {
         if ($v === null) return null;
-        try { return ($v instanceof Carbon ? $v : Carbon::parse($v))->toIso8601String(); }
+        try { 
+            $date = $v instanceof Carbon ? $v : Carbon::parse($v);
+            // Devolver solo la fecha en formato YYYY-MM-DD para evitar problemas de zona horaria
+            return $date->format('Y-m-d');
+        }
         catch (\Throwable) { return null; }
     }
 
@@ -1366,30 +1509,42 @@ class ReservarProgramarController extends Controller
     }
 
     /**
-     * Obtener anchos de balona por cuenta y tipo (Rizo/Pie)
+     * Obtener anchos de balona por cuenta y tipo (Rizo/Pie).
+     * Acepta tipo en cualquier formato (rizo, RIZO, Rizo, pie, Pie) y normaliza.
+     * Si no hay resultados con filtros, devuelve todos los anchos para que el usuario pueda seleccionar.
      */
     public function getAnchosBalona(Request $request)
     {
         try {
             $request->validate([
-                'cuenta' => ['nullable', 'string', 'max:10'],
-                'tipo' => ['nullable', 'string', 'in:Rizo,Pie'],
+                'cuenta' => ['nullable', 'string', 'max:50'],
+                'tipo' => ['nullable', 'string', 'max:20'],
             ]);
 
             $cuenta = $request->input('cuenta');
             $tipo = $request->input('tipo');
 
+            $cuenta = $cuenta !== null && $cuenta !== '' ? trim((string) $cuenta) : null;
+            $tipoNormalizado = $this->normalizeTipo($tipo);
+
             $query = EngAnchoBalonaCuenta::query();
 
-            if ($cuenta) {
-                $query->where('Cuenta', $cuenta);
+            if ($cuenta !== null && $cuenta !== '') {
+                $query->whereRaw('LTRIM(RTRIM(Cuenta)) = ?', [$cuenta]);
             }
 
-            if ($tipo) {
-                $query->where('RizoPie', $tipo);
+            if ($tipoNormalizado !== null) {
+                $query->whereRaw('LTRIM(RTRIM(RizoPie)) = ?', [$tipoNormalizado]);
             }
 
             $resultados = $query->orderBy('AnchoBalona')->get();
+
+            // Si no hay resultados con filtros, devolver todos los anchos para que pueda seleccionar algo
+            if ($resultados->isEmpty() && ($cuenta !== null || $tipoNormalizado !== null)) {
+                $resultados = EngAnchoBalonaCuenta::query()
+                    ->orderBy('AnchoBalona')
+                    ->get();
+            }
 
             return response()->json([
                 'success' => true,
@@ -1402,6 +1557,8 @@ class ReservarProgramarController extends Controller
                     ];
                 }),
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('getAnchosBalona: Error', [
                 'message' => $e->getMessage(),
@@ -1483,6 +1640,69 @@ class ReservarProgramarController extends Controller
         } catch (\Throwable $e) {
             Log::error('buscarBomEngomado: Error', ['message' => $e->getMessage(), 'query' => $query ?? '']);
             return response()->json(['error' => 'Error al buscar BOM de engomado'], 500);
+        }
+    }
+
+    /**
+     * Obtener lista de hilos (ConfigId) desde TI_PRO.ConfigTable
+     * Filtrado por ITEMID = "JULIO-URDIDO"
+     */
+    public function obtenerHilos()
+    {
+        try {
+            $hilos = DB::connection('sqlsrv_ti')
+                ->table('ConfigTable')
+                ->select('ConfigId')
+                ->where('ItemId', 'JULIO-URDIDO')
+                ->orderBy('ConfigId')
+                ->distinct()
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $hilos
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo hilos desde TI_PRO', [
+                'exception' => $e,
+                'message' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los hilos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener lista de tamaños (InventSizeId) desde TI_PRO.InventSize
+     * Filtrado por ITEMID = "JULIO-URDIDO"
+     */
+    public function obtenerTamanos()
+    {
+        try {
+            $tamanos = DB::connection('sqlsrv_ti')
+                ->table('InventSize')
+                ->select('InventSizeId')
+                ->where('ItemId', 'JULIO-URDIDO')
+                ->where('DATAAREAID', 'PRO')
+                ->orderBy('InventSizeId')
+                ->distinct()
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $tamanos
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo tamaños desde TI_PRO', [
+                'exception' => $e,
+                'message' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los tamaños: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

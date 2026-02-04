@@ -125,5 +125,32 @@ class SecuenciaInvTelasController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Actualizar orden (Secuencia) después de drag & drop.
+     * Body: { orden: [ { Id: 1, Secuencia: 1 }, ... ] }
+     */
+    public function updateOrden(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'orden' => 'required|array',
+                'orden.*.Id' => 'required|integer',
+                'orden.*.Secuencia' => 'required|integer|min:1',
+            ]);
+
+            foreach ($validated['orden'] as $item) {
+                InvSecuenciaTelares::where('Id', $item['Id'])
+                    ->update(['Secuencia' => $item['Secuencia'], 'Updated_At' => now()]);
+            }
+
+            return response()->json(['success' => true, 'message' => 'Orden actualizado']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Datos inválidos', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar orden Secuencia Inv Telas: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error al actualizar el orden'], 500);
+        }
+    }
 }
 

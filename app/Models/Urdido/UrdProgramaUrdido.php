@@ -23,6 +23,7 @@ class UrdProgramaUrdido extends Model
         'Calibre',
         'FechaReq',
         'Fibra',
+        'InventSizeId',
         'Metros',
         'Kilos',
         'SalonTejidoId',
