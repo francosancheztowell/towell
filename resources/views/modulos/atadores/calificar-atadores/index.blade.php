@@ -730,9 +730,26 @@ function guardarObservaciones(event){
     .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 
-// Guardar Merga Kg
+// Guardar Merma Kg
 function guardarMerga(valor){
-    if (!valor || valor === '') return;
+    if (!valor || valor === '') {
+        console.warn('Merma vacía, no se guardará');
+        return;
+    }
+
+    // Validar que sea un número válido
+    const mergaNum = parseFloat(valor);
+    if (isNaN(mergaNum)) {
+        console.error('Valor de merma no válido:', valor);
+        Swal.fire({ 
+            icon: 'warning', 
+            title: 'Valor inválido', 
+            text: 'La merma debe ser un número válido' 
+        });
+        return;
+    }
+
+    console.log('Guardando merga:', { valor, mergaNum, no_julio: currentNoJulio, no_orden: currentNoOrden });
 
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
@@ -742,27 +759,53 @@ function guardarMerga(valor){
         },
         body: JSON.stringify({
             action: 'merga',
-            mergaKg: parseFloat(valor),
+            mergaKg: mergaNum,
             no_julio: currentNoJulio,
             no_orden: currentNoOrden
         })
     })
-    .then(r => r.json())
+    .then(r => {
+        if (!r.ok) {
+            throw new Error('HTTP error ' + r.status);
+        }
+        return r.json();
+    })
     .then(res => {
+        console.log('Respuesta del servidor:', res);
         if(res.ok){
             // Mostrar confirmación visual temporal
             const input = document.getElementById('mergaKg');
+            const indicator = document.getElementById('mergaSavedIndicator');
             if (input) {
                 input.classList.add('border-green-500', 'bg-green-50');
                 setTimeout(() => {
                     input.classList.remove('border-green-500', 'bg-green-50');
-                }, 1000);
+                }, 2000);
             }
+            if (indicator) {
+                indicator.classList.remove('hidden');
+                setTimeout(() => {
+                    indicator.classList.add('hidden');
+                }, 2000);
+            }
+            console.log('Merma guardada exitosamente:', res.mergaKg);
         } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar la merma' });
+            console.error('Error al guardar merma:', res.message);
+            Swal.fire({ 
+                icon: 'error', 
+                title: 'Error al guardar', 
+                text: res.message || 'No se pudo guardar la merma' 
+            });
         }
     })
-    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
+    .catch(err => {
+        console.error('Error de red al guardar merma:', err);
+        Swal.fire({ 
+            icon: 'error', 
+            title: 'Error de conexión', 
+            text: 'No se pudo conectar con el servidor. Verifica tu conexión.' 
+        });
+    });
 }
 
 // Agregar nota a Observaciones
