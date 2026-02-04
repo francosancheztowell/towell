@@ -114,6 +114,9 @@ async function duplicarTelar(row) {
 		showCancelButton: true,
 		confirmButtonText: 'Aceptar',
 		cancelButtonText: 'Cancelar',
+		// No cerrar al hacer clic fuera: el autocomplete se dibuja fuera del modal y al elegir opción cerraría el modal
+		allowOutsideClick: false,
+		allowEscapeKey: true,
 		// Desactivar estilos por defecto de SweetAlert (morado) y usar clases Tailwind
 		buttonsStyling: false,
 		customClass: {
