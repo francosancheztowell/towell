@@ -341,9 +341,11 @@ const currentUser = {!! auth()->check() ? json_encode(['numero_empleado' => auth
 @if($montadoTelas->isNotEmpty())
     const currentNoJulio = '{{ $montadoTelas->first()->NoJulio }}';
     const currentNoOrden = '{{ $montadoTelas->first()->NoProduccion }}';
+    const esSoloLectura = '{{ $montadoTelas->first()->Estatus }}' === 'Autorizado';
 @else
     const currentNoJulio = null;
     const currentNoOrden = null;
+    const esSoloLectura = false;
 @endif
 
 // Información de actividades para validación
@@ -405,10 +407,6 @@ function handleMergaChange(valor) {
 
 
 function guardarObservacionesAuto() {
-    if (esSoloLectura) {
-        console.log('Registro autorizado: solo lectura, no se puede guardar');
-        return;
-    }
 
     const observaciones = document.getElementById('observaciones').value;
     const autoSaveIndicator = document.getElementById('autoSaveIndicator');
@@ -758,13 +756,24 @@ function guardarObservaciones(event){
     .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
 }
 
-// Guardar Merga Kg
+// Guardar Merma Kg
 function guardarMerga(valor){
     if (esSoloLectura) {
         console.log('Registro autorizado: solo lectura, no se puede guardar');
         return;
     }
-    if (!valor || valor === '') return;
+    
+
+    // Validar que sea un número válido
+    const mergaNum = parseFloat(valor);
+    if (isNaN(mergaNum)) {
+        Swal.fire({ 
+            icon: 'warning', 
+            title: 'Valor inválido', 
+            text: 'La merma debe ser un número válido' 
+        });
+        return;
+    }
 
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
@@ -774,27 +783,51 @@ function guardarMerga(valor){
         },
         body: JSON.stringify({
             action: 'merga',
-            mergaKg: parseFloat(valor),
+            mergaKg: mergaNum,
             no_julio: currentNoJulio,
             no_orden: currentNoOrden
         })
     })
-    .then(r => r.json())
+    .then(r => {
+        if (!r.ok) {
+            throw new Error('HTTP error ' + r.status);
+        }
+        return r.json();
+    })
     .then(res => {
         if(res.ok){
             // Mostrar confirmación visual temporal
             const input = document.getElementById('mergaKg');
+            const indicator = document.getElementById('mergaSavedIndicator');
             if (input) {
                 input.classList.add('border-green-500', 'bg-green-50');
                 setTimeout(() => {
                     input.classList.remove('border-green-500', 'bg-green-50');
-                }, 1000);
+                }, 2000);
+            }
+            if (indicator) {
+                indicator.classList.remove('hidden');
+                setTimeout(() => {
+                    indicator.classList.add('hidden');
+                }, 2000);
             }
         } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar la merma' });
+            console.error('Error al guardar merma:', res.message);
+            Swal.fire({ 
+                icon: 'error', 
+                title: 'Error al guardar', 
+                text: res.message || 'No se pudo guardar la merma' 
+            });
         }
     })
-    .catch(() => Swal.fire({ icon: 'error', title: 'Error de red' }));
+    .catch(err => {
+        console.error('Error de red al guardar merga:', err);
+        Swal.fire({ 
+            icon: 'error', 
+            title: 'Error de conexión', 
+            text: 'No se pudo conectar con el servidor. Verifica tu conexión.' 
+        });
+    });
 }
 
 // Agregar nota a Observaciones
@@ -826,7 +859,6 @@ function toggleMaquina(maquinaId, checked){
     .then(res => {
         if(res.ok){
             // Confirmación visual guardada
-            console.log(`Máquina ${maquinaId} ${checked ? 'activada' : 'desactivada'} - Guardado en BD`);
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar máquina' });
             // Revertir checkbox si falló
@@ -845,7 +877,6 @@ function toggleMaquina(maquinaId, checked){
 // Toggle estado de actividad y guardar en DB
 function toggleActividad(actividadId, checked){
     if (esSoloLectura) {
-        console.log('Registro autorizado: solo lectura, no se puede modificar');
         // Revertir checkbox
         const checkbox = document.querySelector(`input[onchange*="toggleActividad('${actividadId}'"]`);
         if (checkbox) checkbox.checked = !checked;
@@ -911,9 +942,11 @@ function toggleActividad(actividadId, checked){
                         : (currentUser ? `${currentUser.numero_empleado} - ${currentUser.nombre || ''}` : '-');
                     celdaOperador.textContent = operadorTexto.trim();
                 } else {
-                    // Al desmarcar, limpiar operador
+
                     celdaOperador.textContent = '-';
                 }
+            } else {
+                console.warn('No se encontró la fila o celda operador para actividad:', actividadId);
             }
 
             // Actualizar el estado en actividadesData
@@ -921,9 +954,6 @@ function toggleActividad(actividadId, checked){
             if (actividadIndex !== -1) {
                 actividadesData[actividadIndex].estado = !!checked;
             }
-
-            // Confirmación visual guardada
-            console.log(`Actividad ${actividadId} ${checked ? 'completada' : 'pendiente'} - Guardado en BD`);
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar actividad' });
             // Revertir checkbox si falló

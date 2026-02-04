@@ -468,7 +468,7 @@ class AtadoresController extends Controller
                     try {
                         if (is_string($montado->Fecha)) {
                             $fechaRequerimiento = Carbon::parse($montado->Fecha);
-                        } elseif ($montado->Fecha instanceof \DateTime || $montado->Fecha instanceof \Carbon\Carbon) {
+                        } elseif ($montado->Fecha instanceof \DateTime || $montado->Fecha instanceof Carbon) {
                             $fechaRequerimiento = Carbon::instance($montado->Fecha);
                         }
                     } catch (\Exception $e) {
@@ -657,15 +657,39 @@ class AtadoresController extends Controller
                 return response()->json(['ok' => false, 'message' => 'No se puede modificar merga después de terminar el atado'], 422);
             }
 
+            // Obtener el valor de mergaKg y validar que sea numérico
             $mergaKg = $request->input('mergaKg');
+            
+            // Validar que el valor sea numérico válido
+            if ($mergaKg !== null && $mergaKg !== '') {
+                $mergaKg = is_numeric($mergaKg) ? (float) $mergaKg : null;
+            } else {
+                $mergaKg = null;
+            }
 
-            DB::connection('sqlsrv')
+            // Realizar el update
+            $affected = DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
                 ->where('NoJulio', $montado->NoJulio)
                 ->where('NoProduccion', $montado->NoProduccion)
                 ->update(['MergaKg' => $mergaKg]);
 
-            return response()->json(['ok' => true, 'message' => 'Merga guardada']);
+            // Verificar si se actualizó el registro
+            if ($affected > 0) {
+                
+                return response()->json([
+                    'ok' => true, 
+                    'message' => 'Merma guardada correctamente',
+                    'mergaKg' => $mergaKg,
+                    'affected' => $affected
+                ]);
+            } else {
+                
+                return response()->json([
+                    'ok' => false, 
+                    'message' => 'No se pudo actualizar la merma. Verifica que el registro exista.'
+                ], 500);
+            }
         }
 
         if ($action === 'maquina_estado') {
