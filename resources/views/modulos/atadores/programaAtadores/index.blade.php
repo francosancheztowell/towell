@@ -711,7 +711,27 @@ function iniciarAtado() {
     }
 
     // Enviar con datos adicionales para validación en el servidor
-    window.location.href = `{{ route("atadores.iniciar") }}?id=${selectedRowId}&no_julio=${noJulio}&no_orden=${noOrden}`;
+    const url = `{{ route("atadores.iniciar") }}?id=${encodeURIComponent(selectedRowId)}&no_julio=${encodeURIComponent(noJulio)}&no_orden=${encodeURIComponent(noOrden)}`;
+
+    // Verificar que la URL sea válida
+    if (!url || url.includes('undefined') || url.includes('null')) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo construir la URL de redirección. Por favor, intente nuevamente.'
+        });
+        return;
+    }
+
+    // Redirigir inmediatamente - FORZAR navegación de múltiples formas (similar a engomado)
+    window.location.replace(url);
+    window.location.href = url;
+
+    setTimeout(() => {
+        if (window.location.href !== url && !window.location.href.includes('calificar-atadores')) {
+            window.open(url, '_self');
+        }
+    }, 50);
 }
 </script>
 @endpush
