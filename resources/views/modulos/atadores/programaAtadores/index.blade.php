@@ -36,16 +36,11 @@
         </div>
 
         <div class="grid grid-cols-3 gap-3">
-            {{-- Fila 1: Ver Todos, Ver Creados, Activo --}}
+            {{-- Fila 1: Ver Todos, Activo --}}
             <button type="button" id="btn-filter-todos" onclick="aplicarFiltro('todos')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
                 <i class="fa-solid fa-list text-2xl mb-2 block"></i>
                 <div class="font-semibold text-sm">Ver Todos</div>
-            </button>
-            <button type="button" id="btn-filter-creados" onclick="aplicarFiltro('creados')"
-                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                <i class="fa-solid fa-plus-circle text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">Ver Creados</div>
             </button>
             <button type="button" id="btn-filter-activo" onclick="aplicarFiltro('activo')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
@@ -203,9 +198,11 @@
 let selectedRowId = null;
 let selectedRow = null;
 
+// Si el usuario usó el botón Filtrar, el backend ya devolvió todos (sin restricción por área)
+window.filtroGlobalActivo = @json($filtroGlobalActivo ?? false);
 // Estado de filtros - Array de filtros seleccionados (vacíos = ver todos)
 let filterState = {
-    filtros: @json($filtroAplicado === 'todos' ? [] : [$filtroAplicado]),
+    filtros: @json($vista ? array_filter(explode(',', $vista)) : ($filtroAplicado === 'todos' ? [] : [$filtroAplicado])),
     telaresUsuario: @json($telaresUsuario ?? []),
     esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }}
 };
@@ -251,6 +248,7 @@ function cerrarModalFiltros() {
 }
 
 // Toggle de un filtro (permite elegir 2 o más). Ver Todos limpia el resto.
+// Si el usuario usa el botón Filtrar, siempre pedir todos al backend (?filtro=todos) sin importar área/cargo.
 // "Autorizado" hace GET al servidor con ?filtro=autorizados para traer solo esos registros de AtaMontadoTelas.
 function aplicarFiltro(tipo) {
     const baseUrl = @json(route('atadores.programa'));
@@ -261,7 +259,7 @@ function aplicarFiltro(tipo) {
             filterState.filtros.splice(idx, 1);
             cerrarModalFiltros();
             if (filterState.filtros.length === 0) {
-                window.location.href = baseUrl;
+                window.location.href = baseUrl + (window.filtroGlobalActivo ? '?filtro=todos' : '');
             } else {
                 updateFilterButtons();
                 applyFilters();
@@ -274,6 +272,11 @@ function aplicarFiltro(tipo) {
     }
 
     if (tipo === 'todos') {
+        if (!window.filtroGlobalActivo) {
+            cerrarModalFiltros();
+            window.location.href = baseUrl + '?filtro=todos';
+            return;
+        }
         filterState.filtros = [];
     } else {
         const idx = filterState.filtros.indexOf(tipo);
@@ -282,7 +285,14 @@ function aplicarFiltro(tipo) {
         } else {
             filterState.filtros.push(tipo);
         }
+        if (!window.filtroGlobalActivo) {
+            cerrarModalFiltros();
+            const vista = filterState.filtros.length ? filterState.filtros.join(',') : '';
+            window.location.href = baseUrl + '?filtro=todos' + (vista ? '&vista=' + encodeURIComponent(vista) : '');
+            return;
+        }
     }
+    cerrarModalFiltros();
     updateFilterButtons();
     applyFilters();
 }
@@ -291,7 +301,7 @@ function aplicarFiltro(tipo) {
 function statusMatchesFilter(status, noTelar, filterKey) {
     switch (filterKey) {
         case 'creados':
-            return status === 'Activo';
+            return status === 'Activo'; // legacy: creados = Activo (botón ya no se muestra)
         case 'activo':
         case 'activo-proceso':
             // El área de atadores puede ver tanto Activo como En Proceso
@@ -373,7 +383,6 @@ function applyFilters() {
 function updateFilterButtons() {
     const btns = [
         document.getElementById('btn-filter-todos'),
-        document.getElementById('btn-filter-creados'),
         document.getElementById('btn-filter-activo'),
         document.getElementById('btn-filter-en-proceso'),
         document.getElementById('btn-filter-calificados'),
@@ -383,18 +392,16 @@ function updateFilterButtons() {
 
     const keyToBtn = {
         'todos': [btns[0], 'bg-green-100', 'border-green-400', 'text-green-800'],
-        'creados': [btns[1], 'bg-blue-100', 'border-blue-400', 'text-blue-800'],
-        'activo': [btns[2], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
-        'activo-proceso': [btns[2], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
-        'en-proceso': [btns[3], 'bg-yellow-100', 'border-yellow-400', 'text-yellow-800'],
-        'calificados': [btns[4], 'bg-amber-100', 'border-amber-400', 'text-amber-800'],
-        'terminados': [btns[5], 'bg-purple-100', 'border-purple-400', 'text-purple-800'],
-        'autorizados': [btns[6], 'bg-emerald-100', 'border-emerald-400', 'text-emerald-800']
+        'activo': [btns[1], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
+        'activo-proceso': [btns[1], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
+        'en-proceso': [btns[2], 'bg-yellow-100', 'border-yellow-400', 'text-yellow-800'],
+        'calificados': [btns[3], 'bg-amber-100', 'border-amber-400', 'text-amber-800'],
+        'terminados': [btns[4], 'bg-purple-100', 'border-purple-400', 'text-purple-800'],
+        'autorizados': [btns[5], 'bg-emerald-100', 'border-emerald-400', 'text-emerald-800']
     };
 
     const activeClasses = [
         'bg-green-100', 'border-green-400', 'text-green-800',
-        'bg-blue-100', 'border-blue-400', 'text-blue-800',
         'bg-yellow-100', 'border-yellow-400', 'text-yellow-800',
         'bg-purple-100', 'border-purple-400', 'text-purple-800',
         'bg-amber-100', 'border-amber-400', 'text-amber-800',

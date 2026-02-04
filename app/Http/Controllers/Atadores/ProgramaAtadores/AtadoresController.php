@@ -97,10 +97,16 @@ class AtadoresController extends Controller
         // En estos casos, filtroAplicado = 'todos' para que el frontend muestre todo lo que el backend trajo
 
         // Aplicar filtros según rol/área ANTES de ejecutar la consulta
-        // Filtro "Autorizado": consultar directamente AtaMontadoTelas (todos los Autorizado) y combinar con inventario
+        // Si el usuario usó el botón de filtrar (filtro personalizado presente), mostrar TODOS sin restricción por área/cargo
         if ($filtroPersonalizado === 'autorizados') {
             $inventarioTelares = $this->getAutorizadosParaVista();
+        } elseif ($filtroPersonalizado !== null) {
+            // Cualquier otro filtro elegido en el modal: traer todos los registros sin filtrar por área/cargo
+            $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
+                ->orderBy('tej_inventario_telares.turno', 'asc')
+                ->get();
         } else {
+            // Sin filtro personalizado: aplicar restricción por rol/área
             // Tejedores: filtrar por sus telares y solo status Terminado
             if ($esTejedor) {
                 if (empty($telaresUsuario)) {
@@ -120,12 +126,10 @@ class AtadoresController extends Controller
             }
             // Supervisor: solo Calificados (no Autorizado)
             elseif ($esSupervisor) {
-                // Supervisor siempre ve solo Calificados, sin importar el filtro personalizado
                 $query->where('AtaMontadoTelas.Estatus', 'Calificado');
             }
-            // Si no es ninguno de los roles anteriores y no hay filtro personalizado,
-            // no mostrar registros (solo usuarios con rol definido pueden ver datos)
-            elseif (!$filtroPersonalizado) {
+            // Si no es ninguno de los roles anteriores, no mostrar registros
+            else {
                 $query->whereRaw('0 = 1'); // No mostrar registros si no tiene rol válido
             }
 
@@ -134,7 +138,10 @@ class AtadoresController extends Controller
                 ->get();
         }
 
-        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor'));
+        $vista = $request->get('vista'); // filtros cliente separados por coma cuando filtro=todos
+        $filtroGlobalActivo = $filtroPersonalizado !== null; // true = se usó el botón filtrar, backend devolvió todos
+
+        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor', 'vista', 'filtroGlobalActivo'));
     }
 
     /**

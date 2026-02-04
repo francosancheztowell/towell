@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTelas\SecuenciaInvTelasController;
 use App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTrama\SecuenciaInvTramaController;
+use App\Http\Controllers\Tejido\Configuracion\SecuenciaCorteEficiencia\SecuenciaCorteEficienciaController;
 use App\Http\Controllers\Tejido\Configuracion\SecuenciaMarcasFinales\SecuenciaMarcasFinalesController;
 use App\Http\Controllers\Tejido\CortesEficiencia\CortesEficienciaController;
 use App\Http\Controllers\Tejido\InventarioTelas\TelaresController;
@@ -63,6 +64,12 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::put('/configurar/secuenciamarcasfinales/{id}', [SecuenciaMarcasFinalesController::class, 'update'])->name('secuencia-marcas-finales.update');
     Route::delete('/configurar/secuenciamarcasfinales/{id}', [SecuenciaMarcasFinalesController::class, 'destroy'])->name('secuencia-marcas-finales.destroy');
 
+    Route::get('/configurar/secuenciacortedeeficiencia', [SecuenciaCorteEficienciaController::class, 'index'])->name('secuencia-corte-eficiencia.index');
+    Route::post('/configurar/secuenciacortedeeficiencia', [SecuenciaCorteEficienciaController::class, 'store'])->name('secuencia-corte-eficiencia.store');
+    Route::post('/configurar/secuenciacortedeeficiencia/orden', [SecuenciaCorteEficienciaController::class, 'updateOrden'])->name('secuencia-corte-eficiencia.orden');
+    Route::put('/configurar/secuenciacortedeeficiencia/{id}', [SecuenciaCorteEficienciaController::class, 'update'])->name('secuencia-corte-eficiencia.update');
+    Route::delete('/configurar/secuenciacortedeeficiencia/{id}', [SecuenciaCorteEficienciaController::class, 'destroy'])->name('secuencia-corte-eficiencia.destroy');
+
     Route::get('/produccion-reenconado', [ProduccionReenconadoCabezuelaController::class, 'index'])
         ->name('produccion.reenconado');
     Route::post('/produccion-reenconado', [ProduccionReenconadoCabezuelaController::class, 'store'])
@@ -90,6 +97,7 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
 
     Route::get('/secuencia-inv-trama', [SecuenciaInvTramaController::class, 'index'])->name('secuencia-inv-trama.index');
     Route::post('/secuencia-inv-trama', [SecuenciaInvTramaController::class, 'store'])->name('secuencia-inv-trama.store');
+    Route::post('/secuencia-inv-trama/orden', [SecuenciaInvTramaController::class, 'updateOrden'])->name('secuencia-inv-trama.orden');
     Route::put('/secuencia-inv-trama/{id}', [SecuenciaInvTramaController::class, 'update'])->name('secuencia-inv-trama.update');
     Route::delete('/secuencia-inv-trama/{id}', [SecuenciaInvTramaController::class, 'destroy'])->name('secuencia-inv-trama.destroy');
 

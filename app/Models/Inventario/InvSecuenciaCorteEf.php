@@ -6,16 +6,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class InvSecuenciaCorteEf extends Model
 {
-    //
-    protected $table = "InvSecuenciaCorteEf";
-
-    protected $fillable = [
-        "NoTelarId",
-        "SalonTejidoId",
-        "Orden",
-    ];
-
+    protected $table = 'InvSecuenciaCorteEf';
+    protected $primaryKey = 'NoTelarId';
+    public $incrementing = false;
     public $timestamps = false;
 
-    
+    protected $fillable = [
+        'NoTelarId',
+        'SalonTejidoId',
+        'Orden',
+    ];
+
+    protected $casts = [
+        'NoTelarId' => 'integer',
+        'Orden' => 'integer',
+    ];
+
+
 }
