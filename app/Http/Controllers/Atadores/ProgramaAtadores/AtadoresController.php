@@ -468,7 +468,7 @@ class AtadoresController extends Controller
                     try {
                         if (is_string($montado->Fecha)) {
                             $fechaRequerimiento = Carbon::parse($montado->Fecha);
-                        } elseif ($montado->Fecha instanceof \DateTime || $montado->Fecha instanceof \Carbon\Carbon) {
+                        } elseif ($montado->Fecha instanceof \DateTime || $montado->Fecha instanceof Carbon) {
                             $fechaRequerimiento = Carbon::instance($montado->Fecha);
                         }
                     } catch (\Exception $e) {
@@ -676,13 +676,6 @@ class AtadoresController extends Controller
 
             // Verificar si se actualizó el registro
             if ($affected > 0) {
-                // Log para debugging
-                \Log::info('Merma guardada', [
-                    'NoJulio' => $montado->NoJulio,
-                    'NoProduccion' => $montado->NoProduccion,
-                    'MergaKg' => $mergaKg,
-                    'affected_rows' => $affected
-                ]);
                 
                 return response()->json([
                     'ok' => true, 
@@ -691,11 +684,6 @@ class AtadoresController extends Controller
                     'affected' => $affected
                 ]);
             } else {
-                \Log::warning('No se actualizó la merma', [
-                    'NoJulio' => $montado->NoJulio,
-                    'NoProduccion' => $montado->NoProduccion,
-                    'MergaKg' => $mergaKg
-                ]);
                 
                 return response()->json([
                     'ok' => false, 

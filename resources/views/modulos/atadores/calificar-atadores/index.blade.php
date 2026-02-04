@@ -407,10 +407,6 @@ function handleMergaChange(valor) {
 
 
 function guardarObservacionesAuto() {
-    if (esSoloLectura) {
-        console.log('Registro autorizado: solo lectura, no se puede guardar');
-        return;
-    }
 
     const observaciones = document.getElementById('observaciones').value;
     const autoSaveIndicator = document.getElementById('autoSaveIndicator');
@@ -762,20 +758,15 @@ function guardarObservaciones(event){
 
 // Guardar Merma Kg
 function guardarMerga(valor){
-    if (!valor || valor === '') {
-        console.warn('Merma vacía, no se guardará');
+    if (esSoloLectura) {
+        console.log('Registro autorizado: solo lectura, no se puede guardar');
         return;
     }
     
-    if (!valor || valor === '') {
-        console.warn('Merma vacía, no se guardará');
-        return;
-    }
 
     // Validar que sea un número válido
     const mergaNum = parseFloat(valor);
     if (isNaN(mergaNum)) {
-        console.error('Valor de merma no válido:', valor);
         Swal.fire({ 
             icon: 'warning', 
             title: 'Valor inválido', 
@@ -783,8 +774,6 @@ function guardarMerga(valor){
         });
         return;
     }
-
-    console.log('Guardando merga:', { valor, mergaNum, no_julio: currentNoJulio, no_orden: currentNoOrden });
 
     fetch('{{ route('atadores.save') }}', {
         method: 'POST',
@@ -806,7 +795,6 @@ function guardarMerga(valor){
         return r.json();
     })
     .then(res => {
-        console.log('Respuesta del servidor:', res);
         if(res.ok){
             // Mostrar confirmación visual temporal
             const input = document.getElementById('mergaKg');
@@ -823,7 +811,6 @@ function guardarMerga(valor){
                     indicator.classList.add('hidden');
                 }, 2000);
             }
-            console.log('Merma guardada exitosamente:', res.mergaKg || mergaNum);
         } else {
             console.error('Error al guardar merma:', res.message);
             Swal.fire({ 
@@ -872,7 +859,6 @@ function toggleMaquina(maquinaId, checked){
     .then(res => {
         if(res.ok){
             // Confirmación visual guardada
-            console.log(`Máquina ${maquinaId} ${checked ? 'activada' : 'desactivada'} - Guardado en BD`);
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar máquina' });
             // Revertir checkbox si falló
@@ -891,7 +877,6 @@ function toggleMaquina(maquinaId, checked){
 // Toggle estado de actividad y guardar en DB
 function toggleActividad(actividadId, checked){
     if (esSoloLectura) {
-        console.log('Registro autorizado: solo lectura, no se puede modificar');
         // Revertir checkbox
         const checkbox = document.querySelector(`input[onchange*="toggleActividad('${actividadId}'"]`);
         if (checkbox) checkbox.checked = !checked;
@@ -945,23 +930,19 @@ function toggleActividad(actividadId, checked){
     })
     .then(r => r.json())
     .then(res => {
-        console.log('Respuesta de toggleActividad:', res);
         if(res.ok){
             // Actualizar el operador en la tabla dinámicamente
             const fila = document.getElementById('actividad-' + actividadId);
             const celdaOperador = fila ? fila.querySelector('.operador-cell') : null;
-            console.log('Celda operador encontrada:', celdaOperador);
             if (fila && celdaOperador) {
                 if (checked) {
                     // Si el backend provee operador, úsalo; si no, refleja usuario actual
                     const operadorTexto = res.operador
                         ? String(res.operador)
                         : (currentUser ? `${currentUser.numero_empleado} - ${currentUser.nombre || ''}` : '-');
-                    console.log('Actualizando operador a:', operadorTexto);
                     celdaOperador.textContent = operadorTexto.trim();
                 } else {
-                    // Al desmarcar, limpiar operador
-                    console.log('Limpiando operador');
+
                     celdaOperador.textContent = '-';
                 }
             } else {
@@ -973,9 +954,6 @@ function toggleActividad(actividadId, checked){
             if (actividadIndex !== -1) {
                 actividadesData[actividadIndex].estado = !!checked;
             }
-
-            // Confirmación visual guardada
-            console.log(`Actividad ${actividadId} ${checked ? 'completada' : 'pendiente'} - Guardado en BD`);
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo actualizar actividad' });
             // Revertir checkbox si falló
