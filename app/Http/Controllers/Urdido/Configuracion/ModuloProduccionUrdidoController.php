@@ -168,39 +168,24 @@ class ModuloProduccionUrdidoController extends Controller
             ->orderBy('Id')
             ->get();
 
-        // Crear registros basándose en los julios de UrdJuliosOrden
-        // Crear exactamente 1 registro por cada registro en UrdJuliosOrden
-        // NoJulio será null al crear, pero Hilos se rellenan desde UrdJuliosOrden
+        // Crear registros basándose en UrdJuliosOrden:
+        // Julios = cantidad de registros a generar, Hilos = hilos por registro
+        // Ej: Julios=2,Hilos=481 y Julios=2,Hilos=324 → 4 registros (2 con 481, 2 con 324)
+        // NoJulio se asigna después por el usuario desde UrdCatJulios
         if ($julios->count() > 0) {
             try {
                 $registrosACrear = [];
 
-                // Contar cuántos registros ya existen para este folio
-                // Solo contar los que aún no tienen NoJulio asignado (registros iniciales sin asignar)
-                $registrosExistentesSinNoJulio = UrdProduccionUrdido::where('Folio', $orden->Folio)
-                    ->whereNull('NoJulio')
-                    ->count();
+                // Contar TODOS los registros existentes para este folio (con o sin NoJulio)
+                // NoJulio se asigna después por el usuario desde UrdCatJulios - no afecta la cantidad total
+                $totalRegistrosExistentes = $registrosProduccion->count();
 
                 // Calcular cuántos registros faltan
-                // Si hay 6 julios y 0 registros sin NoJulio, crear 6
-                // Si hay 6 julios y 2 registros sin NoJulio, crear 4
-                $registrosFaltantes = max(0, $totalRegistros - $registrosExistentesSinNoJulio);
+                // Ej: UrdJuliosOrden tiene Julios=2,Hilos=481 y Julios=2,Hilos=324 → totalRegistros=4
+                // Si ya existen 4 registros, no crear más (aunque tengan NoJulio asignado)
+                $registrosFaltantes = max(0, $totalRegistros - $totalRegistrosExistentes);
 
-                // Log temporal para depuración
-                Log::info('Verificando registros de producción Urdido', [
-                    'folio' => $orden->Folio,
-                    'total_julios_en_urdjuliosorden' => $julios->count(),
-                    'total_registros_necesarios' => $totalRegistros,
-                    'registros_existentes_sin_nojulio' => $registrosExistentesSinNoJulio,
-                    'registros_faltantes' => $registrosFaltantes,
-                    'detalle_julios' => $julios->map(function($j) {
-                        return [
-                            'id' => $j->Id,
-                            'julios' => $j->Julios,
-                            'hilos' => $j->Hilos,
-                        ];
-                    })->toArray(),
-                ]);
+
 
                 // Si ya existen todos los registros necesarios, no crear más
                 if ($registrosFaltantes > 0) {
@@ -228,16 +213,15 @@ class ModuloProduccionUrdidoController extends Controller
                         'total_registros_necesarios' => $totalRegistros,
                     ]);
 
-                    // Contar registros existentes agrupados por Hilos
+                    // Contar TODOS los registros existentes agrupados por Hilos
+                    // (incluye los que ya tienen NoJulio asignado, para no crear duplicados)
                     $registrosPorHilos = [];
                     foreach ($registrosProduccion as $registro) {
-                        if ($registro->NoJulio === null) {
-                            $hilosKey = (string)($registro->Hilos ?? 'null');
-                            if (!isset($registrosPorHilos[$hilosKey])) {
-                                $registrosPorHilos[$hilosKey] = 0;
-                            }
-                            $registrosPorHilos[$hilosKey]++;
+                        $hilosKey = (string)($registro->Hilos ?? 'null');
+                        if (!isset($registrosPorHilos[$hilosKey])) {
+                            $registrosPorHilos[$hilosKey] = 0;
                         }
+                        $registrosPorHilos[$hilosKey]++;
                     }
 
                     foreach ($julios as $julio) {
@@ -304,7 +288,7 @@ class ModuloProduccionUrdidoController extends Controller
                     Log::info('No se crearán registros adicionales - ya existen todos los necesarios', [
                         'folio' => $orden->Folio,
                         'total_registros_necesarios' => $totalRegistros,
-                        'registros_existentes_sin_nojulio' => $registrosExistentesSinNoJulio,
+                        'total_registros_existentes' => $totalRegistrosExistentes,
                     ]);
                 }
             } catch (\Throwable $e) {

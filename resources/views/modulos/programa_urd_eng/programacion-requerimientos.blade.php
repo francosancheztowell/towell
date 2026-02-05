@@ -294,23 +294,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="date" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${fechaISO}" data-field="fecha_req" disabled>
             </td>
             <td class="px-2 py-3 w-20">
-                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.cuenta || ''}" data-field="cuenta" data-telar-id="${telar.no_telar || ''}">
+                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.cuenta || ''}" data-field="cuenta" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
             </td>
             <td class="px-2 py-3 w-20">
-                <input type="number" step="0.01" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}">
+                <input type="number" step="0.01" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
             </td>
             <td class="px-2 py-3 w-24">
-                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" data-telar-id="${telar.no_telar || ''}">
+                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" data-telar-id="${telar.no_telar || ''}" required>
                     ${selectHiloHTML}
                 </select>
             </td>
             <td class="px-2 py-3 w-24">
-                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tamano" data-telar-id="${telar.no_telar || ''}">
+                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tamano" data-telar-id="${telar.no_telar || ''}" required>
                     ${selectTamanoHTML}
                 </select>
             </td>
             <td class="px-2 py-3 w-28">
-                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido">
+                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido" required>
                     ${opciones.urdido.map((x, idx) => {
                         const isSelected = telar.urdido === x || (!telar.urdido && idx === 0);
                         return `<option value="${x}" ${isSelected ? 'selected' : ''}>${x}</option>`;
@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </select>
             </td>
             <td class="px-2 py-3 w-20">
-                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo" data-telar-id="${telar.no_telar || ''}" style="${(tipoNormalizado === 'Rizo' || !tipoNormalizado) ? 'background-color: #fee2e2; color: #be123c;' : 'background-color: #ccfbf1; color: #0f766e;'}">
+                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo" data-telar-id="${telar.no_telar || ''}" required style="${(tipoNormalizado === 'Rizo' || !tipoNormalizado) ? 'background-color: #fee2e2; color: #be123c;' : 'background-color: #ccfbf1; color: #0f766e;'}">
                     <option value="Rizo" ${tipoNormalizado === 'Rizo' || !tipoNormalizado ? 'selected' : ''}>Rizo</option>
                     <option value="Pie" ${tipoNormalizado === 'Pie' ? 'selected' : ''}>Pie</option>
                 </select>
@@ -334,19 +334,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 </select>
             </td>
             <td class="px-2 py-3 w-28">
-                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo_atado">
+                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo_atado" required>
                     ${opciones.tipoAtado.map(x => `<option value="${x}" ${(telar.tipo_atado||'Normal')===x?'selected':''}>${x}</option>`).join('')}
                 </select>
             </td>
             <td class="px-2 py-3 w-24">
-                <input type="text" placeholder="Metros"
+                <input type="text" placeholder="Metros (requerido)"
                        class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
-                       value="${telar.metros ? formatNumberInput(telar.metros) : ''}" data-field="metros">
+                       value="${telar.metros ? formatNumberInput(telar.metros) : ''}" data-field="metros" required>
             </td>
             <td class="px-2 py-3 w-24">
-                <input type="text" placeholder="Kilos"
+                <input type="text" placeholder="Kilos (requerido)"
                        class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos">
+                       value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos" required>
             </td>
             <td class="px-2 py-3 w-24 text-center">
                 <input type="checkbox" class="w-4 h-4" ${telar.agrupar ? 'checked' : ''} data-field="agrupar">
@@ -1270,8 +1270,75 @@ document.addEventListener('DOMContentLoaded', () => {
         return v>0 ? v.toLocaleString('es-MX',{minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
     }
 
+    // Validar que todos los campos requeridos estén llenos antes de continuar
+    function validarCamposRequeridos() {
+        const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
+        const camposRequeridos = [
+            { field: 'cuenta', label: 'Cuenta', selector: 'input[data-field="cuenta"]' },
+            { field: 'calibre', label: 'Calibre', selector: 'input[data-field="calibre"]' },
+            { field: 'hilo', label: 'Hilo', selector: 'select[data-field="hilo"]' },
+            { field: 'tamano', label: 'Tamaño', selector: 'select[data-field="tamano"]' },
+            { field: 'urdido', label: 'Urdido', selector: 'select[data-field="urdido"]' },
+            { field: 'tipo', label: 'Tipo', selector: 'select[data-field="tipo"]' },
+            { field: 'tipo_atado', label: 'Tipo Atado', selector: 'select[data-field="tipo_atado"]' },
+            { field: 'metros', label: 'Metros', selector: 'input[data-field="metros"]' },
+            { field: 'kilos', label: 'Kilos', selector: 'input[data-field="kilos"]' }
+        ];
+
+        // Limpiar estilos de error de todos los campos requeridos
+        filas.forEach(fila => {
+            camposRequeridos.forEach(c => {
+                const el = fila.querySelector(c.selector);
+                if (el) el.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+            });
+        });
+
+        for (const fila of filas) {
+            const telarId = fila.querySelector('input[data-field="telar"]')?.value || '';
+            if (!telarId) continue;
+
+            for (const c of camposRequeridos) {
+                const el = fila.querySelector(c.selector);
+                if (!el) continue;
+
+                let valor = el.value ? String(el.value).trim() : '';
+                if (c.field === 'metros' || c.field === 'kilos') {
+                    valor = parseNumberInput(valor) || '';
+                }
+
+                if (!valor || valor === '') {
+                    el.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                    el.focus?.();
+                    el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+                    return {
+                        valido: false,
+                        mensaje: `Telar ${telarId}: complete el campo "${c.label}".`
+                    };
+                }
+            }
+        }
+        return { valido: true };
+    }
+
     /* =================== Evento único =================== */
     document.getElementById('btnSiguiente')?.addEventListener('click', () => {
+        // Validar campos requeridos antes de continuar
+        const validacion = validarCamposRequeridos();
+        if (!validacion.valido) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campos requeridos',
+                    text: validacion.mensaje,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#2563eb'
+                });
+            } else {
+                alert(validacion.mensaje);
+            }
+            return;
+        }
+
         // Recopilar datos de la tabla
         const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
         const datosTelares = [];
@@ -1314,7 +1381,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (datosTelares.length === 0) {
-            alert('No hay telares para procesar');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'warning', title: 'Sin datos', text: 'No hay telares para procesar' });
+            } else {
+                alert('No hay telares para procesar');
+            }
             return;
         }
 
