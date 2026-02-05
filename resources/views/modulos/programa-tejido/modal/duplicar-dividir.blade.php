@@ -110,7 +110,7 @@ async function duplicarTelar(row) {
 	// Modal con formato de tabla
 	const resultado = await Swal.fire({
 		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido: pedidoFinal, saldo: saldoFinal, produccion: produccionFinal, flog, ordCompartida, aplicacion: aplicacionFinal, registroId, descripcion }),
-		width: '95%',
+		width: '100%',
 		showCancelButton: true,
 		confirmButtonText: 'Aceptar',
 		cancelButtonText: 'Cancelar',
@@ -125,7 +125,7 @@ async function duplicarTelar(row) {
 		},
 		didOpen: () => {
 			const popup = Swal.getPopup();
-			if (popup) popup.style.maxWidth = '1800px';
+			if (popup) popup.style.maxWidth = '1600px';
 			initModalDuplicar(telar, hilo, ordCompartida, registroId);
 		},
 		preConfirm: () => {
@@ -271,7 +271,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 
 			<!-- Indicador de registro ya dividido -->
 			${yaDividido ? `
-			<div id="info-ord-compartida" class="mb-3 px-4 py-2 bg-green-50 border border-green-300 rounded-md text-green-700 text-sm">
+			<div id="info-ord-compartida" class="mb-2 px-4 py-1 bg-green-50 border border-green-300 rounded-md text-green-700 text-sm">
 				<span>Este registro ya pertenece a un grupo dividido. Al cambiar a modo "Dividir", verás los telares existentes.</span>
 			</div>
 			` : ''}
@@ -359,23 +359,23 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<input type="hidden" id="registro-id-original" value="${registroId}">
 
 			<!-- Tabla de salones, telares y cantidades -->
-			<div class="border border-gray-300 rounded-lg overflow-visible" style="overflow: visible;">
-				<table class="w-full border-collapse" style="overflow: visible;">
+			<div class="border border-gray-300 rounded-lg" style="overflow-x: auto; overflow-y: visible;">
+				<table class="w-full border-collapse" style="table-layout: auto;">
 					<thead class="bg-gray-100">
 						<tr>
-							<th id="th-clave-modelo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Clave Modelo</th>
+							<th id="th-clave-modelo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Clave</th>
 							<th id="th-producto" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Producto</th>
-							<th id="th-flogs" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="min-width: 200px;">Flogs</th>
-							<th id="th-descripcion" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="min-width: 250px;">Descripcion</th>
-							<th id="th-aplicacion" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Aplicación</th>
-							<th id="th-telar" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Telar</th>
-							<th id="th-pedido-tempo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Pedido</th>
-							<th id="th-porcentaje-segundos" class="py-2 px-3 text-xs font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">% Segundas</th>
+							<th id="th-flogs" class="py-2 px-2 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="min-width: 120px;">Flogs</th>
+							<th id="th-descripcion" class="py-2 px-2 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="min-width: 130px;">Descripcion</th>
+							<th id="th-aplicacion" class="py-2 px-2 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="min-width: 5rem; width: 5rem;">Aplic</th>
+							<th id="th-telar" class="py-2 px-2 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="min-width: 100px;">Telar</th>
+							<th id="th-pedido-tempo" class="py-2 px-2 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300" style="width: 5rem; min-width: 5rem;">Pedido</th>
+							<th id="th-porcentaje-segundos" class="py-2 px-1 text-xs font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden" style="width: 3.25rem; min-width: 3.25rem;">% Seg</th>
 							<th id="th-produccion" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Produccion</th>
-							<th id="th-saldo-total" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldo Total</th>
-							<th id="th-saldo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden">Saldos</th>
+							<th id="th-saldo-total" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden" style="width: 5rem; min-width: 5rem;">Saldos</th>
+							<th id="th-saldo" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300 hidden" style="width: 5rem; min-width: 5rem;">Saldos</th>
 							<th id="th-obs" class="py-2 px-3 text-sm font-medium text-gray-700 text-left border-b border-r border-gray-300">Obs</th>
-							<th id="th-acciones" class="py-2 px-2 text-center border-b border-gray-300 w-16 hidden font-normal"></th>
+							<th id="th-acciones" class="py-1 px-0 text-center border-b border-gray-300 hidden font-normal" style="width: 2rem; min-width: 2rem;"></th>
 						</tr>
 					</thead>
 					<tbody id="telar-pedido-body">
@@ -388,51 +388,50 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 								<textarea rows="2" readonly
 									class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
 							</td>
-							<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px; position: relative;">
-								<textarea rows="2" ${flogReadonly}
-									class="${flogClass} resize-none">${flog || ''}</textarea>
-							</td>
-							<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
-								<textarea rows="2"
-									class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none">${descripcion || ''}</textarea>
-							</td>
-							<td class="p-2 border-r border-gray-200 aplicacion-cell">
-								<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-									<option value="">Seleccionar...</option>
-								</select>
-							</td>
-							<td class="p-2 border-r border-gray-200">
-								<select name="telar-destino[]" data-telar-actual="${telar}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
+						<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 120px; position: relative;">
+							<textarea rows="2" ${flogReadonly}
+								class="${flogClass} resize-none">${flog || ''}</textarea>
+						</td>
+						<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 130px;">
+							<textarea rows="2"
+								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none">${descripcion || ''}</textarea>
+						</td>
+						<td class="p-2 border-r border-gray-200 aplicacion-cell" style="min-width: 5rem; width: 5rem;">
+							<select name="aplicacion-destino[]" class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+								<option value="">Seleccionar...</option>
+							</select>
+						</td>
+						<td class="p-2 border-r border-gray-200" style="min-width: 100px;">
+							<select name="telar-destino[]" data-telar-actual="${telar}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
 									${telar ? `<option value="${buildTelarValue(salon, telar)}" selected>${telar}</option>` : '<option value="">Seleccionar...</option>'}
 								</select>
 							</td>
-							<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
-								<input type="number" name="pedido-tempo-destino[]" value="${pedido}" step="0.01" min="0"
-									class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-							</td>
-						<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
-							<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
-								placeholder="0.00"
-								class="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						<td class="p-2 border-r border-gray-200 pedido-tempo-cell" style="width: 5rem; min-width: 5rem;">
+							<input type="text" name="pedido-tempo-destino[]" value="${pedido}" inputmode="decimal"
+								class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						</td>
+						<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell" style="width: 3.25rem; min-width: 3.25rem;">
+							<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" placeholder="0"
+								class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" style="max-width: 3rem;">
 						</td>
 						<td class="p-2 border-r border-gray-200 produccion-cell hidden">
 								<input type="hidden" name="pedido-destino[]" value="${pedido}">
 						</td>
-							<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">
-								<input type="text" value="${saldo || ''}" readonly
-									class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
-							</td>
-							<td class="p-2 border-r border-gray-200 saldo-cell">
-								<input type="number" name="saldo-destino[]" value="${pedido || ''}" step="0.01" min="0"
-									class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-							</td>
+						<td class="p-2 border-r border-gray-200 saldo-total-cell hidden" style="width: 5rem; min-width: 5rem;">
+							<input type="text" value="${saldo || ''}" readonly
+								class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+						</td>
+						<td class="p-2 border-r border-gray-200 saldo-cell" style="width: 5rem; min-width: 5rem;">
+							<input type="text" name="saldo-destino[]" value="${pedido || ''}" inputmode="decimal"
+								class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+						</td>
 						<td class="p-2 border-r border-gray-200">
 							<textarea rows="2" name="observaciones-destino[]"
 								placeholder="Observaciones..."
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"></textarea>
 							</td>
-				<td class="p-2 text-center acciones-cell">
-					<button type="button" class="btn-remove-row px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors" title="Eliminar fila">
+				<td class="py-1 px-0 text-center acciones-cell" style="width: 2rem; min-width: 2rem;">
+					<button type="button" class="btn-remove-row p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded text-sm inline-flex items-center justify-center" style="min-width: 1.5rem; min-height: 1.5rem;" title="Eliminar fila">
 						<i class="fas fa-times"></i>
 					</button>
 				</td>
@@ -476,7 +475,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const ordCompartidaActualLocal = ordCompartidaParam || document.getElementById('ord-compartida-original')?.value || '';
 	const registroIdActual = registroIdParam || document.getElementById('registro-id-original')?.value || '';
 	const tieneOrdCompartida = ordCompartidaActualLocal && ordCompartidaActualLocal !== '' && ordCompartidaActualLocal !== '0';
-	
+
 	// ⚡ MEJORA: Guardar valores originales de la fila principal al inicializar (especialmente en modo dividir)
 	setTimeout(() => {
 		const modoActual = getModoActual();
@@ -760,7 +759,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 		if (!pedidoTempoInput || !saldoInput) return;
 
-		const pedido = parseFloat(pedidoTempoInput.value) || 0;
+		const pedido = typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(pedidoTempoInput.value) : (parseFloat(pedidoTempoInput.value) || 0);
 		const porcentajeSegundos = parseFloat(porcentajeSegundosInput?.value || 0) || 0;
 
 		// El pedido NO se modifica, solo se usa como base para calcular el saldo
@@ -802,14 +801,14 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			<td class="p-2 border-r border-gray-200 producto-cell">
 				<textarea rows="2" readonly class="${readonlyClass} resize-none">${producto || ''}</textarea>
 		</td>
-		<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px; position: relative;">
+		<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 120px; position: relative;">
 			<textarea rows="2" ${flogReadonly} class="${flogClass} resize-none">${flog || ''}</textarea>
 		</td>
-			<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
+			<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 130px;">
 				<textarea rows="2" class="${editableClass} resize-none">${descripcion || ''}</textarea>
 			</td>
-			<td class="p-2 border-r border-gray-200 aplicacion-cell">
-				<select name="aplicacion-destino[]" class="${selectClass}" data-valor-seleccionado="${aplicacionSeleccionada || ''}">
+			<td class="p-2 border-r border-gray-200 aplicacion-cell" style="min-width: 5rem; width: 5rem;">
+				<select name="aplicacion-destino[]" class="${selectClass} min-w-0 px-1 py-1" data-valor-seleccionado="${aplicacionSeleccionada || ''}">
 					${aplicacionOptionsHTML.replace(/<option value="([^"]*)">/g, (match, value) => {
 						return `<option value="${value}"${value === (aplicacionSeleccionada || '') ? ' selected' : ''}>`;
 					})}
@@ -879,38 +878,37 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 			filaPrincipal.innerHTML = `
 				${baseCells}
-				<td class="p-2 border-r border-gray-200">
+				<td class="p-2 border-r border-gray-200" style="min-width: 100px;">
 					<select name="telar-destino[]" data-telar-actual="${telarOriginal}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">
 						${telarOriginal ? `<option value="${buildTelarValue(salonActualLocal || salonActual, telarOriginal)}" selected>${telarOriginal}</option>` : '<option value="">Seleccionar...</option>'}
 					</select>
 				</td>
-				<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
-					<input type="number" name="pedido-tempo-destino[]" value="${pedidoOriginal}" step="0.01" min="0"
-						class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				<td class="p-2 border-r border-gray-200 pedido-tempo-cell" style="width: 5rem; min-width: 5rem;">
+					<input type="text" name="pedido-tempo-destino[]" value="${pedidoOriginal}" inputmode="decimal"
+						class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
-				<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
-					<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0"
-						placeholder="0.00"
-						class="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell" style="width: 3.25rem; min-width: 3.25rem;">
+					<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" placeholder="0"
+						class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" style="max-width: 3rem;">
 				</td>
 				<td class="p-2 border-r border-gray-200 produccion-cell hidden">
 					<input type="hidden" name="pedido-destino[]" value="${pedidoOriginal}">
 				</td>
-				<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">
+				<td class="p-2 border-r border-gray-200 saldo-total-cell hidden" style="width: 5rem; min-width: 5rem;">
 					<input type="text" value="${saldoOriginal}" readonly
-						class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+						class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 				</td>
-				<td class="p-2 border-r border-gray-200 saldo-cell">
-					<input type="number" name="saldo-destino[]" value="${pedidoOriginal || ''}" step="0.01" min="0"
-						class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+				<td class="p-2 border-r border-gray-200 saldo-cell" style="width: 5rem; min-width: 5rem;">
+					<input type="text" name="saldo-destino[]" value="${pedidoOriginal || ''}" inputmode="decimal"
+						class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
 				</td>
 						<td class="p-2 border-r border-gray-200">
 							<textarea rows="2" name="observaciones-destino[]"
 								placeholder="Observaciones..."
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"></textarea>
 							</td>
-				<td class="p-2 text-center acciones-cell">
-					<button type="button" class="btn-remove-row px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors" title="Eliminar fila">
+				<td class="py-1 px-0 text-center acciones-cell" style="width: 2rem; min-width: 2rem;">
+					<button type="button" class="btn-remove-row p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded text-sm inline-flex items-center justify-center" style="min-width: 1.5rem; min-height: 1.5rem;" title="Eliminar fila">
 						<i class="fas fa-times"></i>
 					</button>
 				</td>
@@ -982,36 +980,36 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			} else {
 				filaPrincipal.innerHTML = `
 					${baseCells}
-					<td class="p-2 border-r border-gray-200">
+					<td class="p-2 border-r border-gray-200" style="min-width: 100px;">
 						<div class="flex items-center gap-2">
 							<input type="text" name="telar-destino[]" value="${telarOriginal}" readonly
 								data-registro-id=""
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 						</div>
 					</td>
-					<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
-						<input type="number" name="pedido-tempo-destino[]" value="${pedidoOriginal}" data-pedido-total="true" step="0.01" min="0" readonly
-							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+					<td class="p-2 border-r border-gray-200 pedido-tempo-cell" style="width: 5rem; min-width: 5rem;">
+						<input type="text" name="pedido-tempo-destino[]" value="${pedidoOriginal}" data-pedido-total="true" readonly
+							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
-					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
+					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell" style="width: 3.25rem; min-width: 3.25rem;">
 						<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" readonly
-							class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" style="max-width: 3rem;">
 					</td>
-					<td class="p-2 border-r border-gray-200 produccion-cell">
+					<td class="p-2 border-r border-gray-200 produccion-cell" style="width: 5rem; min-width: 5rem;">
 						<input type="text" value="${produccionOriginal || ''}" readonly
-							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 						<input type="hidden" name="pedido-destino[]" value="${pedidoOriginal}">
 					</td>
-					<td class="p-2 border-r border-gray-200 saldo-total-cell">
+					<td class="p-2 border-r border-gray-200 saldo-total-cell" style="width: 5rem; min-width: 5rem;">
 						<input type="text" value="${saldoOriginal}" readonly
-							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200">
 						<textarea rows="2" name="observaciones-destino[]"
 							placeholder="Observaciones..."
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"></textarea>
 					</td>
-					<td class="p-2 text-center acciones-cell">
+					<td class="py-1 px-0 text-center acciones-cell" style="width: 2rem; min-width: 2rem;">
 						<div class="w-3 h-3 rounded-full bg-green-500 mx-auto" title="Líder"></div>
 					</td>
 				`;
@@ -1044,6 +1042,9 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		bindFlogEditableInput();
 		bindDescripcionEditableInput();
 		recomputeState();
+		setTimeout(() => {
+			if (typeof aplicarFormatoMilesEnContenedor === 'function') aplicarFormatoMilesEnContenedor(tbody);
+		}, 80);
 	}
 
 	// Función para actualizar el estilo del switch y reconstruir la tabla
@@ -1247,11 +1248,10 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 									// La descripción debe ser: NAMEPROYECT (IDFLOG)
 									if (inputDescripcion) {
 										if (info?.nombreProyecto) {
-											const descripcionCompleta = `${info.nombreProyecto} (${info.idflog})`;
+											const descripcionCompleta = `${info.nombreProyecto}`;
 											inputDescripcion.value = descripcionCompleta;
 										} else {
-											// Si no hay nombreProyecto, usar solo el idflog entre paréntesis
-											inputDescripcion.value = `(${info.idflog})`;
+											inputDescripcion.value = '';
 										}
 										inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
 									}
@@ -1691,9 +1691,9 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			if (inputDescripcion && flog) {
 				let descripcionCompleta = '';
 				if (cachedData.nombreProyecto) {
-					descripcionCompleta = `${cachedData.nombreProyecto} (${flog})`;
+					descripcionCompleta = `${cachedData.nombreProyecto}`;
 				} else {
-					descripcionCompleta = `(${flog})`;
+					descripcionCompleta = '';
 				}
 
 				// Actualizar el input oculto
@@ -1735,10 +1735,10 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			if (inputDescripcion && flog) {
 				let descripcionCompleta = '';
 				if (data.nombreProyecto) {
-					descripcionCompleta = `${data.nombreProyecto} (${flog})`;
+					descripcionCompleta = `${data.nombreProyecto}`;
 				} else {
 					// Si no hay nombreProyecto, usar solo el flog entre paréntesis
-					descripcionCompleta = `(${flog})`;
+					descripcionCompleta = '';
 				}
 
 				// Actualizar el input oculto
@@ -2233,9 +2233,9 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 									if (descripcionTextarea) {
 										if (nombreProyecto) {
-											descripcionTextarea.value = `${nombreProyecto} (${idflog})`;
+										descripcionTextarea.value = `${nombreProyecto}`;
 										} else {
-											descripcionTextarea.value = `(${idflog})`;
+										descripcionTextarea.value = '';
 										}
 									}
 
@@ -2423,9 +2423,9 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			if (descripcionTextarea && flog) {
 				let descripcionCompleta = '';
 				if (data.nombreProyecto) {
-					descripcionCompleta = `${data.nombreProyecto} (${flog})`;
+					descripcionCompleta = `${data.nombreProyecto}`;
 				} else {
-					descripcionCompleta = `(${flog})`;
+					descripcionCompleta = '';
 				}
 				descripcionTextarea.value = descripcionCompleta;
 			}
@@ -2685,7 +2685,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 										// La descripción debe ser: NAMEPROYECT (IDFLOG)
 										if (flogData?.nombreProyecto && flogData?.idflog) {
-											const descripcionCompleta = `${flogData.nombreProyecto} (${flogData.idflog})`;
+											const descripcionCompleta = `${flogData.nombreProyecto}`;
 											if (inputDescripcion) {
 												inputDescripcion.value = descripcionCompleta;
 												inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
@@ -2764,7 +2764,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		}
 
 		// 5. Si hay flog inicial, cargar su descripción
-		if (flogInicial && inputDescripcion && !inputDescripcion.value) {
+		if (flogInicial && inputDescripcion) {
 			promesasCargaInicial.push(
 				fetch(`/programa-tejido/descripcion-by-idflog/${encodeURIComponent(flogInicial)}`, {
 					headers: {
@@ -2774,19 +2774,17 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				})
 					.then(r => r.json())
 					.then(data => {
-						// La descripción debe ser: NAMEPROYECT (IDFLOG)
-						if (inputDescripcion && flogInicial) {
-							if (data?.nombreProyecto) {
-								const descripcionCompleta = `${data.nombreProyecto} (${flogInicial})`;
+							if (inputDescripcion && flogInicial) {
+								const descripcionCompleta = data?.nombreProyecto ? `${data.nombreProyecto}` : '';
 								inputDescripcion.value = descripcionCompleta;
-							} else {
-								// Si no hay nombreProyecto, usar solo el flogInicial entre paréntesis
-								inputDescripcion.value = `(${flogInicial})`;
+								inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
 							}
-							inputDescripcion.dispatchEvent(new Event('input', { bubbles: true }));
-						}
-						return data;
-					})
+							const descripcionTextarea = document.querySelector('#telar-pedido-body tr#fila-principal .descripcion-cell textarea');
+							if (descripcionTextarea) {
+								descripcionTextarea.value = inputDescripcion?.value || '';
+							}
+							return data;
+						})
 					.catch(err => {
 						return null;
 					})
@@ -2979,22 +2977,19 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		});
 	}
 
-	// Función para actualizar las columnas de información en todas las filas
-	// NOTA: Esta función ya no se usa porque cada fila es independiente
-	function actualizarColumnasInformacion() {
-		// Esta función se mantiene por compatibilidad pero ya no hace nada
-		// Cada fila ahora maneja sus propios valores independientemente
-	}
+	// Aplicar formateo de miles a inputs de Pedido y Saldos (con delay para que la fila inicial ya esté en el DOM)
+	setTimeout(() => {
+		if (typeof aplicarFormatoMilesEnContenedor === 'function') {
+			aplicarFormatoMilesEnContenedor(tbody);
+		}
+	}, 50);
 
-	// NOTA: Ya no sincronizamos descripción desde la tabla hacia el input oculto
-	// Cada fila es independiente y maneja sus propios valores
-	function bindDescripcionEditableInput() {
-		// Esta función se mantiene por compatibilidad pero ya no hace nada
-		// Cada fila ahora maneja su propia descripción de forma independiente
-	}
+	// Stubs de compatibilidad (cada fila es independiente)
+	function actualizarColumnasInformacion() {}
+	function bindDescripcionEditableInput() {}
 
+	// Configura autocompletadores para la fila principal
 	function bindClaveModeloEditableInput() {
-		// Configurar autocompletadores independientes para la fila principal
 		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
 		if (filaPrincipal && getModoActual() === 'duplicar') {
 			setupRowAutocompletadores(filaPrincipal);
@@ -3002,8 +2997,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 	}
 
 	function bindFlogEditableInput() {
-		// Configurar autocompletadores independientes para la fila principal
-		// La función setupRowAutocompletadores ya maneja el autocompletado de Flog
 		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
 		if (filaPrincipal && getModoActual() === 'duplicar') {
 			setupRowAutocompletadores(filaPrincipal);
@@ -3126,14 +3119,17 @@ function validarYCapturarDatosDuplicar() {
 		const telarRaw = input.value.trim();
 		const parsedTelar = parseTelarValue(telarRaw);
 		const telarVal = parsedTelar.telar || telarRaw;
-		const fila = filas[idx];
+		// Usar la fila que contiene este input (misma fila que el flog de este destino)
+		const fila = input.closest('tr') || filas[idx];
 		const salonInputFila = fila?.querySelector('input[name="salon-destino[]"]');
 		const salonVal = (salonInputFila?.value || parsedTelar.salon || salon || '').trim();
-		const pedidoTempoVal = pedidoTempoInputs[idx]?.value.trim() || null;
+		const pedidoTempoRaw = pedidoTempoInputs[idx]?.value.trim() || null;
+		const pedidoTempoVal = pedidoTempoRaw ? (typeof limpiarFormatoMiles === 'function' ? limpiarFormatoMiles(pedidoTempoRaw) : pedidoTempoRaw) : null;
 		const pedidoVal = pedidoInputs[idx]?.value.trim() || '';
 		const observacionesVal = observacionesInputs[idx]?.value.trim() || null;
 		const porcentajeSegundosVal = porcentajeSegundosInputs[idx]?.value.trim() || null;
-		const saldoVal = saldoInputs[idx]?.value.trim() || '';
+		const saldoRaw = saldoInputs[idx]?.value.trim() || '';
+		const saldoVal = saldoRaw ? (typeof limpiarFormatoMiles === 'function' ? limpiarFormatoMiles(saldoRaw) : saldoRaw) : '';
 		// Obtener aplicación de la fila actual directamente
 		const aplicacionSelect = fila?.querySelector('select[name="aplicacion-destino[]"]');
 		const aplicacionValRaw = aplicacionSelect?.value?.trim() || '';
@@ -3257,8 +3253,12 @@ function validarYCapturarDatosDuplicar() {
 			// En modo duplicar/vincular:
 			// - pedido (TotalPedido) = valor del pedido tempo (sin % de segundas)
 			// - saldo (SaldoPedido) = valor calculado con % de segundas
-			const pedidoFinal = esDuplicar ? (pedidoTempoVal || pedidoVal) : pedidoVal;
-			const saldoFinal = esDuplicar ? (saldoVal || pedidoTempoVal || pedidoVal) : pedidoVal;
+			// Recortar a 2 decimales para no acumular decimales
+			const pedidoFinalRaw = esDuplicar ? (pedidoTempoVal || pedidoVal) : pedidoVal;
+			const saldoFinalRaw = esDuplicar ? (saldoVal || pedidoTempoVal || pedidoVal) : pedidoVal;
+			const pedidoFinal = (typeof a2Decimales === 'function' ? a2Decimales(pedidoFinalRaw) : pedidoFinalRaw) || pedidoFinalRaw;
+			const saldoFinal = (typeof a2Decimales === 'function' ? a2Decimales(saldoFinalRaw) : saldoFinalRaw) || saldoFinalRaw;
+			const pedidoTempoRedondeado = (typeof a2Decimales === 'function' ? a2Decimales(pedidoTempoVal) : pedidoTempoVal) || pedidoTempoVal;
 
 			// Construir Maquina si no está ya guardado
 			if (!datosFila.maquina && salonVal && telarVal) {
@@ -3282,18 +3282,17 @@ function validarYCapturarDatosDuplicar() {
 			const destinoObj = {
 				salon_destino: salonVal,
 				telar: telarVal,
-				pedido_tempo: pedidoTempoVal,
-				pedido: pedidoFinal, // TotalPedido (sin % de segundas)
-				saldo: saldoFinal, // SaldoPedido (con % de segundas)
+				pedido_tempo: pedidoTempoRedondeado,
+				pedido: pedidoFinal, // TotalPedido (sin % de segundas), 2 decimales
+				saldo: saldoFinal, // SaldoPedido (con % de segundas), 2 decimales
 				observaciones: observacionesVal,
 				porcentaje_segundos: porcentajeSegundosVal ? parseFloat(porcentajeSegundosVal) : null,
 				aplicacion: aplicacionVal,
-				// ⚡ MEJORA: Usar valores de la fila SIEMPRE si existe (incluso si está vacío)
-				// IMPORTANTE: Leer directamente del input para asegurar el valor más reciente
+				// ⚡ MEJORA: Usar valores de la fila. Si flog/descripción van vacíos se envían vacíos para que backend ponga null
 				tamano_clave: claveModeloFila !== '' ? claveModeloFila : (claveModelo || null),
 				producto: productoFila || producto,
-				flog: flogFila || flog,
-				descripcion: descripcionFila || descripcion,
+				flog: (flogFila || '').trim() || null,
+				descripcion: (descripcionFila || '').trim() || null,
 				custName: custNameFila || custname || '',
 				registro_id: registroId,
 				es_existente: esExistente,
@@ -3320,3 +3319,5 @@ function validarYCapturarDatosDuplicar() {
 		registro_id_original: registroIdOriginal
 	};
 }
+
+

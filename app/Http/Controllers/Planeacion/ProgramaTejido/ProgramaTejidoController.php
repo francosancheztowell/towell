@@ -1831,6 +1831,10 @@ class ProgramaTejidoController extends Controller
             $registro = ReqProgramaTejido::find($id);
 
             if (!$registro) {
+                LogFacade::warning('detallesBalanceo: registro no encontrado', [
+                    'id' => $id,
+                    'table' => ReqProgramaTejido::tableName(),
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Registro no encontrado'

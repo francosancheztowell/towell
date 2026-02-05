@@ -305,12 +305,16 @@
         }
 
         if (wrapper) {
-          const neededHeight = 42 + rows.length * 40 + 32;
-          const maxHeight = Math.round(window.innerHeight * 0.7);
+          const rowPx = window.innerWidth <= 639 ? 32 : 40;
+          const neededHeight = 42 + rows.length * rowPx + 32;
+          const maxHeight = Math.round(window.innerHeight * (window.innerWidth <= 639 ? 0.55 : 0.7));
           wrapper.style.height = `${Math.min(neededHeight, maxHeight)}px`;
         }
 
-        const template = `200px repeat(${dates.length}, 70px)`;
+        const isSmall = window.innerWidth <= 639;
+        const labelCol = isSmall ? '100px' : '200px';
+        const dateCol = isSmall ? '52px' : '70px';
+        const template = `${labelCol} repeat(${dates.length}, ${dateCol})`;
         let html = `<div class="gantt-grid" style="grid-template-columns:${template}">`;
 
         html += `<div class="gantt-cell gantt-header gantt-label"></div>`;
@@ -992,8 +996,8 @@
 
           return `
             <tr class="hover:bg-gray-50 border-b border-gray-200" data-registro-id="${reg.Id}">
-              <td class="px-3 py-2 text-xs sm:text-sm font-medium text-gray-900">${reg.NoTelarId || '-'}</td>
-              <td class="px-3 py-2 text-xs sm:text-sm text-gray-600">${reg.NombreProducto || '-'}</td>
+              <td class="px-3 py-2 text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">${reg.NoTelarId || '-'}</td>
+              <td class="px-3 py-2 text-xs sm:text-sm text-gray-600 max-w-[100px] sm:max-w-none truncate" title="${(reg.NombreProducto || '-').replace(/"/g, '&quot;')}">${reg.NombreProducto || '-'}</td>
               <td class="px-3 py-2 text-xs sm:text-sm text-right text-gray-600">${Math.round(stdDia).toLocaleString('es-MX')}</td>
               <td class="px-3 py-2 text-right">
                 <input
@@ -1028,18 +1032,48 @@
         }).join('');
 
         const htmlContent = `
-          <div class="space-y-4 text-left">
+          <div class="balanceo-modal-content space-y-3 sm:space-y-4 text-left">
             <style>
-              #gantt-ord-container { max-height: 75vh; }
-              .gantt-grid { display: grid; grid-auto-rows: minmax(40px, auto); width: max-content; }
-              .gantt-cell { border: 1px solid #e5e7eb; padding: 6px 8px; font-size: 11px; line-height: 1.25; text-align: center; min-width: 80px; box-sizing: border-box; }
+              /* Contenedor balanceo: más ancho para ampliar vista y reducir recortes */
+              .balanceo-modal-content { max-width: 100%; }
+              .swal2-popup.balanceo-orden-modal { max-width: 99vw; padding: 0.5rem; }
+              @media (min-width: 640px) { .swal2-popup.balanceo-orden-modal { padding: 0.75rem 1rem; max-width: 98vw; } }
+              @media (min-width: 1024px) { .swal2-popup.balanceo-orden-modal { max-width: min(98vw, 1600px); padding: 1rem 1.25rem; } }
+              .swal2-html-container.balanceo-orden-body { overflow-x: hidden; overflow-y: auto; max-height: 88vh; padding: 0.5rem; }
+              @media (min-width: 640px) { .swal2-html-container.balanceo-orden-body { padding: 0.5rem 0.75rem; } }
+              @media (min-width: 1024px) { .swal2-html-container.balanceo-orden-body { max-height: 90vh; padding: 0.75rem 1rem; } }
+              /* Tabla: scroll horizontal, evitar que encabezados y números se apilen */
+              .balanceo-tabla-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -2px; }
+              .balanceo-tabla-wrap table { min-width: 620px; }
+              .balanceo-tabla-wrap table th,
+              .balanceo-tabla-wrap table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+              .balanceo-tabla-wrap table th:nth-child(1), .balanceo-tabla-wrap table td:nth-child(1) { min-width: 50px; max-width: 58px; }
+              .balanceo-tabla-wrap table th:nth-child(2), .balanceo-tabla-wrap table td:nth-child(2) { min-width: 110px; max-width: 200px; }
+              .balanceo-tabla-wrap table th:nth-child(3), .balanceo-tabla-wrap table td:nth-child(3) { min-width: 62px; }
+              .balanceo-tabla-wrap table th:nth-child(4), .balanceo-tabla-wrap table td:nth-child(4) { min-width: 70px; }
+              .balanceo-tabla-wrap table th:nth-child(5), .balanceo-tabla-wrap table td:nth-child(5) { min-width: 72px; }
+              .balanceo-tabla-wrap table th:nth-child(6), .balanceo-tabla-wrap table td:nth-child(6) { min-width: 62px; }
+              .balanceo-tabla-wrap table th:nth-child(7), .balanceo-tabla-wrap table td:nth-child(7),
+              .balanceo-tabla-wrap table th:nth-child(8), .balanceo-tabla-wrap table td:nth-child(8) { min-width: 76px; }
+              @media (max-width: 639px) {
+                .balanceo-tabla-wrap table th, .balanceo-tabla-wrap table td { padding: 0.35rem 0.4rem; font-size: 0.7rem; }
+                .balanceo-tabla-wrap .pedido-input { width: 4rem; min-width: 4rem; padding: 0.25rem 0.35rem; font-size: 0.7rem; }
+                .balanceo-tabla-wrap #total-pedido-input { width: 4rem; min-width: 4rem; padding: 0.25rem 0.35rem; font-size: 0.7rem; }
+              }
+              /* Gantt: contenedor con scroll */
+              #gantt-ord-container { max-height: 75vh; overflow: auto; -webkit-overflow-scrolling: touch; min-height: 150px; }
+              .gantt-grid { display: grid; grid-auto-rows: minmax(36px, auto); width: max-content; min-width: 100%; }
+              @media (max-width: 639px) { .gantt-grid { grid-auto-rows: minmax(32px, auto); } }
+              .gantt-cell { border: 1px solid #e5e7eb; padding: 4px 6px; font-size: 10px; line-height: 1.2; text-align: center; min-width: 64px; box-sizing: border-box; }
+              @media (max-width: 639px) { .gantt-cell { padding: 3px 4px; font-size: 9px; min-width: 52px; } }
               .gantt-header { background: #f9fafb; font-weight: 600; color: #374151; position: sticky; top: 0; z-index: 10; }
-              .gantt-label { font-weight: 600; background: #f3f4f6; text-align: left; position: sticky; left: 0; z-index: 20; white-space: nowrap; }
+              .gantt-label { font-weight: 600; background: #f3f4f6; text-align: left; position: sticky; left: 0; z-index: 20; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+              @media (max-width: 639px) { .gantt-label { max-width: 100px; font-size: 9px; } }
               .gantt-bar { background: #fef2f2; color: #b91c1c; font-weight: 600; }
               .gantt-bar-alt { background: #ecfdf3; color: #166534; font-weight: 600; }
             </style>
 
-            <div class="flex flex-col sm:flex-row sm:justify-end gap-2 items-end">
+            <div class="flex flex-col sm:flex-row sm:justify-end gap-2 items-stretch sm:items-end">
               <div class="flex flex-col sm:flex-row gap-2 items-center w-full sm:w-auto">
                 <label class="text-xs text-gray-700 whitespace-nowrap">Fecha Objetivo:</label>
                 <input
@@ -1049,7 +1083,7 @@
                 >
                 <button type="button"
                   onclick="aplicarBalanceoAutomatico(${ordCompartida})"
-                  class="inline-flex items-center justify-center gap-1 rounded-md bg-green-500 px-2 py-1 text-xs font-medium text-white shadow-sm hover:bg-green-600">
+                  class="inline-flex items-center justify-center gap-1 rounded-md bg-blue-500 px-4 py-1 text-md font-medium text-white shadow-sm hover:bg-blue-600">
                   <i class="fa-solid fa-scale-balanced text-xs"></i>
                   <span>Balancear</span>
                 </button>
@@ -1060,7 +1094,7 @@
 
             <div class="flex flex-col lg:flex-row gap-4 items-stretch">
               <div class="w-full lg:w-5/12 min-w-0 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
-                <div class="overflow-x-auto">
+                <div class="balanceo-tabla-wrap overflow-x-auto">
                   <table class="min-w-full">
                     <thead class="bg-blue-500 text-white">
                       <tr>
@@ -1109,6 +1143,7 @@
           title: 'Balanceo de orden',
           html: htmlContent,
           width: '100%',
+          customClass: { popup: 'balanceo-orden-modal', htmlContainer: 'balanceo-orden-body' },
           showCloseButton: true,
           showConfirmButton: true,
           confirmButtonText: '<i class="fa-solid fa-save mr-2"></i> Guardar',
@@ -1169,9 +1204,9 @@
         }
 
         const ordCompartida = rowElement.getAttribute('data-ord-compartida');
-        const tieneOrdCompartida = ordCompartida && 
-                                   ordCompartida.trim() !== '' && 
-                                   ordCompartida !== '0' && 
+        const tieneOrdCompartida = ordCompartida &&
+                                   ordCompartida.trim() !== '' &&
+                                   ordCompartida !== '0' &&
                                    ordCompartida.toLowerCase() !== 'null';
 
         if (tieneOrdCompartida) {
@@ -1199,7 +1234,7 @@
       window.abrirBalancearDesdeSeleccion = function() {
         const rows = Array.from(document.querySelectorAll('.selectable-row'));
         const selectedRow = rows.find(r => r.classList.contains('bg-blue-700') || r.classList.contains('bg-blue-400'));
-        
+
         if (!selectedRow) {
           Swal.fire({
             icon: 'warning',

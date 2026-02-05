@@ -1,6 +1,90 @@
 {{-- Funciones compartidas para duplicar/vincular y dividir --}}
 {{-- NOTA: Este archivo se incluye dentro de un bloque <script>, NO agregar etiquetas <script> aquí --}}
 
+// ===== Utilidades de formateo de números con separadores de miles =====
+
+
+function formatMiles(valor) {
+	if (valor === null || valor === undefined || valor === '') return '';
+	const raw = typeof valor === 'string' ? valor.replace(/,/g, '') : String(valor);
+	const n = parseFloat(raw);
+	if (isNaN(n)) return raw;
+	const redondeado = Math.round(n * 100) / 100;
+	const num = String(redondeado);
+	const parts = num.split('.');
+	const entero = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	return parts.length > 1 ? entero + '.' + parts[1] : entero;
+}
+
+/**
+ * Limpia comas de un valor formateado y retorna el número crudo.
+ * Ejemplo: "12,345.67" → "12345.67"
+ */
+function limpiarFormatoMiles(valor) {
+	if (valor === null || valor === undefined || valor === '') return '';
+	return String(valor).replace(/,/g, '');
+}
+
+/**
+ * Parsea un valor que puede tener comas (formato miles) a número.
+ * Usar al leer inputs de pedido/saldo para cálculos.
+ */
+function parseNumeroConMiles(valor) {
+	const raw = limpiarFormatoMiles(valor);
+	return parseFloat(raw) || 0;
+}
+
+/**
+ * Redondea un número (o valor parseable) a 2 decimales y devuelve string para mostrar/enviar.
+ * Usar en Pedido y Saldos para no acumular decimales.
+ */
+function a2Decimales(valor) {
+	const n = typeof valor === 'number' ? valor : parseNumeroConMiles(valor);
+	if (!Number.isFinite(n)) return '';
+	return (Math.round(n * 100) / 100).toFixed(2);
+}
+
+/**
+ * Aplica formateo de miles a un input de texto.
+ * Se llama en el evento 'blur' para formatear, y 'focus' para limpiar.
+ */
+function aplicarFormatoMilesInput(input) {
+	if (!input) return;
+
+	// Al perder foco: formatear con comas y redondear a 2 decimales
+	input.addEventListener('blur', function() {
+		const raw = limpiarFormatoMiles(this.value);
+		if (raw !== '' && !isNaN(parseFloat(raw))) {
+			this.value = formatMiles(raw);
+		}
+	});
+
+	// Al ganar foco: quitar comas para edición
+	input.addEventListener('focus', function() {
+		this.value = limpiarFormatoMiles(this.value);
+	});
+
+	// Formateo inicial si ya tiene valor
+	const raw = limpiarFormatoMiles(input.value);
+	if (raw !== '' && !isNaN(raw)) {
+		input.value = formatMiles(raw);
+	}
+}
+
+/**
+ * Aplica formateo de miles a todos los inputs de pedido y saldo dentro de un contenedor.
+ */
+function aplicarFormatoMilesEnContenedor(contenedor) {
+	if (!contenedor) return;
+	const inputs = contenedor.querySelectorAll('input[name="pedido-tempo-destino[]"], input[name="saldo-destino[]"]');
+	inputs.forEach(input => {
+		// Cambiar a type="text" con inputmode="decimal" para permitir comas
+		input.type = 'text';
+		input.setAttribute('inputmode', 'decimal');
+		aplicarFormatoMilesInput(input);
+	});
+}
+
 // Variable global para almacenar registros existentes de OrdCompartida
 let registrosOrdCompartidaExistentes = [];
 let ordCompartidaActual = null;
@@ -335,14 +419,29 @@ function buildCalendarWarningHtml(message, advertencias) {
 }
 
 async function redirectToRegistro(data) {
-	// Si hay múltiples registros duplicados o vinculados, agregarlos todos sin recargar
+	console.log('[DEBUG] redirectToRegistro llamado', {
+		modo: data?.modo,
+		registros_ids: data?.registros_ids,
+		registros_ids_length: data?.registros_ids?.length,
+		registros_duplicados: data?.registros_duplicados,
+		registros_vinculados: data?.registros_vinculados,
+		tiene_registros_datos: !!data?.registros_datos,
+		registros_datos_keys: data?.registros_datos ? Object.keys(data.registros_datos) : 'N/A',
+		data_keys: Object.keys(data || {}),
+	});
+
+	// Si hay múltiples registros duplicados/vinculados O tenemos registros_ids (duplicar/dividir): agregar sin recargar
+	// El backend a veces no envía "modo", pero si envía registros_ids debemos agregar filas sin recargar
 	const tieneMultiplesRegistros = (data?.registros_duplicados && data.registros_duplicados > 1) ||
 	                                (data?.registros_vinculados && data.registros_vinculados > 1) ||
-	                                (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 1);
+	                                (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 1) ||
+	                                (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length >= 1);
+
+	console.log('[DEBUG] tieneMultiplesRegistros:', tieneMultiplesRegistros);
 
 	if (tieneMultiplesRegistros) {
 		// Preferir usar registros_ids si está disponible (más confiable)
-		// Si no está disponible, usar el método anterior con IDs secuenciales
+		// En dividir: registros_ids = solo los nuevos; el original se actualiza con actualizarRegistroOriginalDividir
 		if (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
 			try {
 				// Delay inicial para asegurar que los registros estén completamente guardados en la BD
@@ -360,9 +459,11 @@ async function redirectToRegistro(data) {
 				const registrosAgregados = [];
 
 				console.log(`[DEBUG] 📋 IDs de registros a agregar:`, data.registros_ids);
+				console.log(`[DEBUG] 📋 registros_datos disponible:`, !!data.registros_datos, data.registros_datos ? Object.keys(data.registros_datos) : 'N/A');
 				console.log(`[DEBUG] 📋 IDs de filas existentes en DOM:`, filasExistentes);
 
 				// Agregar todos los registros usando los IDs devueltos por el backend
+				// Preferir data.registros_datos cuando el backend lo envíe (evita 404 en detalles-balanceo)
 				for (const registroId of data.registros_ids) {
 					const idStr = String(registroId);
 
@@ -374,10 +475,44 @@ async function redirectToRegistro(data) {
 					}
 
 					try {
-						// Delay antes de obtener cada registro para asegurar que esté guardado
-						await new Promise(resolve => setTimeout(resolve, 200));
+						const registroPrecargado = data.registros_datos && data.registros_datos[idStr];
+						let payload = { registro_id: registroId, message: '' };
 
-						// Obtener el registro con cache-busting
+						if (registroPrecargado) {
+							payload.registro = registroPrecargado;
+							payload.registros_datos = data.registros_datos;
+							// Validar telar destino igual que cuando viene del fetch
+							const esVincular = data?.registros_vinculados > 0 || data?.ord_compartida;
+							const esDividir = data?.modo === 'dividir';
+							const esDuplicar = data?.modo === 'duplicar';
+							const telarValido = esVincular || esDividir || esDuplicar ||
+								(registroPrecargado.SalonTejidoId === data.salon_destino &&
+								 registroPrecargado.NoTelarId === data.telar_destino);
+							if (!telarValido) {
+								console.warn(`[DEBUG] ⚠️ Registro ${registroId} (precargado) no pertenece al telar destino`, {
+									salon_registro: registroPrecargado.SalonTejidoId,
+									salon_destino: data.salon_destino,
+									telar_registro: registroPrecargado.NoTelarId,
+									telar_destino: data.telar_destino
+								});
+								continue;
+							}
+							console.log(`[DEBUG] ➕ Agregando registro ID: ${registroId} (desde registros_datos)`, {
+								TamanoClave: registroPrecargado.TamanoClave,
+								ItemId: registroPrecargado.ItemId,
+								InventSizeId: registroPrecargado.InventSizeId,
+								SalonTejidoId: registroPrecargado.SalonTejidoId,
+								NoTelarId: registroPrecargado.NoTelarId
+							});
+							await agregarRegistroSinRecargar(payload);
+							registrosAgregados.push(parseInt(idStr));
+							filasExistentes.push(idStr);
+							await new Promise(resolve => setTimeout(resolve, 80));
+							continue;
+						}
+
+						// Fallback: obtener por detalles-balanceo
+						await new Promise(resolve => setTimeout(resolve, 200));
 						const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
 							headers: {
 								'Accept': 'application/json',
@@ -389,10 +524,10 @@ async function redirectToRegistro(data) {
 						if (response.ok) {
 							const result = await response.json();
 							if (result.success && result.registro) {
-								// Para vincular puede haber múltiples telares destino, así que la validación es más flexible
-								// Solo validar telar destino si es duplicar (un solo telar destino)
 								const esVincular = data?.registros_vinculados > 0 || data?.ord_compartida;
-								const telarValido = esVincular ||
+								const esDividir = data?.modo === 'dividir';
+								const esDuplicar = data?.modo === 'duplicar';
+								const telarValido = esVincular || esDividir || esDuplicar ||
 									(result.registro.SalonTejidoId === data.salon_destino &&
 									 result.registro.NoTelarId === data.telar_destino);
 
@@ -404,12 +539,9 @@ async function redirectToRegistro(data) {
 										SalonTejidoId: result.registro.SalonTejidoId,
 										NoTelarId: result.registro.NoTelarId
 									});
-									await agregarRegistroSinRecargar({ registro_id: registroId, message: '' });
+									await agregarRegistroSinRecargar({ registro_id: registroId, message: '', registro: result.registro });
 									registrosAgregados.push(parseInt(idStr));
-
-									// Actualizar lista de filas existentes después de cada inserción
 									filasExistentes.push(idStr);
-
 									await new Promise(resolve => setTimeout(resolve, 150));
 								} else {
 									console.warn(`[DEBUG] ⚠️ Registro ${registroId} no pertenece al telar destino`, {
@@ -426,7 +558,6 @@ async function redirectToRegistro(data) {
 							console.warn(`[DEBUG] ⚠️ Error al obtener el registro ${registroId}:`, response.status);
 						}
 					} catch (e) {
-						// Si falla, continuar con el siguiente
 						console.warn(`[DEBUG] ⚠️ Excepción al obtener el registro ${registroId}:`, e);
 					}
 				}
@@ -445,6 +576,13 @@ async function redirectToRegistro(data) {
 
 					for (const idFaltante of idsFaltantes) {
 						try {
+							const idStrFaltante = String(idFaltante);
+							const registroPrecargado = data.registros_datos && data.registros_datos[idStrFaltante];
+							if (registroPrecargado) {
+								await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '', registro: registroPrecargado });
+								registrosAgregados.push(parseInt(idFaltante));
+								continue;
+							}
 							await new Promise(resolve => setTimeout(resolve, 300));
 							const response = await fetch(`/planeacion/programa-tejido/${idFaltante}/detalles-balanceo?t=${Date.now()}`, {
 								headers: {
@@ -457,7 +595,7 @@ async function redirectToRegistro(data) {
 							if (response.ok) {
 								const result = await response.json();
 								if (result.success && result.registro) {
-									await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '' });
+									await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '', registro: result.registro });
 									registrosAgregados.push(parseInt(idFaltante));
 								}
 							}
@@ -491,9 +629,13 @@ async function redirectToRegistro(data) {
 
 				if (typeof showToast === 'function') {
 					const totalEsperado = data.registros_ids.length;
-					const mensajeExito = data?.registros_vinculados
-						? `Se vincularon ${data.registros_vinculados} registro(s) correctamente`
-						: `Se duplicaron ${data.registros_duplicados || totalEsperado} registro(s) correctamente`;
+					const mensajeExito = data?.modo === 'dividir'
+						? (data.message || `Se dividió en ${totalEsperado} registro(s) correctamente`)
+						: data?.modo === 'duplicar'
+							? (data.message || `Se duplicaron ${totalEsperado} registro(s) correctamente`)
+							: data?.registros_vinculados
+								? `Se vincularon ${data.registros_vinculados} registro(s) correctamente`
+								: `Se procesaron ${data.registros_duplicados || totalEsperado} registro(s) correctamente`;
 
 					if (registrosAgregados.length === totalEsperado) {
 						showToast(data.message || mensajeExito, 'success');
@@ -502,14 +644,22 @@ async function redirectToRegistro(data) {
 					}
 				}
 
-				return;
+				console.log('[DEBUG] ✅ Registros agregados sin recargar, saliendo');
+				return; // IMPORTANTE: Salir aquí para NO recargar
 			} catch (error) {
 				console.error('[DEBUG] ❌ Error al agregar múltiples registros con registros_ids:', error);
-				// Continuar con fallback
+				// NO continuar con fallback que recarga - mostrar error y cerrar modal
+				if (typeof showToast === 'function') {
+					showToast('Error al agregar registros. Algunos pueden no estar visibles.', 'warning');
+				}
+				console.log('[DEBUG] ⚠️ Error pero NO recargando para modo dividir/duplicar');
+				return; // Salir sin recargar
 			}
 		}
 
 		// Fallback: Si registros_ids no está disponible, usar método anterior con IDs secuenciales
+		// SOLO para duplicar/vincular con múltiples registros (NO para dividir)
+		if (data?.modo !== 'dividir' && data?.modo !== 'duplicar' && data?.registro_id && (data?.salon_destino || data?.registros_vinculados)) {
 		const totalRegistrosFallback = data?.registros_duplicados || data?.registros_vinculados || 1;
 		if (data?.registro_id && (data?.salon_destino || data?.registros_vinculados)) {
 			try {
@@ -583,24 +733,36 @@ async function redirectToRegistro(data) {
 				console.error('[DEBUG] ❌ Error en fallback:', error);
 			}
 		}
+		}
 
-		// Último fallback: si no se pueden obtener los IDs o hay error, intentar agregar al menos el primer registro
-		if (data?.registro_id) {
-			console.log('[DEBUG] 🔄 Fallback: Agregando solo el primer registro');
-			await agregarRegistroSinRecargar(data);
-			if (typeof showToast === 'function') {
-				showToast(data.message || `Se duplicaron ${data.registros_duplicados} registro(s). Para ver todos los registros, recarga la página.`, 'warning');
-			}
-		} else if (data?.salon_destino && data?.telar_destino) {
-			const url = new URL(window.location.href);
-			url.searchParams.set('salon', data.salon_destino);
-			url.searchParams.set('telar', data.telar_destino);
-			window.location.href = url.toString();
-		} else {
-			window.location.reload();
+	// Último fallback: si no se pueden obtener los IDs o hay error, intentar agregar al menos el primer registro
+	// PERO NO para dividir/duplicar - esos deben tener registros_ids
+	if (data?.modo !== 'dividir' && data?.modo !== 'duplicar' && data?.registro_id) {
+		console.log('[DEBUG] 🔄 Fallback: Agregando solo el primer registro');
+		await agregarRegistroSinRecargar(data);
+		if (typeof showToast === 'function') {
+			showToast(data.message || `Se procesaron los registros. Algunos pueden no estar visibles.`, 'warning');
 		}
 		return;
+	} else if (data?.modo === 'dividir' || data?.modo === 'duplicar') {
+		// Para dividir/duplicar, si llegamos aquí es porque algo falló pero NO recargamos
+		console.warn('[DEBUG] ⚠️ Modo dividir/duplicar sin registros_ids - NO recargando');
+		if (typeof showToast === 'function') {
+			showToast('Los registros se crearon pero no se pudieron mostrar. Por favor recarga manualmente.', 'warning');
+		}
+		return;
+	} else if (data?.salon_destino && data?.telar_destino) {
+		const url = new URL(window.location.href);
+		url.searchParams.set('salon', data.salon_destino);
+		url.searchParams.set('telar', data.telar_destino);
+		window.location.href = url.toString();
+		return;
+	} else {
+		console.log('[DEBUG] 🔄 Último fallback: recargando página');
+		window.location.reload();
+		return;
 	}
+	} // cierra if (tieneMultiplesRegistros)
 
 	// Si solo hay un registro, agregarlo sin recargar
 	if (data?.registro_id) {
@@ -608,13 +770,16 @@ async function redirectToRegistro(data) {
 		if (data?.modo === 'dividir' && data?.registro_id_original) {
 			await actualizarRegistroOriginalDividir(data);
 		}
+		return;
 	} else if (data?.salon_destino && data?.telar_destino) {
 		// Si no hay registro_id pero hay destino, recargar con filtros
 		const url = new URL(window.location.href);
 		url.searchParams.set('salon', data.salon_destino);
 		url.searchParams.set('telar', data.telar_destino);
 		window.location.href = url.toString();
+		return;
 	} else {
+		console.log('[DEBUG] 🔄 Fallback final: recargando página');
 		window.location.reload();
 	}
 }
@@ -622,29 +787,42 @@ async function redirectToRegistro(data) {
 async function agregarRegistroSinRecargar(data) {
 	if (!data?.registro_id) return;
 
-	try {
-		// Obtener los datos completos del registro usando el endpoint de detalles de balanceo
-		// Este endpoint devuelve algunos campos, pero podemos complementar con los necesarios
-		// Usar cache-busting para asegurar que obtenemos los datos más recientes
-		const response = await fetch(`/planeacion/programa-tejido/${data.registro_id}/detalles-balanceo?t=${Date.now()}`, {
-			headers: {
-				'Accept': 'application/json',
-				'X-CSRF-TOKEN': getCsrfToken(),
-				'Cache-Control': 'no-cache'
+	let registro = null;
+
+	// Usar datos pre-cargados del backend (registros_datos) cuando estén disponibles para evitar 404 en detalles-balanceo
+	if (data.registro && typeof data.registro === 'object') {
+		registro = data.registro;
+	} else if (data.registros_datos && data.registros_datos[String(data.registro_id)]) {
+		registro = data.registros_datos[String(data.registro_id)];
+	}
+
+	if (!registro) {
+		try {
+			const response = await fetch(`/planeacion/programa-tejido/${data.registro_id}/detalles-balanceo?t=${Date.now()}`, {
+				headers: {
+					'Accept': 'application/json',
+					'X-CSRF-TOKEN': getCsrfToken(),
+					'Cache-Control': 'no-cache'
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error('No se pudo obtener el registro');
 			}
-		});
 
-		if (!response.ok) {
-			throw new Error('No se pudo obtener el registro');
+			const result = await response.json();
+			if (!result.success || !result.registro) {
+				throw new Error('Registro no encontrado');
+			}
+
+			registro = result.registro;
+		} catch (err) {
+			console.warn(`[DEBUG] ⚠️ Error al obtener el registro ${data.registro_id}:`, err);
+			throw err;
 		}
+	}
 
-		const result = await response.json();
-		if (!result.success || !result.registro) {
-			throw new Error('Registro no encontrado');
-		}
-
-		const registro = result.registro;
-
+	try {
 		// Verificar que los campos clave estén presentes y actualizados
 		console.log(`[DEBUG] 📥 Datos recibidos del endpoint para registro ${registro.Id}:`, {
 			TamanoClave: registro.TamanoClave,

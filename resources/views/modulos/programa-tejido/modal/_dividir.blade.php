@@ -1,9 +1,6 @@
 {{-- Funciones específicas para dividir telares --}}
 {{-- NOTA: Este archivo se incluye dentro de un bloque <script>, NO agregar etiquetas <script> aquí --}}
 
-
-// Función eliminada - lógica duplicada con calcularSaldoTotal
-
 // Función para calcular el Saldo Total usando el controller
 async function calcularSaldoTotal(row) {
 	if (!row) return;
@@ -25,7 +22,7 @@ async function calcularSaldoTotal(row) {
 	}
 
 	// Obtener valores
-	const pedido = parseFloat(pedidoTempoInput.value) || 0;
+	const pedido = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(pedidoTempoInput.value) : parseFloat(pedidoTempoInput.value)) || 0;
 	// En modo dividir, el porcentaje de segundas siempre es 0 (campo oculto)
 	const porcentajeSegundos = 0;
 	const produccion = parseFloat(produccionInput.value) || 0;
@@ -91,7 +88,7 @@ function sincronizarPedidoTempoYTotal(row, desdeTotal = false) {
 
 	// En modo dividir, el porcentaje de segundas siempre es 0
 	const porcentajeSegundos = 0;
-	const total = parseFloat(totalInput.value) || 0;
+	const total = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(totalInput.value) : parseFloat(totalInput.value)) || 0;
 
 	// En modo dividir, sincronizar bidireccionalmente
 	if (desdeTotal) {
@@ -122,7 +119,7 @@ function redistribuirPedidoTotalEntreTelares() {
 	const inputPedidoTotal = document.getElementById('swal-pedido');
 	if (!inputPedidoTotal) return;
 
-	const pedidoTotal = parseFloat(inputPedidoTotal.value) || 0;
+	const pedidoTotal = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(inputPedidoTotal.value) : parseFloat(inputPedidoTotal.value)) || 0;
 	if (pedidoTotal <= 0) {
 		// Si el pedido total es 0 o vacío, limpiar todos los totales (incluyendo origen)
 		const filas = document.querySelectorAll('#telar-pedido-body tr');
@@ -276,8 +273,8 @@ function guardarValoresOriginales(fila) {
 		// Solo guardar si no existe ya (para no sobrescribir valores originales)
 		if (!window.valoresOriginalesFilas.has(registroId)) {
 			window.valoresOriginalesFilas.set(registroId, {
-				saldoTotal: parseFloat(saldoTotalInput.value) || 0,
-				pedidoTempo: parseFloat(pedidoTempoInput.value) || 0,
+				saldoTotal: (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(saldoTotalInput.value) : parseFloat(saldoTotalInput.value)) || 0,
+				pedidoTempo: (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(pedidoTempoInput.value) : parseFloat(pedidoTempoInput.value)) || 0,
 				porcentajeSegundos: parseFloat(porcentajeSegundosInput?.value) || 0,
 				totalPedido: parseFloat(pedidoDestinoInput?.value) || 0,
 				produccion: parseFloat(produccionInput?.value) || 0
@@ -303,8 +300,8 @@ function guardarValoresOriginalesFilaPrincipal() {
 			// Guardar valores originales de la fila principal si no existen
 			if (!window.valoresOriginalesFilas.has(registroId)) {
 				window.valoresOriginalesFilas.set(registroId, {
-					saldoTotal: parseFloat(saldoTotalInput.value) || 0,
-					pedidoTempo: parseFloat(pedidoTempoInput.value) || 0,
+					saldoTotal: (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(saldoTotalInput.value) : parseFloat(saldoTotalInput.value)) || 0,
+					pedidoTempo: (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(pedidoTempoInput.value) : parseFloat(pedidoTempoInput.value)) || 0,
 					porcentajeSegundos: parseFloat(porcentajeSegundosInput?.value) || 0,
 					totalPedido: parseFloat(pedidoDestinoInput?.value) || 0,
 					produccion: parseFloat(produccionInput?.value) || 0
@@ -406,7 +403,7 @@ function calcularSaldoTotalDisponibleOriginal() {
 		if (filaPrincipal) {
 			const saldoTotalInput = filaPrincipal.querySelector('.saldo-total-cell input');
 			if (saldoTotalInput) {
-				saldoTotalDisponible = parseFloat(saldoTotalInput.value) || 0;
+				saldoTotalDisponible = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(saldoTotalInput.value) : parseFloat(saldoTotalInput.value)) || 0;
 			}
 		}
 
@@ -414,32 +411,11 @@ function calcularSaldoTotalDisponibleOriginal() {
 		if (saldoTotalDisponible === 0) {
 			const inputPedidoTotal = document.getElementById('swal-pedido');
 			if (inputPedidoTotal) {
-				saldoTotalDisponible = parseFloat(inputPedidoTotal.value) || 0;
+				saldoTotalDisponible = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(inputPedidoTotal.value) : parseFloat(inputPedidoTotal.value)) || 0;
 			}
 		}
 	}
 
-	return Math.round(saldoTotalDisponible);
-}
-
-// Función para calcular el saldo total disponible de todos los registros existentes
-function calcularSaldoTotalDisponible() {
-	const filas = document.querySelectorAll('#telar-pedido-body tr.telar-row');
-	let saldoTotalDisponible = 0;
-
-	filas.forEach(fila => {
-		// Solo contar registros existentes (no los nuevos que aún no tienen saldo)
-		const esExistente = fila.dataset.esExistente === 'true';
-		if (esExistente) {
-			const saldoTotalInput = fila.querySelector('.saldo-total-cell input');
-			if (saldoTotalInput) {
-				const saldo = parseFloat(saldoTotalInput.value) || 0;
-				saldoTotalDisponible += saldo;
-			}
-		}
-	});
-
-	// Redondear a entero para evitar problemas con decimales
 	return Math.round(saldoTotalDisponible);
 }
 
@@ -610,7 +586,7 @@ function validarYRedistribuirNuevoRegistro(nuevaFila) {
 		}
 		if (!saldoOriginal) {
 			const saldoTotalPrincipal = filaPrincipal.querySelector('.saldo-total-cell input');
-			saldoOriginal = parseFloat(saldoTotalPrincipal?.value) || 0;
+			saldoOriginal = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(saldoTotalPrincipal?.value) : parseFloat(saldoTotalPrincipal?.value)) || 0;
 		}
 		return Math.round(saldoOriginal);
 	};
@@ -634,7 +610,7 @@ function validarYRedistribuirNuevoRegistro(nuevaFila) {
 	};
 	// Función para validar y redistribuir
 	const validarYRedistribuir = () => {
-		const pedidoTempo = parseFloat(pedidoTempoInput.value) || 0;
+		const pedidoTempo = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(pedidoTempoInput.value) : parseFloat(pedidoTempoInput.value)) || 0;
 		// En modo dividir, el porcentaje de segundas siempre es 0
 		const porcentajeSegundos = 0;
 		// Calcular el TotalPedido (con %segundas aplicado, redondear a entero)
@@ -837,49 +813,49 @@ function agregarFilaDividir() {
 			<textarea rows="2" readonly
 				class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
 		</td>
-		<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 140px;">
+		<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 120px;">
 			<textarea rows="2"
 				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${flog || ''}</textarea>
 		</td>
-		<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
+		<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 130px;">
 			<textarea rows="2"
 				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${descripcion || ''}</textarea>
 		</td>
-		<td class="p-2 border-r border-gray-200 aplicacion-cell" style="min-width: 140px;">
-			<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+		<td class="p-2 border-r border-gray-200 aplicacion-cell" style="min-width: 5rem; width: 5rem;">
+			<select name="aplicacion-destino[]" class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 				${aplicacionOptionsHTML}
 			</select>
 		</td>
-		<td class="p-2 border-r border-gray-200">
+		<td class="p-2 border-r border-gray-200" style="min-width: 100px;">
 			<div class="flex items-center gap-2">
 				<select name="telar-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 telar-destino-select">
 					${telarOptionsHTML}
 				</select>
 			</div>
 		</td>
-		<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
-			<input type="number" name="pedido-tempo-destino[]" value="" data-pedido-total="true" step="0.01" min="0"
-				class="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
+		<td class="p-2 border-r border-gray-200 pedido-tempo-cell" style="width: 5rem; min-width: 5rem;">
+			<input type="text" name="pedido-tempo-destino[]" value="" data-pedido-total="true" inputmode="decimal"
+				class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500">
 		</td>
-		<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
+		<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell" style="width: 3.25rem; min-width: 3.25rem;">
 			<input type="number" name="porcentaje-segundos-destino[]" value="0" step="0.01" min="0" readonly disabled
-				class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+				class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" style="max-width: 3rem;">
 		</td>
-		<td class="p-2 border-r border-gray-200 produccion-cell">
+		<td class="p-2 border-r border-gray-200 produccion-cell" style="width: 5rem; min-width: 5rem;">
 			<input type="text" value="" readonly
-				class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+				class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 			<input type="hidden" name="pedido-destino[]" value="">
 		</td>
-		<td class="p-2 border-r border-gray-200 saldo-total-cell">
+		<td class="p-2 border-r border-gray-200 saldo-total-cell" style="width: 5rem; min-width: 5rem;">
 			<input type="text" value="" readonly
-				class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+				class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 		</td>
 		<td class="p-2 border-r border-gray-200">
 			<textarea rows="2" name="observaciones-destino[]" placeholder="Observaciones..."
 				class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"></textarea>
 		</td>
-		<td class="p-2 text-center acciones-cell">
-			<button type="button" class="btn-remove-row px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors" title="Eliminar fila">
+		<td class="py-1 px-0 text-center acciones-cell" style="width: 2rem; min-width: 2rem;">
+			<button type="button" class="btn-remove-row p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded text-sm inline-flex items-center justify-center" style="min-width: 1.5rem; min-height: 1.5rem;" title="Eliminar fila">
 				<i class="fas fa-times"></i>
 			</button>
 		</td>
@@ -1044,6 +1020,11 @@ function agregarFilaDividir() {
 	if (typeof calcularSaldoTotal === 'function') {
 		calcularSaldoTotal(newRow);
 	}
+
+	// Aplicar formateo de miles a inputs de pedido y saldo de la nueva fila
+	if (typeof aplicarFormatoMilesEnContenedor === 'function') {
+		aplicarFormatoMilesEnContenedor(newRow);
+	}
 }
 
 // Función para cargar registros existentes de OrdCompartida
@@ -1157,51 +1138,50 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 						<textarea rows="2" readonly
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
 					</td>
-					<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 140px;">
+					<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 120px;">
 						<textarea rows="2" readonly
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${flog || ''}</textarea>
 					</td>
-					<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">
+					<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 130px;">
 						<textarea rows="2" readonly
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${descripcion || ''}</textarea>
 					</td>
-					<td class="p-2 border-r border-gray-200 aplicacion-cell" style="min-width: 140px;">
-						<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" data-registro-id="${reg.Id}" disabled>
+					<td class="p-2 border-r border-gray-200 aplicacion-cell" style="min-width: 5rem; width: 5rem;">
+						<select name="aplicacion-destino[]" class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" data-registro-id="${reg.Id}" disabled>
 							${aplicacionOptionsHTMLReg}
 						</select>
 					</td>
-					<td class="p-2 border-r border-gray-200">
+					<td class="p-2 border-r border-gray-200" style="min-width: 100px;">
 						<div class="flex items-center gap-2">
 							<input type="text" name="telar-destino[]" value="${reg.NoTelarId}" readonly
 								data-registro-id="${reg.Id}"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 						</div>
 					</td>
-					<td class="p-2 border-r border-gray-200 pedido-tempo-cell">
-						<input type="number" name="pedido-tempo-destino[]" value="${reg.TotalPedido || 0}" data-pedido-total="true" step="0.01" min="0" readonly
-							data-registro-id="${reg.Id}"
-							class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+					<td class="p-2 border-r border-gray-200 pedido-tempo-cell" style="width: 5rem; min-width: 5rem;">
+						<input type="text" name="pedido-tempo-destino[]" value="${reg.TotalPedido != null ? reg.TotalPedido : 0}" data-pedido-total="true" readonly data-registro-id="${reg.Id}"
+							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
-					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell">
+					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell" style="width: 3.25rem; min-width: 3.25rem;">
 						<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '0'}" step="0.01" min="0" readonly data-registro-id="${reg.Id}"
-							class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" style="max-width: 3rem;">
 					</td>
-					<td class="p-2 border-r border-gray-200 produccion-cell">
+					<td class="p-2 border-r border-gray-200 produccion-cell" style="width: 5rem; min-width: 5rem;">
 						<input type="text" value="${reg.Produccion !== null && reg.Produccion !== undefined ? reg.Produccion : 0}" readonly
-							class="w-20 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 						<input type="hidden" name="pedido-destino[]" value="${reg.TotalPedido || 0}" data-registro-id="${reg.Id}">
 					</td>
-					<td class="p-2 border-r border-gray-200 saldo-total-cell">
+					<td class="p-2 border-r border-gray-200 saldo-total-cell" style="width: 5rem; min-width: 5rem;">
 						<input type="text" value="${reg.SaldoPedido !== null && reg.SaldoPedido !== undefined ? reg.SaldoPedido : 0}" readonly
 							data-registro-id="${reg.Id}"
-							class="w-24 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200">
 						<textarea rows="2" name="observaciones-destino[]" placeholder="Observaciones..."
 							data-registro-id="${reg.Id}"
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${reg.Observaciones || ''}</textarea>
 					</td>
-					<td class="p-2 text-center acciones-cell">
+					<td class="py-1 px-0 text-center acciones-cell" style="width: 2rem; min-width: 2rem;">
 						${esLider
 							? '<div class="w-3 h-3 rounded-full bg-green-500 mx-auto" title="Líder"></div>'
 							: '<div class="w-3 h-3 rounded-full bg-gray-400 mx-auto" title="En proceso"></div>'}

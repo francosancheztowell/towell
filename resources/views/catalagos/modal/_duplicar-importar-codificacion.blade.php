@@ -692,8 +692,7 @@ async function abrirModalDuplicarImportarCodificacion(registroId) {
 
     const resultado = await Swal.fire({
         html: generarHTMLModalCodificacion(registroOriginal),
-        width: '90%',
-        maxWidth: '1200px',
+        width: 1200,
         showCancelButton: true,
         confirmButtonText: 'Crear',
         cancelButtonText: 'Cancelar',

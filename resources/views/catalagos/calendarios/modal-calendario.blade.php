@@ -246,7 +246,6 @@
             confirmButtonColor: colorBoton,
             cancelButtonColor: '#6b7280',
             width: '100%',
-            maxWidth: '100%',
             didOpen: () => {
                 if (!esEdicion) {
                     const fechaInicialInput = document.getElementById('modal-fecha-inicial');
