@@ -237,11 +237,8 @@
             return;
         }
 
-        if (PAGE_MODE.soloLectura) {
-            aplicarModoSoloLectura();
-        } else {
-            bindEvents();
-        }
+        bindEvents();
+        if (PAGE_MODE.soloLectura) aplicarModoSoloLectura();
         try { await Promise.all([cargarTurnoActual(), cargarDatosTelaresStd()]); } catch {}
         const qp = PAGE_MODE.folioInicial || new URLSearchParams(location.search).get('folio');
         try {
@@ -272,7 +269,13 @@
             const cb  = e.target.closest('.obs-checkbox');
             if (opt) return selectNumberOption(opt);
             if (btn) return toggleValorSelector(btn);
-            if (cb)  return abrirModalObservaciones(cb);
+            if (cb)  {
+                if (PAGE_MODE.soloLectura || cb.dataset.readonly === '1') {
+                    const key = `${cb.dataset.telar}-${cb.dataset.horario}`;
+                    cb.checked = !!(state.observaciones[key] || '').trim();
+                }
+                return abrirModalObservaciones(cb);
+            }
             if (!e.target.closest('.valor-edit-container')) closeAllValorSelectors();
         });
 
@@ -297,8 +300,8 @@
             btn.classList.add('pointer-events-none', 'opacity-70', 'cursor-not-allowed');
         });
         document.querySelectorAll('.obs-checkbox').forEach(cb => {
-            cb.setAttribute('disabled', 'disabled');
-            cb.classList.add('cursor-not-allowed', 'opacity-60');
+            cb.dataset.readonly = '1';
+            cb.classList.add('cursor-pointer', 'opacity-70');
         });
     }
 
@@ -406,7 +409,14 @@
     }
 
     function setDisplay(telarId, h, type, v){ const s = document.querySelector(`button[data-telar="${telarId}"][data-horario="${h}"][data-type="${type}"] .valor-display-text`); if (!s || v==null || v==='') return; s.textContent = type==='rpm' ? `${parseInt(v,10)}` : `${parseFloat(v).toFixed(0)}%`; }
-    function setObs(telarId, h, st, text){ const cb = document.querySelector(`input.obs-checkbox[data-telar="${telarId}"][data-horario="${h}"]`); if (cb) cb.checked = !!st; if (text) state.observaciones[`${telarId}-${h}`] = text; }
+    function setObs(telarId, h, st, text){
+        const cb = document.querySelector(`input.obs-checkbox[data-telar="${telarId}"][data-horario="${h}"]`);
+        if (cb) cb.checked = !!st;
+        if (text) {
+            state.observaciones[`${telarId}-${h}`] = text;
+            syncObsTitle(telarId, h, text);
+        }
+    }
 
     /** Selectores */
     function toggleValorSelector(btn){
@@ -550,10 +560,31 @@
         return out;
     }
 
+    function syncObsTitle(telarId, horario, text){
+        const cb = document.querySelector(`input.obs-checkbox[data-telar="${telarId}"][data-horario="${horario}"]`);
+        if (!cb) return;
+        const clean = String(text || '').trim();
+        cb.title = clean ? `Obs: ${clean.length > 80 ? clean.slice(0, 80) + '…' : clean}` : '';
+    }
+
     async function abrirModalObservaciones(checkbox){
-        if (PAGE_MODE.soloLectura) return;
         const telar = checkbox.dataset.telar; const horario = checkbox.dataset.horario; const key = `${telar}-${horario}`; const cur = state.observaciones[key] || '';
         if (!requireHorario(parseInt(horario,10))) { checkbox.checked = !!cur; return; }
+        if (PAGE_MODE.soloLectura || checkbox.dataset.readonly === '1') {
+            if (!cur.trim()) {
+                showToast({ icon:'info', title:'Sin observaciones', text:`Telar ${telar} - Horario ${horario}` });
+                return;
+            }
+            await Swal.fire({
+                title:'Observaciones',
+                html:`<div class='text-left mb-3'><p class='text-sm text-gray-600'>Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong></p></div>
+                      <textarea class='w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-700 resize-none' rows='4' readonly>${cur}</textarea>`,
+                confirmButtonText:'Cerrar',
+                confirmButtonColor:'#2563eb',
+                width:520
+            });
+            return;
+        }
         // Cargar catálogo de fallas
         let fallas = [];
         try {
@@ -600,7 +631,11 @@
             preConfirm:()=>document.getElementById('swal-textarea')?.value || ''
         });
         if (!r.isConfirmed) { checkbox.checked = !!cur; return; }
-        state.observaciones[key] = r.value; checkbox.checked = r.value.trim() !== ''; guardarAutomatico(); showToast({ title:'Observación guardada', text:`Telar ${telar} - Horario ${horario}` });
+        state.observaciones[key] = r.value;
+        checkbox.checked = r.value.trim() !== '';
+        syncObsTitle(telar, horario, r.value);
+        guardarAutomatico();
+        showToast({ title:'Observación guardada', text:`Telar ${telar} - Horario ${horario}` });
     }
 
     function floatingBadge(text, isError=false){
