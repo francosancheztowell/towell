@@ -52,13 +52,6 @@ class EditarOrdenesProgramadasController extends Controller
         $fromReimpresion = $request->query('from') === 'reimpresion';
         $routeBack = $fromReimpresion ? 'urdido.reimpresion.finalizadas' : 'urdido.programar.urdido';
 
-        // Log para debugging
-        Log::info('EditarOrdenesProgramadasController::index', [
-            'orden_id' => $ordenId,
-            'from_reimpresion' => $fromReimpresion,
-            'route_back' => $routeBack,
-            'all_query' => $request->all(),
-        ]);
 
         if (!$ordenId) {
             Log::warning('No se proporcionó orden_id');
@@ -78,7 +71,7 @@ class EditarOrdenesProgramadasController extends Controller
         // Verificar permisos - permitir ver la página pero mostrar advertencia si no puede editar
         // No redirigir, solo marcar si puede editar o no
         $puedeEditar = $this->usuarioPuedeEditar();
-        
+
         if (!$puedeEditar) {
             $usuario = Auth::user();
             Log::warning('Usuario sin permisos para editar', [
@@ -89,14 +82,26 @@ class EditarOrdenesProgramadasController extends Controller
             // No redirigir, permitir ver la página pero sin permisos de edición
         }
 
-        Log::info('Mostrando vista de edición', ['orden_id' => $ordenId, 'folio' => $orden->Folio ?? null]);
 
         // Obtener información de engomado si existe
         $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
         $julios = $orden->julios()->orderBy('Id')->get();
+        $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
+        $axEngomado = (int) ($engomado?->AX ?? $engomado?->Ax ?? $engomado?->getAttribute('ax') ?? 0);
+        if ($axUrdido === 0) {
+            $axUrdido = (int) (DB::table('UrdProgramaUrdido')->where('Id', $orden->Id)->value('ax') ?? 0);
+        }
+        if ($axEngomado === 0 && $engomado) {
+            $axEngomado = (int) (DB::table('EngProgramaEngomado')->where('Id', $engomado->Id)->value('ax') ?? 0);
+        }
+        $bloqueaUrdido = $axUrdido === 1;
+        $bloqueaEngomado = $axEngomado === 1;
 
         // Obtener máquinas disponibles del área Urdido
         $maquinas = URDCatalogoMaquina::where('Departamento', 'Urdido')
+            ->orderBy('MaquinaId')
+            ->get();
+        $maquinasEngomado = URDCatalogoMaquina::where('Departamento', 'Engomado')
             ->orderBy('MaquinaId')
             ->get();
 
@@ -118,8 +123,13 @@ class EditarOrdenesProgramadasController extends Controller
             'engomado' => $engomado,
             'metros' => $metros,
             'maquinas' => $maquinas,
+            'maquinasEngomado' => $maquinasEngomado,
             'fibras' => $fibras,
             'julios' => $julios,
+            'axUrdido' => $axUrdido,
+            'axEngomado' => $axEngomado,
+            'bloqueaUrdido' => $bloqueaUrdido,
+            'bloqueaEngomado' => $bloqueaEngomado,
             'puedeEditar' => $puedeEditar,
             'fromReimpresion' => $fromReimpresion,
         ]);
@@ -135,13 +145,6 @@ class EditarOrdenesProgramadasController extends Controller
     public function actualizar(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado para editar órdenes',
-                ], 403);
-            }
-
             $request->validate([
                 'orden_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'campo' => ['required', 'string', Rule::in([
@@ -151,12 +154,22 @@ class EditarOrdenesProgramadasController extends Controller
                     'Metros',
                     'Kilos',
                     'Fibra',
+                    'InventSizeId',
                     'SalonTejidoId',
                     'MaquinaId',
+                    'BomId',
                     'FechaProg',
                     'TipoAtado',
                     'LoteProveedor',
                     'FolioConsumo',
+                    'AnchoBalonas',
+                    'MetrajeTelas',
+                    'Cuentados',
+                    'NoTelas',
+                    'MaquinaEng',
+                    'BomEng',
+                    'BomUrd',
+                    'BomFormula',
                     'Observaciones',
                 ])],
                 'valor' => 'nullable|string|max:500',
@@ -182,6 +195,70 @@ class EditarOrdenesProgramadasController extends Controller
 
             $campo = $request->campo;
             $valor = $request->valor;
+            $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
+            $axEngomado = (int) ($engomado->AX ?? $engomado->Ax ?? $engomado->getAttribute('ax') ?? 0);
+            if ($axUrdido === 0) {
+                $axUrdido = (int) (DB::table('UrdProgramaUrdido')->where('Id', $orden->Id)->value('ax') ?? 0);
+            }
+            if ($axEngomado === 0) {
+                $axEngomado = (int) (DB::table('EngProgramaEngomado')->where('Id', $engomado->Id)->value('ax') ?? 0);
+            }
+            $bloqueaUrdido = $axUrdido === 1;
+            $bloqueaEngomado = $axEngomado === 1;
+
+            $camposUrdido = [
+                'RizoPie',
+                'Cuenta',
+                'Calibre',
+                'Metros',
+                'Kilos',
+                'Fibra',
+                'InventSizeId',
+                'SalonTejidoId',
+                'MaquinaId',
+                'BomId',
+                'FechaProg',
+                'TipoAtado',
+                'LoteProveedor',
+                'FolioConsumo',
+                'Observaciones',
+            ];
+            $camposEngomado = [
+                'AnchoBalonas',
+                'MetrajeTelas',
+                'Cuentados',
+                'NoTelas',
+                'MaquinaEng',
+                'BomEng',
+                'BomUrd',
+                'BomFormula',
+            ];
+
+            if ($bloqueaUrdido && in_array($campo, $camposUrdido, true)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Urdido ya está en AX. No se pueden editar campos de Urdido.',
+                ], 403);
+            }
+
+            if ($bloqueaEngomado && in_array($campo, $camposEngomado, true)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Engomado ya está en AX. No se pueden editar campos de Engomado.',
+                ], 403);
+            }
+            if ($campo === 'BomId' && $bloqueaEngomado) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Engomado ya está en AX. No se puede sincronizar Bom Urd.',
+                ], 403);
+            }
+            if ($campo === 'BomUrd' && $bloqueaUrdido) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Urdido ya está en AX. No se puede sincronizar Bom Urdido.',
+                ], 403);
+            }
 
             // Mapeo de campos entre UrdProgramaUrdido y EngProgramaEngomado
             $camposSincronizados = [
@@ -191,16 +268,22 @@ class EditarOrdenesProgramadasController extends Controller
                 'Metros' => 'Metros',
                 'Kilos' => 'Kilos',
                 'Fibra' => 'Fibra',
+                'InventSizeId' => 'InventSizeId',
                 'SalonTejidoId' => 'SalonTejidoId',
                 'FechaProg' => 'FechaProg',
                 'TipoAtado' => 'TipoAtado',
                 'LoteProveedor' => 'LoteProveedor',
+                'BomFormula' => 'BomFormula',
                 'Observaciones' => 'Observaciones',
             ];
 
             // Campos especiales que requieren conversión
-            $camposNumericos = ['Calibre', 'Metros', 'Kilos'];
+            $camposNumericos = ['Calibre', 'Metros', 'Kilos', 'MetrajeTelas', 'AnchoBalonas', 'Cuentados', 'NoTelas'];
             $camposFecha = ['FechaProg'];
+            $camposSoloEngomado = ['AnchoBalonas', 'MetrajeTelas', 'Cuentados', 'NoTelas', 'MaquinaEng', 'BomEng', 'BomUrd'];
+            if ($bloqueaUrdido) {
+                $camposSoloEngomado[] = 'BomFormula';
+            }
 
             DB::beginTransaction();
 
@@ -214,6 +297,42 @@ class EditarOrdenesProgramadasController extends Controller
                     $valor = $valor ?? '';
                 } else {
                     $valor = $valor !== null && $valor !== '' ? trim($valor) : null;
+                }
+
+                if ($campo === 'InventSizeId' && $valor !== null) {
+                    $col = DB::connection('sqlsrv')->selectOne(
+                        "SELECT CHARACTER_MAXIMUM_LENGTH AS len
+                         FROM INFORMATION_SCHEMA.COLUMNS
+                         WHERE TABLE_NAME = 'UrdProgramaUrdido' AND COLUMN_NAME = 'InventSizeId'"
+                    );
+                    $maxLen = (int) ($col->len ?? 0);
+                    if ($maxLen > 0 && strlen($valor) > $maxLen) {
+                        return response()->json([
+                            'success' => false,
+                            'error' => "Tamaño demasiado largo. Máximo {$maxLen} caracteres.",
+                        ], 422);
+                    }
+                }
+
+                // Si es un campo solo de Engomado, no tocar UrdProgramaUrdido
+                if (in_array($campo, $camposSoloEngomado, true)) {
+                    $engomado->$campo = $valor;
+                    $engomado->save();
+                    if ($campo === 'BomUrd') {
+                        $orden->BomId = $valor;
+                        $orden->save();
+                    }
+
+                    DB::commit();
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Campo actualizado correctamente',
+                        'data' => [
+                            'campo' => $campo,
+                            'valor' => $valor,
+                        ],
+                    ]);
                 }
 
                 // Actualizar campo en UrdProgramaUrdido
@@ -235,6 +354,14 @@ class EditarOrdenesProgramadasController extends Controller
                 if ($campo === 'MaquinaId') {
                     $engomado->MaquinaUrd = $valor;
                     $engomado->save();
+                }
+                if ($campo === 'BomId') {
+                    $engomado->BomUrd = $valor;
+                    $engomado->save();
+                }
+                if ($campo === 'BomUrd') {
+                    $orden->BomId = $valor;
+                    $orden->save();
                 }
 
                 DB::commit();
@@ -340,13 +467,6 @@ class EditarOrdenesProgramadasController extends Controller
     public function actualizarJulios(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado para editar órdenes',
-                ], 403);
-            }
-
             $request->validate([
                 'orden_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'id' => 'nullable|integer|exists:UrdJuliosOrden,Id',
@@ -355,6 +475,18 @@ class EditarOrdenesProgramadasController extends Controller
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->orden_id);
+            $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
+            if ($axUrdido === 0) {
+                $axUrdido = (int) (DB::table('UrdProgramaUrdido')->where('Id', $orden->Id)->value('ax') ?? 0);
+            }
+            $bloqueaUrdido = $axUrdido === 1;
+
+            if ($bloqueaUrdido) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Urdido ya está en AX. No se pueden editar julios.',
+                ], 403);
+            }
 
             $noJulio = $request->input('no_julio');
             $hilos = $request->input('hilos');
