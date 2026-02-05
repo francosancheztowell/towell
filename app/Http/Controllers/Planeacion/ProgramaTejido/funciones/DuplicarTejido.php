@@ -10,6 +10,7 @@ use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
@@ -37,6 +38,8 @@ class DuplicarTejido
             'destinos.*.tamano_clave' => 'nullable|string|max:100',
             'destinos.*.producto' => 'nullable|string|max:255',
             'destinos.*.flog' => 'nullable|string|max:100',
+            'destinos.*.FlogsId' => 'nullable|string|max:100',
+            'destinos.*.flogs_id' => 'nullable|string|max:100',
             'destinos.*.descripcion' => 'nullable|string|max:500',
             'destinos.*.aplicacion' => 'nullable|string|max:255',
 
@@ -132,6 +135,11 @@ class DuplicarTejido
             $idsParaObserver = [];
             $totalDuplicados = 0;
             $registrosCreados = []; // Para almacenar registros y sus fechas inicio para determinar el líder (solo si vincular)
+            // Guardar toArray() de cada registro recién creado (antes del commit) para enviar al frontend.
+            // Tras el commit, find() a veces no encuentra el registro (p. ej. SQL Server / visibilidad), por eso usamos esto.
+            $registrosDatosParaRespuesta = [];
+            // Modelos recién creados para pasar al observer; tras commit, whereIn() puede devolver vacío en SQL Server.
+            $modelosParaObserver = [];
 
             foreach ($destinos as $destino) {
                 $telarDestino = $destino['telar'];
@@ -140,19 +148,22 @@ class DuplicarTejido
                 $saldoDestinoRaw = $destino['saldo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
 
+                // Usar el salón específico del destino si está disponible, de lo contrario el global
+                $salonDestinoFila = !empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
+
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
                     ? (float)$destino['porcentaje_segundos']
                     : null;
 
-                // Último del destino (para FechaInicio)
+                // Último del destino (para FechaInicio) - usar salón específico del destino
                 $ultimoDestino = ReqProgramaTejido::query()
-                    ->salon($salonDestino)
+                    ->salon($salonDestinoFila)
                     ->telar($telarDestino)
                     ->orderBy('FechaInicio', 'desc')
                     ->first();
 
                 // Asegurar un solo "Ultimo"
-                ReqProgramaTejido::where('SalonTejidoId', $salonDestino)
+                ReqProgramaTejido::where('SalonTejidoId', $salonDestinoFila)
                     ->where('NoTelarId', $telarDestino)
                     ->where('Ultimo', 1)
                     ->update(['Ultimo' => 0]);
@@ -165,18 +176,20 @@ class DuplicarTejido
                 $nuevo = $original->replicate();
 
                 // ===== Básicos =====
-                $nuevo->SalonTejidoId = $salonDestino;
+                $nuevo->SalonTejidoId = $salonDestinoFila;
                 $nuevo->NoTelarId     = $telarDestino;
                 $nuevo->EnProceso     = 0;
                 $nuevo->Ultimo        = 1;
                 $nuevo->CambioHilo    = 0;
 
-                $nuevo->Maquina = self::construirMaquina($original->Maquina ?? null, $salonDestino, $telarDestino);
+                $nuevo->Maquina = self::construirMaquina($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
 
                 // Limpiar campos que siempre deben resetearse en duplicación
                 $nuevo->Produccion    = null;
                 $nuevo->Programado    = null;
                 $nuevo->NoProduccion  = null;
+                $nuevo->ProgramarProd = null;   // Day Scheduling en null
+                $nuevo->SaldoMarbete  = null;  // Saldo marbetes en null
 
                 // ===== ORDCOMPARTIDA: Solo si vincular está activo =====
                 if ($vincular) {
@@ -190,13 +203,14 @@ class DuplicarTejido
                 // Limpiar campos de combinaciones
 
 
-                $nuevo->ProgramarProd = Carbon::now()->format('Y-m-d');
+                // ProgramarProd (Day Scheduling) queda en null (asignado arriba)
 
                 // ===== Overrides por destino (específicos de cada fila) o globales =====
                 // Valores específicos del destino tienen prioridad sobre los valores globales
                 $tamanoClaveDestino = $destino['tamano_clave'] ?? null;
                 $productoDestino = $destino['producto'] ?? null;
-                $flogDestino = $destino['flog'] ?? null;
+                // Flog de ESTA fila: leer de varias claves por compatibilidad; prioridad absoluta sobre modelo y global
+                $flogDestino = trim((string)($destino['flog'] ?? $destino['FlogsId'] ?? $destino['flogs_id'] ?? ''));
                 $descripcionDestino = $destino['descripcion'] ?? null;
                 $custNameDestino = $destino['custName'] ?? null;
 
@@ -268,7 +282,7 @@ class DuplicarTejido
                     $nuevo->NombreCC4 = null;
                     $nuevo->NombreCC5 = null;
 
-                    self::aplicarDatosModeloCodificado($nuevo, $tamanoClaveDestino, $salonDestino);
+                    self::aplicarDatosModeloCodificado($nuevo, $tamanoClaveDestino, $salonDestinoFila);
                 }
 
                 // Los campos del modelo ya se aplicaron arriba si hubo cambio de clave
@@ -300,7 +314,7 @@ class DuplicarTejido
                     $nuevo->Maquina = StringTruncator::truncate('Maquina', $destino['maquina']);
                 } else {
                     // Construir Maquina si no viene
-                    $nuevo->Maquina = self::construirMaquina($original->Maquina ?? null, $salonDestino, $telarDestino);
+                    $nuevo->Maquina = self::construirMaquina($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
                 }
 
                 // TamanoClave: priorizar valor del destino (fila)
@@ -337,52 +351,45 @@ class DuplicarTejido
                     $nuevo->NombreProducto = StringTruncator::truncate('NombreProducto', $producto);
                 }
 
-                // FlogsId: Priorizar valor del destino sobre el del modelo
-                // Si hay flogDestino, usarlo (tiene prioridad sobre el del modelo)
-                if ($flogDestino && $flogDestino !== '') {
-                    // Usar valor específico del destino (fila) - tiene máxima prioridad
+                // FlogsId: si en la fila dejaron flog vacío → FlogsId, NombreProyecto y CategoriaCalidad (NAC) en null
+                if ($flogDestino === '') {
+                    $nuevo->FlogsId = null;
+                    $nuevo->NombreProyecto = null;
+                    $nuevo->CategoriaCalidad = null;
+                } else {
                     $nuevo->FlogsId = StringTruncator::truncate('FlogsId', $flogDestino);
-                } elseif (!$aplicarDatosModelo) {
-                    // Si NO se aplicaron datos del modelo, usar valor global
-                    if ($flog) {
-                        $nuevo->FlogsId = StringTruncator::truncate('FlogsId', $flog);
+                    // NombreProyecto: priorizar descripción del destino para esta fila
+                    if ($descripcionDestino !== null && trim((string) $descripcionDestino) !== '') {
+                        $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', trim((string) $descripcionDestino));
+                    } elseif (!$aplicarDatosModelo && $descripcion !== null && trim((string) $descripcion) !== '') {
+                        $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', trim((string) $descripcion));
                     }
+                    // Si aplicamos modelo y no hay descripcion en fila ni global, NombreProyecto queda el del modelo
                 }
-                // Si hubo cambio de Clave Modelo y NO hay flogDestino, FlogsId ya está aplicado desde aplicarDatosModeloCodificado
 
                 // Aplicar TipoPedido basado en las primeras 2 letras del Flog (CE, RS, etc.)
                 UpdateHelpers::applyFlogYTipoPedido($nuevo, $nuevo->FlogsId);
 
-                // NombreProyecto: Priorizar valor del destino sobre el del modelo
-                if ($descripcionDestino && $descripcionDestino !== '') {
-                    // Usar valor específico del destino (fila) - tiene máxima prioridad
-                    $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcionDestino);
-                } elseif (!$aplicarDatosModelo) {
-                    // Si NO se aplicaron datos del modelo, usar valor global
-                    if ($descripcion) {
-                        $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', $descripcion);
-                    }
-                }
-                // Si hubo cambio de Clave Modelo y NO hay descripcionDestino, NombreProyecto ya está aplicado desde aplicarDatosModeloCodificado
-
-                // CustName: Obtener desde el Flog que se esté usando (del destino si existe, sino del modelo)
+                // CustName y CategoriaCalidad (NAC): obtener desde TwFlogsCustomer por FlogsId (igual que import Excel)
                 if (!empty($nuevo->FlogsId)) {
-                    // Obtener CustName desde TwFlogsTable usando el FlogsId que se esté usando
                     try {
-                        $flogsIdParaCustName = trim((string)$nuevo->FlogsId);
-
+                        $flogsIdTrim = trim((string)$nuevo->FlogsId);
                         $row = DBFacade::connection('sqlsrv_ti')
-                            ->table('dbo.TwFlogsTable as ft')
-                            ->select('ft.CUSTNAME as CustName')
-                            ->where('ft.IDFLOG', $flogsIdParaCustName)
+                            ->table('TwFlogsCustomer')
+                            ->select(['IdFlog', 'CustName', 'CategoriaCalidad'])
+                            ->where('IdFlog', $flogsIdTrim)
                             ->first();
 
-                        if ($row && !empty($row->CustName)) {
-                            $custNameObtenido = trim((string)$row->CustName);
-                            $nuevo->CustName = StringTruncator::truncate('CustName', $custNameObtenido);
+                        if ($row) {
+                            if (!empty($row->CustName)) {
+                                $nuevo->CustName = StringTruncator::truncate('CustName', trim((string)$row->CustName));
+                            }
+                            if (isset($row->CategoriaCalidad) && (string)$row->CategoriaCalidad !== '') {
+                                $nuevo->CategoriaCalidad = StringTruncator::truncate('CategoriaCalidad', trim((string)$row->CategoriaCalidad));
+                            }
                         }
                     } catch (\Throwable $e) {
-                        // Si falla, continuar sin CustName
+                        // Si falla, continuar sin CustName/CategoriaCalidad
                     }
                 }
 
@@ -508,13 +515,26 @@ class DuplicarTejido
                 }
 
                 // Asignar posición consecutiva para este telar
-                $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonDestino, $telarDestino);
+                $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonDestinoFila, $telarDestino);
 
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
 
+                // El trigger que inserta en SYSAuditoria hace que el driver devuelva ese Id; obtener el Id real de ReqProgramaTejido.
+                $idReal = ReqProgramaTejido::on($nuevo->getConnectionName())
+                    ->from(ReqProgramaTejido::tableName())
+                    ->where('SalonTejidoId', $nuevo->SalonTejidoId)
+                    ->where('NoTelarId', $nuevo->NoTelarId)
+                    ->orderByDesc('Id')
+                    ->value('Id');
+                if ($idReal !== null) {
+                    $nuevo->Id = $idReal;
+                }
+
                 $idsParaObserver[] = $nuevo->Id;
+                $registrosDatosParaRespuesta[(string) $nuevo->Id] = $nuevo->toArray();
+                $modelosParaObserver[] = $nuevo;
                 $totalDuplicados++;
 
                 // Guardar referencia para determinar el líder después (solo si vincular)
@@ -546,6 +566,24 @@ class DuplicarTejido
                 }
             }
 
+            // Generar líneas diarias DENTRO de la transacción (antes del commit) para que la FK
+            // ReqProgramaTejidoLine.ProgramaId -> ReqProgramaTejido.Id vea el padre. Tras el commit,
+            // SQL Server a veces no ve el Id recién insertado (snapshot/visibilidad).
+            if (Auth::check()) {
+                try {
+                    $uid = (int) Auth::id();
+                    $user = substr((string) (Auth::user()->nombre ?? Auth::user()->numero_empleado ?? 'Sistema'), 0, 120);
+                    $ip = substr((string) request()->ip(), 0, 64);
+                    DBFacade::statement('EXEC dbo.sp_SetAppContext ?, ?, ?', [$uid, $user, $ip]);
+                } catch (\Throwable $e) {
+                    // Si falla, continuar igual
+                }
+            }
+            $observer = new ReqProgramaTejidoObserver();
+            foreach ($modelosParaObserver as $registro) {
+                $observer->saved($registro);
+            }
+
             DBFacade::commit();
 
             // Restaurar dispatcher y observer
@@ -554,28 +592,33 @@ class DuplicarTejido
             }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
-            // Disparar observer manualmente
-            $observer = new ReqProgramaTejidoObserver();
-            foreach ($idsParaObserver as $id) {
-                if ($registro = ReqProgramaTejido::find($id)) {
-                    $observer->saved($registro);
-                }
-            }
-
             ReqProgramaTejido::whereIn('Id', $idsParaObserver)->update(['EnProceso' => 0]);
 
             $primer = !empty($idsParaObserver) ? ReqProgramaTejido::find($idsParaObserver[0]) : null;
+
+            // Usar datos capturados justo después de save() (registrosDatosParaRespuesta). Tras commit, find() a veces no
+            // encuentra el registro en SQL Server, por eso no dependemos de find() para la respuesta al frontend.
+            $registrosDatos = $registrosDatosParaRespuesta;
+
+            LogFacade::info('DuplicarTejido: respuesta exitosa', [
+                'ids' => $idsParaObserver,
+                'registros_datos_count' => count($registrosDatos),
+                'registros_datos_keys' => array_keys($registrosDatos),
+                'vincular' => $vincular,
+            ]);
 
             // Mensaje y respuesta según si es vincular o duplicar
             if ($vincular) {
                 return response()->json([
                     'success' => true,
                     'message' => "Telar vinculado correctamente. Se crearon {$totalDuplicados} registro(s) con OrdCompartida: {$ordCompartidaAVincular}.",
+                    'modo' => 'vincular',
                     'registros_vinculados' => $totalDuplicados,
                     'registros_duplicados' => $totalDuplicados, // Mantener compatibilidad
                     'ord_compartida' => $ordCompartidaAVincular,
                     'registro_id' => $primer?->Id,
-                    'registros_ids' => $idsParaObserver, // Devolver TODOS los IDs de los registros creados
+                    'registros_ids' => $idsParaObserver,
+                    'registros_datos' => $registrosDatos,
                     'salon_destino' => $primer?->SalonTejidoId,
                     'telar_destino' => $primer?->NoTelarId,
                 ]);
@@ -583,9 +626,11 @@ class DuplicarTejido
                 return response()->json([
                     'success' => true,
                     'message' => "Telar duplicado correctamente. Se crearon {$totalDuplicados} registro(s).",
+                    'modo' => 'duplicar',
                     'registros_duplicados' => $totalDuplicados,
                     'registro_id' => $primer?->Id,
-                    'registros_ids' => $idsParaObserver, // Devolver TODOS los IDs de los registros creados
+                    'registros_ids' => $idsParaObserver,
+                    'registros_datos' => $registrosDatos,
                     'salon_destino' => $primer?->SalonTejidoId,
                     'telar_destino' => $primer?->NoTelarId,
                 ]);
@@ -593,13 +638,10 @@ class DuplicarTejido
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-
             if ($dispatcher) {
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
             }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-
-
 
             return response()->json([
                 'success' => false,

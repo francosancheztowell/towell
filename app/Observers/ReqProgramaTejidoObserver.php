@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use DateTimeInterface;
 use Throwable;
 class ReqProgramaTejidoObserver
@@ -31,12 +32,10 @@ class ReqProgramaTejidoObserver
             }
 
             $formulas = $this->calcularFormulasEficiencia($programa);
-
             if (!empty($formulas)) {
                 foreach ($formulas as $key => $value) {
                     $programa->{$key} = $value;
                 }
-
                 $formulasParaGuardar = [];
                 foreach ($formulas as $key => $value) {
                     if (in_array($key, $programa->getFillable()) || in_array($key, ['StdToaHra', 'PesoGRM2', 'DiasEficiencia', 'StdDia', 'ProdKgDia', 'StdHrsEfect', 'ProdKgDia2', 'HorasProd', 'DiasJornada'])) {
@@ -154,7 +153,10 @@ class ReqProgramaTejidoObserver
                 return;
             }
 
-            ReqProgramaTejidoLine::where('ProgramaId', $programa->Id)->delete();
+            // Usar la misma conexión que el programa (evita conflictos de visibilidad/auditoría en SQL Server)
+            $connection = $programa->getConnection();
+            $tableLine = ReqProgramaTejidoLine::tableName();
+            $connection->table($tableLine)->where('ProgramaId', $programa->Id)->delete();
 
             $lineasParaInsertar = [];
 
@@ -242,12 +244,15 @@ class ReqProgramaTejidoObserver
             if (!empty($lineasParaInsertar)) {
                 $chunks = array_chunk($lineasParaInsertar, 500);
                 foreach ($chunks as $chunk) {
-                    ReqProgramaTejidoLine::insert($chunk);
+                    $connection->table($tableLine)->insert($chunk);
                 }
             }
 
-
         } catch (Throwable $e) {
+            Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias error', [
+                'programa_id' => $programa->Id ?? null,
+                'message' => $e->getMessage(),
+            ]);
         }
     }
 

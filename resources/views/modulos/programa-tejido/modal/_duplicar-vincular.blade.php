@@ -164,53 +164,53 @@ function agregarFilaDuplicar() {
 				(producto || '') +
 			'</textarea>' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 200px;">' +
+		'<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 120px;">' +
 			'<textarea rows="2"' +
 				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none">' +
 				(flog || '') +
 			'</textarea>' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 250px;">' +
+		'<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 130px;">' +
 			'<textarea rows="2"' +
 				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none">' +
 				(descripcion || '') +
 			'</textarea>' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200 aplicacion-cell">' +
-			'<select name="aplicacion-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
+		'<td class="p-2 border-r border-gray-200 aplicacion-cell" style="min-width: 5rem; width: 5rem;">' +
+			'<select name="aplicacion-destino[]" class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 				aplicacionOptionsHTML +
 			'</select>' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200">' +
+		'<td class="p-2 border-r border-gray-200" style="min-width: 100px;">' +
 			'<select name="telar-destino[]" class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 telar-destino-select">' +
 				telarOptionsHTML +
 			'</select>' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200 pedido-tempo-cell">' +
-			'<input type="number" name="pedido-tempo-destino[]" value="' + pedidoOriginal + '" placeholder=""' +
-				' class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
+		'<td class="p-2 border-r border-gray-200 pedido-tempo-cell" style="width: 5rem; min-width: 5rem;">' +
+			'<input type="text" name="pedido-tempo-destino[]" value="' + pedidoOriginal + '" inputmode="decimal"' +
+				' class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200">' +
-			'<input type="number" name="porcentaje-segundos-destino[]" value="0" placeholder="0.00" step="0.01" min="0"' +
-				' class="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
+		'<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell" style="width: 3.25rem; min-width: 3.25rem;">' +
+			'<input type="number" name="porcentaje-segundos-destino[]" value="0" placeholder="0" step="0.01" min="0"' +
+				' class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" style="max-width: 3rem;">' +
 		'</td>' +
 		'<td class="p-2 border-r border-gray-200 produccion-cell hidden">' +
 			'<input type="hidden" name="pedido-destino[]" value="">' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200 saldo-total-cell hidden">' +
+		'<td class="p-2 border-r border-gray-200 saldo-total-cell hidden" style="width: 5rem; min-width: 5rem;">' +
 			'<input type="text" value="" readonly' +
-				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">' +
+				' class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">' +
 		'</td>' +
-		'<td class="p-2 border-r border-gray-200 saldo-cell">' +
-			'<input type="number" name="saldo-destino[]" value="' + pedidoOriginal + '" step="0.01" min="0"' +
-				' class="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
+		'<td class="p-2 border-r border-gray-200 saldo-cell" style="width: 5rem; min-width: 5rem;">' +
+			'<input type="text" name="saldo-destino[]" value="' + pedidoOriginal + '" inputmode="decimal"' +
+				' class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">' +
 		'</td>' +
 		'<td class="p-2 border-r border-gray-200">' +
 			'<textarea rows="2" name="observaciones-destino[]" placeholder="Observaciones..."' +
 				' class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"></textarea>' +
 		'</td>' +
-		'<td class="p-2 text-center acciones-cell">' +
-			'<button type="button" class="btn-remove-row px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors" title="Eliminar fila">' +
+		'<td class="py-1 px-0 text-center acciones-cell" style="width: 2rem; min-width: 2rem;">' +
+			'<button type="button" class="btn-remove-row p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded text-sm inline-flex items-center justify-center" style="min-width: 1.5rem; min-height: 1.5rem;" title="Eliminar fila">' +
 				'<i class="fas fa-times"></i>' +
 			'</button>' +
 		'</td>';
@@ -283,5 +283,10 @@ function agregarFilaDuplicar() {
 	// Calcular saldo inicial para la nueva fila
 	if (typeof calcularSaldoDuplicar === 'function') {
 		calcularSaldoDuplicar(newRow);
+	}
+
+	// Aplicar formateo de miles a inputs de pedido y saldo de la nueva fila
+	if (typeof aplicarFormatoMilesEnContenedor === 'function') {
+		aplicarFormatoMilesEnContenedor(newRow);
 	}
 }

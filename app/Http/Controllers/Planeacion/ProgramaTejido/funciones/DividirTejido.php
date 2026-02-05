@@ -57,13 +57,18 @@ class DividirTejido
         $ordCompartidaExistente = $request->input('ord_compartida_existente');
         $esRedistribucion = !empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0';
 
-        DBFacade::beginTransaction();
+        // Guardar y restaurar dispatcher para no romper otros flujos (igual que DuplicarTejido)
+        $dispatcher = ReqProgramaTejido::getEventDispatcher();
         ReqProgramaTejido::unsetEventDispatcher();
+
+        DBFacade::beginTransaction();
+        LogFacade::info('DividirTejido::dividir INICIO', ['salon' => $salonOrigen, 'telar' => $telarOrigen, 'destinos_count' => count($destinos)]);
 
         try {
             // Si es redistribuci├│n, usar l├│gica diferente
             if ($esRedistribucion) {
-                return self::redistribuirGrupoExistente($request, $ordCompartidaExistente, $destinos, $salonDestino, $hilo);
+                LogFacade::info('DividirTejido: usando redistribuirGrupoExistente');
+                return self::redistribuirGrupoExistente($request, $ordCompartidaExistente, $destinos, $salonDestino, $hilo, $dispatcher);
             }
 
             // Obtener el registro espec├¡fico a dividir:
@@ -120,9 +125,9 @@ class DividirTejido
             $porcentajeSegundosOriginal = null;
 
             foreach ($destinos as $index => $destino) {
-                $pedidoDestino = isset($destino['pedido']) && $destino['pedido'] !== ''
-                    ? (float) $destino['pedido']
-                    : 0;
+                // Normalizar pedido (quitar comas de miles para que (float) no trunque: "1,000" -> 1000)
+                $rawPedido = isset($destino['pedido']) && $destino['pedido'] !== '' ? (string) $destino['pedido'] : '';
+                $pedidoDestino = $rawPedido !== '' ? (float) str_replace(',', '', $rawPedido) : 0;
                 $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
@@ -239,6 +244,7 @@ class DividirTejido
             }
 
             $idsParaObserver = [];
+            $registrosParaObserver = []; // Modelos con datos en memoria para generar ReqProgramaTejidoLine
             $totalDivididos = 0;
 
             // === PASO 1: Actualizar el registro original ===
@@ -306,7 +312,11 @@ class DividirTejido
 
             $registroOriginal->save();
             $idsParaObserver[] = $registroOriginal->Id;
+            $registrosParaObserver[] = $registroOriginal;
             $totalDivididos++;
+
+            // Datos de cada registro nuevo para la respuesta (evita depender de find() tras commit, que puede fallar en SQL Server)
+            $registrosDatosParaRespuesta = [];
 
             // === PASO 2: Crear los nuevos registros para los telares destino ===
             foreach ($destinosNuevos as $destino) {
@@ -346,7 +356,8 @@ class DividirTejido
                 $nuevo->Produccion = null;
                 $nuevo->Programado = null;
                 $nuevo->NoProduccion = null;
-                $nuevo->ProgramarProd = Carbon::now()->format('Y-m-d');
+                $nuevo->ProgramarProd = null;   // Day Scheduling en null
+                $nuevo->SaldoMarbete = null;    // Saldo marbetes en null
 
                 // OrdCompartida - mismo n├║mero que el original para relacionarlos
                 $nuevo->OrdCompartida = $nuevoOrdCompartida;
@@ -563,6 +574,8 @@ class DividirTejido
                 $nuevo->save();
 
                 $idsParaObserver[] = $nuevo->Id;
+                $registrosDatosParaRespuesta[(string) $nuevo->Id] = $nuevo->toArray();
+                $registrosParaObserver[] = $nuevo;
                 $totalDivididos++;
             }
 
@@ -598,41 +611,48 @@ class DividirTejido
                 \App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido::actualizarOrdPrincipalPorOrdCompartida($nuevoOrdCompartida);
             }
 
-            DBFacade::commit();
-
-            // Re-habilitar observer
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-
-            // Disparar observer manualmente para generar las l├¡neas
-            $observer = new ReqProgramaTejidoObserver();
-            foreach ($idsParaObserver as $idDividido) {
-                $registro = ReqProgramaTejido::find($idDividido);
-                if ($registro) {
-                    $observer->saved($registro);
-                }
-            }
-
-            // Asegurar que los registros divididos mantengan EnProceso=0
+            // Asegurar que los registros divididos mantengan EnProceso=0 (dentro de la misma transacción)
             if (!empty($idsParaObserver)) {
-                // El original mantiene su estado, los nuevos son EnProceso=0
                 $idsNuevos = array_slice($idsParaObserver, 1);
                 if (!empty($idsNuevos)) {
-                    ReqProgramaTejido::whereIn('Id', $idsNuevos)
-                        ->update(['EnProceso' => 0]);
+                    ReqProgramaTejido::whereIn('Id', $idsNuevos)->update(['EnProceso' => 0]);
                 }
             }
 
-            // Obtener el primer registro creado (nuevo) para redirigir
-            $primerNuevoCreado = count($idsParaObserver) > 1
-                ? ReqProgramaTejido::find($idsParaObserver[1])
-                : ReqProgramaTejido::find($idsParaObserver[0]);
+            DBFacade::commit();
+            LogFacade::info('DividirTejido::dividir COMMIT realizado', ['ids_para_observer' => $idsParaObserver, 'total_divididos' => $totalDivididos]);
 
-            // ⚡ CORRECCIÓN: Refrescar el registro original para obtener valores actualizados
-            // fresh() sin parámetros recarga el modelo completo desde la BD
-            $registroOriginal->refresh();
+            // Restaurar dispatcher y re-habilitar observer
+            if ($dispatcher) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
-            // ⚡ MEJORA: Refrescar el registro original para obtener valores actualizados (FechaFinal, fórmulas, etc.)
-            $registroOriginal->refresh();
+            // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
+            if (!empty($registrosParaObserver)) {
+                $observer = new ReqProgramaTejidoObserver();
+                foreach ($registrosParaObserver as $registro) {
+                    if (!$registro || !$registro->Id) continue;
+                    try {
+                        $observer->saved($registro);
+                    } catch (\Throwable $e) {
+                        LogFacade::error('DividirTejido: error generando líneas tras commit', [
+                            'programa_id' => $registro->Id,
+                            'message' => $e->getMessage(),
+                        ]);
+                        throw $e;
+                    }
+                }
+            }
+
+            // Primer registro nuevo para respuesta (desde memoria; find() tras commit puede fallar en SQL Server)
+            $primerNuevoCreado = count($registrosParaObserver) > 1 ? $registrosParaObserver[1] : $registrosParaObserver[0];
+
+            // IDs de registros nuevos creados (excluyendo el original)
+            $idsNuevosCreados = array_slice($idsParaObserver, 1);
+
+            // Usar datos capturados justo después de save(); find() tras commit puede no encontrar el registro en SQL Server
+            $registrosDatos = $registrosDatosParaRespuesta;
 
             return response()->json([
                 'success' => true,
@@ -640,8 +660,10 @@ class DividirTejido
                 'registros_divididos' => $totalDivididos,
                 'ord_compartida' => $nuevoOrdCompartida,
                 'registro_id' => $primerNuevoCreado?->Id,
+                'registros_ids' => $idsNuevosCreados,
+                'registros_datos' => $registrosDatos,
                 'registro_id_original' => $registroOriginal->Id,
-                'registro_original' => [ // ⚡ MEJORA: Datos del registro original actualizado (cantidad, fecha, fórmulas)
+                'registro_original' => [
                     'TotalPedido' => $registroOriginal->TotalPedido,
                     'SaldoPedido' => $registroOriginal->SaldoPedido,
                     'FechaInicio' => $registroOriginal->FechaInicio,
@@ -662,6 +684,9 @@ class DividirTejido
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
+            if (isset($dispatcher) && $dispatcher) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
             LogFacade::error('dividirTelar error', [
                 'salon' => $salonOrigen,
@@ -846,7 +871,7 @@ class DividirTejido
      * Redistribuir cantidades en un grupo existente de OrdCompartida
      * Actualiza registros existentes y crea nuevos si es necesario
      */
-    private static function redistribuirGrupoExistente(Request $request, $ordCompartida, $destinos, $salonDestino, $hilo = null)
+    private static function redistribuirGrupoExistente(Request $request, $ordCompartida, $destinos, $salonDestino, $hilo = null, $dispatcher = null)
     {
         try {
             // Obtener todos los registros del grupo
@@ -879,6 +904,7 @@ class DividirTejido
             $segundosPorUnidad = $cantidadPrimer > 0 ? $duracionPrimerSegundos / $cantidadPrimer : 0;
 
             $idsParaObserver = [];
+            $registrosParaObserver = [];
             $totalActualizados = 0;
             $totalCreados = 0;
 
@@ -970,6 +996,7 @@ class DividirTejido
                         $registro->UpdatedAt = now();
                         $registro->save();
                         $idsParaObserver[] = $registro->Id;
+                        $registrosParaObserver[] = $registro;
                         $totalActualizados++;
                     }
                 }
@@ -1020,7 +1047,8 @@ class DividirTejido
                 $nuevo->Produccion = null;
                 $nuevo->Programado = null;
                 $nuevo->NoProduccion = null;
-                $nuevo->ProgramarProd = Carbon::now()->format('Y-m-d');
+                $nuevo->ProgramarProd = null;   // Day Scheduling en null
+                $nuevo->SaldoMarbete = null;    // Saldo marbetes en null
 
                 // OrdCompartida - mismo n├║mero que el grupo
                 $nuevo->OrdCompartida = (int) $ordCompartida;
@@ -1106,20 +1134,31 @@ class DividirTejido
                 $nuevo->save();
 
                 $idsParaObserver[] = $nuevo->Id;
+                $registrosParaObserver[] = $nuevo;
                 $totalCreados++;
             }
 
             DBFacade::commit();
 
-            // Re-habilitar observer
+            // Restaurar dispatcher y re-habilitar observer (igual que DuplicarTejido)
+            if ($dispatcher) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
-            // Disparar observer manualmente para generar las l├¡neas
-            $observer = new ReqProgramaTejidoObserver();
-            foreach ($idsParaObserver as $idActualizado) {
-                $registro = ReqProgramaTejido::find($idActualizado);
-                if ($registro) {
-                    $observer->saved($registro);
+            // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
+            if (!empty($registrosParaObserver)) {
+                $observer = new ReqProgramaTejidoObserver();
+                foreach ($registrosParaObserver as $registro) {
+                    if (!$registro || !$registro->Id) continue;
+                    try {
+                        $observer->saved($registro);
+                    } catch (\Throwable $e) {
+                        LogFacade::error('DividirTejido::redistribuirGrupoExistente: error generando líneas tras commit', [
+                            'programa_id' => $registro->Id,
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
                 }
             }
 
@@ -1170,6 +1209,9 @@ class DividirTejido
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
+            if ($dispatcher) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
             LogFacade::error('redistribuirGrupoExistente error', [
                 'ord_compartida' => $ordCompartida,
