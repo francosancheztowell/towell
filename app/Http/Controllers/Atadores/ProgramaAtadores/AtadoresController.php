@@ -70,11 +70,14 @@ class AtadoresController extends Controller
         $areaUpper = strtoupper(trim($area));
         $areaNorm = strtolower(trim((string) $area));
         $puestoNorm = strtolower(trim((string) $puesto));
+        $tienePermisosAtadores = userCan('acceso', 'Programa Atadores') && userCan('crear', 'Programa Atadores');
 
         // Detectar si es tejedor (puede ser "Tejedores", "TEJEDORES", "tejedores", etc.)
         $esTejedor = in_array($areaUpper, ['TEJEDORES', 'TEJEDOR']);
         $esAreaAtadores = in_array($areaNorm, ['atador', 'atadores'], true);
         $esSupervisor = (strtolower(trim($puesto)) === 'supervisor');
+        $esPuestoAtador = in_array($puestoNorm, ['atador', 'atadores'], true);
+        $restringirAtador = $esPuestoAtador && $tienePermisosAtadores;
 
         $telaresUsuario = [];
         if ($esTejedor) {
@@ -98,7 +101,16 @@ class AtadoresController extends Controller
 
         // Aplicar filtros según rol/área ANTES de ejecutar la consulta
         // Si el usuario usó el botón de filtrar (filtro personalizado presente), mostrar TODOS sin restricción por área/cargo
-        if ($filtroPersonalizado === 'autorizados') {
+        if ($restringirAtador) {
+            $query->where(function ($q) {
+                $q->whereNull('AtaMontadoTelas.Estatus')
+                  ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
+            });
+
+            $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
+                ->orderBy('tej_inventario_telares.turno', 'asc')
+                ->get();
+        } elseif ($filtroPersonalizado === 'autorizados') {
             $inventarioTelares = $this->getAutorizadosParaVista();
         } elseif ($filtroPersonalizado !== null) {
             // Cualquier otro filtro elegido en el modal: traer todos los registros sin filtrar por área/cargo
@@ -117,12 +129,16 @@ class AtadoresController extends Controller
                 }
             }
             // Atador: todos los telares, solo Activo y En Proceso (sin filtrar por operador)
-            elseif ($esAreaAtadores || in_array($puestoNorm, ['atador', 'atadores'], true)) {
-                // Solo Activo (sin registro en AtaMontadoTelas) o En Proceso
-                $query->where(function ($q) {
-                    $q->whereNull('AtaMontadoTelas.Estatus')
-                      ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
-                });
+            elseif ($esAreaAtadores || $esPuestoAtador) {
+                if ($restringirAtador) {
+                    // Solo Activo (sin registro en AtaMontadoTelas) o En Proceso
+                    $query->where(function ($q) {
+                        $q->whereNull('AtaMontadoTelas.Estatus')
+                          ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
+                    });
+                } else {
+                    $query->whereRaw('0 = 1');
+                }
             }
             // Supervisor: solo Calificados (no Autorizado)
             elseif ($esSupervisor) {
