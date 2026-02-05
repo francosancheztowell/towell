@@ -285,11 +285,14 @@ class CortesEficienciaController extends Controller
                 );
 
                 // 2. Guardar las líneas de telares en TejEficienciaLine
+                $salonesByTelar = InvSecuenciaCorteEf::pluck('SalonTejidoId', 'NoTelarId')->toArray();
                 foreach ($validated['datos_telares'] as $telar) {
                     // Verificar que el telar tenga los datos necesarios
                     if (!isset($telar['NoTelar'])) {
                         continue;
                     }
+                    $noTelar = (int) $telar['NoTelar'];
+                    $salonId = $salonesByTelar[$noTelar] ?? null;
 
                     // Obtener RpmStd y EficienciaStd
                     $rpmStd = $telar['RpmStd'] ?? null;
@@ -297,14 +300,14 @@ class CortesEficienciaController extends Controller
 
                     // Buscar si ya existe un registro con estos criterios
                     $registroExistente = TejEficienciaLine::where('Folio', $folioFinal)
-                        ->where('NoTelarId', $telar['NoTelar'])
+                        ->where('NoTelarId', $noTelar)
                         ->where('Turno', $validated['turno'])
                         ->where('Date', $validated['fecha'])
                         ->first();
 
                     $datos = [
                         'Date' => $validated['fecha'],
-                        'SalonTejidoId' => $telar['SalonTejidoId'] ?? null,
+                        'SalonTejidoId' => $salonId,
                         'RpmStd' => $rpmStd,
                         'EficienciaSTD' => $eficienciaStd,
                         'RpmR1' => $telar['RpmR1'] ?? null,
@@ -324,14 +327,14 @@ class CortesEficienciaController extends Controller
                     if ($registroExistente) {
                         // Actualizar registro existente SIN usar PK 'id'
                         TejEficienciaLine::where('Folio', $folioFinal)
-                            ->where('NoTelarId', $telar['NoTelar'])
+                            ->where('NoTelarId', $noTelar)
                             ->where('Turno', $validated['turno'])
                             ->where('Date', $validated['fecha'])
                             ->update($datos);
                     } else {
                         // Crear nuevo registro
                         $datos['Folio'] = $folioFinal;
-                        $datos['NoTelarId'] = $telar['NoTelar'];
+                        $datos['NoTelarId'] = $noTelar;
                         $datos['Turno'] = $validated['turno'];
                         TejEficienciaLine::create($datos);
                     }
@@ -1032,20 +1035,23 @@ class CortesEficienciaController extends Controller
             try {
                 $registrosGuardados = 0;
 
+                $salonesByTelar = InvSecuenciaCorteEf::pluck('SalonTejidoId', 'NoTelarId')->toArray();
                 foreach ($validated['datos_telares'] as $telar) {
+                    $noTelar = (int) $telar['NoTelar'];
+                    $salonId = $salonesByTelar[$noTelar] ?? null;
                     // Obtener RpmStd y EficienciaStd independientemente
                     $rpmStd = $telar['RpmStd'] ?? null;
                     $eficienciaStd = $telar['EficienciaStd'] ?? null;
 
                     // Buscar si ya existe un registro con estos criterios
                     $registroExistente = TejEficienciaLine::where('Folio', $validated['folio'])
-                        ->where('NoTelarId', $telar['NoTelar'])
+                        ->where('NoTelarId', $noTelar)
                         ->where('Turno', $validated['turno'])
                         ->where('Date', $validated['fecha'])
                         ->first();
 
                     $datos = [
-                        'SalonTejidoId' => $telar['SalonTejidoId'] ?? null,
+                        'SalonTejidoId' => $salonId,
                         'RpmStd' => $rpmStd,
                         'EficienciaSTD' => $eficienciaStd,
                         'RpmR1' => $telar['RpmR1'] ?? null,
@@ -1065,14 +1071,14 @@ class CortesEficienciaController extends Controller
                     if ($registroExistente) {
                         // Actualizar registro existente SIN usar PK 'id'
                         TejEficienciaLine::where('Folio', $validated['folio'])
-                            ->where('NoTelarId', $telar['NoTelar'])
+                            ->where('NoTelarId', $noTelar)
                             ->where('Turno', $validated['turno'])
                             ->where('Date', $validated['fecha'])
                             ->update($datos);
                     } else {
                         // Crear nuevo registro
                         $datos['Folio'] = $validated['folio'];
-                        $datos['NoTelarId'] = $telar['NoTelar'];
+                        $datos['NoTelarId'] = $noTelar;
                         $datos['Turno'] = $validated['turno'];
                         $datos['Date'] = $validated['fecha'];
                         TejEficienciaLine::create($datos);
