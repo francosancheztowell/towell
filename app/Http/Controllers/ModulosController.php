@@ -587,59 +587,60 @@ class ModulosController extends Controller
     }
 
     /**
-     * Actualizar permisos para todos los usuarios cuando se crea un nuevo modulo
+     * Asignar permisos del nuevo modulo solo para ese modulo (idrol) a todos los usuarios.
+     * Solo se crean/actualizan filas (idusuario, idrol) con idrol = modulo recien creado.
+     * No se tocan los permisos de otros modulos.
      *
      * @param SYSRoles $modulo El modulo recien creado
-     * @return int Numero de registros actualizados
+     * @return int Numero de registros creados o actualizados (solo de este modulo)
      */
     private function actualizarPermisosNuevoModulo(SYSRoles $modulo): int
     {
         try {
-            // Obtener todos los usuarios
             $usuarios = SYSUsuario::select('idusuario')->get();
             $registrosActualizados = 0;
 
-            foreach ($usuarios as $usuario) {
-                // Verificar si ya existe un registro para este usuario y mÃ³dulo
-                $permisoExistente = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
-                    ->where('idrol', $modulo->idrol)
-                    ->first();
+            $permisosSoloEsteModulo = [
+                'acceso' => (int) ($modulo->acceso ?? 0),
+                'crear' => (int) ($modulo->crear ?? 0),
+                'modificar' => (int) ($modulo->modificar ?? 0),
+                'eliminar' => (int) ($modulo->eliminar ?? 0),
+                'registrar' => (int) (($modulo->reigstrar ?? $modulo->registrar ?? 0)),
+            ];
 
-                if ($permisoExistente) {
-                    // Si existe, actualizar los permisos a 1
-                    $permisoExistente->update([
-                        'acceso' => 1,
-                        'crear' => 1,
-                        'modificar' => 1,
-                        'eliminar' => 1,
-                        'registrar' => 1
-                    ]);
-                    $registrosActualizados++;
+            foreach ($usuarios as $usuario) {
+                $existe = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
+                    ->where('idrol', $modulo->idrol)
+                    ->exists();
+
+                if ($existe) {
+                    // Actualizar SOLO la fila (usuario, este modulo): usar query explícita para no depender de PK del modelo
+                    $afectados = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
+                        ->where('idrol', $modulo->idrol)
+                        ->update($permisosSoloEsteModulo);
+                    if ($afectados > 0) {
+                        $registrosActualizados++;
+                    }
                 } else {
-                    // Si no existe, crear el registro con permisos en 1
-                    SYSUsuariosRoles::create([
+                    // Crear solo la fila para (usuario, este modulo)
+                    SYSUsuariosRoles::create(array_merge([
                         'idusuario' => $usuario->idusuario,
                         'idrol' => $modulo->idrol,
-                        'acceso' => 1,
-                        'crear' => 1,
-                        'modificar' => 1,
-                        'eliminar' => 1,
-                        'registrar' => 1,
-                        'assigned_at' => now()
-                    ]);
+                        'assigned_at' => now(),
+                    ], $permisosSoloEsteModulo));
                     $registrosActualizados++;
                 }
             }
 
             return $registrosActualizados;
         } catch (\Exception $e) {
-            Log::error('Error al actualizar permisos del nuevo mÃ³dulo: ' . $e->getMessage());
+            Log::error('Error al actualizar permisos del nuevo modulo: ' . $e->getMessage());
             return 0;
         }
     }
 
     /**
-     * Limpiar cachÃ© de mÃ³dulos para todos los usuarios
+     * Limpiar cache de modulos para todos los usuarios
      */
     private function limpiarCacheTodosUsuarios(): void
     {
