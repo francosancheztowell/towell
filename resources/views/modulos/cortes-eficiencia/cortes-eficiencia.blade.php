@@ -141,6 +141,8 @@
         isNewRecord: true,
         observaciones: {},
         debounceTimer: null,
+        fallasCache: null,
+        fallasLoading: null,
     };
     const PAGE_MODE = @json([
         'soloLectura' => $soloLectura,
@@ -256,6 +258,8 @@
                 await generarNuevoFolio();
             }
         }
+        // Precargar catálogo de fallas para agilizar modales
+        if (!PAGE_MODE.soloLectura) { try { await preloadFallas(); } catch {} }
     });
 
     function bindEvents(){
@@ -567,6 +571,22 @@
         cb.title = clean ? `Obs: ${clean.length > 80 ? clean.slice(0, 80) + '…' : clean}` : '';
     }
 
+    async function preloadFallas(){
+        if (state.fallasCache) return state.fallasCache;
+        if (state.fallasLoading) return state.fallasLoading;
+        state.fallasLoading = fetchJSON(routes.fallasCe, { headers: { 'X-CSRF-TOKEN': csrf(), 'Accept':'application/json' } })
+            .then(res => {
+                state.fallasCache = (res.success && Array.isArray(res.data)) ? res.data : [];
+                return state.fallasCache;
+            })
+            .catch(() => {
+                state.fallasCache = [];
+                return state.fallasCache;
+            })
+            .finally(() => { state.fallasLoading = null; });
+        return state.fallasLoading;
+    }
+
     async function abrirModalObservaciones(checkbox){
         const telar = checkbox.dataset.telar; const horario = checkbox.dataset.horario; const key = `${telar}-${horario}`; const cur = state.observaciones[key] || '';
         if (!requireHorario(parseInt(horario,10))) { checkbox.checked = !!cur; return; }
@@ -585,12 +605,8 @@
             });
             return;
         }
-        // Cargar catálogo de fallas
-        let fallas = [];
-        try {
-            const res = await fetchJSON(routes.fallasCe, { headers: { 'X-CSRF-TOKEN': csrf(), 'Accept':'application/json' } });
-            if (res.success && Array.isArray(res.data)) fallas = res.data;
-        } catch {}
+        // Cargar catálogo de fallas (cacheado)
+        const fallas = await preloadFallas();
 
         const html = `
             <div class='text-left mb-4'>
