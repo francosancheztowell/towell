@@ -214,6 +214,12 @@ class AlineacionController extends Controller
             }
             $item[$key] = $value;
         }
+        // D?as por ejecutar = Diferencia / Prod. Prom. X D?a (SaldoPedido / ProdKgDia)
+        $prodPromDia = $r->ProdKgDia;
+        $diferencia = $r->SaldoPedido;
+        $item['DiasPorEjecutar'] = ($prodPromDia !== null && $prodPromDia > 0 && $diferencia !== null)
+            ? ($diferencia / $prodPromDia)
+            : 'ABIERTO';
         // FechaTejido en Y-m-d para cálculo de Días de prod. en el front (catcodificados)
         $item['FechaTejido'] = $cat?->FechaTejido ? Carbon::parse($cat->FechaTejido)->format('Y-m-d') : '';
         return $item;

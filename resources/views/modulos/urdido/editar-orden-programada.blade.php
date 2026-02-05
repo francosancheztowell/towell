@@ -2,42 +2,50 @@
 
 @section('page-title', 'Editar Orden Programada')
 
+@section('navbar-right')
+    @php
+        $statusClass = match($orden->Status ?? '') {
+            'Finalizado' => 'bg-green-100 text-green-800',
+            'En Proceso' => 'bg-yellow-100 text-yellow-800',
+            'Programado' => 'bg-blue-100 text-blue-800 ',
+            'Cancelado' => 'bg-red-100 text-red-800',
+            default => 'bg-gray-100 text-gray-800'
+        };
+    @endphp
+    <div class="flex items-center gap-2">
+        <span class="px-3 py-2 text-md font-bold rounded-full {{ $statusClass }}">
+            {{ $orden->Status ?? '-' }}
+        </span>
+        @if(($axUrdido ?? 0) === 1)
+            <span class="px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white">AX Urdido</span>
+        @endif
+        @if(($axEngomado ?? 0) === 1)
+            <span class="px-2 py-1 text-xs font-bold rounded-full bg-red-600 text-white">AX Engomado</span>
+        @endif
+    </div>
+@endsection
+
 
 
 @section('content')
     <div class="w-full">
-        @if(!$puedeEditar)
-            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="font-bold text-yellow-800">Sin permisos de edición</p>
-                        <p class="text-yellow-700 mt-1">No tienes permisos para editar órdenes. Solo supervisores del área Urdido pueden editar.</p>
-                    </div>
-                </div>
+        @if($bloqueaUrdido || $bloqueaEngomado)
+            <div class="flex flex-wrap items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-2 py-1 mb-2 rounded text-xs">
+                @if($bloqueaUrdido)
+                    <span class="inline-flex items-center gap-1 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                        Urdido en AX
+                    </span>
+                @endif
+                @if($bloqueaEngomado)
+                    <span class="inline-flex items-center gap-1 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                        Engomado en AX
+                    </span>
+                @endif
+                <span class="text-red-600">Campos bloqueados.</span>
             </div>
         @endif
-
-        @if($orden->Status === 'En Proceso')
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="font-bold text-red-800">Orden en proceso</p>
-                        <p class="text-red-700 mt-1">No se pueden editar órdenes con status "En Proceso". Solo se pueden editar órdenes con status "Programado".</p>
-                    </div>
-                </div>
-            </div>
-        @endif
-
         <!-- Información de la Orden -->
         <div class="bg-white  p-3 mb-4">
 
@@ -64,18 +72,18 @@
                         data-campo="FolioConsumo"
                         value="{{ $orden->FolioConsumo ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'readonly' : '' }}
+
                     >
                 </div>
 
                 <!-- Rizo/Pie -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Tipo (Rizo/Pie)</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Tipo</label>
                     <select
                         id="campo_RizoPie"
                         data-campo="RizoPie"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'disabled' : '' }}
+
                     >
                         <option value="">Seleccionar...</option>
                         <option value="Rizo" {{ $orden->RizoPie === 'Rizo' ? 'selected' : '' }}>Rizo</option>
@@ -92,7 +100,7 @@
                         data-campo="Cuenta"
                         value="{{ $orden->Cuenta ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'readonly' : '' }}
+
                     >
                 </div>
 
@@ -106,7 +114,7 @@
                         data-campo="Calibre"
                         value="{{ $orden->Calibre ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'readonly' : '' }}
+
                     >
                 </div>
 
@@ -120,7 +128,7 @@
                         data-campo="Metros"
                         value="{{ $orden->Metros ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'readonly' : '' }}
+
                     >
                 </div>
             </div>
@@ -137,7 +145,7 @@
                         data-campo="Kilos"
                         value="{{ $orden->Kilos ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'readonly' : '' }}
+
                     >
                 </div>
 
@@ -147,8 +155,9 @@
                     <select
                         id="campo_Fibra"
                         data-campo="Fibra"
+                        data-valor-actual="{{ $orden->Fibra ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'disabled' : '' }}
+
                     >
                         <option value="">Seleccionar...</option>
                         @foreach($fibras as $item)
@@ -186,7 +195,7 @@
                         id="campo_SalonTejidoId"
                         data-campo="SalonTejidoId"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'disabled' : '' }}
+
                     >
                         <option value="">Seleccionar...</option>
                         <option value="JACQUARD" {{ ($orden->SalonTejidoId ?? '') === 'JACQUARD' ? 'selected' : '' }}>JACQUARD</option>
@@ -201,7 +210,7 @@
                         id="campo_MaquinaId"
                         data-campo="MaquinaId"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'disabled' : '' }}
+
                     >
                         <option value="">Seleccionar...</option>
                         @foreach($maquinas as $maquina)
@@ -227,7 +236,7 @@
                         data-campo="FechaProg"
                         value="{{ $orden->FechaProg ? $orden->FechaProg->format('Y-m-d') : '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'readonly' : '' }}
+
                     >
                 </div>
 
@@ -238,7 +247,7 @@
                         id="campo_TipoAtado"
                         data-campo="TipoAtado"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'disabled' : '' }}
+
                     >
                         <option value="">Seleccionar...</option>
                         @php
@@ -258,9 +267,138 @@
                         data-campo="LoteProveedor"
                         value="{{ $orden->LoteProveedor ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        {{ !$puedeEditar ? 'readonly' : '' }}
+
                     >
                 </div>
+            </div>
+
+            <div class="mt-1.5 grid gap-1.5" style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr));">
+                <!-- Ancho Balonas -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Ancho Balonas</label>
+                    <input
+                        type="number"
+                        id="campo_AnchoBalonas"
+                        data-campo="AnchoBalonas"
+                        value="{{ $engomado->AnchoBalonas ?? '' }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+
+                    >
+                </div>
+
+                <!-- Bom Urdido (Urdido) -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Bom Urdido</label>
+                    <input
+                        type="text"
+                        id="campo_BomId"
+                        data-campo="BomId"
+                        value="{{ $orden->BomId ?? '' }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                </div>
+
+                <!-- Tamaño -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Tamaño</label>
+                    <input
+                        type="text"
+                        id="campo_InventSizeId"
+                        data-campo="InventSizeId"
+                        data-valor-actual="{{ $orden->InventSizeId ?? '' }}"
+                        value="{{ $orden->InventSizeId ?? '' }}"
+                        list="listaTamanos"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                </div>
+
+                <!-- Metraje Telas -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Metraje Telas</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        id="campo_MetrajeTelas"
+                        data-campo="MetrajeTelas"
+                        value="{{ $engomado->MetrajeTelas ?? '' }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+
+                    >
+                </div>
+
+                <!-- Cuentados -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Cuentados</label>
+                    <input
+                        type="number"
+                        id="campo_Cuentados"
+                        data-campo="Cuentados"
+                        value="{{ $engomado->Cuentados ?? '' }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+
+                    >
+                </div>
+
+                <!-- No. Telas -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">No. Telas</label>
+                    <input
+                        type="number"
+                        id="campo_NoTelas"
+                        data-campo="NoTelas"
+                        value="{{ $engomado->NoTelas ?? '' }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                </div>
+
+                <!-- Bom Eng -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Bom Engomado</label>
+                    <input
+                        type="text"
+                        id="campo_BomEng"
+                        data-campo="BomEng"
+                        value="{{ $engomado->BomEng ?? '' }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                </div>
+
+                <!-- Maquina Eng -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Maquina Engomado</label>
+                    <select
+                        id="campo_MaquinaEng"
+                        data-campo="MaquinaEng"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+
+                    >
+                        <option value="">Seleccionar...</option>
+                    @foreach($maquinasEngomado as $maquina)
+                        @php
+                            $maquinaEngValor = $engomado->MaquinaEng ?? '';
+                            $esSeleccionada = ($maquinaEngValor === $maquina->MaquinaId) ||
+                                              ($maquinaEngValor === ($maquina->Nombre ?? ''));
+                        @endphp
+                            <option value="{{ $maquina->MaquinaId }}" {{ $esSeleccionada ? 'selected' : '' }}>
+                                {{ $maquina->Nombre ?? $maquina->MaquinaId }}
+                            </option>
+                    @endforeach
+                    </select>
+                </div>
+
+                <!-- Bom Formula -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Bom Formula</label>
+                    <input
+                        type="text"
+                        id="campo_BomFormula"
+                        data-campo="BomFormula"
+                        value="{{ $orden->BomFormula ?? ($engomado->BomFormula ?? '') }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+
+                    >
+                </div>
+                <datalist id="listaTamanos"></datalist>
             </div>
 
             <div class="mt-2 grid gap-2" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));">
@@ -289,7 +427,7 @@
                                                 data-field="no_julio"
                                                 value="{{ $row->Julios ?? '' }}"
                                                 class="campo-julio w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                {{ !$puedeEditar ? 'readonly' : '' }}
+
                                             >
                                         </td>
                                         <td class="px-2 py-1.5 text-center">
@@ -300,7 +438,7 @@
                                                 data-field="hilos"
                                                 value="{{ $row->Hilos ?? '' }}"
                                                 class="campo-julio w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                {{ !$puedeEditar ? 'readonly' : '' }}
+
                                             >
                                         </td>
                                     </tr>
@@ -319,7 +457,7 @@
                         rows="3"
                         class="campo-editable w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         style="flex: 1 1 auto; resize: none;"
-                        {{ !$puedeEditar ? 'readonly' : '' }}
+
                     >{{ $orden->Observaciones ?? '' }}</textarea>
                 </div>
             </div>
@@ -335,9 +473,15 @@
             const csrfToken = '{{ csrf_token() }}';
             const routeActualizar = '{{ route('urdido.editar.ordenes.programadas.actualizar') }}';
             const routeActualizarJulios = '{{ route('urdido.editar.ordenes.programadas.actualizar.julios') }}';
+            const RUTA_HILOS = '{{ route("programa.urd.eng.hilos") }}';
+            const RUTA_TAMANOS = '{{ route("programa.urd.eng.tamanos") }}';
+            const bloqueaUrdido = {{ $bloqueaUrdido ? 'true' : 'false' }};
+            const bloqueaEngomado = {{ $bloqueaEngomado ? 'true' : 'false' }};
 
             const cambiosPendientes = new Map();
             let timeoutGuardado = null;
+            let opcionesHilos = [];
+            let opcionesTamanos = [];
 
             const showToast = (icon, title) => {
                 if (typeof Swal === 'undefined') {
@@ -401,12 +545,100 @@
                 });
             };
 
-            const actualizarCampo = async (campo, valor) => {
-                if (!puedeEditar) {
-                    showWarning('No tienes permisos para editar ordenes. Solo supervisores del area Urdido pueden editar.', 'Sin Permisos');
-                    return;
+            const cargarHilos = async () => {
+                try {
+                    const response = await fetch(RUTA_HILOS, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    const result = await response.json();
+                    if (result && result.success && Array.isArray(result.data)) {
+                        opcionesHilos = result.data.map(item => item.ConfigId || '').filter(Boolean);
+                    } else {
+                        opcionesHilos = [];
+                    }
+                } catch (error) {
+                    console.error('Error al cargar hilos:', error);
+                    opcionesHilos = [];
                 }
+            };
 
+            const cargarTamanos = async () => {
+                try {
+                    const response = await fetch(RUTA_TAMANOS, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    const result = await response.json();
+                    if (result && result.success && Array.isArray(result.data)) {
+                        opcionesTamanos = result.data.map(item => item.InventSizeId || '').filter(Boolean);
+                    } else {
+                        opcionesTamanos = [];
+                    }
+                } catch (error) {
+                    console.error('Error al cargar tamaños:', error);
+                    opcionesTamanos = [];
+                }
+            };
+
+            const actualizarSelectHilos = () => {
+                const select = document.getElementById('campo_Fibra');
+                if (!select) return;
+                const valorActual = (select.dataset.valorActual || select.value || '').trim();
+                const opciones = opcionesHilos.slice();
+                if (valorActual && !opciones.includes(valorActual)) {
+                    opciones.unshift(valorActual);
+                }
+                select.innerHTML = `<option value="">Seleccionar...</option>` + opciones
+                    .map(hilo => `<option value="${hilo}" ${hilo === valorActual ? 'selected' : ''}>${hilo}</option>`)
+                    .join('');
+                if (valorActual) {
+                    select.value = valorActual;
+                }
+            };
+
+            const actualizarListaTamanos = () => {
+                const datalist = document.getElementById('listaTamanos');
+                if (!datalist) return;
+                datalist.innerHTML = opcionesTamanos.map(t => `<option value="${t}"></option>`).join('');
+                const tamanoInput = document.getElementById('campo_InventSizeId');
+                const valorActual = (tamanoInput?.dataset.valorActual || tamanoInput?.value || '').trim();
+                if (valorActual && !Array.from(datalist.options).some(opt => opt.value === valorActual)) {
+                    const opt = document.createElement('option');
+                    opt.value = valorActual;
+                    datalist.appendChild(opt);
+                }
+            };
+
+            const autocompletarTamano = () => {
+                const cuentaInput = document.getElementById('campo_Cuenta');
+                const calibreInput = document.getElementById('campo_Calibre');
+                const tamanoInput = document.getElementById('campo_InventSizeId');
+                if (!cuentaInput || !calibreInput || !tamanoInput) return;
+
+                const cuenta = String(cuentaInput.value || '').trim();
+                const calibreRaw = String(calibreInput.value || '').trim();
+                if (!cuenta || !calibreRaw) return;
+
+                const calibreNum = parseFloat(calibreRaw);
+                const calibreNorm = Number.isFinite(calibreNum)
+                    ? calibreNum.toFixed(2).replace(/\.?0+$/, '')
+                    : calibreRaw;
+                const tamanoEsperado = `${cuenta}-${calibreNorm}/1`;
+                const yaExiste = opcionesTamanos.includes(tamanoEsperado);
+
+                // Solo autocompletar si existe en la lista de tamaños (evita valores inválidos/largos)
+                if (yaExiste && tamanoInput.value !== tamanoEsperado) {
+                    tamanoInput.value = tamanoEsperado;
+                    tamanoInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            };
+
+            const actualizarCampo = async (campo, valor) => {
                 if (campo === 'Folio') {
                     showError('El folio no se puede editar. Es un campo de solo lectura.', 'Campo No Editable');
                     return;
@@ -441,11 +673,6 @@
             };
 
             const actualizarJulioRow = async (row) => {
-                if (!puedeEditar) {
-                    showWarning('No tienes permisos para editar ordenes. Solo supervisores del area Urdido pueden editar.', 'Sin Permisos');
-                    return;
-                }
-
                 const rowId = row.dataset.julioId || null;
                 const noJulio = row.querySelector('[data-field="no_julio"]').value.trim();
                 const hilos = row.querySelector('[data-field="hilos"]').value.trim();
@@ -494,6 +721,41 @@
                 const camposEditables = document.querySelectorAll('.campo-editable');
                 const juliosRows = document.querySelectorAll('[data-julio-row]');
                 const juliosTimeouts = new Map();
+                const camposUrdidoIds = [
+                    'campo_FolioConsumo',
+                    'campo_RizoPie',
+                    'campo_Cuenta',
+                    'campo_Calibre',
+                    'campo_Metros',
+                    'campo_Kilos',
+                    'campo_Fibra',
+                    'campo_InventSizeId',
+                    'campo_SalonTejidoId',
+                    'campo_MaquinaId',
+                    'campo_BomId',
+                    'campo_FechaProg',
+                    'campo_TipoAtado',
+                    'campo_LoteProveedor',
+                    'campo_Observaciones',
+                ];
+                const camposEngomadoIds = [
+                    'campo_AnchoBalonas',
+                    'campo_MetrajeTelas',
+                    'campo_Cuentados',
+                    'campo_NoTelas',
+                    'campo_MaquinaEng',
+                    'campo_BomEng',
+                    'campo_BomFormula',
+                ];
+
+                const bloquearCampos = (ids) => {
+                    ids.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (!el) return;
+                        el.disabled = true;
+                        el.classList.add('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
+                    });
+                };
 
                 camposEditables.forEach(campo => {
                     const campoNombre = campo.dataset.campo;
@@ -563,14 +825,39 @@
                         });
                     });
                 });
+
+                // Cargar catálogos de hilos y tamaños y aplicar autocomplete
+                Promise.all([cargarHilos(), cargarTamanos()]).then(() => {
+                    actualizarSelectHilos();
+                    actualizarListaTamanos();
+                    autocompletarTamano();
+                });
+
+                const cuentaInput = document.getElementById('campo_Cuenta');
+                const calibreInput = document.getElementById('campo_Calibre');
+                if (cuentaInput) {
+                    cuentaInput.addEventListener('change', autocompletarTamano);
+                    cuentaInput.addEventListener('blur', autocompletarTamano);
+                }
+                if (calibreInput) {
+                    calibreInput.addEventListener('change', autocompletarTamano);
+                    calibreInput.addEventListener('blur', autocompletarTamano);
+                }
+
+                if (bloqueaUrdido) {
+                    bloquearCampos(camposUrdidoIds);
+                    document.querySelectorAll('.campo-julio').forEach(input => {
+                        input.disabled = true;
+                        input.classList.add('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
+                    });
+                }
+
+                if (bloqueaEngomado) {
+                    bloquearCampos(camposEngomadoIds);
+                }
             });
 
             window.guardarCambios = async () => {
-                if (!puedeEditar) {
-                    showWarning('No tienes permisos para editar ordenes. Solo supervisores del area Urdido pueden editar.', 'Sin Permisos');
-                    return;
-                }
-
                 if (cambiosPendientes.size === 0) {
                     Swal.fire({
                         icon: 'info',

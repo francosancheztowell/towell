@@ -171,7 +171,12 @@
                 <select id="filter-tipo" class="w-full rounded border border-cyan-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-cyan-500 bg-white">
                     <option value="">Todos</option>
                     @php
-                        $tipos = $ordenes->pluck('RizoPie')->filter()->unique()->sort()->values();
+                        $tipos = $ordenes->pluck('RizoPie')
+                            ->filter()
+                            ->groupBy(fn($t) => strtolower($t))
+                            ->map(fn($group) => $group->first())
+                            ->sort()
+                            ->values();
                     @endphp
                     @foreach($tipos as $tipo)
                         <option value="{{ $tipo }}" {{ request('tipo') == $tipo ? 'selected' : '' }}>{{ $tipo }}</option>
@@ -440,7 +445,7 @@
                 rows.forEach(row => {
                     const folio = (row.dataset.folio || '').toLowerCase();
                     const maquina = row.dataset.maquina || '';
-                    const tipo = row.dataset.tipo || '';
+                    const tipo = (row.dataset.tipo || '').toLowerCase();
                     const status = row.dataset.status || '';
 
                     let show = true;
@@ -461,7 +466,7 @@
 
                     // Filtro por tipo
                     if (show && filterState.tipo) {
-                        if (tipo !== filterState.tipo) {
+                        if (tipo !== filterState.tipo.toLowerCase()) {
                             show = false;
                         }
                     }
