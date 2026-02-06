@@ -17,7 +17,6 @@ class NotificarMontadoJulioController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        
         // Obtener los telares asignados al usuario actual
         $telaresOperador = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
             ->pluck('NoTelarId')

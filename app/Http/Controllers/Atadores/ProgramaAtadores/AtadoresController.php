@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Atadores\AtaMontadoTelasModel;
@@ -16,6 +18,7 @@ use App\Models\Atadores\AtaActividadesModel;
 use App\Models\Atadores\AtaComentariosModel;
 use App\Models\Tejido\TejHistorialInventarioTelaresModel;
 use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Sistema\SYSMensaje;
 
 class AtadoresController extends Controller
 {
@@ -752,13 +755,14 @@ class AtadoresController extends Controller
 
             // Register current time as "hora de arranque" y cambiar estatus a 'Terminado'
             $commentsAta = $request->input('comments_ata', '');
+            $horaArranque = Carbon::now()->format('H:i');
 
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
                 ->where('NoJulio', $montado->NoJulio)
                 ->where('NoProduccion', $montado->NoProduccion)
                 ->update([
-                    'HoraArranque' => Carbon::now()->format('H:i'),
+                    'HoraArranque' => $horaArranque,
                     'Estatus' => 'Terminado',
                     'comments_ata' => $commentsAta,
                 ]);
@@ -767,6 +771,16 @@ class AtadoresController extends Controller
             TejInventarioTelares::where('no_julio', $montado->NoJulio)
                 ->where('no_orden', $montado->NoProduccion)
                 ->update(['status' => 'Terminado']);
+
+            try {
+                $this->enviarNotificacionTelegramAtadoTerminado($montado, $user, $horaArranque);
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo enviar notificacion de atado terminado a Telegram', [
+                    'error' => $e->getMessage(),
+                    'no_julio' => $montado->NoJulio ?? null,
+                    'no_orden' => $montado->NoProduccion ?? null,
+                ]);
+            }
 
             return response()->json(['ok' => true, 'message' => 'Atado terminado y hora de arranque registrada']);
         }
@@ -812,5 +826,73 @@ class AtadoresController extends Controller
         }
 
         return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);
+    }
+
+    /**
+     * Enviar notificación a Telegram al terminar el atado.
+     * Destinatarios: SYSMensajes con Atadores=1 y Activo=1.
+     */
+    private function enviarNotificacionTelegramAtadoTerminado(AtaMontadoTelasModel $montado, $usuario, ?string $horaArranque = null): void
+    {
+        $botToken = config('services.telegram.bot_token');
+        if (empty($botToken)) {
+            Log::warning('No se pudo enviar notificacion a Telegram: TELEGRAM_BOT_TOKEN no configurado');
+            return;
+        }
+
+        $chatIds = SYSMensaje::getChatIdsPorModulo('Atadores');
+        if (empty($chatIds)) {
+            Log::warning('No hay destinatarios con Atadores activo en SYSMensajes');
+            return;
+        }
+
+        $mensaje = "ATADO TERMINADO\n\n";
+        $mensaje .= "Telar: " . ($montado->NoTelarId ?? 'N/A') . "\n";
+        $mensaje .= "Tipo: " . ($montado->Tipo ?? 'N/A') . "\n";
+        $mensaje .= "No. Julio: " . ($montado->NoJulio ?? 'N/A') . "\n";
+        $mensaje .= "No. Orden: " . ($montado->NoProduccion ?? 'N/A') . "\n";
+        if (!empty($montado->Metros)) {
+            $mensaje .= "Metros: {$montado->Metros}\n";
+        }
+        if (!empty($montado->MergaKg)) {
+            $mensaje .= "Merma Kg: {$montado->MergaKg}\n";
+        }
+        if (!empty($montado->HoraParo)) {
+            $mensaje .= "Hora Paro: {$montado->HoraParo}\n";
+        }
+        if (!empty($horaArranque)) {
+            $mensaje .= "Hora Arranque: {$horaArranque}\n";
+        }
+        $mensaje .= "Fecha: " . Carbon::now()->format('d/m/Y') . "\n";
+
+        $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
+        $numeroEmpleado = $usuario->numero_empleado ?? null;
+        if (!empty($nombreUsuario)) {
+            $mensaje .= "Operador: {$nombreUsuario}";
+            if (!empty($numeroEmpleado)) {
+                $mensaje .= " ({$numeroEmpleado})";
+            }
+            $mensaje .= "\n";
+        }
+
+        $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+        foreach ($chatIds as $chatId) {
+            $response = Http::timeout(20)
+                ->retry(2, 200)
+                ->post($url, [
+                'chat_id' => $chatId,
+                'text' => $mensaje,
+                'parse_mode' => 'Markdown'
+            ]);
+
+            if (!$response->successful() || !($response->json()['ok'] ?? false)) {
+                Log::warning('Error al enviar notificacion de atado terminado a Telegram', [
+                    'chat_id' => $chatId,
+                    'no_julio' => $montado->NoJulio ?? null,
+                    'no_orden' => $montado->NoProduccion ?? null,
+                    'response' => $response->json(),
+                ]);
+            }
+        }
     }
 }
