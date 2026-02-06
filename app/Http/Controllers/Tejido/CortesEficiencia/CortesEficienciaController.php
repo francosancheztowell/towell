@@ -22,6 +22,7 @@ use App\Models\Tejido\TejEficiencia;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejido\TejeFallasCeModel;
 use App\Models\Sistema\SYSMensaje;
+use Carbon\Carbon;
 
 class CortesEficienciaController extends Controller
 {
@@ -55,6 +56,10 @@ class CortesEficienciaController extends Controller
     public function consultar()
     {
         try {
+            $user = Auth::user();
+            $puesto = strtolower(trim($user->puesto ?? ''));
+            $esSupervisor = ($puesto === 'supervisor');
+
             // Obtener todos los cortes de eficiencia ordenados por fecha descendente
             $cortes = TejEficiencia::with(['usuario', 'lineas' => function($q){
                 $q->orderBy('NoTelarId');
@@ -65,7 +70,7 @@ class CortesEficienciaController extends Controller
 
             // Evitar caché del navegador para esta vista
             return response()
-                ->view('modulos.cortes-eficiencia.consultar-cortes-eficiencia', compact('cortes'))
+                ->view('modulos.cortes-eficiencia.consultar-cortes-eficiencia', compact('cortes', 'esSupervisor'))
                 ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
                 ->header('Pragma', 'no-cache')
                 ->header('Expires', '0');
@@ -394,6 +399,98 @@ class CortesEficienciaController extends Controller
                 'success' => false,
                 'message' => 'Error al actualizar el corte de eficiencia: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Actualizar campos del registro TejEficiencia (solo supervisores).
+     */
+    public function actualizarRegistro(Request $request, $folio)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Usuario no autenticado'], 401);
+            }
+
+            $puesto = strtolower(trim($user->puesto ?? ''));
+            if ($puesto !== 'supervisor') {
+                return response()->json(['success' => false, 'message' => 'No tienes permisos para editar registros'], 403);
+            }
+
+            $corte = TejEficiencia::find($folio);
+            if (!$corte) {
+                return response()->json(['success' => false, 'message' => 'Folio no encontrado'], 404);
+            }
+
+            $datos = [];
+
+            if ($request->has('Date')) {
+                try {
+                    $datos['Date'] = Carbon::parse($request->input('Date'))->toDateString();
+                } catch (\Exception $e) {
+                    return response()->json(['success' => false, 'message' => 'Fecha inválida'], 422);
+                }
+            }
+
+            if ($request->has('Turno')) {
+                $turno = (int) $request->input('Turno');
+                if (!in_array($turno, [1, 2, 3], true)) {
+                    return response()->json(['success' => false, 'message' => 'Turno inválido (debe ser 1, 2 o 3)'], 422);
+                }
+                $datos['Turno'] = $turno;
+            }
+
+            if ($request->has('Status')) {
+                $statusPermitidos = ['En Proceso', 'Finalizado'];
+                if (!in_array($request->input('Status'), $statusPermitidos, true)) {
+                    return response()->json(['success' => false, 'message' => 'Status inválido'], 422);
+                }
+                $datos['Status'] = $request->input('Status');
+            }
+
+            if ($request->has('numero_empleado')) {
+                $datos['numero_empleado'] = $request->input('numero_empleado');
+            }
+
+            if ($request->has('nombreEmpl')) {
+                $datos['nombreEmpl'] = $request->input('nombreEmpl');
+            }
+
+            if (empty($datos)) {
+                return response()->json(['success' => false, 'message' => 'No se enviaron campos para actualizar'], 422);
+            }
+
+            // Guardar valores originales de Date y Turno antes de actualizar
+            $oldDate = $corte->Date;
+            $oldTurno = $corte->Turno;
+
+            $datos['updated_at'] = now();
+            $corte->update($datos);
+
+            // Si se cambió Date o Turno, sincronizar en TejEficienciaLine
+            $datosLine = [];
+            if (isset($datos['Date']) && $datos['Date'] != $oldDate) {
+                $datosLine['Date'] = $datos['Date'];
+            }
+            if (isset($datos['Turno']) && $datos['Turno'] != $oldTurno) {
+                $datosLine['Turno'] = $datos['Turno'];
+            }
+
+            if (!empty($datosLine)) {
+                $datosLine['updated_at'] = now();
+                TejEficienciaLine::where('Folio', $folio)
+                    ->update($datosLine);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro actualizado correctamente',
+                'corte' => $corte->fresh()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar registro de corte de eficiencia: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error al actualizar el registro'], 500);
         }
     }
 
