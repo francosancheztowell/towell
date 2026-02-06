@@ -40,6 +40,9 @@ class EngProduccionFormulacionModel extends Model
         'Viscocidad',   
         'Status',
         'obs_calidad',
+        'OkTiempo',
+        'OkViscosidad',
+        'OkSolidos',
     ];
 
     protected $casts = [
@@ -51,6 +54,9 @@ class EngProduccionFormulacionModel extends Model
         'TiempoCocinado' => 'float',
         'Solidos'       => 'float',
         'Viscocidad'    => 'float',
+        'OkTiempo'      => 'boolean',
+        'OkViscosidad'  => 'boolean',
+        'OkSolidos'     => 'boolean',
     ];
 
     /** Relación: encabezado → líneas por Id (nueva relación mejorada) */

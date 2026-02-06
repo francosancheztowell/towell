@@ -464,17 +464,23 @@ class UpdateTejido
 
         // ===== 2) Recalcular FechaFinal =====
         // REGLA: cambiar calendario NO cambia duración; solo re-acomoda en líneas.
+        $enProceso = ($registro->EnProceso == 1 || $registro->EnProceso === true);
         $recalcularFecha = (!$fechaFinalManual) && !empty($registro->FechaInicio) && ($afectaCalendario || $afectaDuracion);
 
         if ($recalcularFecha) {
-            $inicio = Carbon::parse($registro->FechaInicio);
 
-            // Snap si cayó en gap (solo si hay calendario)
-            if ($afectaCalendario && !empty($registro->CalendarioId)) {
+            // Si está EnProceso, usar now() solo para el cálculo (no se actualiza FechaInicio en BD)
+            if ($enProceso) {
+                $inicio = Carbon::now();
+            } else {
+                $inicio = Carbon::parse($registro->FechaInicio);
+            }
+
+            // Snap si cayó en gap (solo si hay calendario y NO está EnProceso)
+            if (!$enProceso && $afectaCalendario && !empty($registro->CalendarioId)) {
                 $snap = self::snapInicioAlCalendario($registro->CalendarioId, $inicio);
                 if ($snap && !$snap->equalTo($inicio)) {
                     $fechaInicioAnterior = $registro->FechaInicio;
-                    $enProceso = ($registro->EnProceso == 1 || $registro->EnProceso === true);
                     $registro->FechaInicio = $snap->format('Y-m-d H:i:s');
                     $inicio = $snap;
 
@@ -486,7 +492,7 @@ class UpdateTejido
                         $registro->FechaInicio,
                         'Snap Calendario',
                         $request,
-                        $enProceso
+                        false
                     );
                 }
             }
@@ -528,7 +534,13 @@ class UpdateTejido
         if ($soloCalendario) {
             self::recalcularSoloDiffDias($registro);
         } elseif ($afectaFormulas || $afectaDuracion || $afectaCalendario || $fechaFinalManual) {
-            $formulas = self::calcularFormulasEficiencia($registro);
+            // EnProceso: usar now() como inicio efectivo para fórmulas (no FechaInicio)
+            $regParaFormulas = $registro;
+            if ($enProceso && !empty($registro->FechaFinal)) {
+                $regParaFormulas = clone $registro;
+                $regParaFormulas->FechaInicio = Carbon::now()->format('Y-m-d H:i:s');
+            }
+            $formulas = self::calcularFormulasEficiencia($regParaFormulas);
             foreach ($formulas as $campo => $valor) {
                 $registro->{$campo} = $valor;
             }
@@ -902,10 +914,14 @@ class UpdateTejido
     // Recalcular SOLO lo que depende de diffDias (para calendar-only)
     private static function recalcularSoloDiffDias(ReqProgramaTejido $p): void
     {
-        if (empty($p->FechaInicio) || empty($p->FechaFinal)) return;
+        if (empty($p->FechaFinal)) return;
 
-        $inicio = Carbon::parse($p->FechaInicio);
-        $fin    = Carbon::parse($p->FechaFinal);
+        // EnProceso: usar now() como inicio efectivo (no FechaInicio)
+        $esEnProceso = ($p->EnProceso == 1 || $p->EnProceso === true);
+        $inicio = $esEnProceso ? Carbon::now() : (empty($p->FechaInicio) ? null : Carbon::parse($p->FechaInicio));
+        if (!$inicio) return;
+
+        $fin = Carbon::parse($p->FechaFinal);
         $diffSeg  = abs($fin->getTimestamp() - $inicio->getTimestamp());
         $diffDias = $diffSeg / 86400;
 

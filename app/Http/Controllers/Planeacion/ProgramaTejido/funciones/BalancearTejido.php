@@ -145,9 +145,10 @@ class BalancearTejido
                 if (!empty($registro->FechaInicio)) {
                     [$inicio, $fin, $horas] = self::calcularInicioFinExactos($registro);
 
-                    if ($inicio) $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
-                    if ($fin)    $registro->FechaFinal  = $fin->format('Y-m-d H:i:s');
-
+                    $esEnProceso = ($registro->EnProceso == 1 || $registro->EnProceso === true);
+                    // EnProceso: usar now() solo para el cálculo; no actualizar FechaInicio en BD
+                    if ($inicio && !$esEnProceso) $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
+                    if ($fin) $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
                 }
 
                 // Fórmulas exactas
@@ -374,10 +375,12 @@ class BalancearTejido
     {
         if (empty($r->FechaInicio)) return [null, null, 0.0];
 
-        $inicio = Carbon::parse($r->FechaInicio);
+        // Si el registro está EnProceso, usar now() como inicio efectivo
+        $esEnProceso = ($r->EnProceso == 1 || $r->EnProceso === true);
+        $inicio = $esEnProceso ? Carbon::now() : Carbon::parse($r->FechaInicio);
 
-        // Snap a calendario (misma lógica, solo sin query repetido)
-        if (!empty($r->CalendarioId)) {
+        // Snap a calendario (misma lógica, solo sin query repetido) - no aplicar snap a EnProceso
+        if (!$esEnProceso && !empty($r->CalendarioId)) {
             $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
             if ($snap) $inicio = $snap;
         }
