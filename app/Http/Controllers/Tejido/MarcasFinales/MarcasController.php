@@ -47,6 +47,10 @@ class MarcasController extends Controller
     public function consultar()
     {
         try {
+            $user = Auth::user();
+            $puesto = strtolower(trim($user->puesto ?? ''));
+            $esSupervisor = ($puesto === 'supervisor');
+
             $marcas = TejMarcas::select('Folio', 'Date', 'Turno', 'numero_empleado', 'Status')
                 ->orderByRaw("CASE WHEN Status = 'En Proceso' THEN 0 ELSE 1 END")
                 ->orderByDesc('Date')
@@ -54,11 +58,12 @@ class MarcasController extends Controller
 
             $ultimoFolio = $marcas->first();
 
-            return view('modulos.marcas-finales.marcasFinales', compact('marcas', 'ultimoFolio'));
+            return view('modulos.marcas-finales.marcasFinales', compact('marcas', 'ultimoFolio', 'esSupervisor'));
         } catch (\Exception $e) {
             return view('modulos.marcas-finales.marcasFinales', [
                 'marcas' => collect([]),
-                'ultimoFolio' => null
+                'ultimoFolio' => null,
+                'esSupervisor' => false
             ]);
         }
     }
@@ -395,6 +400,121 @@ class MarcasController extends Controller
     {
         return $this->store($request);
     }
+
+    /**
+     * Reabrir un folio finalizado (solo supervisores).
+     * Cambia el status de 'Finalizado' a 'En Proceso' para permitir edición.
+     */
+    public function reabrirFolio($folio)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Usuario no autenticado'], 401);
+            }
+
+            $puesto = strtolower(trim($user->puesto ?? ''));
+            if ($puesto !== 'supervisor') {
+                return response()->json(['success' => false, 'message' => 'No tienes permisos para reabrir folios'], 403);
+            }
+
+            $marca = TejMarcas::find($folio);
+            if (!$marca) {
+                return response()->json(['success' => false, 'message' => 'Folio no encontrado'], 404);
+            }
+
+            if ($marca->Status !== 'Finalizado') {
+                return response()->json(['success' => false, 'message' => 'Solo se pueden reabrir folios finalizados'], 422);
+            }
+
+            $marca->update([
+                'Status' => 'En Proceso',
+                'updated_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Folio reabierto correctamente. Ahora puede editarlo.'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al reabrir folio: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error al reabrir el folio'], 500);
+        }
+    }
+
+    /**
+     * Actualizar campos del registro TejMarcas (solo supervisores).
+     */
+    public function actualizarRegistro(Request $request, $folio)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Usuario no autenticado'], 401);
+            }
+
+            $puesto = strtolower(trim($user->puesto ?? ''));
+            if ($puesto !== 'supervisor') {
+                return response()->json(['success' => false, 'message' => 'No tienes permisos para editar registros'], 403);
+            }
+
+            $marca = TejMarcas::find($folio);
+            if (!$marca) {
+                return response()->json(['success' => false, 'message' => 'Folio no encontrado'], 404);
+            }
+
+            $datos = [];
+
+            if ($request->has('Date')) {
+                try {
+                    $datos['Date'] = Carbon::parse($request->input('Date'))->toDateString();
+                } catch (\Exception $e) {
+                    return response()->json(['success' => false, 'message' => 'Fecha inválida'], 422);
+                }
+            }
+
+            if ($request->has('Turno')) {
+                $turno = (int) $request->input('Turno');
+                if (!in_array($turno, [1, 2, 3], true)) {
+                    return response()->json(['success' => false, 'message' => 'Turno inválido (debe ser 1, 2 o 3)'], 422);
+                }
+                $datos['Turno'] = $turno;
+            }
+
+            if ($request->has('Status')) {
+                $statusPermitidos = ['En Proceso', 'Finalizado'];
+                if (!in_array($request->input('Status'), $statusPermitidos, true)) {
+                    return response()->json(['success' => false, 'message' => 'Status inválido'], 422);
+                }
+                $datos['Status'] = $request->input('Status');
+            }
+
+            if ($request->has('numero_empleado')) {
+                $datos['numero_empleado'] = $request->input('numero_empleado');
+            }
+
+            if ($request->has('nombreEmpl')) {
+                $datos['nombreEmpl'] = $request->input('nombreEmpl');
+            }
+
+            if (empty($datos)) {
+                return response()->json(['success' => false, 'message' => 'No se enviaron campos para actualizar'], 422);
+            }
+
+            $datos['updated_at'] = now();
+            $marca->update($datos);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro actualizado correctamente',
+                'marca' => $marca->fresh()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar registro de marca: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error al actualizar el registro'], 500);
+        }
+    }
+
     public function finalizar($folio)
     {
         try {

@@ -137,12 +137,18 @@ Route::post('/modulo-marcas/reporte/descargar-pdf', [MarcasController::class, 'd
 Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
     ->where('folio', '^(?!reporte$).+')
     ->name('marcas.show');
+Route::put('/modulo-marcas/{folio}/actualizar-registro', [MarcasController::class, 'actualizarRegistro'])
+    ->where('folio', '^(?!reporte$).+')
+    ->name('marcas.actualizar.registro');
 Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])
     ->where('folio', '^(?!reporte$).+')
     ->name('marcas.update');
 Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])
     ->where('folio', '^(?!reporte$).+')
     ->name('marcas.finalizar');
+Route::post('/modulo-marcas/{folio}/reabrir', [MarcasController::class, 'reabrirFolio'])
+    ->where('folio', '^(?!reporte$).+')
+    ->name('marcas.reabrir');
 
 Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');
 Route::get('/modulo-cortes-de-eficiencia/consultar', [CortesEficienciaController::class, 'consultar'])->name('cortes.eficiencia.consultar');
