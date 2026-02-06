@@ -54,24 +54,44 @@
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 Swal.fire({
+                    toast: true,
+                    position: 'top-end',
                     icon: 'error',
                     title: 'Error',
                     text: '{{ session('error') }}',
-                    confirmButtonColor: '#3b82f6'
+                    showConfirmButton: false,
+                    timer: 5000,
+                    timerProgressBar: true
+                });
+            });
+        </script>
+    @endif
+    @if(session('success'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: '{{ session('success') }}',
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true
                 });
             });
         </script>
     @endif
 
-    <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-4 mx-4" style="max-height: 70vh;">
+    <div class="overflow-x-auto overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-md mt-4 mx-4" style="max-height: 70vh;">
         <table id="formulaTable" class="min-w-full text-sm">
-            <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white ">
+            <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm">
                 <tr>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap first:rounded-tl-xl">ID</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Orden</th>
                     <th id="th-fecha" class="text-left px-4 py-3 font-semibold whitespace-nowrap cursor-pointer select-none">Fecha <i class="fa-solid fa-filter text-xs ml-1 opacity-80"></i></th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Hr</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cuenta/Titulo</th>
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cuenta</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Calibre</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tipo</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Operador</th>
@@ -87,7 +107,7 @@
             </thead>
             <tbody id="formulaTableBody">
                 @forelse($items as $item)
-                    <tr class="formula-row border-b cursor-pointer transition-colors"
+                    <tr class="formula-row  border-gray-100 cursor-pointer transition-all duration-150 hover:bg-blue-50/80 even:bg-gray-50/50"
                         onclick="selectRow(this, '{{ $item->Folio }}', {{ $item->Id ?? 'null' }})"
                         data-folio="{{ $item->Folio }}"
                         data-id="{{ $item->Id ?? '' }}"
@@ -109,6 +129,7 @@
                         data-maquina="{{ $item->MaquinaId ?? '' }}"
                         data-prodid="{{ $item->ProdId ?? '' }}"
                     >
+                        <td class="px-4 py-3 whitespace-nowrap font-semibold text-blue-700">{{ $item->Id }}</td>
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             {{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('d/m/Y') : '' }}
@@ -135,18 +156,24 @@
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Solidos ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Viscocidad ?? 0, 2) }}</td>
                         <td class="px-4 py-3 text-center">
-                            <input
-                                type="checkbox"
-                                class="obs-calidad-checkbox w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-offset-0 focus:ring-0"
-                                data-folio="{{ $item->Folio }}"
-                                {{ !empty($item->obs_calidad) ? 'checked' : '' }}
-                                title="{{ !empty($item->obs_calidad) ? $item->obs_calidad : 'Sin observaciones' }}"
-                            >
+                            <div class="flex items-center justify-center gap-1">
+                                <input
+                                    type="checkbox"
+                                    class="obs-calidad-checkbox w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-offset-0 focus:ring-0"
+                                    data-folio="{{ $item->Folio }}"
+                                    data-id="{{ $item->Id ?? '' }}"
+                                    {{ !empty($item->obs_calidad) ? 'checked' : '' }}
+                                    title="{{ !empty($item->obs_calidad) ? e($item->obs_calidad) : 'Sin observaciones' }}"
+                                >
+                                <button type="button" onclick="event.stopPropagation(); verObsCalidad(event, this.closest('td').querySelector('.obs-calidad-checkbox')?.title || 'Sin observaciones')" class="p-1 text-blue-600 hover:bg-blue-100 rounded transition {{ !empty($item->obs_calidad) ? '' : 'opacity-50' }}" title="Ver observaciones">
+                                    <i class="fa-solid fa-eye text-sm"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="16" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
+                        <td colspan="17" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -154,9 +181,9 @@
     </div>
 
     <!-- Modal Crear/Editar -->
-    <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div id="createModal" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div id="createModalContent" class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div id="create_modal_header" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
+            <div id="create_modal_header" class="bg-blue-50 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
                 <h3 id="create_modal_title" class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
                 <button onclick="cerrarModalCreate()" class="text-white hover:text-gray-200 transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,11 +225,11 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" value="{{ auth()->user()->numero_empleado ?? (auth()->user()->numero ?? '') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="text" id="create_display_numero" value="{{ auth()->user()->numero_empleado ?? (auth()->user()->numero ?? '') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Operador</label>
-                            <input type="text" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="text" id="create_display_operador" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Fórmula</label>
@@ -217,6 +244,8 @@
                 <input type="hidden" name="Tipo" id="create_tipo">
                 <input type="hidden" name="NomEmpl" id="create_nom_empl">
                 <input type="hidden" name="CveEmpl" id="create_cve_empl">
+                <input type="hidden" name="obs_calidad" id="create_obs_calidad">
+                <input type="hidden" name="formulacion_id" id="create_formulacion_id">
                 <input type="hidden" name="componentes" id="create_componentes_payload">
                 <!-- Sección 2: Datos de Captura -->
                 <div class="mb-4">
@@ -224,7 +253,9 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
-                            <select name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            <select
+                            required
+                            name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
                                 <option value="">Seleccione...</option>
                                 @for($i = 1; $i <= 6; $i++)
                                     <option value="{{ $i }}">{{ $i }}</option>
@@ -233,23 +264,33 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.)</label>
-                            <input type="number" step="0.01" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            <input
+                            required
+                            type="number" step="0.01" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Litros</label>
-                            <input type="number" step="0.01" name="Litros" id="create_litros" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Litros <span class="text-red-600">*</span></label>
+                            <input
+                            required
+                            type="number" step="0.01" min="0.01" name="Litros" id="create_litros" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado (Min)</label>
-                            <input type="number" step="0.01" name="TiempoCocinado" id="create_tiempo" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            <input
+                            required
+                            type="number" step="0.01" name="TiempoCocinado" id="create_tiempo" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">% Sólidos</label>
-                            <input type="number" step="0.01" name="Solidos" id="create_solidos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            <input
+                            required
+                            type="number" step="0.01" name="Solidos" id="create_solidos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Viscosidad</label>
-                            <input type="number" step="0.01" name="Viscocidad" id="create_viscocidad" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            <input
+                            required
+                            type="number" step="0.01" name="Viscocidad" id="create_viscocidad" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
                         </div>
                     </div>
                 </div>
@@ -259,14 +300,14 @@
                     <div class="flex items-center justify-between mb-2 pb-2 border-b border-purple-200">
                         <h4 class="text-sm font-semibold text-purple-700">Componentes de la Fórmula</h4>
                         <button type="button" id="btn-create-add-row" onclick="agregarFilaComponenteCreate()"
-                                class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+                                class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition">
                             <i class="fa-solid fa-plus mr-1"></i>Agregar fila
                         </button>
                     </div>
 
                     <!-- Loading -->
                     <div id="create_componentes_loading" class="hidden text-center py-6">
-                        <i class="fa-solid fa-spinner fa-spin text-3xl text-blue-500"></i>
+                        <i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500"></i>
                         <p class="text-gray-600 mt-2 text-sm">Cargando componentes...</p>
                     </div>
 
@@ -280,17 +321,17 @@
 
                     <!-- Tabla de Componentes -->
                     <div id="create_componentes_tabla_container" class="hidden">
-                        <div class="overflow-x-auto border rounded-lg">
+                        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                             <table class="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                                     <tr>
-                                        <th class="px-4 py-2 text-left font-semibold">Articulo</th>
-                                        <th class="px-4 py-2 text-left font-semibold">Nombre</th>
-                                        <th class="px-4 py-2 text-left font-semibold">ConfigId</th>
-                                        <th class="px-4 py-2 text-right font-semibold">Consumo Total</th>
+                                        <th class="px-4 py-2.5 text-left font-semibold rounded-tl-xl">Articulo</th>
+                                        <th class="px-4 py-2.5 text-left font-semibold">Nombre</th>
+                                        <th class="px-4 py-2.5 text-left font-semibold">ConfigId</th>
+                                        <th class="px-4 py-2.5 text-right font-semibold rounded-tr-xl">Consumo Total</th>
                                     </tr>
                                 </thead>
-                                <tbody id="create_componentes_tbody" class="bg-white divide-y divide-gray-200">
+                                <tbody id="create_componentes_tbody" class="bg-white divide-y divide-gray-100">
                                     <!-- Se llenará dinámicamente -->
                                 </tbody>
                             </table>
@@ -298,13 +339,19 @@
                     </div>
                 </div>
 
+                <!-- Observaciones de Calidad (solo visible en Ver/Editar cuando hay obs) -->
+                <div id="create_obs_section" class="hidden mb-4">
+                    <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Observaciones de Calidad</h4>
+                    <div id="create_obs_text" class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700 whitespace-pre-wrap max-h-32 overflow-y-auto"></div>
+                </div>
+
                 <!-- Botones -->
-                <div class="flex gap-2 justify-end pt-3 border-t border-gray-200 mt-4">
-                    <button type="button" onclick="cerrarModalCreate()"
-                            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                <div id="create-modal-buttons" class="flex gap-2 justify-end pt-3 border-t border-gray-200 mt-4">
+                    <button type="button" id="btn-cancel-create" onclick="cerrarModalCreate()"
+                            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 w-full transition">
                         <i class="fa-solid fa-times mr-1"></i>Cancelar
                     </button>
-                    <button type="submit" id="btn-submit-create" class="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-lg hover:shadow-xl">
+                    <button type="submit" id="btn-submit-create" class="px-4 py-2 text-sm font-medium bg-blue-500 w-full text-white rounded-lg hover:bg-blue-700 transition shadow-lg hover:shadow-xl">
                         <i class="fa-solid fa-save mr-1"></i><span id="submit-text-create">Crear Formulación</span>
                     </button>
                 </div>
@@ -315,7 +362,7 @@
     <!-- Modal Editar -->
     <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
+            <div class="bg-yellow-700 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
                 <h3 id="edit_modal_title" class="text-xl font-semibold">Editar Formulación</h3>
                 <button onclick="document.getElementById('editModal').classList.add('hidden')" class="text-white hover:text-gray-200 transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -449,20 +496,20 @@
                         </div>
                     </div>
                     <div id="view_componentes_table" class="hidden">
-                        <div class="overflow-x-auto border rounded-lg">
+                        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                             <table class="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                                     <tr>
-                                        <th class="px-4 py-2 text-left font-semibold">ItemId</th>
-                                        <th class="px-4 py-2 text-left font-semibold">Nombre</th>
-                                        <th class="px-4 py-2 text-left font-semibold">ConfigId</th>
-                                        <th class="px-4 py-2 text-right font-semibold">Consumo Unitario</th>
-                                        <th class="px-4 py-2 text-right font-semibold">Consumo Total</th>
-                                        <th class="px-4 py-2 text-left font-semibold">Unidad</th>
-                                        <th class="px-4 py-2 text-left font-semibold">Almacén</th>
+                                        <th class="px-4 py-2.5 text-left font-semibold rounded-tl-xl">ItemId</th>
+                                        <th class="px-4 py-2.5 text-left font-semibold">Nombre</th>
+                                        <th class="px-4 py-2.5 text-left font-semibold">ConfigId</th>
+                                        <th class="px-4 py-2.5 text-right font-semibold">Consumo Unitario</th>
+                                        <th class="px-4 py-2.5 text-right font-semibold">Consumo Total</th>
+                                        <th class="px-4 py-2.5 text-left font-semibold">Unidad</th>
+                                        <th class="px-4 py-2.5 text-left font-semibold rounded-tr-xl">Almacén</th>
                                     </tr>
                                 </thead>
-                                <tbody id="view_componentes_tbody" class="bg-white divide-y divide-gray-200">
+                                <tbody id="view_componentes_tbody" class="bg-white divide-y divide-gray-100">
                                     <!-- Se llenará dinámicamente -->
                                 </tbody>
                             </table>
@@ -576,6 +623,7 @@
     <form id="deleteForm" method="POST" class="hidden">
         @csrf
         @method('DELETE')
+        <input type="hidden" name="formulacion_id" id="delete_formulacion_id">
     </form>
 
     <style>
@@ -619,6 +667,7 @@
         let selectedId = null;
         let viewOnlyMode = false;
         let editMode = false;
+        let editFormInitialSnapshot = null;
         const observaciones = {};
         let fechaSortAsc = null;
         const desdeProduccion = {{ $desdeProduccion ? 'true' : 'false' }};
@@ -637,6 +686,7 @@
 
         function openCreateModal(readOnly = false) {
             editMode = false;
+            editFormInitialSnapshot = null;
             viewOnlyMode = readOnly;
             const modal = document.getElementById('createModal');
             if (modal) {
@@ -651,13 +701,14 @@
                 form.action = "{{ route('eng-formulacion.store') }}";
             }
 
-            // Actualizar botón submit
+            // Actualizar botón submit (siempre habilitado al crear)
             const submitBtn = document.getElementById('btn-submit-create');
             const submitText = document.getElementById('submit-text-create');
             if (submitText) submitText.textContent = 'Crear Formulación';
             if (submitBtn) {
-                submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+                submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700', 'opacity-50', 'cursor-not-allowed', 'pointer-events-none');
                 submitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                submitBtn.disabled = false;
             }
 
             // Color azul para crear
@@ -673,6 +724,8 @@
                 modalContent.classList.add('max-h-[90vh]');
             }
 
+            document.getElementById('create_formulacion_id').value = '';
+            document.getElementById('create_obs_section')?.classList.add('hidden');
             // LIMPIAR todos los campos (para crear nuevo)
             document.getElementById('create_olla').value = '';
             document.getElementById('create_kilos').value = '0';
@@ -680,6 +733,7 @@
             document.getElementById('create_tiempo').value = '0';
             document.getElementById('create_solidos').value = '0';
             document.getElementById('create_viscocidad').value = '0';
+            document.getElementById('create_obs_calidad').value = '';
 
             kilosCreateFormula = 0;
             litrosCreateFormula = 0;
@@ -809,13 +863,15 @@
                 form.action = `/eng-formulacion/${selectedFolio}`;
             }
 
-            // Actualizar botón submit
+            // Actualizar botón submit (deshabilitado hasta que haya cambios)
             const submitBtn = document.getElementById('btn-submit-create');
             const submitText = document.getElementById('submit-text-create');
             if (submitText) submitText.textContent = 'Guardar Cambios';
             if (submitBtn) {
                 submitBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
             }
 
             // Cambiar color del header a amarillo para editar
@@ -838,7 +894,6 @@
 
             // IMPORTANTE: Cargar datos completos desde la BD por ID específico
             // GET directo a EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
-            console.log('Cargando formulación para editar - ID:', formulacionId, 'Folio:', selectedFolio);
             fetch(`/eng-formulacion/by-id?id=${formulacionId}`)
                 .then(response => response.json())
                 .then(data => {
@@ -857,12 +912,6 @@
                             mostrarErrorComponentesCreate('Error: El ID de la formulación no coincide');
                             return;
                         }
-
-                        console.log('Formulación cargada para editar:', {
-                            id: form.Id,
-                            folio: form.Folio,
-                            componentes_recibidos: data.componentes ? data.componentes.length : 0
-                        });
 
                         // IMPORTANTE: En modo editar, NO llamar a cargarDatosPrograma() porque sobrescribe los componentes
                         // Solo establecer el valor del select sin disparar el evento onchange
@@ -910,14 +959,28 @@
                             litrosCreateFormula = parseFloat(form.Litros) || 0;
                         }
 
-                        console.log('Valores actualizados para cálculo (editar):', {
-                            kilos: kilosCreateFormula,
-                            litros: litrosCreateFormula
-                        });
-
                         document.getElementById('create_tiempo').value = form.TiempoCocinado || '0';
                         document.getElementById('create_solidos').value = form.Solidos || '0';
                         document.getElementById('create_viscocidad').value = form.Viscocidad || '0';
+
+                        document.getElementById('create_nom_empl').value = form.NomEmpl || '';
+                        document.getElementById('create_cve_empl').value = form.CveEmpl || '';
+                        document.getElementById('create_obs_calidad').value = form.obs_calidad || '';
+                        const displayNum = document.getElementById('create_display_numero');
+                        const displayOper = document.getElementById('create_display_operador');
+                        if (displayNum) displayNum.value = form.CveEmpl || '';
+                        if (displayOper) displayOper.value = form.NomEmpl || '';
+
+                        const obsSection = document.getElementById('create_obs_section');
+                        const obsText = document.getElementById('create_obs_text');
+                        if (obsSection && obsText) {
+                            if (form.obs_calidad) {
+                                obsText.textContent = form.obs_calidad;
+                                obsSection.classList.remove('hidden');
+                            } else {
+                                obsSection.classList.add('hidden');
+                            }
+                        }
 
                         formulaCreateActual = form.Formula || '';
 
@@ -925,14 +988,6 @@
                         // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
                         // NO usar cargarDatosPrograma() porque carga componentes desde AX y sobrescribe estos
                         if (data.componentes && data.componentes.length > 0) {
-                            console.log('Componentes cargados desde EngFormulacionLine (GET directo por ID):', {
-                                cantidad: data.componentes.length,
-                                ids_componentes: data.componentes.map(c => c.Id),
-                                formulacion_id: formulacionId,
-                                folio: form.Folio,
-                                componentes_detalle: data.componentes
-                            });
-
                             // Mapear componentes preservando todos los datos
                             componentesCreateData = data.componentes.map(comp => ({
                                 Id: comp.Id,
@@ -946,25 +1001,16 @@
                                 esNuevo: false // No es nuevo, viene de la BD
                             }));
 
-                            console.log('componentesCreateData después de mapear:', {
-                                cantidad: componentesCreateData.length,
-                                datos: componentesCreateData
-                            });
-
                             renderizarTablaComponentesCreate();
-
-                            // Verificar que se renderizaron todos los componentes
-                            const tbody = document.getElementById('create_componentes_tbody');
-                            const filasRenderizadas = tbody ? tbody.querySelectorAll('tr').length : 0;
-                            console.log('Filas renderizadas en la tabla:', filasRenderizadas, 'de', componentesCreateData.length);
-
                             document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
                         } else {
-                            console.log('No se encontraron componentes para la formulación ID:', formulacionId);
                             componentesCreateData = [];
                             renderizarTablaComponentesCreate();
                             document.getElementById('create_componentes_tabla_container').classList.add('hidden');
                         }
+                        document.getElementById('create_formulacion_id').value = formulacionId;
+                        editFormInitialSnapshot = obtenerSnapshotFormulacionCreate();
+                        actualizarBotonGuardarEdicion();
                     } else {
                         console.error('Error al cargar formulación:', data.error);
                         mostrarErrorComponentesCreate(data.error || 'Error al cargar la formulación');
@@ -978,12 +1024,64 @@
             setCreateModalReadOnly(false);
         }
 
+        function obtenerSnapshotFormulacionCreate() {
+            const componentes = obtenerComponentesCreateDesdeTabla();
+            const conCalibre = componentes.filter(c => (c.ItemId || '').trim()).map(c => ({
+                ItemId: c.ItemId,
+                ItemName: c.ItemName,
+                ConfigId: c.ConfigId,
+                ConsumoTotal: c.ConsumoTotal,
+                ConsumoUnitario: c.ConsumoUnitario
+            }));
+            return JSON.stringify({
+                Olla: document.getElementById('create_olla')?.value || '',
+                Kilos: document.getElementById('create_kilos')?.value || '0',
+                Litros: document.getElementById('create_litros')?.value || '0',
+                TiempoCocinado: document.getElementById('create_tiempo')?.value || '0',
+                Solidos: document.getElementById('create_solidos')?.value || '0',
+                Viscocidad: document.getElementById('create_viscocidad')?.value || '0',
+                NomEmpl: document.getElementById('create_nom_empl')?.value || '',
+                CveEmpl: document.getElementById('create_cve_empl')?.value || '',
+                obs_calidad: document.getElementById('create_obs_calidad')?.value || '',
+                componentes: conCalibre
+            });
+        }
+
+        function haCambiadoFormulacionCreate() {
+            if (!editFormInitialSnapshot) return false;
+            const actual = obtenerSnapshotFormulacionCreate();
+            return actual !== editFormInitialSnapshot;
+        }
+
+        function actualizarBotonGuardarEdicion() {
+            const submitBtn = document.getElementById('btn-submit-create');
+            if (!submitBtn || !editMode || viewOnlyMode) return;
+            const method = document.getElementById('create_method');
+            if (method?.value !== 'PUT') return;
+            const hayCambios = haCambiadoFormulacionCreate();
+            submitBtn.disabled = !hayCambios;
+            submitBtn.classList.toggle('opacity-50', !hayCambios);
+            submitBtn.classList.toggle('cursor-not-allowed', !hayCambios);
+            submitBtn.classList.toggle('pointer-events-none', !hayCambios);
+        }
+
         function openViewModal() {
             if (!selectedRow || !selectedFolio || !selectedId) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Selección requerida',
                     text: 'Debe seleccionar una fórmula primero',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            const formulacionId = parseInt(selectedId);
+            if (isNaN(formulacionId) || formulacionId <= 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ID inválido',
+                    text: 'El ID de la formulación no es válido: ' + selectedId,
                     confirmButtonColor: '#3b82f6'
                 });
                 return;
@@ -1037,17 +1135,19 @@
                             return;
                         }
 
-                        console.log('Formulación cargada para editar:', {
-                            id: form.Id,
-                            folio: form.Folio,
-                            componentes_recibidos: data.componentes ? data.componentes.length : 0
-                        });
-
-                        // Cargar datos en el formulario
+                        // Llenar campos del formulario SIN llamar a cargarDatosPrograma
+                        // (eso carga desde BOM y sobrescribe los componentes de EngFormulacionLine)
                         const select = document.getElementById('create_folio_prog');
                         if (select) {
+                            const originalOnchange = select.getAttribute('onchange');
+                            select.removeAttribute('onchange');
                             select.value = form.Folio;
-                            cargarDatosPrograma(select, false);
+                            if (originalOnchange) select.setAttribute('onchange', originalOnchange);
+                            document.getElementById('create_cuenta').value = form.Cuenta || '';
+                            document.getElementById('create_calibre').value = form.Calibre || '';
+                            document.getElementById('create_tipo').value = form.Tipo || '';
+                            document.getElementById('create_formula').value = form.Formula || '';
+                            formulaCreateActual = form.Formula || '';
                         }
 
                         document.getElementById('create_olla').value = form.Olla || '';
@@ -1068,18 +1168,30 @@
                         document.getElementById('create_solidos').value = form.Solidos || '0';
                         document.getElementById('create_viscocidad').value = form.Viscocidad || '0';
 
+                        document.getElementById('create_nom_empl').value = form.NomEmpl || '';
+                        document.getElementById('create_cve_empl').value = form.CveEmpl || '';
+                        document.getElementById('create_obs_calidad').value = form.obs_calidad || '';
+                        const displayNum = document.getElementById('create_display_numero');
+                        const displayOper = document.getElementById('create_display_operador');
+                        if (displayNum) displayNum.value = form.CveEmpl || '';
+                        if (displayOper) displayOper.value = form.NomEmpl || '';
+
+                        const obsSection = document.getElementById('create_obs_section');
+                        const obsText = document.getElementById('create_obs_text');
+                        if (obsSection && obsText) {
+                            if (form.obs_calidad) {
+                                obsText.textContent = form.obs_calidad;
+                                obsSection.classList.remove('hidden');
+                            } else {
+                                obsSection.classList.add('hidden');
+                            }
+                        }
+
                         formulaCreateActual = form.Formula || '';
 
                         // IMPORTANTE: Cargar componentes desde EngFormulacionLine filtrados por EngProduccionFormulacionId
                         // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
                         if (data.componentes && data.componentes.length > 0) {
-                            console.log('Componentes cargados desde EngFormulacionLine (GET directo por ID):', {
-                                cantidad: data.componentes.length,
-                                ids_componentes: data.componentes.map(c => c.Id),
-                                formulacion_id: formulacionId,
-                                folio: form.Folio
-                            });
-
                             componentesCreateData = data.componentes.map(comp => ({
                                 Id: comp.Id,
                                 ItemId: comp.ItemId || '',
@@ -1094,7 +1206,6 @@
                             renderizarTablaComponentesCreate();
                             document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
                         } else {
-                            console.log('No se encontraron componentes para la formulación ID:', formulacionId);
                             componentesCreateData = [];
                             renderizarTablaComponentesCreate();
                             document.getElementById('create_componentes_tabla_container').classList.add('hidden');
@@ -1174,6 +1285,11 @@
             if (submitBtn) {
                 submitBtn.classList.toggle('hidden', isReadOnly);
                 submitBtn.disabled = isReadOnly;
+            }
+
+            const cancelBtn = document.getElementById('btn-cancel-create');
+            if (cancelBtn) {
+                cancelBtn.classList.toggle('hidden', isReadOnly);
             }
         }
 
@@ -1286,10 +1402,11 @@
                 return;
             }
 
-            componentes.forEach(comp => {
+            componentes.forEach((comp, idx) => {
                 const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
                 const consumoTotal = (parseFloat(kilosFormula) || 0) * consumoUnitario;
                 const row = document.createElement('tr');
+                row.className = 'hover:bg-blue-50/50 transition-colors' + (idx % 2 === 1 ? ' bg-gray-50/50' : '');
                 row.innerHTML = `
                     <td class="px-4 py-2 text-sm font-medium">${comp.ItemId || ''}</td>
                     <td class="px-4 py-2 text-sm">${comp.ItemName || ''}</td>
@@ -1335,6 +1452,7 @@
                 if (result.isConfirmed) {
                     const form = document.getElementById('deleteForm');
                     form.action = `/eng-formulacion/${selectedFolio}`;
+                    document.getElementById('delete_formulacion_id').value = selectedId || '';
                     form.submit();
                 }
             });
@@ -1943,9 +2061,34 @@
                     setComponenteSelectOptions(fibraEl, [], 'Cargando...');
                     const fibras = await getComponenteFibras(itemId);
                     setComponenteSelectOptions(fibraEl, fibras, 'Selecciona fibra');
+
+                    // Auto-seleccionar ConfigId cuando solo hay 1 fibra (igual que se autocompleta Nombre)
+                    if (fibras.length === 1) {
+                        fibraEl.value = fibras[0];
+                        const idx = parseInt(calibreEl.getAttribute('data-index'));
+                        if (componentesCreateData[idx]) {
+                            componentesCreateData[idx].ConfigId = fibras[0];
+                        }
+                    }
+                    renderizarTablaComponentesCreate();
                 } else {
                     if (itemNameEl) itemNameEl.value = '';
+                    const idx = parseInt(calibreEl.getAttribute('data-index'));
+                    if (componentesCreateData[idx]) {
+                        componentesCreateData[idx].ItemId = '';
+                        componentesCreateData[idx].ItemName = '';
+                        componentesCreateData[idx].ConfigId = '';
+                    }
                     setComponenteSelectOptions(fibraEl, [], 'Selecciona calibre primero');
+                    renderizarTablaComponentesCreate();
+                }
+            });
+
+            // Sincronizar ConfigId a componentesCreateData
+            fibraEl.addEventListener('change', function() {
+                const idx = parseInt(fibraEl.getAttribute('data-index'));
+                if (componentesCreateData[idx]) {
+                    componentesCreateData[idx].ConfigId = this.value || '';
                 }
             });
         }
@@ -1959,10 +2102,6 @@
 
             tbody.innerHTML = '';
 
-            console.log('renderizarTablaComponentesCreate - Componentes a renderizar:', {
-                cantidad: componentesCreateData.length,
-                datos: componentesCreateData
-            });
 
             if (componentesCreateData.length === 0) {
                 tbody.innerHTML = `
@@ -1976,14 +2115,15 @@
             }
 
             componentesCreateData.forEach((comp, index) => {
-                console.log(`Renderizando componente ${index + 1}/${componentesCreateData.length}:`, comp);
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-blue-50 transition-colors';
+                row.className = 'hover:bg-blue-50/50 transition-colors' + (index % 2 === 1 ? ' bg-gray-50/30' : '');
 
                 const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
                 const consumoTotal = consumoUnitario * litrosCreateFormula;
                 const disabledAttr = viewOnlyMode ? 'disabled' : '';
                 const disabledClass = viewOnlyMode ? 'bg-gray-100 cursor-not-allowed' : '';
+                const sinCalibre = !(comp.ItemId || '').trim();
+                const consumoTotalDisabled = sinCalibre ? 'disabled' : disabledAttr;
 
                 // Solo usar selects si viene desde producción Y es una fila nueva (agregada con botón)
                 if (desdeProduccion && comp.esNuevo) {
@@ -2006,10 +2146,12 @@
                         </td>
                         <td class="px-4 py-2 text-sm">
                             <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${consumoTotalDisabled}
+                                title="${sinCalibre ? 'Seleccione Artículo (calibre) primero' : ''}">
                         </td>
                     `;
                 } else {
+                    const consumoTotalDisabledInput = sinCalibre ? 'disabled' : disabledAttr;
                     row.innerHTML = `
                         <td class="px-4 py-2 text-sm">
                             <input type="text" value="${comp.ItemId || ''}" data-index="${index}" data-field="ItemId"
@@ -2025,7 +2167,8 @@
                         </td>
                         <td class="px-4 py-2 text-sm">
                             <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${consumoTotalDisabledInput}
+                                title="${sinCalibre ? 'Seleccione Artículo (calibre) primero' : ''}">
                         </td>
                     `;
                 }
@@ -2035,6 +2178,17 @@
                 // Inicializar selects en cascada solo si viene desde producción Y es fila nueva
                 if (desdeProduccion && comp.esNuevo) {
                     initComponenteSelectorsForRow(row, comp);
+                }
+
+                // Si ItemId es input (calibre manual), sincronizar al cambiar y re-renderizar para habilitar ConsumoTotal
+                const itemIdEl = row.querySelector('[data-field="ItemId"]');
+                if (itemIdEl && itemIdEl.tagName === 'INPUT') {
+                    itemIdEl.addEventListener('change', function() {
+                        if (componentesCreateData[index]) {
+                            componentesCreateData[index].ItemId = (this.value || '').trim();
+                        }
+                        renderizarTablaComponentesCreate();
+                    });
                 }
 
                 // IMPORTANTE: Agregar listener al campo ConsumoTotal para actualizar ConsumoUnitario cuando cambie
@@ -2053,13 +2207,6 @@
                             ? nuevoConsumoTotal / litrosCreateFormula
                             : 0;
 
-                        console.log('ConsumoTotal editado manualmente:', {
-                            index: index,
-                            nuevoConsumoTotal: nuevoConsumoTotal,
-                            nuevoConsumoUnitario: nuevoConsumoUnitario,
-                            litrosActuales: litrosCreateFormula
-                        });
-
                         // Actualizar el valor en componentesCreateData
                         if (componentesCreateData[index]) {
                             componentesCreateData[index].ConsumoTotal = nuevoConsumoTotal;
@@ -2069,16 +2216,19 @@
                 }
             });
 
-            // Verificar cuántas filas se agregaron realmente
-            const filasAgregadas = tbody.querySelectorAll('tr').length;
-            console.log('renderizarTablaComponentesCreate - Filas agregadas al DOM:', filasAgregadas, 'de', componentesCreateData.length);
-
-            if (filasAgregadas !== componentesCreateData.length) {
-                console.error('ERROR: No se renderizaron todos los componentes. Esperados:', componentesCreateData.length, 'Renderizados:', filasAgregadas);
-            }
         }
 
         function agregarFilaComponenteCreate() {
+            const hayFilaSinCalibre = componentesCreateData.some(c => !(c.ItemId || '').trim());
+            if (hayFilaSinCalibre) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Seleccione calibre primero',
+                    text: 'No puede agregar una fila nueva si alguna fila no tiene Artículo (calibre) seleccionado. Seleccione el calibre en la fila incompleta o elimínela.',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
             componentesCreateData.push({
                 ItemId: '',
                 ItemName: '',
@@ -2092,12 +2242,14 @@
             document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
             document.getElementById('create_componentes_loading').classList.add('hidden');
             document.getElementById('create_componentes_error').classList.add('hidden');
+            actualizarBotonGuardarEdicion();
         }
 
         function eliminarFilaComponenteCreate(index) {
             if (index >= 0 && index < componentesCreateData.length) {
                 componentesCreateData.splice(index, 1);
                 renderizarTablaComponentesCreate();
+                actualizarBotonGuardarEdicion();
             }
         }
 
@@ -2146,10 +2298,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             disableButtons();
-            const select = document.getElementById('create_folio_prog');
-            if (select && select.value) {
-                cargarDatosPrograma(select, false);
-            }
+            // No cargar aquí: se carga al abrir el modal para evitar renders duplicados
 
             document.querySelectorAll('.obs-calidad-checkbox').forEach(cb => {
                 cb.addEventListener('click', (event) => {
@@ -2187,62 +2336,89 @@
                 thFecha.addEventListener('click', toggleOrdenFecha);
             }
 
+            const recalcularYRenderizar = () => {
+                if (componentesCreateData.length === 0) return;
+                componentesCreateData.forEach((comp) => {
+                    const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
+                    comp.ConsumoTotal = consumoUnitario * litrosCreateFormula;
+                });
+                renderizarTablaComponentesCreate();
+                actualizarBotonGuardarEdicion();
+            };
+
+            const debounce = (fn, ms) => {
+                let t;
+                return function() { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); };
+            };
+
             const kilosInput = document.getElementById('create_kilos');
             if (kilosInput) {
                 kilosCreateFormula = parseFloat(kilosInput.value) || 0;
-                kilosInput.addEventListener('input', function() {
+                kilosInput.addEventListener('input', debounce(function() {
                     kilosCreateFormula = parseFloat(this.value) || 0;
-                    console.log('Kilos cambiados, recalculando componentes:', kilosCreateFormula);
-                    if (componentesCreateData.length > 0) {
-                        renderizarTablaComponentesCreate();
-                    }
-                });
+                    recalcularYRenderizar();
+                }, 300));
             }
 
             const litrosInput = document.getElementById('create_litros');
             if (litrosInput) {
                 litrosCreateFormula = parseFloat(litrosInput.value) || 0;
-                litrosInput.addEventListener('input', function() {
-                    const nuevoLitros = parseFloat(this.value) || 0;
-                    console.log('Litros cambiados, recalculando componentes:', {
-                        litrosAnteriores: litrosCreateFormula,
-                        litrosNuevos: nuevoLitros,
-                        componentesCount: componentesCreateData.length
-                    });
-                    litrosCreateFormula = nuevoLitros;
-                    if (componentesCreateData.length > 0) {
-                        // Recalcular ConsumoTotal para todos los componentes basado en ConsumoUnitario
-                        componentesCreateData.forEach((comp, idx) => {
-                            const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
-                            comp.ConsumoTotal = consumoUnitario * litrosCreateFormula;
-                            console.log(`Componente ${idx} recalculado:`, {
-                                consumoUnitario: consumoUnitario,
-                                litros: litrosCreateFormula,
-                                consumoTotal: comp.ConsumoTotal
-                            });
-                        });
-                        renderizarTablaComponentesCreate();
-                    }
-                });
+                litrosInput.addEventListener('input', debounce(function() {
+                    litrosCreateFormula = parseFloat(this.value) || 0;
+                    recalcularYRenderizar();
+                }, 300));
             }
 
             const createForm = document.getElementById('createForm');
             if (createForm) {
+                createForm.addEventListener('input', debounce(actualizarBotonGuardarEdicion, 200));
+                createForm.addEventListener('change', actualizarBotonGuardarEdicion);
                 createForm.addEventListener('submit', function(e) {
+                    const litrosVal = parseFloat(document.getElementById('create_litros')?.value) || 0;
+                    if (litrosVal <= 0) {
+                        e.preventDefault();
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: 'Los litros deben ser mayor a cero',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                        return;
+                    }
+                    const method = document.getElementById('create_method');
+                    if (method && method.value === 'PUT' && !haCambiadoFormulacionCreate()) {
+                        e.preventDefault();
+                        return;
+                    }
                     const componentes = obtenerComponentesCreateDesdeTabla();
+                    const conCalibre = componentes.filter(c => (c.ItemId || '').trim());
+
                     const payload = document.getElementById('create_componentes_payload');
                     if (payload) {
-                        payload.value = JSON.stringify(componentes);
+                        payload.value = JSON.stringify(conCalibre);
                     }
 
                     // Si es edición, también enviar componentes
-                    const method = document.getElementById('create_method');
                     if (method && method.value === 'PUT') {
                         // Los componentes se envían en el payload
                     }
                 });
             }
         });
+
+        function verObsCalidad(event, texto) {
+            if (event) event.stopPropagation();
+            const obs = texto || 'Sin observaciones';
+            Swal.fire({
+                title: 'Observaciones de Calidad',
+                html: `<div class="text-left p-3 bg-gray-50 rounded-lg whitespace-pre-wrap max-h-64 overflow-y-auto">${obs.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: '#3b82f6',
+                width: '500px'
+            });
+        }
 
         function abrirModalObsCalidad(checkbox) {
             const folio = checkbox.dataset.folio || '';
@@ -2285,7 +2461,10 @@
 
         async function guardarObsCalidad(folio, observaciones, checkbox) {
             try {
+                const formulacionId = checkbox.dataset.id || '';
                 const url = `/eng-formulacion/${folio}`;
+                const body = { obs_calidad: observaciones };
+                if (formulacionId) body.formulacion_id = formulacionId;
                 const response = await fetch(url, {
                     method: 'PUT',
                     headers: {
@@ -2293,9 +2472,7 @@
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({
-                        obs_calidad: observaciones
-                    })
+                    body: JSON.stringify(body)
                 });
 
                 const data = await response.json();

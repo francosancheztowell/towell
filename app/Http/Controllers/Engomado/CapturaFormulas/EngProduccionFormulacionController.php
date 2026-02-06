@@ -88,12 +88,15 @@ class EngProduccionFormulacionController extends Controller
             'Olla' => 'nullable|string|max:50',
             'Formula' => 'nullable|string|max:100',
             'Kilos' => 'nullable|numeric',
-            'Litros' => 'nullable|numeric',
+            'Litros' => 'required|numeric|min:0.01',
             'ProdId' => 'nullable|string|max:50',
             'TiempoCocinado' => 'nullable|numeric',
             'Solidos' => 'nullable|numeric',
             'Viscocidad' => 'nullable|numeric',
             'componentes' => 'nullable|string',
+        ], [
+            'Litros.required' => 'Los litros son obligatorios.',
+            'Litros.min' => 'Los litros deben ser mayor a cero.',
         ]);
 
         try {
@@ -425,7 +428,7 @@ class EngProduccionFormulacionController extends Controller
             'Olla' => 'nullable|string|max:50',
             'Formula' => 'nullable|string|max:100',
             'Kilos' => 'nullable|numeric',
-            'Litros' => 'nullable|numeric',
+            'Litros' => 'nullable|numeric|min:0.01',
             'ProdId' => 'nullable|string|max:50',
             'TiempoCocinado' => 'nullable|numeric',
             'Solidos' => 'nullable|numeric',
@@ -433,13 +436,25 @@ class EngProduccionFormulacionController extends Controller
             'Status' => 'nullable|in:Creado,En Proceso,Terminado',
             'obs_calidad' => 'nullable|string',
             'componentes' => 'nullable|string',
+        ], [
+            'Litros.required' => 'Los litros son obligatorios.',
+            'Litros.min' => 'Los litros deben ser mayor a cero.',
         ]);
 
         try {
             DB::transaction(function () use ($validated, $folio, $request) {
-                // Buscar por Folio (mantener compatibilidad)
-                $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
-                $item->update($validated);
+                // Priorizar Id cuando hay múltiples registros con el mismo Folio
+                $idFromRequest = $request->input('formulacion_id');
+                if (!empty($idFromRequest)) {
+                    $item = EngProduccionFormulacionModel::findOrFail((int) $idFromRequest);
+                } else {
+                    $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
+                }
+                // Solo actualizar campos que vienen en el request (evitar sobrescribir con null campos no enviados por el form)
+                $toUpdate = collect($validated)->except('componentes')->filter(function ($v, $k) use ($request) {
+                    return $request->has($k);
+                })->toArray();
+                $item->update($toUpdate);
                 $formulacionId = $item->Id; // Obtener el ID real de la tabla
 
                 // Actualizar componentes si se proporcionan
@@ -487,13 +502,18 @@ class EngProduccionFormulacionController extends Controller
         }
     }
 
-    public function destroy($folio)
+    public function destroy(Request $request, $folio)
     {
         try {
             DB::beginTransaction();
 
-            // Buscar formulación por Folio para obtener el ID
-            $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
+            // Priorizar Id cuando hay múltiples registros con el mismo Folio
+            $idFromRequest = $request->input('formulacion_id');
+            if (!empty($idFromRequest)) {
+                $item = EngProduccionFormulacionModel::findOrFail((int) $idFromRequest);
+            } else {
+                $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
+            }
             $formulacionId = $item->Id;
 
             // Eliminar líneas asociadas por EngProduccionFormulacionId

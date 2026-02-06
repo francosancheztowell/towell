@@ -1103,6 +1103,35 @@ class ModuloProduccionEngomadoController extends Controller
     }
 
     /**
+     * Verificar si existe al menos una formulación para un Folio
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function verificarFormulaciones(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'folio' => 'required|string|max:50',
+            ]);
+
+            $folio = $request->input('folio');
+            $formulacionesExistentes = EngProduccionFormulacionModel::where('Folio', $folio)->count();
+
+            return response()->json([
+                'success' => true,
+                'tieneFormulaciones' => $formulacionesExistentes > 0,
+                'cantidad' => $formulacionesExistentes,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al verificar formulaciones: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Finalizar orden de engomado cambiando el status de "En Proceso" a "Finalizado"
      *
      * @param Request $request
@@ -1132,9 +1161,22 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 422);
             }
 
-            // Cambiar el status a "Finalizado"
+            // Validar que exista al menos una formulación para este Folio antes de finalizar
+            $formulacionesExistentes = EngProduccionFormulacionModel::where('Folio', $orden->Folio)->count();
+            
+            if ($formulacionesExistentes === 0) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede finalizar la orden. Debe existir al menos una formulación (EngProduccionFormulacion) con el Folio ' . $orden->Folio . ' antes de finalizar.',
+                ], 422);
+            }
+
+            // Cambiar el status a "Finalizado" en EngProgramaEngomado
             $orden->Status = 'Finalizado';
             $orden->save();
+
+            // Cambiar el Status a "Finalizado" en todas las formulaciones del mismo Folio
+            EngProduccionFormulacionModel::where('Folio', $orden->Folio)->update(['Status' => 'Finalizado']);
 
             return response()->json([
                 'success' => true,

@@ -1300,7 +1300,7 @@
                         catalogosJulios.forEach(item => {
                             const julioValue = String(item.julio).trim();
                             const esValorInicial = valorInicial && String(valorInicial).trim() === julioValue;
-                            
+
                             // Solo mostrar si no está usado en otros registros O es el valor inicial de este registro
                             if (!juliosUsados.has(julioValue) || esValorInicial) {
                                 const option = document.createElement('option');
@@ -1611,7 +1611,7 @@
             // ===== DOM Ready =====
             document.addEventListener('DOMContentLoaded', function () {
                 const tablaBody = document.getElementById('tabla-produccion-body');
-                
+
                 // Remover borde rojo cuando el usuario corrige los campos
                 function removerErrorAlCambiar(e) {
                     const elemento = e.target;
@@ -1620,19 +1620,19 @@
                         elemento.classList.add('border-gray-300');
                     }
                 }
-                
+
                 // Agregar listeners para quitar errores visuales al corregir
                 if (tablaBody) {
                     tablaBody.addEventListener('input', removerErrorAlCambiar);
                     tablaBody.addEventListener('change', removerErrorAlCambiar);
                 }
-                
+
                 // Para campos de merma
                 document.querySelectorAll('input[data-field="merma_con_goma"], input[data-field="merma_sin_goma"]').forEach(el => {
                     el.addEventListener('input', removerErrorAlCambiar);
                     el.addEventListener('change', removerErrorAlCambiar);
                 });
-                
+
                 // Para botones de temperatura (Canoa 1 y 2)
                 document.addEventListener('click', function(e) {
                     const opt = e.target.closest('.number-option');
@@ -1918,7 +1918,7 @@
 
                         const valorAnterior = quantityDisplay.textContent.trim();
                         quantityDisplay.textContent = selectedValue;
-                        
+
                         // Quitar borde rojo si estaba marcado como error
                         const editBtn = cell.querySelector('.edit-quantity-btn');
                         if (editBtn && editBtn.classList.contains('border-red-500')) {
@@ -2321,7 +2321,7 @@
 
             function marcarCampoError(elemento, tieneError) {
                 if (!elemento) return;
-                
+
                 if (tieneError) {
                     elemento.classList.add('border-red-500', 'border-2');
                     elemento.classList.remove('border-gray-300');
@@ -2338,7 +2338,7 @@
                         marcarCampoError(el, false);
                     });
                 }
-                
+
                 // Limpiar errores de campos de merma
                 document.querySelectorAll('input[data-field="merma_con_goma"], input[data-field="merma_sin_goma"]').forEach(el => {
                     marcarCampoError(el, false);
@@ -2347,7 +2347,7 @@
 
             function validarRegistrosCompletos() {
                 limpiarErroresVisuales();
-                
+
                 const tablaBody = document.getElementById('tabla-produccion-body');
                 if (!tablaBody) return { valido: false, mensaje: 'No se encontró la tabla de producción' };
 
@@ -2358,12 +2358,12 @@
                 // Validar campos de merma (fuera de la tabla)
                 const mermaConGoma = document.querySelector('input[data-field="merma_con_goma"]');
                 const mermaSinGoma = document.querySelector('input[data-field="merma_sin_goma"]');
-                
+
                 if (!mermaConGoma || !mermaConGoma.value || mermaConGoma.value.trim() === '') {
                     marcarCampoError(mermaConGoma, true);
                     hayErrores = true;
                 }
-                
+
                 if (!mermaSinGoma || !mermaSinGoma.value || mermaSinGoma.value.trim() === '') {
                     marcarCampoError(mermaSinGoma, true);
                     hayErrores = true;
@@ -2512,18 +2512,18 @@
 
                 if (hayErrores || registrosIncompletos.length > 0) {
                     let mensaje = 'Por favor completa los siguientes campos:\n\n';
-                    
+
                     // Agregar errores de merma si existen
                     if ((mermaConGoma && (!mermaConGoma.value || mermaConGoma.value.trim() === '')) ||
                         (mermaSinGoma && (!mermaSinGoma.value || mermaSinGoma.value.trim() === ''))) {
                         mensaje += '• Merma con Goma\n';
                         mensaje += '• Merma sin Goma\n\n';
                     }
-                    
+
                     registrosIncompletos.forEach(reg => {
                         mensaje += `Fila ${reg.fila}: ${reg.campos.join(', ')}\n`;
                     });
-                    
+
                     return { valido: false, mensaje: mensaje.trim() };
                 }
 
@@ -2544,7 +2544,7 @@
                             primerError.focus();
                         }, 500);
                     }
-                    
+
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
                             icon: 'warning',
@@ -2560,7 +2560,47 @@
                     return;
                 }
 
-                // Si todos los registros están completos, proceder con la finalización
+                // Si todos los registros están completos, verificar formulaciones antes de proceder
+                @if(isset($orden) && $orden)
+                    const ordenId = {{ $orden->Id }};
+                    const ordenFolio = '{{ $orden->Folio }}';
+
+                    try {
+                        // Verificar si existe al menos una formulación antes de mostrar confirmación
+                        const checkResponse = await fetch('{{ route('engomado.modulo.produccion.engomado.verificar.formulaciones') }}?folio=' + encodeURIComponent(ordenFolio), {
+                            method: 'GET',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        });
+
+                        const checkResult = await checkResponse.json();
+
+                        if (!checkResult.success || !checkResult.tieneFormulaciones) {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: 'No se puede finalizar',
+                                text: 'Debe existir al menos una formulación (EngProduccionFormulacion) con el Folio ' + ordenFolio + ' antes de finalizar.',
+                                showConfirmButton: false,
+                                timer: 5000,
+                                timerProgressBar: true
+                            });
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error al verificar formulaciones:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Error al verificar formulaciones. Por favor, intenta nuevamente.'
+                        });
+                        return;
+                    }
+                @endif
+
+                // Si todos los registros están completos y hay formulaciones, proceder con la finalización
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         title: '¿Finalizar registro?',
@@ -2635,6 +2675,32 @@
                         }
                     });
                 } else {
+                    @if(isset($orden) && $orden)
+                        const ordenId = {{ $orden->Id }};
+                        const ordenFolio = '{{ $orden->Folio }}';
+
+                        try {
+                            // Verificar si existe al menos una formulación antes de mostrar confirmación
+                            const checkResponse = await fetch('{{ route('engomado.modulo.produccion.engomado.verificar.formulaciones') }}?folio=' + encodeURIComponent(ordenFolio), {
+                                method: 'GET',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
+                            });
+
+                            const checkResult = await checkResponse.json();
+
+                            if (!checkResult.success || !checkResult.tieneFormulaciones) {
+                                alert('No se puede finalizar. Debe existir al menos una formulación con el Folio ' + ordenFolio + ' antes de finalizar.');
+                                return;
+                            }
+                        } catch (error) {
+                            console.error('Error al verificar formulaciones:', error);
+                            alert('Error al verificar formulaciones. Por favor, intenta nuevamente.');
+                            return;
+                        }
+                    @endif
+
                     if (confirm('¿Finalizar registro?')) {
                         @if(isset($orden) && $orden)
                             const ordenId = {{ $orden->Id }};

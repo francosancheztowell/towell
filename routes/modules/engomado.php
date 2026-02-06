@@ -77,6 +77,7 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::post('/modulo-produccion-engomado/actualizar-campos-produccion', [ModuloProduccionEngomadoController::class, 'actualizarCamposProduccion'])->name('modulo.produccion.engomado.actualizar.campos.produccion');
     Route::post('/modulo-produccion-engomado/actualizar-campo-orden', [ModuloProduccionEngomadoController::class, 'actualizarCampoOrden'])->name('modulo.produccion.engomado.actualizar.campo.orden');
     Route::post('/modulo-produccion-engomado/actualizar-horas', [ModuloProduccionEngomadoController::class, 'actualizarHoras'])->name('modulo.produccion.engomado.actualizar.horas');
+    Route::get('/modulo-produccion-engomado/verificar-formulaciones', [ModuloProduccionEngomadoController::class, 'verificarFormulaciones'])->name('modulo.produccion.engomado.verificar.formulaciones');
     Route::post('/modulo-produccion-engomado/finalizar', [ModuloProduccionEngomadoController::class, 'finalizar'])->name('modulo.produccion.engomado.finalizar');
     Route::get('/modulo-produccion-engomado/pdf', [\App\Http\Controllers\PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.engomado.pdf');
 

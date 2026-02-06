@@ -71,27 +71,33 @@ class ProgramarUrdEngController extends Controller
             }
             $folio = $folioData['folio']; // Ejemplo: "00001" o "URD00001" (dependiendo del prefijo configurado)
 
+            // Obtener ItemId de la BOM de engomado para BomFormula (se usa en urdido y engomado)
+            $bomFormula = null;
+            $bomEngId = $datosEngomado['lMatEngomado'] ?? null;
+            if ($bomEngId) {
+                try {
+                    $bomItem = DB::connection('sqlsrv_ti')
+                        ->table('BOM')
+                        ->where('BOMID', $bomEngId)
+                        ->where('DATAAREAID', 'PRO')
+                        ->where('ITEMID', 'like', 'TE-PD-ENF%')
+                        ->select('ITEMID')
+                        ->first();
+
+                    if ($bomItem && isset($bomItem->ITEMID)) {
+                        $bomFormula = $bomItem->ITEMID;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Error al obtener ItemId de BOM de engomado', [
+                        'bomId' => $bomEngId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             // Obtener TipoAtado del grupo (tabla 1) - puede ser "Normal" o "Especial"
             $tipoAtado = $grupo['tipoAtado'] ?? '';
-
-            // Obtener ItemId de la BOM de urdido para BomFormula (simple y directo)
-            $bomFormulaUrdido = null;
             $bomUrdId = trim($grupo['bomId'] ?? '');
-            if ($bomUrdId !== '') {
-                $bomItem = DB::connection('sqlsrv_ti')
-                    ->table('BOM as b')
-                    ->join('BOMTABLE as bt', function($join) {
-                        $join->on('bt.BOMID', '=', 'b.BOMID')
-                             ->on('bt.DATAAREAID', '=', 'b.DATAAREAID');
-                    })
-                    ->where('bt.BOMID', $bomUrdId)     // BomId
-                    ->where('bt.ITEMGROUPID', 'JUL-URD') // ItemGroupId JUL-URD
-                    ->where('bt.DATAAREAID', 'PRO')    // DataAreaId PRO
-                    ->value('b.ITEMID');
-
-                $bomFormulaUrdido = $bomItem ?: null;
-            }
 
             // =================== PASO 3: Guardar Tabla 2 (UrdProgramaUrdido) PRIMERO ===================
             // Obtener InventBatchId del primer material que lo tenga para LoteProveedor
@@ -193,7 +199,7 @@ class ProgramarUrdEngController extends Controller
                 'BomId' => $bomUrdId, // L.Mat Urdido
                 'FechaProg' => now()->format('Y-m-d'),
                 'Status' => $grupo['status'] ?? 'Activo',
-                'BomFormula' => $bomFormulaUrdido,
+                'BomFormula' => $bomFormula,
                 'TipoAtado' => $tipoAtado,
                 'CveEmpl' => $numeroEmpleado,
                 'NomEmpl' => $nombreEmpleado,
@@ -234,32 +240,6 @@ class ProgramarUrdEngController extends Controller
                         'Julios' => isset($julio['julios']) && $julio['julios'] !== '' ? (int)$julio['julios'] : null,
                         'Hilos' => isset($julio['hilos']) && $julio['hilos'] !== '' ? (int)$julio['hilos'] : null,
                         'Obs' => $julio['observaciones'] ?? null,
-                    ]);
-                }
-            }
-
-            // Obtener ItemId de la BOM de engomado para BomFormula
-            $bomFormula = null;
-            $bomEngId = $datosEngomado['lMatEngomado'] ?? null;
-            if ($bomEngId) {
-                try {
-                    // Buscar el ItemId de la BOM de engomado en la tabla BOM
-                    // Filtro: BomId = L.Mat Engomado, ItemId like 'TE-PD-ENF%', DATAAREAID = 'PRO'
-                    $bomItem = DB::connection('sqlsrv_ti')
-                        ->table('BOM')
-                        ->where('BOMID', $bomEngId)
-                        ->where('DATAAREAID', 'PRO')
-                        ->where('ITEMID', 'like', 'TE-PD-ENF%')
-                        ->select('ITEMID')
-                        ->first();
-
-                    if ($bomItem && isset($bomItem->ITEMID)) {
-                        $bomFormula = $bomItem->ITEMID;
-                    }
-                } catch (\Throwable $e) {
-                    Log::warning('Error al obtener ItemId de BOM de engomado', [
-                        'bomId' => $bomEngId,
-                        'error' => $e->getMessage(),
                     ]);
                 }
             }
