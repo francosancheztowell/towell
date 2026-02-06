@@ -204,7 +204,8 @@ window.filtroGlobalActivo = @json($filtroGlobalActivo ?? false);
 let filterState = {
     filtros: @json($vista ? array_filter(explode(',', $vista)) : ($filtroAplicado === 'todos' ? [] : [$filtroAplicado])),
     telaresUsuario: @json($telaresUsuario ?? []),
-    esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }}
+    esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }},
+    esSupervisor: {{ ($esSupervisor ?? false) ? 'true' : 'false' }}
 };
 
 // Orden por columnas: column = clave de columna, dir = 'asc' | 'desc'
@@ -418,11 +419,25 @@ function updateFilterButtons() {
 
     const filtros = filterState.filtros || [];
     // Ver Todos activo cuando no hay ningún otro filtro
-    if (filtros.length === 0 && keyToBtn['todos']) {
-        const [btn, ...classes] = keyToBtn['todos'];
-        if (btn) {
-            btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
-            btn.classList.add(...classes);
+    if (filtros.length === 0) {
+        // Si es supervisor y no usó filtro global, resaltar los filtros por defecto del supervisor
+        if (filterState.esSupervisor && !window.filtroGlobalActivo) {
+            ['calificados', 'activo', 'en-proceso'].forEach(key => {
+                const entry = keyToBtn[key];
+                if (entry) {
+                    const [btn, ...classes] = entry;
+                    if (btn) {
+                        btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
+                        btn.classList.add(...classes);
+                    }
+                }
+            });
+        } else if (keyToBtn['todos']) {
+            const [btn, ...classes] = keyToBtn['todos'];
+            if (btn) {
+                btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
+                btn.classList.add(...classes);
+            }
         }
     }
     filtros.forEach(tipo => {
