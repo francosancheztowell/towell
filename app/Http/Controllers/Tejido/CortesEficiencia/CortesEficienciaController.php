@@ -461,8 +461,27 @@ class CortesEficienciaController extends Controller
                 return response()->json(['success' => false, 'message' => 'No se enviaron campos para actualizar'], 422);
             }
 
+            // Guardar valores originales de Date y Turno antes de actualizar
+            $oldDate = $corte->Date;
+            $oldTurno = $corte->Turno;
+
             $datos['updated_at'] = now();
             $corte->update($datos);
+
+            // Si se cambió Date o Turno, sincronizar en TejEficienciaLine
+            $datosLine = [];
+            if (isset($datos['Date']) && $datos['Date'] != $oldDate) {
+                $datosLine['Date'] = $datos['Date'];
+            }
+            if (isset($datos['Turno']) && $datos['Turno'] != $oldTurno) {
+                $datosLine['Turno'] = $datos['Turno'];
+            }
+
+            if (!empty($datosLine)) {
+                $datosLine['updated_at'] = now();
+                TejEficienciaLine::where('Folio', $folio)
+                    ->update($datosLine);
+            }
 
             return response()->json([
                 'success' => true,
