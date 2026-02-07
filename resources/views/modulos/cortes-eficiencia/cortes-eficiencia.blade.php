@@ -435,12 +435,29 @@
             const valorInicial = currentValue===0 ? obtenerValorHorarioAnterior(telar,horario,tipo) : currentValue;
             buildNumberOptions(container, tipo, horario, valorInicial);
             container.classList.remove('hidden');
+            positionValorSelector(btn, container);
             scrollToCurrentValue(container, valorInicial);
         } else container.classList.add('hidden');
     }
 
+    function positionValorSelector(btn, container){
+        // Si hay poco espacio hacia abajo (filas finales), abrir hacia arriba.
+        const btnRect = btn.getBoundingClientRect();
+        const viewportH = window.innerHeight || document.documentElement.clientHeight;
+        const spaceBelow = viewportH - btnRect.bottom;
+        const spaceAbove = btnRect.top;
+        const menuHeight = Math.max(container.offsetHeight || 0, 84);
+        const shouldOpenUp = spaceBelow < (menuHeight + 12) && spaceAbove > spaceBelow;
+        container.classList.toggle('drop-up', shouldOpenUp);
+    }
+
     function closeAllValorSelectors(){
-        document.querySelectorAll('.valor-edit-container').forEach(c => { c.classList.add('hidden'); const flex=c.querySelector('.number-options-flex'); if (flex && flex.children.length>120) setTimeout(()=>{ if(c.classList.contains('hidden')) flex.innerHTML=''; },800); });
+        document.querySelectorAll('.valor-edit-container').forEach(c => {
+            c.classList.add('hidden');
+            c.classList.remove('drop-up');
+            const flex=c.querySelector('.number-options-flex');
+            if (flex && flex.children.length>120) setTimeout(()=>{ if(c.classList.contains('hidden')) flex.innerHTML=''; },800);
+        });
     }
 
     function buildNumberOptions(container, tipo, horario, currentValue){
@@ -686,6 +703,7 @@ tbody input:focus{ border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; outline:n
 .valor-display-btn{ transition:transform .15s ease, background-color .15s ease; min-width:60px; }
 .valor-display-btn:hover{ transform:scale(1.05); }
 .valor-edit-container{ z-index:1000; box-shadow:0 10px 25px rgba(0,0,0,.08); }
+.valor-edit-container.drop-up{ top:auto !important; bottom:calc(100% + .35rem); }
 .number-option{ transition:transform .12s ease; flex-shrink:0; }
 .number-option:hover{ transform:scale(1.08); }
 .valor-edit-container.hidden{ opacity:0; transform: translateX(-50%) translateY(0) scale(.95); transition:all .18s ease; }
