@@ -78,7 +78,13 @@ class DateHelpers
             // 3) Fin con calendario real (o fallback continuo)
             $nuevoFin = $nuevoInicio->copy();
 
-            if ($horasNecesarias > 0) {
+            // Saldo negativo: FechaFin = now() si EnProceso, si no el mismo día que FechaInicio
+            $saldo = self::sanitizeNumber($r->SaldoPedido ?? $r->Produccion ?? $r->TotalPedido ?? 0);
+            if ($saldo < 0) {
+                $nuevoFin = $esEnProceso
+                    ? Carbon::now()
+                    : Carbon::parse($r->FechaInicio)->copy()->endOfDay();
+            } elseif ($horasNecesarias > 0) {
                 if (!empty($r->CalendarioId)) {
                     $finCalc = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $nuevoInicio, $horasNecesarias);
                     if ($finCalc) {
@@ -91,7 +97,7 @@ class DateHelpers
                     $nuevoFin = $nuevoInicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
                 }
             } else {
-                // Fallback cuando no se pudieron calcular horas
+                // Saldo >= 0 pero horasNecesarias <= 0: Fallback cuando no se pudieron calcular horas
                 if ($esEnProceso) {
                     // EnProceso: NO usar diff(FechaInicio, FechaFinal) porque FechaInicio no se actualiza
                     // y la diferencia crecería en cada recálculo. Usar HorasProd guardado o 30 días.
@@ -104,10 +110,13 @@ class DateHelpers
                             $nuevoFin = $nuevoInicio->copy()->addSeconds((int)round($horasGuardadas * 3600));
                         }
                     } else {
-                        $nuevoFin = $nuevoInicio->copy()->addDays(30);
+                        // Repasos: medio día; resto: 30 días
+                        $nuevoFin = TejidoHelpers::esRepaso($r)
+                            ? $nuevoInicio->copy()->addHours(12)
+                            : $nuevoInicio->copy()->addDays(30);
                     }
                 } else {
-                    // No EnProceso: conservar duración previa si existía, si no 30 días
+                    // No EnProceso: conservar duración previa si existía, si no repaso=12h / resto=30d
                     if (!empty($r->FechaInicio) && !empty($r->FechaFinal)) {
                         try {
                             $iniOld = Carbon::parse($r->FechaInicio);
@@ -115,10 +124,14 @@ class DateHelpers
                             $dur = $iniOld->diff($finOld);
                             $nuevoFin = (clone $nuevoInicio)->add($dur);
                         } catch (\Throwable $e) {
-                            $nuevoFin = $nuevoInicio->copy()->addDays(30);
+                            $nuevoFin = TejidoHelpers::esRepaso($r)
+                                ? $nuevoInicio->copy()->addHours(12)
+                                : $nuevoInicio->copy()->addDays(30);
                         }
                     } else {
-                        $nuevoFin = $nuevoInicio->copy()->addDays(30);
+                        $nuevoFin = TejidoHelpers::esRepaso($r)
+                            ? $nuevoInicio->copy()->addHours(12)
+                            : $nuevoInicio->copy()->addDays(30);
                     }
                 }
             }
@@ -232,9 +245,12 @@ class DateHelpers
                     $horasNecesarias = (float)$row->HorasProd;
                 }
 
-                // fin
+                // fin (en cascade todos son EnProceso=0; saldo negativo => fin = mismo día que inicio)
                 $nuevoFin = $nuevoInicio->copy();
-                if ($horasNecesarias > 0) {
+                $saldoRow = self::sanitizeNumber($row->SaldoPedido ?? $row->Produccion ?? $row->TotalPedido ?? 0);
+                if ($saldoRow < 0) {
+                    $nuevoFin = $nuevoInicio->copy()->endOfDay();
+                } elseif ($horasNecesarias > 0) {
                     if (!empty($row->CalendarioId)) {
                         $finCalc = self::calcularFechaFinalDesdeInicio($row->CalendarioId, $nuevoInicio, $horasNecesarias);
                         $nuevoFin = $finCalc ?: $nuevoInicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
@@ -242,7 +258,7 @@ class DateHelpers
                         $nuevoFin = $nuevoInicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
                     }
                 } else {
-                    // fallback: conservar duración previa si existía
+                    // saldo >= 0 y horasNecesarias <= 0: conservar duración previa si existía, si no repaso=12h / resto=30d
                     if (!empty($row->FechaInicio) && !empty($row->FechaFinal)) {
                         try {
                             $iniOld = Carbon::parse($row->FechaInicio);
@@ -250,10 +266,14 @@ class DateHelpers
                             $dur = $iniOld->diff($finOld);
                             $nuevoFin = (clone $nuevoInicio)->add($dur);
                         } catch (\Throwable $e) {
-                            $nuevoFin = $nuevoInicio->copy()->addDays(30);
+                            $nuevoFin = TejidoHelpers::esRepaso($row)
+                                ? $nuevoInicio->copy()->addHours(12)
+                                : $nuevoInicio->copy()->addDays(30);
                         }
                     } else {
-                        $nuevoFin = $nuevoInicio->copy()->addDays(30);
+                        $nuevoFin = TejidoHelpers::esRepaso($row)
+                            ? $nuevoInicio->copy()->addHours(12)
+                            : $nuevoInicio->copy()->addDays(30);
                     }
                 }
 
@@ -298,8 +318,10 @@ class DateHelpers
 
             DB::commit();
 
-            // restaurar dispatcher
-            ReqProgramaTejido::setEventDispatcher($dispatcher);
+            // restaurar dispatcher (solo si no es null, p. ej. cuando el comando ya lo desactivó)
+            if ($dispatcher !== null) {
+                ReqProgramaTejido::setEventDispatcher($dispatcher);
+            }
 
             // regenerar líneas en batch (evita N+1)
             if (!empty($idsActualizados)) {
