@@ -192,6 +192,18 @@ class TejidoHelpers
         return 0.0;
     }
 
+    /**
+     * Indica si el producto es un repaso (NombreProducto empieza con REPASO).
+     * Para repasos con saldo bajo se usa duración mínima de medio día en lugar de 30 días.
+     */
+    public static function esRepaso($programaOrNombre): bool
+    {
+        $nombre = is_object($programaOrNombre)
+            ? trim((string)($programaOrNombre->NombreProducto ?? ''))
+            : trim((string)$programaOrNombre);
+        return $nombre !== '' && strtoupper(substr($nombre, 0, 6)) === 'REPASO';
+    }
+
     public static function resolverDiasEntrega(ReqProgramaTejido $programa): int
     {
         $aplicacion = trim((string)($programa->AplicacionId ?? ''));

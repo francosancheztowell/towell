@@ -87,16 +87,20 @@ class EngProduccionFormulacionController extends Controller
             'NomEmpl' => 'nullable|string|max:255',
             'Olla' => 'nullable|string|max:50',
             'Formula' => 'nullable|string|max:100',
-            'Kilos' => 'nullable|numeric',
+            'Kilos' => 'required|numeric|min:0',
             'Litros' => 'required|numeric|min:0.01',
             'ProdId' => 'nullable|string|max:50',
-            'TiempoCocinado' => 'nullable|numeric',
-            'Solidos' => 'nullable|numeric',
-            'Viscocidad' => 'nullable|numeric',
+            'TiempoCocinado' => 'required|numeric|min:0.01',
+            'Solidos' => 'required|numeric|min:0.01',
+            'Viscocidad' => 'required|numeric|min:0.01',
             'componentes' => 'nullable|string',
         ], [
+            'Kilos.min' => 'Los Kilos no pueden ser negativos.',
             'Litros.required' => 'Los litros son obligatorios.',
             'Litros.min' => 'Los litros deben ser mayor a cero.',
+            'TiempoCocinado.min' => 'El tiempo cocinado debe ser mayor a cero.',
+            'Solidos.min' => 'El % sólidos debe ser mayor a cero.',
+            'Viscocidad.min' => 'La viscosidad debe ser mayor a cero.',
         ]);
 
         try {
@@ -427,18 +431,24 @@ class EngProduccionFormulacionController extends Controller
             'NomEmpl' => 'nullable|string|max:255',
             'Olla' => 'nullable|string|max:50',
             'Formula' => 'nullable|string|max:100',
-            'Kilos' => 'nullable|numeric',
+            'Kilos' => 'nullable|numeric|min:0',
             'Litros' => 'nullable|numeric|min:0.01',
             'ProdId' => 'nullable|string|max:50',
-            'TiempoCocinado' => 'nullable|numeric',
-            'Solidos' => 'nullable|numeric',
-            'Viscocidad' => 'nullable|numeric',
+            'TiempoCocinado' => 'nullable|numeric|min:0.01',
+            'Solidos' => 'nullable|numeric|min:0.01',
+            'Viscocidad' => 'nullable|numeric|min:0.01',
             'Status' => 'nullable|in:Creado,En Proceso,Terminado',
             'obs_calidad' => 'nullable|string',
+            'ok_tiempo' => 'nullable|boolean',
+            'ok_viscocidad' => 'nullable|boolean',
+            'ok_solidos' => 'nullable|boolean',
             'componentes' => 'nullable|string',
         ], [
-            'Litros.required' => 'Los litros son obligatorios.',
+            'Kilos.min' => 'Los Kilos no pueden ser negativos.',
             'Litros.min' => 'Los litros deben ser mayor a cero.',
+            'TiempoCocinado.min' => 'El tiempo cocinado debe ser mayor a cero.',
+            'Solidos.min' => 'El % sólidos debe ser mayor a cero.',
+            'Viscocidad.min' => 'La viscosidad debe ser mayor a cero.',
         ]);
 
         try {
@@ -454,6 +464,19 @@ class EngProduccionFormulacionController extends Controller
                 $toUpdate = collect($validated)->except('componentes')->filter(function ($v, $k) use ($request) {
                     return $request->has($k);
                 })->toArray();
+                // Mapear ok_tiempo, ok_viscocidad, ok_solidos a columnas de la tabla
+                if (array_key_exists('ok_tiempo', $toUpdate)) {
+                    $toUpdate['OkTiempo'] = (bool) $toUpdate['ok_tiempo'];
+                    unset($toUpdate['ok_tiempo']);
+                }
+                if (array_key_exists('ok_viscocidad', $toUpdate)) {
+                    $toUpdate['OkViscocidad'] = (bool) $toUpdate['ok_viscocidad'];
+                    unset($toUpdate['ok_viscocidad']);
+                }
+                if (array_key_exists('ok_solidos', $toUpdate)) {
+                    $toUpdate['OkSolidos'] = (bool) $toUpdate['ok_solidos'];
+                    unset($toUpdate['ok_solidos']);
+                }
                 $item->update($toUpdate);
                 $formulacionId = $item->Id; // Obtener el ID real de la tabla
 

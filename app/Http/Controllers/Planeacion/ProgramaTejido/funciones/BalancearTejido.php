@@ -6,6 +6,7 @@ use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -145,9 +146,10 @@ class BalancearTejido
                 if (!empty($registro->FechaInicio)) {
                     [$inicio, $fin, $horas] = self::calcularInicioFinExactos($registro);
 
-                    if ($inicio) $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
-                    if ($fin)    $registro->FechaFinal  = $fin->format('Y-m-d H:i:s');
-
+                    $esEnProceso = ($registro->EnProceso == 1 || $registro->EnProceso === true);
+                    // EnProceso: usar now() solo para el cálculo; no actualizar FechaInicio en BD
+                    if ($inicio && !$esEnProceso) $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
+                    if ($fin) $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
                 }
 
                 // Fórmulas exactas
@@ -239,7 +241,7 @@ class BalancearTejido
                             ? (self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horas) ?: $inicio->copy()->addSeconds((int) round($horas * 3600)))
                             : $inicio->copy()->addSeconds((int) round($horas * 3600));
                     } else {
-                        $fin = $inicio->copy()->addDays(30);
+                        $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(12) : $inicio->copy()->addDays(30);
                     }
 
                     $r->FechaFinal = $fin->format('Y-m-d H:i:s');
@@ -374,10 +376,21 @@ class BalancearTejido
     {
         if (empty($r->FechaInicio)) return [null, null, 0.0];
 
-        $inicio = Carbon::parse($r->FechaInicio);
+        // Si el registro está EnProceso, usar now() como inicio efectivo
+        $esEnProceso = ($r->EnProceso == 1 || $r->EnProceso === true);
+        $inicio = $esEnProceso ? Carbon::now() : Carbon::parse($r->FechaInicio);
 
-        // Snap a calendario (misma lógica, solo sin query repetido)
-        if (!empty($r->CalendarioId)) {
+        // Saldo negativo: FechaFin = now() si EnProceso, si no el mismo día que FechaInicio
+        $saldo = self::sanitizeNumber($r->SaldoPedido ?? $r->Produccion ?? $r->TotalPedido ?? 0);
+        if ($saldo < 0) {
+            $fin = $esEnProceso
+                ? Carbon::now()
+                : Carbon::parse($r->FechaInicio)->copy()->endOfDay();
+            return [$inicio, $fin, 0.0];
+        }
+
+        // Snap a calendario (misma lógica, solo sin query repetido) - no aplicar snap a EnProceso
+        if (!$esEnProceso && !empty($r->CalendarioId)) {
             $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
             if ($snap) $inicio = $snap;
         }
@@ -385,7 +398,7 @@ class BalancearTejido
         $horasNecesarias = self::calcularHorasProd($r);
 
         if ($horasNecesarias <= 0) {
-            $fin = $inicio->copy()->addDays(30);
+            $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(12) : $inicio->copy()->addDays(30);
             return [$inicio, $fin, 0.0];
         }
 
@@ -501,6 +514,53 @@ class BalancearTejido
         }
 
         return $ids;
+    }
+
+    /**
+     * Recalcular fechas y fórmulas de un registro por cambios en Produccion/SaldoPedido.
+     * EnProceso=1: usa now() como inicio, no modifica FechaInicio en BD.
+     * Para usar cuando un proceso externo actualice Produccion/SaldoPedido vía SQL directo.
+     */
+    public static function recalcularRegistroPorProduccion(ReqProgramaTejido $registro): bool
+    {
+        if (empty($registro->FechaInicio)) {
+            return false;
+        }
+
+        [$inicio, $fin, $horas] = self::calcularInicioFinExactos($registro);
+        if (!$inicio || !$fin) {
+            return false;
+        }
+
+        $esEnProceso = ($registro->EnProceso == 1 || $registro->EnProceso === true);
+
+        if (!$esEnProceso) {
+            $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
+        }
+        $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
+        if ($horas > 0) {
+            $registro->HorasProd = $horas;
+        }
+
+        $formulas = self::calcularFormulasEficiencia($registro);
+        foreach ($formulas as $k => $v) {
+            $registro->{$k} = $v;
+        }
+
+        $registro->saveQuietly();
+
+        $observer = new ReqProgramaTejidoObserver();
+        $observer->saved($registro->fresh());
+
+        $ultimo = (int)($registro->Ultimo ?? 0);
+        if ($ultimo !== 1) {
+            $registroRefreshed = ReqProgramaTejido::find($registro->Id);
+            if ($registroRefreshed) {
+                DateHelpers::cascadeFechas($registroRefreshed);
+            }
+        }
+
+        return true;
     }
 
     // =========================================================

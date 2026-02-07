@@ -128,6 +128,9 @@
                         data-viscocidad="{{ $item->Viscocidad }}"
                         data-maquina="{{ $item->MaquinaId ?? '' }}"
                         data-prodid="{{ $item->ProdId ?? '' }}"
+                        data-oktiempo="{{ isset($item->OkTiempo) && $item->OkTiempo ? '1' : '0' }}"
+                        data-okviscocidad="{{ isset($item->OkViscocidad) && $item->OkViscocidad ? '1' : '0' }}"
+                        data-oksolidos="{{ isset($item->OkSolidos) && $item->OkSolidos ? '1' : '0' }}"
                     >
                         <td class="px-4 py-3 whitespace-nowrap font-semibold text-blue-700">{{ $item->Id }}</td>
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
@@ -162,6 +165,14 @@
                                     class="obs-calidad-checkbox w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-offset-0 focus:ring-0"
                                     data-folio="{{ $item->Folio }}"
                                     data-id="{{ $item->Id ?? '' }}"
+                                    data-formula="{{ $item->Formula ?? '' }}"
+                                    data-litros="{{ $item->Litros ?? '' }}"
+                                    data-tiempo="{{ $item->TiempoCocinado ?? '' }}"
+                                    data-solidos="{{ $item->Solidos ?? '' }}"
+                                    data-viscocidad="{{ $item->Viscocidad ?? '' }}"
+                                    data-oktiempo="{{ isset($item->OkTiempo) && $item->OkTiempo ? '1' : '0' }}"
+                                    data-okviscocidad="{{ isset($item->OkViscocidad) && $item->OkViscocidad ? '1' : '0' }}"
+                                    data-oksolidos="{{ isset($item->OkSolidos) && $item->OkSolidos ? '1' : '0' }}"
                                     {{ !empty($item->obs_calidad) ? 'checked' : '' }}
                                     title="{{ !empty($item->obs_calidad) ? e($item->obs_calidad) : 'Sin observaciones' }}"
                                 >
@@ -201,7 +212,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Folio (Programa Engomado) <span class="text-red-600">*</span></label>
-                            <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this, false)" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this, false)" class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed" style="pointer-events: none;" tabindex="-1">
                                 <option value="">-- Seleccione un Folio --</option>
                                 @foreach($foliosPrograma as $prog)
                                     <option value="{{ $prog->Folio }}"
@@ -217,23 +228,23 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
-                            <input type="date" name="fecha" value="{{ date('Y-m-d') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="date" name="fecha" id="create_fecha" value="{{ date('Y-m-d') }}" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
-                            <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" step="60" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" step="60" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
-                            <input type="text" id="create_display_numero" value="{{ auth()->user()->numero_empleado ?? (auth()->user()->numero ?? '') }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="text" id="create_display_numero" value="{{ auth()->user()->numero_empleado ?? (auth()->user()->numero ?? '') }}" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Operador</label>
-                            <input type="text" id="create_display_operador" value="{{ auth()->user()->nombre ?? '' }}" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="text" id="create_display_operador" value="{{ auth()->user()->nombre ?? '' }}" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Fórmula</label>
-                            <input type="text" name="Formula" id="create_formula" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <input type="text" name="Formula" id="create_formula" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                     </div>
                 </div>
@@ -263,10 +274,10 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.)</label>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.) <span class="text-red-600">*</span></label>
                             <input
                             required
-                            type="number" step="0.01" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            type="number" step="0.01" min="0" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="No se aceptan valores negativos">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Litros <span class="text-red-600">*</span></label>
@@ -275,22 +286,22 @@
                             type="number" step="0.01" min="0.01" name="Litros" id="create_litros" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado (Min)</label>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado (Min) <span class="text-red-600">*</span></label>
                             <input
                             required
-                            type="number" step="0.01" name="TiempoCocinado" id="create_tiempo" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            type="number" step="0.01" min="0.01" name="TiempoCocinado" id="create_tiempo" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">% Sólidos</label>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">% Sólidos <span class="text-red-600">*</span></label>
                             <input
                             required
-                            type="number" step="0.01" name="Solidos" id="create_solidos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            type="number" step="0.01" min="0.01" name="Solidos" id="create_solidos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Viscosidad</label>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Viscosidad <span class="text-red-600">*</span></label>
                             <input
                             required
-                            type="number" step="0.01" name="Viscocidad" id="create_viscocidad" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                            type="number" step="0.01" min="0.01" name="Viscocidad" id="create_viscocidad" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
                         </div>
                     </div>
                 </div>
@@ -1259,6 +1270,20 @@
 
             const fields = modal.querySelectorAll('input, select, textarea');
             fields.forEach(field => {
+                // NUNCA desbloquear: Folio, Fecha, Hora, No Empleado, Operador, Fórmula
+                if (field.classList.contains('campo-siempre-bloqueado')) {
+                    field.setAttribute('readonly', 'readonly');
+                    // No usar disabled en inputs con name (fecha, Hora, Formula) para que se envíen
+                    if (field.tagName === 'SELECT') {
+                        field.style.pointerEvents = 'none';
+                        field.setAttribute('tabindex', '-1');
+                    }
+                    if (!field.name || field.id === 'create_display_numero' || field.id === 'create_display_operador') {
+                        field.setAttribute('disabled', 'disabled');
+                    }
+                    field.classList.add('bg-gray-50', 'cursor-not-allowed');
+                    return;
+                }
                 if (isReadOnly) {
                     field.setAttribute('readonly', 'readonly');
                     field.classList.add('bg-gray-50', 'text-gray-700', 'cursor-not-allowed');
@@ -2374,17 +2399,35 @@
                 createForm.addEventListener('input', debounce(actualizarBotonGuardarEdicion, 200));
                 createForm.addEventListener('change', actualizarBotonGuardarEdicion);
                 createForm.addEventListener('submit', function(e) {
-                    const litrosVal = parseFloat(document.getElementById('create_litros')?.value) || 0;
-                    if (litrosVal <= 0) {
+                    const kilosVal = parseFloat(document.getElementById('create_kilos')?.value) ?? NaN;
+                    const litrosVal = parseFloat(document.getElementById('create_litros')?.value) ?? NaN;
+                    const tiempoVal = parseFloat(document.getElementById('create_tiempo')?.value) ?? NaN;
+                    const solidosVal = parseFloat(document.getElementById('create_solidos')?.value) ?? NaN;
+                    const viscVal = parseFloat(document.getElementById('create_viscocidad')?.value) ?? NaN;
+
+                    if (kilosVal < 0 || isNaN(kilosVal)) {
                         e.preventDefault();
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'warning',
-                            title: 'Los litros deben ser mayor a cero',
-                            showConfirmButton: false,
-                            timer: 3000
-                        });
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Los Kilos no pueden ser negativos', showConfirmButton: false, timer: 3000 });
+                        return;
+                    }
+                    if (litrosVal <= 0 || isNaN(litrosVal)) {
+                        e.preventDefault();
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Los Litros deben ser mayor a cero', showConfirmButton: false, timer: 3000 });
+                        return;
+                    }
+                    if (tiempoVal <= 0 || isNaN(tiempoVal)) {
+                        e.preventDefault();
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'El Tiempo Cocinado debe ser mayor a cero', showConfirmButton: false, timer: 3000 });
+                        return;
+                    }
+                    if (solidosVal <= 0 || isNaN(solidosVal)) {
+                        e.preventDefault();
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'El % Sólidos debe ser mayor a cero', showConfirmButton: false, timer: 3000 });
+                        return;
+                    }
+                    if (viscVal <= 0 || isNaN(viscVal)) {
+                        e.preventDefault();
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'La Viscosidad debe ser mayor a cero', showConfirmButton: false, timer: 3000 });
                         return;
                     }
                     const method = document.getElementById('create_method');
@@ -2422,14 +2465,40 @@
 
         function abrirModalObsCalidad(checkbox) {
             const folio = checkbox.dataset.folio || '';
+            const formula = checkbox.dataset.formula || '';
+            const litros = checkbox.dataset.litros || '';
+            const tiempo = checkbox.dataset.tiempo || '';
+            const solidos = checkbox.dataset.solidos || '';
+            const viscocidad = checkbox.dataset.viscocidad || '';
+            const okTiempo = checkbox.dataset.oktiempo === '1';
+            const okViscocidad = checkbox.dataset.okviscocidad === '1';
+            const okSolidos = checkbox.dataset.oksolidos === '1';
             const obsActual = checkbox.title !== 'Sin observaciones' ? checkbox.title : '';
 
             Swal.fire({
-                title: 'Observaciones de Calidad',
+                title: 'Calidad',
+                width: '520px',
                 html: `
-                    <div class="text-left">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Folio: ${folio}</label>
-                        <textarea id="swal-obs-calidad" class="swal2-textarea w-full" rows="4" placeholder="Ingrese las observaciones de calidad...">${obsActual}</textarea>
+                    <div class="text-center space-y-2 text-base">
+                        <div><span class="text-gray-500">Folio</span> <span class="font-semibold text-lg">${folio}</span></div>
+                        <div><span class="text-gray-500">Fórmula</span> <span class="font-semibold text-lg">${formula}</span></div>
+                        <div><span class="text-gray-500">Litros</span> <span class="font-semibold text-lg">${litros}</span></div>
+                        <div class="flex items-center justify-center gap-2">
+                            <span class="text-gray-500">Tiempo</span> <span class="font-semibold text-lg">${tiempo}</span>
+                            <input type="checkbox" id="swal-oktiempo" class="w-5 h-5 text-blue-600 rounded ml-1" ${okTiempo ? 'checked' : ''}>
+                        </div>
+                        <div class="flex items-center justify-center gap-2">
+                            <span class="text-gray-500">Sólidos</span> <span class="font-semibold text-lg">${solidos}</span>
+                            <input type="checkbox" id="swal-oksolidos" class="w-5 h-5 text-blue-600 rounded ml-1" ${okSolidos ? 'checked' : ''}>
+                        </div>
+                        <div class="flex items-center justify-center gap-2">
+                            <span class="text-gray-500">Viscosidad</span> <span class="font-semibold text-lg">${viscocidad}</span>
+                            <input type="checkbox" id="swal-okviscocidad" class="w-5 h-5 text-blue-600 rounded ml-1" ${okViscocidad ? 'checked' : ''}>
+                        </div>
+                        <div class="border-t border-gray-200 pt-3 mt-3">
+                            <label class="text-gray-500 block mb-1">Observaciones</label>
+                            <input type="text" id="swal-obs-calidad" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-base text-center" placeholder="Añadir observaciones (opcional)...">
+                        </div>
                     </div>
                 `,
                 showCancelButton: true,
@@ -2440,18 +2509,23 @@
                 focusConfirm: false,
                 preConfirm: () => {
                     const obs = document.getElementById('swal-obs-calidad').value;
-                    return obs;
+                    const okt = document.getElementById('swal-oktiempo').checked;
+                    const okv = document.getElementById('swal-okviscocidad').checked;
+                    const oks = document.getElementById('swal-oksolidos').checked;
+                    return { obs, okTiempo: okt, okViscocidad: okv, okSolidos: oks };
                 },
                 didOpen: () => {
                     const textarea = document.getElementById('swal-obs-calidad');
-                    if (textarea) textarea.focus();
+                    if (textarea) {
+                        textarea.value = obsActual || '';
+                        textarea.focus();
+                    }
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    const obs = result.value || '';
-                    guardarObsCalidad(folio, obs, checkbox);
+                    const { obs, okTiempo, okViscocidad, okSolidos } = result.value;
+                    guardarObsCalidad(folio, obs, checkbox, { okTiempo, okViscocidad, okSolidos });
                 } else {
-                    // Si cancela y no había observaciones previas, desmarcar
                     if (!obsActual) {
                         checkbox.checked = false;
                     }
@@ -2459,11 +2533,19 @@
             });
         }
 
-        async function guardarObsCalidad(folio, observaciones, checkbox) {
+        async function guardarObsCalidad(folio, observaciones, checkbox, checks = {}) {
             try {
                 const formulacionId = checkbox.dataset.id || '';
                 const url = `/eng-formulacion/${folio}`;
-                const body = { obs_calidad: observaciones };
+                const okT = checks.hasOwnProperty('okTiempo') ? (checks.okTiempo ? 1 : 0) : (parseInt(checkbox.dataset.oktiempo) || 0);
+                const okV = checks.hasOwnProperty('okViscocidad') ? (checks.okViscocidad ? 1 : 0) : (parseInt(checkbox.dataset.okviscocidad) || 0);
+                const okS = checks.hasOwnProperty('okSolidos') ? (checks.okSolidos ? 1 : 0) : (parseInt(checkbox.dataset.oksolidos) || 0);
+                const body = {
+                    obs_calidad: observaciones,
+                    ok_tiempo: okT,
+                    ok_viscocidad: okV,
+                    ok_solidos: okS
+                };
                 if (formulacionId) body.formulacion_id = formulacionId;
                 const response = await fetch(url, {
                     method: 'PUT',
@@ -2481,7 +2563,16 @@
                     throw new Error(data.message || 'Error al guardar');
                 }
 
-                // Actualizar checkbox y tooltip
+                // Actualizar checkbox, tooltip y data de los checks
+                checkbox.dataset.oktiempo = okT.toString();
+                checkbox.dataset.okviscocidad = okV.toString();
+                checkbox.dataset.oksolidos = okS.toString();
+                const row = checkbox.closest('tr');
+                if (row) {
+                    row.dataset.oktiempo = checkbox.dataset.oktiempo;
+                    row.dataset.okviscocidad = checkbox.dataset.okviscocidad;
+                    row.dataset.oksolidos = checkbox.dataset.oksolidos;
+                }
                 if (observaciones.trim()) {
                     checkbox.checked = true;
                     checkbox.title = observaciones;

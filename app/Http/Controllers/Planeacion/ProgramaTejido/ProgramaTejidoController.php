@@ -2011,8 +2011,13 @@ class ProgramaTejidoController extends Controller
                             ($prevTelar->SalonTejidoId !== $p->SalonTejidoId ||
                              $prevTelar->NoTelarId !== $p->NoTelarId));
 
-                        // RESPETAR: El primer registro de cada telar mantiene su fecha original sin modificaciones
-                        if ($esPrimerRegistroTelar) {
+                        // Si el registro está EnProceso, usar now() como inicio efectivo (igual que en drag)
+                        $esEnProceso = ($p->EnProceso == 1 || $p->EnProceso === true);
+
+                        if ($esEnProceso) {
+                            // EnProceso: no tomar FechaInicio, usar now() para recalcular FechaFinal
+                            $inicio = Carbon::now();
+                        } elseif ($esPrimerRegistroTelar) {
                             // Mantener la fecha original del primer registro sin cambios
                             $inicio = $inicioOriginal->copy();
                         } else {
@@ -2063,11 +2068,11 @@ class ProgramaTejidoController extends Controller
                             } catch (\Throwable $e) {}
                         }
 
-                        $cambio = ($oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
-                        
-                        // Auditoría: cambio de FechaInicio al actualizar calendarios
-                        if ($oldInicioStr !== $inicioStr) {
-                            $enProceso = ($p->EnProceso == 1 || $p->EnProceso === true);
+                        // EnProceso: no se actualiza FechaInicio (solo se usa now() para calcular FechaFinal)
+                        $cambio = (!$esEnProceso && $oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
+
+                        // Auditoría: cambio de FechaInicio (no aplica a EnProceso, no se cambia)
+                        if (!$esEnProceso && $oldInicioStr !== $inicioStr) {
                             \App\Helpers\AuditoriaHelper::logCambioFechaInicio(
                                 'ReqProgramaTejido',
                                 $p->Id,
@@ -2075,11 +2080,11 @@ class ProgramaTejidoController extends Controller
                                 $inicioStr,
                                 'Actualizar Calendarios',
                                 $request,
-                                $enProceso
+                                false
                             );
                         }
-                        
-                        $p->FechaInicio = $inicioStr;
+
+                        if (!$esEnProceso) $p->FechaInicio = $inicioStr;
                         $p->FechaFinal = $finStr;
 
                         // Recalcular fórmulas dependientes de fechas
