@@ -254,23 +254,27 @@ class ReportesUrdidoController extends Controller
 
         $export = new ReportesUrdidoExport($porFecha);
 
-        // Guardar en ruta de red (EFIC-CA UR-ENG 2026)
-        $diskRed = 'reports_urdido';
-        $rootPath = config("filesystems.disks.{$diskRed}.root");
-        if ($rootPath) {
-            try {
-                Excel::store($export, $filenameRed, $diskRed);
-                Log::info('Reporte Urdido guardado en red', ['archivo' => $filenameRed, 'ruta' => $rootPath]);
-            } catch (\Throwable $e) {
-                Log::warning('No se pudo guardar reporte Urdido en ruta de red', [
-                    'archivo' => $filenameRed,
-                    'ruta' => $rootPath,
-                    'error' => $e->getMessage(),
-                    'exception' => get_class($e),
-                ]);
+        // Guardar en ruta de red (igual que DescargarProgramaController: file_put_contents/copy directo a UNC)
+        $rutaRed = env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026');
+        $rutaArchivoRed = rtrim($rutaRed, '\\/') . '\\' . $filenameRed;
+
+        try {
+            // Guardar primero en temporal
+            $tempPath = storage_path('app/' . $filenameRed);
+            Excel::store($export, $filenameRed, 'local');
+            $copiado = @copy($tempPath, $rutaArchivoRed);
+            @unlink($tempPath);
+            if ($copiado) {
+                Log::info('Reporte Urdido guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+            } else {
+                Log::warning('No se pudo copiar reporte Urdido a ruta de red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
             }
-        } else {
-            Log::warning('Reporte Urdido: ruta de red no configurada. Defina REPORTS_URDIDO_PATH en .env o en filesystems.php.');
+        } catch (\Throwable $e) {
+            Log::warning('Error al guardar reporte Urdido en red', [
+                'archivo' => $filenameRed,
+                'ruta' => $rutaArchivoRed,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return Excel::download($export, $filenameDownload);
