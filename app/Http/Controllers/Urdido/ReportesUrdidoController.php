@@ -9,6 +9,7 @@ use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesUrdidoController extends Controller
@@ -245,11 +246,8 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $fechaNombre = !empty($porFecha)
-            ? $this->parseReportDate((string) array_key_last($porFecha))
-            : $fechaFinCarbon;
 
-        $filenameRed = $fechaNombre->format('m') . '-0EE URD-ENG-' . $fechaNombre->format('Y') . '.xlsx';
+        $filenameRed = '03-0EE URD-ENG-' . $fechaFinCarbon->format('Y') . '.xlsx';
         $filenameDownload = 'reporte-urdido-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
 
         $export = new ReportesUrdidoExport($porFecha);
@@ -259,15 +257,20 @@ class ReportesUrdidoController extends Controller
         $rutaArchivoRed = rtrim($rutaRed, '\\/') . '\\' . $filenameRed;
 
         try {
-            // Guardar primero en temporal
-            $tempPath = storage_path('app/' . $filenameRed);
             Excel::store($export, $filenameRed, 'local');
-            $copiado = @copy($tempPath, $rutaArchivoRed);
-            @unlink($tempPath);
-            if ($copiado) {
+            $tempPath = Storage::disk('local')->path($filenameRed);
+            $contenido = file_get_contents($tempPath);
+            Storage::disk('local')->delete($filenameRed);
+            // Mismo método que DescargarProgramaController: file_put_contents directo a UNC
+            $resultado = $contenido !== false && @file_put_contents($rutaArchivoRed, $contenido) !== false;
+            if ($resultado) {
                 Log::info('Reporte Urdido guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
             } else {
-                Log::warning('No se pudo copiar reporte Urdido a ruta de red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+                Log::warning('No se pudo guardar reporte Urdido en ruta de red', [
+                    'archivo' => $filenameRed,
+                    'ruta' => $rutaArchivoRed,
+                    'error' => error_get_last(),
+                ]);
             }
         } catch (\Throwable $e) {
             Log::warning('Error al guardar reporte Urdido en red', [
