@@ -65,11 +65,14 @@ class ReportesUrdidoController extends Controller
         }
 
         $query = UrdProduccionUrdido::query()
-            ->join('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
+            ->leftJoin('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
             ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
 
         if ($soloFinalizados) {
-            $query->where('p.Status', 'Finalizado');
+            $query->where(function ($q) {
+                $q->where('p.Status', 'Finalizado')
+                    ->orWhereNull('p.Id');
+            });
         }
 
         $registros = $query
@@ -96,9 +99,8 @@ class ReportesUrdidoController extends Controller
 
         foreach ($registros as $r) {
             $mc = $this->extractMcCoyNumber($r->MaquinaId);
-            if ($mc === null) continue;
+            $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
-            $label = $this->maquinaLabel($mc);
             if (!isset($porMaquina[$label])) {
                 $porMaquina[$label] = [
                     'label' => $label,
@@ -122,8 +124,8 @@ class ReportesUrdidoController extends Controller
             $totalKg += $kg;
         }
 
-        // Ordenar máquinas: MC1, MC2, MC3, KM
-        $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4];
+        // Ordenar máquinas: MC1, MC2, MC3, KM, Otros
+        $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4, 'Otros' => 5];
         uksort($porMaquina, fn($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
 
         return view('modulos.urdido.reportes-urdido', [
@@ -167,11 +169,14 @@ class ReportesUrdidoController extends Controller
         }
 
         $query = UrdProduccionUrdido::query()
-            ->join('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
+            ->leftJoin('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
             ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
 
         if ($soloFinalizados) {
-            $query->where('p.Status', 'Finalizado');
+            $query->where(function ($q) {
+                $q->where('p.Status', 'Finalizado')
+                    ->orWhereNull('p.Id');
+            });
         }
 
         $registros = $query
@@ -194,11 +199,11 @@ class ReportesUrdidoController extends Controller
             ->orderBy('UrdProduccionUrdido.NoJulio')
             ->get();
 
-        $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4];
+        $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4, 'Otros' => 5];
         $porFecha = [];
         foreach ($registros as $r) {
             $mc = $this->extractMcCoyNumber($r->MaquinaId);
-            if ($mc === null) continue;
+            $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
             $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : '';
             if (!isset($porFecha[$fecha])) {
@@ -208,8 +213,6 @@ class ReportesUrdidoController extends Controller
                     'totalKg' => 0,
                 ];
             }
-
-            $label = $this->maquinaLabel($mc);
             if (!isset($porFecha[$fecha]['porMaquina'][$label])) {
                 $porFecha[$fecha]['porMaquina'][$label] = ['label' => $label, 'filas' => []];
             }

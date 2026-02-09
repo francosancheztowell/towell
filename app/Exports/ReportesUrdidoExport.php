@@ -44,14 +44,26 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
     {
         return [
             AfterSheet::class => function (AfterSheet $event) {
-                $sheet = $event->sheet->getDelegate();
+                $initialSheet = $event->sheet->getDelegate();
+                $book = $initialSheet->getParent();
+                $sheetIndex = $book->getIndex($initialSheet);
+                $sheetTitle = $initialSheet->getTitle();
+
                 $templateSheet = $this->loadTemplateSheet();
+                $templateSheet->setTitle($sheetTitle);
+
+                $book->removeSheetByIndex($sheetIndex);
+                $book->addExternalSheet($templateSheet, $sheetIndex);
+
+                $sheet = $book->getSheet($sheetIndex);
 
                 $rowCursor = 1;
                 $firstBlock = true;
 
                 foreach ($this->porFecha as $fecha => $datos) {
-                    $this->copyTemplateBlock($templateSheet, $sheet, $rowCursor);
+                    if (!$firstBlock) {
+                        $this->copyTemplateBlockWithinSheet($sheet, 1, $rowCursor);
+                    }
                     $this->fillBlockData($sheet, $rowCursor, (string) $fecha, $datos, $firstBlock);
 
                     $rowCursor += self::BLOCK_ROWS + self::SPACER_ROWS;
@@ -80,37 +92,26 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
         throw new RuntimeException('No se encontro la plantilla "formato reportes.xlsx". Colocala en storage/app/templates/.');
     }
 
-    private function copyTemplateBlock(Worksheet $source, Worksheet $target, int $targetStartRow): void
+    private function copyTemplateBlockWithinSheet(Worksheet $sheet, int $sourceStartRow, int $targetStartRow): void
     {
-        $rowOffset = $targetStartRow - 1;
-
-        // Copy column dimensions once.
-        if ($targetStartRow === 1) {
-            for ($col = 1; $col <= self::TEMPLATE_COL_MAX; $col++) {
-                $letter = Coordinate::stringFromColumnIndex($col);
-                $srcDim = $source->getColumnDimension($letter);
-                $dstDim = $target->getColumnDimension($letter);
-                $dstDim->setWidth($srcDim->getWidth());
-                $dstDim->setVisible($srcDim->getVisible());
-                $dstDim->setCollapsed($srcDim->getCollapsed());
-            }
-        }
+        $rowOffset = $targetStartRow - $sourceStartRow;
 
         for ($row = 1; $row <= self::TEMPLATE_ROW_MAX; $row++) {
+            $sourceRow = $sourceStartRow + $row - 1;
             $targetRow = $targetStartRow + $row - 1;
 
-            $srcRowDim = $source->getRowDimension($row);
-            $dstRowDim = $target->getRowDimension($targetRow);
+            $srcRowDim = $sheet->getRowDimension($sourceRow);
+            $dstRowDim = $sheet->getRowDimension($targetRow);
             $dstRowDim->setRowHeight($srcRowDim->getRowHeight());
             $dstRowDim->setVisible($srcRowDim->getVisible());
             $dstRowDim->setCollapsed($srcRowDim->getCollapsed());
 
             for ($col = 1; $col <= self::TEMPLATE_COL_MAX; $col++) {
                 $colLetter = Coordinate::stringFromColumnIndex($col);
-                $srcCoord = $colLetter . $row;
+                $srcCoord = $colLetter . $sourceRow;
                 $dstCoord = $colLetter . $targetRow;
 
-                $value = $source->getCell($srcCoord)->getValue();
+                $value = $sheet->getCell($srcCoord)->getValue();
                 if (is_string($value) && str_starts_with($value, '=')) {
                     $value = ReferenceHelper::getInstance()->updateFormulaReferences(
                         $value,
@@ -122,19 +123,23 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
                     );
                 }
 
-                $target->setCellValue($dstCoord, $value);
-                $target->duplicateStyle($source->getStyle($srcCoord), $dstCoord);
+                $sheet->setCellValue($dstCoord, $value);
+                $sheet->duplicateStyle($sheet->getStyle($srcCoord), $dstCoord);
             }
         }
 
-        foreach ($source->getMergeCells() as $range) {
+        foreach ($sheet->getMergeCells() as $range) {
             [$start, $end] = Coordinate::rangeBoundaries($range);
+            if ($start[1] < $sourceStartRow || $end[1] > ($sourceStartRow + self::TEMPLATE_ROW_MAX - 1)) {
+                continue;
+            }
+
             $startCol = Coordinate::stringFromColumnIndex($start[0]);
             $endCol = Coordinate::stringFromColumnIndex($end[0]);
             $startRow = $start[1] + $rowOffset;
             $endRow = $end[1] + $rowOffset;
 
-            $target->mergeCells("{$startCol}{$startRow}:{$endCol}{$endRow}");
+            $sheet->mergeCells("{$startCol}{$startRow}:{$endCol}{$endRow}");
         }
     }
 
