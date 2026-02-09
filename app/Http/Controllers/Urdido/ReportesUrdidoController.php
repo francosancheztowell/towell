@@ -256,12 +256,21 @@ class ReportesUrdidoController extends Controller
 
         // Guardar en ruta de red (EFIC-CA UR-ENG 2026)
         $diskRed = 'reports_urdido';
-        if (config("filesystems.disks.{$diskRed}.root")) {
+        $rootPath = config("filesystems.disks.{$diskRed}.root");
+        if ($rootPath) {
             try {
                 Excel::store($export, $filenameRed, $diskRed);
+                Log::info('Reporte Urdido guardado en red', ['archivo' => $filenameRed, 'ruta' => $rootPath]);
             } catch (\Throwable $e) {
-                Log::warning('No se pudo guardar reporte Urdido en ruta de red: ' . $e->getMessage());
+                Log::warning('No se pudo guardar reporte Urdido en ruta de red', [
+                    'archivo' => $filenameRed,
+                    'ruta' => $rootPath,
+                    'error' => $e->getMessage(),
+                    'exception' => get_class($e),
+                ]);
             }
+        } else {
+            Log::warning('Reporte Urdido: ruta de red no configurada. Defina REPORTS_URDIDO_PATH en .env o en filesystems.php.');
         }
 
         return Excel::download($export, $filenameDownload);
