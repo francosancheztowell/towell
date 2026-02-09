@@ -6,19 +6,19 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 class ProgramaAtadoresExport implements WithMultipleSheets
 {
-    protected string $fecha;
+    protected string $fechaInicio;
+    protected string $fechaFin;
 
-    public function __construct(string $fecha)
+    public function __construct(string $fechaInicio, string $fechaFin)
     {
-        $this->fecha = $fecha;
+        $this->fechaInicio = $fechaInicio;
+        $this->fechaFin = $fechaFin;
     }
 
     public function sheets(): array
     {
         return [
-            'Telas' => new AtaMontadoTelasSheet($this->fecha),
-            'Maquinas' => new AtaMontadoMaquinasSheet($this->fecha),
-            'Actividades' => new AtaMontadoActividadesSheet($this->fecha),
+            'Atadores' => new AtaMontadoTelasSheet($this->fechaInicio, $this->fechaFin),
         ];
     }
 }
