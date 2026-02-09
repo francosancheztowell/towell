@@ -15,14 +15,25 @@
             hoverBg="hover:bg-green-600"
             class="text-white"
             bg="bg-green-600" />
-        <x-navbar.button-create
-        id="btnIniciarAtado"
-        onclick="iniciarAtado()"
-        disabled
-        module="Programa Atadores"
-        title="Iniciar Atado"
-        text="Iniciar Atado"
-        />
+
+            <x-navbar.button-create
+            id="btnIniciarAtado"
+            onclick="iniciarAtado()"
+            disabled
+            module="Programa Atadores"
+            title="Iniciar Atado"
+            text="Iniciar Atado"
+            />
+
+            <x-navbar.button-report
+            id="btn-finalizar"
+            title="Finalizar"
+            icon="fa-check"
+            iconColor="text-orange-600"
+            hoverBg="hover:bg-orange-100"
+            class="text-sm"
+            module="Cortes de Eficiencia"
+            />
     </div>
 @endsection
 
