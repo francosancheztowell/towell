@@ -21,9 +21,32 @@ class ReportesEngomadoController extends Controller
     }
 
     /**
-     * Vista de reportes de engomado por máquina (ORDEN, JULIO, P. NETO, METROS, Operador)
+     * Selector de reportes: lista los reportes disponibles
      */
-    public function index(Request $request)
+    public function index()
+    {
+        $reportes = [
+            [
+                'nombre' => 'Reportes de Producción Engomado',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('engomado.reportes.engomado.produccion'),
+                'disponible' => true,
+            ],
+            [
+                'nombre' => 'Kaizen urd-eng (AX ENGOMADO / AX URDIDO)',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('urdido.reportes.urdido.kaizen'),
+                'disponible' => true,
+            ],
+        ];
+
+        return view('modulos.engomado.reportes-engomado-index', ['reportes' => $reportes]);
+    }
+
+    /**
+     * Reporte de producción engomado por máquina (ORDEN, JULIO, P. NETO, METROS, Operador)
+     */
+    public function reporteProduccion(Request $request)
     {
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
@@ -127,7 +150,7 @@ class ReportesEngomadoController extends Controller
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
         if (!$fechaIni || !$fechaFin) {
-            return redirect()->route('engomado.reportes.engomado')
+            return redirect()->route('engomado.reportes.engomado.produccion')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
 

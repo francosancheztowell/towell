@@ -389,9 +389,32 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $filename = 'kaizen-urd-eng-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $filenameRed = 'Kaizen urd-eng ' . $fechaFinCarbon->format('Y') . '.xlsx';
+        $filenameDownload = 'kaizen-urd-eng-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
 
-        return Excel::download(new KaizenExport($filasEngomado, $filasUrdido), $filename);
+        $export = new KaizenExport($filasEngomado, $filasUrdido);
+
+        $rutaRed = env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026');
+        $sep = (PHP_OS_FAMILY === 'Windows') ? '\\' : '/';
+        $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep) . $sep . $filenameRed;
+
+        try {
+            Excel::store($export, $filenameRed, 'local');
+            $tempPath = Storage::disk('local')->path($filenameRed);
+            $contenido = file_get_contents($tempPath);
+            Storage::disk('local')->delete($filenameRed);
+
+            $bytes = $contenido !== false ? file_put_contents($rutaArchivoRed, $contenido) : false;
+            if ($bytes !== false) {
+                Log::info('Reporte Kaizen guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+            } else {
+                Log::warning('No se pudo guardar reporte Kaizen en ruta de red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Error al guardar reporte Kaizen en red', ['ruta' => $rutaArchivoRed, 'error' => $e->getMessage()]);
+        }
+
+        return Excel::download($export, $filenameDownload);
     }
 
     /**

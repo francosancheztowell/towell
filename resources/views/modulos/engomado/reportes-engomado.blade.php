@@ -131,9 +131,15 @@
         }).then((result) => {
             if (result.isConfirmed && result.value) {
                 const params = new URLSearchParams(result.value);
-                window.location.href = '{{ route("engomado.reportes.engomado") }}?' + params.toString();
+                window.location.href = '{{ route("engomado.reportes.engomado.produccion") }}?' + params.toString();
             }
         });
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        @if (empty($fechaIni) || empty($fechaFin))
+        mostrarModalConsultarReportesEngomado();
+        @endif
+    });
 </script>
 @endpush
