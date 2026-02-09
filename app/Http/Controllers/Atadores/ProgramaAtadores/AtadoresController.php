@@ -213,6 +213,26 @@ class AtadoresController extends Controller
         });
     }
 
+    /**
+     * Exporta a Excel los registros de atadores para una fecha específica.
+     */
+    public function exportarExcel(Request $request)
+    {
+        $fecha = $request->input('fecha');
+
+        if (!$fecha) {
+            return redirect()->back()->with('error', 'Debe seleccionar una fecha para exportar.');
+        }
+
+        $fechaFormateada = Carbon::parse($fecha)->format('Y-m-d');
+        $nombreArchivo = 'atadores_' . Carbon::parse($fecha)->format('d-m-Y') . '.xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ProgramaAtadoresExport($fechaFormateada),
+            $nombreArchivo
+        );
+    }
+
     public function iniciarAtado(Request $request)
     {
         $noJulioRequest = $request->input('no_julio');
