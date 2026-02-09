@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Atadores\AtaMontadoTelasModel;
@@ -214,21 +215,28 @@ class AtadoresController extends Controller
     }
 
     /**
-     * Exporta a Excel los registros de atadores para una fecha específica.
+     * Exporta a Excel los registros de atadores para un rango de fechas.
      */
     public function exportarExcel(Request $request)
     {
-        $fecha = $request->input('fecha');
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
 
-        if (!$fecha) {
-            return redirect()->back()->with('error', 'Debe seleccionar una fecha para exportar.');
+        if (!$fechaInicio || !$fechaFin) {
+            return redirect()->back()->with('error', 'Debe seleccionar fecha inicio y fecha fin para exportar.');
         }
 
-        $fechaFormateada = Carbon::parse($fecha)->format('Y-m-d');
-        $nombreArchivo = 'atadores_' . Carbon::parse($fecha)->format('d-m-Y') . '.xlsx';
+        $fechaInicioFormateada = Carbon::parse($fechaInicio)->format('Y-m-d');
+        $fechaFinFormateada = Carbon::parse($fechaFin)->format('Y-m-d');
+
+        if ($fechaInicioFormateada > $fechaFinFormateada) {
+            return redirect()->back()->with('error', 'La fecha inicio no puede ser mayor que la fecha fin.');
+        }
+
+        $nombreArchivo = 'atadores_' . Carbon::parse($fechaInicioFormateada)->format('d-m-Y') . '_a_' . Carbon::parse($fechaFinFormateada)->format('d-m-Y') . '.xlsx';
 
         return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\ProgramaAtadoresExport($fechaFormateada),
+            new \App\Exports\ProgramaAtadoresExport($fechaInicioFormateada, $fechaFinFormateada),
             $nombreArchivo
         );
     }
@@ -334,7 +342,9 @@ class AtadoresController extends Controller
                 'NoJulio' => $item->no_julio,
                 'NoProduccion' => $item->no_orden,
                 'MaquinaId' => $maquina->MaquinaId,
-                'Estado' => 0 // Por defecto inactivo
+                'Estado' => 0, // Por defecto inactivo
+                'NomEmpleado' => null,
+                'NomEmpl' => null,
             ]);
         }
 
@@ -412,6 +422,33 @@ class AtadoresController extends Controller
                 ->where('NoProduccion', $actual->NoProduccion)
                 ->get()
                 ->keyBy('ActividadId');
+
+            // Asegurar que existan filas base de actividades para el folio actual.
+            // Esto evita que el guardado falle cuando por datos históricos no se generaron al iniciar.
+            $faltantes = $actividadesCatalogo->filter(function ($act) use ($actividadesMontado) {
+                return !$actividadesMontado->has((string) $act->ActividadId);
+            });
+
+            if ($faltantes->isNotEmpty()) {
+                foreach ($faltantes as $act) {
+                    AtaMontadoActividadesModel::create([
+                        'NoJulio' => $actual->NoJulio,
+                        'NoProduccion' => $actual->NoProduccion,
+                        'ActividadId' => $act->ActividadId,
+                        'Porcentaje' => $act->Porcentaje,
+                        'Estado' => 0,
+                        'CveEmpl' => null,
+                        'NomEmpl' => null,
+                        'Turno' => $actual->Turno,
+                    ]);
+                }
+
+                // Recargar actividades del folio ya con faltantes creadas
+                $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
+                    ->where('NoProduccion', $actual->NoProduccion)
+                    ->get()
+                    ->keyBy('ActividadId');
+            }
         }
 
         // Catálogo de notas/comentarios (para mostrar al final)
@@ -585,7 +622,9 @@ class AtadoresController extends Controller
                             'NoJulio' => $montado->NoJulio,
                             'NoProduccion' => $montado->NoProduccion,
                             'MaquinaId' => $maq->MaquinaId,
-                            'Estado' => 0 // Por defecto inactivo
+                            'Estado' => 0, // Por defecto inactivo
+                            'NomEmpleado' => null,
+                            'NomEmpl' => null,
                         ]);
                     }
                 }
@@ -745,6 +784,21 @@ class AtadoresController extends Controller
                 'estado' => ['required','boolean']
             ]);
 
+            $estado = $data['estado'] ? 1 : 0;
+            $updateData = ['Estado' => $estado];
+
+            $schema = Schema::connection('sqlsrv');
+            if ($schema->hasColumn('AtaMontadoMaquinas', 'CveEmpl')) {
+                $updateData['CveEmpl'] = $estado ? $user->numero_empleado : null;
+            }
+            if ($schema->hasColumn('AtaMontadoMaquinas', 'NomEmpleado')) {
+                $updateData['NomEmpleado'] = $estado ? $user->nombre : null;
+            }
+            // Compatibilidad con esquemas anteriores
+            if ($schema->hasColumn('AtaMontadoMaquinas', 'NomEmpl')) {
+                $updateData['NomEmpl'] = $estado ? $user->nombre : null;
+            }
+
             // Evitar errores por PK inexistente usando query builder
             DB::connection('sqlsrv')
                 ->table('AtaMontadoMaquinas')
@@ -754,12 +808,19 @@ class AtadoresController extends Controller
                         'NoProduccion' => $montado->NoProduccion,
                         'MaquinaId' => $data['maquinaId'],
                     ],
-                    [
-                        'Estado' => $data['estado'] ? 1 : 0,
-                    ]
+                    $updateData
                 );
 
-            return response()->json(['ok' => true, 'message' => 'Estado de máquina actualizado']);
+            $operador = $estado ? trim(($user->numero_empleado ?? '') . ' - ' . ($user->nombre ?? '')) : '-';
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'Estado de máquina actualizado',
+                'operador' => $operador,
+                'cveEmpl' => $estado ? $user->numero_empleado : null,
+                'nomEmpl' => $estado ? $user->nombre : null,
+                'nomEmpleado' => $estado ? $user->nombre : null
+            ]);
         }
 
         if ($action === 'terminar') {
@@ -829,12 +890,21 @@ class AtadoresController extends Controller
                 $updateData['NomEmpl'] = null;
             }
 
+            // Si no existe fila previa para este folio+actividad, crearla.
+            $actividadCatalogo = AtaActividadesModel::where('ActividadId', $actividadId)->first();
+            $updateData['Porcentaje'] = $actividadCatalogo?->Porcentaje ?? 0;
+            $updateData['Turno'] = $montado->Turno;
+
             DB::connection('sqlsrv')
                 ->table('AtaMontadoActividades')
-                ->where('NoJulio', $montado->NoJulio)
-                ->where('NoProduccion', $montado->NoProduccion)
-                ->where('ActividadId', $actividadId)
-                ->update($updateData);
+                ->updateOrInsert(
+                    [
+                        'NoJulio' => $montado->NoJulio,
+                        'NoProduccion' => $montado->NoProduccion,
+                        'ActividadId' => $actividadId,
+                    ],
+                    $updateData
+                );
 
             // Devolver el operador actualizado para reflejar en la UI
             $operador = $estado ? trim(($user->numero_empleado ?? '') . ' - ' . ($user->nombre ?? '')) : '-';

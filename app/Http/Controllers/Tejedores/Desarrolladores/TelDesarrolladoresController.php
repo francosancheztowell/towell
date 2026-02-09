@@ -54,6 +54,26 @@ class TelDesarrolladoresController extends Controller
         ));
     }
 
+    /**
+     * Exporta a Excel los registros de desarrolladores para una fecha específica.
+     */
+    public function exportarExcel(Request $request)
+    {
+        $fecha = $request->input('fecha');
+
+        if (!$fecha) {
+            return redirect()->back()->with('error', 'Debe seleccionar una fecha para exportar.');
+        }
+
+        $fechaFormateada = Carbon::parse($fecha)->format('Y-m-d');
+        $nombreArchivo = 'desarrolladores_' . Carbon::parse($fecha)->format('d-m-Y') . '.xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\DesarrolladoresExport($fechaFormateada),
+            $nombreArchivo
+        );
+    }
+
     protected function obtenerTelares()
     {
         return TelTelaresOperador::select('NoTelarId')
@@ -82,7 +102,7 @@ class TelDesarrolladoresController extends Controller
     public function obtenerProducciones($telarId)
     {
         try {
-            $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
+            $producciones = ReqProgramaTejido::where('NoTelarId', $telarId) 
                 ->where(function ($query) {
                     $query->whereNull('EnProceso')
                         ->orWhere('EnProceso', 0);

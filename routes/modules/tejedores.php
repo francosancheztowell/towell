@@ -120,6 +120,7 @@ Route::get('/desarrolladores/telar/{telarId}/produccion/{noProduccion}', [TelDes
 Route::get('/desarrolladores/orden/{noProduccion}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrden'])->name('desarrolladores.obtener-detalles-orden');
 Route::get('/desarrolladores/modelo-codificado/{salonTejidoId}/{tamanoClave}', [TelDesarrolladoresController::class, 'obtenerCodigoDibujo'])->name('desarrolladores.obtener-codigo-dibujo');
 Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
+Route::post('/desarrolladores/exportar-excel', [TelDesarrolladoresController::class, 'exportarExcel'])->name('desarrolladores.exportar.excel');
 
 Route::get('catalogo-desarrolladores', [catDesarrolladoresController::class, 'index'])->name('desarrolladores.catalogo-desarrolladores');
 Route::post('catalogo-desarrolladores', [catDesarrolladoresController::class, 'store'])->name('cat-desarrolladores.store');

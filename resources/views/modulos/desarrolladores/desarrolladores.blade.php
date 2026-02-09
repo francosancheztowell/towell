@@ -2,6 +2,23 @@
 
 @section('page-title', 'Desarrolladores')
 
+@section('navbar-right')
+    <div class="flex items-center gap-2">
+        <x-navbar.button-report
+            id="btn-reporte-excel"
+            title="Exportar a Excel"
+            icon="fa-file-excel"
+            iconColor="text-white"
+            bg="bg-green-500"
+            hoverBg="hover:bg-green-700"
+            module="Desarrolladores"
+            text="Reporte"
+            class="text-white"
+            onclick="abrirModalReporte()"
+        />
+    </div>
+@endsection
+
 @section('content')
     <div class="flex w-full flex-col px-4 py-4 md:px-6 lg:px-6">
         <div class="bg-white flex flex-col rounded-md max-w-full p-6">
@@ -267,10 +284,94 @@
         </div>
     </div>
 
+    {{-- Modal Reporte por Fecha --}}
+    <div id="modalReporteFecha" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white max-w-md w-full rounded-xl shadow-xl m-4">
+            <div class="px-4 py-3 border-b flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fa-solid fa-file-excel text-green-600 mr-2"></i>
+                    Exportar Reporte a Excel
+                </h3>
+                <button type="button" onclick="cerrarModalReporte()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="p-4">
+                <label for="input-fecha-reporte" class="block text-sm font-medium text-gray-700 mb-1">Selecciona la fecha</label>
+                <input
+                    type="date"
+                    id="input-fecha-reporte"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    value="{{ now()->format('Y-m-d') }}"
+                />
+                <p class="text-xs text-gray-500 mt-2">Se exportarán los registros de desarrolladores correspondientes a la fecha seleccionada.</p>
+            </div>
+            <div class="px-4 py-3 border-t flex justify-end gap-2">
+                <button type="button" onclick="cerrarModalReporte()" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button type="button" onclick="exportarReporteExcel()" class="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i>
+                    Descargar Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @push('scripts')
 <script>
+    // Funciones para el modal de Reporte Excel
+    function abrirModalReporte() {
+        const modal = document.getElementById('modalReporteFecha');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    }
+
+    function cerrarModalReporte() {
+        const modal = document.getElementById('modalReporteFecha');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    function exportarReporteExcel() {
+        const fechaInput = document.getElementById('input-fecha-reporte');
+        if (!fechaInput || !fechaInput.value) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atención',
+                text: 'Debes seleccionar una fecha para exportar el reporte.'
+            });
+            return;
+        }
+
+        const fecha = fechaInput.value;
+
+        // Crear formulario para POST y descargar el archivo
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("desarrolladores.exportar.excel") }}';
+
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = '_token';
+        tokenInput.value = '{{ csrf_token() }}';
+
+        const fechaFormInput = document.createElement('input');
+        fechaFormInput.type = 'hidden';
+        fechaFormInput.name = 'fecha';
+        fechaFormInput.value = fecha;
+
+        form.appendChild(tokenInput);
+        form.appendChild(fechaFormInput);
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        cerrarModalReporte();
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const selectTelar = document.getElementById('telarOperador');
         const tablaProducciones = document.getElementById('tablaProducciones');
