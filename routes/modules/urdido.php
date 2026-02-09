@@ -22,6 +22,7 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::get('/reportesurdido', [ReportesUrdidoController::class, 'index'])->name('reportes.urdido');
     Route::get('/reportesurdido/03-oee-urd-eng', [ReportesUrdidoController::class, 'reporte03Oee'])->name('reportes.urdido.03-oee');
     Route::get('/reportesurdido/kaizen', [ReportesUrdidoController::class, 'reporteKaizen'])->name('reportes.urdido.kaizen');
+    Route::get('/reportesurdido/kaizen/excel', [ReportesUrdidoController::class, 'exportarKaizenExcel'])->name('reportes.urdido.kaizen.excel');
     Route::get('/reportesurdido/roturas-millon', [ReportesUrdidoController::class, 'reporteRoturas'])->name('reportes.urdido.roturas');
     Route::get('/reportesurdido/exportar-excel', [ReportesUrdidoController::class, 'exportarExcel'])->name('reportes.urdido.excel');
 

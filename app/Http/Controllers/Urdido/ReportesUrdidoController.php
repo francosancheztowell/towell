@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Urdido;
 
 use App\Http\Controllers\Controller;
+use App\Exports\KaizenExport;
 use App\Exports\ReportesUrdidoExport;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
@@ -75,7 +76,7 @@ class ReportesUrdidoController extends Controller
                 'nombre' => 'Kaizen urd-eng',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('urdido.reportes.urdido.kaizen'),
-                'disponible' => false,
+                'disponible' => true,
             ],
             [
                 'nombre' => 'ROTURAS X MILLÓN',
@@ -200,14 +201,197 @@ class ReportesUrdidoController extends Controller
     }
 
     /**
-     * Reporte 2: Kaizen urd-eng (en desarrollo)
+     * Reporte 2: Kaizen urd-eng - AX ENGOMADO y AX URDIDO
      */
-    public function reporteKaizen()
+    public function reporteKaizen(Request $request)
     {
-        return view('modulos.urdido.reportes-urdido-placeholder', [
-            'titulo' => 'Kaizen urd-eng',
-            'mensaje' => 'Este reporte está en desarrollo. Próximamente podrá consultar por rango de fechas.',
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+        $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
+
+        if (!$fechaIni || !$fechaFin) {
+            return view('modulos.urdido.reportes-kaizen', [
+                'filasEngomado' => [],
+                'filasUrdido' => [],
+                'fechaIni' => $fechaIni ?? '',
+                'fechaFin' => $fechaFin ?? '',
+                'soloFinalizados' => $soloFinalizados,
+            ]);
+        }
+
+        [$filasEngomado, $filasUrdido] = $this->obtenerDatosKaizen($fechaIni, $fechaFin, $soloFinalizados);
+
+        return view('modulos.urdido.reportes-kaizen', [
+            'filasEngomado' => $filasEngomado,
+            'filasUrdido' => $filasUrdido,
+            'fechaIni' => $fechaIni,
+            'fechaFin' => $fechaFin,
+            'soloFinalizados' => $soloFinalizados,
         ]);
+    }
+
+    /**
+     * Obtener datos para reporte Kaizen (AX ENGOMADO y AX URDIDO).
+     */
+    private function obtenerDatosKaizen(string $fechaIni, string $fechaFin, bool $soloFinalizados): array
+    {
+        $meses = [
+            1 => 'ENERO', 2 => 'FEBRERO', 3 => 'MARZO', 4 => 'ABRIL', 5 => 'MAYO', 6 => 'JUNIO',
+            7 => 'JULIO', 8 => 'AGOSTO', 9 => 'SEPTIEMBRE', 10 => 'OCTUBRE', 11 => 'NOVIEMBRE', 12 => 'DICIEMBRE',
+        ];
+
+        $queryEng = EngProduccionEngomado::query()
+            ->join('EngProgramaEngomado as p', 'EngProduccionEngomado.Folio', '=', 'p.Folio')
+            ->whereBetween('EngProduccionEngomado.Fecha', [$fechaIni, $fechaFin]);
+
+        if ($soloFinalizados) {
+            $queryEng->where('p.Status', 'Finalizado');
+        }
+
+        $registrosEng = $queryEng
+            ->select([
+                'EngProduccionEngomado.Id',
+                'EngProduccionEngomado.Folio',
+                'EngProduccionEngomado.Fecha',
+                'EngProduccionEngomado.NoJulio',
+                'EngProduccionEngomado.KgNeto',
+                'EngProduccionEngomado.Metros1',
+                'EngProduccionEngomado.Metros2',
+                'EngProduccionEngomado.Metros3',
+                'p.Calibre',
+                'p.Cuenta',
+                'p.TipoAtado',
+                'p.MaquinaEng',
+            ])
+            ->orderBy('EngProduccionEngomado.Fecha')
+            ->orderBy('EngProduccionEngomado.Folio')
+            ->orderBy('EngProduccionEngomado.NoJulio')
+            ->get();
+
+        $filasEngomado = [];
+        $vistosEng = [];
+        foreach ($registrosEng as $r) {
+            if (isset($vistosEng[$r->Id])) continue;
+            $vistosEng[$r->Id] = true;
+
+            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
+            if ($metros <= 0) continue;
+
+            $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : null;
+            $carbon = $fecha ? Carbon::parse($fecha) : Carbon::now();
+            $wp = $this->extractEngomadoWP($r->MaquinaEng);
+            if ($wp === null) $wp = 'WP2';
+
+            $calibre = $r->Calibre ?? $r->Cuenta ?? '';
+            if (is_numeric($calibre) && (float)$calibre > 0) {
+                $calibre = 'S-' . (string)(int)$calibre;
+            }
+
+            $filasEngomado[] = [
+                'fecha_mod' => $carbon->format('d/m/Y'),
+                'anio' => (int) $carbon->format('Y'),
+                'mes' => $meses[(int)$carbon->format('n')] ?? '',
+                'codigo' => 'JU-ENG-RI-C',
+                'localidad' => $wp,
+                'estado' => 'Terminado',
+                'lote' => $r->Folio,
+                'calibre' => $calibre,
+                'cantidad' => round((float)($r->KgNeto ?? 0), 2),
+                'configuracion' => $r->TipoAtado ?? 'Alg-Open',
+                'tamano' => $r->NoJulio ?? '',
+                'mts' => (int) round($metros),
+            ];
+        }
+
+        $queryUrd = UrdProduccionUrdido::query()
+            ->leftJoin('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
+            ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
+
+        if ($soloFinalizados) {
+            $queryUrd->where(function ($q) {
+                $q->where('p.Status', 'Finalizado')->orWhereNull('p.Id');
+            });
+        }
+
+        $registrosUrd = $queryUrd
+            ->select([
+                'UrdProduccionUrdido.Id',
+                'UrdProduccionUrdido.Folio',
+                'UrdProduccionUrdido.Fecha',
+                'UrdProduccionUrdido.NoJulio',
+                'UrdProduccionUrdido.KgNeto',
+                'UrdProduccionUrdido.Metros1',
+                'UrdProduccionUrdido.Metros2',
+                'UrdProduccionUrdido.Metros3',
+                'p.Calibre',
+                'p.Cuenta',
+                'p.TipoAtado',
+                'p.MaquinaId',
+            ])
+            ->orderBy('UrdProduccionUrdido.Fecha')
+            ->orderBy('UrdProduccionUrdido.Folio')
+            ->orderBy('UrdProduccionUrdido.NoJulio')
+            ->get();
+
+        $filasUrdido = [];
+        $vistosUrd = [];
+        foreach ($registrosUrd as $r) {
+            if (isset($vistosUrd[$r->Id])) continue;
+            $vistosUrd[$r->Id] = true;
+
+            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
+            if ($metros <= 0) continue;
+
+            $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : null;
+            $carbon = $fecha ? Carbon::parse($fecha) : Carbon::now();
+            $mc = $this->extractMcCoyNumber($r->MaquinaId);
+            $localidad = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
+
+            $calibre = $r->Calibre ?? $r->Cuenta ?? '';
+            if (is_string($calibre) && $calibre !== '' && !str_contains($calibre, '/')) {
+                $calibre = (string) $calibre;
+            }
+
+            $filasUrdido[] = [
+                'fecha_mod' => $carbon->format('d/m/Y'),
+                'anio' => (int) $carbon->format('Y'),
+                'mes' => $meses[(int)$carbon->format('n')] ?? '',
+                'codigo' => 'JULIO-URDIDO',
+                'localidad' => $localidad,
+                'estado' => 'Terminado',
+                'lote' => $r->Folio,
+                'calibre' => $calibre,
+                'cantidad' => round((float)($r->KgNeto ?? 0), 2),
+                'configuracion' => $r->TipoAtado ?? 'Alg-Anillo',
+                'tamano' => $r->NoJulio ?? '',
+                'mts' => (int) round($metros),
+            ];
+        }
+
+        return [$filasEngomado, $filasUrdido];
+    }
+
+    /**
+     * Exportar Excel Kaizen (AX ENGOMADO + AX URDIDO)
+     */
+    public function exportarKaizenExcel(Request $request)
+    {
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+        $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
+
+        if (!$fechaIni || !$fechaFin) {
+            return redirect()->route('urdido.reportes.urdido.kaizen')
+                ->with('error', 'Seleccione un rango de fechas para exportar.');
+        }
+
+        [$filasEngomado, $filasUrdido] = $this->obtenerDatosKaizen($fechaIni, $fechaFin, $soloFinalizados);
+
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $filename = 'kaizen-urd-eng-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+
+        return Excel::download(new KaizenExport($filasEngomado, $filasUrdido), $filename);
     }
 
     /**
