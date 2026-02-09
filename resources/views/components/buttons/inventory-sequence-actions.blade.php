@@ -36,7 +36,7 @@
 
 <div class="flex items-center gap-1">
     {{-- Botón Crear --}}
-    <button id="btn-agregar"
+    <button type="button" id="btn-agregar"
         @if($puedeCrear)
             onclick="{{ $onCreate }}()"
             class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
@@ -50,7 +50,7 @@
     </button>
 
     {{-- Botón Editar --}}
-    <button id="btn-editar"
+    <button type="button" id="btn-editar"
         @if($puedeEditar)
             onclick="{{ $onEdit }}()"
         @endif
@@ -66,7 +66,7 @@
     </button>
 
     {{-- Botón Eliminar --}}
-    <button id="btn-eliminar"
+    <button type="button" id="btn-eliminar"
         @if($puedeEliminar)
             onclick="{{ $onDelete }}()"
         @endif
@@ -81,4 +81,3 @@
         <i class="fas fa-trash text-lg"></i>
     </button>
 </div>
-

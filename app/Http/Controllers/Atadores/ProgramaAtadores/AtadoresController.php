@@ -143,9 +143,12 @@ class AtadoresController extends Controller
                     $query->whereRaw('0 = 1');
                 }
             }
-            // Supervisor: solo Calificados (no Autorizado)
+            // Supervisor: Calificados, Activos y En Proceso por defecto
             elseif ($esSupervisor) {
-                $query->where('AtaMontadoTelas.Estatus', 'Calificado');
+                $query->where(function ($q) {
+                    $q->whereNull('AtaMontadoTelas.Estatus')
+                      ->orWhereIn('AtaMontadoTelas.Estatus', ['En Proceso', 'Calificado']);
+                });
             }
             // Si no es ninguno de los roles anteriores, no mostrar registros
             else {
@@ -160,7 +163,7 @@ class AtadoresController extends Controller
         $vista = $request->get('vista'); // filtros cliente separados por coma cuando filtro=todos
         $filtroGlobalActivo = $filtroPersonalizado !== null; // true = se usó el botón filtrar, backend devolvió todos
 
-        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor', 'vista', 'filtroGlobalActivo'));
+        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor', 'esSupervisor', 'vista', 'filtroGlobalActivo'));
     }
 
     /**

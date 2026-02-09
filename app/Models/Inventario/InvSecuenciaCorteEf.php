@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class InvSecuenciaCorteEf extends Model
 {
-    protected $table = 'InvSecuenciaCorteEf';
+    protected $connection = 'sqlsrv';
+    protected $table = 'dbo.InvSecuenciaCorteEf';
     protected $primaryKey = 'NoTelarId';
     public $incrementing = false;
     public $timestamps = false;
@@ -21,6 +22,4 @@ class InvSecuenciaCorteEf extends Model
         'NoTelarId' => 'integer',
         'Orden' => 'integer',
     ];
-
-
 }

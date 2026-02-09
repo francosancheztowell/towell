@@ -137,12 +137,18 @@ Route::post('/modulo-marcas/reporte/descargar-pdf', [MarcasController::class, 'd
 Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
     ->where('folio', '^(?!reporte$).+')
     ->name('marcas.show');
+Route::put('/modulo-marcas/{folio}/actualizar-registro', [MarcasController::class, 'actualizarRegistro'])
+    ->where('folio', '^(?!reporte$).+')
+    ->name('marcas.actualizar.registro');
 Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])
     ->where('folio', '^(?!reporte$).+')
     ->name('marcas.update');
 Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])
     ->where('folio', '^(?!reporte$).+')
     ->name('marcas.finalizar');
+Route::post('/modulo-marcas/{folio}/reabrir', [MarcasController::class, 'reabrirFolio'])
+    ->where('folio', '^(?!reporte$).+')
+    ->name('marcas.reabrir');
 
 Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');
 Route::get('/modulo-cortes-de-eficiencia/consultar', [CortesEficienciaController::class, 'consultar'])->name('cortes.eficiencia.consultar');
@@ -155,6 +161,7 @@ Route::post('/modulo-cortes-de-eficiencia/guardar-hora', [CortesEficienciaContro
 Route::post('/modulo-cortes-de-eficiencia/guardar-tabla', [CortesEficienciaController::class, 'guardarTabla'])->name('cortes.eficiencia.guardar.tabla');
 Route::post('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'store'])->name('cortes.eficiencia.store');
 Route::get('/modulo-cortes-de-eficiencia/{id}/pdf', [CortesEficienciaController::class, 'pdf'])->name('cortes.eficiencia.pdf');
+Route::put('/modulo-cortes-de-eficiencia/{id}/actualizar-registro', [CortesEficienciaController::class, 'actualizarRegistro'])->name('cortes.eficiencia.actualizar.registro');
 Route::get('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'show'])->name('cortes.eficiencia.show');
 Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
 Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])->name('cortes.eficiencia.finalizar');

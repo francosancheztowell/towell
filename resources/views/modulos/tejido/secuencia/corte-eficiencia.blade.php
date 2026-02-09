@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('page-title', 'Secuencia Corte Eficiencia')
+@section('page-title', 'Secuencia Corte de Eficiencia')
 
 @section('navbar-right')
     <x-buttons.inventory-sequence-actions
-        modulo="Secuencia Corte Eficiencia"
+        modulo="Secuencia Corte de Eficiencia"
         onCreate="agregarSecuenciaCorteEficiencia"
         onEdit="editarSecuenciaCorteEficiencia"
         onDelete="eliminarSecuenciaCorteEficiencia"
@@ -90,6 +90,8 @@
 =========================== */
 let selectedRow = null;
 let selectedId = null;
+const updateUrlTemplate = @json(route('tejido.secuencia-corte-eficiencia.update', ['id' => '__ID__']));
+const deleteUrlTemplate = @json(route('tejido.secuencia-corte-eficiencia.destroy', ['id' => '__ID__']));
 
 /* ===========================
    Helpers UI
@@ -234,7 +236,7 @@ function agregarSecuenciaCorteEficiencia() {
    Editar
 =========================== */
 function editarSecuenciaCorteEficiencia() {
-    if (!selectedRow || !selectedId) {
+    if (!selectedRow || selectedId === null) {
         Swal.fire({ title:'Error', text:'Por favor selecciona un registro para editar', icon:'warning' });
         return;
     }
@@ -299,7 +301,8 @@ function editarSecuenciaCorteEficiencia() {
         if (!res.isConfirmed) return;
         Swal.fire({ title:'Actualizando...', allowOutsideClick:false, showConfirmButton:false, didOpen: () => Swal.showLoading() });
 
-        fetch(`{{ route("tejido.secuencia-corte-eficiencia.update", ["id" => ":id"]) }}`.replace(':id', selectedId), {
+        const updateUrl = updateUrlTemplate.replace('__ID__', encodeURIComponent(String(selectedId)));
+        fetch(updateUrl, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -325,7 +328,7 @@ function editarSecuenciaCorteEficiencia() {
    Eliminar
 =========================== */
 function eliminarSecuenciaCorteEficiencia() {
-    if (!selectedRow || !selectedId) {
+    if (!selectedRow || selectedId === null) {
         Swal.fire({ title:'Error', text:'Selecciona un registro para eliminar', icon:'warning' });
         return;
     }
@@ -347,7 +350,8 @@ function eliminarSecuenciaCorteEficiencia() {
 
         Swal.fire({ title:'Eliminando...', allowOutsideClick:false, showConfirmButton:false, didOpen: () => Swal.showLoading() });
 
-        fetch(`{{ route("tejido.secuencia-corte-eficiencia.destroy", ["id" => ":id"]) }}`.replace(':id', selectedId), {
+        const deleteUrl = deleteUrlTemplate.replace('__ID__', encodeURIComponent(String(selectedId)));
+        fetch(deleteUrl, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',

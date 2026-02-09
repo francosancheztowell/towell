@@ -44,6 +44,18 @@
       hoverBg="hover:bg-indigo-100"
       class="text-sm"
       module="Cortes de Eficiencia" />
+
+    @if($esSupervisor ?? false)
+    <x-navbar.button-report
+      id="btn-editar-supervisor"
+      title="Editar (Supervisor)"
+      icon="fa-unlock"
+      iconColor="text-red-600"
+      hoverBg="hover:bg-red-100"
+      class="text-sm"
+      :disabled="true"
+      module="Cortes de Eficiencia" />
+    @endif
 </div>
 @endsection
 
@@ -172,6 +184,59 @@
         </div>
     </div>
 
+    {{-- Modal Editar Registro (Supervisor) --}}
+    @if($esSupervisor ?? false)
+    <div id="modal-editar-registro" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40" data-close-edit="true"></div>
+        <div class="relative w-full max-w-lg rounded-lg bg-white shadow-lg">
+            <div class="px-4 py-3 border-b flex items-center justify-between bg-red-50">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fa-solid fa-unlock text-red-600 mr-2"></i>Editar Registro
+                    <span id="edit-folio-title" class="text-red-600 font-bold"></span>
+                </h3>
+                <button id="modal-editar-close" class="text-gray-500 hover:text-gray-700" aria-label="Cerrar">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label for="edit-fecha" class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                    <input type="date" id="edit-fecha" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="edit-turno" class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
+                    <select id="edit-turno" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="1">Turno 1</option>
+                        <option value="2">Turno 2</option>
+                        <option value="3">Turno 3</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="edit-empleado" class="block text-sm font-medium text-gray-700 mb-1">No. Empleado</label>
+                    <input type="text" id="edit-empleado" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="edit-nombre" class="block text-sm font-medium text-gray-700 mb-1">Nombre Empleado</label>
+                    <input type="text" id="edit-nombre" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="edit-status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="edit-status" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="En Proceso">En Proceso</option>
+                        <option value="Finalizado">Finalizado</option>
+                    </select>
+                </div>
+            </div>
+            <div class="px-4 py-3 border-t flex justify-end gap-2">
+                <button id="modal-editar-cancel" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button id="modal-editar-save" class="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700">
+                    <i class="fa-solid fa-save mr-1"></i>Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+
 <style>
     .selected-row td, .selected-row span {
         color: #fff !important;
@@ -189,10 +254,12 @@
             detalle: '/modulo-cortes-de-eficiencia/',
             editar: '{{ url("/modulo-cortes-de-eficiencia") }}?folio=',
             finalizar: '/modulo-cortes-de-eficiencia/{folio}/finalizar',
-            visualizarFolio: '/modulo-cortes-de-eficiencia/visualizar-folio/'
+            visualizarFolio: '/modulo-cortes-de-eficiencia/visualizar-folio/',
+            actualizarRegistro: '/modulo-cortes-de-eficiencia/{folio}/actualizar-registro'
         },
         timeout: 30000,
-        ultimoFolio: @json(isset($ultimoFolio) ? $ultimoFolio->Folio : null)
+        ultimoFolio: @json(isset($ultimoFolio) ? $ultimoFolio->Folio : null),
+        esSupervisor: @json($esSupervisor ?? false)
     };
 
     class CortesManager {
@@ -211,13 +278,26 @@
                     finalizar: document.getElementById('btn-finalizar'),
                     visualizar: document.getElementById('btn-visualizar'),
                     fechas: document.getElementById('btn-fechas'),
-                    pdf: document.getElementById('btn-pdf')
+                    pdf: document.getElementById('btn-pdf'),
+                    editarSupervisor: document.getElementById('btn-editar-supervisor')
                 },
                 modal: {
                     fechas: document.getElementById('modal-fechas'),
                     close: document.getElementById('modal-fechas-close'),
                     ok: document.getElementById('modal-fechas-ok'),
                     fechaInput: document.getElementById('input-fecha')
+                },
+                modalEditar: {
+                    container: document.getElementById('modal-editar-registro'),
+                    close: document.getElementById('modal-editar-close'),
+                    cancel: document.getElementById('modal-editar-cancel'),
+                    save: document.getElementById('modal-editar-save'),
+                    folioTitle: document.getElementById('edit-folio-title'),
+                    fecha: document.getElementById('edit-fecha'),
+                    turno: document.getElementById('edit-turno'),
+                    empleado: document.getElementById('edit-empleado'),
+                    nombre: document.getElementById('edit-nombre'),
+                    status: document.getElementById('edit-status')
                 }
             };
 
@@ -242,6 +322,7 @@
             this.dom.btns.finalizar?.addEventListener('click', () => this.accionFinalizar());
             this.dom.btns.visualizar?.addEventListener('click', () => this.accionVisualizar());
             this.dom.btns.pdf?.addEventListener('click', () => this.accionPdf());
+            this.dom.btns.editarSupervisor?.addEventListener('click', () => this.accionEditarSupervisor());
             document.getElementById('btn-exportar-excel')?.addEventListener('click', () => this.exportar('excel'));
             document.getElementById('btn-descargar-pdf')?.addEventListener('click', () => this.exportar('pdf'));
 
@@ -253,6 +334,14 @@
             });
             // Confirmar visualización por fecha
             this.dom.modal.ok?.addEventListener('click', () => this.visualizarPorFecha());
+
+            // Modal editar registro (supervisor)
+            this.dom.modalEditar.close?.addEventListener('click', () => this.cerrarModalEditar());
+            this.dom.modalEditar.cancel?.addEventListener('click', () => this.cerrarModalEditar());
+            this.dom.modalEditar.save?.addEventListener('click', () => this.guardarRegistro());
+            this.dom.modalEditar.container?.addEventListener('click', (e) => {
+                if (e.target?.dataset?.closeEdit === 'true') this.cerrarModalEditar();
+            });
         }
 
         seleccionar(folio, row) {
@@ -314,6 +403,7 @@
             if (this.dom.btns.finalizar) this.dom.btns.finalizar.disabled = !hayFolioSeleccionado || isFinalizado;
             if (this.dom.btns.visualizar) this.dom.btns.visualizar.disabled = !hayFolioSeleccionado;
             if (this.dom.btns.pdf) this.dom.btns.pdf.disabled = !hayFolioSeleccionado;
+            if (this.dom.btns.editarSupervisor) this.dom.btns.editarSupervisor.disabled = !hayFolioSeleccionado;
             const btnExcel = document.getElementById('btn-exportar-excel');
             const btnPdf = document.getElementById('btn-descargar-pdf');
             if (btnExcel) btnExcel.disabled = !hayFolioSeleccionado;
@@ -402,6 +492,100 @@
                 return;
             }
             window.location.href = `${CONFIG.urls.visualizarFolio}${this.state.folio}`;
+        }
+
+        async accionEditarSupervisor() {
+            if (!this.state.folio) {
+                Swal.fire({ icon: 'warning', title: 'Sin selección', text: 'Selecciona un folio para editar' });
+                return;
+            }
+
+            try {
+                Swal.fire({ title: 'Cargando datos...', didOpen: () => Swal.showLoading() });
+
+                const res = await fetch(`${CONFIG.urls.detalle}${this.state.folio}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                const data = await res.json();
+                Swal.close();
+
+                if (!data.success) throw new Error(data.message || 'No se pudo obtener los datos');
+
+                this.abrirModalEditar(data.data);
+
+            } catch (err) {
+                Swal.close();
+                Swal.fire('Error', err.message || 'No se pudieron cargar los datos del folio', 'error');
+            }
+        }
+
+        abrirModalEditar(corte) {
+            if (!this.dom.modalEditar.container) return;
+
+            if (this.dom.modalEditar.folioTitle) this.dom.modalEditar.folioTitle.textContent = ` - ${corte.folio || this.state.folio}`;
+            if (this.dom.modalEditar.fecha) {
+                const fecha = corte.fecha ? new Date(corte.fecha).toISOString().split('T')[0] : '';
+                this.dom.modalEditar.fecha.value = fecha;
+            }
+            if (this.dom.modalEditar.turno) this.dom.modalEditar.turno.value = corte.turno || '1';
+            if (this.dom.modalEditar.empleado) this.dom.modalEditar.empleado.value = corte.numero_empleado || corte.noEmpleado || '';
+            if (this.dom.modalEditar.nombre) this.dom.modalEditar.nombre.value = corte.nombreEmpl || corte.usuario || '';
+            if (this.dom.modalEditar.status) this.dom.modalEditar.status.value = corte.status || 'En Proceso';
+
+            this.dom.modalEditar.container.classList.remove('hidden');
+        }
+
+        cerrarModalEditar() {
+            if (!this.dom.modalEditar.container) return;
+            this.dom.modalEditar.container.classList.add('hidden');
+        }
+
+        async guardarRegistro() {
+            const folio = this.state.folio;
+            if (!folio) return;
+
+            const datos = {};
+            if (this.dom.modalEditar.fecha) datos.Date = this.dom.modalEditar.fecha.value;
+            if (this.dom.modalEditar.turno) datos.Turno = this.dom.modalEditar.turno.value;
+            if (this.dom.modalEditar.empleado) datos.numero_empleado = this.dom.modalEditar.empleado.value;
+            if (this.dom.modalEditar.nombre) datos.nombreEmpl = this.dom.modalEditar.nombre.value;
+            if (this.dom.modalEditar.status) datos.Status = this.dom.modalEditar.status.value;
+
+            if (!datos.Date || !datos.Turno) {
+                Swal.fire('Campos requeridos', 'Fecha y Turno son obligatorios.', 'warning');
+                return;
+            }
+
+            Swal.fire({ title: 'Guardando cambios...', didOpen: () => Swal.showLoading() });
+
+            try {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const url = CONFIG.urls.actualizarRegistro.replace('{folio}', folio);
+
+                const res = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(datos)
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    this.cerrarModalEditar();
+                    await Swal.fire('¡Actualizado!', data.message || 'Registro actualizado correctamente.', 'success');
+                    window.location.reload();
+                } else {
+                    Swal.fire('Error', data.message || 'No se pudo actualizar el registro', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', err.message || 'Error al guardar los cambios', 'error');
+            }
         }
 
         accionPdf() {
