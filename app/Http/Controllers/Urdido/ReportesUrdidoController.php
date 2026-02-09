@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Urdido;
 use App\Http\Controllers\Controller;
 use App\Exports\KaizenExport;
 use App\Exports\ReportesUrdidoExport;
+use App\Exports\RoturasMillonExport;
+use Illuminate\Support\Facades\DB;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
@@ -82,7 +84,7 @@ class ReportesUrdidoController extends Controller
                 'nombre' => 'ROTURAS X MILLÓN',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('urdido.reportes.urdido.roturas'),
-                'disponible' => false,
+                'disponible' => true,
             ],
         ];
 
@@ -418,14 +420,185 @@ class ReportesUrdidoController extends Controller
     }
 
     /**
-     * Reporte 3: Roturas x Millón (en desarrollo)
+     * Reporte 3: Roturas x Millón
      */
-    public function reporteRoturas()
+    public function reporteRoturas(Request $request)
     {
-        return view('modulos.urdido.reportes-urdido-placeholder', [
-            'titulo' => 'ROTURAS X MILLÓN',
-            'mensaje' => 'Este reporte está en desarrollo. Próximamente podrá consultar por rango de fechas.',
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+        $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
+
+        if (!$fechaIni || !$fechaFin) {
+            return view('modulos.urdido.reportes-roturas', [
+                'filas' => [],
+                'fechaIni' => $fechaIni ?? '',
+                'fechaFin' => $fechaFin ?? '',
+                'soloFinalizados' => $soloFinalizados,
+            ]);
+        }
+
+        $filas = $this->obtenerDatosRoturas($fechaIni, $fechaFin, $soloFinalizados);
+
+        return view('modulos.urdido.reportes-roturas', [
+            'filas' => $filas,
+            'fechaIni' => $fechaIni,
+            'fechaFin' => $fechaFin,
+            'soloFinalizados' => $soloFinalizados,
         ]);
+    }
+
+    /**
+     * Obtener datos agrupados por orden para Roturas x Millón.
+     */
+    private function obtenerDatosRoturas(string $fechaIni, string $fechaFin, bool $soloFinalizados): array
+    {
+        $query = UrdProduccionUrdido::query()
+            ->leftJoin('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
+            ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
+
+        if ($soloFinalizados) {
+            $query->where(function ($q) {
+                $q->where('p.Status', 'Finalizado')->orWhereNull('p.Id');
+            });
+        }
+
+        $registros = $query
+            ->select([
+                'UrdProduccionUrdido.Folio',
+                'UrdProduccionUrdido.Fecha',
+                'UrdProduccionUrdido.NoJulio',
+                'UrdProduccionUrdido.Hilos',
+                'UrdProduccionUrdido.Metros1',
+                'UrdProduccionUrdido.Metros2',
+                'UrdProduccionUrdido.Metros3',
+                'UrdProduccionUrdido.Hilatura',
+                'UrdProduccionUrdido.Maquina',
+                'UrdProduccionUrdido.Operac',
+                'UrdProduccionUrdido.Transf',
+                'p.MaquinaId',
+                'p.LoteProveedor',
+                'p.Cuenta',
+                'p.Calibre',
+                'p.RizoPie',
+                'p.Metros as MetrosPrograma',
+            ])
+            ->orderBy('UrdProduccionUrdido.Folio')
+            ->orderBy('UrdProduccionUrdido.NoJulio')
+            ->get();
+
+        // Agrupar por Folio (orden)
+        $porOrden = [];
+        foreach ($registros as $r) {
+            $folio = $r->Folio;
+            if (!isset($porOrden[$folio])) {
+                $mc = $this->extractMcCoyNumber($r->MaquinaId);
+                $maqLabel = $mc !== null ? $this->maquinaLabel($mc) : ($r->MaquinaId ?? 'Otros');
+                $porOrden[$folio] = [
+                    'maq' => $maqLabel,
+                    'fecha' => $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : '',
+                    'orden' => $folio,
+                    'proveedor' => $r->LoteProveedor ?? '',
+                    'cuenta' => $r->Cuenta ?? '',
+                    'calibre' => $r->Calibre ?? '',
+                    'tipo' => $r->RizoPie ?? '',
+                    'metros_programa' => (float)($r->MetrosPrograma ?? 0),
+                    'total_julios' => 0,
+                    'hilos_sum' => 0,
+                    'metros_sum' => 0,
+                    'rot_hilatura' => 0,
+                    'rot_maquina' => 0,
+                    'rot_operacion' => 0,
+                    'transferencia' => 0,
+                ];
+            }
+
+            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
+            $porOrden[$folio]['total_julios']++;
+            $porOrden[$folio]['hilos_sum'] += (int)($r->Hilos ?? 0);
+            $porOrden[$folio]['metros_sum'] += $metros;
+            $porOrden[$folio]['rot_hilatura'] += (int)($r->Hilatura ?? 0);
+            $porOrden[$folio]['rot_maquina'] += (int)($r->Maquina ?? 0);
+            $porOrden[$folio]['rot_operacion'] += (int)($r->Operac ?? 0);
+            $porOrden[$folio]['transferencia'] += (int)($r->Transf ?? 0);
+        }
+
+        $filas = [];
+        foreach ($porOrden as $d) {
+            $totalJulios = $d['total_julios'];
+            $metrosJulio = $totalJulios > 0 ? round($d['metros_sum'] / $totalJulios) : 0;
+            $hilosJulio = $totalJulios > 0 ? round($d['hilos_sum'] / $totalJulios) : 0;
+            $metrosOrden = $metrosJulio * $totalJulios;
+            $millonMetros = $metrosOrden > 0 && $hilosJulio > 0 ? round(($metrosOrden * $hilosJulio) / 1000000, 2) : 0;
+            $totalRoturas = $d['rot_hilatura'] + $d['rot_maquina'] + $d['rot_operacion'] + $d['transferencia'];
+
+            $filas[] = [
+                'maq' => $d['maq'],
+                'fecha' => $d['fecha'],
+                'orden' => $d['orden'],
+                'proveedor' => $d['proveedor'],
+                'cuenta' => $d['cuenta'],
+                'calibre' => $d['calibre'],
+                'tipo' => $d['tipo'],
+                'metros_julio' => $metrosJulio,
+                'total_julios' => $totalJulios,
+                'hilos_julio' => $hilosJulio,
+                'metros_orden' => $metrosOrden,
+                'millon_metros' => $millonMetros,
+                'rot_hilatura' => $d['rot_hilatura'],
+                'rot_maquina' => $d['rot_maquina'],
+                'rot_operacion' => $d['rot_operacion'],
+                'transferencia' => $d['transferencia'],
+                'total_roturas' => $totalRoturas,
+            ];
+        }
+
+        return $filas;
+    }
+
+    /**
+     * Exportar Excel Roturas x Millón
+     */
+    public function exportarRoturasExcel(Request $request)
+    {
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+        $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
+
+        if (!$fechaIni || !$fechaFin) {
+            return redirect()->route('urdido.reportes.urdido.roturas')
+                ->with('error', 'Seleccione un rango de fechas para exportar.');
+        }
+
+        $filas = $this->obtenerDatosRoturas($fechaIni, $fechaFin, $soloFinalizados);
+
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $filenameRed = 'Roturas x Millon ' . $fechaFinCarbon->format('Y') . '.xlsx';
+        $filenameDownload = 'roturas-millon-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+
+        $export = new RoturasMillonExport($filas);
+
+        $rutaRed = env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026');
+        $sep = (PHP_OS_FAMILY === 'Windows') ? '\\' : '/';
+        $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep) . $sep . $filenameRed;
+
+        try {
+            Excel::store($export, $filenameRed, 'local');
+            $tempPath = Storage::disk('local')->path($filenameRed);
+            $contenido = file_get_contents($tempPath);
+            Storage::disk('local')->delete($filenameRed);
+
+            $bytes = $contenido !== false ? file_put_contents($rutaArchivoRed, $contenido) : false;
+            if ($bytes !== false) {
+                Log::info('Reporte Roturas x Millón guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+            } else {
+                Log::warning('No se pudo guardar Roturas x Millón en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Error al guardar Roturas x Millón en red', ['ruta' => $rutaArchivoRed, 'error' => $e->getMessage()]);
+        }
+
+        return Excel::download($export, $filenameDownload);
     }
 
     /**

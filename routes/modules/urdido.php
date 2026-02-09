@@ -24,6 +24,7 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::get('/reportesurdido/kaizen', [ReportesUrdidoController::class, 'reporteKaizen'])->name('reportes.urdido.kaizen');
     Route::get('/reportesurdido/kaizen/excel', [ReportesUrdidoController::class, 'exportarKaizenExcel'])->name('reportes.urdido.kaizen.excel');
     Route::get('/reportesurdido/roturas-millon', [ReportesUrdidoController::class, 'reporteRoturas'])->name('reportes.urdido.roturas');
+    Route::get('/reportesurdido/roturas-millon/excel', [ReportesUrdidoController::class, 'exportarRoturasExcel'])->name('reportes.urdido.roturas.excel');
     Route::get('/reportesurdido/exportar-excel', [ReportesUrdidoController::class, 'exportarExcel'])->name('reportes.urdido.excel');
 
     Route::get('/configuracion/{moduloPadre?}', [UsuarioController::class, 'showSubModulosNivel3'])
