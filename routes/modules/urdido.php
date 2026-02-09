@@ -8,6 +8,7 @@ use App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoCon
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
 use App\Http\Controllers\Urdido\ProgramaUrdido\EditarOrdenesProgramadasController;
 use App\Http\Controllers\Urdido\ProgramaUrdido\ProgramarUrdidoController;
+use App\Http\Controllers\Urdido\ReportesUrdidoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +48,8 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::post('/programar-urdido/guardar-observaciones', [ProgramarUrdidoController::class, 'guardarObservaciones'])->name('programar.urdido.guardar.observaciones');
     Route::post('/programar-urdido/actualizar-status', [ProgramarUrdidoController::class, 'actualizarStatus'])->name('programar.urdido.actualizar.status');
     Route::get('/reimpresion-urdido', [ProgramarUrdidoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
+    Route::get('/reportesurdido', [ReportesUrdidoController::class, 'index'])->name('reportes.urdido');
+    Route::get('/reportesurdido/exportar-excel', [ReportesUrdidoController::class, 'exportarExcel'])->name('reportes.urdido.excel');
 
     Route::get('/editar-ordenes-programadas', [EditarOrdenesProgramadasController::class, 'index'])->name('editar.ordenes.programadas');
     Route::post('/editar-ordenes-programadas/actualizar', [EditarOrdenesProgramadasController::class, 'actualizar'])->name('editar.ordenes.programadas.actualizar');

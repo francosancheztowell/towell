@@ -18,6 +18,45 @@ use Illuminate\Support\Facades\Auth;
 
 class ModuloProduccionUrdidoController extends Controller
 {
+    private function hasNegativeKgNetoByFolio(string $folio): bool
+    {
+        return UrdProduccionUrdido::where('Folio', $folio)
+            ->whereNotNull('KgNeto')
+            ->where('KgNeto', '<', 0)
+            ->exists();
+    }
+
+    private function hasHoraInicialCaptured(UrdProduccionUrdido $registro): bool
+    {
+        return $registro->HoraInicial !== null && trim((string) $registro->HoraInicial) !== '';
+    }
+
+    private function autollenarOficial1EnRegistrosSinHoraInicial(UrdProgramaUrdido $orden): void
+    {
+        $usuarioActual = Auth::user();
+        if (!$usuarioActual) {
+            return;
+        }
+
+        $claveUsuario = $usuarioActual->numero_empleado ?? null;
+        $nombreUsuario = $usuarioActual->nombre ?? null;
+        if (empty($claveUsuario) || empty($nombreUsuario)) {
+            return;
+        }
+
+        $turnoUsuario = $usuarioActual->turno ?? \App\Helpers\TurnoHelper::getTurnoActual();
+
+        UrdProduccionUrdido::where('Folio', $orden->Folio)
+            ->where(function ($query) {
+                $query->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+            })
+            ->update([
+                'CveEmpl1' => $claveUsuario,
+                'NomEmpl1' => $nombreUsuario,
+                'Turno1' => $turnoUsuario !== null && $turnoUsuario !== '' ? (int) $turnoUsuario : null,
+            ]);
+    }
+
     /**
      * Extraer numero de MC Coy o identificar Karl Mayer.
      *
@@ -126,7 +165,6 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             try {
-                $statusAnterior = $orden->Status;
                 $orden->Status = 'En Proceso';
                 $orden->save();
 
@@ -206,13 +244,6 @@ class ModuloProduccionUrdidoController extends Controller
                     // Crear los registros faltantes, distribuyendo los Hilos de los julios
                     // Para cada julio, crear N registros (donde N = valor de Julios)
                     // Verificar cuántos registros con ese Hilos ya existen y crear solo los faltantes
-                    Log::info('Iniciando creación de registros', [
-                        'folio' => $orden->Folio,
-                        'registros_faltantes' => $registrosFaltantes,
-                        'total_julios_en_urdjuliosorden' => $julios->count(),
-                        'total_registros_necesarios' => $totalRegistros,
-                    ]);
-
                     // Contar TODOS los registros existentes agrupados por Hilos
                     // (incluye los que ya tienen NoJulio asignado, para no crear duplicados)
                     $registrosPorHilos = [];
@@ -232,15 +263,6 @@ class ModuloProduccionUrdidoController extends Controller
                             $hilosKey = (string)$hilos;
                             $registrosExistentesParaEsteHilos = $registrosPorHilos[$hilosKey] ?? 0;
                             $registrosFaltantesParaEsteHilos = max(0, $numeroJulio - $registrosExistentesParaEsteHilos);
-
-                            Log::info('Procesando julio', [
-                                'folio' => $orden->Folio,
-                                'julio_id' => $julio->Id,
-                                'julios' => $numeroJulio,
-                                'hilos' => $hilos,
-                                'existentes_para_este_hilos' => $registrosExistentesParaEsteHilos,
-                                'faltantes_para_este_hilos' => $registrosFaltantesParaEsteHilos,
-                            ]);
 
                             // Crear solo los registros faltantes para este Hilos
                             for ($i = 0; $i < $registrosFaltantesParaEsteHilos; $i++) {
@@ -274,22 +296,9 @@ class ModuloProduccionUrdidoController extends Controller
 
                 // Crear todos los registros en lote si hay alguno
                 if (count($registrosACrear) > 0) {
-                    Log::info('Creando registros de producción Urdido', [
-                        'folio' => $orden->Folio,
-                        'total_julios' => $julios->count(),
-                        'total_registros_necesarios' => $totalRegistros,
-                        'registros_a_crear' => count($registrosACrear),
-                    ]);
-
-                    foreach ($registrosACrear as $index => $registroData) {
-                        $registroCreado = UrdProduccionUrdido::create($registroData);
+                    foreach ($registrosACrear as $registroData) {
+                        UrdProduccionUrdido::create($registroData);
                     }
-                } else {
-                    Log::info('No se crearán registros adicionales - ya existen todos los necesarios', [
-                        'folio' => $orden->Folio,
-                        'total_registros_necesarios' => $totalRegistros,
-                        'total_registros_existentes' => $totalRegistrosExistentes,
-                    ]);
                 }
             } catch (\Throwable $e) {
                 Log::error('Error al crear registros en UrdProduccionUrdido', [
@@ -305,7 +314,10 @@ class ModuloProduccionUrdidoController extends Controller
                 ->get();
         }
 
-        // Debug temporal - remover después
+        $this->autollenarOficial1EnRegistrosSinHoraInicial($orden);
+        $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)
+            ->orderBy('Id')
+            ->get();
 
 
         // Obtener información de engomado si existe
@@ -790,7 +802,7 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             // Guardar los cambios
-            $guardado = $registro->save();
+            $registro->save();
 
             // Refrescar el modelo para obtener los valores actualizados de la BD
             $registro->refresh();
@@ -867,7 +879,7 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             // Guardar los cambios
-            $guardado = $registro->save();
+            $registro->save();
 
             // Refrescar el modelo para obtener los valores actualizados de la BD
             $registro->refresh();
@@ -1033,6 +1045,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'idusuario',
                 'numero_empleado',
                 'nombre',
+                'turno',
             ])
             ->where('area', 'Urdido')
             ->whereNotNull('numero_empleado')
@@ -1044,6 +1057,7 @@ class ModuloProduccionUrdidoController extends Controller
                     'id' => $usuario->idusuario,
                     'numero_empleado' => $usuario->numero_empleado,
                     'nombre' => $usuario->nombre,
+                    'turno' => $usuario->turno,
                 ];
             });
 
@@ -1093,6 +1107,12 @@ class ModuloProduccionUrdidoController extends Controller
                     'error' => 'La orden no está en estado "En Proceso". Estado actual: ' . $orden->Status,
                 ], 422);
             }
+            if ($this->hasNegativeKgNetoByFolio($orden->Folio)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede finalizar la orden porque existen registros con Kg Neto negativo.',
+                ], 422);
+            }
 
             // Eliminar registros que no tengan HoraInicial o HoraFinal antes de finalizar
             $registrosEliminados = UrdProduccionUrdido::where('Folio', $orden->Folio)
@@ -1101,15 +1121,6 @@ class ModuloProduccionUrdidoController extends Controller
                         ->orWhereNull('HoraFinal');
                 })
                 ->delete();
-
-            // Log de registros eliminados para auditoría
-            if ($registrosEliminados > 0) {
-                Log::info('Registros eliminados al finalizar orden de urdido', [
-                    'folio' => $orden->Folio,
-                    'orden_id' => $orden->Id,
-                    'registros_eliminados' => $registrosEliminados,
-                ]);
-            }
 
             // Cambiar el status a "Finalizado"
             $orden->Status = 'Finalizado';

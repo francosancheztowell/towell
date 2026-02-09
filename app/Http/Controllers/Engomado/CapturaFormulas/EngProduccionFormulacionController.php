@@ -64,7 +64,16 @@ class EngProduccionFormulacionController extends Controller
             $folioFiltro = $request->query('folio');
         }
 
-        return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "foliosPrograma", "folioSugerido", "folioFiltro"));
+        // Si hay folio, obtener orden_id para el enlace "Volver a producción"
+        $ordenIdProduccion = null;
+        if (!empty($folioFiltro)) {
+            $ordenEngomado = EngProgramaEngomado::where('Folio', $folioFiltro)->first();
+            if ($ordenEngomado) {
+                $ordenIdProduccion = $ordenEngomado->Id;
+            }
+        }
+
+        return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "foliosPrograma", "folioSugerido", "folioFiltro", "ordenIdProduccion"));
     }
 
     public function store(Request $request)

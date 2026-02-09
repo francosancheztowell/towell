@@ -1711,6 +1711,7 @@
                         option.textContent = usuario.nombre;
                         option.setAttribute('data-numero-empleado', usuario.numero_empleado);
                         option.setAttribute('data-nombre', usuario.nombre);
+                        option.setAttribute('data-turno', usuario.turno || '');
 
                         // Seleccionar si coincide con la clave o si debe seleccionarse por defecto
                         if ((claveSeleccionada && usuario.numero_empleado === claveSeleccionada) || 
@@ -1768,27 +1769,14 @@
                     // Siempre renderizar 3 filas con inputs
                     containerOficiales.innerHTML = '';
                     
-                    // Determinar cuál es el primer oficial nuevo (si hay alguno)
-                    let primerOficialNuevo = null;
-                    for (let i = 1; i <= 3; i++) {
-                        const oficialExistente = oficiales.find(o => parseInt(o.numero) === i);
-                        if (!oficialExistente) {
-                            primerOficialNuevo = i;
-                            break;
-                        }
-                    }
-                    
                     for (let i = 1; i <= 3; i++) {
                         const oficial = oficiales.find(o => parseInt(o.numero) === i) || {
                             numero: i,
                             nombre: '',
-                            clave: i === 1 ? '{{ $usuarioClave }}' : '',
+                            clave: '',
                             metros: '',
                             turno: ''
                         };
-
-                        const esNuevo = !oficiales.find(o => parseInt(o.numero) === i);
-                        const debeSeleccionar = esNuevo && i === primerOficialNuevo;
 
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-gray-50';
@@ -1797,7 +1785,6 @@
                                 <select
                                     class="w-full border border-gray-300 rounded px-2 py-1 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-oficial-nombre"
                                     data-numero="${i}"
-                                    ${debeSeleccionar ? 'data-seleccionar-por-defecto="true"' : ''}
                                 >
                                     <option value="">Seleccionar empleado...</option>
                                 </select>
@@ -1854,10 +1841,10 @@
                         `;
                         containerOficiales.appendChild(row);
 
-                        // Poblar el select de usuarios después de crear el elemento
+                        // Poblar el select de usuarios (solo seleccionar si ya tiene clave asignada, nunca auto-rellenar vacíos)
                         const selectNombre = row.querySelector('.select-oficial-nombre');
                         if (selectNombre) {
-                            poblarSelectUsuarios(selectNombre, oficial.clave, debeSeleccionar);
+                            poblarSelectUsuarios(selectNombre, oficial.clave, false);
                         }
                     }
                     modalOficialesLista.classList.remove('hidden');
@@ -1880,6 +1867,18 @@
                     modalOficial.style.display = 'flex';
                 }
 
+                function mostrarAlertaErrorModal(mensaje) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Acción no permitida',
+                            text: mensaje
+                        });
+                    } else {
+                        alert(mensaje);
+                    }
+                }
+
                 // Event listener para cuando se selecciona un empleado
                 document.addEventListener('change', function (e) {
                     if (e.target.classList.contains('select-oficial-nombre')) {
@@ -1890,6 +1889,7 @@
                         if (selectedOption && selectedOption.value) {
                             const numeroEmpleado = selectedOption.value;
                             const nombre = selectedOption.getAttribute('data-nombre') || selectedOption.textContent;
+                            const turno = selectedOption.getAttribute('data-turno') || '';
 
                             // Actualizar el input hidden con el número de empleado
                             const claveInput = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
@@ -1901,6 +1901,10 @@
                             const nombreInput = document.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
                             if (nombreInput) {
                                 nombreInput.value = nombre;
+                            }
+                            const turnoSelect = document.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                            if (turnoSelect && turno) {
+                                turnoSelect.value = turno;
                             }
                             // Habilitar botón eliminar
                             const btnEliminar = document.querySelector(`.btn-eliminar-oficial[data-numero="${numero}"]`);
@@ -1918,6 +1922,10 @@
                             const nombreInput = document.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
                             if (nombreInput) {
                                 nombreInput.value = '';
+                            }
+                            const turnoSelect = document.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                            if (turnoSelect) {
+                                turnoSelect.value = '';
                             }
                             // Deshabilitar botón eliminar
                             const btnEliminar = document.querySelector(`.btn-eliminar-oficial[data-numero="${numero}"]`);
@@ -1938,6 +1946,76 @@
                     const registroId = modalRegistroId ? modalRegistroId.value : null;
                     if (!registroId) return;
 
+                    const ejecutarEliminacion = async () => {
+                        try {
+                            const response = await fetch('{{ route('urdido.modulo.produccion.urdido.eliminar.oficial') }}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                },
+                                body: JSON.stringify({ registro_id: registroId, numero_oficial: numero })
+                            });
+                            const data = await response.json();
+
+                            if (!data.success) {
+                                const errorMsg = data.error || 'Error al eliminar oficial';
+                                mostrarAlertaErrorModal(errorMsg);
+                                return;
+                            }
+
+                            const containerOficiales = document.getElementById('oficiales-existentes');
+                            if (!containerOficiales) return;
+
+                            const selectNombre = containerOficiales.querySelector(`.select-oficial-nombre[data-numero="${numero}"]`);
+                            const claveInput = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
+                            const nombreInput = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
+                            const turnoSelect = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
+                            const metrosInput = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
+
+                            if (selectNombre) selectNombre.value = '';
+                            if (claveInput) claveInput.value = '';
+                            if (nombreInput) nombreInput.value = '';
+                            if (turnoSelect) turnoSelect.value = '';
+                            if (metrosInput) metrosInput.value = '';
+                            btnEliminar.disabled = true;
+                            btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
+
+                            const oficialesRestantes = [];
+                            for (let i = 1; i <= 3; i++) {
+                                if (parseInt(numero) === i) continue;
+                                const cl = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${i}"]`);
+                                const nom = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${i}"]`);
+                                const turno = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${i}"]`);
+                                const met = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${i}"]`);
+                                if (cl && cl.value) {
+                                    oficialesRestantes.push({
+                                        numero_oficial: i,
+                                        cve_empl: cl.value,
+                                        nom_empl: nom ? nom.value : '',
+                                        turno: turno ? turno.value : null,
+                                        metros: met && met.value ? parseFloat(met.value) : null
+                                    });
+                                }
+                            }
+                            actualizarOficialesEnTabla(registroId, oficialesRestantes);
+
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Oficial eliminado',
+                                    timer: 1500,
+                                    showConfirmButton: false,
+                                    toast: true,
+                                    position: 'top-end'
+                                });
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            mostrarAlertaErrorModal('Error al eliminar el oficial');
+                        }
+                    };
+
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
                             title: '¿Eliminar oficial?',
@@ -1950,97 +2028,11 @@
                             cancelButtonText: 'Cancelar'
                         }).then(async (result) => {
                             if (result.isConfirmed) {
-                                try {
-                                    const response = await fetch('{{ route('urdido.modulo.produccion.urdido.eliminar.oficial') }}', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                        },
-                                        body: JSON.stringify({ registro_id: registroId, numero_oficial: numero })
-                                    });
-                                    const data = await response.json();
-
-                                    if (data.success) {
-                                        // Limpiar la fila en el modal
-                                        const containerOficiales = document.getElementById('oficiales-existentes');
-                                        const selectNombre = containerOficiales.querySelector(`.select-oficial-nombre[data-numero="${numero}"]`);
-                                        const claveInput = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
-                                        const nombreInput = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
-                                        const turnoSelect = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
-                                        const metrosInput = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
-
-                                        if (selectNombre) selectNombre.value = '';
-                                        if (claveInput) claveInput.value = '';
-                                        if (nombreInput) nombreInput.value = '';
-                                        if (turnoSelect) turnoSelect.value = '';
-                                        if (metrosInput) metrosInput.value = '';
-                                        btnEliminar.disabled = true;
-                                        btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
-
-                                        // Actualizar tabla principal con oficiales restantes
-                                        const oficialesRestantes = [];
-                                        for (let i = 1; i <= 3; i++) {
-                                            if (parseInt(numero) === i) continue;
-                                            const cl = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${i}"]`);
-                                            const nom = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${i}"]`);
-                                            const turno = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${i}"]`);
-                                            const met = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${i}"]`);
-                                            if (cl && cl.value) {
-                                                oficialesRestantes.push({
-                                                    numero_oficial: i,
-                                                    cve_empl: cl.value,
-                                                    nom_empl: nom ? nom.value : '',
-                                                    turno: turno ? turno.value : null,
-                                                    metros: met && met.value ? parseFloat(met.value) : null
-                                                });
-                                            }
-                                        }
-                                        actualizarOficialesEnTabla(registroId, oficialesRestantes);
-
-                                        Swal.fire({
-                                            icon: 'success',
-                                            title: 'Oficial eliminado',
-                                            timer: 1500,
-                                            showConfirmButton: false,
-                                            toast: true,
-                                            position: 'top-end'
-                                        });
-                                    } else {
-                                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error al eliminar' });
-                                    }
-                                } catch (err) {
-                                    console.error(err);
-                                    Swal.fire({ icon: 'error', title: 'Error', text: 'Error al eliminar el oficial' });
-                                }
+                                await ejecutarEliminacion();
                             }
                         });
                     } else if (confirm('¿Eliminar oficial?')) {
-                        fetch('{{ route('urdido.modulo.produccion.urdido.eliminar.oficial') }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                            },
-                            body: JSON.stringify({ registro_id: registroId, numero_oficial: numero })
-                        }).then(r => r.json()).then(data => {
-                            if (data.success) {
-                                const containerOficiales = document.getElementById('oficiales-existentes');
-                                const selectNombre = containerOficiales.querySelector(`.select-oficial-nombre[data-numero="${numero}"]`);
-                                const claveInput = containerOficiales.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
-                                const nombreInput = containerOficiales.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
-                                const turnoSelect = containerOficiales.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
-                                const metrosInput = containerOficiales.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
-                                if (selectNombre) selectNombre.value = '';
-                                if (claveInput) claveInput.value = '';
-                                if (nombreInput) nombreInput.value = '';
-                                if (turnoSelect) turnoSelect.value = '';
-                                if (metrosInput) metrosInput.value = '';
-                                btnEliminar.disabled = true;
-                                btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
-                                location.reload();
-                            }
-                        });
+                        ejecutarEliminacion();
                     }
                 });
 
@@ -2110,9 +2102,15 @@
                     const btnAgregar = row.querySelector('.btn-agregar-oficial');
                     if (btnAgregar) {
                         btnAgregar.setAttribute('data-cantidad-oficiales', oficiales.length);
-                        btnAgregar.disabled = false;
-                        btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
-                        btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                        // Siempre habilitado: con Hora Inicial se puede abrir para editar Metros/Turno (no cambiar oficial)
+                        btnAgregar.disabled = oficiales.length >= 3 ? true : false;
+                        if (btnAgregar.disabled) {
+                            btnAgregar.classList.remove('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                            btnAgregar.classList.add('text-gray-400', 'cursor-not-allowed', 'opacity-50');
+                        } else {
+                            btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
+                            btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                        }
                     }
                 }
 
@@ -2180,6 +2178,7 @@
                     if (!btnAgregar) return;
 
                     e.preventDefault();
+                    if (btnAgregar.disabled) return;
                     const registroId = btnAgregar.getAttribute('data-registro-id');
                     if (registroId) abrirModalOficial(registroId);
                 });

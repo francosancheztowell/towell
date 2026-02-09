@@ -133,7 +133,7 @@
                 </div>
             </div>
 
-            <div class="mt-1.5 grid gap-1.5" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));">
+            <div class="mt-1.5 grid gap-1.5" style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr));">
 
                 <!-- Kilos -->
                 <div>
@@ -270,23 +270,8 @@
 
                     >
                 </div>
-            </div>
 
-            <div class="mt-1.5 grid gap-1.5" style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr));">
-                <!-- Ancho Balonas -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Ancho Balonas</label>
-                    <input
-                        type="number"
-                        id="campo_AnchoBalonas"
-                        data-campo="AnchoBalonas"
-                        value="{{ $engomado->AnchoBalonas ?? '' }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-
-                    >
-                </div>
-
-                <!-- Bom Urdido (Urdido) -->
+                <!-- Bom Urdido -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-0.5">Bom Urdido</label>
                     <input
@@ -311,94 +296,108 @@
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     >
                 </div>
+            </div>
+            <datalist id="listaTamanos"></datalist>
 
-                <!-- Metraje Telas -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Metraje Telas</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        id="campo_MetrajeTelas"
-                        data-campo="MetrajeTelas"
-                        value="{{ $engomado->MetrajeTelas ?? '' }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            {{-- Fila Engomado --}}
+            <div class="mt-1.5">
+                <label class="block text-sm font-bold text-gray-800 mb-1">Engomado</label>
+                <div class="grid gap-1.5" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));">
+                    <!-- Ancho Balonas -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-0.5">Ancho Balonas</label>
+                        <input
+                            type="number"
+                            id="campo_AnchoBalonas"
+                            data-campo="AnchoBalonas"
+                            value="{{ $engomado->AnchoBalonas ?? '' }}"
+                            class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                    </div>
 
-                    >
+                    <!-- Metraje Telas -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-0.5">Metraje Telas</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            id="campo_MetrajeTelas"
+                            data-campo="MetrajeTelas"
+                            value="{{ $engomado->MetrajeTelas ?? '' }}"
+                            class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                    </div>
+
+                    <!-- Cuentados -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-0.5">Cuentados</label>
+                        <input
+                            type="number"
+                            id="campo_Cuentados"
+                            data-campo="Cuentados"
+                            value="{{ $engomado->Cuentados ?? '' }}"
+                            class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                    </div>
+
+                    <!-- No. Telas -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-0.5">No. Telas</label>
+                        <input
+                            type="number"
+                            id="campo_NoTelas"
+                            data-campo="NoTelas"
+                            value="{{ $engomado->NoTelas ?? '' }}"
+                            class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                    </div>
+
+                    <!-- Bom Eng -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-0.5">Bom Engomado</label>
+                        <input
+                            type="text"
+                            id="campo_BomEng"
+                            data-campo="BomEng"
+                            value="{{ $engomado->BomEng ?? '' }}"
+                            class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                    </div>
+
+                    <!-- Maquina Eng -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-0.5">Maquina Engomado</label>
+                        <select
+                            id="campo_MaquinaEng"
+                            data-campo="MaquinaEng"
+                            class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="">Seleccionar...</option>
+                            @foreach($maquinasEngomado as $maquina)
+                                @php
+                                    $maquinaEngValor = $engomado->MaquinaEng ?? '';
+                                    $esSeleccionada = ($maquinaEngValor === $maquina->MaquinaId) ||
+                                                      ($maquinaEngValor === ($maquina->Nombre ?? ''));
+                                @endphp
+                                <option value="{{ $maquina->MaquinaId }}" {{ $esSeleccionada ? 'selected' : '' }}>
+                                    {{ $maquina->Nombre ?? $maquina->MaquinaId }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Bom Formula -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-0.5">Bom Formula</label>
+                        <input
+                            type="text"
+                            id="campo_BomFormula"
+                            data-campo="BomFormula"
+                            value="{{ $orden->BomFormula ?? ($engomado->BomFormula ?? '') }}"
+                            class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                    </div>
                 </div>
-
-                <!-- Cuentados -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Cuentados</label>
-                    <input
-                        type="number"
-                        id="campo_Cuentados"
-                        data-campo="Cuentados"
-                        value="{{ $engomado->Cuentados ?? '' }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-
-                    >
-                </div>
-
-                <!-- No. Telas -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">No. Telas</label>
-                    <input
-                        type="number"
-                        id="campo_NoTelas"
-                        data-campo="NoTelas"
-                        value="{{ $engomado->NoTelas ?? '' }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                </div>
-
-                <!-- Bom Eng -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Bom Engomado</label>
-                    <input
-                        type="text"
-                        id="campo_BomEng"
-                        data-campo="BomEng"
-                        value="{{ $engomado->BomEng ?? '' }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                </div>
-
-                <!-- Maquina Eng -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Maquina Engomado</label>
-                    <select
-                        id="campo_MaquinaEng"
-                        data-campo="MaquinaEng"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-
-                    >
-                        <option value="">Seleccionar...</option>
-                    @foreach($maquinasEngomado as $maquina)
-                        @php
-                            $maquinaEngValor = $engomado->MaquinaEng ?? '';
-                            $esSeleccionada = ($maquinaEngValor === $maquina->MaquinaId) ||
-                                              ($maquinaEngValor === ($maquina->Nombre ?? ''));
-                        @endphp
-                            <option value="{{ $maquina->MaquinaId }}" {{ $esSeleccionada ? 'selected' : '' }}>
-                                {{ $maquina->Nombre ?? $maquina->MaquinaId }}
-                            </option>
-                    @endforeach
-                    </select>
-                </div>
-
-                <!-- Bom Formula -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Bom Formula</label>
-                    <input
-                        type="text"
-                        id="campo_BomFormula"
-                        data-campo="BomFormula"
-                        value="{{ $orden->BomFormula ?? ($engomado->BomFormula ?? '') }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-
-                    >
-                </div>
-                <datalist id="listaTamanos"></datalist>
             </div>
 
             <div class="mt-2 grid gap-2" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));">

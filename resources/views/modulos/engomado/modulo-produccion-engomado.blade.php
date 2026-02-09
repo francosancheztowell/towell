@@ -1427,24 +1427,15 @@
                 }
 
                 containerOficiales.innerHTML = '';
-                let primerOficialNuevo = null;
-                for (let j = 1; j <= 3; j++) {
-                    if (!oficiales.find(o => parseInt(o.numero) === j)) {
-                        primerOficialNuevo = j;
-                        break;
-                    }
-                }
 
                 for (let i = 1; i <= 3; i++) {
                     const oficial = oficiales.find(o => parseInt(o.numero) === i) || {
                         numero: i,
                         nombre: '',
-                        clave: i === 1 ? '{{ $usuarioClave ?? "" }}' : '',
+                        clave: '',
                         metros: '',
                         turno: ''
                     };
-                    const esNuevo = !oficiales.find(o => parseInt(o.numero) === i);
-                    const debeSeleccionar = esNuevo && i === primerOficialNuevo;
 
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-gray-50';
@@ -1453,7 +1444,6 @@
                             <select
                                 class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-oficial-nombre"
                                 data-numero="${i}"
-                                ${debeSeleccionar ? 'data-seleccionar-por-defecto="true"' : ''}
                             >
                                 <option value="">Seleccionar empleado...</option>
                             </select>
@@ -1487,7 +1477,7 @@
 
                     const selectNombre = tr.querySelector('.select-oficial-nombre');
                     if (selectNombre) {
-                        poblarSelectUsuarios(selectNombre, oficial.clave, debeSeleccionar);
+                        poblarSelectUsuarios(selectNombre, oficial.clave, false);
                     }
                 }
 
@@ -1508,6 +1498,18 @@
 
                 modalOficial.classList.remove('hidden');
                 modalOficial.style.display = 'flex';
+            }
+
+            function mostrarAlertaErrorModal(mensaje) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Acción no permitida',
+                        text: mensaje
+                    });
+                } else {
+                    alert(mensaje);
+                }
             }
 
             function cerrarModalOficial() {
@@ -1560,9 +1562,14 @@
                 const btnAgregar = row.querySelector('.btn-agregar-oficial');
                 if (btnAgregar) {
                     btnAgregar.setAttribute('data-cantidad-oficiales', oficiales.length);
-                    btnAgregar.disabled = false;
-                    btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
-                    btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                    btnAgregar.disabled = oficiales.length >= 3;
+                    if (btnAgregar.disabled) {
+                        btnAgregar.classList.remove('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                        btnAgregar.classList.add('text-gray-400', 'cursor-not-allowed', 'opacity-50');
+                    } else {
+                        btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
+                        btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                    }
                 }
             }
 
@@ -2042,6 +2049,7 @@
                     if (!btnAgregar) return;
 
                     e.preventDefault();
+                    if (btnAgregar.disabled) return;
                     const registroId = btnAgregar.getAttribute('data-registro-id');
                     if (registroId) abrirModalOficial(registroId);
                 });
@@ -2090,6 +2098,8 @@
                         if (claveInput)  claveInput.value  = '';
                         if (nombreInput) nombreInput.value = '';
                         if (turnoSelect) turnoSelect.value = '';
+                        const metrosInput = document.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
+                        if (metrosInput) metrosInput.value = '';
                         if (btnEliminar) {
                             btnEliminar.disabled = true;
                             btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
@@ -2172,11 +2182,11 @@
                                             position: 'top-end'
                                         });
                                     } else {
-                                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error al eliminar' });
+                                        mostrarAlertaErrorModal(data.error || 'Error al eliminar oficial');
                                     }
                                 } catch (err) {
                                     console.error(err);
-                                    Swal.fire({ icon: 'error', title: 'Error', text: 'Error al eliminar el oficial' });
+                                    mostrarAlertaErrorModal('Error al eliminar el oficial');
                                 }
                             }
                         });
