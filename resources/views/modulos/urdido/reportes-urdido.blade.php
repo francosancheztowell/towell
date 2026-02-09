@@ -59,7 +59,7 @@
                                         <td class="px-1.5 py-0.5 border border-gray-300">{{ $fila['orden'] ?? '' }}</td>
                                         <td class="px-1.5 py-0.5 border border-gray-300">{{ $fila['julio'] ?? '' }}</td>
                                         <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ isset($fila['p_neto']) && $fila['p_neto'] !== '' ? number_format((float)$fila['p_neto'], 1) : '' }}</td>
-                                        <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ $fila['metros'] ?? '' }}</td>
+                                        <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ (isset($fila['metros']) && $fila['metros'] != 0) ? $fila['metros'] : '' }}</td>
                                         <td class="px-1.5 py-0.5 border border-gray-300 text-center">{{ $fila['ope'] ?? '' }}</td>
                                     </tr>
                                 @empty

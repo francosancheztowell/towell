@@ -244,7 +244,7 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
                 $sheet->setCellValueByColumnAndRow($base, $r, $f['orden'] ?? '');
                 $sheet->setCellValueByColumnAndRow($base + 1, $r, $f['julio'] ?? '');
                 $sheet->setCellValueByColumnAndRow($base + 2, $r, isset($f['p_neto']) ? round((float) $f['p_neto'], 2) : '');
-                $sheet->setCellValueByColumnAndRow($base + 3, $r, $f['metros'] ?? '');
+                $sheet->setCellValueByColumnAndRow($base + 3, $r, (isset($f['metros']) && $f['metros'] != 0) ? $f['metros'] : '');
                 $sheet->setCellValueByColumnAndRow($base + 4, $r, $f['ope'] ?? '');
             }
         }
@@ -323,7 +323,7 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
                 $sheet->setCellValueByColumnAndRow($base, $r, $f['orden'] ?? '');
                 $sheet->setCellValueByColumnAndRow($base + 1, $r, $f['julio'] ?? '');
                 $sheet->setCellValueByColumnAndRow($base + 2, $r, isset($f['p_neto']) ? round((float) $f['p_neto'], 2) : '');
-                $sheet->setCellValueByColumnAndRow($base + 3, $r, $f['metros'] ?? '');
+                $sheet->setCellValueByColumnAndRow($base + 3, $r, (isset($f['metros']) && $f['metros'] != 0) ? $f['metros'] : '');
                 $sheet->setCellValueByColumnAndRow($base + 4, $r, $f['ope'] ?? '');
             }
         }

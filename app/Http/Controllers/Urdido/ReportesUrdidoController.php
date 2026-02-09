@@ -130,6 +130,10 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.Metros3',
                 'UrdProduccionUrdido.CveEmpl1',
                 'UrdProduccionUrdido.NomEmpl1',
+                'UrdProduccionUrdido.CveEmpl2',
+                'UrdProduccionUrdido.NomEmpl2',
+                'UrdProduccionUrdido.CveEmpl3',
+                'UrdProduccionUrdido.NomEmpl3',
                 'p.MaquinaId',
             ])
             ->orderBy('p.MaquinaId')
@@ -153,17 +157,31 @@ class ReportesUrdidoController extends Controller
                 ];
             }
 
-            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
-            $ope = $this->obtenerOperadorDisplay($r->NomEmpl1, $r->CveEmpl1);
             $kg = (float)($r->KgNeto ?? 0);
-
-            $porMaquina[$label]['filas'][] = [
-                'orden' => $r->Folio,
-                'julio' => $r->NoJulio,
-                'p_neto' => $kg,
-                'metros' => round($metros),
-                'ope' => $ope,
-            ];
+            $operadores = $this->extraerOperadoresConMetros($r);
+            $primerFila = true;
+            foreach ($operadores as $op) {
+                $porMaquina[$label]['filas'][] = [
+                    'orden' => $r->Folio,
+                    'julio' => $r->NoJulio,
+                    'p_neto' => $primerFila ? $kg : null,
+                    'metros' => $op['metros'],
+                    'ope' => $op['nombre'],
+                ];
+                $primerFila = false;
+            }
+            if (empty($operadores)) {
+                $metros = round((float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0));
+                if ($metros > 0) {
+                    $porMaquina[$label]['filas'][] = [
+                        'orden' => $r->Folio,
+                        'julio' => $r->NoJulio,
+                        'p_neto' => $kg,
+                        'metros' => $metros,
+                        'ope' => $this->obtenerOperadorDisplayCompleto($r->NomEmpl1, $r->CveEmpl1),
+                    ];
+                }
+            }
             $porMaquina[$label]['totalKg'] += $kg;
             $totalKg += $kg;
         }
@@ -204,20 +222,41 @@ class ReportesUrdidoController extends Controller
     }
 
     /**
-     * Obtener texto para mostrar del operador (nombre o clave).
-     * Prioriza NomEmpl1, si está vacío usa CveEmpl1. Trunca nombres largos.
+     * Obtener texto para mostrar del operador (nombre o clave). Nombre completo.
      */
-    private function obtenerOperadorDisplay(?string $nomEmpl, ?string $cveEmpl): string
+    private function obtenerOperadorDisplayCompleto(?string $nomEmpl, ?string $cveEmpl): string
     {
         $nom = trim((string) ($nomEmpl ?? ''));
         $cve = trim((string) ($cveEmpl ?? ''));
-        if ($nom !== '') {
-            return mb_strlen($nom) > 15 ? mb_substr($nom, 0, 15) . '…' : $nom;
-        }
-        if ($cve !== '') {
-            return mb_strlen($cve) > 10 ? mb_substr($cve, 0, 10) . '…' : $cve;
-        }
+        if ($nom !== '') return $nom;
+        if ($cve !== '') return $cve;
         return '';
+    }
+
+    /**
+     * Obtener texto para mostrar del operador (nombre o clave). Trunca para vistas compactas.
+     */
+    private function obtenerOperadorDisplay(?string $nomEmpl, ?string $cveEmpl): string
+    {
+        return $this->obtenerOperadorDisplayCompleto($nomEmpl, $cveEmpl);
+    }
+
+    /**
+     * Extraer 1, 2 o 3 operadores con sus metros del registro.
+     * Retorna array de ['nombre' => string, 'metros' => int].
+     */
+    private function extraerOperadoresConMetros(object $r): array
+    {
+        $ops = [];
+        foreach ([1, 2, 3] as $n) {
+            $nom = $r->{"NomEmpl{$n}"} ?? null;
+            $cve = $r->{"CveEmpl{$n}"} ?? null;
+            $mts = (float)($r->{"Metros{$n}"} ?? 0);
+            if ($mts <= 0) continue;
+            $nombre = $this->obtenerOperadorDisplayCompleto($nom, $cve);
+            $ops[] = ['nombre' => $nombre !== '' ? $nombre : "Turno {$n}", 'metros' => round($mts)];
+        }
+        return $ops;
     }
 
     /**
@@ -257,6 +296,10 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.Metros3',
                 'UrdProduccionUrdido.CveEmpl1',
                 'UrdProduccionUrdido.NomEmpl1',
+                'UrdProduccionUrdido.CveEmpl2',
+                'UrdProduccionUrdido.NomEmpl2',
+                'UrdProduccionUrdido.CveEmpl3',
+                'UrdProduccionUrdido.NomEmpl3',
                 'p.MaquinaId',
             ])
             ->orderBy('UrdProduccionUrdido.Fecha')
@@ -284,24 +327,43 @@ class ReportesUrdidoController extends Controller
                 $porFecha[$fecha]['porMaquina'][$label] = ['label' => $label, 'filas' => []];
             }
 
-            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
-            $ope = $this->obtenerOperadorDisplay($r->NomEmpl1, $r->CveEmpl1);
             $kg = (float)($r->KgNeto ?? 0);
-
-            $porFecha[$fecha]['porMaquina'][$label]['filas'][] = [
-                'orden' => $r->Folio,
-                'julio' => $r->NoJulio,
-                'p_neto' => $kg,
-                'metros' => round($metros),
-                'ope' => $ope,
-            ];
-            $porFecha[$fecha]['totalKg'] += $kg;
-
-            $opeKey = trim($ope) !== '' ? $ope : 'Sin asignar';
-            if (!isset($porFecha[$fecha]['porOperador'][$opeKey])) {
-                $porFecha[$fecha]['porOperador'][$opeKey] = ['nombre' => $opeKey, 'metros' => 0];
+            $operadores = $this->extraerOperadoresConMetros($r);
+            $primerFila = true;
+            foreach ($operadores as $op) {
+                $porFecha[$fecha]['porMaquina'][$label]['filas'][] = [
+                    'orden' => $r->Folio,
+                    'julio' => $r->NoJulio,
+                    'p_neto' => $primerFila ? $kg : null,
+                    'metros' => $op['metros'],
+                    'ope' => $op['nombre'],
+                ];
+                $opeKey = trim($op['nombre']) !== '' ? $op['nombre'] : 'Sin asignar';
+                if (!isset($porFecha[$fecha]['porOperador'][$opeKey])) {
+                    $porFecha[$fecha]['porOperador'][$opeKey] = ['nombre' => $opeKey, 'metros' => 0];
+                }
+                $porFecha[$fecha]['porOperador'][$opeKey]['metros'] += $op['metros'];
+                $primerFila = false;
             }
-            $porFecha[$fecha]['porOperador'][$opeKey]['metros'] += round($metros);
+            if (empty($operadores)) {
+                $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
+                if ($metros > 0) {
+                    $ope = $this->obtenerOperadorDisplayCompleto($r->NomEmpl1, $r->CveEmpl1);
+                    $opeKey = trim($ope) !== '' ? $ope : 'Sin asignar';
+                    $porFecha[$fecha]['porMaquina'][$label]['filas'][] = [
+                        'orden' => $r->Folio,
+                        'julio' => $r->NoJulio,
+                        'p_neto' => $kg,
+                        'metros' => round($metros),
+                        'ope' => $ope,
+                    ];
+                    if (!isset($porFecha[$fecha]['porOperador'][$opeKey])) {
+                        $porFecha[$fecha]['porOperador'][$opeKey] = ['nombre' => $opeKey, 'metros' => 0];
+                    }
+                    $porFecha[$fecha]['porOperador'][$opeKey]['metros'] += round($metros);
+                }
+            }
+            $porFecha[$fecha]['totalKg'] += $kg;
         }
 
         foreach ($porFecha as $f => $datos) {
@@ -355,6 +417,8 @@ class ReportesUrdidoController extends Controller
             }
 
             $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
+            if ($metros <= 0) continue;
+
             $ope = $this->obtenerOperadorDisplay($r->NomEmpl1, $r->CveEmpl1);
             $kg = (float)($r->KgNeto ?? 0);
 
