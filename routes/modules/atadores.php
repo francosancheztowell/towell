@@ -24,6 +24,7 @@ Route::prefix('atadores')->name('atadores.')->group(function () {
         ->name('catalogos');
 
     Route::get('/programaatadores', [AtadoresController::class, 'index'])->name('programa');
+    Route::post('/programaatadores/exportar-excel', [AtadoresController::class, 'exportarExcel'])->name('exportar.excel');
     Route::redirect('/programa', '/atadores/programaatadores', 301);
 
     Route::get('/iniciar', [AtadoresController::class, 'iniciarAtado'])->name('iniciar');
