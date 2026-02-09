@@ -8,10 +8,29 @@ use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesUrdidoController extends Controller
 {
+    private function parseReportDate(string $value): Carbon
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return Carbon::now();
+        }
+
+        foreach (['Y-m-d', 'd/m/Y'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value)->startOfDay();
+            } catch (\Throwable $e) {
+                // Intentar con el siguiente formato.
+            }
+        }
+
+        return Carbon::parse($value)->startOfDay();
+    }
+
     private function extractMcCoyNumber(?string $maquinaId): ?int
     {
         if (empty($maquinaId)) return null;
@@ -46,11 +65,14 @@ class ReportesUrdidoController extends Controller
         }
 
         $query = UrdProduccionUrdido::query()
-            ->join('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
+            ->leftJoin('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
             ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
 
         if ($soloFinalizados) {
-            $query->where('p.Status', 'Finalizado');
+            $query->where(function ($q) {
+                $q->where('p.Status', 'Finalizado')
+                    ->orWhereNull('p.Id');
+            });
         }
 
         $registros = $query
@@ -77,9 +99,8 @@ class ReportesUrdidoController extends Controller
 
         foreach ($registros as $r) {
             $mc = $this->extractMcCoyNumber($r->MaquinaId);
-            if ($mc === null) continue;
+            $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
-            $label = $this->maquinaLabel($mc);
             if (!isset($porMaquina[$label])) {
                 $porMaquina[$label] = [
                     'label' => $label,
@@ -103,8 +124,8 @@ class ReportesUrdidoController extends Controller
             $totalKg += $kg;
         }
 
-        // Ordenar máquinas: MC1, MC2, MC3, KM
-        $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4];
+        // Ordenar máquinas: MC1, MC2, MC3, KM, Otros
+        $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4, 'Otros' => 5];
         uksort($porMaquina, fn($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
 
         return view('modulos.urdido.reportes-urdido', [
@@ -148,17 +169,21 @@ class ReportesUrdidoController extends Controller
         }
 
         $query = UrdProduccionUrdido::query()
-            ->join('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
+            ->leftJoin('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
             ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
 
         if ($soloFinalizados) {
-            $query->where('p.Status', 'Finalizado');
+            $query->where(function ($q) {
+                $q->where('p.Status', 'Finalizado')
+                    ->orWhereNull('p.Id');
+            });
         }
 
         $registros = $query
             ->select([
                 'UrdProduccionUrdido.Id',
                 'UrdProduccionUrdido.Folio',
+                'UrdProduccionUrdido.Fecha',
                 'UrdProduccionUrdido.NoJulio',
                 'UrdProduccionUrdido.KgNeto',
                 'UrdProduccionUrdido.Metros1',
@@ -168,40 +193,90 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.NomEmpl1',
                 'p.MaquinaId',
             ])
+            ->orderBy('UrdProduccionUrdido.Fecha')
             ->orderBy('p.MaquinaId')
             ->orderBy('UrdProduccionUrdido.Folio')
             ->orderBy('UrdProduccionUrdido.NoJulio')
             ->get();
 
-        $porMaquina = [];
+        $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4, 'Otros' => 5];
+        $porFecha = [];
         foreach ($registros as $r) {
             $mc = $this->extractMcCoyNumber($r->MaquinaId);
-            if ($mc === null) continue;
+            $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
-            $label = $this->maquinaLabel($mc);
-            if (!isset($porMaquina[$label])) {
-                $porMaquina[$label] = ['label' => $label, 'filas' => []];
+            $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : '';
+            if (!isset($porFecha[$fecha])) {
+                $porFecha[$fecha] = [
+                    'porMaquina' => [],
+                    'porOperador' => [],
+                    'totalKg' => 0,
+                ];
+            }
+            if (!isset($porFecha[$fecha]['porMaquina'][$label])) {
+                $porFecha[$fecha]['porMaquina'][$label] = ['label' => $label, 'filas' => []];
             }
 
             $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
             $ope = $this->obtenerOperadorDisplay($r->NomEmpl1, $r->CveEmpl1);
             $kg = (float)($r->KgNeto ?? 0);
 
-            $porMaquina[$label]['filas'][] = [
+            $porFecha[$fecha]['porMaquina'][$label]['filas'][] = [
                 'orden' => $r->Folio,
                 'julio' => $r->NoJulio,
                 'p_neto' => $kg,
                 'metros' => round($metros),
                 'ope' => $ope,
             ];
+            $porFecha[$fecha]['totalKg'] += $kg;
+
+            $opeKey = trim($ope) !== '' ? $ope : 'Sin asignar';
+            if (!isset($porFecha[$fecha]['porOperador'][$opeKey])) {
+                $porFecha[$fecha]['porOperador'][$opeKey] = ['nombre' => $opeKey, 'metros' => 0];
+            }
+            $porFecha[$fecha]['porOperador'][$opeKey]['metros'] += round($metros);
         }
 
-        $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4];
-        uksort($porMaquina, fn($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
+        foreach ($porFecha as $f => $datos) {
+            uksort($porFecha[$f]['porMaquina'], fn($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
+            $porFecha[$f]['porMaquina'] = array_values($porFecha[$f]['porMaquina']);
+        }
+        ksort($porFecha);
 
-        $fechaStr = Carbon::parse($fechaIni)->format('Ymd') . '-' . Carbon::parse($fechaFin)->format('Ymd');
-        $filename = "reporte-urdido-{$fechaStr}.xlsx";
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaNombre = !empty($porFecha)
+            ? $this->parseReportDate((string) array_key_last($porFecha))
+            : $fechaFinCarbon;
 
-        return Excel::download(new ReportesUrdidoExport($porMaquina), $filename);
+        $filenameRed = $fechaNombre->format('m') . '-0EE URD-ENG-' . $fechaNombre->format('Y') . '.xlsx';
+        $filenameDownload = 'reporte-urdido-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+
+        $export = new ReportesUrdidoExport($porFecha);
+
+        // Guardar en ruta de red (igual que DescargarProgramaController: file_put_contents/copy directo a UNC)
+        $rutaRed = env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026');
+        $rutaArchivoRed = rtrim($rutaRed, '\\/') . '\\' . $filenameRed;
+
+        try {
+            // Guardar primero en temporal
+            $tempPath = storage_path('app/' . $filenameRed);
+            Excel::store($export, $filenameRed, 'local');
+            $copiado = @copy($tempPath, $rutaArchivoRed);
+            @unlink($tempPath);
+            if ($copiado) {
+                Log::info('Reporte Urdido guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+            } else {
+                Log::warning('No se pudo copiar reporte Urdido a ruta de red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Error al guardar reporte Urdido en red', [
+                'archivo' => $filenameRed,
+                'ruta' => $rutaArchivoRed,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return Excel::download($export, $filenameDownload);
     }
 }
