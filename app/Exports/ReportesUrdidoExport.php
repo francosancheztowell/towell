@@ -76,9 +76,9 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
     private function loadTemplateSheet(): Worksheet
     {
         $candidates = [
+            resource_path('templates/formato reportes.xlsx'),  // ruta en el repo (GitHub)
             storage_path('app/templates/formato reportes.xlsx'),
             storage_path('app/formato reportes.xlsx'),
-            'C:\\Users\\fsanchez\\Desktop\\formato reportes.xlsx',
         ];
 
         foreach ($candidates as $path) {
@@ -89,7 +89,10 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
             }
         }
 
-        throw new RuntimeException('No se encontro la plantilla "formato reportes.xlsx". Colocala en storage/app/templates/.');
+        throw new RuntimeException(
+            'No se encontro la plantilla "formato reportes.xlsx". '
+            . 'Colocala en resources/templates/ o en storage/app/templates/.'
+        );
     }
 
     private function copyTemplateBlockWithinSheet(Worksheet $sheet, int $sourceStartRow, int $targetStartRow): void
