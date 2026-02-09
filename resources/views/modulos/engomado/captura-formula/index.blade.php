@@ -8,6 +8,14 @@
     @endphp
     <div class="flex items-center gap-2">
         @if($desdeProduccion)
+            <a href="{{ !empty($ordenIdProduccion) ? route('engomado.modulo.produccion.engomado', ['orden_id' => $ordenIdProduccion]) : route('engomado.modulo.produccion.engomado') }}"
+                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition"
+                title="Volver a Producción de Engomado">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Producción</span>
+            </a>
+        @endif
+        @if($desdeProduccion)
             <x-navbar.button-create
             onclick="openCreateModal()"
             title="Autorizar Formula"
@@ -50,6 +58,9 @@
 @endsection
 
 @section('content')
+    @php
+        $puedeVerCalidad = function_exists('userCan') ? userCan('registrar', 'Captura de Formula') : true;
+    @endphp
     @if(session('error'))
         <script>
             document.addEventListener('DOMContentLoaded', function() {
@@ -102,7 +113,9 @@
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tiempo (Min)</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">% Solidos</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Viscocidad</th>
-                    <th class="text-center px-4 py-3 font-semibold whitespace-nowrap">Obs</th>
+                    @if($puedeVerCalidad)
+                    <th class="text-center px-4 py-3 font-semibold whitespace-nowrap">Calidad</th>
+                    @endif
                 </tr>
             </thead>
             <tbody id="formulaTableBody">
@@ -158,33 +171,39 @@
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->TiempoCocinado ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Solidos ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Viscocidad ?? 0, 2) }}</td>
+                        @if($puedeVerCalidad)
                         <td class="px-4 py-3 text-center">
-                            <div class="flex items-center justify-center gap-1">
-                                <input
-                                    type="checkbox"
-                                    class="obs-calidad-checkbox w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-offset-0 focus:ring-0"
-                                    data-folio="{{ $item->Folio }}"
-                                    data-id="{{ $item->Id ?? '' }}"
-                                    data-formula="{{ $item->Formula ?? '' }}"
-                                    data-litros="{{ $item->Litros ?? '' }}"
-                                    data-tiempo="{{ $item->TiempoCocinado ?? '' }}"
-                                    data-solidos="{{ $item->Solidos ?? '' }}"
-                                    data-viscocidad="{{ $item->Viscocidad ?? '' }}"
-                                    data-oktiempo="{{ isset($item->OkTiempo) && $item->OkTiempo ? '1' : '0' }}"
-                                    data-okviscocidad="{{ isset($item->OkViscocidad) && $item->OkViscocidad ? '1' : '0' }}"
-                                    data-oksolidos="{{ isset($item->OkSolidos) && $item->OkSolidos ? '1' : '0' }}"
-                                    {{ !empty($item->obs_calidad) ? 'checked' : '' }}
-                                    title="{{ !empty($item->obs_calidad) ? e($item->obs_calidad) : 'Sin observaciones' }}"
-                                >
-                                <button type="button" onclick="event.stopPropagation(); verObsCalidad(event, this.closest('td').querySelector('.obs-calidad-checkbox')?.title || 'Sin observaciones')" class="p-1 text-blue-600 hover:bg-blue-100 rounded transition {{ !empty($item->obs_calidad) ? '' : 'opacity-50' }}" title="Ver observaciones">
-                                    <i class="fa-solid fa-eye text-sm"></i>
-                                </button>
-                            </div>
+                            @php
+                                $tieneObs = !empty($item->obs_calidad);
+                                $iconoCalidad = $tieneObs ? 'fa-clipboard-check' : 'fa-clipboard-list';
+                                $tituloCalidad = $tieneObs ? e($item->obs_calidad) : 'Calidad (sin observaciones)';
+                            @endphp
+                            <x-navbar.button-report
+                                onclick="event.stopPropagation(); abrirModalObsCalidad(this)"
+                                title="{{ $tituloCalidad }}"
+                                icon="{{ $iconoCalidad }}"
+                                iconColor="{{ $tieneObs ? 'text-blue-700' : 'text-blue-500' }}"
+                                hoverBg="hover:bg-blue-50"
+                                module="Captura de Formula"
+                                class="obs-calidad-btn"
+                                data-folio="{{ $item->Folio }}"
+                                data-id="{{ $item->Id ?? '' }}"
+                                data-formula="{{ $item->Formula ?? '' }}"
+                                data-litros="{{ $item->Litros ?? '' }}"
+                                data-tiempo="{{ $item->TiempoCocinado ?? '' }}"
+                                data-solidos="{{ $item->Solidos ?? '' }}"
+                                data-viscocidad="{{ $item->Viscocidad ?? '' }}"
+                                data-oktiempo="{{ isset($item->OkTiempo) && $item->OkTiempo ? '1' : '0' }}"
+                                data-okviscocidad="{{ isset($item->OkViscocidad) && $item->OkViscocidad ? '1' : '0' }}"
+                                data-oksolidos="{{ isset($item->OkSolidos) && $item->OkSolidos ? '1' : '0' }}"
+                                data-has-obs="{{ $tieneObs ? '1' : '0' }}"
+                            />
                         </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="17" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
+                        <td colspan="{{ $puedeVerCalidad ? 17 : 16 }}" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -640,35 +659,47 @@
     <style>
         .formula-row:hover,
         .formula-row:hover td {
-            background-color: rgb(59, 130, 246) !important;
-            color: white !important;
+            background-color: rgb(219, 234, 255) !important;
+            color: rgb(30, 64, 175) !important;
         }
         .formula-row:hover a,
         .formula-row:hover span,
         .formula-row:hover div {
-            color: white !important;
+            color: rgb(30, 64, 175) !important;
         }
         .formula-row:hover .bg-yellow-100,
         .formula-row:hover .bg-blue-100,
         .formula-row:hover .bg-green-100 {
-            background-color: rgba(255, 255, 255, 0.2) !important;
-            color: white !important;
+            background-color: rgba(147, 197, 253, 0.5) !important;
+            color: rgb(30, 64, 175) !important;
         }
         .formula-row.selected,
         .formula-row.selected td {
-            background-color: rgb(59, 130, 246) !important;
-            color: white !important;
+            background-color: rgb(191, 219, 254) !important;
+            color: rgb(30, 64, 175) !important;
         }
         .formula-row.selected a,
         .formula-row.selected span,
         .formula-row.selected div {
-            color: white !important;
+            color: rgb(30, 64, 175) !important;
         }
         .formula-row.selected .bg-yellow-100,
         .formula-row.selected .bg-blue-100,
         .formula-row.selected .bg-green-100 {
-            background-color: rgba(255, 255, 255, 0.2) !important;
-            color: white !important;
+            background-color: rgba(147, 197, 253, 0.6) !important;
+            color: rgb(30, 64, 175) !important;
+        }
+        .formula-row:hover .obs-calidad-btn,
+        .formula-row.selected .obs-calidad-btn {
+            color: rgb(37, 99, 235) !important;
+        }
+        .formula-row:hover .obs-calidad-btn i,
+        .formula-row.selected .obs-calidad-btn i {
+            color: rgb(37, 99, 235) !important;
+        }
+        .formula-row:hover .obs-calidad-btn:hover,
+        .formula-row.selected .obs-calidad-btn:hover {
+            background-color: rgba(147, 197, 253, 0.8) !important;
         }
     </style>
 
@@ -2325,36 +2356,6 @@
             disableButtons();
             // No cargar aquí: se carga al abrir el modal para evitar renders duplicados
 
-            document.querySelectorAll('.obs-calidad-checkbox').forEach(cb => {
-                cb.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                });
-                cb.addEventListener('change', () => {
-                    const folio = cb.dataset.folio || '';
-                    if (cb.checked) {
-                        abrirModalObsCalidad(cb);
-                    } else {
-                        // Si desmarca, preguntar si quiere eliminar las observaciones
-                        Swal.fire({
-                            title: '¿Eliminar observaciones?',
-                            text: '¿Desea eliminar las observaciones de calidad?',
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonColor: '#3b82f6',
-                            cancelButtonColor: '#6b7280',
-                            confirmButtonText: 'Sí, eliminar',
-                            cancelButtonText: 'Cancelar'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                guardarObsCalidad(folio, '', cb);
-                            } else {
-                                cb.checked = true; // Mantener marcado si cancela
-                            }
-                        });
-                    }
-                });
-            });
-
             const thFecha = document.getElementById('th-fecha');
             if (thFecha) {
                 thFecha.setAttribute('aria-sort', 'none');
@@ -2463,41 +2464,65 @@
             });
         }
 
-        function abrirModalObsCalidad(checkbox) {
-            const folio = checkbox.dataset.folio || '';
-            const formula = checkbox.dataset.formula || '';
-            const litros = checkbox.dataset.litros || '';
-            const tiempo = checkbox.dataset.tiempo || '';
-            const solidos = checkbox.dataset.solidos || '';
-            const viscocidad = checkbox.dataset.viscocidad || '';
-            const okTiempo = checkbox.dataset.oktiempo === '1';
-            const okViscocidad = checkbox.dataset.okviscocidad === '1';
-            const okSolidos = checkbox.dataset.oksolidos === '1';
-            const obsActual = checkbox.title !== 'Sin observaciones' ? checkbox.title : '';
+        function abrirModalObsCalidad(btnCalidad) {
+            const folio = btnCalidad.dataset.folio || '';
+            const formula = btnCalidad.dataset.formula || '';
+            const litros = btnCalidad.dataset.litros || '';
+            const tiempo = btnCalidad.dataset.tiempo || '';
+            const solidos = btnCalidad.dataset.solidos || '';
+            const viscocidad = btnCalidad.dataset.viscocidad || '';
+            const okTiempo = btnCalidad.dataset.oktiempo === '1';
+            const okViscocidad = btnCalidad.dataset.okviscocidad === '1';
+            const okSolidos = btnCalidad.dataset.oksolidos === '1';
+            const obsActual = btnCalidad.dataset.hasObs === '1' ? (btnCalidad.title || '') : '';
 
             Swal.fire({
                 title: 'Calidad',
-                width: '520px',
+                width: '480px',
                 html: `
-                    <div class="text-center space-y-2 text-base">
-                        <div><span class="text-gray-500">Folio</span> <span class="font-semibold text-lg">${folio}</span></div>
-                        <div><span class="text-gray-500">Fórmula</span> <span class="font-semibold text-lg">${formula}</span></div>
-                        <div><span class="text-gray-500">Litros</span> <span class="font-semibold text-lg">${litros}</span></div>
-                        <div class="flex items-center justify-center gap-2">
-                            <span class="text-gray-500">Tiempo</span> <span class="font-semibold text-lg">${tiempo}</span>
-                            <input type="checkbox" id="swal-oktiempo" class="w-5 h-5 text-blue-600 rounded ml-1" ${okTiempo ? 'checked' : ''}>
+                    <div class="text-left">
+                        <div class="flex gap-4 mb-4 text-sm">
+                            <div><span class="text-gray-500">Folio</span> <span class="font-semibold">${folio}</span></div>
+                            <div><span class="text-gray-500">Fórmula</span> <span class="font-semibold">${formula}</span></div>
+                            <div><span class="text-gray-500">Litros</span> <span class="font-semibold">${litros}</span></div>
                         </div>
-                        <div class="flex items-center justify-center gap-2">
-                            <span class="text-gray-500">Sólidos</span> <span class="font-semibold text-lg">${solidos}</span>
-                            <input type="checkbox" id="swal-oksolidos" class="w-5 h-5 text-blue-600 rounded ml-1" ${okSolidos ? 'checked' : ''}>
+                        <div class="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-left font-semibold">Concepto</th>
+                                        <th class="px-4 py-2.5 text-right font-semibold">Valor</th>
+                                        <th class="px-4 py-2.5 text-center font-semibold">OK</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-100">
+                                    <tr class="hover:bg-blue-50/50">
+                                        <td class="px-4 py-2.5 font-medium text-gray-700">Tiempo (Min)</td>
+                                        <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${tiempo}</td>
+                                        <td class="px-4 py-2.5 text-center">
+                                            <input type="checkbox" id="swal-oktiempo" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" ${okTiempo ? 'checked' : ''} title="Marcar como OK">
+                                        </td>
+                                    </tr>
+                                    <tr class="hover:bg-blue-50/50">
+                                        <td class="px-4 py-2.5 font-medium text-gray-700">Sólidos (%)</td>
+                                        <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${solidos}</td>
+                                        <td class="px-4 py-2.5 text-center">
+                                            <input type="checkbox" id="swal-oksolidos" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" ${okSolidos ? 'checked' : ''} title="Marcar como OK">
+                                        </td>
+                                    </tr>
+                                    <tr class="hover:bg-blue-50/50">
+                                        <td class="px-4 py-2.5 font-medium text-gray-700">Viscosidad</td>
+                                        <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${viscocidad}</td>
+                                        <td class="px-4 py-2.5 text-center">
+                                            <input type="checkbox" id="swal-okviscocidad" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" ${okViscocidad ? 'checked' : ''} title="Marcar como OK">
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="flex items-center justify-center gap-2">
-                            <span class="text-gray-500">Viscosidad</span> <span class="font-semibold text-lg">${viscocidad}</span>
-                            <input type="checkbox" id="swal-okviscocidad" class="w-5 h-5 text-blue-600 rounded ml-1" ${okViscocidad ? 'checked' : ''}>
-                        </div>
-                        <div class="border-t border-gray-200 pt-3 mt-3">
-                            <label class="text-gray-500 block mb-1">Observaciones</label>
-                            <input type="text" id="swal-obs-calidad" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-base text-center" placeholder="Añadir observaciones (opcional)...">
+                        <div class="border-t border-gray-200 pt-3 mt-4">
+                            <label class="text-gray-500 block mb-1 text-sm font-medium">Observaciones</label>
+                            <input type="text" id="swal-obs-calidad" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Añadir observaciones (opcional)...">
                         </div>
                     </div>
                 `,
@@ -2515,31 +2540,27 @@
                     return { obs, okTiempo: okt, okViscocidad: okv, okSolidos: oks };
                 },
                 didOpen: () => {
-                    const textarea = document.getElementById('swal-obs-calidad');
-                    if (textarea) {
-                        textarea.value = obsActual || '';
-                        textarea.focus();
+                    const input = document.getElementById('swal-obs-calidad');
+                    if (input) {
+                        input.value = obsActual || '';
+                        input.focus();
                     }
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
                     const { obs, okTiempo, okViscocidad, okSolidos } = result.value;
-                    guardarObsCalidad(folio, obs, checkbox, { okTiempo, okViscocidad, okSolidos });
-                } else {
-                    if (!obsActual) {
-                        checkbox.checked = false;
-                    }
+                    guardarObsCalidad(folio, obs, btnCalidad, { okTiempo, okViscocidad, okSolidos });
                 }
             });
         }
 
-        async function guardarObsCalidad(folio, observaciones, checkbox, checks = {}) {
+        async function guardarObsCalidad(folio, observaciones, btnCalidad, checks = {}) {
             try {
-                const formulacionId = checkbox.dataset.id || '';
+                const formulacionId = btnCalidad.dataset.id || '';
                 const url = `/eng-formulacion/${folio}`;
-                const okT = checks.hasOwnProperty('okTiempo') ? (checks.okTiempo ? 1 : 0) : (parseInt(checkbox.dataset.oktiempo) || 0);
-                const okV = checks.hasOwnProperty('okViscocidad') ? (checks.okViscocidad ? 1 : 0) : (parseInt(checkbox.dataset.okviscocidad) || 0);
-                const okS = checks.hasOwnProperty('okSolidos') ? (checks.okSolidos ? 1 : 0) : (parseInt(checkbox.dataset.oksolidos) || 0);
+                const okT = checks.hasOwnProperty('okTiempo') ? (checks.okTiempo ? 1 : 0) : (parseInt(btnCalidad.dataset.oktiempo) || 0);
+                const okV = checks.hasOwnProperty('okViscocidad') ? (checks.okViscocidad ? 1 : 0) : (parseInt(btnCalidad.dataset.okviscocidad) || 0);
+                const okS = checks.hasOwnProperty('okSolidos') ? (checks.okSolidos ? 1 : 0) : (parseInt(btnCalidad.dataset.oksolidos) || 0);
                 const body = {
                     obs_calidad: observaciones,
                     ok_tiempo: okT,
@@ -2563,19 +2584,23 @@
                     throw new Error(data.message || 'Error al guardar');
                 }
 
-                // Actualizar checkbox, tooltip y data de los checks
-                checkbox.dataset.oktiempo = okT.toString();
-                checkbox.dataset.okviscocidad = okV.toString();
-                checkbox.dataset.oksolidos = okS.toString();
-                const row = checkbox.closest('tr');
+                // Actualizar botón: icono, tooltip y data de los checks
+                btnCalidad.dataset.oktiempo = okT.toString();
+                btnCalidad.dataset.okviscocidad = okV.toString();
+                btnCalidad.dataset.oksolidos = okS.toString();
+                const row = btnCalidad.closest('tr');
                 if (row) {
-                    row.dataset.oktiempo = checkbox.dataset.oktiempo;
-                    row.dataset.okviscocidad = checkbox.dataset.okviscocidad;
-                    row.dataset.oksolidos = checkbox.dataset.oksolidos;
+                    row.dataset.oktiempo = btnCalidad.dataset.oktiempo;
+                    row.dataset.okviscocidad = btnCalidad.dataset.okviscocidad;
+                    row.dataset.oksolidos = btnCalidad.dataset.oksolidos;
                 }
+                const iconEl = btnCalidad.querySelector('i');
                 if (observaciones.trim()) {
-                    checkbox.checked = true;
-                    checkbox.title = observaciones;
+                    btnCalidad.dataset.hasObs = '1';
+                    btnCalidad.title = observaciones;
+                    btnCalidad.classList.remove('text-blue-500');
+                    btnCalidad.classList.add('text-blue-700');
+                    if (iconEl) iconEl.className = 'fa-solid fa-clipboard-check text-sm text-blue-700';
                     Swal.fire({
                         icon: 'success',
                         title: 'Guardado',
@@ -2584,8 +2609,11 @@
                         showConfirmButton: false
                     });
                 } else {
-                    checkbox.checked = false;
-                    checkbox.title = 'Sin observaciones';
+                    btnCalidad.dataset.hasObs = '0';
+                    btnCalidad.title = 'Calidad (sin observaciones)';
+                    btnCalidad.classList.remove('text-blue-700');
+                    btnCalidad.classList.add('text-blue-500');
+                    if (iconEl) iconEl.className = 'fa-solid fa-clipboard-list text-sm text-blue-500';
                     Swal.fire({
                         icon: 'success',
                         title: 'Eliminado',
@@ -2601,8 +2629,7 @@
                     title: 'Error',
                     text: 'No se pudieron guardar las observaciones'
                 });
-                // Revertir el estado del checkbox en caso de error
-                checkbox.checked = !checkbox.checked;
+                // Revertir el estado del icono en caso de error (el usuario puede reintentar)
             }
         }
 

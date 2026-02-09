@@ -1497,6 +1497,12 @@
             async function abrirModalOficial(registroId) {
                 const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                 if (!row) return;
+                const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                const tieneHInicio = hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '';
+                if (tieneHInicio) {
+                    mostrarAlertaErrorModal('No se pueden modificar oficiales cuando ya existe Hora Inicial.');
+                    return;
+                }
 
                 if (usuariosEngomado.length === 0) {
                     await cargarUsuariosEngomado();
@@ -1508,6 +1514,18 @@
 
                 modalOficial.classList.remove('hidden');
                 modalOficial.style.display = 'flex';
+            }
+
+            function mostrarAlertaErrorModal(mensaje) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Acción no permitida',
+                        text: mensaje
+                    });
+                } else {
+                    alert(mensaje);
+                }
             }
 
             function cerrarModalOficial() {
@@ -1560,9 +1578,17 @@
                 const btnAgregar = row.querySelector('.btn-agregar-oficial');
                 if (btnAgregar) {
                     btnAgregar.setAttribute('data-cantidad-oficiales', oficiales.length);
-                    btnAgregar.disabled = false;
-                    btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
-                    btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                    const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                    const tieneHInicio = hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '';
+                    if (tieneHInicio) {
+                        btnAgregar.disabled = true;
+                        btnAgregar.classList.remove('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                        btnAgregar.classList.add('text-gray-400', 'cursor-not-allowed', 'opacity-50');
+                    } else {
+                        btnAgregar.disabled = false;
+                        btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
+                        btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
+                    }
                 }
             }
 
@@ -2042,6 +2068,10 @@
                     if (!btnAgregar) return;
 
                     e.preventDefault();
+                    if (btnAgregar.disabled) {
+                        mostrarAlertaErrorModal('No se pueden modificar oficiales cuando ya existe Hora Inicial.');
+                        return;
+                    }
                     const registroId = btnAgregar.getAttribute('data-registro-id');
                     if (registroId) abrirModalOficial(registroId);
                 });
@@ -2090,6 +2120,8 @@
                         if (claveInput)  claveInput.value  = '';
                         if (nombreInput) nombreInput.value = '';
                         if (turnoSelect) turnoSelect.value = '';
+                        const metrosInput = document.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
+                        if (metrosInput) metrosInput.value = '';
                         if (btnEliminar) {
                             btnEliminar.disabled = true;
                             btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
@@ -2172,11 +2204,11 @@
                                             position: 'top-end'
                                         });
                                     } else {
-                                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error al eliminar' });
+                                        mostrarAlertaErrorModal(data.error || 'Error al eliminar oficial');
                                     }
                                 } catch (err) {
                                     console.error(err);
-                                    Swal.fire({ icon: 'error', title: 'Error', text: 'Error al eliminar el oficial' });
+                                    mostrarAlertaErrorModal('Error al eliminar el oficial');
                                 }
                             }
                         });

@@ -20,6 +20,45 @@ use Illuminate\Support\Facades\Log;
 
 class ModuloProduccionEngomadoController extends Controller
 {
+    private function hasNegativeKgNetoByFolio(string $folio): bool
+    {
+        return EngProduccionEngomado::where('Folio', $folio)
+            ->whereNotNull('KgNeto')
+            ->where('KgNeto', '<', 0)
+            ->exists();
+    }
+
+    private function hasHoraInicialCaptured(EngProduccionEngomado $registro): bool
+    {
+        return $registro->HoraInicial !== null && trim((string) $registro->HoraInicial) !== '';
+    }
+
+    private function autollenarOficial1EnRegistrosSinHoraInicial(EngProgramaEngomado $orden): void
+    {
+        $usuarioActual = Auth::user();
+        if (!$usuarioActual) {
+            return;
+        }
+
+        $claveUsuario = $usuarioActual->numero_empleado ?? null;
+        $nombreUsuario = $usuarioActual->nombre ?? null;
+        if (empty($claveUsuario) || empty($nombreUsuario)) {
+            return;
+        }
+
+        $turnoUsuario = $usuarioActual->turno ?? \App\Helpers\TurnoHelper::getTurnoActual();
+
+        EngProduccionEngomado::where('Folio', $orden->Folio)
+            ->where(function ($query) {
+                $query->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+            })
+            ->update([
+                'CveEmpl1' => $claveUsuario,
+                'NomEmpl1' => $nombreUsuario,
+                'Turno1' => $turnoUsuario !== null && $turnoUsuario !== '' ? (int) $turnoUsuario : null,
+            ]);
+    }
+
     /**
      * Extraer numero de tabla del campo MaquinaEng.
      *
@@ -140,7 +179,6 @@ class ModuloProduccionEngomadoController extends Controller
         // Actualizar el status a "En Proceso" cuando se carga la página de producción
         if ($orden->Status !== 'En Proceso') {
             try {
-                $statusAnterior = $orden->Status;
                 $orden->Status = 'En Proceso';
                 $orden->save();
             } catch (\Throwable $e) {
@@ -183,15 +221,6 @@ class ModuloProduccionEngomadoController extends Controller
 
                     // Calcular cuántos registros faltan
                     $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
-
-                    // Log para depuración
-                    Log::info('Verificando registros de producción Engomado', [
-                        'folio' => $orden->Folio,
-                        'no_telas' => $orden->NoTelas ?? 0,
-                        'total_registros_necesarios' => $totalRegistros,
-                        'registros_existentes' => $registrosExistentes,
-                        'registros_faltantes' => $registrosFaltantes,
-                    ]);
 
                     // Si ya existen todos los registros necesarios, no crear más
                     if ($registrosFaltantes > 0) {
@@ -241,13 +270,6 @@ class ModuloProduccionEngomadoController extends Controller
 
                         // Crear todos los registros en lote si hay alguno
                         if (count($registrosACrear) > 0) {
-                            Log::info('Creando registros de producción Engomado', [
-                                'folio' => $orden->Folio,
-                                'no_telas' => $orden->NoTelas ?? 0,
-                                'total_registros_necesarios' => $totalRegistros,
-                                'registros_a_crear' => count($registrosACrear),
-                            ]);
-
                             $registrosCreados = 0;
                             foreach ($registrosACrear as $index => $registroData) {
                                 try {
@@ -274,19 +296,7 @@ class ModuloProduccionEngomadoController extends Controller
                                     continue;
                                 }
                             }
-
-                            Log::info('Registros de producción Engomado creados', [
-                                'folio' => $orden->Folio,
-                                'registros_creados' => $registrosCreados,
-                                'registros_intentados' => count($registrosACrear),
-                            ]);
                         }
-                    } else {
-                        Log::info('No se crearán registros adicionales - ya existen todos los necesarios', [
-                            'folio' => $orden->Folio,
-                            'total_registros_necesarios' => $totalRegistros,
-                            'registros_existentes' => $registrosExistentes,
-                        ]);
                     }
                 }
             } catch (\Throwable $e) {
@@ -307,6 +317,11 @@ class ModuloProduccionEngomadoController extends Controller
                 'no_telas' => $orden ? ($orden->NoTelas ?? 0) : 0,
             ]);
         }
+
+        $this->autollenarOficial1EnRegistrosSinHoraInicial($orden);
+        $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)
+            ->orderBy('Id')
+            ->get();
 
         // Metros en producción = Metraje Telas de la orden (formateado para vista)
         $metros = $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : ($orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0');
@@ -491,6 +506,12 @@ class ModuloProduccionEngomadoController extends Controller
                     'error' => 'Registro no encontrado',
                 ], 404);
             }
+            if ($this->hasHoraInicialCaptured($registro)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
+                ], 422);
+            }
 
             $numeroOficial = (int) $request->numero_oficial;
             $folio = $registro->Folio;
@@ -602,6 +623,12 @@ class ModuloProduccionEngomadoController extends Controller
                     'error' => 'Registro no encontrado',
                 ], 404);
             }
+            if ($this->hasHoraInicialCaptured($registro)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
+                ], 422);
+            }
 
             $numeroOficial = (int) $request->numero_oficial;
 
@@ -650,6 +677,12 @@ class ModuloProduccionEngomadoController extends Controller
                     'success' => false,
                     'error' => 'Registro no encontrado',
                 ], 404);
+            }
+            if ($this->hasHoraInicialCaptured($registro)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
+                ], 422);
             }
 
             $numeroOficial = $request->numero_oficial;
@@ -1158,6 +1191,12 @@ class ModuloProduccionEngomadoController extends Controller
                 return response()->json([
                     'success' => false,
                     'error' => 'La orden no está en estado "En Proceso". Estado actual: ' . $orden->Status,
+                ], 422);
+            }
+            if ($this->hasNegativeKgNetoByFolio($orden->Folio)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede finalizar la orden porque existen registros con Kg Neto negativo.',
                 ], 422);
             }
 

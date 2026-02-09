@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return (arr || []).map(t => ({
             ...t,
             tipo: normalizarTipo(t.tipo), // Normalizar tipo a "Rizo" o "Pie"
-            hilo: t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null
+            hilo: null  // Reiniciar: el usuario debe elegir el hilo desde esta pantalla
         }));
     }
 
@@ -264,16 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.dataset.index = index;
         tr.dataset.telarId = telar.no_telar || '';
 
-        // Construir opciones del select de hilo
-        const hiloActual = telar.hilo || '';
-        const opcionesHilo = opciones.hilos.map(hilo => {
-            const selected = hilo === hiloActual ? 'selected' : '';
-            return `<option value="${hilo}" ${selected}>${hilo}</option>`;
-        }).join('');
-        // Agregar opción vacía al inicio si no hay hilo seleccionado
-        const selectHiloHTML = hiloActual && !opciones.hilos.includes(hiloActual)
-            ? `<option value="${hiloActual}" selected>${hiloActual}</option>${opcionesHilo}`
-            : `<option value="">Seleccione...</option>${opcionesHilo}`;
+        // Construir opciones del select de hilo (siempre iniciar vacío, el usuario elige)
+        const opcionesHilo = opciones.hilos.map(hilo => `<option value="${hilo}">${hilo}</option>`).join('');
+        const selectHiloHTML = `<option value="">Seleccione...</option>${opcionesHilo}`;
 
         // Construir opciones del select de tamaño
         const tamanoActual = telar.tamano || telar.tamaño || telar.inventSizeId || '';

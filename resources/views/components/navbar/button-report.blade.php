@@ -121,7 +121,8 @@
     onclick="{{ $onclick }}"
     class="{{ $paddingClass }} {{ $text ? 'rounded-lg' : 'rounded-full' }} transition {{ $finalHoverBg }} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $bg ?? '' }} {{ !$text ? ($bg ? 'w-9 h-9' : 'w-9 h-9') : '' }} {{ $class }}"
     @if($disabled) disabled @endif
-    title="{{ $title }}">
+    title="{{ $title }}"
+    {{ $attributes }}>
     <i class="fa-solid {{ $iconNormalized }} {{ $iconColor }} {{ $text ? 'text-base' : 'text-sm' }}"></i>
     @if($text)
         <span class="text-sm font-medium">{{ $text }}</span>

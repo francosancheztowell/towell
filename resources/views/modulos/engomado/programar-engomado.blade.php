@@ -658,6 +658,21 @@
                     return;
                 }
 
+                // Verificar que la orden tenga urdido finalizado en UrdProgramaUrdido
+                if (state.ordenSeleccionada.urdido_finalizado !== true) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Urdido no finalizado',
+                            html: '<p class="text-gray-700">La orden seleccionada aún no tiene el urdido finalizado en UrdProgramaUrdido.</p><p class="text-gray-600 text-sm mt-2">Solo las líneas en azul (urdido finalizado) se pueden cargar a producción.</p>',
+                            confirmButtonColor: '#2563eb',
+                            confirmButtonText: 'Entendido'
+                        });
+                    } else {
+                        alert('La orden seleccionada aún no tiene el urdido finalizado. Solo las líneas en azul se pueden cargar a producción.');
+                    }
+                    return;
+                }
 
                 // Verificación de órdenes en proceso eliminada - se permite cualquier cantidad
 
