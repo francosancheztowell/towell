@@ -1769,27 +1769,14 @@
                     // Siempre renderizar 3 filas con inputs
                     containerOficiales.innerHTML = '';
                     
-                    // Determinar cuál es el primer oficial nuevo (si hay alguno)
-                    let primerOficialNuevo = null;
-                    for (let i = 1; i <= 3; i++) {
-                        const oficialExistente = oficiales.find(o => parseInt(o.numero) === i);
-                        if (!oficialExistente) {
-                            primerOficialNuevo = i;
-                            break;
-                        }
-                    }
-                    
                     for (let i = 1; i <= 3; i++) {
                         const oficial = oficiales.find(o => parseInt(o.numero) === i) || {
                             numero: i,
                             nombre: '',
-                            clave: i === 1 ? '{{ $usuarioClave }}' : '',
+                            clave: '',
                             metros: '',
                             turno: ''
                         };
-
-                        const esNuevo = !oficiales.find(o => parseInt(o.numero) === i);
-                        const debeSeleccionar = esNuevo && i === primerOficialNuevo;
 
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-gray-50';
@@ -1798,7 +1785,6 @@
                                 <select
                                     class="w-full border border-gray-300 rounded px-2 py-1 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-oficial-nombre"
                                     data-numero="${i}"
-                                    ${debeSeleccionar ? 'data-seleccionar-por-defecto="true"' : ''}
                                 >
                                     <option value="">Seleccionar empleado...</option>
                                 </select>
@@ -1855,10 +1841,10 @@
                         `;
                         containerOficiales.appendChild(row);
 
-                        // Poblar el select de usuarios después de crear el elemento
+                        // Poblar el select de usuarios (solo seleccionar si ya tiene clave asignada, nunca auto-rellenar vacíos)
                         const selectNombre = row.querySelector('.select-oficial-nombre');
                         if (selectNombre) {
-                            poblarSelectUsuarios(selectNombre, oficial.clave, debeSeleccionar);
+                            poblarSelectUsuarios(selectNombre, oficial.clave, false);
                         }
                     }
                     modalOficialesLista.classList.remove('hidden');
@@ -1867,12 +1853,6 @@
                 async function abrirModalOficial(registroId) {
                     const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                     if (!row) return;
-                    const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
-                    const tieneHInicio = hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '';
-                    if (tieneHInicio) {
-                        mostrarAlertaErrorModal('No se pueden modificar oficiales cuando ya existe Hora Inicial.');
-                        return;
-                    }
 
                     // Asegurar que los usuarios estén cargados antes de renderizar
                     if (usuariosUrdido.length === 0) {
@@ -2122,14 +2102,12 @@
                     const btnAgregar = row.querySelector('.btn-agregar-oficial');
                     if (btnAgregar) {
                         btnAgregar.setAttribute('data-cantidad-oficiales', oficiales.length);
-                        const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
-                        const tieneHInicio = hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '';
-                        if (tieneHInicio) {
-                            btnAgregar.disabled = true;
+                        // Siempre habilitado: con Hora Inicial se puede abrir para editar Metros/Turno (no cambiar oficial)
+                        btnAgregar.disabled = oficiales.length >= 3 ? true : false;
+                        if (btnAgregar.disabled) {
                             btnAgregar.classList.remove('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
                             btnAgregar.classList.add('text-gray-400', 'cursor-not-allowed', 'opacity-50');
                         } else {
-                            btnAgregar.disabled = false;
                             btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
                             btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
                         }
@@ -2200,10 +2178,7 @@
                     if (!btnAgregar) return;
 
                     e.preventDefault();
-                    if (btnAgregar.disabled) {
-                        mostrarAlertaErrorModal('No se pueden modificar oficiales cuando ya existe Hora Inicial.');
-                        return;
-                    }
+                    if (btnAgregar.disabled) return;
                     const registroId = btnAgregar.getAttribute('data-registro-id');
                     if (registroId) abrirModalOficial(registroId);
                 });

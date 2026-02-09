@@ -1427,24 +1427,15 @@
                 }
 
                 containerOficiales.innerHTML = '';
-                let primerOficialNuevo = null;
-                for (let j = 1; j <= 3; j++) {
-                    if (!oficiales.find(o => parseInt(o.numero) === j)) {
-                        primerOficialNuevo = j;
-                        break;
-                    }
-                }
 
                 for (let i = 1; i <= 3; i++) {
                     const oficial = oficiales.find(o => parseInt(o.numero) === i) || {
                         numero: i,
                         nombre: '',
-                        clave: i === 1 ? '{{ $usuarioClave ?? "" }}' : '',
+                        clave: '',
                         metros: '',
                         turno: ''
                     };
-                    const esNuevo = !oficiales.find(o => parseInt(o.numero) === i);
-                    const debeSeleccionar = esNuevo && i === primerOficialNuevo;
 
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-gray-50';
@@ -1453,7 +1444,6 @@
                             <select
                                 class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 select-oficial-nombre"
                                 data-numero="${i}"
-                                ${debeSeleccionar ? 'data-seleccionar-por-defecto="true"' : ''}
                             >
                                 <option value="">Seleccionar empleado...</option>
                             </select>
@@ -1487,7 +1477,7 @@
 
                     const selectNombre = tr.querySelector('.select-oficial-nombre');
                     if (selectNombre) {
-                        poblarSelectUsuarios(selectNombre, oficial.clave, debeSeleccionar);
+                        poblarSelectUsuarios(selectNombre, oficial.clave, false);
                     }
                 }
 
@@ -1497,12 +1487,6 @@
             async function abrirModalOficial(registroId) {
                 const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                 if (!row) return;
-                const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
-                const tieneHInicio = hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '';
-                if (tieneHInicio) {
-                    mostrarAlertaErrorModal('No se pueden modificar oficiales cuando ya existe Hora Inicial.');
-                    return;
-                }
 
                 if (usuariosEngomado.length === 0) {
                     await cargarUsuariosEngomado();
@@ -1578,14 +1562,11 @@
                 const btnAgregar = row.querySelector('.btn-agregar-oficial');
                 if (btnAgregar) {
                     btnAgregar.setAttribute('data-cantidad-oficiales', oficiales.length);
-                    const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
-                    const tieneHInicio = hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '';
-                    if (tieneHInicio) {
-                        btnAgregar.disabled = true;
+                    btnAgregar.disabled = oficiales.length >= 3;
+                    if (btnAgregar.disabled) {
                         btnAgregar.classList.remove('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
                         btnAgregar.classList.add('text-gray-400', 'cursor-not-allowed', 'opacity-50');
                     } else {
-                        btnAgregar.disabled = false;
                         btnAgregar.classList.remove('text-gray-400', 'cursor-not-allowed', 'opacity-50');
                         btnAgregar.classList.add('text-blue-600', 'hover:text-blue-800', 'hover:bg-blue-50');
                     }
@@ -2068,10 +2049,7 @@
                     if (!btnAgregar) return;
 
                     e.preventDefault();
-                    if (btnAgregar.disabled) {
-                        mostrarAlertaErrorModal('No se pueden modificar oficiales cuando ya existe Hora Inicial.');
-                        return;
-                    }
+                    if (btnAgregar.disabled) return;
                     const registroId = btnAgregar.getAttribute('data-registro-id');
                     if (registroId) abrirModalOficial(registroId);
                 });

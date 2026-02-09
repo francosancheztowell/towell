@@ -506,12 +506,6 @@ class ModuloProduccionEngomadoController extends Controller
                     'error' => 'Registro no encontrado',
                 ], 404);
             }
-            if ($this->hasHoraInicialCaptured($registro)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
-                ], 422);
-            }
 
             $numeroOficial = (int) $request->numero_oficial;
             $folio = $registro->Folio;
@@ -623,13 +617,6 @@ class ModuloProduccionEngomadoController extends Controller
                     'error' => 'Registro no encontrado',
                 ], 404);
             }
-            if ($this->hasHoraInicialCaptured($registro)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
-                ], 422);
-            }
-
             $numeroOficial = (int) $request->numero_oficial;
 
             $registro->{"CveEmpl{$numeroOficial}"} = null;
@@ -678,13 +665,6 @@ class ModuloProduccionEngomadoController extends Controller
                     'error' => 'Registro no encontrado',
                 ], 404);
             }
-            if ($this->hasHoraInicialCaptured($registro)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
-                ], 422);
-            }
-
             $numeroOficial = $request->numero_oficial;
 
             if (empty($registro->{"NomEmpl{$numeroOficial}"})) {

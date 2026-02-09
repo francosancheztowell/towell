@@ -487,12 +487,6 @@ class ModuloProduccionUrdidoController extends Controller
                     'error' => 'Registro no encontrado',
                 ], 404);
             }
-            if ($this->hasHoraInicialCaptured($registro)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
-                ], 422);
-            }
 
             $numeroOficial = (int) $request->numero_oficial;
             $folio = $registro->Folio;
@@ -616,12 +610,6 @@ class ModuloProduccionUrdidoController extends Controller
                     'error' => 'Registro no encontrado',
                 ], 404);
             }
-            if ($this->hasHoraInicialCaptured($registro)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
-                ], 422);
-            }
 
             $numeroOficial = (int) $request->numero_oficial;
 
@@ -670,12 +658,6 @@ class ModuloProduccionUrdidoController extends Controller
                     'success' => false,
                     'error' => 'Registro no encontrado',
                 ], 404);
-            }
-            if ($this->hasHoraInicialCaptured($registro)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se permite cambiar oficiales cuando ya existe Hora Inicial.',
-                ], 422);
             }
 
             $numeroOficial = $request->numero_oficial;
