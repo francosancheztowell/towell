@@ -10,6 +10,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\ReferenceHelper;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
 
@@ -49,14 +50,15 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
                 $sheetIndex = $book->getIndex($initialSheet);
                 $sheetTitle = $initialSheet->getTitle();
 
-                $templateSheet = $this->loadTemplateSheet();
-                $templateSheet->setTitle($sheetTitle);
+                $templateBook = $this->loadTemplateBook();
+                $sheet0 = $templateBook->getSheet(0);
+                $sheet0->setTitle('URDIDO');
+                $sheet1 = $templateBook->getSheetCount() > 1 ? $templateBook->getSheet(1) : null;
 
                 $book->removeSheetByIndex($sheetIndex);
-                $book->addExternalSheet($templateSheet, $sheetIndex);
+                $book->addExternalSheet($sheet0, $sheetIndex);
 
                 $sheet = $book->getSheet($sheetIndex);
-
                 $rowCursor = 1;
                 $firstBlock = true;
 
@@ -65,15 +67,31 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
                         $this->copyTemplateBlockWithinSheet($sheet, 1, $rowCursor);
                     }
                     $this->fillBlockData($sheet, $rowCursor, (string) $fecha, $datos, $firstBlock);
-
                     $rowCursor += self::BLOCK_ROWS + self::SPACER_ROWS;
                     $firstBlock = false;
+                }
+
+                if ($sheet1 !== null) {
+                    $sheet1->setTitle('Engomado');
+                    $book->addExternalSheet($sheet1);
+
+                    $engSheet = $book->getSheet($book->getSheetCount() - 1);
+                    $rowCursor2 = 1;
+                    $firstBlock2 = true;
+                    foreach ($this->porFecha as $fecha => $datos) {
+                        if (!$firstBlock2) {
+                            $this->copyTemplateBlockWithinSheet($engSheet, 1, $rowCursor2);
+                        }
+                        $this->fillBlockDataEngomado($engSheet, $rowCursor2, (string) $fecha, $datos, $firstBlock2);
+                        $rowCursor2 += self::BLOCK_ROWS + self::SPACER_ROWS;
+                        $firstBlock2 = false;
+                    }
                 }
             },
         ];
     }
 
-    private function loadTemplateSheet(): Worksheet
+    private function loadTemplateBook(): Spreadsheet
     {
         $candidates = [
             resource_path('templates/formato reportes.xlsx'),  // ruta en el repo (GitHub)
@@ -83,9 +101,7 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
 
         foreach ($candidates as $path) {
             if (is_string($path) && $path !== '' && is_file($path)) {
-                $book = IOFactory::load($path);
-
-                return $book->getSheet(0);
+                return IOFactory::load($path);
             }
         }
 
@@ -233,39 +249,83 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
             }
         }
 
-        // Operator panel (W..AB).
-        $ops = array_values($datos['porOperador'] ?? []);
-        $ops = array_slice($ops, 0, count(self::OP_COLS));
-
-        // Reset operator cells.
+        // Limpiar panel de operadores (W..AB) - campos fuera de la tabla principal
         foreach (self::OP_COLS as $colLetter) {
-            $sheet->setCellValue("{$colLetter}" . ($startRow + 1), '');
-            $sheet->setCellValue("{$colLetter}" . ($startRow + 2), '');
-            $sheet->setCellValue("{$colLetter}" . ($startRow + 6), '');
-            $sheet->setCellValue("{$colLetter}" . ($startRow + 9), 8);
-        }
-
-        $metersList = [];
-        foreach ($ops as $i => $op) {
-            $col = self::OP_COLS[$i];
-            $name = trim((string) ($op['nombre'] ?? ''));
-            $meters = (float) ($op['metros'] ?? 0);
-
-            $sheet->setCellValue("{$col}" . ($startRow + 1), mb_strtoupper($name));
-            $sheet->setCellValue("{$col}" . ($startRow + 2), round($meters));
-
-            $metersList[] = $meters;
-        }
-
-        // Percent target row (row + 6, equivalent to template row 7).
-        $maxMeters = !empty($metersList) ? max($metersList) : 1;
-        foreach ($metersList as $i => $meters) {
-            if ($i >= 5) {
-                // Template formulas only use W..AA (5 cols).
-                continue;
+            for ($r = 1; $r <= self::TEMPLATE_ROW_MAX; $r++) {
+                $sheet->setCellValue("{$colLetter}" . ($startRow + $r - 1), '');
             }
-            $pct = (int) max(75, min(90, round(75 + (($meters / max($maxMeters, 1)) * 15))));
-            $sheet->setCellValue(self::OP_COLS[$i] . ($startRow + 6), $pct);
+        }
+    }
+
+    /**
+     * Rellena bloque de Hoja 2 (Engomado) con WP2 y WP3
+     */
+    private function fillBlockDataEngomado(Worksheet $sheet, int $startRow, string $fecha, array $datos, bool $firstBlock): void
+    {
+        $date = Carbon::parse($fecha);
+        $week = (int) $date->weekOfYear;
+
+        $engomado = $datos['engomado'] ?? ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
+        $wp2Filas = $engomado['WP2']['filas'] ?? [];
+        $wp3Filas = $engomado['WP3']['filas'] ?? [];
+
+        $wpLabels = ['WP2', 'WP3'];
+        $wpStarts = ['WP2' => 2, 'WP3' => 7];
+
+        if ($firstBlock) {
+            $sheet->setCellValue("A{$startRow}", $week);
+            $sheet->setCellValue("B{$startRow}", 'Semana');
+        } else {
+            $sheet->setCellValue("A{$startRow}", '');
+            $sheet->setCellValue("B{$startRow}", '');
+        }
+
+        $totalKgEng = 0.0;
+        foreach (['WP2' => $wp2Filas, 'WP3' => $wp3Filas] as $wp => $filas) {
+            foreach ($filas as $f) {
+                $totalKgEng += (float) ($f['p_neto'] ?? 0);
+            }
+        }
+
+        $sheet->setCellValue("A" . ($startRow + 1), round($totalKgEng, 1));
+        $sheet->setCellValue("B" . ($startRow + 1), 'Kg');
+        $sheet->setCellValue("A" . ($startRow + 2), ucfirst($date->locale('es')->translatedFormat('l, d \\d\\e F \\d\\e Y')));
+
+        foreach ($wpLabels as $wp) {
+            $filas = $wp === 'WP2' ? $wp2Filas : $wp3Filas;
+            $kgM = 0.0;
+            $mtsM = 0.0;
+            foreach ($filas as $f) {
+                $kgM += (float) ($f['p_neto'] ?? 0);
+                $mtsM += (float) ($f['metros'] ?? 0);
+            }
+            $base = $wpStarts[$wp];
+            $colKg = Coordinate::stringFromColumnIndex($base + 2);
+            $colMts = Coordinate::stringFromColumnIndex($base + 3);
+            $sheet->setCellValueByColumnAndRow($base + 2, $startRow + 1, $wp);
+            $sheet->setCellValue("{$colKg}" . ($startRow + 2), round($kgM, 1));
+            $sheet->setCellValue("{$colMts}" . ($startRow + 2), (int) round($mtsM));
+        }
+
+        for ($i = 0; $i < self::DATA_ROWS; $i++) {
+            $row = $startRow + 4 + $i;
+            $sheet->setCellValue("A{$row}", $i + 1);
+            for ($col = 2; $col <= 11; $col++) {
+                $sheet->setCellValueByColumnAndRow($col, $row, '');
+            }
+        }
+
+        foreach (['WP2' => $wp2Filas, 'WP3' => $wp3Filas] as $wp => $filas) {
+            $base = $wpStarts[$wp];
+            $filas = array_slice($filas, 0, self::DATA_ROWS);
+            foreach ($filas as $idx => $f) {
+                $r = $startRow + 4 + $idx;
+                $sheet->setCellValueByColumnAndRow($base, $r, $f['orden'] ?? '');
+                $sheet->setCellValueByColumnAndRow($base + 1, $r, $f['julio'] ?? '');
+                $sheet->setCellValueByColumnAndRow($base + 2, $r, isset($f['p_neto']) ? round((float) $f['p_neto'], 2) : '');
+                $sheet->setCellValueByColumnAndRow($base + 3, $r, $f['metros'] ?? '');
+                $sheet->setCellValueByColumnAndRow($base + 4, $r, $f['ope'] ?? '');
+            }
         }
     }
 }

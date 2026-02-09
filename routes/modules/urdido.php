@@ -18,6 +18,13 @@ Route::get('/urdido/{moduloPrincipal?}', [UsuarioController::class, 'showSubModu
     ->name('urdido.index');
 
 Route::prefix('urdido')->name('urdido.')->group(function () {
+    // Reportes Urdido: selector + reportes individuales
+    Route::get('/reportesurdido', [ReportesUrdidoController::class, 'index'])->name('reportes.urdido');
+    Route::get('/reportesurdido/03-oee-urd-eng', [ReportesUrdidoController::class, 'reporte03Oee'])->name('reportes.urdido.03-oee');
+    Route::get('/reportesurdido/kaizen', [ReportesUrdidoController::class, 'reporteKaizen'])->name('reportes.urdido.kaizen');
+    Route::get('/reportesurdido/roturas-millon', [ReportesUrdidoController::class, 'reporteRoturas'])->name('reportes.urdido.roturas');
+    Route::get('/reportesurdido/exportar-excel', [ReportesUrdidoController::class, 'exportarExcel'])->name('reportes.urdido.excel');
+
     Route::get('/configuracion/{moduloPadre?}', [UsuarioController::class, 'showSubModulosNivel3'])
         ->defaults('moduloPadre', '304')
         ->where('moduloPadre', '304')
@@ -48,8 +55,6 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::post('/programar-urdido/guardar-observaciones', [ProgramarUrdidoController::class, 'guardarObservaciones'])->name('programar.urdido.guardar.observaciones');
     Route::post('/programar-urdido/actualizar-status', [ProgramarUrdidoController::class, 'actualizarStatus'])->name('programar.urdido.actualizar.status');
     Route::get('/reimpresion-urdido', [ProgramarUrdidoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
-    Route::get('/reportesurdido', [ReportesUrdidoController::class, 'index'])->name('reportes.urdido');
-    Route::get('/reportesurdido/exportar-excel', [ReportesUrdidoController::class, 'exportarExcel'])->name('reportes.urdido.excel');
 
     Route::get('/editar-ordenes-programadas', [EditarOrdenesProgramadasController::class, 'index'])->name('editar.ordenes.programadas');
     Route::post('/editar-ordenes-programadas/actualizar', [EditarOrdenesProgramadasController::class, 'actualizar'])->name('editar.ordenes.programadas.actualizar');

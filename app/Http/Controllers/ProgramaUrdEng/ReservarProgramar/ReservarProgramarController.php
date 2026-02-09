@@ -760,24 +760,12 @@ class ReservarProgramarController extends Controller
                     $matchCalibre = true;
                     if (!$calibreEsVacio && $calibreEsperado !== null) {
                         $matchCalibre = $this->matchCalibre($calibreEsperado, $calibreEsVacio, $p->CalibreRizo ?? null);
-                        Log::debug('Filtrado programa RIZO - Calibre', [
-                            'ProgramaId' => $p->Id ?? null,
-                            'CalibreEsperado' => $calibreEsperado,
-                            'CalibrePrograma' => $p->CalibreRizo ?? null,
-                            'matchCalibre' => $matchCalibre,
-                        ]);
+
                     }
 
                     $resultadoFinal = $matchSalon && $tieneCuentaRizo && $matchHiloTelar && $matchCalibre;
 
-                    Log::debug('Filtrado programa RIZO - Resultado final', [
-                        'ProgramaId' => $p->Id ?? null,
-                        'matchSalon' => $matchSalon,
-                        'tieneCuentaRizo' => $tieneCuentaRizo,
-                        'matchHiloTelar' => $matchHiloTelar,
-                        'matchCalibre' => $matchCalibre,
-                        'resultadoFinal' => $resultadoFinal,
-                    ]);
+
 
                     return $resultadoFinal;
                 })->values();
@@ -956,13 +944,7 @@ class ReservarProgramarController extends Controller
                     $altCampo = $campoMetros === 'MtsRizo' ? 'MtsPie' : 'MtsRizo';
                     $alt = (float)($ln->{$altCampo} ?? 0);
                     if ($alt > 0) {
-                        Log::debug('Fallback metros usado', [
-                            'LineaId'   => $ln->Id ?? null,
-                            'Tipo'      => $tipo,
-                            'CampoMain' => $campoMetros,
-                            'CampoAlt'  => $altCampo,
-                            'ValorAlt'  => $alt,
-                        ]);
+
                         $mts = $alt;
                     }
                 }
@@ -1104,7 +1086,7 @@ class ReservarProgramarController extends Controller
     private function normalizeDate($v): ?string
     {
         if ($v === null) return null;
-        try { 
+        try {
             $date = $v instanceof Carbon ? $v : Carbon::parse($v);
             // Devolver solo la fecha en formato YYYY-MM-DD para evitar problemas de zona horaria
             return $date->format('Y-m-d');

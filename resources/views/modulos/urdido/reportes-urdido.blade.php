@@ -131,9 +131,15 @@
         }).then((result) => {
             if (result.isConfirmed && result.value) {
                 const params = new URLSearchParams(result.value);
-                window.location.href = '{{ route("urdido.reportes.urdido") }}?' + params.toString();
+                window.location.href = '{{ route("urdido.reportes.urdido.03-oee") }}?' + params.toString();
             }
         });
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        @if (empty($fechaIni) || empty($fechaFin))
+        mostrarModalConsultarReportesUrdido();
+        @endif
+    });
 </script>
 @endpush

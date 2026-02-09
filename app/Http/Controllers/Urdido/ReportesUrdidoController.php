@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Urdido;
 
 use App\Http\Controllers\Controller;
 use App\Exports\ReportesUrdidoExport;
+use App\Models\Engomado\EngProduccionEngomado;
+use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
@@ -46,9 +48,50 @@ class ReportesUrdidoController extends Controller
     }
 
     /**
-     * Vista de reportes de urdido por máquina (ORDEN, JULIO, P. NETO, METROS, OPE.)
+     * Extraer WP2 o WP3 del campo MaquinaEng de engomado
      */
-    public function index(Request $request)
+    private function extractEngomadoWP(?string $maquinaEng): ?string
+    {
+        if (empty(trim((string) $maquinaEng))) return null;
+        $m = trim($maquinaEng);
+        if (preg_match('/west\s*point\s*2|westpoint\s*2|tabla\s*1|izquierda/i', $m) || $m === '2') return 'WP2';
+        if (preg_match('/west\s*point\s*3|westpoint\s*3|tabla\s*2|derecha/i', $m) || $m === '3') return 'WP3';
+        return null;
+    }
+
+    /**
+     * Selector de reportes: muestra los 3 reportes disponibles (03-OEE, Kaizen, Roturas x Millón)
+     */
+    public function index()
+    {
+        $reportes = [
+            [
+                'nombre' => 'Reportes de Produccion 03-OEE URD-ENG',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('urdido.reportes.urdido.03-oee'),
+                'disponible' => true,
+            ],
+            [
+                'nombre' => 'Kaizen urd-eng',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('urdido.reportes.urdido.kaizen'),
+                'disponible' => false,
+            ],
+            [
+                'nombre' => 'ROTURAS X MILLÓN',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('urdido.reportes.urdido.roturas'),
+                'disponible' => false,
+            ],
+        ];
+
+        return view('modulos.urdido.reportes-urdido-index', ['reportes' => $reportes]);
+    }
+
+    /**
+     * Reporte 1: 03-OEE URD-ENG - Producción por máquina (ORDEN, JULIO, P. NETO, METROS, OPE.)
+     */
+    public function reporte03Oee(Request $request)
     {
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
@@ -139,6 +182,28 @@ class ReportesUrdidoController extends Controller
     }
 
     /**
+     * Reporte 2: Kaizen urd-eng (en desarrollo)
+     */
+    public function reporteKaizen()
+    {
+        return view('modulos.urdido.reportes-urdido-placeholder', [
+            'titulo' => 'Kaizen urd-eng',
+            'mensaje' => 'Este reporte está en desarrollo. Próximamente podrá consultar por rango de fechas.',
+        ]);
+    }
+
+    /**
+     * Reporte 3: Roturas x Millón (en desarrollo)
+     */
+    public function reporteRoturas()
+    {
+        return view('modulos.urdido.reportes-urdido-placeholder', [
+            'titulo' => 'ROTURAS X MILLÓN',
+            'mensaje' => 'Este reporte está en desarrollo. Próximamente podrá consultar por rango de fechas.',
+        ]);
+    }
+
+    /**
      * Obtener texto para mostrar del operador (nombre o clave).
      * Prioriza NomEmpl1, si está vacío usa CveEmpl1. Trunca nombres largos.
      */
@@ -212,6 +277,7 @@ class ReportesUrdidoController extends Controller
                     'porMaquina' => [],
                     'porOperador' => [],
                     'totalKg' => 0,
+                    'engomado' => ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]],
                 ];
             }
             if (!isset($porFecha[$fecha]['porMaquina'][$label])) {
@@ -242,6 +308,72 @@ class ReportesUrdidoController extends Controller
             uksort($porFecha[$f]['porMaquina'], fn($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
             $porFecha[$f]['porMaquina'] = array_values($porFecha[$f]['porMaquina']);
         }
+
+        // Datos de engomado para Hoja 2 (WP2, WP3)
+        $queryEng = EngProduccionEngomado::query()
+            ->join('EngProgramaEngomado as p', 'EngProduccionEngomado.Folio', '=', 'p.Folio')
+            ->whereBetween('EngProduccionEngomado.Fecha', [$fechaIni, $fechaFin]);
+
+        if ($soloFinalizados) {
+            $queryEng->where('p.Status', 'Finalizado');
+        }
+
+        $registrosEng = $queryEng
+            ->select([
+                'EngProduccionEngomado.Fecha',
+                'EngProduccionEngomado.Folio',
+                'EngProduccionEngomado.NoJulio',
+                'EngProduccionEngomado.KgNeto',
+                'EngProduccionEngomado.Metros1',
+                'EngProduccionEngomado.Metros2',
+                'EngProduccionEngomado.Metros3',
+                'EngProduccionEngomado.CveEmpl1',
+                'EngProduccionEngomado.NomEmpl1',
+                'p.MaquinaEng',
+            ])
+            ->orderBy('EngProduccionEngomado.Fecha')
+            ->orderBy('p.MaquinaEng')
+            ->orderBy('EngProduccionEngomado.Folio')
+            ->orderBy('EngProduccionEngomado.NoJulio')
+            ->get();
+
+        foreach ($registrosEng as $r) {
+            $wp = $this->extractEngomadoWP($r->MaquinaEng);
+            if ($wp === null) continue;
+
+            $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : '';
+            if (!isset($porFecha[$fecha])) {
+                $porFecha[$fecha] = [
+                    'porMaquina' => [],
+                    'porOperador' => [],
+                    'totalKg' => 0,
+                    'engomado' => ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]],
+                ];
+            }
+            if (!isset($porFecha[$fecha]['engomado'])) {
+                $porFecha[$fecha]['engomado'] = ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
+            }
+
+            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
+            $ope = $this->obtenerOperadorDisplay($r->NomEmpl1, $r->CveEmpl1);
+            $kg = (float)($r->KgNeto ?? 0);
+
+            $porFecha[$fecha]['engomado'][$wp]['filas'][] = [
+                'orden' => $r->Folio,
+                'julio' => $r->NoJulio,
+                'p_neto' => $kg,
+                'metros' => round($metros),
+                'ope' => $ope,
+            ];
+        }
+
+        foreach ($porFecha as $f => &$datos) {
+            if (!isset($datos['engomado'])) {
+                $datos['engomado'] = ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
+            }
+        }
+        unset($datos);
+
         ksort($porFecha);
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
@@ -252,31 +384,40 @@ class ReportesUrdidoController extends Controller
 
         $export = new ReportesUrdidoExport($porFecha);
 
-        // Guardar en ruta de red (igual que DescargarProgramaController: file_put_contents/copy directo a UNC)
+        // Guardar en ruta de red (igual que DescargarProgramaController: file_put_contents directo)
         $rutaRed = env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026');
-        $rutaArchivoRed = rtrim($rutaRed, '\\/') . '\\' . $filenameRed;
+        $sep = (PHP_OS_FAMILY === 'Windows') ? '\\' : '/';
+        $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep) . $sep . $filenameRed;
 
         try {
             Excel::store($export, $filenameRed, 'local');
             $tempPath = Storage::disk('local')->path($filenameRed);
             $contenido = file_get_contents($tempPath);
             Storage::disk('local')->delete($filenameRed);
-            // Mismo método que DescargarProgramaController: file_put_contents directo a UNC
-            $resultado = $contenido !== false && @file_put_contents($rutaArchivoRed, $contenido) !== false;
+
+            $bytes = $contenido !== false ? file_put_contents($rutaArchivoRed, $contenido) : false;
+            $resultado = $bytes !== false;
+
             if ($resultado) {
                 Log::info('Reporte Urdido guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
             } else {
+                $lastError = error_get_last();
                 Log::warning('No se pudo guardar reporte Urdido en ruta de red', [
                     'archivo' => $filenameRed,
                     'ruta' => $rutaArchivoRed,
-                    'error' => error_get_last(),
+                    'os' => PHP_OS_FAMILY,
+                    'contenido_ok' => $contenido !== false,
+                    'bytes_escritos' => $bytes,
+                    'php_error' => $lastError,
                 ]);
             }
         } catch (\Throwable $e) {
             Log::warning('Error al guardar reporte Urdido en red', [
                 'archivo' => $filenameRed,
                 'ruta' => $rutaArchivoRed,
+                'os' => PHP_OS_FAMILY,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
 
