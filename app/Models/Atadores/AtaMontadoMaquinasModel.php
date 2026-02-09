@@ -18,6 +18,9 @@ class AtaMontadoMaquinasModel extends Model
         'NoJulio',
         'NoProduccion',
         'MaquinaId',
-        'Estado'
+        'Estado',
+        'CveEmpl',
+        'NomEmpleado',
+        'NomEmpl',
     ]; 
 }

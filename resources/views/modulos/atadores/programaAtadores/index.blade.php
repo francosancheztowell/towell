@@ -217,14 +217,27 @@
             <button type="button" onclick="cerrarModalReporte()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
         </div>
         <div class="p-4">
-            <label for="input-fecha-reporte" class="block text-sm font-medium text-gray-700 mb-1">Selecciona la fecha</label>
-            <input
-                type="date"
-                id="input-fecha-reporte"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                value="{{ now()->format('Y-m-d') }}"
-            />
-            <p class="text-xs text-gray-500 mt-2">Se exportarán todos los registros de atadores correspondientes a la fecha seleccionada.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label for="input-fecha-inicio-reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicio</label>
+                    <input
+                        type="date"
+                        id="input-fecha-inicio-reporte"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        value="{{ now()->format('Y-m-d') }}"
+                    />
+                </div>
+                <div>
+                    <label for="input-fecha-fin-reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha fin</label>
+                    <input
+                        type="date"
+                        id="input-fecha-fin-reporte"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        value="{{ now()->format('Y-m-d') }}"
+                    />
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Se exportarán todos los registros de atadores dentro del rango seleccionado.</p>
         </div>
         <div class="px-4 py-3 border-t flex justify-end gap-2">
             <button type="button" onclick="cerrarModalReporte()" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Cancelar</button>
@@ -311,17 +324,29 @@ function cerrarModalReporte() {
 }
 
 function exportarReporteExcel() {
-    const fechaInput = document.getElementById('input-fecha-reporte');
-    if (!fechaInput || !fechaInput.value) {
+    const fechaInicioInput = document.getElementById('input-fecha-inicio-reporte');
+    const fechaFinInput = document.getElementById('input-fecha-fin-reporte');
+
+    if (!fechaInicioInput || !fechaInicioInput.value || !fechaFinInput || !fechaFinInput.value) {
         Swal.fire({
             icon: 'warning',
             title: 'Atención',
-            text: 'Debes seleccionar una fecha para exportar el reporte.'
+            text: 'Debes seleccionar fecha inicio y fecha fin para exportar el reporte.'
         });
         return;
     }
 
-    const fecha = fechaInput.value;
+    const fechaInicio = fechaInicioInput.value;
+    const fechaFin = fechaFinInput.value;
+
+    if (fechaInicio > fechaFin) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Rango inválido',
+            text: 'La fecha inicio no puede ser mayor que la fecha fin.'
+        });
+        return;
+    }
 
     // Crear formulario para POST y descargar el archivo
     const form = document.createElement('form');
@@ -333,13 +358,19 @@ function exportarReporteExcel() {
     tokenInput.name = '_token';
     tokenInput.value = '{{ csrf_token() }}';
 
-    const fechaFormInput = document.createElement('input');
-    fechaFormInput.type = 'hidden';
-    fechaFormInput.name = 'fecha';
-    fechaFormInput.value = fecha;
+    const fechaInicioFormInput = document.createElement('input');
+    fechaInicioFormInput.type = 'hidden';
+    fechaInicioFormInput.name = 'fecha_inicio';
+    fechaInicioFormInput.value = fechaInicio;
+
+    const fechaFinFormInput = document.createElement('input');
+    fechaFinFormInput.type = 'hidden';
+    fechaFinFormInput.name = 'fecha_fin';
+    fechaFinFormInput.value = fechaFin;
 
     form.appendChild(tokenInput);
-    form.appendChild(fechaFormInput);
+    form.appendChild(fechaInicioFormInput);
+    form.appendChild(fechaFinFormInput);
     document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
