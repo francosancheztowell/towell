@@ -25,19 +25,6 @@
             text="Iniciar Atado"
             />
 
-            <x-navbar.button-report
-            id="btn-reporte-excel"
-            title="Exportar a Excel"
-            icon="fa-file-excel"
-            iconColor="text-green-600"
-            bg="bg-green-500"
-            hoverBg="hover:bg-green-700"
-            module="Programa Atadores"
-            text="Reporte"
-            iconColor="text-white"
-            class="text-white"
-            onclick="abrirModalReporte()"
-            />
     </div>
 @endsection
 
@@ -304,78 +291,6 @@ function cerrarModalFiltros() {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }
-}
-
-// Funciones para el modal de Reporte Excel
-function abrirModalReporte() {
-    const modal = document.getElementById('modalReporteFecha');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
-}
-
-function cerrarModalReporte() {
-    const modal = document.getElementById('modalReporteFecha');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-}
-
-function exportarReporteExcel() {
-    const fechaInicioInput = document.getElementById('input-fecha-inicio-reporte');
-    const fechaFinInput = document.getElementById('input-fecha-fin-reporte');
-
-    if (!fechaInicioInput || !fechaInicioInput.value || !fechaFinInput || !fechaFinInput.value) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Atención',
-            text: 'Debes seleccionar fecha inicio y fecha fin para exportar el reporte.'
-        });
-        return;
-    }
-
-    const fechaInicio = fechaInicioInput.value;
-    const fechaFin = fechaFinInput.value;
-
-    if (fechaInicio > fechaFin) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Rango inválido',
-            text: 'La fecha inicio no puede ser mayor que la fecha fin.'
-        });
-        return;
-    }
-
-    // Crear formulario para POST y descargar el archivo
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '{{ route("atadores.exportar.excel") }}';
-
-    const tokenInput = document.createElement('input');
-    tokenInput.type = 'hidden';
-    tokenInput.name = '_token';
-    tokenInput.value = '{{ csrf_token() }}';
-
-    const fechaInicioFormInput = document.createElement('input');
-    fechaInicioFormInput.type = 'hidden';
-    fechaInicioFormInput.name = 'fecha_inicio';
-    fechaInicioFormInput.value = fechaInicio;
-
-    const fechaFinFormInput = document.createElement('input');
-    fechaFinFormInput.type = 'hidden';
-    fechaFinFormInput.name = 'fecha_fin';
-    fechaFinFormInput.value = fechaFin;
-
-    form.appendChild(tokenInput);
-    form.appendChild(fechaInicioFormInput);
-    form.appendChild(fechaFinFormInput);
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-
-    cerrarModalReporte();
 }
 
 // Toggle de un filtro (permite elegir 2 o más). Ver Todos limpia el resto.
