@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Urdido;
 
 use App\Http\Controllers\Controller;
+use App\Exports\BpmUrdidoExport;
 use App\Exports\KaizenExport;
 use App\Exports\ReportesUrdidoExport;
 use App\Exports\RoturasMillonExport;
 use App\Models\Engomado\EngProduccionEngomado;
+use App\Models\Urdido\UrdBpmModel;
 use App\Models\Urdido\UrdProduccionUrdido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -81,6 +84,12 @@ class ReportesUrdidoController extends Controller
                 'nombre' => 'ROTURAS X MILLÓN',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('urdido.reportes.urdido.roturas'),
+                'disponible' => true,
+            ],
+            [
+                'nombre' => 'BPM Urdido',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('urdido.reportes.urdido.bpm'),
                 'disponible' => true,
             ],
         ];
@@ -607,6 +616,180 @@ class ReportesUrdidoController extends Controller
         $export = new RoturasMillonExport($filas);
 
         return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'Roturas x Millón');
+    }
+
+    /**
+     * Reporte 4: BPM Urdido (Header + Lineas)
+     */
+    public function reporteBpm(Request $request)
+    {
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+        $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
+
+        if (!$fechaIni || !$fechaFin) {
+            return view('modulos.urdido.reportes-bpm-urdido', [
+                'filas' => [],
+                'fechaIni' => $fechaIni ?? '',
+                'fechaFin' => $fechaFin ?? '',
+                'soloFinalizados' => $soloFinalizados,
+            ]);
+        }
+
+        $query = UrdBpmModel::query()
+            ->from('UrdBPM as h')
+            ->leftJoin('UrdBPMLine as l', 'h.Folio', '=', 'l.Folio')
+            ->whereBetween('h.Fecha', [$fechaIni, $fechaFin]);
+
+        if ($soloFinalizados) {
+            $query->whereIn('h.Status', ['Terminado', 'Autorizado']);
+        }
+
+        $filas = $query
+            ->select([
+                'h.Folio',
+                'h.Status',
+                'h.Fecha',
+                'h.CveEmplEnt',
+                'h.NombreEmplEnt',
+                'h.TurnoEntrega',
+                'h.CveEmplRec',
+                'h.NombreEmplRec',
+                'h.TurnoRecibe',
+                'h.CveEmplAutoriza',
+                'h.NombreEmplAutoriza',
+                'l.Orden',
+                'l.Actividad',
+                'l.Valor',
+            ])
+            ->orderBy('h.Folio')
+            ->orderBy('l.Orden')
+            ->get()
+            ->map(function ($row) {
+                $valor = (int) ($row->Valor ?? 0);
+                $row->ValorTexto = $this->mapearValorBpm($valor);
+                $row->CveEmplEnt = $this->normalizarClaveNumero($row->CveEmplEnt ?? null);
+                $row->CveEmplRec = $this->normalizarClaveNumero($row->CveEmplRec ?? null);
+                $row->CveEmplAutoriza = $this->normalizarClaveNumero($row->CveEmplAutoriza ?? null);
+                return $row;
+            });
+
+        $filas = $this->marcarInicioPorFolio($filas);
+
+        return view('modulos.urdido.reportes-bpm-urdido', [
+            'filas' => $filas,
+            'fechaIni' => $fechaIni,
+            'fechaFin' => $fechaFin,
+            'soloFinalizados' => $soloFinalizados,
+        ]);
+    }
+
+    /**
+     * Exportar Excel BPM Urdido
+     */
+    public function exportarBpmExcel(Request $request)
+    {
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+        $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
+
+        if (!$fechaIni || !$fechaFin) {
+            return redirect()->route('urdido.reportes.urdido.bpm')
+                ->with('error', 'Seleccione un rango de fechas para exportar.');
+        }
+
+        $query = UrdBpmModel::query()
+            ->from('UrdBPM as h')
+            ->leftJoin('UrdBPMLine as l', 'h.Folio', '=', 'l.Folio')
+            ->whereBetween('h.Fecha', [$fechaIni, $fechaFin]);
+
+        if ($soloFinalizados) {
+            $query->whereIn('h.Status', ['Terminado', 'Autorizado']);
+        }
+
+        $filas = $query
+            ->select([
+                'h.Folio',
+                'h.Status',
+                'h.Fecha',
+                'h.CveEmplEnt',
+                'h.NombreEmplEnt',
+                'h.TurnoEntrega',
+                'h.CveEmplRec',
+                'h.NombreEmplRec',
+                'h.TurnoRecibe',
+                'h.CveEmplAutoriza',
+                'h.NombreEmplAutoriza',
+                'l.Orden',
+                'l.Actividad',
+                'l.Valor',
+            ])
+            ->orderBy('h.Folio')
+            ->orderBy('l.Orden')
+            ->get()
+            ->map(function ($row) {
+                $row->ValorTexto = $this->mapearValorBpm((int) ($row->Valor ?? 0));
+                $row->CveEmplEnt = $this->normalizarClaveNumero($row->CveEmplEnt ?? null);
+                $row->CveEmplRec = $this->normalizarClaveNumero($row->CveEmplRec ?? null);
+                $row->CveEmplAutoriza = $this->normalizarClaveNumero($row->CveEmplAutoriza ?? null);
+                return $row;
+            });
+
+        $filas = $this->marcarInicioPorFolio($filas);
+
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $filenameRed = 'BPM Urdido ' . $fechaFinCarbon->format('Y') . '.xlsx';
+        $filenameDownload = 'bpm-urdido-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+
+        $export = new BpmUrdidoExport($filas);
+
+        return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'BPM Urdido');
+    }
+
+    private function mapearValorBpm(int $valor): string
+    {
+        if ($valor === 1) {
+            return '☑';
+        }
+        if ($valor === 2) {
+            return '☒';
+        }
+
+        return 'S/N';
+    }
+
+    private function normalizarClaveNumero(mixed $clave): ?int
+    {
+        if ($clave === null || $clave === '') {
+            return null;
+        }
+
+        $texto = trim((string) $clave);
+        if ($texto === '') {
+            return null;
+        }
+
+        if (is_numeric($texto)) {
+            return (int) $texto;
+        }
+
+        return null;
+    }
+
+    private function marcarInicioPorFolio(Collection $filas): Collection
+    {
+        $folioAnterior = null;
+
+        return $filas->map(function ($fila) use (&$folioAnterior) {
+            $folioActual = (string) ($fila->Folio ?? '');
+            $esInicio = $folioActual !== '' && $folioActual !== $folioAnterior;
+
+            $fila->InicioFolio = $esInicio ? '•' : null;
+            $folioAnterior = $folioActual;
+
+            return $fila;
+        });
     }
 
     /**
