@@ -137,8 +137,9 @@
 @push('scripts')
 <script>
     function mostrarModalConsultarKaizen() {
-        const fechaIni = '{{ $fechaIni ?? '' }}';
-        const fechaFin = '{{ $fechaFin ?? '' }}';
+        const hoy = new Date().toISOString().split('T')[0];
+        const fechaIni = '{{ $fechaIni ?? '' }}' || hoy;
+        const fechaFin = '{{ $fechaFin ?? '' }}' || hoy;
         const soloFinalizados = {{ ($soloFinalizados ?? true) ? 'true' : 'false' }};
 
         Swal.fire({
