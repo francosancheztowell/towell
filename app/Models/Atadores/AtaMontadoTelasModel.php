@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class AtaMontadoTelasModel extends Model
 {
-    //
     protected $table = 'AtaMontadoTelas';
     protected $connection = 'sqlsrv';
     public $timestamps = false;
@@ -36,12 +35,16 @@ class AtaMontadoTelasModel extends Model
         'CveTejedor',
         'NomTejedor',
         'FechaSupervisor',
+        'AX',
         'comments_sup',
-        'comments_tej',
         'comments_ata',
+        'comments_tej',
         'ConfigId',
         'InventSizeId',
         'InventColorId',
         'HrInicio',
+        'FechaArranque',
+        'TiempoParo',
+        'FolioParo',
     ];
 }

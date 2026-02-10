@@ -773,6 +773,62 @@ class AtadoresController extends Controller
             }
         }
 
+        if ($action === 'folio_paro') {
+            // Validar que solo se pueda modificar en estado 'En Proceso'
+            if (in_array($montado->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) {
+                return response()->json(['ok' => false, 'message' => 'No se puede modificar Folio Paro después de terminar el atado'], 422);
+            }
+
+            $folioParo = trim((string) $request->input('folio_paro', ''));
+
+            try {
+                $schema = Schema::connection('sqlsrv');
+                if (!$schema->hasColumn('AtaMontadoTelas', 'FolioParo')) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'La columna FolioParo no existe en AtaMontadoTelas (SQL Server).',
+                    ], 422);
+                }
+
+                // Evitar error de truncamiento: leer longitud real de la columna en SQL Server.
+                $col = DB::connection('sqlsrv')->selectOne(
+                    "SELECT CHARACTER_MAXIMUM_LENGTH AS maxlen
+                     FROM INFORMATION_SCHEMA.COLUMNS
+                     WHERE TABLE_NAME = 'AtaMontadoTelas' AND COLUMN_NAME = 'FolioParo'"
+                );
+                $maxLen = isset($col->maxlen) ? (int) $col->maxlen : null;
+                if ($maxLen && mb_strlen($folioParo) > $maxLen) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => "Folio Paro excede la longitud permitida ({$maxLen}). Ajusta el tamaño de la columna FolioParo o captura menos caracteres.",
+                    ], 422);
+                }
+
+                DB::connection('sqlsrv')
+                    ->table('AtaMontadoTelas')
+                    ->where('NoJulio', $montado->NoJulio)
+                    ->where('NoProduccion', $montado->NoProduccion)
+                    ->update(['FolioParo' => $folioParo !== '' ? $folioParo : null]);
+            } catch (\Throwable $e) {
+                Log::error('Error al guardar FolioParo', [
+                    'error' => $e->getMessage(),
+                    'no_julio' => $montado->NoJulio ?? null,
+                    'no_orden' => $montado->NoProduccion ?? null,
+                ]);
+
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'No se pudo guardar FolioParo: ' . $e->getMessage(),
+                ], 500);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'Folio Paro guardado correctamente',
+                'folio_paro' => $folioParo
+            ]);
+        }
+
         if ($action === 'maquina_estado') {
             // Validar que solo se pueda modificar en estado 'En Proceso'
             if (in_array($montado->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) {
@@ -839,7 +895,9 @@ class AtadoresController extends Controller
 
             // Register current time as "hora de arranque" y cambiar estatus a 'Terminado'
             $commentsAta = $request->input('comments_ata', '');
-            $horaArranque = Carbon::now()->format('H:i');
+            $ahora = Carbon::now();
+            $horaArranque = $ahora->format('H:i');
+            $fechaArranque = $this->resolverFechaArranque($ahora);
 
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
@@ -847,6 +905,7 @@ class AtadoresController extends Controller
                 ->where('NoProduccion', $montado->NoProduccion)
                 ->update([
                     'HoraArranque' => $horaArranque,
+                    'FechaArranque' => $fechaArranque,
                     'Estatus' => 'Terminado',
                     'comments_ata' => $commentsAta,
                 ]);
@@ -922,6 +981,20 @@ class AtadoresController extends Controller
     }
 
     /**
+     * Regla operativa de fecha para turno 3:
+     * Entre 00:00:00 y 06:30:00 se considera fecha del día anterior.
+     */
+    private function resolverFechaArranque(Carbon $momento): string
+    {
+        $corteTurno3 = $momento->copy()->startOfDay()->addHours(6)->addMinutes(30);
+        if ($momento->lessThanOrEqualTo($corteTurno3)) {
+            return $momento->copy()->subDay()->toDateString();
+        }
+
+        return $momento->toDateString();
+    }
+
+    /**
      * Enviar notificación a Telegram al terminar el atado.
      * Destinatarios: SYSMensajes con Atadores=1 y Activo=1.
      */
@@ -935,7 +1008,25 @@ class AtadoresController extends Controller
 
         $chatIds = SYSMensaje::getChatIdsPorModulo('Atadores');
         if (empty($chatIds)) {
-            Log::warning('No hay destinatarios con Atadores activo en SYSMensajes');
+            $chatIdGlobal = trim((string) config('services.telegram.chat_id', ''));
+            if ($chatIdGlobal !== '') {
+                $chatIds = [$chatIdGlobal];
+                Log::info('Usando TELEGRAM_CHAT_ID global como destinatario para atadores');
+            } else {
+                Log::warning('No hay destinatarios con Atadores activo en SYSMensajes ni TELEGRAM_CHAT_ID configurado');
+                return;
+            }
+        }
+
+        $chatIds = collect($chatIds)
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($chatIds)) {
+            Log::warning('No hay chat IDs validos para notificacion de atadores');
             return;
         }
 
@@ -975,7 +1066,6 @@ class AtadoresController extends Controller
                 ->post($url, [
                 'chat_id' => $chatId,
                 'text' => $mensaje,
-                'parse_mode' => 'Markdown'
             ]);
 
             if (!$response->successful() || !($response->json()['ok'] ?? false)) {
@@ -983,6 +1073,7 @@ class AtadoresController extends Controller
                     'chat_id' => $chatId,
                     'no_julio' => $montado->NoJulio ?? null,
                     'no_orden' => $montado->NoProduccion ?? null,
+                    'status' => $response->status(),
                     'response' => $response->json(),
                 ]);
             }
