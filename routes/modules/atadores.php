@@ -4,6 +4,7 @@ use App\Http\Controllers\Atadores\Catalogos\Actividades\AtaActividadesController
 use App\Http\Controllers\Atadores\Catalogos\Comentarios\AtaComentariosController;
 use App\Http\Controllers\Atadores\Catalogos\Maquinas\AtaMaquinasController;
 use App\Http\Controllers\Atadores\ProgramaAtadores\AtadoresController;
+use App\Http\Controllers\Atadores\Reportes\ReportesAtadoresController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,3 +56,10 @@ Route::post('/atadores/catalogos/maquinas', [AtaMaquinasController::class, 'stor
 Route::get('/atadores/catalogos/maquinas/{maquinaId}', [AtaMaquinasController::class, 'show'])->name('atadores.catalogos.maquinas.show');
 Route::put('/atadores/catalogos/maquinas/{maquinaId}', [AtaMaquinasController::class, 'update'])->name('atadores.catalogos.maquinas.update');
 Route::delete('/atadores/catalogos/maquinas/{maquinaId}', [AtaMaquinasController::class, 'destroy'])->name('atadores.catalogos.maquinas.destroy');
+
+// Rutas para modulo de reportes
+Route::prefix('atadores/reportes-atadores')->name('atadores.reportes.')->group(function () {
+    Route::get('/', [ReportesAtadoresController::class, 'index'])->name('index');
+    Route::get('/programa', [ReportesAtadoresController::class, 'reportePrograma'])->name('programa');
+    Route::get('/programa/excel', [ReportesAtadoresController::class, 'exportarExcel'])->name('programa.excel');
+});

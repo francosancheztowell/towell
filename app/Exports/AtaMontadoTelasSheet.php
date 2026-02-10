@@ -144,16 +144,8 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
                 continue;
             }
 
-            $operador = '-';
-            $nomEmpl = trim((string) ($registro->NomEmpleado ?? $registro->NomEmpl ?? ''));
             $estado = (int) ($registro->Estado ?? 0) === 1;
-
-            if ($estado) {
-                $operador = $nomEmpl;
-                if ($operador === '') {
-                    $operador = 'Marcada';
-                }
-            }
+            $operador = $estado ? 'SI' : '-';
 
             $this->maquinasPorFolio[$folioKey][$maquinaId] = $operador;
         }
@@ -166,16 +158,8 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
                 continue;
             }
 
-            $operador = '-';
-            $nomEmpl = trim((string) ($registro->NomEmpl ?? ''));
             $estado = (int) ($registro->Estado ?? 0) === 1;
-
-            if ($estado) {
-                $operador = $nomEmpl;
-                if ($operador === '') {
-                    $operador = 'Marcada';
-                }
-            }
+            $operador = $estado ? 'SI' : '-';
 
             $this->actividadesPorFolio[$folioKey][$actividadId] = $operador;
         }
