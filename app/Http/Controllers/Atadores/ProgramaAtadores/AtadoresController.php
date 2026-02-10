@@ -899,6 +899,30 @@ class AtadoresController extends Controller
             $horaArranque = $ahora->format('H:i');
             $fechaArranque = $this->resolverFechaArranque($ahora);
 
+            // Calcular TiempoParo como diferencia entre HrInicio y HoraArranque (formato time HH:MM:SS)
+            $tiempoParo = null;
+            if (!empty($montado->HrInicio)) {
+                try {
+                    $hrInicio = Carbon::parse($montado->HrInicio);
+                    $hrArranque = Carbon::parse($horaArranque);
+                    // Si HoraArranque es menor que HrInicio, asumimos que cruzó medianoche
+                    if ($hrArranque->lt($hrInicio)) {
+                        $hrArranque->addDay();
+                    }
+                    $diffMinutos = $hrInicio->diffInMinutes($hrArranque);
+                    $horas = intdiv($diffMinutos, 60);
+                    $minutos = $diffMinutos % 60;
+                    // Formatear como HH:MM:SS para tipo time de SQL Server
+                    $tiempoParo = sprintf('%02d:%02d:00', $horas, $minutos);
+                } catch (\Throwable $e) {
+                    Log::warning('Error calculando TiempoParo', [
+                        'HrInicio' => $montado->HrInicio,
+                        'HoraArranque' => $horaArranque,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
                 ->where('NoJulio', $montado->NoJulio)
@@ -906,6 +930,7 @@ class AtadoresController extends Controller
                 ->update([
                     'HoraArranque' => $horaArranque,
                     'FechaArranque' => $fechaArranque,
+                    'TiempoParo' => $tiempoParo,
                     'Estatus' => 'Terminado',
                     'comments_ata' => $commentsAta,
                 ]);
