@@ -1008,7 +1008,25 @@ class AtadoresController extends Controller
 
         $chatIds = SYSMensaje::getChatIdsPorModulo('Atadores');
         if (empty($chatIds)) {
-            Log::warning('No hay destinatarios con Atadores activo en SYSMensajes');
+            $chatIdGlobal = trim((string) config('services.telegram.chat_id', ''));
+            if ($chatIdGlobal !== '') {
+                $chatIds = [$chatIdGlobal];
+                Log::info('Usando TELEGRAM_CHAT_ID global como destinatario para atadores');
+            } else {
+                Log::warning('No hay destinatarios con Atadores activo en SYSMensajes ni TELEGRAM_CHAT_ID configurado');
+                return;
+            }
+        }
+
+        $chatIds = collect($chatIds)
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($chatIds)) {
+            Log::warning('No hay chat IDs validos para notificacion de atadores');
             return;
         }
 
@@ -1048,7 +1066,6 @@ class AtadoresController extends Controller
                 ->post($url, [
                 'chat_id' => $chatId,
                 'text' => $mensaje,
-                'parse_mode' => 'Markdown'
             ]);
 
             if (!$response->successful() || !($response->json()['ok'] ?? false)) {
@@ -1056,6 +1073,7 @@ class AtadoresController extends Controller
                     'chat_id' => $chatId,
                     'no_julio' => $montado->NoJulio ?? null,
                     'no_orden' => $montado->NoProduccion ?? null,
+                    'status' => $response->status(),
                     'response' => $response->json(),
                 ]);
             }
