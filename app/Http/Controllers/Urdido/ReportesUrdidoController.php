@@ -6,11 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Exports\KaizenExport;
 use App\Exports\ReportesUrdidoExport;
 use App\Exports\RoturasMillonExport;
-use Illuminate\Support\Facades\DB;
 use App\Models\Engomado\EngProduccionEngomado;
-use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
-use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -262,7 +259,7 @@ class ReportesUrdidoController extends Controller
                 'EngProduccionEngomado.Metros3',
                 'p.Calibre',
                 'p.Cuenta',
-                'p.TipoAtado',
+                'p.Fibra',
                 'p.MaquinaEng',
                 'p.MermaGoma',
                 'p.Merma',
@@ -286,10 +283,7 @@ class ReportesUrdidoController extends Controller
             $wp = $this->extractEngomadoWP($r->MaquinaEng);
             if ($wp === null) $wp = 'WP2';
 
-            $calibre = $r->Calibre ?? $r->Cuenta ?? '';
-            if (is_numeric($calibre) && (float)$calibre > 0) {
-                $calibre = 'S-' . (string)(int)$calibre;
-            }
+            $calibre = $r->Calibre ?? '';
 
             $filasEngomado[] = [
                 'fecha_mod' => $carbon->format('d/m/Y'),
@@ -301,11 +295,12 @@ class ReportesUrdidoController extends Controller
                 'lote' => $r->Folio,
                 'calibre' => $calibre,
                 'cantidad' => round((float)($r->KgNeto ?? 0), 2),
-                'configuracion' => $r->TipoAtado ?? 'Alg-Open',
-                'tamano' => $r->NoJulio ?? '',
+                'configuracion' => $r->Fibra ?? '',
+                'tamano' => $r->Cuenta ?? '',
                 'mts' => (int) round($metros),
                 'merma_goma' => (float)($r->MermaGoma ?? 0),
                 'merma' => (float)($r->Merma ?? 0),
+                'julios' => $r->NoJulio ?? '',
             ];
         }
 
@@ -331,7 +326,7 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.Metros3',
                 'p.Calibre',
                 'p.Cuenta',
-                'p.TipoAtado',
+                'p.Fibra',
                 'p.MaquinaId',
             ])
             ->orderBy('UrdProduccionUrdido.Fecha')
@@ -368,9 +363,10 @@ class ReportesUrdidoController extends Controller
                 'lote' => $r->Folio,
                 'calibre' => $calibre,
                 'cantidad' => round((float)($r->KgNeto ?? 0), 2),
-                'configuracion' => $r->TipoAtado ?? 'Alg-Anillo',
-                'tamano' => $r->NoJulio ?? '',
+                'configuracion' => $r->Fibra ?? '',
+                'tamano' => $r->Cuenta ?? '',
                 'mts' => (int) round($metros),
+                'julios' => $r->NoJulio ?? '',
             ];
         }
 
