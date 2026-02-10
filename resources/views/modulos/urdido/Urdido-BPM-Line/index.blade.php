@@ -4,42 +4,53 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-
         @if($header->Status === 'Creado')
             <form action="{{ route('urd-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline" id="form-terminar">
                 @csrf
                 @method('PATCH')
-                <button type="button" onclick="validarYTerminar()" class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                    Terminado
-                </button>
+                <x-navbar.button-report
+                    type="button"
+                    onclick="validarYTerminar()"
+                    title="Terminado"
+                    text="Terminado"
+                    icon="fa-check"
+                    bg="bg-green-600"
+                    module="BPM (Buenas Practicas Manufactura) Urd"
+                    iconColor="text-white"
+                    class="text-white hover:bg-green-700"
+                    />
             </form>
         @elseif($header->Status === 'Terminado')
-            @if(!empty($esSupervisor) && $esSupervisor)
-                <form action="{{ route('urd-bpm-line.autorizar', $header->Folio) }}" method="POST" class="inline">
-                    @csrf
-                    @method('PATCH')
-                    <button type="submit" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Autorizar
-                    </button>
-                </form>
-            @else
-                <button type="button" class="px-3 py-1.5 text-sm bg-blue-300 text-white rounded-lg cursor-not-allowed" title="Solo un supervisor puede autorizar" disabled>
-                    Autorizar
-                </button>
-            @endif
-            @if(!empty($esSupervisor) && $esSupervisor)
-                <form action="{{ route('urd-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline">
-                    @csrf
-                    @method('PATCH')
-                    <button type="submit" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                        Rechazar
-                    </button>
-                </form>
-            @else
-                <button type="button" class="px-3 py-1.5 text-sm bg-red-300 text-white rounded-lg cursor-not-allowed" title="Solo un supervisor puede rechazar" disabled>
-                    Rechazar
-                </button>
-            @endif
+            <form action="{{ route('urd-bpm-line.autorizar', $header->Folio) }}" method="POST" class="inline" id="form-autorizar">
+                @csrf
+                @method('PATCH')
+                <x-navbar.button-report
+                    type="button"
+                    onclick="document.getElementById('form-autorizar').submit()"
+                    title="Autorizar"
+                    text="Autorizar"
+                    module="BPM (Buenas Practicas Manufactura) Urd"
+                    icon="fa-check-double"
+                    bg="bg-blue-600"
+                    iconColor="text-white"
+                    class="text-white hover:bg-blue-700"
+                    />
+            </form>
+            <form action="{{ route('urd-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline" id="form-rechazar">
+                @csrf
+                @method('PATCH')
+                <x-navbar.button-report
+                    type="button"
+                    onclick="document.getElementById('form-rechazar').submit()"
+                    title="Rechazar"
+                    module="BPM (Buenas Practicas Manufactura) Urd"
+                    text="Rechazar"
+                    icon="fa-times"
+                    bg="bg-red-600"
+                    iconColor="text-white"
+                    class="text-white hover:bg-red-700"
+                    />
+            </form>
         @endif
     </div>
 @endsection
