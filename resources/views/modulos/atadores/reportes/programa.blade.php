@@ -57,6 +57,11 @@
 
 @push('scripts')
 <script>
+    // Función para el botón de retroceso - redirige al índice de reportes
+    window.volverAlIndice = function() {
+        window.location.href = '{{ route("atadores.reportes.index") }}';
+    };
+
     function mostrarModalConsultarReportesAtadores() {
         const hoy = new Date().toISOString().split('T')[0];
         const fechaIni = '{{ $fechaIni ?? '' }}' || hoy;
