@@ -6,11 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Exports\KaizenExport;
 use App\Exports\ReportesUrdidoExport;
 use App\Exports\RoturasMillonExport;
-use Illuminate\Support\Facades\DB;
 use App\Models\Engomado\EngProduccionEngomado;
-use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
-use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -262,8 +259,10 @@ class ReportesUrdidoController extends Controller
                 'EngProduccionEngomado.Metros3',
                 'p.Calibre',
                 'p.Cuenta',
-                'p.TipoAtado',
+                'p.Fibra',
                 'p.MaquinaEng',
+                'p.MermaGoma',
+                'p.Merma',
             ])
             ->orderBy('EngProduccionEngomado.Fecha')
             ->orderBy('EngProduccionEngomado.Folio')
@@ -284,10 +283,7 @@ class ReportesUrdidoController extends Controller
             $wp = $this->extractEngomadoWP($r->MaquinaEng);
             if ($wp === null) $wp = 'WP2';
 
-            $calibre = $r->Calibre ?? $r->Cuenta ?? '';
-            if (is_numeric($calibre) && (float)$calibre > 0) {
-                $calibre = 'S-' . (string)(int)$calibre;
-            }
+            $calibre = $r->Calibre ?? '';
 
             $filasEngomado[] = [
                 'fecha_mod' => $carbon->format('d/m/Y'),
@@ -299,9 +295,12 @@ class ReportesUrdidoController extends Controller
                 'lote' => $r->Folio,
                 'calibre' => $calibre,
                 'cantidad' => round((float)($r->KgNeto ?? 0), 2),
-                'configuracion' => $r->TipoAtado ?? 'Alg-Open',
-                'tamano' => $r->NoJulio ?? '',
+                'configuracion' => $r->Fibra ?? '',
+                'tamano' => $r->Cuenta ?? '',
                 'mts' => (int) round($metros),
+                'merma_goma' => (float)($r->MermaGoma ?? 0),
+                'merma' => (float)($r->Merma ?? 0),
+                'julios' => $r->NoJulio ?? '',
             ];
         }
 
@@ -327,7 +326,7 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.Metros3',
                 'p.Calibre',
                 'p.Cuenta',
-                'p.TipoAtado',
+                'p.Fibra',
                 'p.MaquinaId',
             ])
             ->orderBy('UrdProduccionUrdido.Fecha')
@@ -364,9 +363,10 @@ class ReportesUrdidoController extends Controller
                 'lote' => $r->Folio,
                 'calibre' => $calibre,
                 'cantidad' => round((float)($r->KgNeto ?? 0), 2),
-                'configuracion' => $r->TipoAtado ?? 'Alg-Anillo',
-                'tamano' => $r->NoJulio ?? '',
+                'configuracion' => $r->Fibra ?? '',
+                'tamano' => $r->Cuenta ?? '',
                 'mts' => (int) round($metros),
+                'julios' => $r->NoJulio ?? '',
             ];
         }
 
@@ -396,7 +396,18 @@ class ReportesUrdidoController extends Controller
 
         $export = new KaizenExport($filasEngomado, $filasUrdido);
 
-        $rutaRed = env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026');
+        return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'Kaizen');
+    }
+
+    /**
+     * Guarda el reporte en la ruta de red y devuelve la descarga.
+     * Usa config() para la ruta (compatible con config:cache en producción).
+     * Usa Log::error() para fallos (visible con LOG_LEVEL=error).
+     */
+    private function guardarReporteEnRed($export, string $filenameRed, string $filenameDownload, string $nombreReporte)
+    {
+        $rutaRed = config('filesystems.disks.reports_urdido.root')
+            ?? '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026';
         $sep = (PHP_OS_FAMILY === 'Windows') ? '\\' : '/';
         $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep) . $sep . $filenameRed;
 
@@ -406,14 +417,31 @@ class ReportesUrdidoController extends Controller
             $contenido = file_get_contents($tempPath);
             Storage::disk('local')->delete($filenameRed);
 
-            $bytes = $contenido !== false ? file_put_contents($rutaArchivoRed, $contenido) : false;
+            $bytes = $contenido !== false ? @file_put_contents($rutaArchivoRed, $contenido) : false;
+
             if ($bytes !== false) {
-                Log::info('Reporte Kaizen guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+                Log::info("Reporte {$nombreReporte} guardado en red", [
+                    'archivo' => $filenameRed,
+                    'ruta' => $rutaArchivoRed,
+                    'bytes' => $bytes,
+                ]);
             } else {
-                Log::warning('No se pudo guardar reporte Kaizen en ruta de red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
+                $lastError = error_get_last();
+                Log::error("No se pudo guardar reporte {$nombreReporte} en ruta de red", [
+                    'archivo' => $filenameRed,
+                    'ruta' => $rutaArchivoRed,
+                    'os' => PHP_OS_FAMILY,
+                    'contenido_ok' => $contenido !== false,
+                    'php_error' => $lastError,
+                    'sugerencia' => 'Verifique REPORTS_URDIDO_PATH en .env, permisos de la ruta y que la red sea accesible.',
+                ]);
             }
         } catch (\Throwable $e) {
-            Log::warning('Error al guardar reporte Kaizen en red', ['ruta' => $rutaArchivoRed, 'error' => $e->getMessage()]);
+            Log::error("Error al guardar reporte {$nombreReporte} en red", [
+                'ruta' => $rutaArchivoRed,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
 
         return Excel::download($export, $filenameDownload);
@@ -578,27 +606,7 @@ class ReportesUrdidoController extends Controller
 
         $export = new RoturasMillonExport($filas);
 
-        $rutaRed = env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026');
-        $sep = (PHP_OS_FAMILY === 'Windows') ? '\\' : '/';
-        $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep) . $sep . $filenameRed;
-
-        try {
-            Excel::store($export, $filenameRed, 'local');
-            $tempPath = Storage::disk('local')->path($filenameRed);
-            $contenido = file_get_contents($tempPath);
-            Storage::disk('local')->delete($filenameRed);
-
-            $bytes = $contenido !== false ? file_put_contents($rutaArchivoRed, $contenido) : false;
-            if ($bytes !== false) {
-                Log::info('Reporte Roturas x Millón guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
-            } else {
-                Log::warning('No se pudo guardar Roturas x Millón en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Error al guardar Roturas x Millón en red', ['ruta' => $rutaArchivoRed, 'error' => $e->getMessage()]);
-        }
-
-        return Excel::download($export, $filenameDownload);
+        return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'Roturas x Millón');
     }
 
     /**
@@ -828,43 +836,6 @@ class ReportesUrdidoController extends Controller
 
         $export = new ReportesUrdidoExport($porFecha);
 
-        // Guardar en ruta de red (igual que DescargarProgramaController: file_put_contents directo)
-        $rutaRed = env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026');
-        $sep = (PHP_OS_FAMILY === 'Windows') ? '\\' : '/';
-        $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep) . $sep . $filenameRed;
-
-        try {
-            Excel::store($export, $filenameRed, 'local');
-            $tempPath = Storage::disk('local')->path($filenameRed);
-            $contenido = file_get_contents($tempPath);
-            Storage::disk('local')->delete($filenameRed);
-
-            $bytes = $contenido !== false ? file_put_contents($rutaArchivoRed, $contenido) : false;
-            $resultado = $bytes !== false;
-
-            if ($resultado) {
-                Log::info('Reporte Urdido guardado en red', ['archivo' => $filenameRed, 'ruta' => $rutaArchivoRed]);
-            } else {
-                $lastError = error_get_last();
-                Log::warning('No se pudo guardar reporte Urdido en ruta de red', [
-                    'archivo' => $filenameRed,
-                    'ruta' => $rutaArchivoRed,
-                    'os' => PHP_OS_FAMILY,
-                    'contenido_ok' => $contenido !== false,
-                    'bytes_escritos' => $bytes,
-                    'php_error' => $lastError,
-                ]);
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Error al guardar reporte Urdido en red', [
-                'archivo' => $filenameRed,
-                'ruta' => $rutaArchivoRed,
-                'os' => PHP_OS_FAMILY,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-        }
-
-        return Excel::download($export, $filenameDownload);
+        return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, '03-OEE URD-ENG');
     }
 }

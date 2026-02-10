@@ -42,7 +42,7 @@ return [
 
         'reports_urdido' => [
             'driver' => 'local',
-            'root' => env('REPORTS_URDIDO_PATH') ?: '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026',
+            'root' => env('REPORTS_URDIDO_PATH', '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026'),
             'throw' => false,
         ],
 

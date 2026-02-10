@@ -29,7 +29,7 @@
         <div class="flex flex-wrap gap-4 overflow-x-auto pb-4 bg-white border border-t-0 border-gray-300 rounded-b-lg p-4">
             {{-- AX ENGOMADO --}}
             <div class="flex-shrink-0 min-w-[400px] border border-gray-300 rounded-lg overflow-hidden">
-                <div class="bg-emerald-500 px-2 py-1.5 text-center font-bold text-white border-b border-gray-300">
+                <div class="bg-purple-500 px-2 py-1.5 text-center font-bold text-white border-b border-gray-300">
                     AX ENGOMADO
                 </div>
                 <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
@@ -37,8 +37,8 @@
                         <thead class="sticky top-0 bg-gray-100 z-10">
                             <tr>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Fecha mod</th>
-                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">AÑO</th>
-                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">MES</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Año</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Mes</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Código</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Localidad</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Estado</th>
@@ -48,6 +48,8 @@
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Config</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Tamaño</th>
                                 <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">Mts</th>
+                                <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">MermaGoma</th>
+                                <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">MermaS/Goma</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -65,10 +67,12 @@
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['configuracion'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['tamano'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ $f['mts'] ?? '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ isset($f['merma_goma']) ? number_format($f['merma_goma'], 2) : '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ isset($f['merma']) ? number_format($f['merma'], 2) : '' }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="12" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
+                                    <td colspan="14" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
                                 </tr>
                             @endforelse
                         </tbody>

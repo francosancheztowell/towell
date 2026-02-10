@@ -3,8 +3,13 @@
 use App\Http\Controllers\Mantenimiento\MantenimientoParosController;
 use App\Http\Controllers\Mantenimiento\CatalogosFallasController;
 use App\Http\Controllers\Mantenimiento\ManOperadoresMantenimientoController;
+use App\Http\Controllers\Mantenimiento\ReportesMantenimientoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/mantenimiento/reportes', [ReportesMantenimientoController::class, 'index'])->name('mantenimiento.reportes');
+Route::get('/mantenimiento/reportes/fallas-paros', [ReportesMantenimientoController::class, 'reporteFallasParos'])->name('mantenimiento.reportes.fallas-paros');
+Route::get('/mantenimiento/reportes/fallas-paros/excel', [ReportesMantenimientoController::class, 'exportarExcel'])->name('mantenimiento.reportes.fallas-paros.excel');
 
 Route::get('/mantenimiento/{moduloPrincipal?}', [UsuarioController::class, 'showSubModulos'])
     ->defaults('moduloPrincipal', 'mantenimiento')

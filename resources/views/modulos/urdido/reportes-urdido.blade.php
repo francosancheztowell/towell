@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'Reportes Urdido')
+@section('page-title', 'Reportes 03 OEE ')
 
 @section('navbar-right')
     <button type="button" onclick="mostrarModalConsultarReportesUrdido()"

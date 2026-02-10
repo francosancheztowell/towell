@@ -569,13 +569,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cuenta && calibre) {
             // Normalizar calibre: remover espacios y asegurar formato correcto
             calibre = calibre.replace(/\s+/g, '');
-            
+
             // Formato: cuenta-calibre/1 (ejemplo: 4112-12/1 o 4112-12.5/1)
             const tamanoEsperado = `${cuenta}-${calibre}/1`;
 
             // Buscar si existe exactamente ese valor en las opciones
             const opcionExacta = Array.from(tamanoSelect.options).find(opt => opt.value === tamanoEsperado);
-            
+
             if (opcionExacta) {
                 // Si existe exactamente, seleccionarlo
                 tamanoSelect.value = tamanoEsperado;

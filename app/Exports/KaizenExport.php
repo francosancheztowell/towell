@@ -53,11 +53,14 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
                 $sheetEng = $templateBook->getSheet(0);
                 $sheetEng->setTitle('AX ENGOMADO');
                 $book->addExternalSheet($sheetEng, $sheetIndex);
-                $this->fillKaizenSheet($book->getSheet($sheetIndex), $this->filasEngomado);
+                $this->setHeadersEngomado($book->getSheet($sheetIndex));
+                $this->fillSheetEngomado($book->getSheet($sheetIndex), $this->filasEngomado);
 
-                $sheetUrd = $templateBook->getSheet(0);
+                $templateBook2 = $this->loadTemplateBook();
+                $sheetUrd = $templateBook2->getSheet(0);
                 $sheetUrd->setTitle('AX URDIDO');
                 $book->addExternalSheet($sheetUrd, $sheetIndex + 1);
+                $this->setHeadersUrdido($book->getSheet($sheetIndex + 1));
                 $this->fillKaizenSheet($book->getSheet($sheetIndex + 1), $this->filasUrdido);
             },
         ];
@@ -78,6 +81,25 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
         throw new RuntimeException('No se encontró la plantilla kaizen.xlsx en resources/templates/ o storage/app/templates/.');
     }
 
+    private function setHeadersEngomado(Worksheet $sheet): void
+    {
+        $headers = ['Fecha', 'AÑO', 'MES', 'Código', 'Localidad', 'Estado', 'Lote', 'CALIBRE', 'Cantidad', 'Configuración', 'Tamaño', 'Mts', 'MermaGoma', 'Merma', 'Julios'];
+        foreach ($headers as $col => $val) {
+            $sheet->setCellValueByColumnAndRow($col + 1, 1, $val);
+        }
+    }
+
+    private function setHeadersUrdido(Worksheet $sheet): void
+    {
+        $headers = ['Fecha', 'AÑO', 'MES', 'Código', 'Localidad', 'Estado', 'Lote', 'CALIBRE', 'Cantidad', 'Configuración', 'Tamaño', 'Mts', 'Julios'];
+        foreach ($headers as $col => $val) {
+            $sheet->setCellValueByColumnAndRow($col + 1, 1, $val);
+        }
+        // Limpiar columnas sobrantes que vienen de la plantilla (MermaGoma, Merma, etc.)
+        $sheet->setCellValueByColumnAndRow(14, 1, '');
+        $sheet->setCellValueByColumnAndRow(15, 1, '');
+    }
+
     private function fillKaizenSheet(Worksheet $sheet, array $filas): void
     {
         $startRow = 2;
@@ -95,6 +117,30 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow(10, $row, $f['configuracion'] ?? '');
             $sheet->setCellValueByColumnAndRow(11, $row, $f['tamano'] ?? '');
             $sheet->setCellValueByColumnAndRow(12, $row, $f['mts'] ?? '');
+            $sheet->setCellValueByColumnAndRow(13, $row, $f['julios'] ?? '');
+        }
+    }
+
+    private function fillSheetEngomado(Worksheet $sheet, array $filas): void
+    {
+        $startRow = 2;
+        foreach ($filas as $idx => $f) {
+            $row = $startRow + $idx;
+            $sheet->setCellValueByColumnAndRow(1, $row, $f['fecha_mod'] ?? '');
+            $sheet->setCellValueByColumnAndRow(2, $row, $f['anio'] ?? '');
+            $sheet->setCellValueByColumnAndRow(3, $row, $f['mes'] ?? '');
+            $sheet->setCellValueByColumnAndRow(4, $row, $f['codigo'] ?? '');
+            $sheet->setCellValueByColumnAndRow(5, $row, $f['localidad'] ?? '');
+            $sheet->setCellValueByColumnAndRow(6, $row, $f['estado'] ?? 'Terminado');
+            $sheet->setCellValueByColumnAndRow(7, $row, $f['lote'] ?? '');
+            $sheet->setCellValueByColumnAndRow(8, $row, $f['calibre'] ?? '');
+            $sheet->setCellValueByColumnAndRow(9, $row, $f['cantidad'] ?? '');
+            $sheet->setCellValueByColumnAndRow(10, $row, $f['configuracion'] ?? '');
+            $sheet->setCellValueByColumnAndRow(11, $row, $f['tamano'] ?? '');
+            $sheet->setCellValueByColumnAndRow(12, $row, $f['mts'] ?? '');
+            $sheet->setCellValueByColumnAndRow(13, $row, $f['merma_goma'] ?? '');
+            $sheet->setCellValueByColumnAndRow(14, $row, $f['merma'] ?? '');
+            $sheet->setCellValueByColumnAndRow(15, $row, $f['julios'] ?? '');
         }
     }
 }
