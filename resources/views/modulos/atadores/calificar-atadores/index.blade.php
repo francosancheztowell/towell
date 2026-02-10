@@ -113,7 +113,15 @@
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Folio Paro</span>
-                        <span class="text-sm font-semibold text-gray-800">{{ $item->LoteProveedor ?? '-' }}</span>
+                        <div class="relative">
+                            <input type="text" id="folioParo" value="{{ $item->FolioParo ?? '' }}"
+                                   class="w-36 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                                   placeholder="Folio paro" oninput="handleFolioParoChange(this.value)"
+                                   @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif />
+                            <span id="folioParoSavedIndicator" class="absolute -right-6 top-1/2 -translate-y-1/2 text-green-600 text-xs hidden">
+                                <i class="fas fa-check"></i>
+                            </span>
+                        </div>
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">5'S Orden y Limpieza (5-10)</span>
@@ -360,6 +368,7 @@ const actividadesData = {!! json_encode($actividadesCatalogo->map(function($act)
 // Auto-guardado de observaciones
 let autoSaveTimeout = null;
 let mergaSaveTimeout = null;
+let folioParoSaveTimeout = null;
 
 function handleObservacionesChange() {
     const autoSaveIndicator = document.getElementById('autoSaveIndicator');
@@ -403,6 +412,22 @@ function handleMergaChange(valor) {
             guardarMerga(valor);
         }, 1500);
     }
+}
+
+function handleFolioParoChange(valor) {
+    const indicator = document.getElementById('folioParoSavedIndicator');
+
+    if (indicator) {
+        indicator.classList.add('hidden');
+    }
+
+    if (folioParoSaveTimeout) {
+        clearTimeout(folioParoSaveTimeout);
+    }
+
+    folioParoSaveTimeout = setTimeout(() => {
+        guardarFolioParo(valor);
+    }, 1200);
 }
 
 
@@ -827,6 +852,45 @@ function guardarMerga(valor){
             title: 'Error de conexión', 
             text: 'No se pudo conectar con el servidor. Verifica tu conexión.' 
         });
+    });
+}
+
+function guardarFolioParo(valor){
+    if (esSoloLectura) {
+        return;
+    }
+
+    const folioParo = (valor ?? '').toString().trim();
+
+    fetch('{{ route('atadores.save') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            action: 'folio_paro',
+            folio_paro: folioParo,
+            no_julio: currentNoJulio,
+            no_orden: currentNoOrden
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.ok) {
+            const input = document.getElementById('folioParo');
+            const indicator = document.getElementById('folioParoSavedIndicator');
+            if (input) input.value = res.folio_paro ?? folioParo;
+            if (indicator) {
+                indicator.classList.remove('hidden');
+                setTimeout(() => indicator.classList.add('hidden'), 2000);
+            }
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar Folio Paro' });
+        }
+    })
+    .catch(() => {
+        Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo guardar Folio Paro' });
     });
 }
 
