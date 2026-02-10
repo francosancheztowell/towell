@@ -13,7 +13,7 @@ class ReportesEngomadoController extends Controller
     {
         $reportes = [
             [
-                'nombre' => 'Reportes de Producción 03-OEE URD-ENG',
+                'nombre' => 'Reportes de Produccion 03-OEE URD-ENG',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('urdido.reportes.urdido.03-oee'),
                 'disponible' => true,
@@ -22,12 +22,6 @@ class ReportesEngomadoController extends Controller
                 'nombre' => 'Kaizen urd-eng (AX ENGOMADO / AX URDIDO)',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('urdido.reportes.urdido.kaizen'),
-                'disponible' => true,
-            ],
-            [
-                'nombre' => 'ROTURAS X MILLÓN',
-                'accion' => 'Pedir Rango de Fechas',
-                'url' => route('urdido.reportes.urdido.roturas'),
                 'disponible' => true,
             ],
         ];

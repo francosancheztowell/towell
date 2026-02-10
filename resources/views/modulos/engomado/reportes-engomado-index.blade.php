@@ -5,7 +5,7 @@
 @section('content')
     <div class="w-full p-4">
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-            <div class="bg-emerald-600 px-6 py-4">
+            <div class="bg-blue-600 px-6 py-4">
                 <h1 class="text-xl font-bold text-white">Reportes Engomado</h1>
             </div>
             <div class="divide-y divide-gray-200">
@@ -13,7 +13,7 @@
                     <a href="{{ $reporte['url'] }}"
                        class="block px-6 py-4 hover:bg-gray-50 transition-colors {{ !$reporte['disponible'] ? 'opacity-80' : '' }}">
                         <div class="flex items-center gap-4">
-                            <span class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-sm">
+                            <span class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm">
                                 {{ $num + 1 }}
                             </span>
                             <div class="flex-1 min-w-0">

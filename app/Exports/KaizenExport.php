@@ -53,7 +53,7 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
                 $sheetEng = $templateBook->getSheet(0);
                 $sheetEng->setTitle('AX ENGOMADO');
                 $book->addExternalSheet($sheetEng, $sheetIndex);
-                $this->fillKaizenSheet($book->getSheet($sheetIndex), $this->filasEngomado);
+                $this->fillSheetEngomado($book->getSheet($sheetIndex), $this->filasEngomado);
 
                 $sheetUrd = $templateBook->getSheet(0);
                 $sheetUrd->setTitle('AX URDIDO');
