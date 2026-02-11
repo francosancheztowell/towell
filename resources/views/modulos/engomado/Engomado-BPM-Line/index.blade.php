@@ -9,24 +9,45 @@
             <form action="{{ route('eng-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline" id="form-terminar">
                 @csrf
                 @method('PATCH')
-                <button type="button" onclick="validarYTerminar()" class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                    Terminado
-                </button>
+                <x-navbar.button-report 
+                    onclick="validarYTerminar()" 
+                    title="Terminado"
+                    icon="fa-check"
+                    iconColor="text-white"
+                    text="Terminado"
+                    bg="bg-green-600"
+                    hoverBg="hover:bg-green-700"
+                    module="BPM (Buenas Practicas Manufactura) Eng"
+                />
             </form>
         @elseif($header->Status === 'Terminado')
-            <form action="{{ route('eng-bpm-line.autorizar', $header->Folio) }}" method="POST" class="inline">
+            <form action="{{ route('eng-bpm-line.autorizar', $header->Folio) }}" method="POST" class="inline" id="form-autorizar">
                 @csrf
                 @method('PATCH')
-                <button type="submit" class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    Autorizar
-                </button>
+                <x-navbar.button-report 
+                    onclick="document.getElementById('form-autorizar').submit()" 
+                    title="Autorizar"
+                    icon="fa-check-double"
+                    iconColor="text-white"
+                    text="Autorizar"
+                    bg="bg-blue-600"
+                    hoverBg="hover:bg-blue-700"
+                    module="BPM (Buenas Practicas Manufactura) Eng"
+                />
             </form>
-            <form action="{{ route('eng-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline">
+            <form action="{{ route('eng-bpm-line.rechazar', $header->Folio) }}" method="POST" class="inline" id="form-rechazar">
                 @csrf
                 @method('PATCH')
-                <button type="submit" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                    Rechazar
-                </button>
+                <x-navbar.button-report 
+                    onclick="document.getElementById('form-rechazar').submit()" 
+                    title="Rechazar"
+                    icon="fa-times"
+                    iconColor="text-white"
+                    text="Rechazar"
+                    bg="bg-red-600"
+                    hoverBg="hover:bg-red-700"
+                    module="BPM (Buenas Practicas Manufactura) Eng"
+                />
             </form>
         @endif
     </div>

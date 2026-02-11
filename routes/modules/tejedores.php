@@ -6,6 +6,7 @@ use App\Http\Controllers\Tejedores\Configuracion\CatDesarrolladores\catDesarroll
 use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOperadorController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
 use App\Http\Controllers\Tejedores\InventarioTelaresController;
+use App\Http\Controllers\Tejedores\Reportes\ReportesDesarrolladoresController;
 use App\Http\Controllers\Tejedores\NotificarMontadoJulios\NotificarMontadoJulioController;
 use App\Http\Controllers\Tejedores\NotificarMontadoRollo\NotificarMontRollosController;
 use App\Http\Controllers\Tejedores\TelActividadesBPMController;
@@ -126,3 +127,10 @@ Route::get('catalogo-desarrolladores', [catDesarrolladoresController::class, 'in
 Route::post('catalogo-desarrolladores', [catDesarrolladoresController::class, 'store'])->name('cat-desarrolladores.store');
 Route::put('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'update'])->name('cat-desarrolladores.update');
 Route::delete('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'destroy'])->name('cat-desarrolladores.destroy');
+
+// Reportes Desarrolladores
+Route::prefix('tejedores/reportes-desarrolladores')->name('tejedores.reportes-desarrolladores.')->group(function () {
+    Route::get('/', [ReportesDesarrolladoresController::class, 'index'])->name('index');
+    Route::get('/programa', [ReportesDesarrolladoresController::class, 'reportePrograma'])->name('programa');
+    Route::get('/programa/excel', [ReportesDesarrolladoresController::class, 'exportarExcel'])->name('programa.excel');
+});
