@@ -363,6 +363,7 @@ const http = {
     async request(url, options = {}) {
         const token = getCsrfToken();
         const res = await fetch(url, {
+            cache: 'no-store',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': token,
@@ -1457,6 +1458,7 @@ const actions = {
 
         try {
             const resp = await http.post(API.liberarTelar, {
+                id:       tel.id || null,
                 no_telar: tel.no_telar,
                 tipo:     tel.tipo
             });

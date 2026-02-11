@@ -456,21 +456,37 @@ class ReservarProgramarController extends Controller
     {
         try {
             $request->validate([
+                'id'       => ['nullable','integer'],
                 'no_telar' => ['required','string','max:50'],
                 'tipo'     => ['nullable','string','max:20'],
             ]);
 
+            $id      = $request->input('id');
             $noTelar = (string)$request->input('no_telar');
             $tipo    = $this->normalizeTipo($request->input('tipo'));
 
-            $q = TejInventarioTelares::where('no_telar', $noTelar)
-                ->where('status', self::STATUS_ACTIVO);
+            $q = TejInventarioTelares::where('status', self::STATUS_ACTIVO);
+            if ($id) {
+                $q->where('id', (int)$id);
+            } else {
+                $q->where('no_telar', $noTelar);
+                if ($tipo !== null) {
+                    $q->where('tipo', $tipo);
+                }
+            }
 
-            if ($tipo !== null) $q->where('tipo', $tipo);
+            // Si hay multiples registros activos, priorizar uno realmente reservado.
+            $telar = (clone $q)
+                ->whereNotNull('no_julio')->where('no_julio', '!=', '')
+                ->whereNotNull('no_orden')->where('no_orden', '!=', '')
+                ->first();
 
-            $telar = $q->first();
             if (!$telar) {
-                return response()->json(['success'=>false,'message'=>'Telar no encontrado o no está activo'], 404);
+                $telar = $q->first();
+            }
+
+            if (!$telar) {
+                return response()->json(['success'=>false,'message'=>'Telar no encontrado o no esta activo'], 404);
             }
 
             // Debe estar reservado (ambos campos)
@@ -479,7 +495,7 @@ class ReservarProgramarController extends Controller
             if ($noJulio === '' || $noOrden === '') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Este telar no está reservado (no tiene no_julio y no_orden)',
+                    'message' => 'Este telar no esta reservado (no tiene no_julio y no_orden)',
                 ], 400);
             }
 
@@ -491,12 +507,12 @@ class ReservarProgramarController extends Controller
             $eliminadas = 0;
             foreach ($reservas as $r) { $r->delete(); $eliminadas++; }
 
-            // 2) Verificar si quedan otras reservas activas para este telar (por si hay múltiples tipos)
+            // 2) Verificar si quedan otras reservas activas para este telar (por si hay multiples tipos)
             $tieneOtrasReservas = InvTelasReservadas::where('NoTelarId', $noTelar)
                 ->where('Status', 'Reservado')
                 ->exists();
 
-            // 3) Limpiar campos de reserva y programación
+            // 3) Limpiar campos de reserva y programacion
             $updateData = [
                 'hilo'=>null,
                 'metros'=>null,
@@ -507,8 +523,6 @@ class ReservarProgramarController extends Controller
             ];
 
             $telar->update($updateData);
-
-
 
             return response()->json([
                 'success' => true,
@@ -1053,19 +1067,29 @@ class ReservarProgramarController extends Controller
     /* =========================== PRIVADOS ============================ */
 
     /**
-     * Query base sobre tej_inventario_telares.
-     * Incluye fecha_ymd: fecha como string Y-m-d generado en la BD para evitar desfase por zona horaria en PHP.
+     * Query base sobre tej_inventario_telares (misma tabla: id, no_telar, status, tipo, cuenta, calibre, fecha, turno, hilo, metros, no_julio, no_orden, tipo_atado, salon).
+     * Usamos Query Builder (no Eloquent) para que la columna fecha (tipo date) se lea como string Y-m-d en la BD
+     * y no pase por el cast del modelo, evitando desfase de un día por zona horaria.
      */
     private function baseQuery()
     {
-        $driver = (new TejInventarioTelares)->getConnection()->getDriverName();
+        $model = new TejInventarioTelares;
+        $connName = $model->getConnectionName();
+        $table = $model->getTable();
+        $driver = $model->getConnection()->getDriverName();
+
+        $qb = $connName
+            ? DB::connection($connName)->table($table)
+            : DB::table($table);
+
+        // En la BD: fecha como string Y-m-d (SQL Server: CONVERT 23 = yyyy-mm-dd; MySQL: DATE_FORMAT)
         $fechaYmd = $driver === 'sqlsrv'
             ? DB::raw("CONVERT(VARCHAR(10), [fecha], 23) as [fecha_ymd]")
             : DB::raw("DATE_FORMAT(fecha, '%Y-%m-%d') as fecha_ymd");
 
-        return TejInventarioTelares::query()
-            ->where('status', '=', self::STATUS_ACTIVO)
-            ->select(array_merge(['id'], self::COLS_TELARES, [$fechaYmd]));
+        $select = array_merge(['id'], self::COLS_TELARES, [$fechaYmd]);
+
+        return $qb->where('status', '=', self::STATUS_ACTIVO)->select($select);
     }
 
     private function normalizeTelares($rows)
@@ -1112,21 +1136,14 @@ class ReservarProgramarController extends Controller
     }
 
     /**
-     * Fecha para mostrar/enviar: solo Y-m-d desde la BD, sin zona horaria.
-     * Usa fecha_ymd (generado en la BD) o valor crudo de fecha; nunca Carbon para evitar desfase.
+     * Fecha para mostrar/enviar: solo Y-m-d desde la BD (columna fecha tipo date).
+     * Con Query Builder, $row es stdClass y $row->fecha_ymd es el string devuelto por CONVERT/DATE_FORMAT en la BD.
      */
     private function normalizeDateFromTejInventario($row): ?string
     {
-        $candidates = [
-            $row->fecha_ymd ?? null,
-            $row->attributes['fecha_ymd'] ?? null,
-            $row->attributes['fecha_Ymd'] ?? null,
-            method_exists($row, 'getRawOriginal') ? $row->getRawOriginal('fecha') : null,
-            $row->attributes['fecha'] ?? null,
-        ];
-        foreach ($candidates as $val) {
-            if ($val === null || $val === '') continue;
-            $s = is_object($val) ? (string) $val : trim((string) $val);
+        $ymd = $row->fecha_ymd ?? null;
+        if ($ymd !== null && $ymd !== '') {
+            $s = trim((string) $ymd);
             if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $s, $m)) {
                 return $m[1];
             }
@@ -1728,3 +1745,4 @@ class ReservarProgramarController extends Controller
         }
     }
 }
+
