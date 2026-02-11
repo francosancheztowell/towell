@@ -1,7 +1,6 @@
 @props(['modulos', 'columns' => 'xl:grid-cols-5', 'filterConfig' => true, 'imageFolder' => 'fotos_modulos', 'isSubmodulos' => false])
 
 @php
-    $timestamp = time();
     $imagenFallback = asset('images/fondosTowell/TOWELLIN.png');
 
     // Contar módulos después de filtrar
@@ -47,12 +46,16 @@
 
 <div class="w-full flex justify-center items-start px-6 py-8">
     <div class="{{ $gridClasses }} {{ $gapClasses }} max-w-7xl mx-auto">
-    @foreach ($modulos as $modulo)
-        @if($isSubmodulos || !$filterConfig || $modulo['nombre'] !== 'Configuración')
+    @foreach ($modulosFiltrados as $modulo)
             @php
-                $imagenUrl = !empty($modulo['imagen'])
-                    ? asset('images/' . $imageFolder . '/' . $modulo['imagen']) . '?v=' . $timestamp
-                    : $imagenFallback;
+                if (!empty($modulo['imagen'])) {
+                    $relativeImagePath = 'images/' . $imageFolder . '/' . $modulo['imagen'];
+                    $absoluteImagePath = public_path($relativeImagePath);
+                    $version = file_exists($absoluteImagePath) ? filemtime($absoluteImagePath) : null;
+                    $imagenUrl = asset($relativeImagePath) . ($version ? '?v=' . $version : '');
+                } else {
+                    $imagenUrl = $imagenFallback;
+                }
                 
                 // Verificar si es el módulo de Atado de Julio / Cortado de Rollo
                 $esNotificarMontado = in_array($modulo['nombre'], ['Atado de Julio', 'Atado de Julio (Tej.)', 'Notificar Montado de Julio', 'Notificar Montado de Julio (Tej.)']);
@@ -94,7 +97,6 @@
                     </div>
                 </div>
             </a>
-        @endif
     @endforeach
     </div>
 </div>

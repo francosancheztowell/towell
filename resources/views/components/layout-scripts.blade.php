@@ -4,11 +4,16 @@
 @vite(['resources/js/app.js'])
 
 
-@if(!$simple)
+@if(!$simple && config('app.service_worker_cleanup', false))
     <!-- Service Worker Cleanup -->
     <script>
         (function() {
             if (!('serviceWorker' in navigator)) return;
+            const markerKey = 'towell_sw_cleanup_done';
+
+            if (sessionStorage.getItem(markerKey) === '1') return;
+            sessionStorage.setItem(markerKey, '1');
+
             async function cleanup() {
                 try {
                     const regs = await navigator.serviceWorker.getRegistrations();
@@ -22,16 +27,11 @@
                 } catch (e) {}
             }
             cleanup();
-            window.addEventListener('load', cleanup);
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) cleanup();
-            });
         })();
     </script>
 @endif
 
 @stack('styles')
-
 
 
 

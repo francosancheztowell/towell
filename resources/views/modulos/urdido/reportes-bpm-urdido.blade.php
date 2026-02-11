@@ -55,12 +55,19 @@
                         @php
                             $status = strtolower((string) ($fila->Status ?? ''));
                             $statusClass = 'bg-gray-100 text-gray-800';
+                            $valorTxt = strtoupper((string) ($fila->ValorTexto ?? 'S/N'));
+                            $valorClass = 'bg-gray-100 text-gray-700';
                             if ($status === 'creado') {
                                 $statusClass = 'bg-blue-100 text-blue-800';
                             } elseif ($status === 'terminado') {
                                 $statusClass = 'bg-yellow-100 text-yellow-800';
                             } elseif ($status === 'autorizado') {
                                 $statusClass = 'bg-green-100 text-green-800';
+                            }
+                            if ($valorTxt === 'CORRECTO') {
+                                $valorClass = 'bg-green-100 text-green-800';
+                            } elseif ($valorTxt === 'INCORRECTO') {
+                                $valorClass = 'bg-red-100 text-red-800';
                             }
                         @endphp
                         <tr class="hover:bg-gray-50">
@@ -84,7 +91,11 @@
                             <td class="px-2 py-0.5 border border-gray-300">{{ $fila->NombreEmplAutoriza ?? '' }}</td>
                             <td class="px-2 py-0.5 border border-gray-300 text-right">{{ $fila->Orden ?? '' }}</td>
                             <td class="px-2 py-0.5 border border-gray-300">{{ $fila->Actividad ?? '' }}</td>
-                            <td class="px-2 py-0.5 border border-gray-300 text-center text-base font-semibold">{{ $fila->ValorTexto ?? 'S/N' }}</td>
+                            <td class="px-2 py-0.5 border border-gray-300 text-center">
+                                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {{ $valorClass }}">
+                                    {{ $fila->ValorTexto ?? 'S/N' }}
+                                </span>
+                            </td>
                         </tr>
                     @empty
                         <tr>

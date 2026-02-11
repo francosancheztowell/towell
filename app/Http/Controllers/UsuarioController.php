@@ -38,51 +38,27 @@ class UsuarioController extends Controller
 
         $modulos = $this->moduloService->getModulosPrincipalesPorUsuario($usuarioActual->idusuario);
 
-        // Warm-up agresivo de caché: precargar submódulos de TODOS los módulos principales
-        // Esto hace que la navegación entre módulos sea instantánea (sin delay al hacer click)
-        try {
-            foreach ($modulos as $m) {
-                // Solo módulos principales (nivel 1)
-                if (($m['nivel'] ?? null) === 1) {
-                    $nombreModulo = $m['nombre'] ?? '';
-                    $rutaModulo = $m['ruta'] ?? '';
-
-                    // 1. Precargar el módulo principal en caché (para buscarModuloPrincipal)
-                    if (!empty($nombreModulo)) {
-                        $this->moduloService->buscarModuloPrincipal($nombreModulo);
-                    }
-                    if (!empty($rutaModulo)) {
-                        $slugRuta = ltrim(str_replace(['/', '_'], '-', $rutaModulo), '/');
-                        if ($slugRuta !== $nombreModulo) {
-                            $this->moduloService->buscarModuloPrincipal($slugRuta);
-                        }
+        // Warm-up opcional: deshabilitado por defecto para acelerar el primer render tras login.
+        if (config('app.modules_warmup_on_login', false)) {
+            try {
+                foreach ($modulos as $m) {
+                    if (($m['nivel'] ?? null) !== 1) {
+                        continue;
                     }
 
-                    // 2. Precargar submódulos por nombre del módulo (ej: "Planeación")
-                    if (!empty($nombreModulo)) {
+                    $nombreModulo = trim((string) ($m['nombre'] ?? ''));
+                    if ($nombreModulo !== '') {
                         $this->moduloService->getSubmodulosPorModuloPrincipal(
                             $nombreModulo,
                             $usuarioActual->idusuario
                         );
                     }
-
-                    // 3. También precargar por ruta (por si el nombre tiene acentos/caracteres especiales)
-                    // Ej: /planeacion -> "planeacion"
-                    if (!empty($rutaModulo) && $rutaModulo !== $nombreModulo) {
-                        $slugRuta = ltrim(str_replace(['/', '_'], '-', $rutaModulo), '/');
-                        if ($slugRuta !== $nombreModulo) {
-                            $this->moduloService->getSubmodulosPorModuloPrincipal(
-                                $slugRuta,
-                                $usuarioActual->idusuario
-                            );
-                        }
-                    }
                 }
-            }
-        } catch (\Throwable $e) {
-            // Silencioso: es optimización, no debe tumbar la pantalla principal
-            if (config('app.debug')) {
-                Log::debug('Warmup de caché de submódulos falló', ['error' => $e->getMessage()]);
+            } catch (\Throwable $e) {
+                // Silencioso: es optimización, no debe tumbar la pantalla principal
+                if (config('app.debug')) {
+                    Log::debug('Warmup de caché de submódulos falló', ['error' => $e->getMessage()]);
+                }
             }
         }
 

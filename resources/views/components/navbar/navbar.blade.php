@@ -21,8 +21,8 @@
     $usuarioInicial = strtoupper(substr($usuario->nombre, 0, 1));
 
     // Verificar acceso al módulo Configuración
-    $tieneConfiguracion = false;
-    if (Auth::check() && $isProduccionIndex) {
+    $tieneConfiguracion = (bool) ($tieneConfiguracion ?? false);
+    if (!$tieneConfiguracion && Auth::check() && $isProduccionIndex) {
         $moduloService = app(ModuloService::class);
         $modulos = $moduloService->getModulosPrincipalesPorUsuario(Auth::id());
         $tieneConfiguracion = $modulos->contains('nombre', 'Configuración');

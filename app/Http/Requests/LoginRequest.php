@@ -14,15 +14,17 @@ class LoginRequest extends FormRequest
     public function rules()
     {
         return [
-            'numero_empleado' => ['required', 'exists:SYSUsuario,numero_empleado'],  // Aquí usamos la regla 'exists'
-            'contrasenia' => ['required', 'string'],  // Puedes agregar más validaciones si es necesario
+            // Evita una consulta extra (exists) para que el login haga solo la búsqueda necesaria.
+            'numero_empleado' => ['required', 'string', 'max:30'],
+            'contrasenia' => ['required', 'string'],
         ];
     }
 
     public function messages()
     {
         return [
-            'numero_empleado.exists' => 'El número de empleado no existe en nuestra base de datos.',
+            'numero_empleado.required' => 'El número de empleado es obligatorio.',
+            'contrasenia.required' => 'La contraseña es obligatoria.',
         ];
     }
 }

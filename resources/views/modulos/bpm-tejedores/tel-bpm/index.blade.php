@@ -325,7 +325,6 @@
         background-color: rgb(37, 99, 235) !important; /* bg-blue-600 */
     }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 (function(){
     const qs  = s => document.querySelector(s);

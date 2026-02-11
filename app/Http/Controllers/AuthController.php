@@ -18,10 +18,13 @@ class AuthController extends Controller
     public function login(LoginRequest $request)
     {
         // La validación se aplica automáticamente
-        $validated = $request->validated();
+        $request->validated();
 
         // Buscar el empleado en la base de datos
-        $empleado = Usuario::where('numero_empleado', $request->numero_empleado)->first();
+        $empleado = Usuario::query()
+            ->select(['idusuario', 'numero_empleado', 'nombre', 'contrasenia'])
+            ->where('numero_empleado', $request->numero_empleado)
+            ->first();
 
         $passwordOk = false;
         if ($empleado) {

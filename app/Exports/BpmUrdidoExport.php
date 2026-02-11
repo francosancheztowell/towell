@@ -218,7 +218,7 @@ class BpmUrdidoExport implements FromArray, WithEvents, WithTitle
         $cell = "O{$row}";
         $v = mb_strtolower(trim($valor), 'UTF-8');
 
-        if ($v === '☑') {
+        if ($v === 'correcto') {
             $sheet->getStyle($cell)->applyFromArray([
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
@@ -232,7 +232,7 @@ class BpmUrdidoExport implements FromArray, WithEvents, WithTitle
             return;
         }
 
-        if ($v === '☒') {
+        if ($v === 'incorrecto') {
             $sheet->getStyle($cell)->applyFromArray([
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,

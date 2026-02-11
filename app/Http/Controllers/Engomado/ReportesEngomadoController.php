@@ -159,10 +159,10 @@ class ReportesEngomadoController extends Controller
     private function mapearValorBpm(int $valor): string
     {
         if ($valor === 1) {
-            return '☑';
+            return 'CORRECTO';
         }
         if ($valor === 2) {
-            return '☒';
+            return 'INCORRECTO';
         }
 
         return 'S/N';

@@ -123,4 +123,15 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Performance Flags
+    |--------------------------------------------------------------------------
+    |
+    | Switches to controlar optimizaciones puntuales sin tocar código.
+    |
+    */
+    'modules_warmup_on_login' => (bool) env('MODULES_WARMUP_ON_LOGIN', false),
+    'service_worker_cleanup' => (bool) env('SERVICE_WORKER_CLEANUP', false),
+
 ];

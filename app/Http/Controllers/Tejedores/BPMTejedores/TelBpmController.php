@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use App\Models\Tejedores\TelActividadesBPM;
+use Illuminate\Support\Facades\Cache;
 
 class TelBpmController extends Controller
 {
@@ -28,10 +29,25 @@ class TelBpmController extends Controller
     {
         $q       = trim((string) $request->get('q', ''));
         $status  = $request->get('status');
-        $perPage = (int) $request->get('per_page', 1000); // Cargar más datos para filtrar en cliente
+        // El listado no muestra paginación visual; limitamos para evitar páginas demasiado pesadas.
+        $perPage = (int) $request->get('per_page', 300);
+        $perPage = max(50, min($perPage, 1000));
 
         $items = TelBpmModel::query()
-            ->select('TelBPM.*')
+            ->select([
+                'TelBPM.Folio',
+                'TelBPM.Status',
+                'TelBPM.Fecha',
+                'TelBPM.CveEmplRec',
+                'TelBPM.NombreEmplRec',
+                'TelBPM.TurnoRecibe',
+                'TelBPM.CveEmplEnt',
+                'TelBPM.NombreEmplEnt',
+                'TelBPM.TurnoEntrega',
+                'TelBPM.CveEmplAutoriza',
+                'TelBPM.NomEmplAutoriza',
+                'TelBPM.Comentarios',
+            ])
             ->when($q !== '', function ($qry) use ($q) {
                 $qry->where('TelBPM.Folio', 'like', "%{$q}%")
                     ->orWhere('TelBPM.CveEmplRec', 'like', "%{$q}%")
@@ -42,7 +58,7 @@ class TelBpmController extends Controller
             ->when($status, fn($qry) => $qry->where('TelBPM.Status', $status))
             ->orderByDesc('TelBPM.Fecha') // último primero
             ->orderByDesc('TelBPM.Folio')
-            ->paginate($perPage)
+            ->simplePaginate($perPage)
             ->withQueryString();
 
         // Prefills para modal crear
@@ -51,7 +67,12 @@ class TelBpmController extends Controller
         $user = Auth::user();
 
         // Obtener datos del operador y operadores de entrega
-        [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega] = $this->obtenerDatosOperador($user);
+        $cacheKey = 'tel_bpm_operador_ctx_' . (string) ($user->idusuario ?? $user->id ?? $user->numero_empleado ?? 'anon');
+        [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega] = Cache::remember(
+            $cacheKey,
+            now()->addMinutes(5),
+            fn() => $this->obtenerDatosOperador($user)
+        );
 
         return view('modulos.bpm-tejedores.tel-bpm.index', [
             'items'   => $items,
@@ -271,11 +292,14 @@ class TelBpmController extends Controller
                             $query->where('Supervisor', '!=', 1)
                                   ->orWhereNull('Supervisor');
                         }) // Excluir supervisores (Supervisor = 1)
-                        ->orderBy('numero_empleado')
-                        ->get(['numero_empleado', 'nombreEmpl', 'Turno'])
+                        ->select([
+                            'numero_empleado',
+                            DB::raw('MAX(nombreEmpl) as nombreEmpl'),
+                            DB::raw('MAX(Turno) as Turno'),
+                        ])
                         ->groupBy('numero_empleado')
-                        ->map(fn($group) => $group->first())
-                        ->values();
+                        ->orderBy('numero_empleado')
+                        ->get();
                 }
             }
         } catch (\Throwable $e) {
@@ -306,27 +330,38 @@ class TelBpmController extends Controller
 
             $insertados = 0;
             DB::transaction(function () use ($folio, $actividades, $telares, $salonPorTelar, $turnoRecibe, &$insertados) {
-                foreach ($actividades as $actividad) {
-                    foreach ($telares as $telar) {
-                        $exists = DB::table('TelBPMLine')
-                            ->where('Folio', $folio)
-                            ->where('Orden', $actividad->Orden)
-                            ->where('NoTelarId', (string)$telar)
-                            ->exists();
+                $existentes = DB::table('TelBPMLine')
+                    ->where('Folio', $folio)
+                    ->select('Orden', 'NoTelarId')
+                    ->get()
+                    ->map(fn($row) => ((int) $row->Orden) . '|' . (string) $row->NoTelarId)
+                    ->flip();
 
-                        if (!$exists) {
-                            DB::table('TelBPMLine')->insert([
+                $pendientes = [];
+
+                foreach ($actividades as $actividad) {
+                    $orden = (int) $actividad->Orden;
+                    $actividadNombre = (string) $actividad->Actividad;
+
+                    foreach ($telares as $telar) {
+                        $clave = $orden . '|' . (string) $telar;
+                        if (!$existentes->has($clave)) {
+                            $pendientes[] = [
                                 'Folio' => $folio,
-                                'Orden' => (int)$actividad->Orden,
-                                'NoTelarId' => (string)$telar,
-                                'Actividad' => (string)$actividad->Actividad,
+                                'Orden' => $orden,
+                                'NoTelarId' => (string) $telar,
+                                'Actividad' => $actividadNombre,
                                 'SalonTejidoId' => $salonPorTelar[$telar] ?? null,
-                                'TurnoRecibe' => (string)$turnoRecibe,
+                                'TurnoRecibe' => (string) $turnoRecibe,
                                 'Valor' => null,
-                            ]);
-                            $insertados++;
+                            ];
                         }
                     }
+                }
+
+                foreach (array_chunk($pendientes, 200) as $chunk) {
+                    DB::table('TelBPMLine')->insert($chunk);
+                    $insertados += count($chunk);
                 }
             });
         } catch (\Throwable $e) {
