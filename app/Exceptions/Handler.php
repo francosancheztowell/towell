@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Session\TokenMismatchException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
@@ -41,6 +42,18 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        // Si expira la sesión/CSRF, redirigir a login en vez de mostrar 419.
+        if ($exception instanceof TokenMismatchException) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'La sesión expiró. Inicia sesión nuevamente.'
+                ], 419);
+            }
+
+            return redirect()->route('login')
+                ->with('error', 'Tu sesión expiró. Inicia sesión nuevamente.');
+        }
+
         // Manejar errores 404 personalizados
         if ($exception instanceof NotFoundHttpException) {
             return response()->view('errors.404', [], 404);
@@ -51,6 +64,9 @@ class Handler extends ExceptionHandler
             $statusCode = $exception->getStatusCode();
 
             switch ($statusCode) {
+                case 419:
+                    return redirect()->route('login')
+                        ->with('error', 'Tu sesión expiró. Inicia sesión nuevamente.');
                 case 403:
                     return response()->view('errors.403', [], 403);
                 case 500:

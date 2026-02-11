@@ -294,7 +294,7 @@
   </script>
 
   <!-- ====== Scripts ====== -->
-    <script src="{{ asset('js/app-core.js') }}"></script>
+    <script src="{{ asset('js/app-core.js') }}?v={{ @filemtime(public_path('js/app-core.js')) ?: time() }}"></script>
     <script src="{{ asset('js/app-filters.js') }}"></script>
 
   @stack('scripts')

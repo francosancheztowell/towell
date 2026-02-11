@@ -10,7 +10,7 @@ Route::get('/', [AuthController::class, 'showLoginForm'])->name('home');
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/login-qr', [AuthController::class, 'loginQR']);
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/obtener-empleados/{area}', [UsuarioController::class, 'obtenerEmpleados'])
     ->name('usuarios.obtener-empleados');
