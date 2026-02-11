@@ -227,6 +227,8 @@ class ReservarProgramarController extends Controller
                 'cuenta'   => ['nullable','string','max:50'],
                 'calibre'  => ['nullable','numeric'],
                 'id'       => ['nullable','integer'], // ID del registro específico (si se proporciona, solo actualiza ese registro)
+                'lote_proveedor' => ['nullable','string','max:50'],
+                'no_proveedor'   => ['nullable','string','max:50'],
             ]);
 
             $noTelar = (string)$request->input('no_telar');
@@ -241,9 +243,14 @@ class ReservarProgramarController extends Controller
             // Campos que van a inventario (otros campos)
             if ($request->filled('metros'))   $updateInventario['metros']   = (float)$request->input('metros');
             if ($request->filled('no_julio')) $updateInventario['no_julio'] = (string)$request->input('no_julio');
-            if ($request->filled('no_orden')) $updateInventario['no_orden'] = (string)$request->input('no_orden');
+            if ($request->filled('no_orden')) {
+                $updateInventario['no_orden'] = (string)$request->input('no_orden');
+                $updateInventario['LoteProveedor'] = (string)$request->input('no_orden'); // mismo valor que no_orden (lote)
+            }
             if ($request->filled('localidad')) $updateInventario['localidad'] = (string)$request->input('localidad');
             if ($request->filled('tipo_atado')) $updateInventario['tipo_atado'] = (string)$request->input('tipo_atado');
+            if ($request->filled('lote_proveedor')) $updateInventario['LoteProveedor'] = (string)$request->input('lote_proveedor');
+            if ($request->filled('no_proveedor'))   $updateInventario['NoProveedor']   = (string)$request->input('no_proveedor');
 
             // Campos que van SOLO a programas (NO a inventario)
             if ($request->filled('hilo')) $updateProgramas['hilo'] = (string)$request->input('hilo');

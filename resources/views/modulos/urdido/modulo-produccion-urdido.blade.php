@@ -1742,6 +1742,70 @@
                     }
                 }
 
+                function obtenerClavesOficialesEnModal() {
+                    const container = document.getElementById('oficiales-existentes');
+                    if (!container) return [];
+
+                    const claves = [];
+                    for (let i = 1; i <= 3; i++) {
+                        const claveInput = container.querySelector(`input.input-oficial-clave[data-numero="${i}"]`);
+                        const clave = claveInput ? (claveInput.value || '').trim() : '';
+                        if (clave) claves.push({ numero: i, clave });
+                    }
+                    return claves;
+                }
+
+                function obtenerClavesRepetidasEnModal() {
+                    const claves = obtenerClavesOficialesEnModal();
+                    const map = new Map();
+                    const repetidas = new Map();
+
+                    claves.forEach(item => {
+                        if (!map.has(item.clave)) {
+                            map.set(item.clave, [item.numero]);
+                        } else {
+                            const nums = map.get(item.clave);
+                            nums.push(item.numero);
+                            repetidas.set(item.clave, nums);
+                        }
+                    });
+
+                    return repetidas;
+                }
+
+                function marcarEstadoDuplicadosOficiales(repetidas = new Map()) {
+                    const container = document.getElementById('oficiales-existentes');
+                    if (!container) return;
+
+                    container.querySelectorAll('select.select-oficial-nombre').forEach(select => {
+                        const numero = parseInt(select.getAttribute('data-numero'), 10);
+                        const claveInput = container.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
+                        const clave = claveInput ? (claveInput.value || '').trim() : '';
+                        const esDuplicado = clave && repetidas.has(clave) && repetidas.get(clave).includes(numero);
+
+                        select.classList.remove('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
+                        select.classList.add('border-gray-300', 'focus:ring-blue-500', 'focus:border-blue-500');
+
+                        if (esDuplicado) {
+                            select.classList.remove('border-gray-300', 'focus:ring-blue-500', 'focus:border-blue-500');
+                            select.classList.add('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
+                        }
+                    });
+                }
+
+                function validarNoOperadorDuplicadoEnModal(mostrarAlerta = true) {
+                    const repetidas = obtenerClavesRepetidasEnModal();
+                    marcarEstadoDuplicadosOficiales(repetidas);
+
+                    if (repetidas.size === 0) return true;
+
+                    if (mostrarAlerta) {
+                        const [clave, oficiales] = repetidas.entries().next().value;
+                        mostrarAlertaErrorModal(`El No. Operador ${clave} está repetido entre oficiales (${oficiales.join(', ')}).`);
+                    }
+                    return false;
+                }
+
                 function renderizarOficialesExistentes(registroId) {
                     const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                     if (!row) return;
@@ -1847,6 +1911,7 @@
                             poblarSelectUsuarios(selectNombre, oficial.clave, false);
                         }
                     }
+                    validarNoOperadorDuplicadoEnModal(false);
                     modalOficialesLista.classList.remove('hidden');
                 }
 
@@ -1912,6 +1977,21 @@
                                 btnEliminar.disabled = false;
                                 btnEliminar.classList.remove('opacity-50', 'cursor-not-allowed');
                             }
+
+                            if (!validarNoOperadorDuplicadoEnModal(true)) {
+                                select.value = '';
+                                if (claveInput) claveInput.value = '';
+                                if (nombreInput) nombreInput.value = '';
+                                if (turnoSelect) turnoSelect.value = '';
+                                const metrosInput = document.querySelector(`input.input-oficial-metros[data-numero="${numero}"]`);
+                                if (metrosInput) metrosInput.value = '';
+                                if (btnEliminar) {
+                                    btnEliminar.disabled = true;
+                                    btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
+                                }
+                                validarNoOperadorDuplicadoEnModal(false);
+                                return;
+                            }
                         } else {
                             // Si se deselecciona, limpiar campos
                             const claveInput = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
@@ -1934,6 +2014,8 @@
                                 btnEliminar.classList.add('opacity-50', 'cursor-not-allowed');
                             }
                         }
+
+                        validarNoOperadorDuplicadoEnModal(false);
                     }
                 });
 
@@ -2234,6 +2316,10 @@
                                     metros: metros ? parseFloat(metros) : null
                                 });
                             }
+                        }
+
+                        if (!validarNoOperadorDuplicadoEnModal(true)) {
+                            return;
                         }
 
                         // Guardar cada oficial

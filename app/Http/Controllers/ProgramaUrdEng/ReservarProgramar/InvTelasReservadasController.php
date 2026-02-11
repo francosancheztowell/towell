@@ -250,6 +250,7 @@ class InvTelasReservadasController extends Controller
                 'InventBatchId'    => ['nullable','string','max:20'],
                 'WMSLocationId'    => ['nullable','string','max:10'],
                 'InventSerialId'   => ['nullable','string','max:20'],
+                'NoProveedor'      => ['nullable','string','max:50'], // Número de proveedor (se guarda en tej_inventario_telares)
 
                 'Tipo'      => ['nullable','string','max:20'],
                 'Metros'    => ['nullable','numeric'],
@@ -295,7 +296,7 @@ class InvTelasReservadasController extends Controller
             } elseif (isset($data['ProdDate'])) {
                 // Si no hay fecha pero hay ProdDate, usar ProdDate como fallback
                 try {
-                    $prodDateParsed = \Carbon\Carbon::parse($data['ProdDate']);
+                    $prodDateParsed = Carbon::parse($data['ProdDate']);
                     if ($prodDateParsed->year === 1900 && $prodDateParsed->month === 1 && $prodDateParsed->day === 1) {
                         $data['Fecha'] = null;
                     } else {
@@ -399,6 +400,13 @@ class InvTelasReservadasController extends Controller
                     }
                     if (isset($data['InventColorId'])) {
                         $telar->InventColorId = $this->normalizeDimValue($data['InventColorId']);
+                    }
+                    // Lote y número de proveedor desde inventario reservado
+                    if (array_key_exists('InventBatchId', $data)) {
+                        $telar->LoteProveedor = $this->normalizeDimValue($data['InventBatchId']);
+                    }
+                    if (array_key_exists('NoProveedor', $data) && $data['NoProveedor'] !== null && $data['NoProveedor'] !== '') {
+                        $telar->NoProveedor = $this->normalizeDimValue($data['NoProveedor']);
                     }
                     $telar->save();
                 } else {

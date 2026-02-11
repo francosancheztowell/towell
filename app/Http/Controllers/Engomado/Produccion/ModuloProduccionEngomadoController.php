@@ -527,6 +527,22 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 422);
             }
 
+            // No permitir repetir No. Operador dentro del mismo registro (Oficial 1-3).
+            $cveSolicitada = trim((string) $request->cve_empl);
+            for ($i = 1; $i <= 3; $i++) {
+                if ($i === $numeroOficial) {
+                    continue;
+                }
+
+                $cveExistente = trim((string) ($registro->{"CveEmpl{$i}"} ?? ''));
+                if ($cveExistente !== '' && $cveExistente === $cveSolicitada) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => "El No. Operador {$cveSolicitada} ya está asignado al Oficial {$i}.",
+                    ], 422);
+                }
+            }
+
             $oficialExistente = !empty($registro->{"NomEmpl{$numeroOficial}"});
 
             if (!$oficialExistente) {
