@@ -968,26 +968,27 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 return { fechaFormateada, diaSemana, año, mes, dia };
             }
 
-            // Si hay registros con fecha anterior a hoy, usar la más antigua como primera columna (máx 6 días atrás)
-            let minFechaRegistro = null;
+            // Solo mostrar días anteriores a hoy cuando existan registros en esos días (ventana de 6 días atrás).
+            const limiteAtras = new Date(hoy);
+            limiteAtras.setDate(hoy.getDate() - 6);
+            limiteAtras.setHours(0, 0, 0, 0);
+
+            const fechasPasadasConRegistro = [];
             registrosTelar.forEach(reg => {
                 const f = parseFechaISO(reg.fecha);
-                if (f && f.getTime() < hoy.getTime()) {
-                    if (!minFechaRegistro || f.getTime() < minFechaRegistro.getTime()) {
-                        minFechaRegistro = new Date(f);
-                        minFechaRegistro.setHours(0, 0, 0, 0);
-                    }
+                if (!f) return;
+                if (f.getTime() < hoy.getTime() && f.getTime() >= limiteAtras.getTime()) {
+                    fechasPasadasConRegistro.push(f.getTime());
                 }
             });
-            if (minFechaRegistro) {
-                const limiteAtras = new Date(hoy);
-                limiteAtras.setDate(hoy.getDate() - 6);
-                limiteAtras.setHours(0, 0, 0, 0);
-                if (minFechaRegistro.getTime() < limiteAtras.getTime()) {
-                    primerDia.setTime(limiteAtras.getTime());
-                } else {
-                    primerDia.setTime(minFechaRegistro.getTime());
-                }
+
+            if (fechasPasadasConRegistro.length > 0) {
+                const minTs = Math.min(...fechasPasadasConRegistro);
+                primerDia = new Date(minTs);
+                primerDia.setHours(0, 0, 0, 0);
+            } else {
+                primerDia = new Date(hoy);
+                primerDia.setHours(0, 0, 0, 0);
             }
 
             // Actualizar headers: columna i = primerDia + i. Fechas anteriores a hoy = otro color.
@@ -1285,23 +1286,27 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 return { fechaFormateada, diaSemana, año, mes, dia };
             }
 
-            // Si hay registros con fecha anterior a hoy, usar la más antigua como primera columna (máx 6 días atrás)
-            let minFechaRegistro = null;
+            // Solo mostrar días anteriores a hoy cuando existan registros en esos días (ventana de 6 días atrás).
+            const limiteAtras = new Date(hoy);
+            limiteAtras.setDate(hoy.getDate() - 6);
+            limiteAtras.setHours(0, 0, 0, 0);
+
+            const fechasPasadasConRegistro = [];
             registrosFiltrados.forEach(reg => {
                 const f = parseFechaISO(reg.fecha);
-                if (f && f.getTime() < hoy.getTime()) {
-                    if (!minFechaRegistro || f.getTime() < minFechaRegistro.getTime()) {
-                        minFechaRegistro = new Date(f);
-                        minFechaRegistro.setHours(0, 0, 0, 0);
-                    }
+                if (!f) return;
+                if (f.getTime() < hoy.getTime() && f.getTime() >= limiteAtras.getTime()) {
+                    fechasPasadasConRegistro.push(f.getTime());
                 }
             });
-            if (minFechaRegistro) {
-                const limiteAtras = new Date(hoy);
-                limiteAtras.setDate(hoy.getDate() - 6);
-                limiteAtras.setHours(0, 0, 0, 0);
-                if (minFechaRegistro.getTime() < limiteAtras.getTime()) primerDia.setTime(limiteAtras.getTime());
-                else primerDia.setTime(minFechaRegistro.getTime());
+
+            if (fechasPasadasConRegistro.length > 0) {
+                const minTs = Math.min(...fechasPasadasConRegistro);
+                primerDia = new Date(minTs);
+                primerDia.setHours(0, 0, 0, 0);
+            } else {
+                primerDia = new Date(hoy);
+                primerDia.setHours(0, 0, 0, 0);
             }
 
             // Actualizar headers: columna i = primerDia + i; fechas anteriores a hoy = otro color
@@ -3371,4 +3376,3 @@ function eliminarRegistro(datosEliminar, checkbox) {
     });
 }
 </script>
-

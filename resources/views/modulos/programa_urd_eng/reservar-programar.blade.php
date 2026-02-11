@@ -159,7 +159,7 @@
                                         data-no-julio="{{ $noJulioTrim }}"
                                         data-no-orden="{{ $noOrdenTrim }}"
                                         data-metros="{{ $t['metros'] ?? '' }}"
-                                        data-fecha="{{ !empty($t['fecha']) ? \Carbon\Carbon::parse($t['fecha'])->format('Y-m-d') : '' }}"
+                                        data-fecha="{{ (!empty($t['fecha']) && preg_match('/^\d{4}-\d{2}-\d{2}/', trim($t['fecha']))) ? substr(trim($t['fecha']), 0, 10) : '' }}"
                                         data-turno="{{ $t['turno'] ?? '' }}"
                                         data-has-both="{{ $hasBoth ? 'true' : 'false' }}"
                                         data-is-reservado="{{ $isReservado ? 'true' : 'false' }}">
@@ -178,7 +178,15 @@
                                             {{ number_format((float)($t['calibre'] ?? 0), 2) }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ !empty($t['fecha']) ? \Carbon\Carbon::parse($t['fecha'])->format('d-M-Y') : '' }}
+                                            @php
+                                                $fechaVal = $t['fecha'] ?? '';
+                                                if (!empty($fechaVal) && preg_match('/^(\d{4})-(\d{2})-(\d{2})/', trim($fechaVal), $mFecha)) {
+                                                    $fechaDisplay = \Carbon\Carbon::createFromFormat('Y-m-d', $mFecha[1].'-'.$mFecha[2].'-'.$mFecha[3])->format('d-M-Y');
+                                                } else {
+                                                    $fechaDisplay = $fechaVal ? \Carbon\Carbon::parse($fechaVal)->format('d-M-Y') : '';
+                                                }
+                                            @endphp
+                                            {{ $fechaDisplay }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             {{ $t['turno'] ?? '' }}
@@ -326,7 +334,9 @@ const API = {
 };
 
 const ES_SUPERVISOR = @json($esSupervisor);
-const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
 
 /* ---------- Helpers DOM ---------- */
 const $  = (s, c = document) => c.querySelector(s);
@@ -351,19 +361,25 @@ const toast = (icon, title, text = '', timer = 2000) => {
 
 const http = {
     async request(url, options = {}) {
+        const token = getCsrfToken();
         const res = await fetch(url, {
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF,
-                'Accept': 'application/json'
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             ...options
         });
 
-        const json = await res.json().catch(() => ({ success: false }));
+        const json = await res.json().catch(() => ({ success: false, message: res.statusText }));
+
+        if (res.status === 419) {
+            throw new Error('La sesión expiró o el token de seguridad no es válido. Por favor recarga la página (F5) e intenta de nuevo.');
+        }
 
         if (!res.ok || json.success === false) {
-            throw new Error(json.message || res.statusText);
+            throw new Error(json.message || json.error || res.statusText);
         }
 
         return json;
@@ -396,10 +412,17 @@ const fmt = {
     },
     date(iso) {
         if (!iso) return '';
+        const s = String(iso).trim();
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) {
+            const y = parseInt(m[1], 10), mon = parseInt(m[2], 10) - 1, day = parseInt(m[3], 10);
+            const d = new Date(y, mon, day);
+            if (!Number.isNaN(d.getTime()) && d.getFullYear() === y && d.getMonth() === mon && d.getDate() === day) {
+                return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+            }
+        }
         const d = new Date(iso);
-        return Number.isNaN(d.getTime())
-            ? ''
-            : d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+        return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
     }
 };
 
@@ -566,14 +589,10 @@ const render = {
             tr.dataset.hasBoth     = hasBoth ? 'true' : 'false';
             tr.dataset.isReservado = reservado ? 'true' : 'false';
             tr.dataset.tipoAtado   = r.tipo_atado || 'Normal';
-            // Agregar fecha y turno si están disponibles
             if (r.fecha) {
-                try {
-                    const fechaObj = new Date(r.fecha);
-                    if (!isNaN(fechaObj.getTime())) {
-                        tr.dataset.fecha = fechaObj.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-                    }
-                } catch (e) {}
+                const s = String(r.fecha).trim();
+                const match = s.match(/^(\d{4}-\d{2}-\d{2})/);
+                tr.dataset.fecha = match ? match[1] : s;
             }
             if (r.turno) {
                 tr.dataset.turno = String(r.turno);

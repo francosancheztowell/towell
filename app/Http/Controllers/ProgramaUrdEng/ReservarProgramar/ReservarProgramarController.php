@@ -1052,11 +1052,20 @@ class ReservarProgramarController extends Controller
 
     /* =========================== PRIVADOS ============================ */
 
+    /**
+     * Query base sobre tej_inventario_telares.
+     * Incluye fecha_ymd: fecha como string Y-m-d generado en la BD para evitar desfase por zona horaria en PHP.
+     */
     private function baseQuery()
     {
+        $driver = (new TejInventarioTelares)->getConnection()->getDriverName();
+        $fechaYmd = $driver === 'sqlsrv'
+            ? DB::raw("CONVERT(VARCHAR(10), [fecha], 23) as [fecha_ymd]")
+            : DB::raw("DATE_FORMAT(fecha, '%Y-%m-%d') as fecha_ymd");
+
         return TejInventarioTelares::query()
-            ->where('status', '=', self::STATUS_ACTIVO) // Solo mostrar registros con status = 'Activo'
-            ->select(array_merge(['id'], self::COLS_TELARES)); // Incluir id para identificar el registro específico
+            ->where('status', '=', self::STATUS_ACTIVO)
+            ->select(array_merge(['id'], self::COLS_TELARES, [$fechaYmd]));
     }
 
     private function normalizeTelares($rows)
@@ -1068,7 +1077,8 @@ class ReservarProgramarController extends Controller
                 'tipo'       => $this->str($r->tipo ?? null),
                 'cuenta'     => $this->str($r->cuenta ?? null),
                 'calibre'    => $this->num($r->calibre ?? null),
-                'fecha'      => $this->normalizeDate($r->fecha ?? null),
+                // Usar fecha cruda de tej_inventario_telares para evitar desfase de un día por zona horaria
+                'fecha'      => $this->normalizeDateFromTejInventario($r),
                 'turno'      => $this->str($r->turno ?? null),
                 'hilo'       => $this->str($r->hilo ?? null),
                 'metros'     => $this->num($r->metros ?? null),
@@ -1099,6 +1109,29 @@ class ReservarProgramarController extends Controller
             return $date->format('Y-m-d');
         }
         catch (\Throwable) { return null; }
+    }
+
+    /**
+     * Fecha para mostrar/enviar: solo Y-m-d desde la BD, sin zona horaria.
+     * Usa fecha_ymd (generado en la BD) o valor crudo de fecha; nunca Carbon para evitar desfase.
+     */
+    private function normalizeDateFromTejInventario($row): ?string
+    {
+        $candidates = [
+            $row->fecha_ymd ?? null,
+            $row->attributes['fecha_ymd'] ?? null,
+            $row->attributes['fecha_Ymd'] ?? null,
+            method_exists($row, 'getRawOriginal') ? $row->getRawOriginal('fecha') : null,
+            $row->attributes['fecha'] ?? null,
+        ];
+        foreach ($candidates as $val) {
+            if ($val === null || $val === '') continue;
+            $s = is_object($val) ? (string) $val : trim((string) $val);
+            if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $s, $m)) {
+                return $m[1];
+            }
+        }
+        return null;
     }
 
     private function parseDateFlexible(string $v): ?Carbon

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Inventario\InvTelasReservadas;
 use App\Models\Urdido\UrdProgramaUrdido;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -20,12 +21,38 @@ class InventarioTelaresController extends Controller
     {
         try {
             $inventario = TejInventarioTelares::where('status', 'Activo')
-                ->orderBy('created_at', 'desc')
+                ->orderBy('fecha', 'asc')
+                ->orderBy('no_telar', 'asc')
+                ->orderBy('turno', 'asc')
                 ->get();
+
+            // Entregar fecha como YYYY-MM-DD para evitar desfases por zona horaria en frontend.
+            $inventarioNormalizado = $inventario->map(function (TejInventarioTelares $row) {
+                $data = $row->toArray();
+
+                $rawFecha = $row->getRawOriginal('fecha');
+                if ($rawFecha) {
+                    try {
+                        $data['fecha'] = Carbon::parse($rawFecha)->format('Y-m-d');
+                    } catch (\Throwable $e) {
+                        $data['fecha'] = is_scalar($rawFecha) ? (string) $rawFecha : null;
+                    }
+                } elseif (!empty($row->fecha)) {
+                    try {
+                        $data['fecha'] = Carbon::parse($row->fecha)->format('Y-m-d');
+                    } catch (\Throwable $e) {
+                        $data['fecha'] = null;
+                    }
+                } else {
+                    $data['fecha'] = null;
+                }
+
+                return $data;
+            })->values();
 
             return response()->json([
                 'success' => true,
-                'data' => $inventario
+                'data' => $inventarioNormalizado
             ]);
         } catch (\Exception $e) {
             Log::error('Error al obtener inventario de telares', [
@@ -1065,4 +1092,3 @@ class InventarioTelaresController extends Controller
         return $turnosOcupados;
     }
 }
-
