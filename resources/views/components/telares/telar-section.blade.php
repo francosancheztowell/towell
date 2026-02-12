@@ -116,7 +116,7 @@
     @if($isActive)
         <!-- Sección EN PROCESO -->
         <div class="p-3">
-            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
                 <!-- Información Principal -->
                 <div class="space-y-2">
                     <div class="{{ $rowClass }}">
@@ -198,6 +198,18 @@
                         <span class="{{ $valueClass }}">
                             {{ $formatDate($telar->Fecha_Compromiso ?? null) }}
                         </span>
+                    </div>
+                </div>
+
+                <!-- Último julio (AtaMontadoTelas) -->
+                <div class="space-y-2">
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Último julio Rizo:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->ultimoJulioRizo ?? '-' }}</span>
+                    </div>
+                    <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Último julio Pie:</span>
+                        <span class="{{ $valueClass }}">{{ $telar->ultimoJulioPie ?? '-' }}</span>
                     </div>
                 </div>
             </div>

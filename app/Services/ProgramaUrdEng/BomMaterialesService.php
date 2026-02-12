@@ -7,7 +7,6 @@ namespace App\Services\ProgramaUrdEng;
 use App\Models\Engomado\EngAnchoBalonaCuenta;
 use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class BomMaterialesService
 {

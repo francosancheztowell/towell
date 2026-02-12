@@ -97,7 +97,10 @@
         <table id="formulaTable" class="min-w-full text-sm">
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm">
                 <tr>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap first:rounded-tl-xl">ID</th>
+                    @if($puedeVerCalidad)
+                    <th class="text-center px-4 py-3 font-semibold whitespace-nowrap first:rounded-tl-xl">Calidad</th>
+                    @endif
+                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap {{ $puedeVerCalidad ? '' : 'first:rounded-tl-xl' }}">ID</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Orden</th>
                     <th id="th-fecha" class="text-left px-4 py-3 font-semibold whitespace-nowrap cursor-pointer select-none">Fecha <i class="fa-solid fa-filter text-xs ml-1 opacity-80"></i></th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Hr</th>
@@ -113,9 +116,6 @@
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tiempo (Min)</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">% Solidos</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Viscocidad</th>
-                    @if($puedeVerCalidad)
-                    <th class="text-center px-4 py-3 font-semibold whitespace-nowrap">Calidad</th>
-                    @endif
                 </tr>
             </thead>
             <tbody id="formulaTableBody">
@@ -141,10 +141,39 @@
                         data-viscocidad="{{ $item->Viscocidad }}"
                         data-maquina="{{ $item->MaquinaId ?? '' }}"
                         data-prodid="{{ $item->ProdId ?? '' }}"
-                        data-oktiempo="{{ isset($item->OkTiempo) && $item->OkTiempo ? '1' : '0' }}"
-                        data-okviscocidad="{{ isset($item->OkViscocidad) && $item->OkViscocidad ? '1' : '0' }}"
-                        data-oksolidos="{{ isset($item->OkSolidos) && $item->OkSolidos ? '1' : '0' }}"
+                        data-oktiempo="{{ $item->OkTiempo === null ? '' : ($item->OkTiempo ? '1' : '0') }}"
+                        data-okviscocidad="{{ ($item->OkViscocidad ?? $item->OkViscosidad ?? null) === null ? '' : (($item->OkViscocidad ?? $item->OkViscosidad) ? '1' : '0') }}"
+                        data-oksolidos="{{ $item->OkSolidos === null ? '' : ($item->OkSolidos ? '1' : '0') }}"
                     >
+                        @if($puedeVerCalidad)
+                        <td class="px-4 py-3 text-center">
+                            @php
+                                $tieneObs = !empty($item->obs_calidad);
+                                $iconoCalidad = $tieneObs ? 'fa-clipboard-check' : 'fa-clipboard-list';
+                                $tituloCalidad = $tieneObs ? e($item->obs_calidad) : 'Calidad (sin observaciones)';
+                            @endphp
+                            <x-navbar.button-report
+                                onclick="event.stopPropagation(); abrirModalObsCalidad(this)"
+                                title="{{ $tituloCalidad }}"
+                                icon="{{ $iconoCalidad }}"
+                                iconColor="{{ $tieneObs ? 'text-blue-700' : 'text-blue-500' }}"
+                                hoverBg="hover:bg-blue-50"
+                                module="Captura de Formula"
+                                class="obs-calidad-btn"
+                                data-folio="{{ $item->Folio }}"
+                                data-id="{{ $item->Id ?? '' }}"
+                                data-formula="{{ $item->Formula ?? '' }}"
+                                data-litros="{{ $item->Litros ?? '' }}"
+                                data-tiempo="{{ $item->TiempoCocinado ?? '' }}"
+                                data-solidos="{{ $item->Solidos ?? '' }}"
+                                data-viscocidad="{{ $item->Viscocidad ?? '' }}"
+                                data-oktiempo="{{ $item->OkTiempo === null ? '' : ($item->OkTiempo ? '1' : '0') }}"
+                                data-okviscocidad="{{ ($item->OkViscocidad ?? $item->OkViscosidad ?? null) === null ? '' : (($item->OkViscocidad ?? $item->OkViscosidad) ? '1' : '0') }}"
+                                data-oksolidos="{{ $item->OkSolidos === null ? '' : ($item->OkSolidos ? '1' : '0') }}"
+                                data-has-obs="{{ $tieneObs ? '1' : '0' }}"
+                            />
+                        </td>
+                        @endif
                         <td class="px-4 py-3 whitespace-nowrap font-semibold text-blue-700">{{ $item->Id }}</td>
                         <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -171,35 +200,6 @@
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->TiempoCocinado ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Solidos ?? 0, 2) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Viscocidad ?? 0, 2) }}</td>
-                        @if($puedeVerCalidad)
-                        <td class="px-4 py-3 text-center">
-                            @php
-                                $tieneObs = !empty($item->obs_calidad);
-                                $iconoCalidad = $tieneObs ? 'fa-clipboard-check' : 'fa-clipboard-list';
-                                $tituloCalidad = $tieneObs ? e($item->obs_calidad) : 'Calidad (sin observaciones)';
-                            @endphp
-                            <x-navbar.button-report
-                                onclick="event.stopPropagation(); abrirModalObsCalidad(this)"
-                                title="{{ $tituloCalidad }}"
-                                icon="{{ $iconoCalidad }}"
-                                iconColor="{{ $tieneObs ? 'text-blue-700' : 'text-blue-500' }}"
-                                hoverBg="hover:bg-blue-50"
-                                module="Captura de Formula"
-                                class="obs-calidad-btn"
-                                data-folio="{{ $item->Folio }}"
-                                data-id="{{ $item->Id ?? '' }}"
-                                data-formula="{{ $item->Formula ?? '' }}"
-                                data-litros="{{ $item->Litros ?? '' }}"
-                                data-tiempo="{{ $item->TiempoCocinado ?? '' }}"
-                                data-solidos="{{ $item->Solidos ?? '' }}"
-                                data-viscocidad="{{ $item->Viscocidad ?? '' }}"
-                                data-oktiempo="{{ isset($item->OkTiempo) && $item->OkTiempo ? '1' : '0' }}"
-                                data-okviscocidad="{{ isset($item->OkViscocidad) && $item->OkViscocidad ? '1' : '0' }}"
-                                data-oksolidos="{{ isset($item->OkSolidos) && $item->OkSolidos ? '1' : '0' }}"
-                                data-has-obs="{{ $tieneObs ? '1' : '0' }}"
-                            />
-                        </td>
-                        @endif
                     </tr>
                 @empty
                     <tr>
@@ -2471,10 +2471,19 @@
             const tiempo = btnCalidad.dataset.tiempo || '';
             const solidos = btnCalidad.dataset.solidos || '';
             const viscocidad = btnCalidad.dataset.viscocidad || '';
-            const okTiempo = btnCalidad.dataset.oktiempo === '1';
-            const okViscocidad = btnCalidad.dataset.okviscocidad === '1';
-            const okSolidos = btnCalidad.dataset.oksolidos === '1';
+            // Valores: '' = null (vacío), '0' = tache, '1' = palomita
+            const okTiempoVal = btnCalidad.dataset.oktiempo ?? '';
+            const okViscocidadVal = btnCalidad.dataset.okviscocidad ?? '';
+            const okSolidosVal = btnCalidad.dataset.oksolidos ?? '';
             const obsActual = btnCalidad.dataset.hasObs === '1' ? (btnCalidad.title || '') : '';
+
+            // Una sola celda por fila: 1 toque = palomita (✓), 2 toques = equis (✗). Solo dos estados.
+            const cicloState = (name, current) => {
+                const v = (current === '1' || current === '0') ? current : '1';
+                const simbolo = v === '1' ? '✓' : '✗';
+                const clase = v === '1' ? 'text-green-600' : 'text-red-600';
+                return `<button type="button" class="calidad-ciclo w-12 h-9 rounded-lg border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-blue-400 text-lg font-bold ${clase} transition-colors" data-field="${name}" data-value="${v}" title="1 toque ✓, 2 toques ✗">${simbolo}</button>`;
+            };
 
             Swal.fire({
                 title: 'Calidad',
@@ -2492,30 +2501,24 @@
                                     <tr>
                                         <th class="px-4 py-2.5 text-left font-semibold">Concepto</th>
                                         <th class="px-4 py-2.5 text-right font-semibold">Valor</th>
-                                        <th class="px-4 py-2.5 text-center font-semibold">OK</th>
+                                        <th class="px-4 py-2.5 text-center font-semibold">Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-100">
                                     <tr class="hover:bg-blue-50/50">
                                         <td class="px-4 py-2.5 font-medium text-gray-700">Tiempo (Min)</td>
                                         <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${tiempo}</td>
-                                        <td class="px-4 py-2.5 text-center">
-                                            <input type="checkbox" id="swal-oktiempo" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" ${okTiempo ? 'checked' : ''} title="Marcar como OK">
-                                        </td>
+                                        <td class="px-4 py-2.5 text-center">${cicloState('oktiempo', okTiempoVal)}</td>
                                     </tr>
                                     <tr class="hover:bg-blue-50/50">
                                         <td class="px-4 py-2.5 font-medium text-gray-700">Sólidos (%)</td>
                                         <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${solidos}</td>
-                                        <td class="px-4 py-2.5 text-center">
-                                            <input type="checkbox" id="swal-oksolidos" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" ${okSolidos ? 'checked' : ''} title="Marcar como OK">
-                                        </td>
+                                        <td class="px-4 py-2.5 text-center">${cicloState('oksolidos', okSolidosVal)}</td>
                                     </tr>
                                     <tr class="hover:bg-blue-50/50">
                                         <td class="px-4 py-2.5 font-medium text-gray-700">Viscosidad</td>
                                         <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${viscocidad}</td>
-                                        <td class="px-4 py-2.5 text-center">
-                                            <input type="checkbox" id="swal-okviscocidad" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" ${okViscocidad ? 'checked' : ''} title="Marcar como OK">
-                                        </td>
+                                        <td class="px-4 py-2.5 text-center">${cicloState('okviscocidad', okViscocidadVal)}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -2534,10 +2537,12 @@
                 focusConfirm: false,
                 preConfirm: () => {
                     const obs = document.getElementById('swal-obs-calidad').value;
-                    const okt = document.getElementById('swal-oktiempo').checked;
-                    const okv = document.getElementById('swal-okviscocidad').checked;
-                    const oks = document.getElementById('swal-oksolidos').checked;
-                    return { obs, okTiempo: okt, okViscocidad: okv, okSolidos: oks };
+                    const getVal = (field) => {
+                        const el = document.querySelector('.calidad-ciclo[data-field="' + field + '"]');
+                        if (!el) return 1;
+                        return el.dataset.value === '0' ? 0 : 1;
+                    };
+                    return { obs, okTiempo: getVal('oktiempo'), okViscocidad: getVal('okviscocidad'), okSolidos: getVal('oksolidos') };
                 },
                 didOpen: () => {
                     const input = document.getElementById('swal-obs-calidad');
@@ -2545,6 +2550,15 @@
                         input.value = obsActual || '';
                         input.focus();
                     }
+                    document.querySelectorAll('.calidad-ciclo').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const next = this.dataset.value === '1' ? '0' : '1';
+                            this.dataset.value = next;
+                            this.textContent = next === '1' ? '✓' : '✗';
+                            this.classList.remove('text-green-600', 'text-red-600');
+                            this.classList.add(next === '1' ? 'text-green-600' : 'text-red-600');
+                        });
+                    });
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -2558,9 +2572,11 @@
             try {
                 const formulacionId = btnCalidad.dataset.id || '';
                 const url = `/eng-formulacion/${folio}`;
-                const okT = checks.hasOwnProperty('okTiempo') ? (checks.okTiempo ? 1 : 0) : (parseInt(btnCalidad.dataset.oktiempo) || 0);
-                const okV = checks.hasOwnProperty('okViscocidad') ? (checks.okViscocidad ? 1 : 0) : (parseInt(btnCalidad.dataset.okviscocidad) || 0);
-                const okS = checks.hasOwnProperty('okSolidos') ? (checks.okSolidos ? 1 : 0) : (parseInt(btnCalidad.dataset.oksolidos) || 0);
+                // null = vacío, 0 = tache, 1 = palomita
+                const toVal = (v) => (v === null || v === undefined) ? null : (v ? 1 : 0);
+                const okT = checks.hasOwnProperty('okTiempo') ? (checks.okTiempo === null ? null : (checks.okTiempo ? 1 : 0)) : (btnCalidad.dataset.oktiempo === '' ? null : (btnCalidad.dataset.oktiempo === '1' ? 1 : 0));
+                const okV = checks.hasOwnProperty('okViscocidad') ? (checks.okViscocidad === null ? null : (checks.okViscocidad ? 1 : 0)) : (btnCalidad.dataset.okviscocidad === '' ? null : (btnCalidad.dataset.okviscocidad === '1' ? 1 : 0));
+                const okS = checks.hasOwnProperty('okSolidos') ? (checks.okSolidos === null ? null : (checks.okSolidos ? 1 : 0)) : (btnCalidad.dataset.oksolidos === '' ? null : (btnCalidad.dataset.oksolidos === '1' ? 1 : 0));
                 const body = {
                     obs_calidad: observaciones,
                     ok_tiempo: okT,
@@ -2584,10 +2600,10 @@
                     throw new Error(data.message || 'Error al guardar');
                 }
 
-                // Actualizar botón: icono, tooltip y data de los checks
-                btnCalidad.dataset.oktiempo = okT.toString();
-                btnCalidad.dataset.okviscocidad = okV.toString();
-                btnCalidad.dataset.oksolidos = okS.toString();
+                // Actualizar botón: icono, tooltip y data de los checks ('' = null, '0' = tache, '1' = palomita)
+                btnCalidad.dataset.oktiempo = okT === null ? '' : okT.toString();
+                btnCalidad.dataset.okviscocidad = okV === null ? '' : okV.toString();
+                btnCalidad.dataset.oksolidos = okS === null ? '' : okS.toString();
                 const row = btnCalidad.closest('tr');
                 if (row) {
                     row.dataset.oktiempo = btnCalidad.dataset.oktiempo;
@@ -2601,27 +2617,19 @@
                     btnCalidad.classList.remove('text-blue-500');
                     btnCalidad.classList.add('text-blue-700');
                     if (iconEl) iconEl.className = 'fa-solid fa-clipboard-check text-sm text-blue-700';
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Guardado',
-                        text: 'Observaciones guardadas exitosamente',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
                 } else {
                     btnCalidad.dataset.hasObs = '0';
                     btnCalidad.title = 'Calidad (sin observaciones)';
                     btnCalidad.classList.remove('text-blue-700');
                     btnCalidad.classList.add('text-blue-500');
                     if (iconEl) iconEl.className = 'fa-solid fa-clipboard-list text-sm text-blue-500';
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Eliminado',
-                        text: 'Observaciones eliminadas',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
                 }
+                Swal.fire({
+                    icon: 'success',
+                    title: formulacionId ? 'Calidad actualizada' : 'Calidad creada',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
             } catch (error) {
                 console.error('Error:', error);
                 Swal.fire({

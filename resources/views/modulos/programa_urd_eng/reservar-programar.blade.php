@@ -258,8 +258,15 @@
 
     {{-- =================== Tabla: Inventario disponible =================== --}}
     <div class="bg-white overflow-hidden">
-        <div class="bg-blue-500 px-4 flex justify-between items-center">
+        <div class="bg-blue-500 px-4 flex justify-between items-center gap-2">
             <h2 class="text-lg font-bold text-white text-center flex-1">Inventario Disponible</h2>
+            <button type="button"
+                    id="btnQuitarFiltroInventario"
+                    class="hidden flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors"
+                    title="Quitar filtro y mostrar todos los registros">
+                <i class="fa-solid fa-filter-circle-xmark"></i>
+                <span>Quitar Filtro</span>
+            </button>
         </div>
 
         <div class="relative">
@@ -1960,12 +1967,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
             }
 
-            // Enviar al backend
-            http.post(API.actualizarTelar, {
+            // Enviar al backend (id permite resolver Folio para actualizar programas)
+            const payload = {
                 no_telar: telar,
                 tipo:     normalizeTipo(tipo),
                 tipo_atado: nuevo
-            }).catch(err => {
+            };
+            if (row?.dataset?.id) payload.id = parseInt(row.dataset.id, 10);
+            http.post(API.actualizarTelar, payload).catch(err => {
                 toast('error', 'No se pudo actualizar tipo de atado', err.message || '');
                 // Revertir select si falla
                 target.value = (row?.dataset.tipoAtadoPrev || 'Normal');
@@ -2033,7 +2042,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     $('#btnReloadTelares')?.addEventListener('click', filters.reset);
 
-    // BotÃ³n quitar/aplicar filtro inventario
+    // Botón quitar/aplicar filtro inventario (segunda tabla)
+    $('#btnQuitarFiltroInventario')?.addEventListener('click', () => {
+        if (!state.selectedTelar) return;
+        state.mostrarTodoInventario = !state.mostrarTodoInventario;
+        render.inventario(state.inventarioDataOriginal);
+        selection.updateFiltroButton();
+    });
 
     // Acciones
     $('#btnProgramar')?.addEventListener('click', actions.programar);

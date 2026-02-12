@@ -1138,6 +1138,9 @@ class ModuloProduccionUrdidoController extends Controller
                 })
                 ->delete();
 
+            // Marcar todos los registros de producción como Finalizar = 1
+            UrdProduccionUrdido::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
+
             // Cambiar el status a "Finalizado"
             $orden->Status = 'Finalizado';
             $orden->save();
@@ -1166,6 +1169,91 @@ class ModuloProduccionUrdidoController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al finalizar la orden: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Marcar/desmarcar un registro de producción como Listo.
+     * Cuando se marca, UrdProduccionUrdido.Listo = 1.
+     * Cuando se desmarca, UrdProduccionUrdido.Listo = 0.
+     * El status de UrdProgramaUrdido pasa a "Parcial" si hay al menos un registro Listo.
+     */
+    public function marcarListo(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'registro_id' => 'required|integer',
+                'listo' => 'required|boolean',
+            ]);
+
+            $registro = UrdProduccionUrdido::find($request->registro_id);
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Registro de producción no encontrado',
+                ], 404);
+            }
+
+            // Si ax = 1, no permitir cambiar el checkbox
+            if ((int) ($registro->AX ?? 0) === 1) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Este registro ya fue enviado a AX y no se puede modificar.',
+                    'bloqueado_ax' => true,
+                ], 422);
+            }
+
+            // Actualizar Finalizar en UrdProduccionUrdido
+            $registro->Finalizar = $request->listo ? 1 : 0;
+            $registro->save();
+
+            // Obtener la orden asociada por Folio
+            $orden = UrdProgramaUrdido::where('Folio', $registro->Folio)->first();
+            $statusOrden = null;
+
+            if ($orden && in_array($orden->Status, ['En Proceso', 'Parcial'])) {
+                $registrosFinalizados = UrdProduccionUrdido::where('Folio', $registro->Folio)
+                    ->where('Finalizar', 1)
+                    ->count();
+
+                if ($registrosFinalizados > 0) {
+                    // Hay al menos uno finalizado -> Parcial
+                    $orden->Status = 'Parcial';
+                    $orden->save();
+                } else {
+                    // Ninguno finalizado -> En Proceso
+                    $orden->Status = 'En Proceso';
+                    $orden->save();
+                }
+
+                $statusOrden = $orden->Status;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $request->listo ? 'Registro marcado como listo' : 'Registro desmarcado',
+                'data' => [
+                    'registro_id' => $registro->Id,
+                    'listo' => (int) $registro->Finalizar,
+                    'status_orden' => $statusOrden,
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Error al marcar registro como listo', [
+                'registro_id' => $request->registro_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al actualizar el registro: ' . $e->getMessage(),
             ], 500);
         }
     }

@@ -149,7 +149,7 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
                 ->get();
 
@@ -169,7 +169,7 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
                 ->get();
             }
@@ -184,7 +184,7 @@ class ProgramarUrdidoController extends Controller
                 if ($ordenesSinPrioridad->count() > 0) {
                     try {
                         // Obtener la máxima prioridad existente
-                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                             ->whereNotNull('MaquinaId')
                             ->whereNotNull('Prioridad')
                             ->max('Prioridad') ?? 0;
@@ -213,7 +213,7 @@ class ProgramarUrdidoController extends Controller
                             'CreatedAt',
                             'Observaciones',
                         ])
-                        ->whereIn('Status', ['Programado', 'En Proceso'])
+                        ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->whereNotNull('MaquinaId')
                         ->get();
                     } catch (\Exception $e) {
@@ -304,7 +304,7 @@ class ProgramarUrdidoController extends Controller
             }
 
             // Obtener todas las órdenes del mismo MC Coy ordenadas por CreatedAt
-            $ordenesMcCoy = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+            $ordenesMcCoy = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
                 ->get()
                 ->filter(function ($item) use ($mcCoy) {
@@ -469,7 +469,7 @@ class ProgramarUrdidoController extends Controller
             }
 
             // Obtener todas las órdenes del mismo MC Coy ordenadas por CreatedAt
-            $ordenesMcCoy = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+            $ordenesMcCoy = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
                 ->get()
                 ->filter(function ($item) use ($mcCoy) {
@@ -647,7 +647,7 @@ class ProgramarUrdidoController extends Controller
     {
         try {
             // Obtener todas las órdenes activas
-            $ordenes = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+            $ordenes = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
                 ->get();
 
@@ -695,7 +695,7 @@ class ProgramarUrdidoController extends Controller
 
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
-                'status' => ['required', 'string', Rule::in(['Programado', 'En Proceso', 'Cancelado'])],
+                'status' => ['required', 'string', Rule::in(['Programado', 'En Proceso', 'Parcial', 'Cancelado'])],
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->id);
@@ -776,8 +776,8 @@ class ProgramarUrdidoController extends Controller
                 $this->recalcularPrioridades();
             }
             // Si se reactiva desde cancelado, asignar nueva prioridad al final
-            elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ['Programado', 'En Proceso'])) {
-                $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+            elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ['Programado', 'En Proceso', 'Parcial'])) {
+                $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                     ->whereNotNull('MaquinaId')
                     ->whereNotNull('Prioridad')
                     ->max('Prioridad') ?? 0;
@@ -834,7 +834,7 @@ class ProgramarUrdidoController extends Controller
                     'Prioridad',
                     'CreatedAt',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->get();
 
                 $tienePrioridad = true;
@@ -851,7 +851,7 @@ class ProgramarUrdidoController extends Controller
                     'Status',
                     'CreatedAt',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->get();
             }
 
@@ -863,7 +863,7 @@ class ProgramarUrdidoController extends Controller
 
                 if ($ordenesSinPrioridad->count() > 0) {
                     try {
-                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso'])
+                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                             ->whereNotNull('Prioridad')
                             ->max('Prioridad') ?? 0;
 
@@ -888,7 +888,7 @@ class ProgramarUrdidoController extends Controller
                             'Prioridad',
                             'CreatedAt',
                         ])
-                        ->whereIn('Status', ['Programado', 'En Proceso'])
+                        ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->get();
                     } catch (\Exception $e) {
                         $tienePrioridad = false;

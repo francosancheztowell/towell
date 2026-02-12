@@ -1206,6 +1206,9 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 422);
             }
 
+            // Marcar todos los registros de producción como Finalizar = 1
+            EngProduccionEngomado::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
+
             // Cambiar el status a "Finalizado" en EngProgramaEngomado
             $orden->Status = 'Finalizado';
             $orden->save();
@@ -1232,6 +1235,83 @@ class ModuloProduccionEngomadoController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al finalizar la orden: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Marcar/desmarcar un registro de producción como Listo (Finalizar).
+     * Si AX = 1 no se permite cambiar.
+     * El status de EngProgramaEngomado pasa a Parcial si hay al menos un registro con Finalizar=1, o En Proceso si ninguno.
+     */
+    public function marcarListo(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'registro_id' => 'required|integer',
+                'listo' => 'required|boolean',
+            ]);
+
+            $registro = EngProduccionEngomado::find($request->registro_id);
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Registro de producción no encontrado',
+                ], 404);
+            }
+
+            if ((int) ($registro->AX ?? 0) === 1) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Este registro ya fue enviado a AX y no se puede modificar.',
+                    'bloqueado_ax' => true,
+                ], 422);
+            }
+
+            $registro->Finalizar = $request->listo ? 1 : 0;
+            $registro->save();
+
+            $orden = EngProgramaEngomado::where('Folio', $registro->Folio)->first();
+            $statusOrden = null;
+
+            if ($orden && in_array($orden->Status, ['En Proceso', 'Parcial'])) {
+                $registrosFinalizados = EngProduccionEngomado::where('Folio', $registro->Folio)
+                    ->where('Finalizar', 1)
+                    ->count();
+
+                if ($registrosFinalizados > 0) {
+                    $orden->Status = 'Parcial';
+                    $orden->save();
+                } else {
+                    $orden->Status = 'En Proceso';
+                    $orden->save();
+                }
+                $statusOrden = $orden->Status;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $request->listo ? 'Registro marcado como listo' : 'Registro desmarcado',
+                'data' => [
+                    'registro_id' => $registro->Id,
+                    'listo' => (int) $registro->Finalizar,
+                    'status_orden' => $statusOrden,
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Error al marcar registro como listo (engomado)', [
+                'registro_id' => $request->registro_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al actualizar el registro: ' . $e->getMessage(),
             ], 500);
         }
     }

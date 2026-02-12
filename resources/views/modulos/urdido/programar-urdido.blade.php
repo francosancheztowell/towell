@@ -236,9 +236,14 @@
 
             const renderStatusSelect = (orden, isSelected = false) => {
                 const statusActual = String(orden.status || '').trim();
-                const opciones = statusActual === 'En Proceso'
-                    ? ['Programado', 'En Proceso', 'Cancelado']
-                    : ['Programado', 'Cancelado'];
+                let opciones;
+                if (statusActual === 'En Proceso') {
+                    opciones = ['Programado', 'En Proceso', 'Cancelado'];
+                } else if (statusActual === 'Parcial') {
+                    opciones = ['Programado', 'En Proceso', 'Parcial', 'Cancelado'];
+                } else {
+                    opciones = ['Programado', 'Cancelado'];
+                }
                 const disabledAttr = canEdit ? '' : 'disabled';
                 const baseClasses = isSelected
                     ? 'w-full h-9 px-2 border-0 bg-blue-500 text-white'

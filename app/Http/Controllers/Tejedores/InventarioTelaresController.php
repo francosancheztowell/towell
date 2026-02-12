@@ -353,40 +353,20 @@ class InventarioTelaresController extends Controller
                 //          ID 115 (Reservado=1, no_julio=S462, no_orden=3869, metros=1000) SÍ está reservado
 
                 // Si está programado, obtener el Status en UrdProgramaUrdido (solo informativo)
+                // IMPORTANTE: Usar no_orden (= Folio en UrdProgramaUrdido) como identificador primario
+                // para evitar confusiones cuando NoTelarId tiene múltiples telares (ej: "211,214,210")
                 $estaProgramado = (bool)($registro->Programado ?? false);
                 $statusUrdido = null;
 
                 if ($estaProgramado) {
-                    $calibreRegistro = $registro->calibre ?? null;
-                    $fechaReqFormato = \Carbon\Carbon::parse($fechaFormato)->format('Y-m-d');
-                    $noTelarNormalizado = (string)trim($noTelar);
+                    $noOrdenRegistro = $registro->no_orden ?? null;
 
-                    if ($calibreRegistro !== null) {
-                        $calibreFloat = (float)$calibreRegistro;
+                    if ($noOrdenRegistro && trim($noOrdenRegistro) !== '') {
+                        // Búsqueda por Folio (identificación exacta 1:1)
+                        $programaUrdido = UrdProgramaUrdido::where('Folio', trim($noOrdenRegistro))->first();
 
-                        $programasUrdido = UrdProgramaUrdido::where('Calibre', $calibreFloat)
-                            ->where('FechaReq', $fechaReqFormato)
-                            ->get();
-
-                        // Filtrar los registros donde el telar esté incluido en NoTelarId
-                        foreach ($programasUrdido as $programaUrdido) {
-                            $noTelarId = $programaUrdido->NoTelarId ?? '';
-                            $noTelarIdStr = (string)trim($noTelarId);
-
-                            $telaresEnPrograma = array_map(function($t) {
-                                return (string)trim($t);
-                            }, explode(',', $noTelarIdStr));
-
-                            $telarIncluido = in_array($noTelarNormalizado, $telaresEnPrograma) ||
-                                           in_array((string)(int)$noTelarNormalizado, $telaresEnPrograma) ||
-                                           $noTelarIdStr === $noTelarNormalizado ||
-                                           (string)(int)$noTelarIdStr === $noTelarNormalizado;
-
-                            if ($telarIncluido) {
-                                // Guardar el Status para mostrarlo informativamente en el modal
-                                $statusUrdido = $programaUrdido->Status;
-                                break;
-                            }
+                        if ($programaUrdido) {
+                            $statusUrdido = $programaUrdido->Status;
                         }
                     }
                 }
@@ -792,34 +772,39 @@ class InventarioTelaresController extends Controller
             $registro->save();
 
             // 2) Actualizar FechaReq en UrdProgramaUrdido si existe registro
-            if ($calibreRegistro !== null) {
-                $fechaNuevaFormato = \Carbon\Carbon::parse($fechaNueva)->format('Y-m-d');
+            // IMPORTANTE: Usar no_orden (= Folio en UrdProgramaUrdido) como identificador primario
+            // para evitar conflictos cuando NoTelarId tiene múltiples telares (ej: "211,214,210")
+            $noOrdenRegistro = $registro->no_orden ?? null;
+            $fechaNuevaFormato = Carbon::parse($fechaNueva)->format('Y-m-d');
 
-                // Buscar y actualizar en UrdProgramaUrdido
-                $programasUrdido = UrdProgramaUrdido::where('Calibre', (float)$calibreRegistro)
-                    ->where('FechaReq', $fechaOriginalFormato)
-                    ->get();
+            if ($noOrdenRegistro && trim($noOrdenRegistro) !== '') {
+                // Buscar por Folio (identificación exacta 1:1)
+                $programaUrdido = UrdProgramaUrdido::where('Folio', trim($noOrdenRegistro))->first();
 
-                foreach ($programasUrdido as $programaUrdido) {
-                    $noTelarId = $programaUrdido->NoTelarId ?? '';
-                    $noTelarIdStr = (string)trim($noTelarId);
+                if ($programaUrdido) {
+                    $noTelarIdStr = (string)trim($programaUrdido->NoTelarId ?? '');
+                    $telaresEnPrograma = array_map('trim', explode(',', $noTelarIdStr));
 
-                    // Verificar si el telar está incluido en NoTelarId
-                    $telaresEnPrograma = array_map(function($t) {
-                        return (string)trim($t);
-                    }, explode(',', $noTelarIdStr));
-
-                    $telarIncluido = in_array($noTelarNormalizado, $telaresEnPrograma) ||
-                                   in_array((string)(int)$noTelarNormalizado, $telaresEnPrograma) ||
-                                   $noTelarIdStr === $noTelarNormalizado ||
-                                   (string)(int)$noTelarIdStr === $noTelarNormalizado;
-
-                    if ($telarIncluido && $programaUrdido->Status === 'Programado') {
-                        // Actualizar FechaReq en UrdProgramaUrdido
+                    // Solo actualizar FechaReq si NoTelarId tiene UN SOLO telar
+                    // Si tiene múltiples telares, NO actualizar porque afectaría a los demás
+                    if (count($telaresEnPrograma) <= 1) {
                         $programaUrdido->FechaReq = $fechaNuevaFormato;
                         $programaUrdido->save();
 
-
+                        Log::info('FechaReq actualizada en UrdProgramaUrdido (telar único)', [
+                            'Folio' => $programaUrdido->Folio,
+                            'NoTelarId' => $noTelarIdStr,
+                            'FechaReq_anterior' => $fechaOriginalFormato,
+                            'FechaReq_nueva' => $fechaNuevaFormato
+                        ]);
+                    } else {
+                        Log::info('FechaReq NO actualizada en UrdProgramaUrdido: múltiples telares comparten el registro', [
+                            'Folio' => $programaUrdido->Folio,
+                            'NoTelarId' => $noTelarIdStr,
+                            'telares_count' => count($telaresEnPrograma),
+                            'telar_editado' => $noTelarNormalizado,
+                            'motivo' => 'Actualizar FechaReq afectaría a todos los telares del grupo'
+                        ]);
                     }
                 }
             }

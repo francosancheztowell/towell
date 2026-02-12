@@ -83,6 +83,7 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::post('/modulo-produccion-engomado/actualizar-horas', [ModuloProduccionEngomadoController::class, 'actualizarHoras'])->name('modulo.produccion.engomado.actualizar.horas');
     Route::get('/modulo-produccion-engomado/verificar-formulaciones', [ModuloProduccionEngomadoController::class, 'verificarFormulaciones'])->name('modulo.produccion.engomado.verificar.formulaciones');
     Route::post('/modulo-produccion-engomado/finalizar', [ModuloProduccionEngomadoController::class, 'finalizar'])->name('modulo.produccion.engomado.finalizar');
+    Route::post('/modulo-produccion-engomado/marcar-listo', [ModuloProduccionEngomadoController::class, 'marcarListo'])->name('modulo.produccion.engomado.marcar.listo');
     Route::get('/modulo-produccion-engomado/pdf', [\App\Http\Controllers\PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.engomado.pdf');
 
     Route::get('/captura-formula', [EngProduccionFormulacionController::class, 'index'])->name('captura-formula.legacy');

@@ -16,6 +16,18 @@
     </div>
 @endsection
 
+@php
+    // Verificar permiso 'registrar' igual que button-report
+    $hasFinalizarPermission = true;
+    try {
+        $moduloRol = \App\Models\Sistema\SYSRoles::where('modulo', 'Programa Urdido')->first();
+        $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Urdido';
+        $hasFinalizarPermission = function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
+    } catch (\Exception $e) {
+        $hasFinalizarPermission = true;
+    }
+@endphp
+
 @section('content')
 
     <div class="w-full">
@@ -136,9 +148,12 @@
     <!-- Sección inferior: Tabla de Producción -->
     <div class="bg-white shadow-md overflow-hidden">
             <div class="overflow-x-auto max-h-[55vh] overflow-y-auto">
-                <table class=" text-md w-full">
+                <table class="text-md w-full min-w-[1200px]">
                 <thead class="bg-blue-500 text-white sticky top-0 z-20">
                     <tr>
+                        @if($hasFinalizarPermission)
+                        <th class="py-1"></th>
+                        @endif
                         <th class="py-1"></th>
                         <th class="py-1"></th>
                         <th class="py-1"></th>
@@ -154,6 +169,9 @@
                     </tr>
                     <!-- Cabecera de la tabla de producción -->
                     <tr>
+                        @if($hasFinalizarPermission)
+                        <th class="py-2 px-0 text-center font-semibold text-[9px] md:text-[10px]" style="width: 28px; min-width: 28px; max-width: 28px;">Fin</th>
+                        @endif
                         <th class="py-2 px-1 md:px-1 text-center font-semibold sticky left-0 z-30 text-xs md:text-md" style="width: 3rem; min-width: 3rem; max-width: 3rem;">Fecha</th>
                         <th class="py-2 px-1 md:px-1 text-left font-semibold text-md" style="width: 3.5rem; min-width: 3.5rem; max-width: 3.5rem;">Oficial</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md w-20 max-w-[60px]">Turno</th>
@@ -223,6 +241,8 @@
                                     $operac = $registro ? ($registro->Operac ?? 0) : 0;
                                     $transf = $registro ? ($registro->Transf ?? 0) : 0;
                                     $registroId = $registro ? $registro->Id : null;
+                                    $listo = $registro ? (int)($registro->Finalizar ?? 0) : 0;
+                                    $ax = $registro ? (int)($registro->AX ?? 0) : 0;
 
                                     $oficiales = [];
                                     $primerOficialNombre = '';
@@ -252,6 +272,20 @@
                                 @endphp
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
+                                    {{-- Finalizar (checkbox con permiso registrar) --}}
+                                    @if($hasFinalizarPermission)
+                                    <td class="px-0 py-1 text-center whitespace-nowrap" style="width: 28px; min-width: 28px; max-width: 28px;">
+                                        <input
+                                            type="checkbox"
+                                            class="checkbox-finalizar w-4 h-4 {{ $ax ? 'text-gray-400 border-gray-400' : 'text-blue-600 border-gray-300' }} bg-gray-100 rounded focus:ring-blue-500 focus:ring-1 {{ $ax ? 'cursor-not-allowed' : 'cursor-pointer' }}"
+                                            data-registro-id="{{ $registroId }}"
+                                            data-row-index="{{ $rowIndex }}"
+                                            data-ax="{{ $ax }}"
+                                            title="{{ $ax ? 'Enviado a AX - No modificable' : 'Marcar como finalizado' }}"
+                                            {{ $listo ? 'checked' : '' }}
+                                        >
+                                    </td>
+                                    @endif
                                     {{-- Fecha --}}
                                 <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap sticky left-0 z-10 border-r border-gray-200" style="width: 3rem; min-width: 3rem; max-width: 3rem;">
                             <div class="flex items-center justify-center gap-0.5 relative">
@@ -283,7 +317,7 @@
                                     {{-- Oficial --}}
                         <td class="px-1 md:px-1 py-1 md:py-1.5 text-left whitespace-nowrap" style="width: 3.5rem; min-width: 3.5rem; max-width: 3.5rem;">
                                         <div class="flex items-center justify-start gap-1">
-                                            <span 
+                                            <span
                                                 class="oficial-texto w-full text-xs text-gray-900 px-1 md:px-1 py-0.5 md:py-1 truncate text-left {{ !$tieneOficiales ? 'text-gray-400 italic' : '' }}"
                                                 data-registro-id="{{ $registroId }}"
                                                 data-oficiales-json="{{ $tieneOficiales ? json_encode($oficiales) : '[]' }}"
@@ -539,11 +573,12 @@
                                 </div>
                             </div>
                         </td>
+
                     </tr>
                             @endfor
                         @else
                             <tr>
-                                <td colspan="15" class="px-2 py-4 text-center text-gray-500 italic">
+                                <td colspan="{{ $hasFinalizarPermission ? 16 : 15 }}" class="px-2 py-4 text-center text-gray-500 italic">
                                     No hay registros para generar.
                                     @if(isset($julios) && $julios->count() > 0)
                                         <br>Total calculado: {{ $totalRegistros }} | Cantidad de julios: {{ $julios->count() }}
@@ -960,7 +995,189 @@
                     });
                 }
 
+                // ===== CHECKBOX FINALIZAR (Listo) =====
+                function bloquearFila(row) {
+                    row.classList.add('bg-green-50', 'opacity-75');
+                    row.querySelectorAll('input:not(.checkbox-finalizar), select, button:not(.checkbox-finalizar)').forEach(el => {
+                        el.disabled = true;
+                        el.classList.add('cursor-not-allowed', 'pointer-events-none');
+                    });
+                    // Bloquear botones de roturas y oficiales
+                    row.querySelectorAll('.edit-quantity-btn, .btn-agregar-oficial, .btn-fecha-display, .set-current-time').forEach(el => {
+                        el.disabled = true;
+                        el.classList.add('cursor-not-allowed', 'pointer-events-none', 'opacity-50');
+                    });
+                }
+
+                function desbloquearFila(row) {
+                    row.classList.remove('bg-green-50', 'opacity-75');
+                    row.querySelectorAll('input:not(.checkbox-finalizar), select, button:not(.checkbox-finalizar)').forEach(el => {
+                        // Respetar los campos que estaban disabled originalmente (tara, hilos, kg_neto, metros)
+                        const field = el.getAttribute('data-field');
+                        const esReadonly = field === 'tara' || field === 'hilos' || field === 'metros' || field === 'kg_neto';
+                        if (!esReadonly) {
+                            el.disabled = false;
+                        }
+                        el.classList.remove('cursor-not-allowed', 'pointer-events-none');
+                    });
+                    row.querySelectorAll('.edit-quantity-btn, .btn-agregar-oficial, .btn-fecha-display, .set-current-time').forEach(el => {
+                        el.disabled = false;
+                        el.classList.remove('cursor-not-allowed', 'pointer-events-none', 'opacity-50');
+                    });
+                }
+
+                function esFilaBloqueada(registroId) {
+                    const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                    if (!row) return false;
+                    const checkbox = row.querySelector('.checkbox-finalizar');
+                    return checkbox && checkbox.checked;
+                }
+
+                // Bloquear filas que ya vienen con el check activo al cargar
+                if (tablaBody) {
+                    tablaBody.querySelectorAll('.checkbox-finalizar:checked').forEach(checkbox => {
+                        const row = checkbox.closest('tr');
+                        if (row) bloquearFila(row);
+                    });
+                }
+
+                // Interceptar clicks en filas bloqueadas (mostrar alerta)
+                if (tablaBody) {
+                    tablaBody.addEventListener('mousedown', function (e) {
+                        const row = e.target.closest('tr[data-registro-id]');
+                        if (!row) return;
+                        // Permitir click en el propio checkbox de finalizar
+                        if (e.target.classList.contains('checkbox-finalizar') || e.target.closest('.checkbox-finalizar')) return;
+
+                        const checkbox = row.querySelector('.checkbox-finalizar');
+                        if (checkbox && checkbox.checked) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'info',
+                                    title: 'Registro finalizado',
+                                    text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
+                                    timer: 2500,
+                                    showConfirmButton: false,
+                                    toast: true,
+                                    position: 'top-end'
+                                });
+                            }
+                        }
+                    }, true);
+                }
+
+                if (tablaBody) {
+                    tablaBody.addEventListener('change', function (e) {
+                        if (!e.target.classList.contains('checkbox-finalizar')) return;
+
+                        const checkbox = e.target;
+                        const registroId = checkbox.getAttribute('data-registro-id');
+                        const listo = checkbox.checked;
+                        const ax = parseInt(checkbox.getAttribute('data-ax') || '0', 10);
+
+                        if (!registroId) return;
+
+                        // Si ax = 1, no permitir cambiar
+                        if (ax === 1) {
+                            checkbox.checked = !listo; // Revertir
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'No modificable',
+                                    text: 'Este registro ya fue enviado a AX y no se puede modificar.',
+                                    confirmButtonColor: '#2563eb'
+                                });
+                            }
+                            return;
+                        }
+
+                        marcarRegistroListo(registroId, listo, checkbox);
+                    });
+                }
+
+                async function marcarRegistroListo(registroId, listo, checkbox) {
+                    const row = checkbox.closest('tr');
+
+                    try {
+                        const response = await fetch('{{ route('urdido.modulo.produccion.urdido.marcar.listo') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                registro_id: registroId,
+                                listo: listo
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            // Bloquear o desbloquear la fila
+                            if (row) {
+                                if (listo) {
+                                    bloquearFila(row);
+                                } else {
+                                    desbloquearFila(row);
+                                }
+                            }
+
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: listo ? 'Finalizado' : 'Desmarcado',
+                                    text: listo ? 'Registro parcialmente finalizado' : 'Registro desbloqueado para edición',
+                                    timer: 1500,
+                                    showConfirmButton: false,
+                                    toast: true,
+                                    position: 'top-end'
+                                });
+                            }
+                        } else {
+                            checkbox.checked = !listo;
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: result.error || 'Error al actualizar el registro'
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error al marcar como listo:', error);
+                        checkbox.checked = !listo;
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'Error al actualizar el registro. Por favor, intenta nuevamente.'
+                            });
+                        }
+                    }
+                }
+
                 // ===== FUNCIONES AUXILIARES =====
+                function verificarFilaNoFinalizada(registroId) {
+                    if (esFilaBloqueada(registroId)) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Registro finalizado',
+                                text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
+                                timer: 2500,
+                                showConfirmButton: false,
+                                toast: true,
+                                position: 'top-end'
+                            });
+                        }
+                        return false;
+                    }
+                    return true;
+                }
+
                 function verificarOficialSeleccionado(registroId) {
                     const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                     if (!row) return false;
@@ -989,6 +1206,7 @@
                 }
 
                 async function actualizarFecha(registroId, fecha) {
+                    if (!verificarFilaNoFinalizada(registroId)) return;
                     if (!verificarOficialSeleccionado(registroId)) {
                         mostrarAlertaOficialRequerido();
                         return;
@@ -1044,6 +1262,7 @@
                 }
 
                 async function actualizarTurnoOficial(registroId, numeroOficial, turno) {
+                    if (!verificarFilaNoFinalizada(registroId)) return;
                     try {
                         const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.turno.oficial') }}', {
                             method: 'POST',
@@ -1107,6 +1326,7 @@
                 const debounceTimeouts = new Map();
 
                 async function actualizarKgBruto(registroId, kgBruto) {
+                    if (!verificarFilaNoFinalizada(registroId)) return;
                     if (!verificarOficialSeleccionado(registroId)) {
                         mostrarAlertaOficialRequerido();
                         return;
@@ -1179,6 +1399,7 @@
                 }
 
                 async function actualizarJulioTara(registroId, noJulio, tara) {
+                    if (!verificarFilaNoFinalizada(registroId)) return;
                     if (!verificarOficialSeleccionado(registroId)) {
                         mostrarAlertaOficialRequerido();
                         return;
@@ -1252,6 +1473,7 @@
                 }
 
                 async function actualizarHora(registroId, campo, valor) {
+                    if (!verificarFilaNoFinalizada(registroId)) return;
                     try {
                         const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.horas') }}', {
                             method: 'POST',
@@ -1468,6 +1690,7 @@
         });
 
                 async function actualizarCampoProduccion(registroId, campo, valor) {
+                    if (!verificarFilaNoFinalizada(registroId)) return;
                     if (!verificarOficialSeleccionado(registroId)) {
                         mostrarAlertaOficialRequerido();
                         return;
@@ -1714,7 +1937,7 @@
                         option.setAttribute('data-turno', usuario.turno || '');
 
                         // Seleccionar si coincide con la clave o si debe seleccionarse por defecto
-                        if ((claveSeleccionada && usuario.numero_empleado === claveSeleccionada) || 
+                        if ((claveSeleccionada && usuario.numero_empleado === claveSeleccionada) ||
                             (debeSeleccionar && !usuarioSeleccionado)) {
                             option.selected = true;
                             usuarioSeleccionado = usuario;
@@ -1729,14 +1952,14 @@
                         const numero = selectElement.getAttribute('data-numero');
                         const nombreInput = document.querySelector(`input.input-oficial-nombre[data-numero="${numero}"]`);
                         const claveInput = document.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
-                        
+
                         if (nombreInput) {
                             nombreInput.value = usuarioSeleccionado.nombre;
                         }
                         if (claveInput) {
                             claveInput.value = usuarioSeleccionado.numero_empleado;
                         }
-                        
+
                         // Disparar evento change para actualizar otros campos si es necesario
                         selectElement.dispatchEvent(new Event('change', { bubbles: true }));
                     }
@@ -1832,7 +2055,7 @@
 
                     // Siempre renderizar 3 filas con inputs
                     containerOficiales.innerHTML = '';
-                    
+
                     for (let i = 1; i <= 3; i++) {
                         const oficial = oficiales.find(o => parseInt(o.numero) === i) || {
                             numero: i,
@@ -2138,7 +2361,7 @@
                     // Mostrar solo el primer oficial (oficial actual)
                     const primerOficial = oficiales.length > 0 ? oficiales[0] : null;
                     const nombreCompleto = primerOficial && primerOficial.nom_empl ? primerOficial.nom_empl : '';
-                    
+
                     // Truncar a máximo 12 caracteres
                     let textoOficiales = 'Sin oficiales';
                     if (nombreCompleto) {
@@ -2326,7 +2549,7 @@
                         try {
                             let guardados = 0;
                             let oficialesGuardados = [];
-                            
+
                             for (const oficial of oficiales) {
                                 const data = {
                                     registro_id: registroId,
@@ -2352,10 +2575,10 @@
                             if (guardados > 0) {
                                 // Actualizar la tabla sin recargar
                                 actualizarOficialesEnTabla(registroId, oficialesGuardados);
-                                
+
                                 // Cerrar el modal
                                 cerrarModalOficial();
-                                
+
                                 // Mostrar mensaje de éxito
                                 if (typeof Swal !== 'undefined') {
                                     Swal.fire({
@@ -2368,7 +2591,7 @@
                                         position: 'top-end'
                                     });
                                 }
-                                
+
                                 // Propagación hacia abajo (excepto si tienen H. Inicio)
                                 // Esperar un poco para que el mensaje se muestre antes de propagar
                                 setTimeout(() => {
