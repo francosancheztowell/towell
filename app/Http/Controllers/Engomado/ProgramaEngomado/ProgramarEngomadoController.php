@@ -157,7 +157,7 @@ class ProgramarEngomadoController extends Controller
                     'Prioridad',
                     'Observaciones',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
                 ->where('MaquinaEng', '!=', '')
                 ->get();
@@ -178,7 +178,7 @@ class ProgramarEngomadoController extends Controller
                     'BomFormula',
                     'Observaciones',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
                 ->where('MaquinaEng', '!=', '')
                 ->get();
@@ -199,7 +199,7 @@ class ProgramarEngomadoController extends Controller
 
                 if ($ordenesSinPrioridad->count() > 0) {
                     try {
-                        $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
+                        $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                             ->whereNotNull('MaquinaEng')
                             ->whereNotNull('Prioridad')
                             ->max('Prioridad') ?? 0;
@@ -227,7 +227,7 @@ class ProgramarEngomadoController extends Controller
                             'Prioridad',
                             'Observaciones',
                         ])
-                        ->whereIn('Status', ['Programado', 'En Proceso'])
+                        ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->whereNotNull('MaquinaEng')
                         ->where('MaquinaEng', '!=', '')
                         ->get();
@@ -516,7 +516,7 @@ class ProgramarEngomadoController extends Controller
                     'Prioridad',
                     'FechaProg',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
                 ->where('MaquinaEng', '!=', '')
                 ->get();
@@ -535,7 +535,7 @@ class ProgramarEngomadoController extends Controller
                     'Status',
                     'FechaProg',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso'])
+                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
                 ->where('MaquinaEng', '!=', '')
                 ->get();
@@ -549,7 +549,7 @@ class ProgramarEngomadoController extends Controller
 
                 if ($ordenesSinPrioridad->count() > 0) {
                     try {
-                        $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso'])
+                        $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                             ->whereNotNull('Prioridad')
                             ->max('Prioridad') ?? 0;
 
@@ -574,7 +574,7 @@ class ProgramarEngomadoController extends Controller
                             'Prioridad',
                             'FechaProg',
                         ])
-                        ->whereIn('Status', ['Programado', 'En Proceso'])
+                        ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->whereNotNull('MaquinaEng')
                         ->where('MaquinaEng', '!=', '')
                         ->get();

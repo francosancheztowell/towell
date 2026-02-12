@@ -258,8 +258,15 @@
 
     {{-- =================== Tabla: Inventario disponible =================== --}}
     <div class="bg-white overflow-hidden">
-        <div class="bg-blue-500 px-4 flex justify-between items-center">
+        <div class="bg-blue-500 px-4 flex justify-between items-center gap-2">
             <h2 class="text-lg font-bold text-white text-center flex-1">Inventario Disponible</h2>
+            <button type="button"
+                    id="btnQuitarFiltroInventario"
+                    class="hidden flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors"
+                    title="Quitar filtro y mostrar todos los registros">
+                <i class="fa-solid fa-filter-circle-xmark"></i>
+                <span>Quitar Filtro</span>
+            </button>
         </div>
 
         <div class="relative">
@@ -2033,7 +2040,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     $('#btnReloadTelares')?.addEventListener('click', filters.reset);
 
-    // BotÃ³n quitar/aplicar filtro inventario
+    // Botón quitar/aplicar filtro inventario (segunda tabla)
+    $('#btnQuitarFiltroInventario')?.addEventListener('click', () => {
+        if (!state.selectedTelar) return;
+        state.mostrarTodoInventario = !state.mostrarTodoInventario;
+        render.inventario(state.inventarioDataOriginal);
+        selection.updateFiltroButton();
+    });
 
     // Acciones
     $('#btnProgramar')?.addEventListener('click', actions.programar);

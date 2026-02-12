@@ -25,6 +25,17 @@
     </div>
 @endsection
 
+@php
+    $hasFinalizarPermission = true;
+    try {
+        $moduloRol = \App\Models\Sistema\SYSRoles::where('modulo', 'Programa Engomado')->first();
+        $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Engomado';
+        $hasFinalizarPermission = function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
+    } catch (\Exception $e) {
+        $hasFinalizarPermission = true;
+    }
+@endphp
+
 @section('content')
 
 <style>
@@ -157,6 +168,9 @@
                 <table class="divide-y divide-gray-200 text-sm" style="min-width: max-content; width: 100%;">
                     <thead class="bg-blue-500 text-white sticky top-0 z-20">
                         <tr>
+                            @if($hasFinalizarPermission)
+                            <th class="py-1"></th>
+                            @endif
                             <th class="py-1"></th>
                             <th class="py-1"></th>
                             <th class="py-1"></th>
@@ -171,6 +185,9 @@
                             <th colspan="6" class="py-1 text-center font-semibold bg-blue-700 text-xs md:text-sm">Temp</th>
                         </tr>
                         <tr>
+                            @if($hasFinalizarPermission)
+                            <th class="py-2 px-0 text-center font-semibold text-[9px] md:text-[10px]" style="width: 28px; min-width: 28px; max-width: 28px;">Fin</th>
+                            @endif
                             <th class="py-2 px-1 text-center font-semibold bg-blue-500 text-white text-xs md:text-sm" style="width: 3rem; min-width: 3rem; max-width: 3rem;">Fecha</th>
                             <th class="py-2 px-1 text-left font-semibold text-xs md:text-sm" style="width: 5rem; min-width: 5rem; max-width: 5rem;">Oficial</th>
                             <th class="py-2 px-1 text-center font-semibold text-xs md:text-sm w-16 max-w-[50px]">Turno</th>
@@ -239,6 +256,8 @@
                                     $ubicacion = $registro ? ($registro->Ubicacion ?? '') : '';
                                     $roturas = $registro ? ($registro->Roturas ?? '') : '';
                                     $registroId = $registro ? $registro->Id : null;
+                                    $listo = $registro ? (int)($registro->Finalizar ?? 0) : 0;
+                                    $ax = $registro ? (int)($registro->AX ?? 0) : 0;
 
                                     $oficiales = [];
                                     $primerOficialNombre = '';
@@ -265,6 +284,20 @@
                                 @endphp
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
+                                    {{-- Finalizar (checkbox con permiso registrar, bloqueado si AX=1) --}}
+                                    @if($hasFinalizarPermission)
+                                    <td class="px-0 py-1 text-center whitespace-nowrap" style="width: 28px; min-width: 28px; max-width: 28px;">
+                                        <input
+                                            type="checkbox"
+                                            class="checkbox-finalizar w-4 h-4 {{ $ax ? 'text-gray-400 border-gray-400' : 'text-blue-600 border-gray-300' }} bg-gray-100 rounded focus:ring-blue-500 focus:ring-1 {{ $ax ? 'cursor-not-allowed' : 'cursor-pointer' }}"
+                                            data-registro-id="{{ $registroId }}"
+                                            data-row-index="{{ $rowIndex }}"
+                                            data-ax="{{ $ax }}"
+                                            title="{{ $ax ? 'Enviado a AX - No modificable' : 'Marcar como finalizado' }}"
+                                            {{ $listo ? 'checked' : '' }}
+                                        >
+                                    </td>
+                                    @endif
                                     {{-- Fecha --}}
                                     <td class="px-1 py-1 md:py-1.5 text-center whitespace-nowrap bg-white" style="width: 3rem; min-width: 3rem; max-width: 3rem;">
                                         <div class="flex items-center justify-center gap-0.5 relative">
@@ -564,7 +597,7 @@
                             @endfor
                         @else
                             <tr>
-                                <td colspan="16" class="px-2 py-4 text-center text-gray-500 italic">
+                                <td colspan="{{ $hasFinalizarPermission ? 17 : 16 }}" class="px-2 py-4 text-center text-gray-500 italic">
                                     No hay registros para generar.
                                     @if(isset($orden) && isset($orden->NoTelas))
                                         <br>Total requerido (No. De Telas): {{ $orden->NoTelas }}
@@ -947,6 +980,7 @@
 
             // ===== Llamadas al backend =====
             async function actualizarFecha(registroId, fecha) {
+                if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
                     return;
@@ -988,6 +1022,7 @@
             }
 
             async function actualizarTurnoOficial(registroId, numeroOficial, turno) {
+                if (!verificarFilaNoFinalizada(registroId)) return;
                 try {
                     const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.turno.oficial') }}', {
                         method: 'POST',
@@ -1048,6 +1083,7 @@
             }
 
             async function actualizarKgBruto(registroId, kgBruto) {
+                if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
                     return;
@@ -1106,6 +1142,7 @@
             }
 
             async function actualizarJulioTara(registroId, noJulio, tara, kgNetoCalculado) {
+                if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
                     return;
@@ -1169,6 +1206,7 @@
             }
 
             async function actualizarHora(registroId, campo, valor) {
+                if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
                     return;
@@ -1214,6 +1252,7 @@
             }
 
             async function actualizarCampoProduccion(registroId, campo, valor) {
+                if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
                     return;
@@ -1683,6 +1722,155 @@
             // ===== DOM Ready =====
             document.addEventListener('DOMContentLoaded', function () {
                 const tablaBody = document.getElementById('tabla-produccion-body');
+
+                // ===== CHECKBOX FINALIZAR (Listo) =====
+                function bloquearFila(row) {
+                    row.classList.add('bg-green-50', 'opacity-75');
+                    row.querySelectorAll('input:not(.checkbox-finalizar), select, button').forEach(el => {
+                        if (el.classList.contains('checkbox-finalizar')) return;
+                        el.disabled = true;
+                        el.classList.add('cursor-not-allowed', 'pointer-events-none');
+                    });
+                    row.querySelectorAll('.edit-quantity-btn, .btn-agregar-oficial, .btn-fecha-display, .set-current-time').forEach(el => {
+                        el.disabled = true;
+                        el.classList.add('cursor-not-allowed', 'pointer-events-none', 'opacity-50');
+                    });
+                }
+
+                function desbloquearFila(row) {
+                    row.classList.remove('bg-green-50', 'opacity-75');
+                    row.querySelectorAll('input:not(.checkbox-finalizar), select, button').forEach(el => {
+                        if (el.classList.contains('checkbox-finalizar')) return;
+                        const field = el.getAttribute('data-field');
+                        const esReadonly = field === 'tara' || field === 'metros' || field === 'kg_neto';
+                        if (!esReadonly) el.disabled = false;
+                        el.classList.remove('cursor-not-allowed', 'pointer-events-none');
+                    });
+                    row.querySelectorAll('.edit-quantity-btn, .btn-agregar-oficial, .btn-fecha-display, .set-current-time').forEach(el => {
+                        el.disabled = false;
+                        el.classList.remove('cursor-not-allowed', 'pointer-events-none', 'opacity-50');
+                    });
+                }
+
+                function esFilaBloqueada(registroId) {
+                    const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                    if (!row) return false;
+                    const checkbox = row.querySelector('.checkbox-finalizar');
+                    return checkbox && checkbox.checked;
+                }
+
+                if (tablaBody) {
+                    tablaBody.querySelectorAll('.checkbox-finalizar:checked').forEach(checkbox => {
+                        const row = checkbox.closest('tr');
+                        if (row) bloquearFila(row);
+                    });
+                }
+
+                if (tablaBody) {
+                    tablaBody.addEventListener('mousedown', function (e) {
+                        const row = e.target.closest('tr[data-registro-id]');
+                        if (!row) return;
+                        if (e.target.classList.contains('checkbox-finalizar') || e.target.closest('.checkbox-finalizar')) return;
+                        const checkbox = row.querySelector('.checkbox-finalizar');
+                        if (checkbox && checkbox.checked) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'info',
+                                    title: 'Registro finalizado',
+                                    text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
+                                    timer: 2500,
+                                    showConfirmButton: false,
+                                    toast: true,
+                                    position: 'top-end'
+                                });
+                            }
+                        }
+                    }, true);
+                }
+
+                if (tablaBody) {
+                    tablaBody.addEventListener('change', function (e) {
+                        if (!e.target.classList.contains('checkbox-finalizar')) return;
+                        const checkbox = e.target;
+                        const registroId = checkbox.getAttribute('data-registro-id');
+                        const listo = checkbox.checked;
+                        const ax = parseInt(checkbox.getAttribute('data-ax') || '0', 10);
+                        if (!registroId) return;
+                        if (ax === 1) {
+                            checkbox.checked = !listo;
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'No modificable',
+                                    text: 'Este registro ya fue enviado a AX y no se puede modificar.',
+                                    confirmButtonColor: '#2563eb'
+                                });
+                            }
+                            return;
+                        }
+                        marcarRegistroListo(registroId, listo, checkbox);
+                    });
+                }
+
+                async function marcarRegistroListo(registroId, listo, checkbox) {
+                    const row = checkbox.closest('tr');
+                    try {
+                        const response = await fetch('{{ route('engomado.modulo.produccion.engomado.marcar.listo') }}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                            body: JSON.stringify({ registro_id: registroId, listo: listo })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            if (row) {
+                                if (listo) bloquearFila(row);
+                                else desbloquearFila(row);
+                            }
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: listo ? 'Finalizado' : 'Desmarcado',
+                                    text: listo ? 'Registro parcialmente finalizado' : 'Registro desbloqueado para edición',
+                                    timer: 1500,
+                                    showConfirmButton: false,
+                                    toast: true,
+                                    position: 'top-end'
+                                });
+                            }
+                        } else {
+                            checkbox.checked = !listo;
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'Error al actualizar el registro' });
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error al marcar como listo:', error);
+                        checkbox.checked = !listo;
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({ icon: 'error', title: 'Error', text: 'Error al actualizar el registro. Por favor, intenta nuevamente.' });
+                        }
+                    }
+                }
+
+                function verificarFilaNoFinalizada(registroId) {
+                    if (esFilaBloqueada(registroId)) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Registro finalizado',
+                                text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
+                                timer: 2500,
+                                showConfirmButton: false,
+                                toast: true,
+                                position: 'top-end'
+                            });
+                        }
+                        return false;
+                    }
+                    return true;
+                }
 
                 // Remover borde rojo cuando el usuario corrige los campos
                 function removerErrorAlCambiar(e) {

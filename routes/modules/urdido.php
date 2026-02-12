@@ -87,6 +87,7 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::post('/modulo-produccion-urdido/actualizar-campos-produccion', [ModuloProduccionUrdidoController::class, 'actualizarCamposProduccion'])->name('modulo.produccion.urdido.actualizar.campos.produccion');
     Route::post('/modulo-produccion-urdido/actualizar-horas', [ModuloProduccionUrdidoController::class, 'actualizarHoras'])->name('modulo.produccion.urdido.actualizar.horas');
     Route::post('/modulo-produccion-urdido/finalizar', [ModuloProduccionUrdidoController::class, 'finalizar'])->name('modulo.produccion.urdido.finalizar');
+    Route::post('/modulo-produccion-urdido/marcar-listo', [ModuloProduccionUrdidoController::class, 'marcarListo'])->name('modulo.produccion.urdido.marcar.listo');
     Route::get('/modulo-produccion-urdido/pdf', [PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.urdido.pdf');
 });
 
