@@ -8,12 +8,7 @@
 
     const isNil   = v => v === null || v === undefined;
     const isBlank = v => isNil(v) || String(v).trim() === '';
-    // Función helper para validar si un campo está vacío o no tiene valor
-    const isEmpty = (v) => {
-        if (v === null || v === undefined) return true;
-        const str = String(v).trim();
-        return str === '' || str === 'null' || str === 'undefined';
-    };
+
 
     const toNumber = (v, def=0) => {
         if (isNil(v)) return def;
@@ -895,7 +890,6 @@
                 }
             }
         }
-
         renderTabla();
         renderTablaMaterialesUrdido();
         renderTablaMaterialesEngomado();
@@ -1021,6 +1015,17 @@
 
                     // Solo agregar si tiene al menos julios o hilos
                     if (!isBlank(julios) || !isBlank(hilos)) {
+                        // Validar máximo 15 julios
+                        if (!isBlank(julios) && Number(julios) > 15) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Valor fuera de rango',
+                                text: 'El número de julios no puede ser mayor a 15.',
+                                confirmButtonColor: '#2563eb'
+                            });
+                            inputs[0].focus();
+                            return;
+                        }
                         construccionUrdido.push({
                             julios: julios || '',
                             hilos: hilos || '',
@@ -1184,7 +1189,7 @@
             const originalText = button?.textContent || 'Crear Órdenes';
             if (button) {
                 button.disabled = true;
-                button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creando...';
+                button.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
             }
 
             // Enviar datos al servidor

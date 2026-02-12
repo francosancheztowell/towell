@@ -136,7 +136,7 @@
                                             ? 'Telar reservado - no se puede seleccionar'
                                             : ($tieneNoOrden
                                                 ? 'Telar con orden - no se puede seleccionar'
-                                                : 'SelecciÃ³n mÃºltiple (misma cuenta/atributos)');
+                                                : 'Selección multiple (misma cuenta/atributos)');
                                     @endphp
                                     <tr class="selectable-row hover:bg-blue-50 cursor-pointer {{ $finalBg }} {{ $blueBorder }}"
                                         data-base-bg="{{ $baseBg }}"
@@ -995,7 +995,7 @@ const selection = {
             if (state.mostrarTodoInventario) {
                 if (icon) icon.className = 'fa-solid fa-filter';
                 if (text) text.textContent = 'Aplicar Filtro';
-                btn.title = 'Aplicar filtro y mostrar sÃ³lo registros del telar seleccionado';
+                btn.title = 'Aplicar filtro y mostrar solo registros del telar seleccionado';
             } else {
                 if (icon) icon.className = 'fa-solid fa-filter-circle-xmark';
                 if (text) text.textContent = 'Quitar Filtro';

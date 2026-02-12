@@ -274,7 +274,10 @@ class ReservarProgramarController extends Controller
     {
         if (!$telaresJson) return [];
         try {
-            return json_decode(urldecode($telaresJson), true) ?: [];
+            // Laravel ya decodifica los query params automáticamente,
+            // no aplicar urldecode() adicional para evitar doble decodificación
+            // que corrompe valores con caracteres especiales (+, %, etc.)
+            return json_decode($telaresJson, true) ?: [];
         } catch (\Throwable $e) {
             Log::error('parseTelaresFromQuery', ['msg' => $e->getMessage()]);
             return [];
@@ -305,6 +308,7 @@ class ReservarProgramarController extends Controller
         }
         if ($request->filled('localidad'))   $update['localidad'] = (string) $request->input('localidad');
         if ($request->filled('tipo_atado'))  $update['tipo_atado'] = (string) $request->input('tipo_atado');
+        if ($request->filled('hilo'))        $update['hilo'] = (string) $request->input('hilo');
         if ($request->filled('lote_proveedor')) $update['LoteProveedor'] = (string) $request->input('lote_proveedor');
         if ($request->filled('no_proveedor'))   $update['NoProveedor'] = (string) $request->input('no_proveedor');
         return $update;

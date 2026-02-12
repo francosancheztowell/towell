@@ -148,7 +148,8 @@ class ProgramarUrdEngController extends Controller
                 'LoteProveedor' => $loteProveedor,
             ]);
 
-            $telaresActualizados = $this->marcarTelaresProgramados($telaresStr, $tipo, $folio);
+            $hiloGrupo = $grupo['fibra'] ?? $grupo['hilo'] ?? null;
+            $telaresActualizados = $this->marcarTelaresProgramados($telaresStr, $tipo, $folio, $hiloGrupo);
 
             DB::commit();
 
@@ -231,7 +232,7 @@ class ProgramarUrdEngController extends Controller
     }
 
     /** @return int Cantidad de telares actualizados */
-    private function marcarTelaresProgramados(?string $telaresStr, ?string $tipo, string $folio): int
+    private function marcarTelaresProgramados(?string $telaresStr, ?string $tipo, string $folio, ?string $hilo = null): int
     {
         if (empty($telaresStr)) return 0;
 
@@ -243,7 +244,11 @@ class ProgramarUrdEngController extends Controller
             if ($tipo) $q->where('tipo', $tipo);
             $telar = $q->first();
             if ($telar) {
-                $telar->update(['no_orden' => $folio, 'Programado' => true]);
+                $updateData = ['no_orden' => $folio, 'Programado' => true];
+                if ($hilo !== null && $hilo !== '') {
+                    $updateData['hilo'] = $hilo;
+                }
+                $telar->update($updateData);
                 $count++;
             }
         }

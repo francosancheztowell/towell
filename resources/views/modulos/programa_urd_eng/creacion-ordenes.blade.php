@@ -167,18 +167,18 @@
                     <tbody id="tbodyConstruccionUrdido" class="bg-white ">
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="number" step="1" min="0" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
                                 <input type="number" step="1" min="0" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="text" step="1" min="0" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                         </tr>
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
                                 <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
@@ -189,7 +189,7 @@
                         </tr>
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
                                 <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
@@ -200,7 +200,7 @@
                         </tr>
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
                                 <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
@@ -274,6 +274,20 @@
 <script src="{{ asset('js/modulos/programa_urd_eng/creacion-ordenes.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Restricción en tiempo real: No. Julios máximo 15
+    document.getElementById('tbodyConstruccionUrdido')?.addEventListener('input', function(e) {
+        const input = e.target;
+        if (input.tagName !== 'INPUT' || input.type !== 'number') return;
+        // Solo aplica a la primera columna (No. Julios) de cada fila
+        const td = input.closest('td');
+        if (!td || td !== td.parentElement.children[0]) return;
+        const val = parseInt(input.value, 10);
+        if (val > 15) {
+            input.value = 15;
+            Swal.fire({ icon: 'warning', title: 'Máximo 15 julios', text: 'El número de julios no puede ser mayor a 15.', confirmButtonColor: '#2563eb', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
+        }
+    });
+
     if (typeof window.initCreacionOrdenes === 'function') {
         window.initCreacionOrdenes({
             telaresData: @json($telaresSeleccionados ?? []),
