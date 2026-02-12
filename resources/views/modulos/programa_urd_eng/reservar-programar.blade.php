@@ -1967,12 +1967,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
             }
 
-            // Enviar al backend
-            http.post(API.actualizarTelar, {
+            // Enviar al backend (id permite resolver Folio para actualizar programas)
+            const payload = {
                 no_telar: telar,
                 tipo:     normalizeTipo(tipo),
                 tipo_atado: nuevo
-            }).catch(err => {
+            };
+            if (row?.dataset?.id) payload.id = parseInt(row.dataset.id, 10);
+            http.post(API.actualizarTelar, payload).catch(err => {
                 toast('error', 'No se pudo actualizar tipo de atado', err.message || '');
                 // Revertir select si falla
                 target.value = (row?.dataset.tipoAtadoPrev || 'Normal');

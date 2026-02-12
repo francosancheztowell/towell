@@ -448,9 +448,9 @@ class EngProduccionFormulacionController extends Controller
             'Viscocidad' => 'nullable|numeric|min:0.01',
             'Status' => 'nullable|in:Creado,En Proceso,Terminado',
             'obs_calidad' => 'nullable|string',
-            'ok_tiempo' => 'nullable|boolean',
-            'ok_viscocidad' => 'nullable|boolean',
-            'ok_solidos' => 'nullable|boolean',
+            'ok_tiempo' => 'nullable|in:0,1',
+            'ok_viscocidad' => 'nullable|in:0,1',
+            'ok_solidos' => 'nullable|in:0,1',
             'componentes' => 'nullable|string',
         ], [
             'Kilos.min' => 'Los Kilos no pueden ser negativos.',
@@ -473,17 +473,20 @@ class EngProduccionFormulacionController extends Controller
                 $toUpdate = collect($validated)->except('componentes')->filter(function ($v, $k) use ($request) {
                     return $request->has($k);
                 })->toArray();
-                // Mapear ok_tiempo, ok_viscocidad, ok_solidos a columnas de la tabla
+                // Mapear ok_tiempo, ok_viscocidad, ok_solidos: null = vacío, 0 = tache, 1 = palomita
                 if (array_key_exists('ok_tiempo', $toUpdate)) {
-                    $toUpdate['OkTiempo'] = (bool) $toUpdate['ok_tiempo'];
+                    $v = $toUpdate['ok_tiempo'];
+                    $toUpdate['OkTiempo'] = ($v === null || $v === '') ? null : (int) $v;
                     unset($toUpdate['ok_tiempo']);
                 }
                 if (array_key_exists('ok_viscocidad', $toUpdate)) {
-                    $toUpdate['OkViscocidad'] = (bool) $toUpdate['ok_viscocidad'];
+                    $v = $toUpdate['ok_viscocidad'];
+                    $toUpdate['OkViscosidad'] = ($v === null || $v === '') ? null : (int) $v;
                     unset($toUpdate['ok_viscocidad']);
                 }
                 if (array_key_exists('ok_solidos', $toUpdate)) {
-                    $toUpdate['OkSolidos'] = (bool) $toUpdate['ok_solidos'];
+                    $v = $toUpdate['ok_solidos'];
+                    $toUpdate['OkSolidos'] = ($v === null || $v === '') ? null : (int) $v;
                     unset($toUpdate['ok_solidos']);
                 }
                 $item->update($toUpdate);

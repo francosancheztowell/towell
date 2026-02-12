@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Obtener área del usuario desde el servidor
                 const areaUsuario = @json($areaUsuario ?? null);
-                
+
                 if (areaUsuario) {
                     // Buscar departamento que coincida con el área del usuario
                     // Normalizar para comparación (mayúsculas, sin espacios extra)
@@ -298,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (depUpper === 'JACQUARD' || depUpper === 'ITEMA' ||
                 depUpper === 'KARL MAYER' || depUpper === 'KARLMAYER' || depUpper === 'SMITH' ||
-                depUpper === 'TEJEDORES' || depUpper === 'TRMA' || depUpper === 'CALIDAD' || depUpper === 'DESARROLLADORES' || depUpper === 'SUPERVISORES') {
+                depUpper === 'TEJEDORES' || depUpper === 'TRAMA' || depUpper === 'CALIDAD' || depUpper === 'DESARROLLADORES' || depUpper === 'SUPERVISORES') {
                 departamentoParaConsulta = 'Tejido';
             }
 
@@ -316,12 +316,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectFalla.innerHTML = '<option value=\"\">Seleccione una falla</option>';
                 // Limpiar y cargar Descripción
                 selectDescripcion.innerHTML = '<option value=\"\">Seleccione una descripción</option>';
-                
+
                 result.data.forEach(item => {
                     // Obtener valores de forma segura
                     const falla = String(item.Falla ?? item.falla ?? '').trim();
                     const descripcion = String(item.Descripcion ?? item.descripcion ?? '').trim();
-                    
+
                     // Solo agregar si hay una falla válida
                     if (falla) {
                         // Falla
@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         optF.dataset.desc = descripcion || '';
                         selectFalla.appendChild(optF);
                     }
-                    
+
                     // Solo agregar descripción si tiene un valor válido
                     if (descripcion && falla) {
                         const optD = document.createElement('option');
@@ -341,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         selectDescripcion.appendChild(optD);
                     }
                 });
-                
+
                 // Solo habilitar si hay opciones disponibles
                 if (selectFalla.options.length > 1) {
                     selectFalla.disabled = false;
@@ -509,7 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const departamentoSeleccionado = this.value;
         // Actualizar el input hidden
         document.getElementById('depto-hidden').value = departamentoSeleccionado;
-        
+
         if (departamentoSeleccionado) {
             // Habilitar máquina
             cargarMaquinas(departamentoSeleccionado);
@@ -539,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
     selectMaquina.addEventListener('change', function() {
         const departamentoSeleccionado = selectDepto.value;
         const maquinaSeleccionada = this.value;
-        
+
         if (maquinaSeleccionada) {
             // Habilitar tipo de falla
             selectTipoFalla.disabled = false;
@@ -592,7 +592,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const btnAceptar = document.getElementById('btn-aceptar');
         const textoOriginal = btnAceptar.textContent;
-        
+
         // Bloquear botón y cambiar texto
         isSubmitting = true;
         btnAceptar.disabled = true;
@@ -670,7 +670,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnAceptar.textContent = textoOriginal;
                 btnAceptar.style.cursor = 'pointer';
                 btnAceptar.style.opacity = '1';
-                
+
                 const errorMsg = result.error || 'Error al reportar el paro. Por favor, intenta nuevamente.';
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
@@ -689,7 +689,7 @@ document.addEventListener('DOMContentLoaded', function() {
             btnAceptar.textContent = textoOriginal;
             btnAceptar.style.cursor = 'pointer';
             btnAceptar.style.opacity = '1';
-            
+
             console.error('Error al reportar paro:', error);
             const errorMsg = 'Error de conexión. Por favor, verifica tu conexión e intenta nuevamente.';
             if (typeof Swal !== 'undefined') {
