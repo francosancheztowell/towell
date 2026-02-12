@@ -140,9 +140,9 @@ class ModuloProduccionUrdidoController extends Controller
                 ->with('error', 'Orden no encontrada');
         }
 
-        // Actualizar el status a "En Proceso" cuando se carga la página de producción
-        if ($orden->Status !== 'En Proceso') {
-            // Validar que no haya mas de 2 ordenes con status "En Proceso" en la misma maquina
+        // Pasar a "En Proceso" solo si está "Programado". No cambiar si ya es "En Proceso" o "Parcial"
+        // (así al entrar y recargar o salir no se pierde el status Parcial)
+        if ($orden->Status === 'Programado') {
             $mcCoyActual = $this->extractMcCoyNumber($orden->MaquinaId);
             $limitePorMaquina = 2;
 
@@ -167,15 +167,12 @@ class ModuloProduccionUrdidoController extends Controller
             try {
                 $orden->Status = 'En Proceso';
                 $orden->save();
-
-
             } catch (\Throwable $e) {
                 Log::error('Error al actualizar status a "En Proceso"', [
                     'folio' => $orden->Folio,
                     'orden_id' => $orden->Id,
                     'error' => $e->getMessage(),
                 ]);
-                // No lanzar excepción, continuar con el flujo normal
             }
         }
 
