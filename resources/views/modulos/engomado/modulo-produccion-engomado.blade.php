@@ -1963,11 +1963,27 @@
                                 const timeoutId = setTimeout(() => {
                                     actualizarKgBruto(registroId, kgBrutoValue);
                                     debounceTimeouts.delete(registroId);
-                                }, 6000);
+                                }, 1000);
 
                                 debounceTimeouts.set(registroId, timeoutId);
                             }
                         }
+                    });
+
+                    // Kg. Bruto: actualizar en la tabla también al salir del campo (blur)
+                    tablaBody.querySelectorAll('input[data-field="kg_bruto"]').forEach(input => {
+                        input.addEventListener('blur', function() {
+                            const row = this.closest('tr');
+                            const registroId = row ? row.getAttribute('data-registro-id') : null;
+                            if (!registroId) return;
+                            if (debounceTimeouts.has(registroId)) {
+                                clearTimeout(debounceTimeouts.get(registroId));
+                                debounceTimeouts.delete(registroId);
+                            }
+                            if (!verificarOficialSeleccionado(registroId)) return;
+                            const valor = (this.value || '').trim();
+                            if (valor !== '') actualizarKgBruto(registroId, valor);
+                        });
                     });
 
                     // Agregar listeners directamente a los inputs de Sol. Can. para actualizar cuando el usuario sale del campo
