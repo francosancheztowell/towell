@@ -512,6 +512,22 @@ class ModuloProduccionUrdidoController extends Controller
             // Verificar si se está intentando crear un nuevo oficial (no editar uno existente)
             // Si el oficial en esa posición ya existe, se permite editar
             // Si no existe, verificar que no haya 3 oficiales ya registrados
+            // No permitir repetir No. Operador dentro del mismo registro (Oficial 1-3).
+            $cveSolicitada = trim((string) $request->cve_empl);
+            for ($i = 1; $i <= 3; $i++) {
+                if ($i === $numeroOficial) {
+                    continue;
+                }
+
+                $cveExistente = trim((string) ($registro->{"CveEmpl{$i}"} ?? ''));
+                if ($cveExistente !== '' && $cveExistente === $cveSolicitada) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => "El No. Operador {$cveSolicitada} ya está asignado al Oficial {$i}.",
+                    ], 422);
+                }
+            }
+
             $oficialExistente = !empty($registro->{"NomEmpl{$numeroOficial}"});
 
             if (!$oficialExistente) {

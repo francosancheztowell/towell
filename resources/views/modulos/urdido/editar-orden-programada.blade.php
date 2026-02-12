@@ -278,8 +278,10 @@
                         type="text"
                         id="campo_BomId"
                         data-campo="BomId"
+                        data-bom-autocomplete="urdido"
                         value="{{ $orden->BomId ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        autocomplete="off"
                     >
                 </div>
 
@@ -359,8 +361,10 @@
                             type="text"
                             id="campo_BomEng"
                             data-campo="BomEng"
+                            data-bom-autocomplete="engomado"
                             value="{{ $engomado->BomEng ?? '' }}"
                             class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            autocomplete="off"
                         >
                     </div>
 
@@ -474,6 +478,8 @@
             const routeActualizarJulios = '{{ route('urdido.editar.ordenes.programadas.actualizar.julios') }}';
             const RUTA_HILOS = '{{ route("programa.urd.eng.hilos") }}';
             const RUTA_TAMANOS = '{{ route("programa.urd.eng.tamanos") }}';
+            const RUTA_BOM_URDIDO = '{{ route("programa.urd.eng.buscar.bom.urdido") }}';
+            const RUTA_BOM_ENGOMADO = '{{ route("programa.urd.eng.buscar.bom.engomado") }}';
             const bloqueaUrdido = {{ $bloqueaUrdido ? 'true' : 'false' }};
             const bloqueaEngomado = {{ $bloqueaEngomado ? 'true' : 'false' }};
 
@@ -541,6 +547,107 @@
                     timer: 2000,
                     timerProgressBar: true,
                     width: '500px',
+                });
+            };
+
+            const debounce = (fn, ms = 300) => {
+                let t;
+                return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+            };
+
+            const positionDropdown = (inputEl, container) => {
+                const rect = inputEl.getBoundingClientRect();
+                container.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+                container.style.left = (rect.left + window.scrollX) + 'px';
+                container.style.width = rect.width + 'px';
+            };
+
+            const setupBomAutocomplete = (inputsSelector, searchRoute, containerId, onSelectExtra) => {
+                const inputs = document.querySelectorAll(inputsSelector);
+                if (!inputs.length) return;
+                let activeInput = null, selectedIndex = -1, list = [], open = false;
+
+                let container = document.getElementById(containerId);
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = containerId;
+                    container.className = 'fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto';
+                    document.body.appendChild(container);
+                }
+
+                const hide = () => { container.classList.add('hidden'); open = false; selectedIndex = -1; list = []; activeInput = null; };
+                const show = (el) => { positionDropdown(el, container); container.classList.remove('hidden'); open = true; };
+
+                const getLabel = (s) => `${s.BOMID} - ${s.NAME || ''}`;
+                const render = (items) => {
+                    container.innerHTML = '';
+                    items.forEach((it, idx) => {
+                        const div = document.createElement('div');
+                        div.className = 'px-3 py-2 hover:bg-blue-50 cursor-pointer text-xs border-gray-100';
+                        div.textContent = getLabel(it);
+                        div.addEventListener('click', () => {
+                            if (activeInput) {
+                                activeInput.value = it.BOMID;
+                                activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                if (typeof onSelectExtra === 'function') onSelectExtra(activeInput, it);
+                                hide();
+                            }
+                        });
+                        div.addEventListener('mouseenter', () => {
+                            container.querySelectorAll('div').forEach(d => d.classList.remove('bg-blue-100'));
+                            div.classList.add('bg-blue-100');
+                            selectedIndex = idx;
+                        });
+                        container.appendChild(div);
+                    });
+                };
+
+                const doSearch = debounce(async (q, inputEl) => {
+                    if (!q || String(q).trim() === '') { hide(); return; }
+                    try {
+                        const url = new URL(searchRoute, window.location.origin);
+                        url.searchParams.set('q', String(q).trim());
+                        const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
+                        const data = await res.json();
+                        const arr = Array.isArray(data) ? data : (data.data || []);
+                        if (!arr.length) { hide(); return; }
+                        list = arr;
+                        activeInput = inputEl;
+                        render(list);
+                        show(inputEl);
+                    } catch (e) { hide(); }
+                }, 300);
+
+                const onKey = (e) => {
+                    if (!open) return;
+                    const items = container.querySelectorAll('div');
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                        items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+                        items.forEach((it, i) => it.classList.toggle('bg-blue-100', i === selectedIndex));
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        selectedIndex = Math.max(selectedIndex - 1, -1);
+                        items.forEach((it, i) => it.classList.toggle('bg-blue-100', i === selectedIndex));
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (selectedIndex >= 0 && items[selectedIndex]) items[selectedIndex].click();
+                        else hide();
+                    } else if (e.key === 'Escape') { hide(); }
+                };
+
+                window.addEventListener('scroll', () => { if (activeInput && open) positionDropdown(activeInput, container); }, true);
+                window.addEventListener('resize', () => { if (activeInput && open) positionDropdown(activeInput, container); });
+                document.addEventListener('click', (e) => {
+                    if (activeInput && !activeInput.contains(e.target) && !container.contains(e.target)) hide();
+                }, true);
+
+                inputs.forEach(input => {
+                    input.addEventListener('input', e => doSearch(e.target.value, e.target));
+                    input.addEventListener('focus', e => { if (e.target.value.trim()) doSearch(e.target.value, e.target); });
+                    input.addEventListener('keydown', onKey);
+                    input.addEventListener('click', e => e.stopPropagation());
                 });
             };
 
@@ -831,6 +938,10 @@
                     actualizarListaTamanos();
                     autocompletarTamano();
                 });
+
+                // Autocomplete BOM Urdido y BOM Engomado (consulta SQL a otra DB - sqlsrv_ti)
+                setupBomAutocomplete('#campo_BomId', RUTA_BOM_URDIDO, 'bom-urdido-suggestions-editar');
+                setupBomAutocomplete('#campo_BomEng', RUTA_BOM_ENGOMADO, 'bom-engomado-suggestions-editar');
 
                 const cuentaInput = document.getElementById('campo_Cuenta');
                 const calibreInput = document.getElementById('campo_Calibre');

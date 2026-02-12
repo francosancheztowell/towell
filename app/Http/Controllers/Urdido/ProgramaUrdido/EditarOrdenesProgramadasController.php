@@ -41,6 +41,33 @@ class EditarOrdenesProgramadasController extends Controller
     }
 
     /**
+     * Obtener el registro de EngProgramaEngomado que corresponde exactamente a la orden (misma línea: Folio + NoTelarId).
+     * Evita que al editar una orden se actualicen registros de otras líneas/telares.
+     */
+    private function obtenerEngomadoPorOrden(UrdProgramaUrdido $orden): ?EngProgramaEngomado
+    {
+        $folio = trim($orden->Folio ?? '');
+        $noTelarId = trim($orden->NoTelarId ?? '');
+
+        if ($folio === '') {
+            return null;
+        }
+
+        // Intentar por Folio + NoTelarId (línea exacta)
+        if ($noTelarId !== '') {
+            $engomado = EngProgramaEngomado::where('Folio', $folio)
+                ->where('NoTelarId', $noTelarId)
+                ->first();
+            if ($engomado) {
+                return $engomado;
+            }
+        }
+
+        // Fallback: solo por Folio (para datos legacy sin NoTelarId o cuando hay una sola línea por Folio)
+        return EngProgramaEngomado::where('Folio', $folio)->first();
+    }
+
+    /**
      * Mostrar la vista de edición de orden programada
      *
      * @param Request $request
@@ -83,8 +110,8 @@ class EditarOrdenesProgramadasController extends Controller
         }
 
 
-        // Obtener información de engomado si existe
-        $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
+        // Obtener engomado exacto: misma línea (Folio + NoTelarId) para no mezclar órdenes
+        $engomado = $this->obtenerEngomadoPorOrden($orden);
         $julios = $orden->julios()->orderBy('Id')->get();
         $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
         $axEngomado = (int) ($engomado?->AX ?? $engomado?->Ax ?? $engomado?->getAttribute('ax') ?? 0);
@@ -185,7 +212,8 @@ class EditarOrdenesProgramadasController extends Controller
 
             $orden = UrdProgramaUrdido::findOrFail($request->orden_id);
 
-            $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
+            // Engomado exacto: misma línea (Folio + NoTelarId) para no editar otras órdenes
+            $engomado = $this->obtenerEngomadoPorOrden($orden);
             if (!$engomado) {
                 return response()->json([
                     'success' => false,

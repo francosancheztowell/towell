@@ -37,29 +37,18 @@
         bg="bg-purple-500"
         text="Programar"
         />
-
-
-        <button id="btnResetFiltros" type="button"
-        class="px-3 py-2 text-gray-500 hover:text-gray-600 rounded-lg transition-colors flex items-center justify-center"
-        title="Restablecer filtros">
-        <i class="fa-solid fa-arrows-rotate w-5 h-5"></i>
-    </button>
-
-    <button id="btnOpenFilters" type="button"
-        class="relative px-3 py-2 text-blue-500 hover:text-blue-600 rounded-lg transition-colors flex items-center justify-center"
-        title="Aplicar filtros">
-        <i class="fa-solid fa-filter w-5 h-5"></i>
-    </button>
 </div>
 @endsection
 
 @section('content')
+
 @php
-    $esSupervisor = strtolower(auth()->user()->puesto ?? '') === 'supervisor';
+    $esSupervisor = (bool)($esSupervisor ?? false);
 @endphp
+
 <div class="w-full">
 
-    {{-- =================== Tabla: Programación (telares) =================== --}}
+    {{-- =================== Tabla: ProgramaciÃ³n (telares) =================== --}}
     <div class="bg-white overflow-hidden w-full">
         <div class="relative w-full">
             <div id="loaderTelares"
@@ -77,9 +66,10 @@
                     ['key'=>'turno',     'label'=>'Turno'],
                     ['key'=>'hilo',      'label'=>'Hilo'],
                     ['key'=>'metros',    'label'=>'Metros'],
-                    ['key'=>'no_julio',  'label'=>'No. Julio'],
-                    ['key'=>'no_orden',  'label'=>'No. Orden'],
-                    ['key'=>'tipo_atado','label'=>'Tipo Atado'],
+                    ['key'=>'no_julio',  'label'=>'Julio'],
+                    ['key'=>'no_orden',  'label'=>'Orden'],
+                    ['key'=>'estado',    'label'=>'Estado'],
+                    ['key'=>'tipo_atado','label'=>'Atado'],
                     ['key'=>'salon',     'label'=>'Salón'],
                 ];
             @endphp
@@ -130,7 +120,8 @@
                                         $noJulioTrim  = trim($t['no_julio'] ?? '');
                                         $noOrdenTrim  = trim($t['no_orden'] ?? '');
                                         $hasBoth      = $metrosFloat > 0 && $noJulioTrim !== '';
-                                        $isReservado  = $noJulioTrim !== '' && $noOrdenTrim !== '';
+                                        $isReservado  = (bool)($t['reservado'] ?? false);
+                                        $isProgramado = (bool)($t['programado'] ?? false);
                                         $tieneNoOrden = $noOrdenTrim !== '';
 
                                         $finalBg      = $hasBoth ? 'bg-blue-100' : $baseBg;
@@ -145,7 +136,7 @@
                                             ? 'Telar reservado - no se puede seleccionar'
                                             : ($tieneNoOrden
                                                 ? 'Telar con orden - no se puede seleccionar'
-                                                : 'Selección múltiple (misma cuenta/atributos)');
+                                                : 'Selección multiple (misma cuenta/atributos)');
                                     @endphp
                                     <tr class="selectable-row hover:bg-blue-50 cursor-pointer {{ $finalBg }} {{ $blueBorder }}"
                                         data-base-bg="{{ $baseBg }}"
@@ -159,10 +150,11 @@
                                         data-no-julio="{{ $noJulioTrim }}"
                                         data-no-orden="{{ $noOrdenTrim }}"
                                         data-metros="{{ $t['metros'] ?? '' }}"
-                                        data-fecha="{{ !empty($t['fecha']) ? \Carbon\Carbon::parse($t['fecha'])->format('Y-m-d') : '' }}"
+                                        data-fecha="{{ (!empty($t['fecha']) && preg_match('/^\d{4}-\d{2}-\d{2}/', trim($t['fecha']))) ? substr(trim($t['fecha']), 0, 10) : '' }}"
                                         data-turno="{{ $t['turno'] ?? '' }}"
                                         data-has-both="{{ $hasBoth ? 'true' : 'false' }}"
-                                        data-is-reservado="{{ $isReservado ? 'true' : 'false' }}">
+                                        data-is-reservado="{{ $isReservado ? 'true' : 'false' }}"
+                                        data-is-programado="{{ $isProgramado ? 'true' : 'false' }}">
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-bold">
                                             {{ $t['no_telar'] ?? '' }}
                                         </td>
@@ -178,7 +170,15 @@
                                             {{ number_format((float)($t['calibre'] ?? 0), 2) }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ !empty($t['fecha']) ? \Carbon\Carbon::parse($t['fecha'])->format('d-M-Y') : '' }}
+                                            @php
+                                                $fechaVal = $t['fecha'] ?? '';
+                                                if (!empty($fechaVal) && preg_match('/^(\d{4})-(\d{2})-(\d{2})/', trim($fechaVal), $mFecha)) {
+                                                    $fechaDisplay = \Carbon\Carbon::createFromFormat('Y-m-d', $mFecha[1].'-'.$mFecha[2].'-'.$mFecha[3])->format('d-M-Y');
+                                                } else {
+                                                    $fechaDisplay = $fechaVal ? \Carbon\Carbon::parse($fechaVal)->format('d-M-Y') : '';
+                                                }
+                                            @endphp
+                                            {{ $fechaDisplay }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             {{ $t['turno'] ?? '' }}
@@ -194,6 +194,15 @@
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             {{ $t['no_orden'] ?? '' }}
+                                        </td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
+                                            @if($isReservado)
+                                                <span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">Reservado</span>
+                                            @elseif($isProgramado)
+                                                <span class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">Programado</span>
+                                            @else
+                                                <span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700">Libre</span>
+                                            @endif
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             @php $tipoAtado = $t['tipo_atado'] ?? 'Normal'; @endphp
@@ -251,12 +260,6 @@
     <div class="bg-white overflow-hidden">
         <div class="bg-blue-500 px-4 flex justify-between items-center">
             <h2 class="text-lg font-bold text-white text-center flex-1">Inventario Disponible</h2>
-            <button id="btnQuitarFiltroInventario" type="button"
-                    class="hidden px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
-                    title="Quitar filtro y mostrar todos los registros">
-                <i class="fa-solid fa-filter-circle-xmark"></i>
-                <span>Quitar Filtro</span>
-            </button>
         </div>
 
         <div class="relative">
@@ -270,9 +273,30 @@
                     <table id="inventarioTable" class="w-full table-auto divide-y divide-gray-200">
                         <thead class="bg-gray-100 text-gray-900 sticky top-0 z-20">
                             <tr>
-                                @foreach(['Artículo','Tipo','Fibra','Cuenta','Cod Color','Lote','Localidad','No. Julio','Fecha','Metros','Kilos','Telar'] as $head)
-                                    <th class="px-3 py-2 text-center text-xs font-medium tracking-wider whitespace-nowrap">
-                                        {{ $head }}
+                                @php
+                                    $inventarioHeaders = [
+                                        ['key' => 'ItemId', 'label' => 'ArtÃ­culo'],
+                                        ['key' => 'Tipo', 'label' => 'Tipo'],
+                                        ['key' => 'ConfigId', 'label' => 'Fibra'],
+                                        ['key' => 'InventSizeId', 'label' => 'Cuenta'],
+                                        ['key' => 'InventColorId', 'label' => 'Cod Color'],
+                                        ['key' => 'InventBatchId', 'label' => 'Lote'],
+                                        ['key' => 'WMSLocationId', 'label' => 'Localidad'],
+                                        ['key' => 'InventSerialId', 'label' => 'No. Julio'],
+                                        ['key' => 'ProdDate', 'label' => 'Fecha'],
+                                        ['key' => 'Metros', 'label' => 'Metros'],
+                                        ['key' => 'InventQty', 'label' => 'Kilos'],
+                                        ['key' => 'NoTelarId', 'label' => 'Telar'],
+                                    ];
+                                @endphp
+                                @foreach($inventarioHeaders as $h)
+                                    <th class="px-3 py-2 text-center text-xs font-medium tracking-wider whitespace-nowrap sortable-inventario"
+                                        data-column="{{ $h['key'] }}">
+                                        <button type="button"
+                                                class="w-full flex items-center justify-center gap-2 cursor-pointer">
+                                            <span>{{ $h['label'] }}</span>
+                                            <i class="fa-solid fa-sort text-gray-400 sort-icon-inventario"></i>
+                                        </button>
                                     </th>
                                 @endforeach
                             </tr>
@@ -292,7 +316,20 @@
     </div>
 </div>
 
-{{-- =================== Estilos mínimos =================== --}}
+<div id="tableContextMenu"
+     class="hidden fixed z-50 min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+    <button type="button" data-action="filter-column" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md">
+        Filtrar columna
+    </button>
+    <button type="button" data-action="clear-column-filter" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md">
+        Quitar filtro de columna
+    </button>
+    <button type="button" data-action="clear-table-filters" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md">
+        Quitar filtros de tabla
+    </button>
+</div>
+
+{{-- =================== Estilos mÃ­nimos =================== --}}
 <style>
     #telaresTable { width:100% !important; min-width:100%; }
     main > div:first-child { padding-top:0 !important; margin-top:0 !important; }
@@ -309,6 +346,17 @@
         border-left-width:4px;
     }
     #telaresTable tbody tr.bg-blue-100:hover{ background-color:#bfdbfe !important; }
+    .sort-priority {
+        min-width: 16px;
+        height: 16px;
+        border-radius: 9999px;
+        font-size: 10px;
+        line-height: 16px;
+        text-align: center;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-weight: 700;
+    }
 </style>
 
 {{-- =================== Scripts =================== --}}
@@ -321,12 +369,16 @@ const API = {
     programarTelar: '{{ route("programa.urd.eng.programar.telar") }}',
     actualizarTelar: '{{ route("programa.urd.eng.actualizar.telar") }}',
     reservarInventario: '{{ route("programa.urd.eng.reservar.inventario") }}',
-    liberarTelar: '{{ route("programa.urd.eng.liberar.telar") }}',
-    columnOptions: '{{ route("programa.urd.eng.column.options") }}'
+    liberarTelar: '{{ route("programa.urd.eng.liberar.telar") }}'
 };
 
+/* Columnas para filtros (telares / inventario), enviadas con la vista para no hacer peticiÃ³n extra */
+const COLUMN_OPTIONS = @json($columnOptions ?? ['telares' => [], 'inventario' => []]);
+
 const ES_SUPERVISOR = @json($esSupervisor);
-const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
 
 /* ---------- Helpers DOM ---------- */
 const $  = (s, c = document) => c.querySelector(s);
@@ -335,7 +387,7 @@ const show    = el => el && el.classList.remove('hidden');
 const hide    = el => el && el.classList.add('hidden');
 const disable = (el, v = true) => { if (el) el.disabled = !!v; return el; };
 
-/* ---------- Helpers genéricos ---------- */
+/* ---------- Helpers genÃ©ricos ---------- */
 const toast = (icon, title, text = '', timer = 2000) => {
     if (typeof Swal === 'undefined') return;
     Swal.fire({
@@ -351,19 +403,26 @@ const toast = (icon, title, text = '', timer = 2000) => {
 
 const http = {
     async request(url, options = {}) {
+        const token = getCsrfToken();
         const res = await fetch(url, {
+            cache: 'no-store',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF,
-                'Accept': 'application/json'
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             ...options
         });
 
-        const json = await res.json().catch(() => ({ success: false }));
+        const json = await res.json().catch(() => ({ success: false, message: res.statusText }));
+
+        if (res.status === 419) {
+            throw new Error('La sesiÃ³n expirÃ³ o el token de seguridad no es vÃ¡lido. Por favor recarga la pÃ¡gina (F5) e intenta de nuevo.');
+        }
 
         if (!res.ok || json.success === false) {
-            throw new Error(json.message || res.statusText);
+            throw new Error(json.message || json.error || res.statusText);
         }
 
         return json;
@@ -396,10 +455,17 @@ const fmt = {
     },
     date(iso) {
         if (!iso) return '';
+        const s = String(iso).trim();
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) {
+            const y = parseInt(m[1], 10), mon = parseInt(m[2], 10) - 1, day = parseInt(m[3], 10);
+            const d = new Date(y, mon, day);
+            if (!Number.isNaN(d.getTime()) && d.getFullYear() === y && d.getMonth() === mon && d.getDate() === day) {
+                return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+            }
+        }
         const d = new Date(iso);
-        return Number.isNaN(d.getTime())
-            ? ''
-            : d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+        return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
     }
 };
 
@@ -435,16 +501,28 @@ const normalizeTipo = t => {
 };
 
 const hasNoOrden    = telar => String(telar?.no_orden || '').trim() !== '';
-const isReservado   = telar => telar?.is_reservado === true;
+const isReservado   = telar => {
+    if (typeof telar?.reservado === 'boolean') return telar.reservado;
+    if (typeof telar?.is_reservado === 'boolean') return telar.is_reservado;
+    return false;
+};
+const isProgramado  = telar => {
+    if (typeof telar?.programado === 'boolean') return telar.programado;
+    if (typeof telar?.is_programado === 'boolean') return telar.is_programado;
+    return false;
+};
 
 /* ---------- Estado ---------- */
 const state = {
-    filters: { telares: [], inventario: [] },
-    selectedTelar: null,       // selección individual
-    selectedTelares: [],       // selección múltiple (checkboxes)
+    filters: { telares: {}, inventario: {} },
+    selectedTelar: null,       // selecciÃ³n individual
+    selectedTelares: [],       // selecciÃ³n mÃºltiple (checkboxes)
     selectedInventario: null,
-    columns: { telares: [], inventario: [] },
-    sort: { column: 'no_telar', direction: 'asc' },
+    columns: { telares: COLUMN_OPTIONS.telares || [], inventario: COLUMN_OPTIONS.inventario || [] },
+    sort: {
+        telares: [{ column: 'no_telar', direction: 'asc' }],
+        inventario: []
+    },
     telaresData: @json($inventarioTelares ?? []),
     telaresDataOriginal: @json($inventarioTelares ?? []),
     inventarioData: [],
@@ -454,47 +532,83 @@ const state = {
 
 /* ---------- Render ---------- */
 const render = {
-    sorted(data, col, dir) {
+    sorted(data, sorts = []) {
+        if (!Array.isArray(sorts) || !sorts.length) return [...data];
+
         return [...data].sort((a, b) => {
-            const av = a[col], bv = b[col];
-            const emptyA = (av === null || av === undefined || av === '');
-            const emptyB = (bv === null || bv === undefined || bv === '');
+            for (const rule of sorts) {
+                const col = rule.column;
+                const dir = rule.direction;
+                const av = a[col], bv = b[col];
+                const emptyA = (av === null || av === undefined || av === '');
+                const emptyB = (bv === null || bv === undefined || bv === '');
 
-            if (emptyA && emptyB) return 0;
-            if (emptyA) return 1;
-            if (emptyB) return -1;
+                if (emptyA && emptyB) continue;
+                if (emptyA) return 1;
+                if (emptyB) return -1;
 
-            let cmp = 0;
+                let cmp = 0;
 
-            if (col === 'fecha') {
-                cmp = new Date(av) - new Date(bv);
-            } else if (['no_telar','no_julio','no_orden'].includes(col)) {
-                cmp = (parseInt(av) || 0) - (parseInt(bv) || 0);
-            } else if (['calibre','metros'].includes(col)) {
-                cmp = (parseFloat(av) || 0) - (parseFloat(bv) || 0);
-            } else {
-                const as = String(av).toLowerCase();
-                const bs = String(bv).toLowerCase();
-                cmp = as < bs ? -1 : (as > bs ? 1 : 0);
+                if (['fecha', 'ProdDate'].includes(col)) {
+                    cmp = new Date(av) - new Date(bv);
+                } else if (['no_telar','no_julio','no_orden','calibre','metros','Metros','InventQty'].includes(col)) {
+                    cmp = (parseFloat(av) || 0) - (parseFloat(bv) || 0);
+                } else if (['reservado', 'programado'].includes(col)) {
+                    cmp = (av ? 1 : 0) - (bv ? 1 : 0);
+                } else if (col === 'estado') {
+                    const statusVal = row => {
+                        const reserved = isReservado(row) || (String(row?.no_julio || '').trim() !== '' && String(row?.no_orden || '').trim() !== '');
+                        const programmed = isProgramado(row);
+                        if (reserved) return 2;
+                        if (programmed) return 1;
+                        return 0;
+                    };
+                    cmp = statusVal(a) - statusVal(b);
+                } else {
+                    const as = String(av).toLowerCase();
+                    const bs = String(bv).toLowerCase();
+                    cmp = as < bs ? -1 : (as > bs ? 1 : 0);
+                }
+
+                if (cmp !== 0) {
+                    return dir === 'asc' ? cmp : -cmp;
+                }
             }
-
-            return dir === 'asc' ? cmp : -cmp;
+            return 0;
         });
     },
 
     updateSortIcons() {
         $$('#telaresTable .sortable .sort-icon')
             .forEach(i => i.className = 'fa-solid fa-sort text-gray-400 sort-icon');
+        $$('#inventarioTable .sortable-inventario .sort-icon-inventario')
+            .forEach(i => i.className = 'fa-solid fa-sort text-gray-400 sort-icon-inventario');
+        $$('.sort-priority').forEach(el => el.remove());
 
-        if (!state.sort.column) return;
+        const applyIcon = (selector, sorts, iconClass) => {
+            (sorts || []).forEach((rule, idx) => {
+                const th = $(`${selector}[data-column="${rule.column}"]`);
+                if (!th) return;
 
-        const th = $(`#telaresTable .sortable[data-column="${state.sort.column}"]`);
-        if (!th) return;
+                const icon = th.querySelector(`.${iconClass}`);
+                if (icon) {
+                    icon.className = rule.direction === 'asc'
+                        ? `fa-solid fa-sort-up text-blue-600 ${iconClass}`
+                        : `fa-solid fa-sort-down text-blue-600 ${iconClass}`;
+                }
 
-        th.querySelector('.sort-icon').className =
-            state.sort.direction === 'asc'
-                ? 'fa-solid fa-sort-up text-blue-600 sort-icon'
-                : 'fa-solid fa-sort-down text-blue-600 sort-icon';
+                const btn = th.querySelector('button');
+                if (btn) {
+                    const marker = document.createElement('span');
+                    marker.className = 'sort-priority';
+                    marker.textContent = String(idx + 1);
+                    btn.appendChild(marker);
+                }
+            });
+        };
+
+        applyIcon('#telaresTable .sortable', state.sort.telares, 'sort-icon');
+        applyIcon('#inventarioTable .sortable-inventario', state.sort.inventario, 'sort-icon-inventario');
     },
 
     telares(rows) {
@@ -506,7 +620,7 @@ const render = {
         if (!rows || !rows.length) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="13"
+                    <td colspan="14"
                         class="px-4 py-8 text-center text-sm text-gray-500">
                         No hay datos disponibles
                     </td>
@@ -519,9 +633,18 @@ const render = {
 
         state.telaresData = rows.slice();
 
-        const data = state.sort.column
-            ? this.sorted(rows, state.sort.column, state.sort.direction)
+        const telarFiltros = Object.entries(state.filters.telares || {})
+            .map(([column, value]) => ({ column, value }))
+            .filter(f => String(f.value || '').trim() !== '');
+
+        const filteredRows = telarFiltros.length
+            ? filters.filterLocal(
+                rows,
+                telarFiltros.map(f => ({ columna: f.column, valor: f.value }))
+            )
             : rows;
+
+        const data = this.sorted(filteredRows, state.sort.telares);
 
         const frag = document.createDocumentFragment();
 
@@ -530,7 +653,8 @@ const render = {
             const noJulio     = String(r.no_julio || '').trim();
             const noOrden     = String(r.no_orden || '').trim();
             const hasBoth     = metrosF > 0 && noJulio !== '';
-            const reservado   = (noJulio !== '' && noOrden !== '');
+            const reservado   = isReservado(r) || (noJulio !== '' && noOrden !== '');
+            const programado  = isProgramado(r);
             const tieneNoOrd  = noOrden !== '';
 
             const telarNo     = r.no_telar || '';
@@ -552,7 +676,7 @@ const render = {
 
             const tr = document.createElement('tr');
             tr.className = `selectable-row hover:bg-blue-50 cursor-pointer ${baseBg} ${border}`;
-            tr.dataset.id          = r.id || ''; // ID del registro específico en tej_inventario_telares
+            tr.dataset.id          = r.id || ''; // ID del registro especÃ­fico en tej_inventario_telares
             tr.dataset.baseBg      = baseBg;
             tr.dataset.telar       = telarNo;
             tr.dataset.tipo        = tipoUpper;
@@ -565,15 +689,12 @@ const render = {
             tr.dataset.metros      = r.metros || '';
             tr.dataset.hasBoth     = hasBoth ? 'true' : 'false';
             tr.dataset.isReservado = reservado ? 'true' : 'false';
+            tr.dataset.isProgramado = programado ? 'true' : 'false';
             tr.dataset.tipoAtado   = r.tipo_atado || 'Normal';
-            // Agregar fecha y turno si están disponibles
             if (r.fecha) {
-                try {
-                    const fechaObj = new Date(r.fecha);
-                    if (!isNaN(fechaObj.getTime())) {
-                        tr.dataset.fecha = fechaObj.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-                    }
-                } catch (e) {}
+                const s = String(r.fecha).trim();
+                const match = s.match(/^(\d{4}-\d{2}-\d{2})/);
+                tr.dataset.fecha = match ? match[1] : s;
             }
             if (r.turno) {
                 tr.dataset.turno = String(r.turno);
@@ -592,8 +713,8 @@ const render = {
                 : `<span class="text-gray-800 text-xs font-medium">${tipoAtado}</span>`;
 
             const checkboxChecked  = isInMultiple ? ' checked' : '';
-            const checkboxDisabled = (reservado || tieneNoOrd) ? ' disabled' : '';
-            const checkboxCursor   = (reservado || tieneNoOrd)
+            const checkboxDisabled = (reservado || programado || tieneNoOrd) ? ' disabled' : '';
+            const checkboxCursor   = (reservado || programado || tieneNoOrd)
                 ? 'cursor-not-allowed opacity-50'
                 : 'cursor-pointer';
 
@@ -629,6 +750,15 @@ const render = {
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     ${r.no_orden || ''}
+                </td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
+                    ${
+                        reservado
+                            ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">Reservado</span>'
+                            : (programado
+                                ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">Programado</span>'
+                                : '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700">Libre</span>')
+                    }
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     ${tipoAtadoCell}
@@ -690,7 +820,7 @@ const render = {
                 // Misma cuenta (InventSizeId inicia con cuenta del telar)
                 if (telCuenta && !matchCuenta(telCuenta, r.InventSizeId)) return false;
 
-                // Si el telar ya tiene No. Julio, mostrar sólo esa pieza
+                // Si el telar ya tiene No. Julio, mostrar sÃ³lo esa pieza
                 if (telJulio) return (r.InventSerialId || '') === telJulio;
 
                 // Ocultar piezas asignadas a otro telar
@@ -702,6 +832,19 @@ const render = {
                 return true;
             });
         }
+
+        const inventarioFiltros = Object.entries(state.filters.inventario || {})
+            .map(([column, value]) => ({ column, value }))
+            .filter(f => String(f.value || '').trim() !== '');
+
+        if (inventarioFiltros.length) {
+            data = filters.filterLocal(
+                data,
+                inventarioFiltros.map(f => ({ columna: f.column, valor: f.value }))
+            );
+        }
+
+        data = this.sorted(data, state.sort.inventario);
 
         state.inventarioData = data;
 
@@ -771,7 +914,7 @@ const render = {
     }
 };
 
-/* ---------- Selección ---------- */
+/* ---------- SelecciÃ³n ---------- */
 const selection = {
     clearVisualRow(row) {
         if (!row) return;
@@ -852,7 +995,7 @@ const selection = {
             if (state.mostrarTodoInventario) {
                 if (icon) icon.className = 'fa-solid fa-filter';
                 if (text) text.textContent = 'Aplicar Filtro';
-                btn.title = 'Aplicar filtro y mostrar sólo registros del telar seleccionado';
+                btn.title = 'Aplicar filtro y mostrar solo registros del telar seleccionado';
             } else {
                 if (icon) icon.className = 'fa-solid fa-filter-circle-xmark';
                 if (text) text.textContent = 'Quitar Filtro';
@@ -876,17 +1019,20 @@ const selection = {
             cuenta:   row.dataset.cuenta || '',
             no_julio: row.dataset.noJulio || '',
             no_orden: row.dataset.noOrden || '',
-            is_reservado: row.dataset.isReservado === 'true'
+            reservado: row.dataset.isReservado === 'true',
+            programado: row.dataset.isProgramado === 'true',
+            is_reservado: row.dataset.isReservado === 'true',
+            is_programado: row.dataset.isProgramado === 'true'
         };
 
-        if (item.is_reservado && checked) {
-            toast('info', 'Telar reservado', 'No se puede usar en selección múltiple');
+        if ((item.is_reservado || item.is_programado) && checked) {
+            toast('info', 'Telar no disponible', 'No se puede usar en selecciÃ³n mÃºltiple');
             if (cb) cb.checked = false;
             return;
         }
 
         if (hasNoOrden(item) && checked) {
-            toast('info', 'Telar con orden', 'No se puede usar en selección múltiple');
+            toast('info', 'Telar con orden', 'No se puede usar en selecciÃ³n mÃºltiple');
             if (cb) cb.checked = false;
             return;
         }
@@ -899,25 +1045,25 @@ const selection = {
             if (state.selectedTelares.length) {
                 const ref = state.selectedTelares[0];
 
-                if (isReservado(ref)) {
-                    toast('info', 'Telar reservado en selección',
-                          'No se puede agregar más telares a una selección que contiene telares reservados',
+                if (isReservado(ref) || isProgramado(ref)) {
+                    toast('info', 'Telar no disponible en selecciÃ³n',
+                          'No se puede agregar mÃ¡s telares a una selecciÃ³n con telares reservados o programados',
                           3000);
                     if (cb) cb.checked = false;
                     return;
                 }
 
                 if (hasNoOrden(ref)) {
-                    toast('info', 'Telar con orden en selección',
-                          'No se puede agregar más telares a una selección que contiene telares con orden',
+                    toast('info', 'Telar con orden en selecciÃ³n',
+                          'No se puede agregar mÃ¡s telares a una selecciÃ³n que contiene telares con orden',
                           3000);
                     if (cb) cb.checked = false;
                     return;
                 }
 
                 if (!sameGroup(item, ref)) {
-                    toast('warning', 'Selección incompatible',
-                          'Sólo puedes seleccionar telares con el mismo Tipo, Calibre, Hilo y Salón. La cuenta puede variar.',
+                    toast('warning', 'SelecciÃ³n incompatible',
+                          'SÃ³lo puedes seleccionar telares con el mismo Tipo, Calibre, Hilo y SalÃ³n. La cuenta puede variar.',
                           3000);
                     if (cb) cb.checked = false;
                     return;
@@ -965,7 +1111,7 @@ const selection = {
         const tipoOk = normalizeTipo(row.dataset.tipo);
 
         state.selectedTelar = {
-            id:         row.dataset.id || null, // ID del registro específico en tej_inventario_telares
+            id:         row.dataset.id || null, // ID del registro especÃ­fico en tej_inventario_telares
             no_telar:   row.dataset.telar || null,
             tipo:       tipoOk,
             cuenta:     row.dataset.cuenta || '',
@@ -977,7 +1123,10 @@ const selection = {
             fecha:      row.dataset.fecha || '',
             turno:      row.dataset.turno || '',
             tipo_atado: row.querySelector('.tipo-atado-select')?.value || 'Normal',
-            is_reservado: row.dataset.isReservado === 'true'
+            reservado: row.dataset.isReservado === 'true',
+            programado: row.dataset.isProgramado === 'true',
+            is_reservado: row.dataset.isReservado === 'true',
+            is_programado: row.dataset.isProgramado === 'true'
         };
 
         this.validateButtons();
@@ -1045,7 +1194,7 @@ const selection = {
         const btnReservar      = $('#btnReservar');
         const btnLiberarTelar  = $('#btnLiberarTelar');
 
-        // Liberar telar: sólo telar individual y reservado
+        // Liberar telar: sÃ³lo telar individual y reservado
         if (state.selectedTelar && isReservado(state.selectedTelar)) {
             disable(btnReservar, true);
             disable(btnProgramar, true);
@@ -1066,17 +1215,18 @@ const selection = {
         const hasMultiple   = Array.isArray(state.selectedTelares) && state.selectedTelares.length > 0;
         const hasIndividual = !!(state.selectedTelar && state.selectedTelar.no_telar);
 
-        // Programar (prioridad selección múltiple)
+        // Programar (prioridad selecciÃ³n mÃºltiple)
         if (hasMultiple) {
             const hasReserved = state.selectedTelares.some(isReservado);
+            const hasProgramado = state.selectedTelares.some(isProgramado);
             const hasOrden    = state.selectedTelares.some(hasNoOrden);
-            disable(btnProgramar, hasReserved || hasOrden);
+            disable(btnProgramar, hasReserved || hasProgramado || hasOrden);
             return;
         }
 
         if (hasIndividual && state.selectedTelar) {
             const tel = state.selectedTelar;
-            disable(btnProgramar, isReservado(tel) || hasNoOrden(tel));
+            disable(btnProgramar, isReservado(tel) || isProgramado(tel) || hasNoOrden(tel));
             return;
         }
 
@@ -1087,7 +1237,7 @@ const selection = {
 /* ---------- Filtros ---------- */
 const filters = {
     updateBadge() {
-        const total = state.filters.telares.length + state.filters.inventario.length;
+        const total = Object.keys(state.filters.telares || {}).length + Object.keys(state.filters.inventario || {}).length;
         const badge = $('#filterCount');
 
         if (!badge) return;
@@ -1107,8 +1257,20 @@ const filters = {
 
             const itemVal = item[col];
 
+            if (col === 'estado') {
+                const estado = isReservado(item)
+                    ? 'reservado'
+                    : (isProgramado(item) ? 'programado' : 'libre');
+                return estado.includes(val);
+            }
+
+            if (['reservado', 'programado'].includes(col)) {
+                const normalized = ['1','true','si','sÃ­','yes','activo','reservado','programado'].includes(val);
+                return Boolean(itemVal) === normalized;
+            }
+
             if (col === 'NoTelarId') {
-                if (['null','vacío','vacio','disponible',''].includes(val)) {
+                if (['null','vacÃ­o','vacio','disponible',''].includes(val)) {
                     return !itemVal;
                 }
                 return String(itemVal || '').toLowerCase().includes(val);
@@ -1144,20 +1306,6 @@ const filters = {
     },
 
     async openModal() {
-        if (!state.columns.telares.length) {
-            try {
-                const resp = await http.get(`${API.columnOptions}?table_type=telares`);
-                state.columns.telares = resp.columns || [];
-            } catch (e) {}
-        }
-
-        if (!state.columns.inventario.length) {
-            try {
-                const resp = await http.get(`${API.columnOptions}?table_type=inventario`);
-                state.columns.inventario = resp.columns || [];
-            } catch (e) {}
-        }
-
         const options = type =>
             (state.columns[type] || [])
                 .map(c => `<option value="${c.field}">${c.label}</option>`)
@@ -1196,7 +1344,7 @@ const filters = {
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Tabla</label>
                     <select id="swalTableSel"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                        <option value="telares" selected>Programación de Requerimientos</option>
+                        <option value="telares" selected>ProgramaciÃ³n de Requerimientos</option>
                         <option value="inventario">Inventario Disponible</option>
                     </select>
                 </div>
@@ -1265,7 +1413,7 @@ const filters = {
                 }).filter(Boolean);
 
                 if (!list.length) {
-                    Swal.showValidationMessage('Agrega al menos un filtro válido');
+                    Swal.showValidationMessage('Agrega al menos un filtro vÃ¡lido');
                     return false;
                 }
 
@@ -1299,6 +1447,30 @@ const filters = {
         toast('success', `${list.length} filtro(s) aplicados`, '', 2000);
     },
 
+    applyColumnFilter(table, column, value) {
+        const next = String(value ?? '').trim();
+        if (!next) {
+            delete state.filters[table][column];
+        } else {
+            state.filters[table][column] = next;
+        }
+
+        if (table === 'telares') render.telares(state.telaresDataOriginal);
+        if (table === 'inventario') render.inventario(state.inventarioDataOriginal);
+    },
+
+    clearColumnFilter(table, column) {
+        delete state.filters[table][column];
+        if (table === 'telares') render.telares(state.telaresDataOriginal);
+        if (table === 'inventario') render.inventario(state.inventarioDataOriginal);
+    },
+
+    clearTable(table) {
+        state.filters[table] = {};
+        if (table === 'telares') render.telares(state.telaresDataOriginal);
+        if (table === 'inventario') render.inventario(state.inventarioDataOriginal);
+    },
+
     reset() {
         if (state.telaresDataOriginal.length) {
             render.telares(state.telaresDataOriginal);
@@ -1308,7 +1480,7 @@ const filters = {
             render.inventario(state.inventarioDataOriginal);
         }
 
-        state.filters = { telares: [], inventario: [] };
+        state.filters = { telares: {}, inventario: {} };
         filters.updateBadge();
 
         toast('success', 'Filtros restablecidos', '', 1500);
@@ -1317,12 +1489,33 @@ const filters = {
 
 /* ---------- Sorting ---------- */
 const sorting = {
-    toggle(col) {
-        state.sort = (state.sort.column === col)
-            ? { column: col, direction: state.sort.direction === 'asc' ? 'desc' : 'asc' }
-            : { column: col, direction: 'asc' };
+    toggle(table, col, additive = false) {
+        const current = Array.isArray(state.sort[table]) ? [...state.sort[table]] : [];
+        const idx = current.findIndex(s => s.column === col);
 
-        render.telares(state.telaresData);
+        if (!additive) {
+            if (idx === 0) {
+                if (current[0].direction === 'asc') {
+                    state.sort[table] = [{ column: col, direction: 'desc' }];
+                } else {
+                    state.sort[table] = [];
+                }
+            } else {
+                state.sort[table] = [{ column: col, direction: 'asc' }];
+            }
+        } else if (idx === -1) {
+            current.push({ column: col, direction: 'asc' });
+            state.sort[table] = current;
+        } else if (current[idx].direction === 'asc') {
+            current[idx].direction = 'desc';
+            state.sort[table] = current;
+        } else {
+            current.splice(idx, 1);
+            state.sort[table] = current;
+        }
+
+        if (table === 'telares') render.telares(state.telaresDataOriginal);
+        if (table === 'inventario') render.inventario(state.inventarioDataOriginal);
     },
     bind() {
         $('#telaresTable thead')?.addEventListener('click', e => {
@@ -1332,7 +1525,17 @@ const sorting = {
             const col = th.dataset.column;
             if (!col) return;
 
-            sorting.toggle(col);
+            sorting.toggle('telares', col, e.shiftKey || e.ctrlKey || e.metaKey);
+        });
+
+        $('#inventarioTable thead')?.addEventListener('click', e => {
+            const th = e.target.closest('.sortable-inventario');
+            if (!th) return;
+
+            const col = th.dataset.column;
+            if (!col) return;
+
+            sorting.toggle('inventario', col, e.shiftKey || e.ctrlKey || e.metaKey);
         });
     }
 };
@@ -1343,9 +1546,14 @@ const actions = {
         const multiple = Array.isArray(state.selectedTelares) && state.selectedTelares.length > 0;
         const tel      = state.selectedTelar;
 
-        // Selección múltiple => programar requerimientos
+        // SelecciÃ³n mÃºltiple => programar requerimientos
         if (multiple) {
+            const hasProgramado = state.selectedTelares.some(isProgramado);
             const hasOrden = state.selectedTelares.some(hasNoOrden);
+            if (hasProgramado) {
+                toast('info', 'Telar programado', 'No se puede programar un telar que ya está programado');
+                return;
+            }
             if (hasOrden) {
                 toast('info', 'Telar con orden', 'No se puede programar un telar que ya tiene No. Orden');
                 return;
@@ -1359,8 +1567,8 @@ const actions = {
             return;
         }
 
-        // Selección individual
-        if (tel && tel.no_telar && !isReservado(tel)) {
+        // SelecciÃ³n individual
+        if (tel && tel.no_telar && !isReservado(tel) && !isProgramado(tel)) {
             if (hasNoOrden(tel)) {
                 toast('info', 'Telar con orden', 'No se puede programar un telar que ya tiene No. Orden');
                 return;
@@ -1405,6 +1613,11 @@ const actions = {
             return;
         }
 
+        if (isProgramado(tel)) {
+            toast('info', 'Telar programado', 'No se puede volver a programar un telar ya programado');
+            return;
+        }
+
         if (hasNoOrden(tel)) {
             toast('info', 'Telar con orden', 'No se puede programar un telar que ya tiene No. Orden');
         }
@@ -1427,7 +1640,7 @@ const actions = {
             title: '¿Liberar telar?',
             icon:  'warning',
             showCancelButton: true,
-            confirmButtonText: 'Sí, liberar',
+            confirmButtonText: 'Si, liberar',
             confirmButtonColor: '#dc2626'
         }).then(r => r.isConfirmed);
 
@@ -1438,6 +1651,7 @@ const actions = {
 
         try {
             const resp = await http.post(API.liberarTelar, {
+                id:       tel.id || null,
                 no_telar: tel.no_telar,
                 tipo:     tel.tipo
             });
@@ -1479,7 +1693,7 @@ const actions = {
             return;
         }
 
-        // Validar que el telar tenga ID (requerido para identificar el registro específico)
+        // Validar que el telar tenga ID (requerido para identificar el registro especÃ­fico)
         if (!tel?.id) {
             console.error('Error: El telar seleccionado no tiene ID', tel);
             Swal.fire('Error', 'No se pudo identificar el registro del telar. Por favor, selecciona el telar nuevamente.', 'error');
@@ -1514,7 +1728,7 @@ const actions = {
             text:  `Reservar para telar ${tel.no_telar} (${tel.tipo || 'N/A'})`,
             icon:  'question',
             showCancelButton: true,
-            confirmButtonText: 'Sí, reservar'
+            confirmButtonText: 'Si, reservar'
         }).then(r => r.isConfirmed);
 
         if (!ok) return;
@@ -1528,9 +1742,9 @@ const actions = {
             const localidad = state.selectedInventario.wmsLocationId ||
                               state.selectedInventario.data?.WMSLocationId || '';
 
-            // Actualizar telar - SOLO el registro específico que se está reservando
+            // Actualizar telar - SOLO el registro especÃ­fico que se estÃ¡ reservando
             await http.post(API.actualizarTelar, {
-                id:        tel.id, // ID del registro específico (REQUERIDO para actualizar solo ese registro)
+                id:        tel.id, // ID del registro especÃ­fico (REQUERIDO para actualizar solo ese registro)
                 no_telar:  tel.no_telar,
                 tipo:      tel.tipo,
                 metros:    state.selectedInventario.metros || 0,
@@ -1570,13 +1784,6 @@ const actions = {
             // Reservar inventario
             const it = state.selectedInventario.data;
 
-            // Validar que el ID esté presente antes de construir el payload
-            if (!tel.id) {
-                console.error('Error: tel.id no está presente', tel);
-                Swal.fire('Error', 'No se pudo identificar el registro del telar. Por favor, selecciona el telar nuevamente.', 'error');
-                return;
-            }
-
             const payload = {
                 NoTelarId:       tel.no_telar,
                 SalonTejidoId:   tel.salon || null,
@@ -1594,7 +1801,7 @@ const actions = {
                 ProdDate:        it.ProdDate || null,
                 fecha:           tel.fecha || null,
                 turno:           tel.turno || null,
-                tej_inventario_telares_id: parseInt(tel.id, 10) // ID del registro específico (REQUERIDO - convertir a entero)
+                tej_inventario_telares_id: parseInt(tel.id, 10) // ID del registro especÃ­fico (REQUERIDO - convertir a entero)
             };
 
             await http.post(API.reservarInventario, payload);
@@ -1640,6 +1847,84 @@ document.addEventListener('DOMContentLoaded', async () => {
     sorting.bind();
     render.telares(state.telaresData);
 
+    let contextTarget = { table: null, column: null };
+    const contextMenu = $('#tableContextMenu');
+    const closeContextMenu = () => contextMenu?.classList.add('hidden');
+
+    const openContextMenu = (e, table, column) => {
+        if (!contextMenu || !column) return;
+        e.preventDefault();
+        contextTarget = { table, column };
+        contextMenu.classList.remove('hidden');
+        contextMenu.style.left = `${e.pageX}px`;
+        contextMenu.style.top = `${e.pageY}px`;
+    };
+
+    $('#telaresTable thead')?.addEventListener('contextmenu', e => {
+        const th = e.target.closest('.sortable');
+        if (!th) return;
+        openContextMenu(e, 'telares', th.dataset.column);
+    });
+
+    $('#inventarioTable thead')?.addEventListener('contextmenu', e => {
+        const th = e.target.closest('.sortable-inventario');
+        if (!th) return;
+        openContextMenu(e, 'inventario', th.dataset.column);
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#tableContextMenu')) closeContextMenu();
+    });
+
+    contextMenu?.addEventListener('click', async e => {
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+
+        const { table, column } = contextTarget;
+        if (!table || !column) return;
+
+        if (action === 'filter-column') {
+            const current = state.filters[table]?.[column] || '';
+            const isBooleanFilter = ['reservado', 'programado'].includes(column);
+
+            if (isBooleanFilter) {
+                const result = await Swal.fire({
+                    title: 'Filtrar columna',
+                    input: 'select',
+                    inputOptions: { '1': 'SÃ­', '0': 'No' },
+                    inputValue: current || '1',
+                    showCancelButton: true,
+                    confirmButtonText: 'Aplicar'
+                });
+                if (result.isConfirmed) {
+                    filters.applyColumnFilter(table, column, result.value);
+                }
+            } else {
+                const result = await Swal.fire({
+                    title: 'Filtrar columna',
+                    input: 'text',
+                    inputValue: current,
+                    inputPlaceholder: 'Valor de filtro',
+                    showCancelButton: true,
+                    confirmButtonText: 'Aplicar'
+                });
+                if (result.isConfirmed) {
+                    filters.applyColumnFilter(table, column, result.value);
+                }
+            }
+        }
+
+        if (action === 'clear-column-filter') {
+            filters.clearColumnFilter(table, column);
+        }
+
+        if (action === 'clear-table-filters') {
+            filters.clearTable(table);
+        }
+
+        closeContextMenu();
+    });
+
     // Cargar inventario inicial
     show($('#loaderInventario'));
     try {
@@ -1655,7 +1940,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         hide($('#loaderInventario'));
     }
 
-    // Checkboxes: selección múltiple
+    // Checkboxes: selecciÃ³n mÃºltiple
     $('#telaresTable tbody')?.addEventListener('change', e => {
         const target = e.target;
         if (target.classList.contains('tipo-atado-select')) {
@@ -1707,7 +1992,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         selection.toggleTelarCheckbox(row, target.checked);
     });
 
-    // Click filas telares: selección individual
+    // Click filas telares: selecciÃ³n individual
     $('#telaresTable tbody')?.addEventListener('click', e => {
         if (e.target.closest('button,a') ||
             e.target.type === 'checkbox' ||
@@ -1746,45 +2031,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         selection.applyInventario(row);
     });
 
-    // Topbar
-    $('#btnOpenFilters')?.addEventListener('click', filters.openModal);
-    $('#btnResetFiltros')?.addEventListener('click', filters.reset);
     $('#btnReloadTelares')?.addEventListener('click', filters.reset);
 
-    // Botón quitar/aplicar filtro inventario
-    $('#btnQuitarFiltroInventario')?.addEventListener('click', () => {
-        if (state.mostrarTodoInventario) {
-            // Estaba mostrando todo => volver a filtrar por telar
-            state.mostrarTodoInventario = false;
-            if (state.inventarioDataOriginal.length && state.selectedTelar) {
-                render.inventario(state.inventarioDataOriginal);
-            }
-        } else {
-            // Mostrar todos los registros
-            state.mostrarTodoInventario = true;
-            if (state.inventarioDataOriginal.length) {
-                render.inventario(state.inventarioDataOriginal);
-            }
-
-            // Limpiar selección de inventario
-            selection.clearVisualInventario(
-                $('#inventarioTable .selectable-row-inventario.is-selected')
-            );
-            state.selectedInventario = null;
-            selection.validateButtons();
-        }
-
-        selection.updateFiltroButton();
-
-        toast(
-            'info',
-            state.mostrarTodoInventario
-                ? 'Mostrando todos los registros'
-                : 'Filtro aplicado',
-            '',
-            2000
-        );
-    });
+    // BotÃ³n quitar/aplicar filtro inventario
 
     // Acciones
     $('#btnProgramar')?.addEventListener('click', actions.programar);
@@ -1793,3 +2042,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 @endsection
+

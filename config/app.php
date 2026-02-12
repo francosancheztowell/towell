@@ -133,5 +133,6 @@ return [
     */
     'modules_warmup_on_login' => (bool) env('MODULES_WARMUP_ON_LOGIN', false),
     'service_worker_cleanup' => (bool) env('SERVICE_WORKER_CLEANUP', false),
+    'pwa_enabled' => (bool) env('PWA_ENABLED', true),
 
 ];

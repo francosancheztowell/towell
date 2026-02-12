@@ -1,4 +1,4 @@
-const CACHE = "pwa-v8";
+const CACHE = "pwa-v9";
 const ASSETS = [
   "/", "/offline",
   "/manifest.json",
@@ -49,6 +49,15 @@ self.addEventListener("fetch", (e) => {
     return; // Dejar pasar sin interceptar
   }
 
+  // No cachear navegacion HTML para evitar vistas/modulos obsoletos.
+  const accept = req.headers.get('accept') || '';
+  if (req.mode === 'navigate' || accept.includes('text/html')) {
+    e.respondWith(
+      fetch(req, { cache: 'no-store' }).catch(() => caches.match("/offline"))
+    );
+    return;
+  }
+
   // NO cachear peticiones que requieren autenticación o tienen headers especiales
   if (req.headers.get('Authorization') ||
       req.headers.get('X-CSRF-TOKEN') ||
@@ -62,7 +71,7 @@ self.addEventListener("fetch", (e) => {
     '/guardar', '/eliminar', '/editar', '/crear',
     '/api/auth', '/sanctum',
     '/tejido/', '/inventario-telas/', '/inventario-telares/',
-    '/programa-urd-eng/', '/urdido/', '/engomado/',
+    '/programa-urd-eng/', '/programaurdeng', '/urdido/', '/engomado/',
     '/atadores/', '/tejedores/', '/mantenimiento/',
     '/configuracion/', '/planeacion/'
   ];
@@ -135,7 +144,6 @@ self.addEventListener("fetch", (e) => {
     })
   );
 });
-
 
 
 

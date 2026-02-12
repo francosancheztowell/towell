@@ -4,15 +4,17 @@
 @vite(['resources/js/app.js'])
 
 
-@if(!$simple && config('app.service_worker_cleanup', false))
+@if(
+    !$simple &&
+    (
+        config('app.service_worker_cleanup', false) ||
+        !config('app.pwa_enabled', true)
+    )
+)
     <!-- Service Worker Cleanup -->
     <script>
         (function() {
             if (!('serviceWorker' in navigator)) return;
-            const markerKey = 'towell_sw_cleanup_done';
-
-            if (sessionStorage.getItem(markerKey) === '1') return;
-            sessionStorage.setItem(markerKey, '1');
 
             async function cleanup() {
                 try {
@@ -32,7 +34,6 @@
 @endif
 
 @stack('styles')
-
 
 
 
