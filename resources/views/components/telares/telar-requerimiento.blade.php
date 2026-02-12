@@ -191,16 +191,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        <!-- Fila: Producción en Proceso -->
-                        <tr class="{{ $modalRowClass }}">
-                            <td class="px-4 py-4 border-r border-gray-200 text-center">
-                                <input type="radio" name="seleccion" value="proceso" id="radioProceso" class="{{ $modalRadioClass }}">
-                            </td>
-                            <td class="{{ $modalTdBorderClass }}" id="cuentaProceso">-</td>
-                            <td class="{{ $modalTdBorderClass }}" id="calibreProceso">-</td>
-                            <td class="{{ $modalTdBaseClass }}" id="fibraProceso">-</td>
-                        </tr>
-                        <!-- Fila: Siguiente Orden -->
+                        <!-- Fila: Siguiente Orden (primera) -->
                         <tr class="{{ $modalRowClass }}">
                             <td class="px-4 py-4 border-r border-gray-200 text-center">
                                 <input type="radio" name="seleccion" value="siguiente" id="radioSiguiente" class="{{ $modalRadioClass }}">
@@ -208,6 +199,15 @@
                             <td class="{{ $modalTdBorderClass }}" id="cuentaSiguiente">-</td>
                             <td class="{{ $modalTdBorderClass }}" id="calibreSiguiente">-</td>
                             <td class="{{ $modalTdBaseClass }}" id="fibraSiguiente">-</td>
+                        </tr>
+                        <!-- Fila: Producción en Proceso (segunda) -->
+                        <tr class="{{ $modalRowClass }}">
+                            <td class="px-4 py-4 border-r border-gray-200 text-center">
+                                <input type="radio" name="seleccion" value="proceso" id="radioProceso" class="{{ $modalRadioClass }}">
+                            </td>
+                            <td class="{{ $modalTdBorderClass }}" id="cuentaProceso">-</td>
+                            <td class="{{ $modalTdBorderClass }}" id="calibreProceso">-</td>
+                            <td class="{{ $modalTdBaseClass }}" id="fibraProceso">-</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1572,7 +1572,7 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
             }
         });
 
-        // Si hay selección previa, seleccionar esa opción; si no, seleccionar "Producción en Proceso" por defecto
+        // Si hay selección previa, seleccionar esa opción; si no, seleccionar la primera fila "Siguiente Orden" por defecto
         if (seleccionPrevia) {
             if (seleccionPrevia.seleccion === 'siguiente') {
                 nuevoRadioSiguiente.checked = true;
@@ -1583,14 +1583,14 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
                 // Disparar el evento change para cargar los datos del proceso actual
                 nuevoRadioProceso.dispatchEvent(new Event('change'));
             } else {
-                // Seleccionar por defecto "Producción en Proceso"
-                nuevoRadioProceso.checked = true;
-                nuevoRadioProceso.dispatchEvent(new Event('change'));
+                // Seleccionar por defecto la primera fila "Siguiente Orden"
+                nuevoRadioSiguiente.checked = true;
+                nuevoRadioSiguiente.dispatchEvent(new Event('change'));
             }
         } else {
-            // Seleccionar por defecto "Producción en Proceso"
-            nuevoRadioProceso.checked = true;
-            nuevoRadioProceso.dispatchEvent(new Event('change'));
+            // Seleccionar por defecto la primera fila "Siguiente Orden"
+            nuevoRadioSiguiente.checked = true;
+            nuevoRadioSiguiente.dispatchEvent(new Event('change'));
         }
     });
 }

@@ -29,7 +29,7 @@
                     <span class="font-medium">Todos los telares</span>
                 </button>
                 <div class="border-t border-gray-200 my-1"></div>
-                @foreach($telares as $t)
+                @foreach(collect($telares)->sortBy(fn($v) => (float) $v)->values() as $t)
                     <button
                         type="button"
                         onclick="event.stopPropagation(); irATelar('{{ $t }}');"

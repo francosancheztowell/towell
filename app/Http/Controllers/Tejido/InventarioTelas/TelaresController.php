@@ -121,6 +121,10 @@ class TelaresController extends Controller
                 $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
             }
 
+            $julios = $this->ultimoJulioRizoPiePorTelar($numeroTelar);
+            $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
+            $telarEnProceso->ultimoJulioPie  = $julios['ultimoJulioPie'];
+
             $datosTelaresCompletos[$numeroTelar] = [
                 'telarData' => $telarEnProceso,
                 'ordenSig'  => $ordenSig
@@ -188,6 +192,11 @@ class TelaresController extends Controller
                 $telarEnProceso->Telar = $numeroTelar;
             }
 
+            $candidatosJulio = $this->resolverCandidatosTelar($numeroTelar, 'ITEMA');
+            $julios = $this->ultimoJulioRizoPiePorTelar($candidatosJulio);
+            $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
+            $telarEnProceso->ultimoJulioPie  = $julios['ultimoJulioPie'];
+
             $datosTelaresCompletos[$numeroTelar] = [
                 'telarData' => $telarEnProceso,
                 'ordenSig'  => $ordenSig
@@ -234,6 +243,10 @@ class TelaresController extends Controller
                 $telarEnProceso = $this->objTelarVacio($numeroTelar);
                 $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
             }
+
+            $julios = $this->ultimoJulioRizoPiePorTelar($numeroTelar);
+            $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
+            $telarEnProceso->ultimoJulioPie  = $julios['ultimoJulioPie'];
 
             $datosTelaresCompletos[$numeroTelar] = [
                 'telarData' => $telarEnProceso,
@@ -725,6 +738,41 @@ class TelaresController extends Controller
     }
 
     /**
+     * Último julio Rizo y Pie desde AtaMontadoTelas (los más recientes por Fecha desc, Id desc).
+     * Retorna ['ultimoJulioRizo' => string|null, 'ultimoJulioPie' => string|null].
+     * Si $candidatos es array, se filtra por whereIn(NoTelarId).
+     */
+    private function ultimoJulioRizoPiePorTelar($numeroTelarOrCandidatos): array
+    {
+        $candidatos = is_array($numeroTelarOrCandidatos)
+            ? array_map('strval', $numeroTelarOrCandidatos)
+            : [(string) $numeroTelarOrCandidatos];
+
+        $conn = DB::connection('sqlsrv')->table('AtaMontadoTelas')->whereIn('NoTelarId', $candidatos);
+
+        // Rizo: más reciente por Fecha desc, luego Id desc
+        $rowRizo = (clone $conn)
+            ->where('Tipo', 'Rizo')
+            ->orderByRaw('CAST(Fecha AS DATE) DESC')
+            ->orderByDesc('Id')
+            ->first(['NoJulio']);
+        $rizo = $rowRizo->NoJulio ?? null;
+
+        // Pie: más reciente por Fecha desc, luego Id desc
+        $rowPie = (clone $conn)
+            ->where('Tipo', 'Pie')
+            ->orderByRaw('CAST(Fecha AS DATE) DESC')
+            ->orderByDesc('Id')
+            ->first(['NoJulio']);
+        $pie = $rowPie->NoJulio ?? null;
+
+        return [
+            'ultimoJulioRizo' => $rizo !== null && $rizo !== '' ? (string) $rizo : null,
+            'ultimoJulioPie'  => $pie !== null && $pie !== '' ? (string) $pie : null,
+        ];
+    }
+
+    /**
      * Objeto mínimo para cuando no hay telar en proceso.
      */
     private function objTelarVacio($numeroTelar)
@@ -758,6 +806,8 @@ class TelaresController extends Controller
             'Fecha_Compromiso'  => null,
             'Total_Paros'       => 0,
             'Tiempo_Paro'       => null,
+            'ultimoJulioRizo'   => null,
+            'ultimoJulioPie'    => null,
         ];
     }
 }
