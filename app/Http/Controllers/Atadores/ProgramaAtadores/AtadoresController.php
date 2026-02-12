@@ -841,19 +841,11 @@ class AtadoresController extends Controller
             ]);
 
             $estado = $data['estado'] ? 1 : 0;
-            $updateData = ['Estado' => $estado];
-
-            $schema = Schema::connection('sqlsrv');
-            if ($schema->hasColumn('AtaMontadoMaquinas', 'CveEmpl')) {
-                $updateData['CveEmpl'] = $estado ? $user->numero_empleado : null;
-            }
-            if ($schema->hasColumn('AtaMontadoMaquinas', 'NomEmpleado')) {
-                $updateData['NomEmpleado'] = $estado ? $user->nombre : null;
-            }
-            // Compatibilidad con esquemas anteriores
-            if ($schema->hasColumn('AtaMontadoMaquinas', 'NomEmpl')) {
-                $updateData['NomEmpl'] = $estado ? $user->nombre : null;
-            }
+            $updateData = [
+                'Estado' => $estado,
+                'CveEmpl' => $estado ? $user->numero_empleado : null,
+                'NomEmpleado' => $estado ? $user->nombre : null,
+            ];
 
             // Evitar errores por PK inexistente usando query builder
             DB::connection('sqlsrv')
