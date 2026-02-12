@@ -176,8 +176,9 @@ class ModuloProduccionEngomadoController extends Controller
                 ->with('error', "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.");
         }
 
-        // Actualizar el status a "En Proceso" cuando se carga la página de producción
-        if ($orden->Status !== 'En Proceso') {
+        // Pasar a "En Proceso" solo si está "Programado". No cambiar si ya es "En Proceso" o "Parcial"
+        // (así al entrar y recargar o salir no se pierde el status Parcial)
+        if ($orden->Status === 'Programado') {
             try {
                 $orden->Status = 'En Proceso';
                 $orden->save();
