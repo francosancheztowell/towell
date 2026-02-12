@@ -79,24 +79,24 @@
 
     <div class="overflow-x-auto overflow-y-auto rounded-lg shadow-md bg-white">
         <table class="min-w-full divide-y divide-gray-200 text-md">
-                <thead class="bg-blue-500 sticky top-0 z-10">
+                <thead id="atadoresTableHead" class="bg-blue-500 sticky top-0 z-10">
                     <tr>
-                        <th data-sort="fecha" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Fecha <span class="sort-icon ml-1 opacity-80">▲</span> </th>
-                        <th data-sort="estatus" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Estatus <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="turno" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Turno <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="telar" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Telar <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="tipo" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Tipo <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="julio" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Julio <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="ubicacion" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Ubicación <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="metros" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Metros <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="orden" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Orden <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="tipo-atado" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Tipo <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="cuenta" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Cuenta <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="calibre" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Calibre <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="hilo" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Hilo <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="lote" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Lote <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="no-prov" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> No. Prov. <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="hr-paro" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar"> Hr. Paro <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="fecha" data-column="fecha" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Fecha <span class="sort-icon ml-1 opacity-80">▲</span> </th>
+                        <th data-sort="estatus" data-column="estatus" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Estatus <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="turno" data-column="turno" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Turno <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="telar" data-column="telar" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Telar <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="tipo" data-column="tipo" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="julio" data-column="no-julio" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Julio <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="ubicacion" data-column="ubicacion" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Ubicación <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="metros" data-column="metros" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Metros <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="orden" data-column="no-orden" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Orden <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="tipo-atado" data-column="tipo-atado" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="cuenta" data-column="cuenta" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Cuenta <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="calibre" data-column="calibre" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Calibre <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="hilo" data-column="hilo" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Hilo <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="lote" data-column="lote" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Lote <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="no-prov" data-column="no-prov" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> No. Prov. <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="hr-paro" data-column="hora-paro" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Hr. Paro <span class="sort-icon ml-1 opacity-80"></span> </th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="tb-body">
@@ -236,6 +236,24 @@
     </div>
 </div>
 
+{{-- Context Menu para filtrar columnas --}}
+<div id="tableContextMenu"
+     class="hidden fixed z-50 min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+    <button type="button" data-action="filter-column" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
+        <i class="fa-solid fa-filter text-blue-500"></i>
+        Filtrar columna
+    </button>
+    <button type="button" data-action="clear-column-filter" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
+        <i class="fa-solid fa-eraser text-orange-500"></i>
+        Quitar filtro de columna
+    </button>
+    <hr class="my-1 border-gray-200">
+    <button type="button" data-action="clear-all-filters" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
+        <i class="fa-solid fa-broom text-red-500"></i>
+        Quitar todos los filtros
+    </button>
+</div>
+
 @endsection
 
 @push('scripts')
@@ -250,7 +268,8 @@ let filterState = {
     filtros: @json($vista ? array_filter(explode(',', $vista)) : ($filtroAplicado === 'todos' ? [] : [$filtroAplicado])),
     telaresUsuario: @json($telaresUsuario ?? []),
     esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }},
-    esSupervisor: {{ ($esSupervisor ?? false) ? 'true' : 'false' }}
+    esSupervisor: {{ ($esSupervisor ?? false) ? 'true' : 'false' }},
+    columnFilters: {} // Filtros por columna desde context menu
 };
 
 // Orden por columnas: column = clave de columna, dir = 'asc' | 'desc'
@@ -553,6 +572,209 @@ document.getElementById('modalFiltros')?.addEventListener('click', function(e) {
 
 // Abrir modal con el botón
 document.getElementById('btn-open-filters')?.addEventListener('click', mostrarModalFiltros);
+
+// =================== Context Menu para filtrar columnas ===================
+let contextTarget = { column: null, columnLabel: '' };
+const contextMenu = document.getElementById('tableContextMenu');
+
+function closeContextMenu() {
+    contextMenu?.classList.add('hidden');
+}
+
+function openContextMenu(e, column, label) {
+    if (!contextMenu || !column) return;
+    e.preventDefault();
+    contextTarget = { column, columnLabel: label };
+    contextMenu.classList.remove('hidden');
+    
+    // Posicionar el menú
+    const menuWidth = 220;
+    const menuHeight = 130;
+    let x = e.pageX;
+    let y = e.pageY;
+    
+    // Ajustar si se sale de la pantalla
+    if (x + menuWidth > window.innerWidth) {
+        x = window.innerWidth - menuWidth - 10;
+    }
+    if (y + menuHeight > window.innerHeight + window.scrollY) {
+        y = e.pageY - menuHeight;
+    }
+    
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+}
+
+// Event listener para clic derecho en thead
+document.getElementById('atadoresTableHead')?.addEventListener('contextmenu', function(e) {
+    const th = e.target.closest('.th-sortable');
+    if (!th) return;
+    const column = th.getAttribute('data-column');
+    const label = th.textContent.trim().replace(/[▲▼]/g, '').trim();
+    openContextMenu(e, column, label);
+});
+
+// Cerrar context menu al hacer clic fuera
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#tableContextMenu')) {
+        closeContextMenu();
+    }
+});
+
+// Acciones del context menu
+contextMenu?.addEventListener('click', async function(e) {
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    if (!action) return;
+    
+    const { column, columnLabel } = contextTarget;
+    
+    if (action === 'filter-column' && column) {
+        const currentValue = filterState.columnFilters[column] || '';
+        const result = await Swal.fire({
+            title: `<i class="fa-solid fa-filter text-blue-500 mr-2"></i> Filtrar: ${columnLabel}`,
+            input: 'text',
+            inputValue: currentValue,
+            inputPlaceholder: 'Escribe el valor a buscar...',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-check mr-1"></i> Aplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#3b82f6',
+            cancelButtonColor: '#6b7280',
+            customClass: {
+                input: 'text-lg'
+            }
+        });
+        
+        if (result.isConfirmed) {
+            const value = result.value?.trim() || '';
+            if (value) {
+                filterState.columnFilters[column] = value;
+            } else {
+                delete filterState.columnFilters[column];
+            }
+            applyColumnFilters();
+            updateColumnFilterBadge();
+        }
+    }
+    
+    if (action === 'clear-column-filter' && column) {
+        if (filterState.columnFilters[column]) {
+            delete filterState.columnFilters[column];
+            applyColumnFilters();
+            updateColumnFilterBadge();
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: `Filtro de "${columnLabel}" eliminado`,
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+    }
+    
+    if (action === 'clear-all-filters') {
+        const filterCount = Object.keys(filterState.columnFilters).length;
+        if (filterCount > 0) {
+            filterState.columnFilters = {};
+            applyColumnFilters();
+            updateColumnFilterBadge();
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: `${filterCount} filtro(s) eliminados`,
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+    }
+    
+    closeContextMenu();
+});
+
+// Aplicar filtros por columna
+function applyColumnFilters() {
+    const rows = document.querySelectorAll('.table-row');
+    const filters = filterState.columnFilters;
+    const hasColumnFilters = Object.keys(filters).length > 0;
+    
+    rows.forEach(row => {
+        let matchesColumnFilter = true;
+        
+        if (hasColumnFilters) {
+            for (const [col, val] of Object.entries(filters)) {
+                const dataAttr = `data-${col}`;
+                const cellValue = (row.getAttribute(dataAttr) || '').toLowerCase();
+                const searchValue = val.toLowerCase();
+                
+                if (!cellValue.includes(searchValue)) {
+                    matchesColumnFilter = false;
+                    break;
+                }
+            }
+        }
+        
+        // Si tiene filtros de columna y no coincide, ocultar
+        if (!matchesColumnFilter) {
+            row.style.display = 'none';
+        } else {
+            // Verificar también los filtros de status existentes
+            const status = row.getAttribute('data-status') || 'Activo';
+            const noTelar = row.getAttribute('data-telar') || '';
+            const statusFilters = filterState.filtros || [];
+            
+            let matchesStatusFilter = true;
+            if (statusFilters.length > 0) {
+                matchesStatusFilter = statusFilters.some(f => statusMatchesFilter(status, noTelar, f));
+            }
+            
+            row.style.display = matchesStatusFilter ? '' : 'none';
+        }
+    });
+    
+    // Verificar si hay filas visibles
+    const tbody = document.getElementById('tb-body');
+    const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
+    let emptyRow = tbody?.querySelector('tr.no-results');
+    
+    if (visibleRows.length === 0) {
+        if (!emptyRow) {
+            emptyRow = document.createElement('tr');
+            emptyRow.className = 'no-results';
+            emptyRow.innerHTML = '<td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">No hay registros que coincidan con los filtros aplicados</td>';
+            tbody?.appendChild(emptyRow);
+        }
+    } else if (emptyRow) {
+        emptyRow.remove();
+    }
+}
+
+// Actualizar badge de filtros por columna
+function updateColumnFilterBadge() {
+    const filterCount = Object.keys(filterState.columnFilters).length;
+    let badge = document.getElementById('column-filter-badge');
+    
+    if (filterCount > 0) {
+        // Resaltar columnas con filtro activo
+        document.querySelectorAll('#atadoresTableHead th[data-column]').forEach(th => {
+            const col = th.getAttribute('data-column');
+            if (filterState.columnFilters[col]) {
+                th.classList.add('bg-green-600');
+                th.classList.remove('bg-blue-500');
+            } else {
+                th.classList.remove('bg-green-600');
+                th.classList.add('bg-blue-500');
+            }
+        });
+    } else {
+        // Restaurar colores originales
+        document.querySelectorAll('#atadoresTableHead th[data-column]').forEach(th => {
+            th.classList.remove('bg-green-600');
+            th.classList.add('bg-blue-500');
+        });
+    }
+}
 
 // Inicializar filtros y orden al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
