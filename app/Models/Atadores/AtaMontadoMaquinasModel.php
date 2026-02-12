@@ -21,6 +21,6 @@ class AtaMontadoMaquinasModel extends Model
         'Estado',
         'CveEmpl',
         'NomEmpleado',
-        'NomEmpl',
+        // 'NomEmpl',
     ]; 
 }

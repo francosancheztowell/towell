@@ -841,21 +841,8 @@ class AtadoresController extends Controller
             ]);
 
             $estado = $data['estado'] ? 1 : 0;
-            $updateData = ['Estado' => $estado];
 
-            $schema = Schema::connection('sqlsrv');
-            if ($schema->hasColumn('AtaMontadoMaquinas', 'CveEmpl')) {
-                $updateData['CveEmpl'] = $estado ? $user->numero_empleado : null;
-            }
-            if ($schema->hasColumn('AtaMontadoMaquinas', 'NomEmpleado')) {
-                $updateData['NomEmpleado'] = $estado ? $user->nombre : null;
-            }
-            // Compatibilidad con esquemas anteriores
-            if ($schema->hasColumn('AtaMontadoMaquinas', 'NomEmpl')) {
-                $updateData['NomEmpl'] = $estado ? $user->nombre : null;
-            }
-
-            // Evitar errores por PK inexistente usando query builder
+            // Solo guardar el estado (1 o 0)
             DB::connection('sqlsrv')
                 ->table('AtaMontadoMaquinas')
                 ->updateOrInsert(
@@ -864,18 +851,12 @@ class AtadoresController extends Controller
                         'NoProduccion' => $montado->NoProduccion,
                         'MaquinaId' => $data['maquinaId'],
                     ],
-                    $updateData
+                    ['Estado' => $estado]
                 );
-
-            $operador = $estado ? trim(($user->numero_empleado ?? '') . ' - ' . ($user->nombre ?? '')) : '-';
 
             return response()->json([
                 'ok' => true,
-                'message' => 'Estado de máquina actualizado',
-                'operador' => $operador,
-                'cveEmpl' => $estado ? $user->numero_empleado : null,
-                'nomEmpl' => $estado ? $user->nombre : null,
-                'nomEmpleado' => $estado ? $user->nombre : null
+                'message' => 'Estado de máquina actualizado'
             ]);
         }
 
