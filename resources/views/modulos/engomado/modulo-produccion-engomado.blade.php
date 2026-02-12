@@ -978,6 +978,31 @@
                 }
             }
 
+            // Disponibles para actualizar* (deben estar en el mismo ámbito)
+            function esFilaBloqueada(registroId) {
+                const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                if (!row) return false;
+                const checkbox = row.querySelector('.checkbox-finalizar');
+                return checkbox && checkbox.checked;
+            }
+            function verificarFilaNoFinalizada(registroId) {
+                if (esFilaBloqueada(registroId)) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Registro finalizado',
+                            text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
+                            timer: 2500,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                    }
+                    return false;
+                }
+                return true;
+            }
+
             // ===== Llamadas al backend =====
             async function actualizarFecha(registroId, fecha) {
                 if (!verificarFilaNoFinalizada(registroId)) return;
@@ -1752,13 +1777,7 @@
                     });
                 }
 
-                function esFilaBloqueada(registroId) {
-                    const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
-                    if (!row) return false;
-                    const checkbox = row.querySelector('.checkbox-finalizar');
-                    return checkbox && checkbox.checked;
-                }
-
+                // esFilaBloqueada y verificarFilaNoFinalizada están en el ámbito exterior del IIFE
                 if (tablaBody) {
                     tablaBody.querySelectorAll('.checkbox-finalizar:checked').forEach(checkbox => {
                         const row = checkbox.closest('tr');
@@ -1852,24 +1871,6 @@
                             Swal.fire({ icon: 'error', title: 'Error', text: 'Error al actualizar el registro. Por favor, intenta nuevamente.' });
                         }
                     }
-                }
-
-                function verificarFilaNoFinalizada(registroId) {
-                    if (esFilaBloqueada(registroId)) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'info',
-                                title: 'Registro finalizado',
-                                text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
-                                timer: 2500,
-                                showConfirmButton: false,
-                                toast: true,
-                                position: 'top-end'
-                            });
-                        }
-                        return false;
-                    }
-                    return true;
                 }
 
                 // Remover borde rojo cuando el usuario corrige los campos
