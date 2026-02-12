@@ -311,6 +311,30 @@
 </div>
 
 <script>
+// Scroll al telar después de reload (se ejecuta una sola vez, fuera del scope del telar)
+if (!window._scrollToTelarDone) {
+    window._scrollToTelarDone = true;
+    document.addEventListener('DOMContentLoaded', function() {
+        const scrollTelarId = sessionStorage.getItem('scrollToTelar');
+        if (scrollTelarId) {
+            sessionStorage.removeItem('scrollToTelar');
+            // Pequeño delay para asegurar que el DOM esté completamente renderizado
+            setTimeout(() => {
+                const telarElement = document.getElementById('telar-' + scrollTelarId);
+                if (telarElement) {
+                    telarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Resaltar brevemente el telar para que sea fácil de identificar
+                    telarElement.style.transition = 'box-shadow 0.3s ease';
+                    telarElement.style.boxShadow = '0 0 0 4px #3b82f6';
+                    setTimeout(() => {
+                        telarElement.style.boxShadow = '';
+                    }, 2500);
+                }
+            }, 500);
+        }
+    });
+}
+
 (function() {
     // Crear scope aislado para este telar
     const telarId = {{ $telar->Telar }};
@@ -2805,7 +2829,6 @@ window.seleccionarTurno = function(turno, btnElement) {
 
     // Verificar si el turno está ocupado (deshabilitado)
     if (btn.disabled) {
-        // Si el turno está ocupado, mostrar alerta
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'warning',
@@ -2820,24 +2843,36 @@ window.seleccionarTurno = function(turno, btnElement) {
 
     if (!window.checkboxPendienteCalendario || !window.telarIdPendienteCalendario || !window.fechaSeleccionadaCalendario) {
         console.error('Faltan datos necesarios para actualizar');
-        if (typeof window.cerrarModalCalendarioSemanal === 'function') {
-            window.cerrarModalCalendarioSemanal();
-        }
         return;
     }
 
-    // Guardar referencias antes de actualizar
-    const checkbox = window.checkboxPendienteCalendario;
+    // Guardar referencias antes de limpiar
     const telarId = window.telarIdPendienteCalendario;
     const tipo = window.tipoPendienteCalendario;
     const turnoOriginal = window.turnoPendienteCalendario;
     const fechaOriginal = window.fechaOriginalPendienteCalendario;
     const fechaNueva = window.fechaSeleccionadaCalendario;
 
-    // Cerrar el modal antes de actualizar
-    if (typeof window.cerrarModalCalendarioSemanal === 'function') {
-        window.cerrarModalCalendarioSemanal();
-    }
+    // Limpiar TODAS las variables globales ANTES de cerrar modales
+    // Esto evita que cerrarModalCalendarioSemanal restaure el modal 1
+    window.datosEliminacionPendiente = null;
+    window.checkboxEliminacionPendiente = null;
+    window.checkboxPendienteCalendario = null;
+    window.telarIdPendienteCalendario = null;
+    window.tipoPendienteCalendario = null;
+    window.turnoPendienteCalendario = null;
+    window.fechaOriginalPendienteCalendario = null;
+    window.registroIdPendienteCalendario = null;
+    window.fechaSeleccionadaCalendario = null;
+    window.telarDataPendiente = null;
+    window.telarDataCompleto = null;
+
+    // Ocultar AMBOS modales directamente (sin usar cerrarModalCalendarioSemanal que restaura modal 1)
+    document.querySelectorAll('#modalCalendarioSemanal, #modalTelaReservada').forEach(modal => {
+        modal.setAttribute('style', 'display: none !important; visibility: hidden !important;');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    });
 
     // Actualizar la fecha y turno del registro
     const datosActualizar = {
@@ -2849,7 +2884,7 @@ window.seleccionarTurno = function(turno, btnElement) {
         turno_nuevo: turno
     };
 
-    // Hacer la petición de actualización y luego recargar la página
+    // Hacer la petición de actualización directamente (sin modales intermedios)
     axios.post('/inventario-telares/actualizar-fecha', datosActualizar, {
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -2857,7 +2892,11 @@ window.seleccionarTurno = function(turno, btnElement) {
         }
     })
     .then(() => {
-        // Recargar la página después de actualizar
+        // Recargar la página y hacer scroll al telar actualizado
+        // Usar hash para que al recargar se posicione en el telar
+        const anchorId = 'telar-' + telarId;
+        // Guardar el telar en sessionStorage para hacer scroll después del reload
+        sessionStorage.setItem('scrollToTelar', telarId);
         window.location.reload();
     })
     .catch(error => {
@@ -2869,7 +2908,6 @@ window.seleccionarTurno = function(turno, btnElement) {
                 showConfirmButton: true
             });
         }
-        // Si hay error, no recargar para que el usuario pueda intentar de nuevo
     });
 }
 

@@ -94,7 +94,7 @@
     });
 @endphp
 
-<div class="telar-section bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+<div id="telar-{{ $telar->Telar }}" class="telar-section bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden" data-salon="{{ ucfirst($tipo) }}">
     <!-- Header dinámico -->
     @if($isActive)
         <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 relative">
