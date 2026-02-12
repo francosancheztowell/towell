@@ -305,7 +305,9 @@
   @endif
 
   <script src="{{ asset('js/simple-click-sounds.js') }}"></script>
-  <script src="{{ asset('js/app-pwa.js') }}"></script>
+  @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
+    <script src="{{ asset('js/app-pwa.js') }}"></script>
+  @endif
 
   <script>
     // La función resetColumnsSpin ya está expuesta en app-filters.js

@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\SetSqlContextInfo::class,
             \App\Http\Middleware\ProgramaTejidoContext::class,
+            \App\Http\Middleware\NoCacheHtmlResponses::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

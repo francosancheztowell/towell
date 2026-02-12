@@ -130,7 +130,7 @@ WHERE fk.parent_object_id = OBJECT_ID('dbo.InvTelasReservadas')
 
 Después de crear las columnas y la FK, necesitas actualizar el código:
 
-### En `InvTelasReservadasController::reservar()`:
+### En `ReservaInventarioController::reservar()` o en `InventarioReservasService::ejecutarReserva()`:
 ```php
 // Agregar FechaReserva y TurnoReserva al crear la reserva
 $data['FechaReserva'] = $data['fecha'] ?? null;

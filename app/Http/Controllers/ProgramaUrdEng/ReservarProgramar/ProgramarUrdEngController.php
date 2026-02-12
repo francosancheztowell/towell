@@ -1,202 +1,79 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Models\Urdido\UrdProgramaUrdido;
 use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Urdido\UrdJuliosOrden;
-use App\Models\Urdido\UrdConsumoHilo;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Tejido\TejInventarioTelares;
-use App\Helpers\TurnoHelper;
+use App\Models\Urdido\UrdConsumoHilo;
+use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-
-use Illuminate\Support\Facades\Auth;
-
+/**
+ * Crea órdenes de urdido y engomado.
+ * Orden de guardado: Folio CH → Folio URD/ENG → UrdProgramaUrdido → UrdConsumoHilo → UrdJuliosOrden → EngProgramaEngomado → actualizar no_orden en TejInventarioTelares.
+ */
 class ProgramarUrdEngController extends Controller
 {
-    /**
-     * Crear órdenes de urdido y engomado
-     * Guarda en las 4 tablas en el orden correcto:
-     * 1. Generar FolioConsumo (CH) para tabla 3
-     * 2. Generar Folio (URD/ENG) para tabla 2
-     * 3. Guardar Tabla 2 (UrdProgramaUrdido) PRIMERO (necesario porque Tabla 3 tiene FK)
-     * 4. Guardar Tabla 3 (UrdConsumoHilo) con Folio (FK) y FolioConsumo (CH)
-     * 5. Guardar Tabla 4 (UrdJuliosOrden) con Folio de tabla 2
-     * 6. Guardar Tabla 5 (EngProgramaEngomado) con Folio de tabla 2
-     *
-     * Nota: Tabla 3 requiere Folio (NOT NULL, FK) por lo que debe crearse después de Tabla 2
-     */
-    public function crearOrdenes(Request $request)
+    private const STATUS_ACTIVO = 'Activo';
+
+    public function crearOrdenes(Request $request): JsonResponse
     {
+        $request->validate([
+            'grupo' => 'required|array',
+            'materialesEngomado' => 'required|array',
+            'construccionUrdido' => 'required|array',
+            'datosEngomado' => 'required|array',
+        ]);
+
+        $grupo = $request->input('grupo');
+        $materialesEngomado = $request->input('materialesEngomado', []);
+        $construccionUrdido = $request->input('construccionUrdido', []);
+        $datosEngomado = $request->input('datosEngomado', []);
+
+        $usuario = Auth::user();
+        $numeroEmpleado = $usuario->numero_empleado ?? null;
+        $nombreEmpleado = $usuario->nombre ?? null;
+
         try {
             DB::beginTransaction();
 
-            // Validar datos recibidos
-            $request->validate([
-                'grupo' => 'required|array',
-                'materialesEngomado' => 'required|array',
-                'construccionUrdido' => 'required|array',
-                'datosEngomado' => 'required|array',
-            ]);
+            $folioConsumo = SSYSFoliosSecuencia::nextFolio('CambioHilo', 5)['folio'];
+            $folio = $this->obtenerFolioUrdEng();
 
-            $grupo = $request->input('grupo');
-            $materialesEngomado = $request->input('materialesEngomado', []);
-            $construccionUrdido = $request->input('construccionUrdido', []);
-            $datosEngomado = $request->input('datosEngomado', []);
+            $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
+            $tipo = $this->normalizeTipo($grupo['tipo'] ?? null);
 
-            // Obtener turno actual y usuario
-            $turno = TurnoHelper::getTurnoActual();
-            $usuario = Auth::user();
-            $numeroEmpleado = $usuario->numero_empleado ?? null;
-            $nombreEmpleado = $usuario->nombre ?? null;
-
-            // =================== PASO 1: Generar FolioConsumo (CH) para tabla 3 ===================
-            $folioConsumoData = SSYSFoliosSecuencia::nextFolio('CambioHilo', 5);
-            $folioConsumo = $folioConsumoData['folio']; // Ejemplo: "CH00001"
-
-            // =================== PASO 2: Generar Folio (URD/ENG) para tabla 2 ===================
-            // IMPORTANTE: Este Folio será usado como no_orden en TejInventarioTelares
-            // Intenta primero por módulo 'URD/ENG', si no encuentra o hay error, busca por ID 14
-            try {
-                $folioData = SSYSFoliosSecuencia::nextFolio('URD/ENG', 5);
-            } catch (\Exception $e) {
-                // Si no se encuentra por módulo, intentar por ID 14
-                $folioData = SSYSFoliosSecuencia::nextFolioById(14, 5);
-            }
-            $folio = $folioData['folio']; // Ejemplo: "00001" o "URD00001" (dependiendo del prefijo configurado)
-
-            // Obtener ItemId de la BOM de engomado para BomFormula (se usa en urdido y engomado)
-            $bomFormula = null;
-            $bomEngId = $datosEngomado['lMatEngomado'] ?? null;
-            if ($bomEngId) {
-                try {
-                    $bomItem = DB::connection('sqlsrv_ti')
-                        ->table('BOM')
-                        ->where('BOMID', $bomEngId)
-                        ->where('DATAAREAID', 'PRO')
-                        ->where('ITEMID', 'like', 'TE-PD-ENF%')
-                        ->select('ITEMID')
-                        ->first();
-
-                    if ($bomItem && isset($bomItem->ITEMID)) {
-                        $bomFormula = $bomItem->ITEMID;
-                    }
-                } catch (\Throwable $e) {
-                    Log::warning('Error al obtener ItemId de BOM de engomado', [
-                        'bomId' => $bomEngId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            // Obtener TipoAtado del grupo (tabla 1) - puede ser "Normal" o "Especial"
+            $bomFormula = $this->obtenerBomFormula($datosEngomado['lMatEngomado'] ?? null);
             $tipoAtado = $grupo['tipoAtado'] ?? '';
             $bomUrdId = trim($grupo['bomId'] ?? '');
+            $loteProveedor = $this->obtenerLoteProveedor($materialesEngomado);
+            $fechaReq = $this->obtenerFechaReq($telaresStr, $tipo, $grupo['fechaReq'] ?? null);
 
-            // =================== PASO 3: Guardar Tabla 2 (UrdProgramaUrdido) PRIMERO ===================
-            // Obtener InventBatchId del primer material que lo tenga para LoteProveedor
-            $loteProveedor = null;
-            foreach ($materialesEngomado as $material) {
-                if (!empty($material['inventBatchId'])) {
-                    $loteProveedor = $material['inventBatchId'];
-                    break;
-                }
-            }
-
-            // Obtener FechaReq desde el campo fecha de tej_inventario_telares
-            $fechaReq = null;
-            $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
-            $tipo = $grupo['tipo'] ?? null;
-
-            if ($telaresStr) {
-                // Normalizar tipo (Rizo/Pie)
-                if ($tipo) {
-                    $tipoUpper = strtoupper(trim($tipo));
-                    if ($tipoUpper === 'RIZO') {
-                        $tipo = 'Rizo';
-                    } elseif ($tipoUpper === 'PIE') {
-                        $tipo = 'Pie';
-                    }
-                }
-
-                // Si hay múltiples telares separados por coma, buscar todos
-                $telaresArray = explode(',', $telaresStr);
-                $fechasEncontradas = [];
-
-                foreach ($telaresArray as $noTelar) {
-                    $noTelar = trim($noTelar);
-                    if (empty($noTelar)) continue;
-
-                    // Buscar el telar por no_telar y tipo si está disponible
-                    $query = TejInventarioTelares::where('no_telar', $noTelar)
-                        ->where('status', 'Activo');
-
-                    if ($tipo) {
-                        $query->where('tipo', $tipo);
-                    }
-
-                    $telar = $query->first();
-                    if ($telar && $telar->fecha) {
-                        // Guardar la fecha encontrada
-                        $fechasEncontradas[] = $telar->fecha;
-                    }
-                }
-
-                // Si se encontraron fechas, usar la más antigua (mínima)
-                if (!empty($fechasEncontradas)) {
-                    // Convertir todas las fechas a Carbon para compararlas correctamente
-                    $fechasCarbon = [];
-                    foreach ($fechasEncontradas as $fecha) {
-                        try {
-                            if ($fecha instanceof Carbon) {
-                                $fechasCarbon[] = $fecha;
-                            } elseif (is_string($fecha)) {
-                                $fechasCarbon[] = Carbon::parse($fecha);
-                            } else {
-                                // Intentar convertir usando Carbon
-                                $fechasCarbon[] = Carbon::parse($fecha);
-                            }
-                        } catch (\Exception $e) {
-                            // Si falla el parseo, ignorar esta fecha
-                            continue;
-                        }
-                    }
-
-                    // Si hay fechas válidas, obtener la mínima
-                    if (!empty($fechasCarbon)) {
-                        $fechaMinima = min($fechasCarbon);
-                        $fechaReq = $fechaMinima->format('Y-m-d');
-                    }
-                }
-            }
-
-            // Si no se encontró fecha en inventario, usar la del grupo como fallback
-            if (!$fechaReq && isset($grupo['fechaReq']) && $grupo['fechaReq']) {
-                $fechaReq = $grupo['fechaReq'];
-            }
-
-            // Necesitamos crear Tabla 2 primero para que Tabla 3 pueda referenciar el Folio
-            $programaUrdido = UrdProgramaUrdido::create([
+            UrdProgramaUrdido::create([
                 'Folio' => $folio,
-                'FolioConsumo' => $folioConsumo, // Vinculado con tabla 3 (se guardará después)
+                'FolioConsumo' => $folioConsumo,
                 'NoTelarId' => $telaresStr,
-                'RizoPie' => $tipo, // Rizo o Pie
+                'RizoPie' => $tipo,
                 'Cuenta' => $grupo['cuenta'] ?? null,
-                'Calibre' => isset($grupo['calibre']) ? (float)$grupo['calibre'] : null,
+                'Calibre' => isset($grupo['calibre']) ? (float) $grupo['calibre'] : null,
                 'FechaReq' => $fechaReq,
-                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null, // ConfigId (Hilo) se guarda en Fibra
-                'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null, // InventSizeId (Tamaño)
-                'Metros' => isset($grupo['metros']) ? (float)$grupo['metros'] : null,
-                'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
+                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
+                'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null,
+                'Metros' => isset($grupo['metros']) ? (float) $grupo['metros'] : null,
+                'Kilos' => isset($grupo['kilos']) ? (float) $grupo['kilos'] : null,
                 'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,
                 'MaquinaId' => $grupo['maquinaId'] ?? null,
-                'BomId' => $bomUrdId, // L.Mat Urdido
+                'BomId' => $bomUrdId,
                 'FechaProg' => now()->format('Y-m-d'),
                 'Status' => $grupo['status'] ?? 'Activo',
                 'BomFormula' => $bomFormula,
@@ -206,13 +83,10 @@ class ProgramarUrdEngController extends Controller
                 'LoteProveedor' => $loteProveedor,
             ]);
 
-            // =================== PASO 4: Guardar Tabla 3 (UrdConsumoHilo) CON Folio de Tabla 2 ===================
-            // Ahora podemos guardar Tabla 3 porque ya tenemos el Folio de Tabla 2
-            // Tabla 3 guarda FolioConsumo (CH) y Folio (URD/ENG) que referencia a Tabla 2
             foreach ($materialesEngomado as $material) {
                 UrdConsumoHilo::create([
-                    'Folio' => $folio, // FK a UrdProgramaUrdido (requerido, NOT NULL)
-                    'FolioConsumo' => $folioConsumo, // Consecutivo propio (CambioHilo - CH)
+                    'Folio' => $folio,
+                    'FolioConsumo' => $folioConsumo,
                     'ItemId' => $material['itemId'] ?? null,
                     'ConfigId' => $material['configId'] ?? null,
                     'InventSizeId' => $material['inventSizeId'] ?? null,
@@ -221,54 +95,51 @@ class ProgramarUrdEngController extends Controller
                     'InventBatchId' => $material['inventBatchId'] ?? null,
                     'WMSLocationId' => $material['wmsLocationId'] ?? null,
                     'InventSerialId' => $material['inventSerialId'] ?? null,
-                    'InventQty' => isset($material['kilos']) ? (float)$material['kilos'] : null,
+                    'InventQty' => isset($material['kilos']) ? (float) $material['kilos'] : null,
                     'ProdDate' => $this->parseProdDate($material['prodDate'] ?? null),
                     'Status' => $material['status'] ?? 'Activo',
                     'NumeroEmpleado' => $material['numeroEmpleado'] ?? $numeroEmpleado,
                     'NombreEmpl' => $material['nombreEmpl'] ?? $nombreEmpleado,
-                    'Conos' => isset($material['conos']) ? (int)$material['conos'] : null,
+                    'Conos' => isset($material['conos']) ? (int) $material['conos'] : null,
                     'LoteProv' => $material['loteProv'] ?? null,
                     'NoProv' => $material['noProv'] ?? null,
                 ]);
             }
 
-            // =================== PASO 5: Guardar Tabla 4 (UrdJuliosOrden) ===================
             foreach ($construccionUrdido as $julio) {
                 if (!empty($julio['julios']) || !empty($julio['hilos'])) {
                     UrdJuliosOrden::create([
                         'Folio' => $folio,
-                        'Julios' => isset($julio['julios']) && $julio['julios'] !== '' ? (int)$julio['julios'] : null,
-                        'Hilos' => isset($julio['hilos']) && $julio['hilos'] !== '' ? (int)$julio['hilos'] : null,
+                        'Julios' => isset($julio['julios']) && $julio['julios'] !== '' ? (int) $julio['julios'] : null,
+                        'Hilos' => isset($julio['hilos']) && $julio['hilos'] !== '' ? (int) $julio['hilos'] : null,
                         'Obs' => $julio['observaciones'] ?? null,
                     ]);
                 }
             }
 
-            // =================== PASO 6: Guardar Tabla 5 (EngProgramaEngomado) ===================
-            // Usar la misma fechaReq obtenida de tej_inventario_telares
             EngProgramaEngomado::create([
                 'Folio' => $folio,
                 'NoTelarId' => $telaresStr,
                 'RizoPie' => $tipo,
                 'Cuenta' => $grupo['cuenta'] ?? null,
-                'Calibre' => isset($grupo['calibre']) ? (float)$grupo['calibre'] : null,
+                'Calibre' => isset($grupo['calibre']) ? (float) $grupo['calibre'] : null,
                 'FechaReq' => $fechaReq,
-                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null, // ConfigId (Hilo) se guarda en Fibra
-                'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null, // InventSizeId (Tamaño)
-                'Metros' => isset($grupo['metros']) ? (float)$grupo['metros'] : null,
-                'Kilos' => isset($grupo['kilos']) ? (float)$grupo['kilos'] : null,
+                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
+                'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null,
+                'Metros' => isset($grupo['metros']) ? (float) $grupo['metros'] : null,
+                'Kilos' => isset($grupo['kilos']) ? (float) $grupo['kilos'] : null,
                 'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,
                 'MaquinaUrd' => $grupo['maquinaId'] ?? null,
                 'BomUrd' => $grupo['bomId'] ?? null,
                 'FechaProg' => now()->format('Y-m-d'),
                 'Status' => $grupo['status'] ?? 'Activo',
-                'Nucleo' => isset($datosEngomado['nucleo']) && $datosEngomado['nucleo'] !== '' ? (string)$datosEngomado['nucleo'] : null,
-                'NoTelas' => isset($datosEngomado['noTelas']) && $datosEngomado['noTelas'] !== '' ? (int)$datosEngomado['noTelas'] : null,
-                'AnchoBalonas' => isset($datosEngomado['anchoBalonas']) && $datosEngomado['anchoBalonas'] !== '' ? (int)$datosEngomado['anchoBalonas'] : null,
-                'MetrajeTelas' => isset($datosEngomado['metrajeTelas']) && $datosEngomado['metrajeTelas'] !== '' ? (float)str_replace(',', '', $datosEngomado['metrajeTelas']) : null,
-                'Cuentados' => isset($datosEngomado['cuendeadosMin']) && $datosEngomado['cuendeadosMin'] !== '' ? (int)$datosEngomado['cuendeadosMin'] : null,
+                'Nucleo' => isset($datosEngomado['nucleo']) && $datosEngomado['nucleo'] !== '' ? (string) $datosEngomado['nucleo'] : null,
+                'NoTelas' => isset($datosEngomado['noTelas']) && $datosEngomado['noTelas'] !== '' ? (int) $datosEngomado['noTelas'] : null,
+                'AnchoBalonas' => isset($datosEngomado['anchoBalonas']) && $datosEngomado['anchoBalonas'] !== '' ? (int) $datosEngomado['anchoBalonas'] : null,
+                'MetrajeTelas' => isset($datosEngomado['metrajeTelas']) && $datosEngomado['metrajeTelas'] !== '' ? (float) str_replace(',', '', $datosEngomado['metrajeTelas']) : null,
+                'Cuentados' => isset($datosEngomado['cuendeadosMin']) && $datosEngomado['cuendeadosMin'] !== '' ? (int) $datosEngomado['cuendeadosMin'] : null,
                 'MaquinaEng' => $datosEngomado['maquinaEngomado'] ?? null,
-                'BomEng' => $bomEngId,
+                'BomEng' => $datosEngomado['lMatEngomado'] ?? null,
                 'Obs' => $datosEngomado['observaciones'] ?? null,
                 'BomFormula' => $bomFormula,
                 'TipoAtado' => $tipoAtado,
@@ -277,45 +148,7 @@ class ProgramarUrdEngController extends Controller
                 'LoteProveedor' => $loteProveedor,
             ]);
 
-            // =================== PASO 7: Actualizar no_orden en TejInventarioTelares ===================
-            // IMPORTANTE: El no_orden debe ser el mismo que el Folio generado
-            // Usar las variables ya normalizadas ($telaresStr y $tipo)
-            $telaresActualizados = 0;
-            $telaresNoEncontrados = [];
-
-            if ($telaresStr) {
-                // Si hay múltiples telares separados por coma, actualizar cada uno
-                $telaresArray = explode(',', $telaresStr);
-                foreach ($telaresArray as $noTelar) {
-                    $noTelar = trim($noTelar);
-                    if (empty($noTelar)) continue;
-
-                    // Buscar el telar por no_telar y tipo si está disponible
-                    $query = TejInventarioTelares::where('no_telar', $noTelar)
-                        ->where('status', 'Activo');
-
-                    if ($tipo) {
-                        $query->where('tipo', $tipo);
-                    }
-
-                    $telar = $query->first();
-                    if ($telar) {
-                        // Actualizar no_orden con el Folio generado (debe ser el mismo)
-                        // y marcar como Programado = 1
-                        $telar->no_orden = $folio;
-                        $telar->Programado = true;
-                        $telar->save();
-
-                        $telaresActualizados++;
-                    } else {
-                        $telaresNoEncontrados[] = [
-                            'no_telar' => $noTelar,
-                            'tipo' => $tipo,
-                            'razon' => 'No encontrado en TejInventarioTelares con status Activo',
-                        ];
-                    }
-                }
-            }
+            $telaresActualizados = $this->marcarTelaresProgramados($telaresStr, $tipo, $folio);
 
             DB::commit();
 
@@ -326,82 +159,115 @@ class ProgramarUrdEngController extends Controller
                     'folio' => $folio,
                     'folioConsumo' => $folioConsumo,
                     'telares_actualizados' => $telaresActualizados,
-                    'telares_no_encontrados' => count($telaresNoEncontrados),
                 ],
             ]);
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
-            Log::error('Error de validación al crear órdenes URD/ENG', [
-                'errors' => $e->errors(),
-                'data' => $request->all(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors()
-            ], 422);
+            Log::error('crearOrdenes: validación', ['errors' => $e->errors()]);
+            return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error al crear órdenes URD/ENG', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'data' => $request->all(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al crear órdenes: ' . $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 500);
+            Log::error('crearOrdenes', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'error' => 'Error al crear órdenes: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Convertir ProdDate a formato de fecha válido para la base de datos
-     * Acepta string de fecha, Carbon, o null
-     */
-    private function parseProdDate($prodDate)
+    private function obtenerFolioUrdEng(): string
     {
-        // Si está vacío o es null, retornar null
-        if (empty($prodDate) || $prodDate === null || $prodDate === '') {
+        try {
+            return SSYSFoliosSecuencia::nextFolio('URD/ENG', 5)['folio'];
+        } catch (\Exception $e) {
+            return SSYSFoliosSecuencia::nextFolioById(14, 5)['folio'];
+        }
+    }
+
+    private function obtenerBomFormula(?string $bomEngId): ?string
+    {
+        if (empty($bomEngId)) return null;
+        try {
+            $row = DB::connection('sqlsrv_ti')
+                ->table('BOM')
+                ->where('BOMID', $bomEngId)
+                ->where('DATAAREAID', 'PRO')
+                ->where('ITEMID', 'like', 'TE-PD-ENF%')
+                ->value('ITEMID');
+            return $row ?: null;
+        } catch (\Throwable $e) {
+            Log::warning('obtenerBomFormula', ['bomId' => $bomEngId, 'error' => $e->getMessage()]);
             return null;
         }
+    }
 
-        // Si ya es una instancia de Carbon, retornarla
-        if ($prodDate instanceof Carbon) {
-            return $prodDate->format('Y-m-d');
+    private function obtenerLoteProveedor(array $materialesEngomado): ?string
+    {
+        foreach ($materialesEngomado as $m) {
+            if (!empty($m['inventBatchId'])) return $m['inventBatchId'];
         }
-
-        // Si es un string, intentar parsearlo
-        if (is_string($prodDate)) {
-            try {
-                // Intentar parsear como fecha
-                $date = Carbon::parse($prodDate);
-                return $date->format('Y-m-d');
-            } catch (\Exception $e) {
-                // Si no se puede parsear, retornar null
-                return null;
-            }
-        }
-
-        // Si es un timestamp numérico
-        if (is_numeric($prodDate)) {
-            try {
-                $date = Carbon::createFromTimestamp($prodDate);
-                return $date->format('Y-m-d');
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        // Si no coincide con ningún formato conocido, retornar null
         return null;
     }
 
-}
+    private function obtenerFechaReq(?string $telaresStr, ?string $tipo, $fallback = null): ?string
+    {
+        if (empty($telaresStr)) return $fallback;
 
+        $telares = array_filter(array_map('trim', explode(',', $telaresStr)));
+        $fechas = [];
+
+        foreach ($telares as $noTelar) {
+            $q = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
+            if ($tipo) $q->where('tipo', $tipo);
+            $telar = $q->first();
+            if ($telar && $telar->fecha) {
+                try {
+                    $fechas[] = $telar->fecha instanceof Carbon ? $telar->fecha : Carbon::parse($telar->fecha);
+                } catch (\Throwable $e) {
+                    continue;
+                }
+            }
+        }
+
+        if (empty($fechas)) return $fallback;
+        return min($fechas)->format('Y-m-d');
+    }
+
+    /** @return int Cantidad de telares actualizados */
+    private function marcarTelaresProgramados(?string $telaresStr, ?string $tipo, string $folio): int
+    {
+        if (empty($telaresStr)) return 0;
+
+        $telares = array_filter(array_map('trim', explode(',', $telaresStr)));
+        $count = 0;
+
+        foreach ($telares as $noTelar) {
+            $q = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
+            if ($tipo) $q->where('tipo', $tipo);
+            $telar = $q->first();
+            if ($telar) {
+                $telar->update(['no_orden' => $folio, 'Programado' => true]);
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    private function normalizeTipo($tipo): ?string
+    {
+        if ($tipo === null || $tipo === '') return null;
+        $t = strtoupper(trim((string) $tipo));
+        return $t === 'RIZO' ? 'Rizo' : ($t === 'PIE' ? 'Pie' : null);
+    }
+
+    private function parseProdDate($prodDate): ?string
+    {
+        if ($prodDate === null || $prodDate === '') return null;
+        if ($prodDate instanceof Carbon) return $prodDate->format('Y-m-d');
+        if (is_string($prodDate)) {
+            try { return Carbon::parse($prodDate)->format('Y-m-d'); } catch (\Throwable $e) { return null; }
+        }
+        if (is_numeric($prodDate)) {
+            try { return Carbon::createFromTimestamp($prodDate)->format('Y-m-d'); } catch (\Throwable $e) { return null; }
+        }
+        return null;
+    }
+}

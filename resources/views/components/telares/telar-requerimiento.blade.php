@@ -930,6 +930,9 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
             // Marcar por coincidencia de telar+tipo+fecha+turno Y SALON
             // Filtrar registros del telar
             const registrosTelar = registros.filter(reg => {
+                // Solo registros con status Activo
+                if (reg.status && reg.status !== 'Activo') return false;
+
                 const telarCoincide = String(reg.no_telar) === String(telarId);
 
                 if (!telarCoincide) {
@@ -968,36 +971,46 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 return { fechaFormateada, diaSemana, año, mes, dia };
             }
 
-            // Solo mostrar días anteriores a hoy cuando existan registros en esos días (ventana de 6 días atrás).
+            // Construir lista de fechas: [fechas pasadas CON registros] + [hoy, hoy+1, ...] = siempre 7 columnas
             const limiteAtras = new Date(hoy);
             limiteAtras.setDate(hoy.getDate() - 6);
             limiteAtras.setHours(0, 0, 0, 0);
 
-            const fechasPasadasConRegistro = [];
+            const fechasPasadasSet = new Set();
             registrosTelar.forEach(reg => {
                 const f = parseFechaISO(reg.fecha);
                 if (!f) return;
                 if (f.getTime() < hoy.getTime() && f.getTime() >= limiteAtras.getTime()) {
-                    fechasPasadasConRegistro.push(f.getTime());
+                    fechasPasadasSet.add(`${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`);
                 }
             });
 
-            if (fechasPasadasConRegistro.length > 0) {
-                const minTs = Math.min(...fechasPasadasConRegistro);
-                primerDia = new Date(minTs);
-                primerDia.setHours(0, 0, 0, 0);
-            } else {
-                primerDia = new Date(hoy);
-                primerDia.setHours(0, 0, 0, 0);
+            const fechasPasadasOrdenadas = Array.from(fechasPasadasSet).sort().map(s => {
+                const [y, m, d] = s.split('-').map(Number);
+                const dt = new Date(y, m - 1, d); dt.setHours(0,0,0,0); return dt;
+            });
+
+            const numColumnas = todasLasTablasDelTelar.length;
+            const fechasCalendario = [...fechasPasadasOrdenadas];
+            let _sig = new Date(hoy);
+            while (fechasCalendario.length < numColumnas) {
+                fechasCalendario.push(new Date(_sig));
+                _sig.setDate(_sig.getDate() + 1);
             }
 
-            // Actualizar headers: columna i = primerDia + i. Fechas anteriores a hoy = otro color.
+            // Map rápido fecha-ISO → índice de columna
+            const fechaToCol = new Map();
+            fechasCalendario.forEach((fc, idx) => {
+                const key = `${fc.getFullYear()}-${String(fc.getMonth()+1).padStart(2,'0')}-${String(fc.getDate()).padStart(2,'0')}`;
+                fechaToCol.set(key, idx);
+            });
+
+            // Actualizar headers de cada columna
             todasLasTablasDelTelar.forEach((tabla, index) => {
                 tabla.style.display = '';
                 const thHeader = tabla.querySelector('th');
-                if (thHeader) {
-                    const fechaColumna = new Date(primerDia);
-                    fechaColumna.setDate(primerDia.getDate() + index);
+                if (thHeader && index < fechasCalendario.length) {
+                    const fechaColumna = fechasCalendario[index];
                     const fechaFormateada = formatearFechaHeader(fechaColumna);
                     const fechaCompletaEsperada = `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`;
                     thHeader.setAttribute('data-fecha-completa', fechaCompletaEsperada);
@@ -1024,48 +1037,23 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 let usarPrimeraFecha = false;
 
                 if (fechaRegistro) {
-                    const timestampRegistro = fechaRegistro.getTime();
-                    const timestampPrimerDia = primerDia.getTime();
-                    const timestampUltimoDia = ultimoDia.getTime();
-                    // Diferencia en días respecto al primer día del calendario (hoy o primera fecha anterior con registro)
-                    const diferenciaDias = Math.floor((timestampRegistro - timestampPrimerDia) / (1000 * 60 * 60 * 24));
-
-                    if (diferenciaDias < 0) {
-                        // Fecha anterior al primer día visible
+                    const fechaNorm = `${fechaRegistro.getFullYear()}-${String(fechaRegistro.getMonth() + 1).padStart(2, '0')}-${String(fechaRegistro.getDate()).padStart(2, '0')}`;
+                    const colIdx = fechaToCol.get(fechaNorm);
+                    if (colIdx !== undefined) {
+                        tablaDestino = todasLasTablasDelTelar[colIdx];
+                    } else if (fechaRegistro.getTime() < fechasCalendario[0].getTime()) {
                         usarPrimeraFecha = true;
-                        tablaDestino = obtenerPrimeraTabla();
-                    } else if (diferenciaDias >= todasLasTablasDelTelar.length) {
-                        // Fecha posterior al último día visible
-                        usarPrimeraFecha = true;
-                        tablaDestino = todasLasTablasDelTelar[todasLasTablasDelTelar.length - 1];
+                        tablaDestino = todasLasTablasDelTelar[0];
                     } else {
-                        // Fecha dentro del rango: columna 0 = ayer, 1 = hoy, etc.
-                        if (diferenciaDias >= 0 && diferenciaDias < todasLasTablasDelTelar.length) {
-                            tablaDestino = todasLasTablasDelTelar[diferenciaDias];
-                        } else {
-                            // Fuera de rango: buscar columna por fecha en data-fecha-completa (formato YYYY-MM-DD)
-                            const fechaNorm = `${fechaRegistro.getFullYear()}-${String(fechaRegistro.getMonth() + 1).padStart(2, '0')}-${String(fechaRegistro.getDate()).padStart(2, '0')}`;
-                            let tablaEncontrada = null;
-                            todasLasTablasDelTelar.forEach(tabla => {
-                                const th = tabla.querySelector('th');
-                                if (th && th.getAttribute('data-fecha-completa') === fechaNorm) {
-                                    tablaEncontrada = tabla;
-                                }
-                            });
-                            if (tablaEncontrada) {
-                                tablaDestino = tablaEncontrada;
-                            } else {
-                                usarPrimeraFecha = true;
-                                tablaDestino = diferenciaDias < 0 ? obtenerPrimeraTabla() : todasLasTablasDelTelar[todasLasTablasDelTelar.length - 1];
-                            }
-                        }
+                        usarPrimeraFecha = true;
+                        tablaDestino = todasLasTablasDelTelar[numColumnas - 1];
                     }
                 } else {
                     usarPrimeraFecha = true;
-                    tablaDestino = obtenerPrimeraTabla();
+                    tablaDestino = todasLasTablasDelTelar[0];
                 }
 
-                if (!tablaDestino || tablaDestino.style.display === 'none') {
+                if (!tablaDestino) {
                     return;
                 }
 
@@ -1167,6 +1155,9 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
             // Los registros ya vienen filtrados del servidor, pero hacer una verificación adicional
             // IMPORTANTE: Filtrar en el cliente también para asegurar que solo se muestren registros con el hilo correcto
             const registrosFiltrados = registros.filter(reg => {
+                // Solo registros con status Activo
+                if (reg.status && reg.status !== 'Activo') return false;
+
                 const telarCoincide = String(reg.no_telar) === String(telarId);
                 if (!telarCoincide) return false;
 
@@ -1286,35 +1277,46 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 return { fechaFormateada, diaSemana, año, mes, dia };
             }
 
-            // Solo mostrar días anteriores a hoy cuando existan registros en esos días (ventana de 6 días atrás).
+            // Construir lista de fechas: [fechas pasadas CON registros] + [hoy, hoy+1, ...] = siempre 7 columnas
             const limiteAtras = new Date(hoy);
             limiteAtras.setDate(hoy.getDate() - 6);
             limiteAtras.setHours(0, 0, 0, 0);
 
-            const fechasPasadasConRegistro = [];
+            const fechasPasadasSet = new Set();
             registrosFiltrados.forEach(reg => {
                 const f = parseFechaISO(reg.fecha);
                 if (!f) return;
                 if (f.getTime() < hoy.getTime() && f.getTime() >= limiteAtras.getTime()) {
-                    fechasPasadasConRegistro.push(f.getTime());
+                    fechasPasadasSet.add(`${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`);
                 }
             });
 
-            if (fechasPasadasConRegistro.length > 0) {
-                const minTs = Math.min(...fechasPasadasConRegistro);
-                primerDia = new Date(minTs);
-                primerDia.setHours(0, 0, 0, 0);
-            } else {
-                primerDia = new Date(hoy);
-                primerDia.setHours(0, 0, 0, 0);
+            const fechasPasadasOrdenadas = Array.from(fechasPasadasSet).sort().map(s => {
+                const [y, m, d] = s.split('-').map(Number);
+                const dt = new Date(y, m - 1, d); dt.setHours(0,0,0,0); return dt;
+            });
+
+            const numColumnas = todasLasTablasDelTelar.length;
+            const fechasCalendario = [...fechasPasadasOrdenadas];
+            let _sig = new Date(hoy);
+            while (fechasCalendario.length < numColumnas) {
+                fechasCalendario.push(new Date(_sig));
+                _sig.setDate(_sig.getDate() + 1);
             }
 
-            // Actualizar headers: columna i = primerDia + i; fechas anteriores a hoy = otro color
+            // Map rápido fecha-ISO → índice de columna
+            const fechaToCol = new Map();
+            fechasCalendario.forEach((fc, idx) => {
+                const key = `${fc.getFullYear()}-${String(fc.getMonth()+1).padStart(2,'0')}-${String(fc.getDate()).padStart(2,'0')}`;
+                fechaToCol.set(key, idx);
+            });
+
+            // Actualizar headers de cada columna
             todasLasTablasDelTelar.forEach((tabla, index) => {
+                tabla.style.display = '';
                 const thHeader = tabla.querySelector('th');
-                if (thHeader) {
-                    const fechaColumna = new Date(primerDia);
-                    fechaColumna.setDate(primerDia.getDate() + index);
+                if (thHeader && index < fechasCalendario.length) {
+                    const fechaColumna = fechasCalendario[index];
                     const fechaFormateada = formatearFechaHeader(fechaColumna);
                     const fechaCompletaEsperada = `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`;
                     thHeader.setAttribute('data-fecha-completa', fechaCompletaEsperada);
@@ -1336,24 +1338,16 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
 
                 if (!fechaRegistro) return;
 
-                const timestampRegistro = fechaRegistro.getTime();
-                const timestampPrimerDia = primerDia.getTime();
-                const timestampUltimoDia = ultimoDia.getTime();
-
-                // Diferencia en días respecto al primer día del calendario (hoy o primera fecha con registro anterior)
-                const diferenciaDias = Math.floor((timestampRegistro - timestampPrimerDia) / (1000 * 60 * 60 * 24));
-
+                const fechaNorm = `${fechaRegistro.getFullYear()}-${String(fechaRegistro.getMonth() + 1).padStart(2, '0')}-${String(fechaRegistro.getDate()).padStart(2, '0')}`;
+                const colIdx = fechaToCol.get(fechaNorm);
                 let tablaDestino = null;
 
-                if (diferenciaDias < 0) {
-                    // Fecha anterior al primer día visible, no mostrar
-                    return;
-                }
-                if (diferenciaDias < todasLasTablasDelTelar.length) {
-                    tablaDestino = todasLasTablasDelTelar[diferenciaDias];
-                } else {
-                    // Fecha posterior al último día visible, mostrar en última columna
-                    tablaDestino = todasLasTablasDelTelar[todasLasTablasDelTelar.length - 1];
+                if (colIdx !== undefined) {
+                    tablaDestino = todasLasTablasDelTelar[colIdx];
+                } else if (fechaRegistro.getTime() < fechasCalendario[0].getTime()) {
+                    tablaDestino = todasLasTablasDelTelar[0];
+                } else if (fechasCalendario.length > 0) {
+                    tablaDestino = todasLasTablasDelTelar[numColumnas - 1];
                 }
 
                 if (!tablaDestino) return;
