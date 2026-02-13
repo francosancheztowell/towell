@@ -31,12 +31,6 @@ class ReservarProgramarController extends Controller
         try {
             $rows = $this->telaresService->baseQuery()->limit(1000)->get();
 
-            try {
-                $this->telaresService->validarYActualizarNoOrden($rows);
-            } catch (\Throwable $e) {
-                Log::warning('validarYActualizarNoOrden (no crítico)', ['msg' => $e->getMessage()]);
-            }
-
             return view('modulos.programa_urd_eng.reservar-programar', [
                 'inventarioTelares' => $this->telaresService->normalizeTelares($rows),
                 'columnOptions'     => $this->columnOptionsData(),

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\ProgramaUrdEng;
 
 use App\Models\Tejido\TejInventarioTelares;
-use App\Models\Inventario\InvTelasReservadas;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -63,43 +62,13 @@ class InventarioTelaresService
         });
     }
 
+    /**
+     * Ya no actualiza InvTelasReservadas. Los registros de esa tabla solo se crean al reservar
+     * y se cancelan/eliminan al liberar; no deben modificarse al cargar la pantalla.
+     */
     public function validarYActualizarNoOrden($telares): void
     {
-        try {
-            $mapaNoOrden = [];
-            foreach ($telares as $telar) {
-                $noOrden = trim((string)($telar->no_orden ?? ''));
-                if (empty($noOrden)) continue;
-
-                $noTelar = $telar->no_telar ?? null;
-                $tipo = $this->normalizeTipo($telar->tipo ?? null);
-                if (empty($noTelar)) continue;
-
-                $clave = $noTelar . '|' . ($tipo ?? '');
-                $mapaNoOrden[$clave] = ['no_telar' => $noTelar, 'no_orden' => $noOrden, 'tipo' => $tipo];
-            }
-
-            if (empty($mapaNoOrden)) return;
-
-            foreach (array_chunk($mapaNoOrden, 50, true) as $chunk) {
-                foreach ($chunk as $datos) {
-                    $query = InvTelasReservadas::where('NoTelarId', $datos['no_telar'])
-                        ->where('Status', 'Reservado');
-
-                    if ($datos['tipo']) {
-                        $query->where('Tipo', $datos['tipo']);
-                    }
-
-                    $query->where(function ($q) use ($datos) {
-                        $q->whereNull('InventBatchId')
-                            ->orWhere('InventBatchId', '!=', $datos['no_orden'])
-                            ->orWhere('InventBatchId', '');
-                    })->update(['InventBatchId' => $datos['no_orden'], 'updated_at' => now()]);
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::warning('validarYActualizarNoOrden', ['message' => $e->getMessage()]);
-        }
+        // Intencionalmente no-op: InvTelasReservadas no se actualiza al cargar.
     }
 
     public function applyFiltros($query, array $filtros)
