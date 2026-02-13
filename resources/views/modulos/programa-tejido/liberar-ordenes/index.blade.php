@@ -68,6 +68,7 @@
             ['field' => 'SaldoMarbete', 'label' => 'No Marbetes'],
             ['field' => 'Densidad', 'label' => 'Densidad'],
             ['field' => 'Observaciones', 'label' => 'Observaciones'],
+            ['field' => 'CambioRepaso', 'label' => 'Cambio Repaso'],
             ['field' => 'CombinaTrama', 'label' => 'Comb Trama'],
             ['field' => 'BomId', 'label' => 'L.Mat'],
             ['field' => 'BomName', 'label' => 'Nombre L.Mat'],
@@ -84,7 +85,7 @@
                 // Usar PrioridadAnterior si existe, sino usar Prioridad actual, sino vacío
                 $prioridadAnterior = $registro->PrioridadAnterior ?? '';
                 $prioridadActual = $registro->Prioridad ?? '';
-                $prioridad = !empty($prioridadAnterior) ? $prioridadAnterior : $prioridadActual;
+                $prioridad = !empty($prioridadActual) ? $prioridadActual : $prioridadAnterior;
                 $id = $registro->Id ?? '';
 
                 return '<input type="text"
@@ -243,6 +244,24 @@
                               placeholder="Observaciones">';
             }
 
+            // Campo CambioRepaso (select SI/NO)
+            if ($field === 'CambioRepaso') {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+
+                $valorActual = strtoupper(trim((string) ($registro->CambioHilo ?? 'NO')));
+                if (!in_array($valorActual, ['SI', 'NO'], true)) {
+                    $valorActual = 'NO';
+                }
+
+                return '<select class="cambio-repaso-select w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                              data-field="CambioRepaso"
+                              data-row-id="' . $rowId . '">
+                            <option value="SI" ' . ($valorActual === 'SI' ? 'selected' : '') . '>SI</option>
+                            <option value="NO" ' . ($valorActual === 'NO' ? 'selected' : '') . '>NO</option>
+                        </select>';
+            }
+
             $value = $registro->{$field} ?? null;
             if ($value === null || $value === '') return '';
 
@@ -355,7 +374,7 @@
                             <tr>
                                 @foreach($columns as $index => $col)
                                 <th class="px-2 py-2 text-left text-sm font-semibold text-white whitespace-nowrap column-{{ $index }}"
-                                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : ($col['field'] === 'HiloAX' ? '220px' : ($col['field'] === 'BomId' ? '180px' : ($col['field'] === 'BomName' ? '300px' : ($col['field'] === 'Observaciones' ? '260px' : '80px')))) }}; z-index: 10;"
+                                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : ($col['field'] === 'HiloAX' ? '220px' : ($col['field'] === 'BomId' ? '180px' : ($col['field'] === 'BomName' ? '300px' : ($col['field'] === 'Observaciones' ? '260px' : ($col['field'] === 'CambioRepaso' ? '170px' : '80px'))))) }}; z-index: 10;"
                                     data-index="{{ $index }}"
                                     data-field="{{ $col['field'] }}">
                                     @if($col['field'] === 'select')
@@ -1807,6 +1826,7 @@ function obtenerRegistrosSeleccionados() {
             saldoMarbete: getNumericValue('SaldoMarbete'),
             densidad: getNumericValue('Densidad'),
             observaciones: getCellValue('Observaciones'),
+            cambioRepaso: getCellValue('CambioRepaso'),
             combinaTram: getCellValue('CombinaTrama')
         };
     });
@@ -1976,6 +1996,15 @@ tr.row-data.row-selected .hilo-ax-select option {
     background: #1e40af;
     color: #fff;
 }
+tr.row-data.row-selected .cambio-repaso-select {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+    border-color: #93c5fd !important;
+}
+tr.row-data.row-selected .cambio-repaso-select option {
+    background: #ffffff;
+    color: #111827;
+}
 tr.row-data.row-selected span[data-field] {
     color: #fff !important;
 }
@@ -2081,6 +2110,11 @@ th[data-field="Observaciones"] {
     min-width: 260px !important;
     width: 260px;
 }
+td[data-column="CambioRepaso"],
+th[data-field="CambioRepaso"] {
+    min-width: 170px !important;
+    width: 170px;
+}
 .bom-id-input {
     min-width: 160px !important;
     width: 100% !important;
@@ -2093,6 +2127,11 @@ th[data-field="Observaciones"] {
 
 .observaciones-input {
     min-width: 240px !important;
+    width: 100% !important;
+}
+
+.cambio-repaso-select {
+    min-width: 150px !important;
     width: 100% !important;
 }
 
