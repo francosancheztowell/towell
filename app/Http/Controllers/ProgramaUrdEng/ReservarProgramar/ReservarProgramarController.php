@@ -118,12 +118,6 @@ class ReservarProgramarController extends Controller
             $noTelar = (string) $request->input('no_telar');
             $tipo = $this->telaresService->normalizeTipo($request->input('tipo'));
             $id = $request->filled('id') ? (int) $request->input('id') : null;
-            $folio = $request->input('folio');
-
-            // Resolver folio si no viene explícito
-            if (empty($folio)) {
-                $folio = $this->resolverFolioParaActualizar($id, $noTelar, $request);
-            }
 
             // Separar campos para inventario vs programas
             $updateInventario = $this->extraerCamposInventario($request);
@@ -145,12 +139,18 @@ class ReservarProgramarController extends Controller
                 }
             }
 
-            // Actualizar programas (urdido/engomado)
+            // Actualizar programas (UrdProgramaUrdido / EngProgramaEngomado) solo por Folio:
+            // usamos no_orden del telar en BD (que es el Folio de la orden), nunca folio/no_orden del request.
+            // Urd/Eng se identifican SOLO por Folio; no_telar puede repetirse en registros.
             if (!empty($updateProgramas)) {
-                $tipoParaProgramas = $updateProgramas['tipo'] ?? $tipo;
-                $resultado = $this->programasService->actualizar($noTelar, $tipoParaProgramas, $updateProgramas, $folio);
-                $actualizadosUrdido = $resultado['urdido'] ?? 0;
-                $actualizadosEngomado = $resultado['engomado'] ?? 0;
+                $telar = $this->obtenerTelarParaActualizar($id, $noTelar, $tipo);
+                $folioDesdeTelar = $telar ? trim((string)($telar->no_orden ?? '')) : '';
+                if ($folioDesdeTelar !== '') {
+                    $tipoParaProgramas = $updateProgramas['tipo'] ?? $tipo;
+                    $resultado = $this->programasService->actualizar($noTelar, $tipoParaProgramas, $updateProgramas, $folioDesdeTelar);
+                    $actualizadosUrdido = $resultado['urdido'] ?? 0;
+                    $actualizadosEngomado = $resultado['engomado'] ?? 0;
+                }
             }
 
             return response()->json([
@@ -284,12 +284,29 @@ class ReservarProgramarController extends Controller
         }
     }
 
-    private function resolverFolioParaActualizar(?int $id, string $noTelar, Request $request): string
+    /**
+     * Obtiene el registro del telar en BD (por id o por no_telar + tipo).
+     * Usado para tomar no_orden solo desde BD y no desde el request al actualizar programas.
+     */
+    private function obtenerTelarParaActualizar(?int $id, string $noTelar, ?string $tipo): ?TejInventarioTelares
     {
         if ($id) {
-            $telarRecord = TejInventarioTelares::where('id', $id)
-                ->where('status', self::STATUS_ACTIVO)->first();
-            if ($telarRecord) return trim((string)($telarRecord->no_orden ?? ''));
+            return TejInventarioTelares::where('id', $id)
+                ->where('status', self::STATUS_ACTIVO)
+                ->first();
+        }
+        $query = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
+        if ($tipo !== null && $tipo !== '') {
+            $query->where('tipo', $tipo);
+        }
+        return $query->first();
+    }
+
+    private function resolverFolioParaActualizar(?int $id, string $noTelar, Request $request): string
+    {
+        $telar = $this->obtenerTelarParaActualizar($id, $noTelar, null);
+        if ($telar) {
+            return trim((string)($telar->no_orden ?? ''));
         }
         if ($request->filled('no_orden')) {
             return trim((string) $request->input('no_orden'));
@@ -343,6 +360,7 @@ class ReservarProgramarController extends Controller
         $query = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
         if ($tipo !== null) $query->where('tipo', $tipo);
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, TejInventarioTelares> $telares */
         $telares = $query->get();
         if ($telares->isEmpty()) return -1;
 

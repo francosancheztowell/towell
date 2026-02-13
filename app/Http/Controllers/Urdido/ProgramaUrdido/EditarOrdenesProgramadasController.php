@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
 use App\Models\Urdido\UrdProgramaUrdido;
+use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Models\Planeacion\ReqMatrizHilos;
@@ -41,29 +42,17 @@ class EditarOrdenesProgramadasController extends Controller
     }
 
     /**
-     * Obtener el registro de EngProgramaEngomado que corresponde exactamente a la orden (misma línea: Folio + NoTelarId).
-     * Evita que al editar una orden se actualicen registros de otras líneas/telares.
+     * Obtener el registro de EngProgramaEngomado que corresponde a la orden solo por Folio.
+     * No se usa NoTelarId porque puede haber no_telar iguales en distintos registros.
      */
     private function obtenerEngomadoPorOrden(UrdProgramaUrdido $orden): ?EngProgramaEngomado
     {
         $folio = trim($orden->Folio ?? '');
-        $noTelarId = trim($orden->NoTelarId ?? '');
 
         if ($folio === '') {
             return null;
         }
 
-        // Intentar por Folio + NoTelarId (línea exacta)
-        if ($noTelarId !== '') {
-            $engomado = EngProgramaEngomado::where('Folio', $folio)
-                ->where('NoTelarId', $noTelarId)
-                ->first();
-            if ($engomado) {
-                return $engomado;
-            }
-        }
-
-        // Fallback: solo por Folio (para datos legacy sin NoTelarId o cuando hay una sola línea por Folio)
         return EngProgramaEngomado::where('Folio', $folio)->first();
     }
 
@@ -212,7 +201,7 @@ class EditarOrdenesProgramadasController extends Controller
 
             $orden = UrdProgramaUrdido::findOrFail($request->orden_id);
 
-            // Engomado exacto: misma línea (Folio + NoTelarId) para no editar otras órdenes
+            // Engomado solo por Folio (no NoTelarId). Una instancia por tabla.
             $engomado = $this->obtenerEngomadoPorOrden($orden);
             if (!$engomado) {
                 return response()->json([
@@ -344,11 +333,15 @@ class EditarOrdenesProgramadasController extends Controller
 
                 // Si es un campo solo de Engomado, no tocar UrdProgramaUrdido
                 if (in_array($campo, $camposSoloEngomado, true)) {
+                    $valorAntEng = $engomado->getAttribute($campo);
                     $engomado->$campo = $valor;
                     $engomado->save();
+                    AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo($campo, $valorAntEng, $valor));
                     if ($campo === 'BomUrd') {
+                        $valorAntOrden = $orden->BomId;
                         $orden->BomId = $valor;
                         $orden->save();
+                        AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_URDIDO, (int) $orden->Id, $orden->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo('BomId', $valorAntOrden, $valor));
                     }
 
                     DB::commit();
@@ -364,32 +357,38 @@ class EditarOrdenesProgramadasController extends Controller
                 }
 
                 // Actualizar campo en UrdProgramaUrdido
+                $valorAntOrden = $orden->getAttribute($campo);
                 $orden->$campo = $valor;
                 $orden->save();
+                AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_URDIDO, (int) $orden->Id, $orden->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo($campo, $valorAntOrden, $valor));
 
                 // Si el campo debe sincronizarse con EngProgramaEngomado
                 if (isset($camposSincronizados[$campo])) {
                     $campoEngomado = $camposSincronizados[$campo];
-
-                    // Buscar registro de engomado relacionado
-                    // Actualizar campo correspondiente en EngProgramaEngomado
+                    $valorAntEng = $engomado->getAttribute($campoEngomado);
                     $engomado->$campoEngomado = $valor;
                     $engomado->save();
-
+                    AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo($campoEngomado, $valorAntEng, $valor));
                 }
 
                 // Campos especiales que también se sincronizan con nombres diferentes
                 if ($campo === 'MaquinaId') {
+                    $valorAntEng = $engomado->MaquinaUrd;
                     $engomado->MaquinaUrd = $valor;
                     $engomado->save();
+                    AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo('MaquinaUrd', $valorAntEng, $valor));
                 }
                 if ($campo === 'BomId') {
+                    $valorAntEng = $engomado->BomUrd;
                     $engomado->BomUrd = $valor;
                     $engomado->save();
+                    AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo('BomUrd', $valorAntEng, $valor));
                 }
                 if ($campo === 'BomUrd') {
+                    $valorAntOrden = $orden->BomId;
                     $orden->BomId = $valor;
                     $orden->save();
+                    AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_URDIDO, (int) $orden->Id, $orden->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo('BomId', $valorAntOrden, $valor));
                 }
 
                 DB::commit();
