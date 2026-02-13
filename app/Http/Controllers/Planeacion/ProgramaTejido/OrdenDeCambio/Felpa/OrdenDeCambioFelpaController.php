@@ -16,8 +16,13 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
+
 class OrdenDeCambioFelpaController extends Controller
 {
+    private const PRINT_AREA_FORMATO = 'A1:P105';
+
     /** Cache simple para modelos codificados (TamanoClave|SalonTejidoId). */
     private static array $modeloCodificadoCache = [];
 
@@ -141,7 +146,7 @@ class OrdenDeCambioFelpaController extends Controller
                 $nuevaHoja->setTitle($nombreHoja);
 
                 // Llenar fórmulas que referencian a REGISTRO
-                $this->llenarFormatoEnHoja($nuevaHoja, $filaRegistro, $tipoFormato, $indice + 1, $registroBD);
+                $this->llenarFormatoEnHoja($nuevaHoja, $filaRegistro, $tipoFormato, $datos);
             }
 
             // 7) Eliminar hoja plantilla original
@@ -232,7 +237,7 @@ class OrdenDeCambioFelpaController extends Controller
                 $nombreHoja = $this->generarNombreHoja($tipoFormato, (string)($datos['orden_numero'] ?? ''), $indice + 1);
                 $nuevaHoja->setTitle($nombreHoja);
 
-                $this->llenarFormatoEnHoja($nuevaHoja, $filaRegistro, $tipoFormato, $indice + 1);
+                $this->llenarFormatoEnHoja($nuevaHoja, $filaRegistro, $tipoFormato, $datos);
             }
 
             // 7) Eliminar plantilla
@@ -274,7 +279,7 @@ class OrdenDeCambioFelpaController extends Controller
     /**
      * Llenar formato (talón) en una hoja específica con fórmulas que referencian REGISTRO.
      */
-    protected function llenarFormatoEnHoja(Worksheet $sheet, int $filaRegistro, string $tipoFormato, int $talonNumero, ?ReqProgramaTejido $registroBD = null): void
+    protected function llenarFormatoEnHoja(Worksheet $sheet, int $filaRegistro, string $tipoFormato, array $datosRegistro = []): void
     {
         // Hora impresión
         $this->establecerFormulaCelda($sheet, 'D5', '=NOW()');
@@ -367,7 +372,6 @@ class OrdenDeCambioFelpaController extends Controller
         $this->establecerFormulaCelda($sheet, 'F16', '=REGISTRO!AF' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'I16', '=REGISTRO!AJ' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'B16', '=REGISTRO!Q' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'O14', '=REGISTRO!BC' . $filaRegistro);
         // Metros de rollo
         // Primero establecer K17 para que H17 pueda referenciarlo
         $this->establecerFormulaCelda($sheet, 'K17', '=REGISTRO!AX' . $filaRegistro);
@@ -399,16 +403,15 @@ class OrdenDeCambioFelpaController extends Controller
         $this->establecerFormulaCelda($sheet, 'H19', '=REGISTRO!AC' . $filaRegistro);
         $this->establecerFormulaCelda($sheet, 'M19', '=REGISTRO!AW' . $filaRegistro);
 
-        // Establecer fórmulas en O2, S2, AW2, AX2, AY5
-        $this->establecerFormulaCelda($sheet, 'O2', '=REGISTRO!O' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'S2', '=REGISTRO!S' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'AW2', '=REGISTRO!AW' . $filaRegistro);
+        // Codigo de dibujo en bloque M:N:O:P, filas 26 a 28.
+        foreach (range(26, 28) as $fila) {
+            foreach (['M', 'N', 'O', 'P'] as $columna) {
+                $this->establecerFormulaCelda($sheet, $columna . $fila, '=REGISTRO!K' . $filaRegistro);
+            }
+        }
 
-        // AX2 y AY5 ahora se llenan con valores directos desde BD (sin formulas)
-        $repeticionesValor = $datos['repeticiones'] ?? '';
-        $noMarbetesValor = $datos['no_marbetes'] ?? '';
-        $sheet->setCellValue('AX2', $repeticionesValor);
-        $sheet->setCellValue('AY5', $noMarbetesValor);
+        // Celdas auxiliares
+        $this->establecerCeldasAuxiliares($sheet, $datosRegistro);
 
         // Plano de dobladillo (fórmulas)
         $this->establecerPlanoDobladilloFormulas($sheet, $filaRegistro);
@@ -418,6 +421,75 @@ class OrdenDeCambioFelpaController extends Controller
 
         // Cenefa trama (fórmulas)
         $this->establecerCenefaTramaFormulas($sheet, $filaRegistro);
+        $this->configurarAreaImpresion($sheet);
+    }
+
+    /**
+     * Celdas auxiliares del formato.
+     */
+    protected function establecerCeldasAuxiliares(Worksheet $sheet, array $datosRegistro): void
+    {
+        foreach (['O2', 'S2', 'AW2'] as $celda) {
+            $sheet->setCellValue($celda, null);
+        }
+
+        $sheet->setCellValue('AX2', $datosRegistro['repeticiones'] ?? null);
+        $sheet->setCellValue('AY5', $datosRegistro['no_marbetes'] ?? null);
+    }
+
+    /**
+     * Limpia texto para XML de Excel.
+     */
+    protected function limpiarTextoParaExcel(string $texto): string
+    {
+        // Remueve caracteres de control no permitidos en XML 1.0.
+        $texto = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $texto) ?? '';
+
+        // Normaliza saltos de linea.
+        return str_replace(["\r\n", "\r"], "\n", $texto);
+    }
+
+    /**
+     * Escribe una celda de forma segura para evitar corrupcion de archivo.
+     */
+    protected function setCellValueSeguro(Worksheet $worksheet, string $celda, $valor): void
+    {
+        if (is_string($valor)) {
+            $valorLimpio = $this->limpiarTextoParaExcel($valor);
+
+            // Si inicia con "=", Excel lo toma como formula; se fuerza texto.
+            if ($valorLimpio !== '' && str_starts_with($valorLimpio, '=')) {
+                $worksheet->setCellValueExplicit($celda, $valorLimpio, DataType::TYPE_STRING);
+                return;
+            }
+
+            $worksheet->setCellValue($celda, $valorLimpio);
+            return;
+        }
+
+        $worksheet->setCellValue($celda, $valor);
+    }
+
+    /**
+     * Configura el area de impresion del formato.
+     */
+    protected function configurarAreaImpresion(Worksheet $sheet): void
+    {
+        $pageSetup = $sheet->getPageSetup();
+        $pageSetup->setPrintArea(self::PRINT_AREA_FORMATO);
+        $pageSetup->setPaperSize(PageSetup::PAPERSIZE_LEGAL);
+        $pageSetup->setFitToPage(true);
+        $pageSetup->setFitToWidth(1);
+        $pageSetup->setFitToHeight(1);
+
+        // Margenes normales de Excel.
+        $margins = $sheet->getPageMargins();
+        $margins->setTop(0.75);
+        $margins->setBottom(0.75);
+        $margins->setLeft(3.3 / 2.54);
+        $margins->setRight(1.8 / 2.54);
+        $margins->setHeader(0.3);
+        $margins->setFooter(0.3);
     }
 
     /**
@@ -1028,7 +1100,6 @@ class OrdenDeCambioFelpaController extends Controller
         if (isset($registro->SaldoMarbete) && is_numeric($registro->SaldoMarbete)) {
             $noMarbetes = (string) (int) $registro->SaldoMarbete;
         }
-
         return [
             'orden_numero'         => $registro->NoProduccion ?? '',
             'fecha_orden'          => $fechaOrden,
@@ -1084,7 +1155,7 @@ class OrdenDeCambioFelpaController extends Controller
             'cambio_repaso'        => $modeloCodificado?->CambioRepaso ?? $registro->CambioHilo ?? 'NO',
             'vendedor'             => $modeloCodificado?->Vendedor ?? '',
             'no_orden'             => $registro->NoProduccion ?? '',
-            'observaciones'        => $modeloCodificado?->Obs5 ?? $registro->Observaciones ?? '',
+            'observaciones'        => $registro->Observaciones ?? '',
             'trama_ancho_peine'    => $modeloCodificado?->AnchoPeineTrama ?? $registro->Ancho ?? '',
             'log_lucha_total'      => $modeloCodificado?->LogLuchaTotal ?? '',
             'c1_trama_fondo'       => $modeloCodificado?->CalTramaFondoC1 ?? '',
@@ -1399,7 +1470,7 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->CambioRepaso = $registro->CambioHilo ?? 'NO';
             $catCodificado->Vendedor = null;
             $catCodificado->NoOrden = $registro->NoProduccion ?? null;
-            $catCodificado->Obs5 = $modeloCodificado?->Obs5 ??
+            $catCodificado->Obs5 = $registro->Observaciones ?? null;
             $catCodificado->TramaAnchoPeine = $registro->Ancho ?? null;
             $catCodificado->LogLuchaTotal = $modeloCodificado?->LogLuchaTotal ?? null;
             $catCodificado->CalTramaFondoC1 = $modeloCodificado?->CalTramaFondoC1 ?? null;
@@ -1450,7 +1521,6 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->PasadasComb5 = $registro->PasadasComb5 ?? null;
 
             $catCodificado->Total = null; // No disponible en ReqProgramaTejido
-            $catCodificado->Densidad = $registro->PesoGRM2 ?? null;
             $catCodificado->Pedido = $registro->TotalPedido ?? null;
             $catCodificado->Produccion = $registro->Produccion ?? null;
             $catCodificado->Saldos = $registro->SaldoPedido ?? null;
@@ -1462,8 +1532,6 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->PzasRollo = $registro->PzasRollo ?? (isset($datosRegistro['toallas_rollo']) && is_numeric($datosRegistro['toallas_rollo']) ? (float) $datosRegistro['toallas_rollo'] : null);
             $catCodificado->TotalRollos = $registro->TotalRollos !== null ? (float)$registro->TotalRollos : null;
             $catCodificado->TotalPzas = $registro->TotalPzas !== null ? (float)$registro->TotalPzas : null;
-            $catCodificado->Repeticiones = $registro->Repeticiones ?? null;
-            $catCodificado->NoMarbete = $registro->SaldoMarbete ?? null; // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
             $catCodificado->CombinaTram = $registro->CombinaTram ?? null;
             $catCodificado->BomId = $registro->BomId ?? null;
             $catCodificado->BomName = $registro->BomName ?? null;
@@ -1476,7 +1544,7 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->OrdPrincipal = $registro->OrdPrincipal ?? null;
 
             // Densidad: usar del registro si está disponible, sino calcular o usar PesoGRM2
-            $catCodificado->Densidad = $registro->Densidad ?? null;
+            $catCodificado->Densidad = $registro->Densidad ?? $registro->PesoGRM2 ?? null;
 
             // Campos de auditoría
             $usuario = Auth::check() && Auth::user() ? (Auth::user()->nombre ?? Auth::user()->numero_empleado ?? 'Sistema') : 'Sistema';
@@ -1726,7 +1794,7 @@ class OrdenDeCambioFelpaController extends Controller
                     $valor = is_numeric($valor) ? (float) $valor : 0;
                 }
             }
-            $worksheet->setCellValue($columna . $fila, $valor);
+            $this->setCellValueSeguro($worksheet, $columna . $fila, $valor);
 
             $style = $worksheet->getStyle($columna . $fila);
             $style->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);

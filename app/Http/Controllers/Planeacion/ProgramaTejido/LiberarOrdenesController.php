@@ -16,8 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 class LiberarOrdenesController extends Controller
 {
@@ -308,6 +306,7 @@ class LiberarOrdenesController extends Controller
             'registros.*.repeticiones' => 'nullable|numeric',
             'registros.*.saldoMarbete' => 'nullable|numeric',
             'registros.*.densidad' => 'nullable|numeric',
+            'registros.*.observaciones' => 'nullable|string|max:500',
             'registros.*.combinaTram' => 'nullable|string|max:60',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
@@ -452,7 +451,7 @@ class LiberarOrdenesController extends Controller
 
                 // Aplicar valores del request con lógica de fallback
                 // Campos de texto
-                $camposTexto = ['CombinaTram', 'BomId', 'BomName', 'HiloAX'];
+                $camposTexto = ['CombinaTram', 'BomId', 'BomName', 'HiloAX', 'Observaciones'];
                 foreach ($camposTexto as $campo) {
                     $key = lcfirst($campo);
                     $valor = $item[$key] ?? null;
@@ -839,83 +838,6 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Genera un Excel simple con los registros actualizados
-     */
-    protected function generarExcel($registros): string
-    {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-
-        $headings = [
-            'Cuenta',
-            'Salon',
-            'Telar',
-            'Ultimo',
-            'Cambios Hilo',
-            'Maq',
-            'Ancho',
-            'Ef Std',
-            'Vel',
-            'Hilo',
-            'Calibre Pie',
-            'Jornada',
-            'Clave mod.',
-            'Usar cuando no existe en base',
-            'Producto',
-            'Saldos',
-            'Day Sheduling',
-            'Orden Prod.',
-            'INN',
-            'Descrip.',
-            'Aplic.',
-            'Obs',
-            'Fecha Fin',
-            'Prioridad',
-            'Clave AX',
-        ];
-
-        $sheet->fromArray($headings, null, 'A1');
-
-        $rowNumber = 2;
-        foreach ($registros as $registro) {
-            $sheet->fromArray([
-                $registro->CuentaRizo,
-                $registro->SalonTejidoId,
-                $registro->NoTelarId,
-                $registro->Ultimo,
-                $registro->CambioHilo,
-                $registro->Maquina,
-                $registro->Ancho,
-                $registro->EficienciaSTD,
-                $registro->VelocidadSTD,
-                $registro->FibraRizo,
-                $registro->CalibrePie2,
-                $registro->CalendarioId,
-                $registro->TamanoClave,
-                $registro->NoExisteBase,
-                $registro->NombreProducto,
-                $registro->SaldoPedido,
-                optional($registro->ProgramarProd)->format('Y-m-d'),
-                $registro->NoProduccion,
-                optional($registro->Programado)->format('Y-m-d'),
-                $registro->NombreProyecto,
-                $registro->AplicacionId,
-                $registro->Observaciones,
-                optional($registro->FechaFinal)->format('Y-m-d'),
-                $registro->Prioridad,
-                $registro->InventSizeId,
-            ], null, 'A' . $rowNumber);
-
-            $rowNumber++;
-        }
-
-        $writer = new Xlsx($spreadsheet);
-        ob_start();
-        $writer->save('php://output');
-        return ob_get_clean();
-    }
-
-    /**
      * Guarda un campo editable desde la vista de liberar órdenes
      * Actualiza tanto ReqProgramaTejido como CatCodificados
      */
@@ -1160,6 +1082,7 @@ class LiberarOrdenesController extends Controller
                 'NoMarbete' => $registro->SaldoMarbete !== null ? (float)ceil((float)$registro->SaldoMarbete) : null, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
                 'CombinaTram' => $registro->CombinaTram,
                 'Densidad' => $registro->Densidad !== null ? (float)$registro->Densidad : null,
+                'Obs5' => $registro->Observaciones,
                 'CreaProd' => $registro->CreaProd ?? 1,
                 'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
                 'CategoriaCalidad' => $registro->CategoriaCalidad,
@@ -1248,28 +1171,16 @@ class LiberarOrdenesController extends Controller
                 }
             }
 
-            // Verificar valores antes de guardar
-            $valoresAntesGuardar = [
-                'TotalRollos' => $registroCodificado->TotalRollos,
-                'TotalPzas' => $registroCodificado->TotalPzas,
-                'UsuarioCrea' => $registroCodificado->UsuarioCrea,
-                'is_dirty' => $registroCodificado->isDirty(),
-                'dirty_attributes' => $registroCodificado->getDirty(),
-            ];
-
-
             if ($updated || $registroCodificado->isDirty()) {
-                try {
-                    // Guardar usando fill() para asegurar que se guarden todos los cambios
-                    $registroCodificado->save();
-
-                    // Recargar desde BD para verificar
-                    $registroCodificado->refresh();
-
-                    } catch (\Exception $e) {
-                }
+                $registroCodificado->save();
+                $registroCodificado->refresh();
             }
         } catch (\Throwable $e) {
+            Log::warning('Error al actualizar CatCodificados desde liberacion', [
+                'no_produccion' => $registro->NoProduccion ?? null,
+                'no_telar_id' => $registro->NoTelarId ?? null,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

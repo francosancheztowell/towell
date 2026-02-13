@@ -1,10 +1,14 @@
-const CACHE = "pwa-v9";
+const CACHE = "pwa-v11";
+const BASE_URL = self.registration?.scope || self.location.href;
+const OFFLINE_URL = new URL("offline", BASE_URL).toString();
 const ASSETS = [
-  "/", "/offline",
-  "/manifest.json",
-  "/js/app-pwa.js",
-  "/images/fotosTowell/TOWELLIN.png",
-  "/browserconfig.xml"
+  "./", "offline",
+  "manifest.json",
+  "js/app-pwa.js",
+  "icons/icon-192x192.png",
+  "icons/icon-512x512.png",
+  "icons/icon-512x512-maskable.png",
+  "browserconfig.xml"
 ];
 
 self.addEventListener("install", (e) => {
@@ -12,7 +16,7 @@ self.addEventListener("install", (e) => {
     (async () => {
       const cache = await caches.open(CACHE);
       // Resolver URLs relativas contra el scope del SW y omitir fallos
-      const urls = ASSETS.map(u => new URL(u, self.location).toString());
+      const urls = ASSETS.map(u => new URL(u, BASE_URL).toString());
       const results = await Promise.allSettled(
         urls.map(u => fetch(u, { cache: "reload" }))
       );
@@ -53,7 +57,7 @@ self.addEventListener("fetch", (e) => {
   const accept = req.headers.get('accept') || '';
   if (req.mode === 'navigate' || accept.includes('text/html')) {
     e.respondWith(
-      fetch(req, { cache: 'no-store' }).catch(() => caches.match("/offline"))
+      fetch(req, { cache: 'no-store' }).catch(() => caches.match(OFFLINE_URL))
     );
     return;
   }
@@ -129,7 +133,7 @@ self.addEventListener("fetch", (e) => {
         return res;
       }).catch(() => {
         // Si falla, intentar obtener página offline del caché
-        return caches.match("/offline").then(offlinePage => {
+        return caches.match(OFFLINE_URL).then(offlinePage => {
           if (offlinePage) {
             return offlinePage;
           }
@@ -144,8 +148,6 @@ self.addEventListener("fetch", (e) => {
     })
   );
 });
-
-
 
 
 
