@@ -50,6 +50,7 @@
             ['field' => 'TotalPedido', 'label' => 'Pedido'],
             ['field' => 'ProgramarProd', 'label' => 'Day Shedulling'],
             ['field' => 'Programado', 'label' => 'INN'],
+            ['field' => 'FlogsId', 'label' => 'Flog'],
             ['field' => 'NombreProyecto', 'label' => 'Descripción'],
             ['field' => 'AplicacionId', 'label' => 'Aplic'],
             ['field' => 'TipoPedido', 'label' => 'Tipo Ped'],

@@ -25,17 +25,6 @@
     </div>
 @endsection
 
-@php
-    $hasFinalizarPermission = true;
-    try {
-        $moduloRol = \App\Models\Sistema\SYSRoles::where('modulo', 'Programa Engomado')->first();
-        $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Engomado';
-        $hasFinalizarPermission = function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
-    } catch (\Exception $e) {
-        $hasFinalizarPermission = true;
-    }
-@endphp
-
 @section('content')
 
 <style>
@@ -83,7 +72,6 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[90px]">Tipo:</span>
-                        @if($orden && $orden->RizoPie)
                             @php
                                 $tipo = strtoupper(trim($orden->RizoPie));
                                 $isRizo = $tipo === 'RIZO';
@@ -92,9 +80,6 @@
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $isRizo ? 'bg-rose-100 text-rose-700' : ($isPie ? 'bg-teal-100 text-teal-700' : 'bg-gray-200 text-gray-800') }}">
                                 {{ $orden->RizoPie }}
                             </span>
-                        @else
-                            <span class="text-sm text-gray-500 italic">-</span>
-                        @endif
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[90px]">Núcleo:</span>
@@ -128,6 +113,10 @@
 
                 <!-- Columna 4 - Merma -->
                 <div class="flex flex-col space-y-1">
+                    <div class="flex items-center gap-1">
+                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap shrink-0">Hilo:</span>
+                        <span class="text-sm text-gray-900 truncate">{{ $hiloFibra ?? '-' }}</span>
+                    </div>
                     <div class="flex items-center gap-1">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap shrink-0">Merma con Goma:</span>
                         <input

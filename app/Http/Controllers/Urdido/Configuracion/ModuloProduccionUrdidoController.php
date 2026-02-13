@@ -1113,11 +1113,11 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 404);
             }
 
-            // Verificar que el status actual sea "En Proceso"
-            if ($orden->Status !== 'En Proceso') {
+            // Permitir finalizar si está "En Proceso" o "Parcial"
+            if (!in_array($orden->Status, ['En Proceso', 'Parcial'])) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'La orden no está en estado "En Proceso". Estado actual: ' . $orden->Status,
+                    'error' => 'Solo se puede finalizar una orden en estado "En Proceso" o "Parcial". Estado actual: ' . $orden->Status,
                 ], 422);
             }
             if ($this->hasNegativeKgNetoByFolio($orden->Folio)) {
