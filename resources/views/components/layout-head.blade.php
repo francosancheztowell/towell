@@ -7,7 +7,7 @@
     <!-- Head minimo para reducir solicitudes redundantes -->
     <link rel="icon" href="{{ url('/favicon.ico') }}">
     <link rel="manifest" href="{{ asset('manifest.json') }}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0f4c81">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,7 +17,7 @@
     <meta name="msapplication-TileColor" content="#0f4c81">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('icons/icon-180x180.png') }}">
 @else
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 @endif
 
 <title>@yield('title', $title)</title>
