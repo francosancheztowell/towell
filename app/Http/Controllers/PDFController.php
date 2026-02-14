@@ -113,13 +113,12 @@ class PDFController extends Controller
             // 6) Configurar DomPDF
             $dompdf = $this->crearDompdf($html);
 
-            // 7) Devolver PDF: descarga (attachment) en reimpresión para abrir desde descargas; inline en el resto
+            // 7) Devolver PDF: en reimpresión inline para que se abra en la misma pestaña/app; en el resto inline
             $nombreArchivo = $this->construirNombreArchivo($orden, $tipo);
-            $disposition = $esReimpresion ? 'attachment' : 'inline';
 
             return response($dompdf->output(), 200)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', $disposition . '; filename="' . $nombreArchivo . '"');
+                ->header('Content-Disposition', 'inline; filename="' . $nombreArchivo . '"');
 
         } catch (\Throwable $e) {
             Log::error('Error al generar PDF de urdido/engomado', [
