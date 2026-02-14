@@ -29,23 +29,23 @@
             // 2 módulos: grid de 2 columnas
             $gridClasses = 'grid grid-cols-2 justify-items-center';
             $itemClasses = '';
-            $gapClasses = 'gap-6 md:gap-10 lg:gap-12';
+            $gapClasses = 'gap-4 md:gap-6 lg:gap-8';
         } else { // 3 módulos
             // 3 módulos: 1 columna en móvil, 3 en desktop
             $gridClasses = 'grid grid-cols-1 sm:grid-cols-3 justify-items-center';
             $itemClasses = '';
-            $gapClasses = 'gap-5 md:gap-6 lg:gap-8';
+            $gapClasses = 'gap-4 md:gap-5 lg:gap-6';
         }
     } else {
         // Para más de 3 módulos: grid normal
         $gridClasses = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 ' . $columns . ' justify-items-center';
         $itemClasses = '';
-        $gapClasses = 'gap-4 md:gap-5 lg:gap-6';
+        $gapClasses = 'gap-2 md:gap-3 lg:gap-4';
     }
 @endphp
 
-<div class="w-full flex justify-center items-start px-4 py-6">
-    <div class="{{ $gridClasses }} {{ $gapClasses }} max-w-6xl mx-auto">
+<div class="w-full flex justify-center items-start px-3 py-4">
+    <div class="{{ $gridClasses }} {{ $gapClasses }} max-w-5xl mx-auto">
     @foreach ($modulosFiltrados as $modulo)
             @php
                 if (!empty($modulo['imagen'])) {
@@ -56,12 +56,12 @@
                 } else {
                     $imagenUrl = $imagenFallback;
                 }
-                
+
                 // Verificar si es el módulo de Atado de Julio / Cortado de Rollo
                 $esNotificarMontado = in_array($modulo['nombre'], ['Atado de Julio', 'Atado de Julio (Tej.)', 'Notificar Montado de Julio', 'Notificar Montado de Julio (Tej.)']);
                 $esNotificarCortado = in_array($modulo['nombre'], ['Cortado de Rollo', 'Cortado de Rollo (Tej.)', 'Notificar Cortado de rollo', 'Notificar Cortado de Rollo', 'Notificar Cortado de Rollo (Tej.)']);
             @endphp
-            
+
             @if($esNotificarMontado)
                 <a href="javascript:void(0)" onclick="abrirModalTelares()"
                    class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
@@ -72,15 +72,15 @@
                 <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}"
                    class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
             @endif
-                <div class="p-3 md:p-4 lg:p-5 flex flex-col items-center justify-center min-h-[9rem] md:min-h-[11rem] lg:min-h-[12rem] transition-all duration-300 transform hover:scale-105 active:scale-[0.98]">
+                <div class="p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center min-h-[10rem] md:min-h-[13rem] lg:min-h-[13rem] transition-all duration-300 transform hover:scale-105 active:scale-[0.98]">
 
-                    <!-- Contenedor de imagen -->
-                    <div class="flex-shrink-0 mb-2">
+                    <!-- Contenedor de imagen optimizado para tablet -->
+                    <div class="flex-shrink-0 mb-3">
                         <div class="relative transform transition-transform duration-300 group-hover:-translate-y-0.5">
 
                             <img src="{{ $imagenUrl }}"
                                 alt="{{ $modulo['nombre'] }}"
-                                class="w-28 h-28 md:w-36 md:h-36 lg:w-40 lg:h-40 object-cover rounded-xl shadow-md group-hover:shadow-xl transition-shadow duration-300"
+                                class="w-32 h-32 md:w-44 md:h-44 lg:w-44 lg:h-44 object-cover rounded-xl shadow-md group-hover:shadow-xl transition-shadow duration-300"
                                 onerror="this.src='{{ $imagenFallback }}'; this.onerror=null;"
                                 title="{{ $modulo['nombre'] }} - {{ $modulo['imagen'] ?? 'Sin imagen' }}"
                                 loading="lazy"
@@ -89,9 +89,9 @@
                         </div>
                     </div>
 
-                    <!-- Texto del módulo -->
-                    <div class="text-center px-2 -mt-2">
-                        <h2 class="font-bold text-white leading-tight group-hover:text-blue-100 transition-colors duration-300 text-sm md:text-sm lg:text-base break-words drop-shadow-lg bg-black/50 px-2 py-1 rounded-md backdrop-blur-sm max-w-full">
+                    <!-- Texto del módulo optimizado -->
+                    <div class="text-center px-2 -mt-3">
+                        <h2 class="font-bold text-white leading-tight group-hover:text-blue-100 transition-colors duration-300 text-xs md:text-sm lg:text-sm break-words drop-shadow-lg bg-black/50 px-2 py-1 rounded-md backdrop-blur-sm max-w-full">
                             {{ $modulo['nombre'] }}
                         </h2>
                     </div>
