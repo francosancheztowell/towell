@@ -283,7 +283,7 @@
             }
 
             const url = '{{ route('urdido.modulo.produccion.urdido.pdf') }}?orden_id=' + ordenSeleccionada.id + '&tipo=urdido&reimpresion=1';
-            window.location.href = url;
+            window.open(url, '_blank');
         };
 
         // Ordenamiento por columnas
