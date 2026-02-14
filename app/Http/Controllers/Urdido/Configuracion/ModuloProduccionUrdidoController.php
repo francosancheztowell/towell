@@ -470,11 +470,20 @@ class ModuloProduccionUrdidoController extends Controller
             $request->validate([
                 'registro_id' => 'required|integer',
                 'numero_oficial' => 'required|integer|in:1,2,3',
-                'cve_empl' => 'required|string|max:30',
-                'nom_empl' => 'required|string|max:150',
+                'cve_empl' => 'nullable|string|max:30',
+                'nom_empl' => 'nullable|string|max:150',
                 'metros' => 'nullable|numeric|min:0',
                 'turno' => 'nullable|integer|in:1,2,3',
             ]);
+
+            $cveEmpl = trim((string) ($request->input('cve_empl') ?? ''));
+            $nomEmpl = trim((string) ($request->input('nom_empl') ?? ''));
+            if ($cveEmpl === '' && $nomEmpl === '') {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Debe llenar al menos la clave (No. Operador) o el nombre del oficial.',
+                ], 422);
+            }
 
             $registro = UrdProduccionUrdido::find($request->registro_id);
 
@@ -510,7 +519,7 @@ class ModuloProduccionUrdidoController extends Controller
             // Si el oficial en esa posición ya existe, se permite editar
             // Si no existe, verificar que no haya 3 oficiales ya registrados
             // No permitir repetir No. Operador dentro del mismo registro (Oficial 1-3).
-            $cveSolicitada = trim((string) $request->cve_empl);
+            $cveSolicitada = $cveEmpl;
             for ($i = 1; $i <= 3; $i++) {
                 if ($i === $numeroOficial) {
                     continue;
@@ -546,8 +555,8 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             // Actualizar los campos correspondientes según el número de oficial
-            $registro->{"CveEmpl{$numeroOficial}"} = $request->cve_empl;
-            $registro->{"NomEmpl{$numeroOficial}"} = $request->nom_empl;
+            $registro->{"CveEmpl{$numeroOficial}"} = $cveEmpl !== '' ? $cveEmpl : null;
+            $registro->{"NomEmpl{$numeroOficial}"} = $nomEmpl !== '' ? $nomEmpl : null;
 
             if ($request->has('metros')) {
                 $registro->{"Metros{$numeroOficial}"} = $request->metros;
@@ -560,17 +569,14 @@ class ModuloProduccionUrdidoController extends Controller
             $registro->save();
 
             if ($propagarOficial) {
+                // Solo propagar clave, nombre y turno; los metros no se encadenan a las órdenes de abajo
                 $updateData = [
-                    "CveEmpl{$numeroOficial}" => $request->cve_empl,
-                    "NomEmpl{$numeroOficial}" => $request->nom_empl,
+                    "CveEmpl{$numeroOficial}" => $cveEmpl !== '' ? $cveEmpl : null,
+                    "NomEmpl{$numeroOficial}" => $nomEmpl !== '' ? $nomEmpl : null,
                 ];
 
                 if ($request->has('turno')) {
                     $updateData["Turno{$numeroOficial}"] = $request->turno;
-                }
-
-                if ($request->has('metros')) {
-                    $updateData["Metros{$numeroOficial}"] = $request->metros;
                 }
 
                 UrdProduccionUrdido::where('Folio', $folio)

@@ -1637,7 +1637,8 @@
                 if (containerOficiales) containerOficiales.innerHTML = '';
             }
 
-            function actualizarOficialesEnTabla(registroId, oficiales) {
+            function actualizarOficialesEnTabla(registroId, oficiales, opciones = {}) {
+                const actualizarMetros = opciones.actualizarMetros !== false;
                 const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                 if (!row) return;
                 const oficialTexto = row.querySelector('.oficial-texto');
@@ -1673,9 +1674,11 @@
                     if (turnoSelect) turnoSelect.value = oficiales[0].turno;
                 }
 
-                const sumaMetros = oficiales.reduce((acc, o) => acc + (parseFloat(o.metros) || 0), 0);
-                const metrosInput = row.querySelector('input[data-field="metros"]');
-                if (metrosInput) metrosInput.value = sumaMetros > 0 ? sumaMetros : '';
+                if (actualizarMetros) {
+                    const sumaMetros = oficiales.reduce((acc, o) => acc + (parseFloat(o.metros) || 0), 0);
+                    const metrosInput = row.querySelector('input[data-field="metros"]');
+                    if (metrosInput) metrosInput.value = sumaMetros > 0 ? sumaMetros : '';
+                }
 
                 const btnAgregar = row.querySelector('.btn-agregar-oficial');
                 if (btnAgregar) {
@@ -1719,14 +1722,13 @@
                                     numero_oficial: oficial.numero_oficial,
                                     cve_empl: oficial.cve_empl,
                                     nom_empl: oficial.nom_empl,
-                                    turno: oficial.turno,
-                                    metros: oficial.metros
+                                    turno: oficial.turno
                                 })
                             });
                             const result = await response.json();
                             if (!result.success) break;
                         }
-                        actualizarOficialesEnTabla(registroId, oficiales);
+                        actualizarOficialesEnTabla(registroId, oficiales, { actualizarMetros: false });
                     } catch (err) {
                         console.error('Error propagando oficiales:', err);
                     }
