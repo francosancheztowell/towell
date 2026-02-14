@@ -604,7 +604,7 @@
 
     <!-- Modal Crear Formulación -->
     <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
                 <h3 class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
                 <button onclick="cerrarModalFormulacion()" class="text-white hover:text-gray-200 transition">
@@ -717,7 +717,7 @@
         class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center"
         style="display: none;"
     >
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[65vh] overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-3 max-h-[65vh] overflow-y-auto">
             <div class="px-4 md:px-6 py-3 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
                 <h3 class="text-base md:text-lg font-semibold text-gray-900">Oficiales</h3>
                 <button type="button" id="btn-cerrar-modal" class="text-gray-400 hover:text-gray-600 transition-colors">

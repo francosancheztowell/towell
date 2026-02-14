@@ -607,7 +607,7 @@
         class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center"
         style="display: none;"
     >
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[65vh] overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-3 max-h-[65vh] overflow-y-auto">
             <div class="px-4 md:px-6 py-3 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
                 <h3 class="text-base md:text-lg font-semibold text-gray-900">Oficiales</h3>
                 <button type="button" id="btn-cerrar-modal" class="text-gray-400 hover:text-gray-600 transition-colors">
