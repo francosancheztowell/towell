@@ -204,11 +204,11 @@
                 <!-- Último julio (AtaMontadoTelas) -->
                 <div class="space-y-2">
                     <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">Último julio Rizo:</span>
+                        <span class="{{ $labelClass }}">J Rizo:</span>
                         <span class="{{ $valueClass }}">{{ $telar->ultimoJulioRizo ?? '-' }}</span>
                     </div>
                     <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">Último julio Pie:</span>
+                        <span class="{{ $labelClass }}">J Pie:</span>
                         <span class="{{ $valueClass }}">{{ $telar->ultimoJulioPie ?? '-' }}</span>
                     </div>
                 </div>
@@ -219,7 +219,7 @@
             <!-- Separador visual -->
             @if($tieneOrdenSig)
                 <!-- Sección SIGUIENTE ORDEN con datos -->
-                <div class="p-3">
+                <div class="p-3 border-t-2">
                     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                         <!-- Columna 1: Orden -->
                         <div class="space-y-2">

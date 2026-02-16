@@ -16,8 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 class LiberarOrdenesController extends Controller
 {
@@ -308,6 +306,8 @@ class LiberarOrdenesController extends Controller
             'registros.*.repeticiones' => 'nullable|numeric',
             'registros.*.saldoMarbete' => 'nullable|numeric',
             'registros.*.densidad' => 'nullable|numeric',
+            'registros.*.observaciones' => 'nullable|string|max:500',
+            'registros.*.cambioRepaso' => ['nullable', 'string', Rule::in(['SI', 'NO', 'Si', 'No', 'si', 'no'])],
             'registros.*.combinaTram' => 'nullable|string|max:60',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
@@ -452,14 +452,24 @@ class LiberarOrdenesController extends Controller
 
                 // Aplicar valores del request con lógica de fallback
                 // Campos de texto
-                $camposTexto = ['CombinaTram', 'BomId', 'BomName', 'HiloAX'];
-                foreach ($camposTexto as $campo) {
-                    $key = lcfirst($campo);
-                    $valor = $item[$key] ?? null;
+                $camposTexto = [
+                    'combinaTram' => 'CombinaTram',
+                    'bomId' => 'BomId',
+                    'bomName' => 'BomName',
+                    'hiloAX' => 'HiloAX',
+                    'observaciones' => 'Observaciones',
+                    'cambioRepaso' => 'CambioHilo',
+                ];
+                foreach ($camposTexto as $campoRequest => $campoBD) {
+                    $valor = $item[$campoRequest] ?? null;
                     if ($valor !== null && $valor !== '') {
-                        $registro->$campo = trim((string) $valor);
-                    } elseif (empty($registro->$campo)) {
-                        $registro->$campo = null;
+                        $valorNormalizado = trim((string) $valor);
+                        if ($campoBD === 'CambioHilo') {
+                            $valorNormalizado = strtoupper($valorNormalizado) === 'SI' ? 'SI' : 'NO';
+                        }
+                        $registro->$campoBD = $valorNormalizado;
+                    } elseif (empty($registro->$campoBD)) {
+                        $registro->$campoBD = $campoBD === 'CambioHilo' ? 'NO' : null;
                     }
                 }
 
@@ -839,83 +849,6 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Genera un Excel simple con los registros actualizados
-     */
-    protected function generarExcel($registros): string
-    {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-
-        $headings = [
-            'Cuenta',
-            'Salon',
-            'Telar',
-            'Ultimo',
-            'Cambios Hilo',
-            'Maq',
-            'Ancho',
-            'Ef Std',
-            'Vel',
-            'Hilo',
-            'Calibre Pie',
-            'Jornada',
-            'Clave mod.',
-            'Usar cuando no existe en base',
-            'Producto',
-            'Saldos',
-            'Day Sheduling',
-            'Orden Prod.',
-            'INN',
-            'Descrip.',
-            'Aplic.',
-            'Obs',
-            'Fecha Fin',
-            'Prioridad',
-            'Clave AX',
-        ];
-
-        $sheet->fromArray($headings, null, 'A1');
-
-        $rowNumber = 2;
-        foreach ($registros as $registro) {
-            $sheet->fromArray([
-                $registro->CuentaRizo,
-                $registro->SalonTejidoId,
-                $registro->NoTelarId,
-                $registro->Ultimo,
-                $registro->CambioHilo,
-                $registro->Maquina,
-                $registro->Ancho,
-                $registro->EficienciaSTD,
-                $registro->VelocidadSTD,
-                $registro->FibraRizo,
-                $registro->CalibrePie2,
-                $registro->CalendarioId,
-                $registro->TamanoClave,
-                $registro->NoExisteBase,
-                $registro->NombreProducto,
-                $registro->SaldoPedido,
-                optional($registro->ProgramarProd)->format('Y-m-d'),
-                $registro->NoProduccion,
-                optional($registro->Programado)->format('Y-m-d'),
-                $registro->NombreProyecto,
-                $registro->AplicacionId,
-                $registro->Observaciones,
-                optional($registro->FechaFinal)->format('Y-m-d'),
-                $registro->Prioridad,
-                $registro->InventSizeId,
-            ], null, 'A' . $rowNumber);
-
-            $rowNumber++;
-        }
-
-        $writer = new Xlsx($spreadsheet);
-        ob_start();
-        $writer->save('php://output');
-        return ob_get_clean();
-    }
-
-    /**
      * Guarda un campo editable desde la vista de liberar órdenes
      * Actualiza tanto ReqProgramaTejido como CatCodificados
      */
@@ -1059,6 +992,8 @@ class LiberarOrdenesController extends Controller
                 $campoCatCodificados = 'NoMarbete';
             } elseif ($field === 'CombinaTrama') {
                 $campoCatCodificados = 'CombinaTram';
+            } elseif ($field === 'CambioHilo' || $field === 'CambioRepaso') {
+                $campoCatCodificados = 'CambioRepaso';
             } else {
                 $campoCatCodificados = $field;
             }
@@ -1079,6 +1014,8 @@ class LiberarOrdenesController extends Controller
                 $registroCodificado->Densidad = $value !== null ? round((float)$value, 4) : null;
             } elseif ($campoCatCodificados === 'CombinaTram') {
                 $registroCodificado->CombinaTram = $value !== null ? trim((string)$value) : null;
+            } elseif ($campoCatCodificados === 'CambioRepaso') {
+                $registroCodificado->CambioRepaso = $value !== null && strtoupper(trim((string)$value)) === 'SI' ? 'SI' : 'NO';
             } elseif ($campoCatCodificados === 'TotalRollos') {
                 // TotalRollos, redondear hacia arriba si hay decimal
                 $registroCodificado->TotalRollos = $value !== null ? (float)ceil((float)$value) : null;
@@ -1159,7 +1096,9 @@ class LiberarOrdenesController extends Controller
                 'Repeticiones' => $registro->Repeticiones !== null ? (int)ceil((float)$registro->Repeticiones) : null,
                 'NoMarbete' => $registro->SaldoMarbete !== null ? (float)ceil((float)$registro->SaldoMarbete) : null, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
                 'CombinaTram' => $registro->CombinaTram,
+                'CambioRepaso' => $registro->CambioHilo,
                 'Densidad' => $registro->Densidad !== null ? (float)$registro->Densidad : null,
+                'Obs5' => $registro->Observaciones,
                 'CreaProd' => $registro->CreaProd ?? 1,
                 'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
                 'CategoriaCalidad' => $registro->CategoriaCalidad,
@@ -1248,28 +1187,16 @@ class LiberarOrdenesController extends Controller
                 }
             }
 
-            // Verificar valores antes de guardar
-            $valoresAntesGuardar = [
-                'TotalRollos' => $registroCodificado->TotalRollos,
-                'TotalPzas' => $registroCodificado->TotalPzas,
-                'UsuarioCrea' => $registroCodificado->UsuarioCrea,
-                'is_dirty' => $registroCodificado->isDirty(),
-                'dirty_attributes' => $registroCodificado->getDirty(),
-            ];
-
-
             if ($updated || $registroCodificado->isDirty()) {
-                try {
-                    // Guardar usando fill() para asegurar que se guarden todos los cambios
-                    $registroCodificado->save();
-
-                    // Recargar desde BD para verificar
-                    $registroCodificado->refresh();
-
-                    } catch (\Exception $e) {
-                }
+                $registroCodificado->save();
+                $registroCodificado->refresh();
             }
         } catch (\Throwable $e) {
+            Log::warning('Error al actualizar CatCodificados desde liberacion', [
+                'no_produccion' => $registro->NoProduccion ?? null,
+                'no_telar_id' => $registro->NoTelarId ?? null,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

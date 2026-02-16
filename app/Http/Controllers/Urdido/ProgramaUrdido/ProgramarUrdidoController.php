@@ -100,6 +100,29 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
+     * Ventana emergente que carga el PDF de la orden y fuerza el diálogo de impresión.
+     */
+    public function reimpresionVentanaImprimir(Request $request)
+    {
+        $ordenId = $request->query('orden_id');
+        if (!$ordenId) {
+            return response('<script>alert("Falta orden_id"); window.close();</script>', 400)
+                ->header('Content-Type', 'text/html; charset=UTF-8');
+        }
+
+        $pdfUrl = route('urdido.modulo.produccion.urdido.pdf', [
+            'orden_id' => $ordenId,
+            'tipo' => 'urdido',
+            'reimpresion' => 1,
+        ]);
+
+        return view('modulos.urdido.reimpresion-urdido-popup', [
+            'pdfUrl' => $pdfUrl,
+            'ordenId' => $ordenId,
+        ]);
+    }
+
+    /**
      * Extraer número de MC Coy del campo MaquinaId
      *
      * @param string|null $maquinaId

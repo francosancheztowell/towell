@@ -302,7 +302,7 @@
                             <label class="block text-xs font-medium text-gray-700 mb-1">Litros <span class="text-red-600">*</span></label>
                             <input
                             required
-                            type="number" step="0.01" min="0.01" name="Litros" id="create_litros" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
+                            type="number" step="0.01" min="0.01" max="1500" name="Litros" id="create_litros" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Entre 0.01 y 1500">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado (Min) <span class="text-red-600">*</span></label>
@@ -797,7 +797,7 @@
                 modal.classList.add('hidden');
             }
         }
-
+        // funcion para deshabilitar los botones de editar, ver y eliminar
         function disableButtons() {
             ['btn-edit', 'btn-view', 'btn-delete'].forEach(id => {
                 const btn = document.getElementById(id);
@@ -1030,18 +1030,21 @@
                         // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
                         // NO usar cargarDatosPrograma() porque carga componentes desde AX y sobrescribe estos
                         if (data.componentes && data.componentes.length > 0) {
-                            // Mapear componentes preservando todos los datos
-                            componentesCreateData = data.componentes.map(comp => ({
-                                Id: comp.Id,
-                                ItemId: comp.ItemId || '',
-                                ItemName: comp.ItemName || '',
-                                ConfigId: comp.ConfigId || '',
-                                ConsumoUnitario: comp.ConsumoUnitario || 0,
-                                ConsumoTotal: comp.ConsumoTotal || 0,
-                                Unidad: comp.Unidad || '',
-                                Almacen: comp.Almacen || '',
-                                esNuevo: false // No es nuevo, viene de la BD
-                            }));
+                            // Mapear componentes preservando todos los datos; Consumo Total máx 100 para no-agua
+                            componentesCreateData = data.componentes.map(comp => {
+                                const consumoTotal = aplicarMaxConsumoTotal(comp, comp.ConsumoTotal || 0, parseFloat(form.Litros));
+                                return {
+                                    Id: comp.Id,
+                                    ItemId: comp.ItemId || '',
+                                    ItemName: comp.ItemName || '',
+                                    ConfigId: comp.ConfigId || '',
+                                    ConsumoUnitario: comp.ConsumoUnitario || 0,
+                                    ConsumoTotal: consumoTotal,
+                                    Unidad: comp.Unidad || '',
+                                    Almacen: comp.Almacen || '',
+                                    esNuevo: false
+                                };
+                            });
 
                             renderizarTablaComponentesCreate();
                             document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
@@ -1234,17 +1237,20 @@
                         // IMPORTANTE: Cargar componentes desde EngFormulacionLine filtrados por EngProduccionFormulacionId
                         // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
                         if (data.componentes && data.componentes.length > 0) {
-                            componentesCreateData = data.componentes.map(comp => ({
-                                Id: comp.Id,
-                                ItemId: comp.ItemId || '',
-                                ItemName: comp.ItemName || '',
-                                ConfigId: comp.ConfigId || '',
-                                ConsumoUnitario: comp.ConsumoUnitario || 0,
-                                ConsumoTotal: comp.ConsumoTotal || 0,
-                                Unidad: comp.Unidad || '',
-                                Almacen: comp.Almacen || '',
-                                esNuevo: false // No es nuevo, viene de la BD
-                            }));
+                            componentesCreateData = data.componentes.map(comp => {
+                                const consumoTotal = aplicarMaxConsumoTotal(comp, comp.ConsumoTotal || 0, parseFloat(form.Litros));
+                                return {
+                                    Id: comp.Id,
+                                    ItemId: comp.ItemId || '',
+                                    ItemName: comp.ItemName || '',
+                                    ConfigId: comp.ConfigId || '',
+                                    ConsumoUnitario: comp.ConsumoUnitario || 0,
+                                    ConsumoTotal: consumoTotal,
+                                    Unidad: comp.Unidad || '',
+                                    Almacen: comp.Almacen || '',
+                                    esNuevo: false
+                                };
+                            });
                             renderizarTablaComponentesCreate();
                             document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
                         } else {
@@ -1568,6 +1574,20 @@
         let formulaCreateActual = '';
         let kilosCreateFormula = 0;
         let litrosCreateFormula = 0;
+
+        /** Consumo Total: no-agua máx 100; agua máx = valor del input Litros (formulación engomado). */
+        const CONSUMO_TOTAL_MAX_NO_AGUA = 100;
+        function esComponenteAgua(comp) {
+            const id = (comp.ItemId || '').toLowerCase();
+            const name = (comp.ItemName || '').toLowerCase();
+            return id.includes('agua') || name.includes('agua');
+        }
+        /** Aplica tope: agua <= litrosMax (input Litros), resto <= 100. litrosMax opcional (usa litrosCreateFormula). */
+        function aplicarMaxConsumoTotal(comp, valor, litrosMax) {
+            const litros = typeof litrosMax === 'number' && !isNaN(litrosMax) ? litrosMax : litrosCreateFormula;
+            if (esComponenteAgua(comp)) return Math.min(valor, Math.max(0, litros));
+            return Math.min(valor, CONSUMO_TOTAL_MAX_NO_AGUA);
+        }
 
         function abrirModalComponentes(kilos = 0) {
             if (!formulaActual) {
@@ -1956,17 +1976,17 @@
                     document.getElementById('create_componentes_error').classList.add('hidden');
 
                     if (data.success) {
-                        // Convertir los componentes al formato esperado
+                        const consumoTotalCapped = (c) => aplicarMaxConsumoTotal(c, c.ConsumoTotal || 0);
                         componentesCreateData = (data.componentes || []).map(comp => ({
                             Id: comp.Id,
                             ItemId: comp.ItemId || '',
                             ItemName: comp.ItemName || '',
                             ConfigId: comp.ConfigId || '',
                             ConsumoUnitario: comp.ConsumoUnitario || 0,
-                            ConsumoTotal: comp.ConsumoTotal || 0,
+                            ConsumoTotal: consumoTotalCapped(comp),
                             Unidad: comp.Unidad || '',
                             Almacen: comp.Almacen || '',
-                            esNuevo: false // No es nuevo, viene de la BD
+                            esNuevo: false
                         }));
                         renderizarTablaComponentesCreate();
                         document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
@@ -2175,10 +2195,15 @@
                 row.className = 'hover:bg-blue-50/50 transition-colors' + (index % 2 === 1 ? ' bg-gray-50/30' : '');
 
                 const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
-                const consumoTotal = consumoUnitario * litrosCreateFormula;
+                let consumoTotal = consumoUnitario * litrosCreateFormula;
+                consumoTotal = aplicarMaxConsumoTotal(comp, consumoTotal);
+                const esAgua = esComponenteAgua(comp);
+                const maxLitros = typeof litrosCreateFormula === 'number' && !isNaN(litrosCreateFormula) ? litrosCreateFormula : 0;
+                const maxAttr = esAgua ? ` max="${maxLitros}"` : ` max="${CONSUMO_TOTAL_MAX_NO_AGUA}"`;
                 const disabledAttr = viewOnlyMode ? 'disabled' : '';
                 const disabledClass = viewOnlyMode ? 'bg-gray-100 cursor-not-allowed' : '';
                 const sinCalibre = !(comp.ItemId || '').trim();
+                const titleConsumo = sinCalibre ? 'Seleccione Artículo (calibre) primero' : (esAgua ? 'Máximo igual a Litros' : 'Máximo 100 (excepto agua)');
                 const consumoTotalDisabled = sinCalibre ? 'disabled' : disabledAttr;
 
                 // Solo usar selects si viene desde producción Y es una fila nueva (agregada con botón)
@@ -2201,9 +2226,9 @@
                             </select>
                         </td>
                         <td class="px-4 py-2 text-sm">
-                            <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
+                            <input type="number" step="0.01" min="0" value="${consumoTotal.toFixed(2)}" data-index="${index}" data-field="ConsumoTotal"${maxAttr}
                                 class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${consumoTotalDisabled}
-                                title="${sinCalibre ? 'Seleccione Artículo (calibre) primero' : ''}">
+                                title="${sinCalibre ? 'Seleccione Artículo (calibre) primero' : titleConsumo}">
                         </td>
                     `;
                 } else {
@@ -2222,9 +2247,9 @@
                                 class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
                         </td>
                         <td class="px-4 py-2 text-sm">
-                            <input type="number" step="0.0001" value="${consumoTotal.toFixed(4)}" data-index="${index}" data-field="ConsumoTotal"
+                            <input type="number" step="0.01" min="0" value="${consumoTotal.toFixed(2)}" data-index="${index}" data-field="ConsumoTotal"${maxAttr}
                                 class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${consumoTotalDisabledInput}
-                                title="${sinCalibre ? 'Seleccione Artículo (calibre) primero' : ''}">
+                                title="${sinCalibre ? 'Seleccione Artículo (calibre) primero' : titleConsumo}">
                         </td>
                     `;
                 }
@@ -2258,16 +2283,25 @@
                     consumoTotalInput.parentNode.replaceChild(nuevoInput, consumoTotalInput);
 
                     nuevoInput.addEventListener('input', function() {
-                        const nuevoConsumoTotal = parseFloat(this.value) || 0;
+                        let nuevoConsumoTotal = parseFloat(this.value) || 0;
+                        const compData = componentesCreateData[index];
+                        if (compData) {
+                            nuevoConsumoTotal = aplicarMaxConsumoTotal(compData, nuevoConsumoTotal);
+                            nuevoConsumoTotal = Math.round(nuevoConsumoTotal * 100) / 100;
+                            if (parseFloat(this.value) !== nuevoConsumoTotal) this.value = nuevoConsumoTotal.toFixed(2);
+                        }
                         const nuevoConsumoUnitario = litrosCreateFormula > 0
                             ? nuevoConsumoTotal / litrosCreateFormula
                             : 0;
 
-                        // Actualizar el valor en componentesCreateData
-                        if (componentesCreateData[index]) {
-                            componentesCreateData[index].ConsumoTotal = nuevoConsumoTotal;
-                            componentesCreateData[index].ConsumoUnitario = nuevoConsumoUnitario;
+                        if (compData) {
+                            compData.ConsumoTotal = nuevoConsumoTotal;
+                            compData.ConsumoUnitario = nuevoConsumoUnitario;
                         }
+                    });
+                    nuevoInput.addEventListener('blur', function() {
+                        const val = parseFloat(this.value);
+                        if (!isNaN(val)) this.value = (Math.round(val * 100) / 100).toFixed(2);
                     });
                 }
             });
@@ -2366,7 +2400,7 @@
                 if (componentesCreateData.length === 0) return;
                 componentesCreateData.forEach((comp) => {
                     const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
-                    comp.ConsumoTotal = consumoUnitario * litrosCreateFormula;
+                    comp.ConsumoTotal = aplicarMaxConsumoTotal(comp, consumoUnitario * litrosCreateFormula);
                 });
                 renderizarTablaComponentesCreate();
                 actualizarBotonGuardarEdicion();
@@ -2386,13 +2420,31 @@
                 }, 300));
             }
 
+            const LITROS_MAX = 1500;
             const litrosInput = document.getElementById('create_litros');
             if (litrosInput) {
                 litrosCreateFormula = parseFloat(litrosInput.value) || 0;
-                litrosInput.addEventListener('input', debounce(function() {
-                    litrosCreateFormula = parseFloat(this.value) || 0;
-                    recalcularYRenderizar();
-                }, 300));
+                litrosInput.addEventListener('input', (function() {
+                    let t;
+                    return function() {
+                        let val = parseFloat(this.value) || 0;
+                        if (val > LITROS_MAX) {
+                            val = LITROS_MAX;
+                            this.value = val;
+                        }
+                        litrosCreateFormula = val;
+                        clearTimeout(t);
+                        t = setTimeout(recalcularYRenderizar, 300);
+                    };
+                })());
+                litrosInput.addEventListener('blur', function() {
+                    let val = parseFloat(this.value) || 0;
+                    if (val > LITROS_MAX) {
+                        this.value = LITROS_MAX;
+                        litrosCreateFormula = LITROS_MAX;
+                        recalcularYRenderizar();
+                    }
+                });
             }
 
             const createForm = document.getElementById('createForm');
@@ -2416,6 +2468,11 @@
                         Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Los Litros deben ser mayor a cero', showConfirmButton: false, timer: 3000 });
                         return;
                     }
+                    if (litrosVal > 1500) {
+                        e.preventDefault();
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Los Litros no pueden ser mayor a 1500', showConfirmButton: false, timer: 3000 });
+                        return;
+                    }
                     if (tiempoVal <= 0 || isNaN(tiempoVal)) {
                         e.preventDefault();
                         Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'El Tiempo Cocinado debe ser mayor a cero', showConfirmButton: false, timer: 3000 });
@@ -2437,6 +2494,34 @@
                         return;
                     }
                     const componentes = obtenerComponentesCreateDesdeTabla();
+                    const invalidoAgua = componentes.find(c => (c.ItemId || '').trim() && esComponenteAgua(c) && (parseFloat(c.ConsumoTotal) || 0) > litrosVal);
+                    if (invalidoAgua) {
+                        e.preventDefault();
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: 'Consumo Total agua',
+                            text: 'En el componente agua, Consumo Total no puede ser mayor a Litros (' + litrosVal + '). Revisa: ' + (invalidoAgua.ItemId || invalidoAgua.ItemName || 'agua'),
+                            showConfirmButton: true,
+                            timer: 0
+                        });
+                        return;
+                    }
+                    const invalidoConsumo = componentes.find(c => (c.ItemId || '').trim() && !esComponenteAgua(c) && (parseFloat(c.ConsumoTotal) || 0) > CONSUMO_TOTAL_MAX_NO_AGUA);
+                    if (invalidoConsumo) {
+                        e.preventDefault();
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: 'Consumo Total máximo 100',
+                            text: 'En componentes que no son agua, Consumo Total no puede ser mayor a 100. Revisa: ' + (invalidoConsumo.ItemId || invalidoConsumo.ItemName || 'componente'),
+                            showConfirmButton: true,
+                            timer: 0
+                        });
+                        return;
+                    }
                     const conCalibre = componentes.filter(c => (c.ItemId || '').trim());
 
                     const payload = document.getElementById('create_componentes_payload');

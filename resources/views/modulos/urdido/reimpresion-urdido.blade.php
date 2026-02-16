@@ -135,7 +135,7 @@
 
 <!-- Modal FILTROS -->
 <div id="modal-filters" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
+    <div class="bg-white max-w-xl w-full rounded-xl shadow-xl p-3 m-3">
         <div class="flex items-center justify-end">
 
             <button data-close="#modal-filters" class="text-slate-500 hover:text-slate-700 text-4xl leading-none">&times;</button>
@@ -282,8 +282,8 @@
                 return;
             }
 
-            const url = '{{ route('urdido.modulo.produccion.urdido.pdf') }}?orden_id=' + ordenSeleccionada.id + '&tipo=urdido&reimpresion=1';
-            window.open(url, '_blank');
+            const url = '{{ route('urdido.reimpresion.urdido.ventana.imprimir') }}?orden_id=' + encodeURIComponent(ordenSeleccionada.id);
+            window.open(url, 'imprimir-urdido', 'width=720,height=560,scrollbars=yes,resizable=yes');
         };
 
         // Ordenamiento por columnas

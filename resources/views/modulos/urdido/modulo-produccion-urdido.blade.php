@@ -607,7 +607,7 @@
         class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center"
         style="display: none;"
     >
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[65vh] overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-3 max-h-[65vh] overflow-y-auto">
             <div class="px-4 md:px-6 py-3 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
                 <h3 class="text-base md:text-lg font-semibold text-gray-900">Oficiales</h3>
                 <button type="button" id="btn-cerrar-modal" class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -2351,7 +2351,8 @@
                 }
 
                 // Función para actualizar oficiales en la tabla sin recargar
-                function actualizarOficialesEnTabla(registroId, oficiales) {
+                function actualizarOficialesEnTabla(registroId, oficiales, opciones = {}) {
+                    const actualizarMetros = opciones.actualizarMetros !== false;
                     const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                     if (!row) return;
 
@@ -2396,11 +2397,13 @@
                         }
                     }
 
-                    // Actualizar Metros (suma de Metros1+Metros2+Metros3 de los oficiales)
-                    const sumaMetros = oficiales.reduce((acc, o) => acc + (parseFloat(o.metros) || 0), 0);
-                    const metrosInput = row.querySelector('input[data-field="metros"]');
-                    if (metrosInput) {
-                        metrosInput.value = sumaMetros > 0 ? sumaMetros : '';
+                    // Actualizar Metros solo si se indica (al propagar hacia abajo no se actualizan metros)
+                    if (actualizarMetros) {
+                        const sumaMetros = oficiales.reduce((acc, o) => acc + (parseFloat(o.metros) || 0), 0);
+                        const metrosInput = row.querySelector('input[data-field="metros"]');
+                        if (metrosInput) {
+                            metrosInput.value = sumaMetros > 0 ? sumaMetros : '';
+                        }
                     }
 
                     // Actualizar botón de agregar oficial (siempre habilitado)
@@ -2444,7 +2447,7 @@
                             break; // Detener la propagación
                         }
 
-                        // Guardar oficiales en esta fila
+                        // Guardar oficiales en esta fila (sin metros: no encadenar metros a las órdenes de abajo)
                         try {
                             let todosGuardados = true;
                             for (const oficial of oficiales) {
@@ -2453,8 +2456,8 @@
                                     numero_oficial: oficial.numero_oficial,
                                     cve_empl: oficial.cve_empl,
                                     nom_empl: oficial.nom_empl,
-                                    turno: oficial.turno,
-                                    metros: oficial.metros
+                                    turno: oficial.turno
+                                    // metros no se envía para no afectar las órdenes de abajo
                                 };
 
                                 const response = await fetch('{{ route('urdido.modulo.produccion.urdido.guardar.oficial') }}', {
@@ -2470,7 +2473,7 @@
                                 if (!result.success) todosGuardados = false;
                             }
                             if (todosGuardados) {
-                                actualizarOficialesEnTabla(registroId, oficiales);
+                                actualizarOficialesEnTabla(registroId, oficiales, { actualizarMetros: false });
                             }
                         } catch (error) {
                             console.error(`Error al propagar oficiales a registro ${registroId}:`, error);

@@ -50,6 +50,7 @@
             ['field' => 'TotalPedido', 'label' => 'Pedido'],
             ['field' => 'ProgramarProd', 'label' => 'Day Shedulling'],
             ['field' => 'Programado', 'label' => 'INN'],
+            ['field' => 'FlogsId', 'label' => 'Flog'],
             ['field' => 'NombreProyecto', 'label' => 'Descripción'],
             ['field' => 'AplicacionId', 'label' => 'Aplic'],
             ['field' => 'TipoPedido', 'label' => 'Tipo Ped'],
@@ -66,6 +67,8 @@
             ['field' => 'Repeticiones', 'label' => 'Repeticiones'],
             ['field' => 'SaldoMarbete', 'label' => 'No Marbetes'],
             ['field' => 'Densidad', 'label' => 'Densidad'],
+            ['field' => 'Observaciones', 'label' => 'Observaciones'],
+            ['field' => 'CambioRepaso', 'label' => 'Cambio Repaso'],
             ['field' => 'CombinaTrama', 'label' => 'Comb Trama'],
             ['field' => 'BomId', 'label' => 'L.Mat'],
             ['field' => 'BomName', 'label' => 'Nombre L.Mat'],
@@ -82,7 +85,7 @@
                 // Usar PrioridadAnterior si existe, sino usar Prioridad actual, sino vacío
                 $prioridadAnterior = $registro->PrioridadAnterior ?? '';
                 $prioridadActual = $registro->Prioridad ?? '';
-                $prioridad = !empty($prioridadAnterior) ? $prioridadAnterior : $prioridadActual;
+                $prioridad = !empty($prioridadActual) ? $prioridadActual : $prioridadAnterior;
                 $id = $registro->Id ?? '';
 
                 return '<input type="text"
@@ -225,6 +228,40 @@
                               data-original-value="' . $valueFormatted . '">';
             }
 
+            // Campo Observaciones (string editable)
+            if ($field === 'Observaciones') {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = $registro->{$field} ?? null;
+                $valueFormatted = $value !== null ? htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') : '';
+
+                return '<input type="text"
+                              class="editable-field w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 observaciones-input"
+                              value="' . $valueFormatted . '"
+                              data-field="Observaciones"
+                              data-row-id="' . $rowId . '"
+                              data-original-value="' . $valueFormatted . '"
+                              placeholder="Observaciones">';
+            }
+
+            // Campo CambioRepaso (select SI/NO)
+            if ($field === 'CambioRepaso') {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+
+                $valorActual = strtoupper(trim((string) ($registro->CambioHilo ?? 'NO')));
+                if (!in_array($valorActual, ['SI', 'NO'], true)) {
+                    $valorActual = 'NO';
+                }
+
+                return '<select class="cambio-repaso-select w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                              data-field="CambioRepaso"
+                              data-row-id="' . $rowId . '">
+                            <option value="SI" ' . ($valorActual === 'SI' ? 'selected' : '') . '>SI</option>
+                            <option value="NO" ' . ($valorActual === 'NO' ? 'selected' : '') . '>NO</option>
+                        </select>';
+            }
+
             $value = $registro->{$field} ?? null;
             if ($value === null || $value === '') return '';
 
@@ -337,7 +374,7 @@
                             <tr>
                                 @foreach($columns as $index => $col)
                                 <th class="px-2 py-2 text-left text-sm font-semibold text-white whitespace-nowrap column-{{ $index }}"
-                                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : ($col['field'] === 'HiloAX' ? '220px' : ($col['field'] === 'BomId' ? '180px' : ($col['field'] === 'BomName' ? '300px' : '80px'))) }}; z-index: 10;"
+                                    style="position: sticky; top: 0; background-color: #3b82f6; min-width: {{ $col['field'] === 'prioridad' ? '300px' : ($col['field'] === 'HiloAX' ? '220px' : ($col['field'] === 'BomId' ? '180px' : ($col['field'] === 'BomName' ? '300px' : ($col['field'] === 'Observaciones' ? '260px' : ($col['field'] === 'CambioRepaso' ? '170px' : '80px'))))) }}; z-index: 10;"
                                     data-index="{{ $index }}"
                                     data-field="{{ $col['field'] }}">
                                     @if($col['field'] === 'select')
@@ -405,7 +442,6 @@ const redirectAfterLiberar = '{{ route('catalogos.req-programa-tejido') }}';
 const tipoHiloUrl = '{{ route('programa-tejido.liberar-ordenes.tipo-hilo') }}';
 const bomAutocompleteUrl = '{{ route('programa-tejido.liberar-ordenes.bom') }}';
 const codigoDibujoUrl = '{{ route('programa-tejido.liberar-ordenes.codigo-dibujo') }}';
-const guardarCamposEditablesUrl = '{{ route('programa-tejido.liberar-ordenes.guardar-campos') }}';
 
 // Variables globales para columnas
 const liberarOrdenesColumnsList = @json($columns ?? []);
@@ -1789,6 +1825,8 @@ function obtenerRegistrosSeleccionados() {
             repeticiones: getNumericValue('Repeticiones'),
             saldoMarbete: getNumericValue('SaldoMarbete'),
             densidad: getNumericValue('Densidad'),
+            observaciones: getCellValue('Observaciones'),
+            cambioRepaso: getCellValue('CambioRepaso'),
             combinaTram: getCellValue('CombinaTrama')
         };
     });
@@ -1882,103 +1920,6 @@ function liberarOrdenes() {
 
 // Los checkboxes no cambian el estilo visual de las filas
 
-// Función para guardar un campo editable
-function guardarCampoEditable(input) {
-    const rowId = input.getAttribute('data-row-id');
-    const field = input.getAttribute('data-field');
-    const originalValue = input.getAttribute('data-original-value');
-    const newValue = input.value.trim();
-
-    // Si el valor no cambió, no hacer nada
-    if (newValue === originalValue) {
-        return;
-    }
-
-    // Validar que rowId existe
-    if (!rowId) {
-        console.error('No se encontró el ID del registro');
-        return;
-    }
-
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-    // Preparar el valor según el tipo de campo
-    let valueToSend = newValue;
-    if (field !== 'CombinaTrama') {
-        // Campos numéricos
-        if (newValue === '') {
-            valueToSend = null;
-        } else {
-            const numValue = parseFloat(newValue);
-            if (isNaN(numValue)) {
-                // Si no es un número válido, restaurar el valor original
-                input.value = originalValue;
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Valor inválido',
-                    text: 'Por favor ingresa un número válido.',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-                return;
-            }
-            valueToSend = numValue;
-        }
-    }
-
-    // Mostrar indicador de guardado
-    input.style.borderColor = '#fbbf24'; // Amarillo mientras guarda
-    input.disabled = true;
-
-    fetch(guardarCamposEditablesUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': csrfToken,
-        },
-        body: JSON.stringify({
-            id: parseInt(rowId),
-            field: field,
-            value: valueToSend
-        }),
-    })
-    .then(async response => {
-        const data = await response.json();
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Error al guardar el campo.');
-        }
-        return data;
-    })
-    .then(data => {
-        // Actualizar el valor original guardado
-        input.setAttribute('data-original-value', newValue);
-        input.style.borderColor = '#10b981'; // Verde cuando se guarda correctamente
-        setTimeout(() => {
-            input.style.borderColor = '#d1d5db'; // Volver al color normal
-        }, 1000);
-    })
-    .catch(error => {
-        console.error('Error al guardar:', error);
-        // Restaurar el valor original en caso de error
-        input.value = originalValue;
-        input.style.borderColor = '#ef4444'; // Rojo en caso de error
-        Swal.fire({
-            icon: 'error',
-            title: 'Error al guardar',
-            text: error.message || 'No se pudo guardar el cambio.',
-            timer: 3000,
-            showConfirmButton: false
-        });
-        setTimeout(() => {
-            input.style.borderColor = '#d1d5db'; // Volver al color normal
-        }, 2000);
-    })
-    .finally(() => {
-        input.disabled = false;
-    });
-}
-
 // Función para calcular TotalPzas automáticamente cuando cambia TotalRollos
 function calcularTotalPzas(changedInput) {
     const rowId = changedInput.getAttribute('data-row-id');
@@ -2016,82 +1957,6 @@ function calcularTotalPzas(changedInput) {
     }
 }
 
-// Función para calcular Repeticiones cuando cambia Densidad
-function calcularRepeticionesDesdeDensidad(changedInput) {
-    const row = changedInput.closest('.row-data');
-    if (!row) return;
-
-    const densidadInput = row.querySelector('input[data-field="Densidad"]');
-    const repeticionesInput = row.querySelector('input[data-field="Repeticiones"]');
-
-    if (!densidadInput || !repeticionesInput) return;
-
-    const densidad = parseFloat(densidadInput.value) || 0;
-    if (densidad <= 0) return;
-
-    // Obtener valores necesarios de la tabla
-    const anchoCell = row.querySelector('[data-column="Ancho"]');
-    const largoCrudoCell = row.querySelector('[data-column="LargoCrudo"]');
-    const noTirasCell = row.querySelector('[data-column="NoTiras"]');
-
-    // Si no están disponibles en la tabla, no podemos calcular
-    if (!anchoCell || !largoCrudoCell || !noTirasCell) return;
-
-    const ancho = parseFloat(anchoCell.textContent.replace(/,/g, '')) || 0;
-    const largoText = largoCrudoCell.textContent.trim();
-    const largo = parseFloat(largoText.replace(/[^\d.]/g, '')) || 0;
-    const noTiras = parseFloat(noTirasCell.textContent.replace(/,/g, '')) || 0;
-
-    if (ancho <= 0 || largo <= 0 || noTiras <= 0) return;
-
-    // Calcular PesoCrudo desde Densidad: PesoCrudo = Densidad * ((ancho * largo) / 10)
-    const pesoCrudo = densidad * ((ancho * largo) / 10);
-
-    // Para calcular Repeticiones necesitamos pesoRollo que no está en la tabla
-    // Por ahora, no podemos calcular Repeticiones desde Densidad sin pesoRollo
-    // El backend lo calculará cuando se liberen las órdenes
-}
-
-// Función para calcular Densidad cuando cambia Repeticiones
-function calcularDensidadDesdeRepeticiones(changedInput) {
-    const row = changedInput.closest('.row-data');
-    if (!row) return;
-
-    const repeticionesInput = row.querySelector('input[data-field="Repeticiones"]');
-    const densidadInput = row.querySelector('input[data-field="Densidad"]');
-
-    if (!repeticionesInput || !densidadInput) return;
-
-    const repeticiones = parseFloat(repeticionesInput.value) || 0;
-    if (repeticiones <= 0) return;
-
-    // Obtener valores necesarios de la tabla
-    const anchoCell = row.querySelector('[data-column="Ancho"]');
-    const largoCrudoCell = row.querySelector('[data-column="LargoCrudo"]');
-    const pesoCrudoCell = row.querySelector('[data-column="PesoCrudo"]');
-
-    // Si no están disponibles en la tabla, no podemos calcular
-    if (!anchoCell || !largoCrudoCell || !pesoCrudoCell) return;
-
-    const ancho = parseFloat(anchoCell.textContent.replace(/,/g, '')) || 0;
-    const largoText = largoCrudoCell.textContent.trim();
-    const largo = parseFloat(largoText.replace(/[^\d.]/g, '')) || 0;
-    const pesoCrudo = parseFloat(pesoCrudoCell.textContent.replace(/,/g, '')) || 0;
-
-    if (ancho <= 0 || largo <= 0 || pesoCrudo <= 0) return;
-
-    // Calcular Densidad: densidad = peso_crudo / ((ancho * largo) / 10)
-    const denominador = (ancho * largo) / 10;
-    if (denominador > 0) {
-        const densidad = pesoCrudo / denominador;
-        const newDensidad = Math.round(densidad * 10000) / 10000; // 4 decimales
-        const oldValue = densidadInput.getAttribute('data-original-value') || '';
-
-        densidadInput.value = newDensidad;
-        // Actualizar el valor original guardado (pero NO guardar en BD hasta que se presione "Liberar")
-        densidadInput.setAttribute('data-original-value', newDensidad.toString());
-    }
-}
 </script>
 
 <style>
@@ -2130,6 +1995,15 @@ tr.row-data.row-selected .hilo-ax-select {
 tr.row-data.row-selected .hilo-ax-select option {
     background: #1e40af;
     color: #fff;
+}
+tr.row-data.row-selected .cambio-repaso-select {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+    border-color: #93c5fd !important;
+}
+tr.row-data.row-selected .cambio-repaso-select option {
+    background: #ffffff;
+    color: #111827;
 }
 tr.row-data.row-selected span[data-field] {
     color: #fff !important;
@@ -2231,6 +2105,16 @@ th[data-field="BomName"] {
     min-width: 300px !important;
     width: 300px;
 }
+td[data-column="Observaciones"],
+th[data-field="Observaciones"] {
+    min-width: 260px !important;
+    width: 260px;
+}
+td[data-column="CambioRepaso"],
+th[data-field="CambioRepaso"] {
+    min-width: 170px !important;
+    width: 170px;
+}
 .bom-id-input {
     min-width: 160px !important;
     width: 100% !important;
@@ -2238,6 +2122,16 @@ th[data-field="BomName"] {
 
 .bom-name-input {
     min-width: 280px !important;
+    width: 100% !important;
+}
+
+.observaciones-input {
+    min-width: 240px !important;
+    width: 100% !important;
+}
+
+.cambio-repaso-select {
+    min-width: 150px !important;
     width: 100% !important;
 }
 

@@ -25,17 +25,6 @@
     </div>
 @endsection
 
-@php
-    $hasFinalizarPermission = true;
-    try {
-        $moduloRol = \App\Models\Sistema\SYSRoles::where('modulo', 'Programa Engomado')->first();
-        $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Engomado';
-        $hasFinalizarPermission = function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
-    } catch (\Exception $e) {
-        $hasFinalizarPermission = true;
-    }
-@endphp
-
 @section('content')
 
 <style>
@@ -83,7 +72,6 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[90px]">Tipo:</span>
-                        @if($orden && $orden->RizoPie)
                             @php
                                 $tipo = strtoupper(trim($orden->RizoPie));
                                 $isRizo = $tipo === 'RIZO';
@@ -92,9 +80,6 @@
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $isRizo ? 'bg-rose-100 text-rose-700' : ($isPie ? 'bg-teal-100 text-teal-700' : 'bg-gray-200 text-gray-800') }}">
                                 {{ $orden->RizoPie }}
                             </span>
-                        @else
-                            <span class="text-sm text-gray-500 italic">-</span>
-                        @endif
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[90px]">Núcleo:</span>
@@ -128,6 +113,10 @@
 
                 <!-- Columna 4 - Merma -->
                 <div class="flex flex-col space-y-1">
+                    <div class="flex items-center gap-1">
+                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap shrink-0">Hilo:</span>
+                        <span class="text-sm text-gray-900 truncate">{{ $hiloFibra ?? '-' }}</span>
+                    </div>
                     <div class="flex items-center gap-1">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap shrink-0">Merma con Goma:</span>
                         <input
@@ -615,7 +604,7 @@
 
     <!-- Modal Crear Formulación -->
     <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
                 <h3 class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
                 <button onclick="cerrarModalFormulacion()" class="text-white hover:text-gray-200 transition">
@@ -728,7 +717,7 @@
         class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center"
         style="display: none;"
     >
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[65vh] overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-3 max-h-[65vh] overflow-y-auto">
             <div class="px-4 md:px-6 py-3 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
                 <h3 class="text-base md:text-lg font-semibold text-gray-900">Oficiales</h3>
                 <button type="button" id="btn-cerrar-modal" class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -976,6 +965,31 @@
                 } else {
                     alert('Debes seleccionar un oficial antes de actualizar este campo');
                 }
+            }
+
+            // Disponibles para actualizar* (deben estar en el mismo ámbito)
+            function esFilaBloqueada(registroId) {
+                const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                if (!row) return false;
+                const checkbox = row.querySelector('.checkbox-finalizar');
+                return checkbox && checkbox.checked;
+            }
+            function verificarFilaNoFinalizada(registroId) {
+                if (esFilaBloqueada(registroId)) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Registro finalizado',
+                            text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
+                            timer: 2500,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                    }
+                    return false;
+                }
+                return true;
             }
 
             // ===== Llamadas al backend =====
@@ -1623,7 +1637,8 @@
                 if (containerOficiales) containerOficiales.innerHTML = '';
             }
 
-            function actualizarOficialesEnTabla(registroId, oficiales) {
+            function actualizarOficialesEnTabla(registroId, oficiales, opciones = {}) {
+                const actualizarMetros = opciones.actualizarMetros !== false;
                 const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                 if (!row) return;
                 const oficialTexto = row.querySelector('.oficial-texto');
@@ -1659,9 +1674,11 @@
                     if (turnoSelect) turnoSelect.value = oficiales[0].turno;
                 }
 
-                const sumaMetros = oficiales.reduce((acc, o) => acc + (parseFloat(o.metros) || 0), 0);
-                const metrosInput = row.querySelector('input[data-field="metros"]');
-                if (metrosInput) metrosInput.value = sumaMetros > 0 ? sumaMetros : '';
+                if (actualizarMetros) {
+                    const sumaMetros = oficiales.reduce((acc, o) => acc + (parseFloat(o.metros) || 0), 0);
+                    const metrosInput = row.querySelector('input[data-field="metros"]');
+                    if (metrosInput) metrosInput.value = sumaMetros > 0 ? sumaMetros : '';
+                }
 
                 const btnAgregar = row.querySelector('.btn-agregar-oficial');
                 if (btnAgregar) {
@@ -1705,14 +1722,13 @@
                                     numero_oficial: oficial.numero_oficial,
                                     cve_empl: oficial.cve_empl,
                                     nom_empl: oficial.nom_empl,
-                                    turno: oficial.turno,
-                                    metros: oficial.metros
+                                    turno: oficial.turno
                                 })
                             });
                             const result = await response.json();
                             if (!result.success) break;
                         }
-                        actualizarOficialesEnTabla(registroId, oficiales);
+                        actualizarOficialesEnTabla(registroId, oficiales, { actualizarMetros: false });
                     } catch (err) {
                         console.error('Error propagando oficiales:', err);
                     }
@@ -1752,13 +1768,7 @@
                     });
                 }
 
-                function esFilaBloqueada(registroId) {
-                    const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
-                    if (!row) return false;
-                    const checkbox = row.querySelector('.checkbox-finalizar');
-                    return checkbox && checkbox.checked;
-                }
-
+                // esFilaBloqueada y verificarFilaNoFinalizada están en el ámbito exterior del IIFE
                 if (tablaBody) {
                     tablaBody.querySelectorAll('.checkbox-finalizar:checked').forEach(checkbox => {
                         const row = checkbox.closest('tr');
@@ -1854,24 +1864,6 @@
                     }
                 }
 
-                function verificarFilaNoFinalizada(registroId) {
-                    if (esFilaBloqueada(registroId)) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'info',
-                                title: 'Registro finalizado',
-                                text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
-                                timer: 2500,
-                                showConfirmButton: false,
-                                toast: true,
-                                position: 'top-end'
-                            });
-                        }
-                        return false;
-                    }
-                    return true;
-                }
-
                 // Remover borde rojo cuando el usuario corrige los campos
                 function removerErrorAlCambiar(e) {
                     const elemento = e.target;
@@ -1963,11 +1955,27 @@
                                 const timeoutId = setTimeout(() => {
                                     actualizarKgBruto(registroId, kgBrutoValue);
                                     debounceTimeouts.delete(registroId);
-                                }, 6000);
+                                }, 1000);
 
                                 debounceTimeouts.set(registroId, timeoutId);
                             }
                         }
+                    });
+
+                    // Kg. Bruto: actualizar en la tabla también al salir del campo (blur)
+                    tablaBody.querySelectorAll('input[data-field="kg_bruto"]').forEach(input => {
+                        input.addEventListener('blur', function() {
+                            const row = this.closest('tr');
+                            const registroId = row ? row.getAttribute('data-registro-id') : null;
+                            if (!registroId) return;
+                            if (debounceTimeouts.has(registroId)) {
+                                clearTimeout(debounceTimeouts.get(registroId));
+                                debounceTimeouts.delete(registroId);
+                            }
+                            if (!verificarOficialSeleccionado(registroId)) return;
+                            const valor = (this.value || '').trim();
+                            if (valor !== '') actualizarKgBruto(registroId, valor);
+                        });
                     });
 
                     // Agregar listeners directamente a los inputs de Sol. Can. para actualizar cuando el usuario sale del campo

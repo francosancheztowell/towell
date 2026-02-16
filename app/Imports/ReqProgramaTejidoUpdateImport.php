@@ -967,12 +967,23 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithHeadingRow, Wit
         return self::$validColumns;
     }
 
+    /** Columnas que en BD son INT: Excel puede traer decimales, se redondean a entero */
+    private const INTEGER_COLUMNS = [
+        'NoTiras', 'Peine', 'Luchaje', 'PesoCrudo',
+        'PasadasTrama', 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5',
+        'SaldoMarbete', 'EnProceso',
+    ];
+
     private function normalizeDataForBatchInsert(array $data): array
     {
         $validColumns = $this->getValidColumns();
         $normalized = [];
         foreach ($validColumns as $field) {
-            $normalized[$field] = $data[$field] ?? null;
+            $value = $data[$field] ?? null;
+            if (in_array($field, self::INTEGER_COLUMNS, true) && $value !== null && $value !== '') {
+                $value = is_numeric($value) ? (int) round((float) $value) : $value;
+            }
+            $normalized[$field] = $value;
         }
         if (!isset($normalized['CreatedAt'])) {
             $normalized['CreatedAt'] = now();

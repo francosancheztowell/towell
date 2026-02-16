@@ -59,6 +59,7 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
 
     Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
     Route::get('/reimpresion-engomado', [ProgramarEngomadoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
+    Route::get('/reimpresion-engomado/ventana-imprimir', [ProgramarEngomadoController::class, 'reimpresionVentanaImprimir'])->name('reimpresion.engomado.ventana.imprimir');
     Route::get('/reportesengomado', [ReportesEngomadoController::class, 'index'])->name('reportes.engomado');
     Route::get('/reportesengomado/bpm-engomado', [ReportesEngomadoController::class, 'reporteBpm'])->name('reportes.bpm');
     Route::get('/reportesengomado/bpm-engomado/excel', [ReportesEngomadoController::class, 'exportarBpmExcel'])->name('reportes.bpm.excel');

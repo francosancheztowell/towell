@@ -8,9 +8,11 @@ use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProduccionFormulacionModel;
 use App\Models\Urdido\UrdCatJulios;
+use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Models\Engomado\CatUbicaciones;
+use App\Helpers\TurnoHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -20,6 +22,17 @@ use Illuminate\Support\Facades\Log;
 
 class ModuloProduccionEngomadoController extends Controller
 {
+    private function resolveFinalizarPermission(): bool
+    {
+        try {
+            $moduloRol = SYSRoles::where('modulo', 'Programa Engomado')->first();
+            $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Engomado';
+            return function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
+        } catch (\Exception $e) {
+            return true;
+        }
+    }
+
     private function hasNegativeKgNetoByFolio(string $folio): bool
     {
         return EngProduccionEngomado::where('Folio', $folio)
@@ -46,7 +59,7 @@ class ModuloProduccionEngomadoController extends Controller
             return;
         }
 
-        $turnoUsuario = $usuarioActual->turno ?? \App\Helpers\TurnoHelper::getTurnoActual();
+        $turnoUsuario = $usuarioActual->turno ?? TurnoHelper::getTurnoActual();
 
         EngProduccionEngomado::where('Folio', $orden->Folio)
             ->where(function ($query) {
@@ -114,6 +127,7 @@ class ModuloProduccionEngomadoController extends Controller
      */
     public function index(Request $request)
     {
+        $hasFinalizarPermission = $this->resolveFinalizarPermission();
         $ordenId = $request->query('orden_id');
         $checkOnly = $request->query('check_only') === 'true';
 
@@ -152,8 +166,10 @@ class ModuloProduccionEngomadoController extends Controller
                 'metrosProduccion' => null,
                 'destino' => null,
                 'hilo' => null,
+                'hiloFibra' => '-',
                 'tipoAtado' => null,
                 'nomEmpl' => null,
+                'hasFinalizarPermission' => $hasFinalizarPermission,
                 'observaciones' => '',
                 'totalRegistros' => 0,
                 'registrosProduccion' => collect([]),
@@ -332,6 +348,7 @@ class ModuloProduccionEngomadoController extends Controller
 
         // Obtener hilo (Fibra)
         $hilo = $orden->Fibra ?? null;
+        $hiloFibra = !empty($orden->Fibra) ? $orden->Fibra : '-';
 
         // Tipo atado
         $tipoAtado = $orden->TipoAtado ?? null;
@@ -380,8 +397,10 @@ class ModuloProduccionEngomadoController extends Controller
             'metros' => $metros,
             'destino' => $destino,
             'hilo' => $hilo,
+            'hiloFibra' => $hiloFibra,
             'tipoAtado' => $tipoAtado,
             'nomEmpl' => $nomEmpl,
+            'hasFinalizarPermission' => $hasFinalizarPermission,
             'observaciones' => $observaciones,
             'totalRegistros' => $totalRegistros,
             'registrosProduccion' => $registrosProduccion,
@@ -493,11 +512,20 @@ class ModuloProduccionEngomadoController extends Controller
             $request->validate([
                 'registro_id' => 'required|integer',
                 'numero_oficial' => 'required|integer|in:1,2,3',
-                'cve_empl' => 'required|string|max:30',
-                'nom_empl' => 'required|string|max:150',
+                'cve_empl' => 'nullable|string|max:30',
+                'nom_empl' => 'nullable|string|max:150',
                 'metros' => 'nullable|numeric|min:0',
                 'turno' => 'nullable|integer|in:1,2,3',
             ]);
+
+            $cveEmpl = trim((string) ($request->input('cve_empl') ?? ''));
+            $nomEmpl = trim((string) ($request->input('nom_empl') ?? ''));
+            if ($cveEmpl === '' && $nomEmpl === '') {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Debe llenar al menos la clave (No. Operador) o el nombre del oficial.',
+                ], 422);
+            }
 
             $registro = EngProduccionEngomado::find($request->registro_id);
 
@@ -529,7 +557,7 @@ class ModuloProduccionEngomadoController extends Controller
             }
 
             // No permitir repetir No. Operador dentro del mismo registro (Oficial 1-3).
-            $cveSolicitada = trim((string) $request->cve_empl);
+            $cveSolicitada = $cveEmpl;
             for ($i = 1; $i <= 3; $i++) {
                 if ($i === $numeroOficial) {
                     continue;
@@ -562,8 +590,8 @@ class ModuloProduccionEngomadoController extends Controller
                 }
             }
 
-            $registro->{"CveEmpl{$numeroOficial}"} = $request->cve_empl;
-            $registro->{"NomEmpl{$numeroOficial}"} = $request->nom_empl;
+            $registro->{"CveEmpl{$numeroOficial}"} = $cveEmpl !== '' ? $cveEmpl : null;
+            $registro->{"NomEmpl{$numeroOficial}"} = $nomEmpl !== '' ? $nomEmpl : null;
 
             if ($request->has('metros')) {
                 $registro->{"Metros{$numeroOficial}"} = $request->metros;
@@ -576,17 +604,14 @@ class ModuloProduccionEngomadoController extends Controller
             $registro->save();
 
             if ($propagarOficial) {
+                // Solo propagar clave, nombre y turno; los metros no se encadenan a las órdenes de abajo
                 $updateData = [
-                    "CveEmpl{$numeroOficial}" => $request->cve_empl,
-                    "NomEmpl{$numeroOficial}" => $request->nom_empl,
+                    "CveEmpl{$numeroOficial}" => $cveEmpl !== '' ? $cveEmpl : null,
+                    "NomEmpl{$numeroOficial}" => $nomEmpl !== '' ? $nomEmpl : null,
                 ];
 
                 if ($request->has('turno')) {
                     $updateData["Turno{$numeroOficial}"] = $request->turno;
-                }
-
-                if ($request->has('metros')) {
-                    $updateData["Metros{$numeroOficial}"] = $request->metros;
                 }
 
                 EngProduccionEngomado::where('Folio', $folio)
@@ -1183,11 +1208,11 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 404);
             }
 
-            // Verificar que el status actual sea "En Proceso"
-            if ($orden->Status !== 'En Proceso') {
+            // Permitir finalizar si está "En Proceso" o "Parcial"
+            if (!in_array($orden->Status, ['En Proceso', 'Parcial'])) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'La orden no está en estado "En Proceso". Estado actual: ' . $orden->Status,
+                    'error' => 'Solo se puede finalizar una orden en estado "En Proceso" o "Parcial". Estado actual: ' . $orden->Status,
                 ], 422);
             }
             if ($this->hasNegativeKgNetoByFolio($orden->Folio)) {
@@ -1199,7 +1224,7 @@ class ModuloProduccionEngomadoController extends Controller
 
             // Validar que exista al menos una formulación para este Folio antes de finalizar
             $formulacionesExistentes = EngProduccionFormulacionModel::where('Folio', $orden->Folio)->count();
-            
+
             if ($formulacionesExistentes === 0) {
                 return response()->json([
                     'success' => false,

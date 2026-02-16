@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Urdido\UrdConsumoHilo;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
@@ -59,7 +60,7 @@ class ProgramarUrdEngController extends Controller
             $loteProveedor = $this->obtenerLoteProveedor($materialesEngomado);
             $fechaReq = $this->obtenerFechaReq($telaresStr, $tipo, $grupo['fechaReq'] ?? null);
 
-            UrdProgramaUrdido::create([
+            $urdido = UrdProgramaUrdido::create([
                 'Folio' => $folio,
                 'FolioConsumo' => $folioConsumo,
                 'NoTelarId' => $telaresStr,
@@ -82,6 +83,8 @@ class ProgramarUrdEngController extends Controller
                 'NomEmpl' => $nombreEmpleado,
                 'LoteProveedor' => $loteProveedor,
             ]);
+            $camposCreateUrd = self::camposCreateParaAuditoria($urdido, ['Folio', 'FolioConsumo', 'Cuenta', 'Calibre', 'Fibra', 'Metros', 'Kilos', 'RizoPie', 'MaquinaId', 'BomId']);
+            AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_URDIDO, (int) $urdido->Id, $urdido->Folio, AuditoriaUrdEng::ACCION_CREATE, $camposCreateUrd);
 
             foreach ($materialesEngomado as $material) {
                 UrdConsumoHilo::create([
@@ -117,7 +120,7 @@ class ProgramarUrdEngController extends Controller
                 }
             }
 
-            EngProgramaEngomado::create([
+            $engomado = EngProgramaEngomado::create([
                 'Folio' => $folio,
                 'NoTelarId' => $telaresStr,
                 'RizoPie' => $tipo,
@@ -147,6 +150,8 @@ class ProgramarUrdEngController extends Controller
                 'NomEmpl' => $nombreEmpleado,
                 'LoteProveedor' => $loteProveedor,
             ]);
+            $camposCreateEng = self::camposCreateParaAuditoria($engomado, ['Folio', 'Cuenta', 'Calibre', 'Fibra', 'Metros', 'Kilos', 'RizoPie', 'MaquinaUrd', 'BomUrd', 'NoTelas', 'AnchoBalonas', 'MetrajeTelas', 'Cuentados']);
+            AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_CREATE, $camposCreateEng);
 
             $hiloGrupo = $grupo['fibra'] ?? $grupo['hilo'] ?? null;
             $telaresActualizados = $this->marcarTelaresProgramados($telaresStr, $tipo, $folio, $hiloGrupo);
@@ -274,5 +279,16 @@ class ProgramarUrdEngController extends Controller
             try { return Carbon::createFromTimestamp($prodDate)->format('Y-m-d'); } catch (\Throwable $e) { return null; }
         }
         return null;
+    }
+
+    /** Para auditoría en create: "Campo: (vacío) -> valor" por cada campo indicado. */
+    private static function camposCreateParaAuditoria($modelo, array $nombresCampos): string
+    {
+        $partes = [];
+        foreach ($nombresCampos as $campo) {
+            $valor = $modelo->getAttribute($campo);
+            $partes[] = AuditoriaUrdEng::formatoCampo($campo, null, $valor);
+        }
+        return implode(', ', $partes);
     }
 }

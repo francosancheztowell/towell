@@ -59,29 +59,13 @@
 <script>
     function imprimirPapeleta(ordenId) {
         const url = '{{ route('engomado.modulo.produccion.engomado.pdf') }}?orden_id=' + ordenId + '&tipo=engomado&reimpresion=1';
-        
-        // Abrir PDF en nueva ventana
-        const printWindow = window.open(url, '_blank');
-        
-        // Intentar imprimir después de que se cargue el PDF
-        // Usar múltiples intentos con diferentes tiempos para mayor compatibilidad
-        const printAttempts = [1500, 2500, 3500];
-        
-        printAttempts.forEach((delay, index) => {
-            setTimeout(function() {
-                if (printWindow && !printWindow.closed) {
-                    try {
-                        printWindow.focus();
-                        printWindow.print();
-                    } catch (e) {
-                        // Si falla, continuar con el siguiente intento
-                        if (index === printAttempts.length - 1) {
-                            console.log('No se pudo imprimir automáticamente. Por favor, use Ctrl+P o el menú de impresión.');
-                        }
-                    }
-                }
-            }, delay);
-        });
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'orden-engomado-' + ordenId + '.pdf';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
 </script>
 @endpush

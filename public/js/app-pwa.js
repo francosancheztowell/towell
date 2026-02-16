@@ -1,12 +1,12 @@
 /**
- * PWA bootstrap: SW, instalación y fullscreen sin hacks de scroll
+ * PWA bootstrap: SW, instalaciÃ³n y fullscreen sin hacks de scroll
  */
 
 // ------------------------------
 // Service Worker Registration
 // ------------------------------
 if ('serviceWorker' in navigator) {
-    // Diagnóstico de PWA
+    // DiagnÃ³stico de PWA
     const pwaDiagnostics = () => {
         const diagnostics = {
             protocol: window.location.protocol,
@@ -32,9 +32,12 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         const diagnostics = pwaDiagnostics();
 
-        // Detectar la ruta base correcta
-        const swPath = '/sw.js';
-        const baseUrl = new URL(swPath, window.location.origin).href;
+        // Resolver ruta del SW con base en el manifest para soportar subdirectorios.
+        const manifestHref = document.querySelector('link[rel="manifest"]')?.getAttribute('href');
+        const manifestUrl = manifestHref ? new URL(manifestHref, window.location.href) : null;
+        const swUrl = manifestUrl ? new URL('sw.js', manifestUrl) : new URL('/sw.js', window.location.origin);
+        const swPath = swUrl.pathname;
+        const swScope = manifestUrl ? new URL('.', manifestUrl).pathname : '/';
 
         // Verificar si estamos en un contexto seguro
         // Chrome/Edge permiten IPs privadas en desarrollo
@@ -44,11 +47,11 @@ if ('serviceWorker' in navigator) {
                                  window.location.hostname.match(/^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\./);
 
         if (!isSecureContext && window.location.protocol !== 'https:') {
-            console.warn('[PWA] Advertencia: SW puede no funcionar en HTTP con IPs públicas. Usa HTTPS o localhost.');
+            console.warn('[PWA] Advertencia: SW puede no funcionar en HTTP con IPs pÃºblicas. Usa HTTPS o localhost.');
         }
 
         // Intentar registrar el SW
-        navigator.serviceWorker.register(swPath, { scope: '/' })
+        navigator.serviceWorker.register(swPath, { scope: swScope })
             .then(reg => {
 
 
@@ -56,7 +59,7 @@ if ('serviceWorker' in navigator) {
                 reg.addEventListener('updatefound', () => {
                 });
 
-                // Verificar estado periódicamente
+                // Verificar estado periÃ³dicamente
                 setInterval(() => {
                     reg.update().catch(() => {});
                 }, 60000); // Cada minuto
@@ -66,7 +69,7 @@ if ('serviceWorker' in navigator) {
             });
     });
 
-    // Exponer diagnóstico globalmente
+    // Exponer diagnÃ³stico globalmente
     window.pwaDiagnostics = pwaDiagnostics;
 }
 
@@ -86,14 +89,14 @@ function isStandaloneMode() {
 // ------------------------------
 async function enableFullscreen() {
     try {
-        // Verificar si ya está en fullscreen (múltiples formas de verificar)
+        // Verificar si ya estÃ¡ en fullscreen (mÃºltiples formas de verificar)
         const isAlreadyFullscreen = document.fullscreenElement ||
                                      document.webkitFullscreenElement ||
                                      document.mozFullScreenElement ||
                                      document.msFullscreenElement;
 
         if (isAlreadyFullscreen) {
-            return; // Ya está en fullscreen, no hacer nada
+            return; // Ya estÃ¡ en fullscreen, no hacer nada
         }
 
         const el = document.documentElement;
@@ -106,7 +109,7 @@ async function enableFullscreen() {
             await request.call(el);
         }
     } catch (e) {
-        // Silenciar errores si el usuario canceló o no está permitido
+        // Silenciar errores si el usuario cancelÃ³ o no estÃ¡ permitido
         if (e.name !== 'NotAllowedError' && e.name !== 'TypeError') {
             console.warn(e);
         }
@@ -124,19 +127,19 @@ async function exitFullscreen() {
     }
 }
 
-// Intento automático de fullscreen SOLO UNA VEZ al iniciar la PWA
-// Solo cuando la app está instalada/standalone y aún no está en fullscreen
+// Intento automÃ¡tico de fullscreen SOLO UNA VEZ al iniciar la PWA
+// Solo cuando la app estÃ¡ instalada/standalone y aÃºn no estÃ¡ en fullscreen
 (function initFullscreenOnce() {
-    // Verificar si ya está en fullscreen o si ya se intentó activar en esta sesión
+    // Verificar si ya estÃ¡ en fullscreen o si ya se intentÃ³ activar en esta sesiÃ³n
     const FULLSCREEN_ATTEMPTED_KEY = 'pwa_fullscreen_attempted';
     const sessionAttempted = sessionStorage.getItem(FULLSCREEN_ATTEMPTED_KEY);
 
-    // Si ya está en fullscreen, no hacer nada
+    // Si ya estÃ¡ en fullscreen, no hacer nada
     if (document.fullscreenElement || document.webkitFullscreenElement) {
         return;
     }
 
-    // Si ya se intentó en esta sesión, no volver a intentar
+    // Si ya se intentÃ³ en esta sesiÃ³n, no volver a intentar
     if (sessionAttempted === 'true') {
         return;
     }
@@ -152,14 +155,14 @@ async function exitFullscreen() {
         return; // navegador no soportado
     }
 
-    // Esperar a que la página esté completamente cargada
+    // Esperar a que la pÃ¡gina estÃ© completamente cargada
     const attemptFullscreen = () => {
-        // Verificar nuevamente que no esté ya en fullscreen
+        // Verificar nuevamente que no estÃ© ya en fullscreen
         if (document.fullscreenElement || document.webkitFullscreenElement) {
             return;
         }
 
-        // Marcar que se intentó en esta sesión
+        // Marcar que se intentÃ³ en esta sesiÃ³n
         sessionStorage.setItem(FULLSCREEN_ATTEMPTED_KEY, 'true');
 
         // Intentar activar fullscreen una sola vez
@@ -168,7 +171,7 @@ async function exitFullscreen() {
         });
     };
 
-    // Intentar después de un pequeño delay para asegurar que la página está lista
+    // Intentar despuÃ©s de un pequeÃ±o delay para asegurar que la pÃ¡gina estÃ¡ lista
     if (document.readyState === 'complete') {
         setTimeout(attemptFullscreen, 500);
     } else {
@@ -179,21 +182,22 @@ async function exitFullscreen() {
 })();
 
 // ------------------------------
-// Botón de instalar (PWA)
+// BotÃ³n de instalar (PWA)
 // ------------------------------
 let deferredPrompt = null;
 let installButtonVisible = false;
 
-// Detectar si es tablet o móvil
+// Detectar si es tablet o mÃ³vil
 function isTabletOrMobile() {
-    const width = window.innerWidth;
-    const isTablet = width >= 768 && width <= 1024;
-    const isMobile = width < 768;
+    const ua = navigator.userAgent || '';
+    const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    const isIOS = /iPad|iPhone|iPod/i.test(ua) || isIPadOS;
+    const isAndroid = /Android/i.test(ua);
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    return (isTablet || isMobile) && isTouchDevice;
+    return isTouchDevice && (isIOS || isAndroid || window.innerWidth <= 1366);
 }
 
-// Detectar si ya está instalada
+// Detectar si ya estÃ¡ instalada
 function isPWAInstalled() {
     return isStandaloneMode() ||
            window.matchMedia('(display-mode: standalone)').matches ||
@@ -204,7 +208,7 @@ function toggleInstallButton(show) {
     const btn = document.getElementById('btn-install');
     if (!btn) return;
 
-    // Si ya está instalada, ocultar el botón
+    // Si ya estÃ¡ instalada, ocultar el botÃ³n
     if (isPWAInstalled()) {
         btn.style.display = 'none';
         btn.classList.add('hidden');
@@ -212,7 +216,7 @@ function toggleInstallButton(show) {
         return;
     }
 
-    // Mostrar u ocultar el botón
+    // Mostrar u ocultar el botÃ³n
     if (show) {
         btn.style.display = 'flex';
         btn.classList.remove('hidden');
@@ -225,67 +229,62 @@ function toggleInstallButton(show) {
 
     installButtonVisible = show;
 
-    // Agregar indicador visual si está disponible
+    // Agregar indicador visual si estÃ¡ disponible
     if (show && isTabletOrMobile()) {
-        btn.title = 'Instalar aplicación Towell';
-        btn.setAttribute('aria-label', 'Instalar aplicación Towell');
+        btn.title = 'Instalar aplicacion Towell';
+        btn.setAttribute('aria-label', 'Instalar aplicacion Towell');
     }
 }
 
 // Manejar el evento beforeinstallprompt
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Para tablets y móviles, permitir que el navegador muestre el banner automáticamente
-    // pero también guardar el evento por si el usuario quiere instalar manualmente
+    // En touch devices (tablets/moviles) dejar que el navegador maneje el banner nativo.
     const isTabletMobile = isTabletOrMobile();
+    const hasInstallButton = !!document.getElementById('btn-install');
 
     if (isTabletMobile) {
-        // En tablets/móviles, NO prevenir el comportamiento por defecto inmediatamente
-        // Esto permite que el navegador muestre el banner automático si está disponible
         deferredPrompt = e;
 
-
-        // Sin embargo, en algunos casos el banner automático puede no aparecer
-        // Por lo tanto, también ofrecemos un botón manual como alternativa
-        // Esperar un poco antes de mostrar el botón para no interferir con el banner
+        // En algunos casos el banner automatico no aparece; mostrar boton manual como alternativa.
         setTimeout(() => {
             if (deferredPrompt && !isPWAInstalled()) {
-                // Verificar si el usuario ya interactuó con algún banner
-                // Si no, mostrar nuestro botón manual como alternativa
-                // NO prevenir el comportamiento por defecto aquí, solo mostrar el botón
                 toggleInstallButton(true);
             }
-        }, 2000); // Esperar 2 segundos
-    } else {
-        // En desktop, prevenir el comportamiento por defecto y usar botón manual
+        }, 2000);
+    } else if (hasInstallButton) {
+        // En desktop con boton manual, usar flujo controlado.
         e.preventDefault();
         deferredPrompt = e;
         toggleInstallButton(true);
+    } else {
+        // Sin boton manual, no bloquear el prompt nativo del navegador.
+        deferredPrompt = e;
     }
 });
 
 async function promptInstall() {
     if (!deferredPrompt) {
-        console.warn('[PWA] No hay prompt de instalación disponible');
+        console.warn('[PWA] No hay prompt de instalacion disponible');
         // Intentar mostrar instrucciones alternativas
         showInstallInstructions();
         return;
     }
 
     try {
-        // Para tablets/móviles, si el evento todavía no se ha prevenido, hacerlo ahora
+        // Para tablets/mÃ³viles, si el evento todavÃ­a no se ha prevenido, hacerlo ahora
         // Esto asegura que podemos mostrar el prompt manualmente
         if (deferredPrompt && typeof deferredPrompt.preventDefault === 'function') {
             // El evento ya fue capturado, podemos usar prompt() directamente
         }
 
-        // Mostrar el prompt de instalación
+        // Mostrar el prompt de instalaciÃ³n
         await deferredPrompt.prompt();
 
         // Esperar a que el usuario responda
         const { outcome } = await deferredPrompt.userChoice;
 
         if (outcome === 'accepted') {
-            // El evento 'appinstalled' se disparará automáticamente
+            // El evento 'appinstalled' se dispararÃ¡ automÃ¡ticamente
         } else {
         }
 
@@ -293,14 +292,14 @@ async function promptInstall() {
         deferredPrompt = null;
         toggleInstallButton(false);
     } catch (error) {
-        console.error('[PWA] Error al mostrar prompt de instalación:', error);
+        console.error('[PWA] Error al mostrar prompt de instalacion:', error);
         // Si falla, mostrar instrucciones manuales
         showInstallInstructions();
         deferredPrompt = null;
     }
 }
 
-// Mostrar instrucciones de instalación manual
+// Mostrar instrucciones de instalaciÃ³n manual
 function showInstallInstructions() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isAndroid = /Android/.test(navigator.userAgent);
@@ -309,14 +308,14 @@ function showInstallInstructions() {
     let message = '';
 
     if (isIOS) {
-        message = 'Para instalar: Toca el botón de compartir y selecciona "Añadir a pantalla de inicio"';
+        message = 'Para instalar: Toca el boton de compartir y selecciona "Anadir a pantalla de inicio"';
     } else if (isAndroid || isTablet) {
-        message = 'Para instalar: Toca el menú del navegador (⋮) y selecciona "Instalar aplicación" o "Añadir a pantalla de inicio"';
+        message = 'Para instalar: Toca el menu del navegador y selecciona "Instalar aplicacion" o "Anadir a pantalla de inicio"';
     } else {
-        message = 'Para instalar: Haz clic en el ícono de instalación en la barra de direcciones o usa el menú del navegador';
+        message = 'Para instalar: Haz clic en el icono de instalacion en la barra de direcciones o usa el menu del navegador';
     }
 
-    // Mostrar notificación o alerta (puedes personalizar esto)
+    // Mostrar notificaciÃ³n o alerta (puedes personalizar esto)
     if (window.alert) {
         alert(message);
     } else {
@@ -339,45 +338,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupBodyScrollGuards();
 
-    // Verificar si ya está instalada al cargar
+    // Verificar si ya estÃ¡ instalada al cargar
     if (isPWAInstalled()) {
         toggleInstallButton(false);
     }
 });
 
-// Cuando la app se instala, ocultar el botón
+// Cuando la app se instala, ocultar el botÃ³n
 window.addEventListener('appinstalled', (evt) => {
     deferredPrompt = null;
     toggleInstallButton(false);
 
-    // Opcional: Mostrar mensaje de confirmación
-    // Puedes personalizar esto según tu UI
+    // Opcional: Mostrar mensaje de confirmaciÃ³n
+    // Puedes personalizar esto segÃºn tu UI
 });
 
 // ------------------------------
-// Señales útiles de modo/visibilidad
+// SeÃ±ales Ãºtiles de modo/visibilidad
 // ------------------------------
 window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-    // Solo informativo; podrías pausar timers, etc.
+    // Solo informativo; podrÃ­as pausar timers, etc.
     // console.log('[PWA] visibility:', document.visibilityState);
 });
 
 // ------------------------------
-// Optimización para tablets y móviles
+// OptimizaciÃ³n para tablets y mÃ³viles
 // ------------------------------
 function setupBodyScrollGuards() {
     const body = document.body;
     if (!body) return;
 
-    // Detectar dispositivo (tablet o móvil)
+    // Detectar dispositivo (tablet o mÃ³vil)
     const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
     const isMobile = window.innerWidth < 768;
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-    // Prevenir zoom accidental con doble toque (solo en móviles)
+    // Prevenir zoom accidental con doble toque (solo en mÃ³viles)
     let lastTouchEnd = 0;
     if (isMobile || isTouchDevice) {
         document.addEventListener('touchend', (e) => {
@@ -405,13 +404,13 @@ function setupBodyScrollGuards() {
     // Aplicar guards solo en modo standalone
     if (isStandaloneMode()) {
         body.addEventListener('touchmove', pointerGuard, { passive: false });
-        // En tablets, ser más permisivo con el scroll
+        // En tablets, ser mÃ¡s permisivo con el scroll
         if (!isTablet) {
             body.addEventListener('wheel', pointerGuard, { passive: false });
         }
     }
 
-    // Prevenir navegación con teclado en modo standalone
+    // Prevenir navegaciÃ³n con teclado en modo standalone
     document.addEventListener('keydown', function(e) {
         const activeElement = document.activeElement;
         const scrollable = activeElement && (
@@ -455,7 +454,7 @@ function setupBodyScrollGuards() {
         window.addEventListener('load', applyFixedLayout, { once: true });
     }
 
-    // Manejar cambios de orientación
+    // Manejar cambios de orientaciÃ³n
     window.addEventListener('orientationchange', () => {
         setTimeout(() => {
             applyFixedLayout();
@@ -464,7 +463,7 @@ function setupBodyScrollGuards() {
         }, 100);
     });
 
-    // Manejar cambios de tamaño de ventana (útil en tablets)
+    // Manejar cambios de tamaÃ±o de ventana (Ãºtil en tablets)
     let resizeTimeout;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);

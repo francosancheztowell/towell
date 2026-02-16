@@ -139,7 +139,6 @@
 
                         // Comercial / orden / observaciones
                         'Vendedor',
-                        'NoOrden',
                         'Obs5',                 // Observaciones
 
                         // Trama / lucha
@@ -165,13 +164,38 @@
                     $presentes = array_values(array_intersect($ordenDeseado, $columnas));
                     $restantes = array_values(array_diff($columnas, $ordenDeseado));
                     $columnas = array_values(array_merge($presentes, $restantes));
+                    $columnas = array_values(array_diff($columnas, ['NoOrden']));
+
+                    // Clases visuales por segmento de columnas para mejorar lectura
+                    $segmentos = [
+                        'seg-main' => [
+                            'OrdenTejido','OrdPrincipal','PesoMuestra','FechaTejido','FechaCumplimiento','Departamento',
+                            'TelarId','Prioridad','Nombre','ClaveModelo','ItemId','HiloAX','InventSizeId','Tolerancia',
+                            'CodigoDibujo','FechaCompromiso','FlogsId','NombreProyecto','Clave',
+                        ],
+                        'seg-medidas' => ['Cantidad','Peine','Ancho','Largo','P_crudo','Luchaje','Tra'],
+                        'seg-plano' => ['DobladilloId','MedidaPlano','TipoRizo','AlturaRizo'],
+                        'seg-vel' => ['VelocidadSTD','Obs'],
+                        'seg-cenefa' => ['MedidaCenefa','MedIniRizoCenefa','Razurada','NoTiras','Repeticiones','NoMarbete','CambioRepaso'],
+                        'seg-comercial' => ['Vendedor','Obs5'],
+                        'seg-trama' => ['TramaAnchoPeine','LogLuchaTotal'],
+                        'seg-tiempos' => ['Total','RespInicio','HrInicio','HrTermino','MinutosCambio','RegAlinacion','OBSParaPro'],
+                        'seg-prod' => ['CantidadProducir_2','Tejidas','pzaXrollo'],
+                    ];
+
+                    $columnSegmentClass = [];
+                    foreach ($segmentos as $segmentClass => $cols) {
+                        foreach ($cols as $col) {
+                            $columnSegmentClass[$col] = $segmentClass;
+                        }
+                    }
                 @endphp
 
                 <table id="mainTable" class="w-full min-w-full text-[11px] leading-tight">
                     <thead class="bg-blue-500 text-white sticky top-0 z-10 codificacion-header-context">
                         <tr>
                             @foreach($columnas as $idx => $columna)
-                                <th class="px-3 py-2 text-left font-semibold whitespace-nowrap border-b border-blue-600/70 column-{{ $idx }}" data-column="{{ $columna }}" data-index="{{ $idx }}">
+                                <th class="px-3 py-2 text-left font-semibold whitespace-nowrap border-b border-blue-600/70 column-{{ $idx }} {{ $columnSegmentClass[$columna] ?? '' }}" data-column="{{ $columna }}" data-index="{{ $idx }}">
                                     <span class="block truncate">{{ $columnLabels[$columna] ?? $columna }}</span>
                                     <span class="codificacion-header-icons ml-1 inline-flex items-center gap-0.5"></span>
                                 </th>
@@ -410,13 +434,36 @@
             z-index: 5;
             background-color: #1d4ed8 !important;
             color: #fff !important;
+            box-shadow: 2px 0 0 rgba(0,0,0,0.12);
         }
         #mainTable tbody td.codificacion-pinned {
             z-index: 1;
         }
         #mainTable thead th.codificacion-pinned {
-            z-index: 11 !important;
+            z-index: 1200 !important;
+            top: 0 !important;
         }
+
+        /* Segmentación visual tipo Excel para facilitar lectura */
+        #mainTable thead th.seg-main { background-color: #1d4ed8 !important; }
+        #mainTable thead th.seg-medidas { background-color: #166534 !important; }
+        #mainTable thead th.seg-plano { background-color: #0f766e !important; }
+        #mainTable thead th.seg-vel { background-color: #7c3aed !important; }
+        #mainTable thead th.seg-cenefa { background-color: #92400e !important; }
+        #mainTable thead th.seg-comercial { background-color: #be123c !important; }
+        #mainTable thead th.seg-trama { background-color: #0e7490 !important; }
+        #mainTable thead th.seg-tiempos { background-color: #374151 !important; }
+        #mainTable thead th.seg-prod { background-color: #854d0e !important; }
+
+        #mainTable tbody td.seg-main { background-color: rgba(29, 78, 216, 0.04); }
+        #mainTable tbody td.seg-medidas { background-color: rgba(22, 101, 52, 0.05); }
+        #mainTable tbody td.seg-plano { background-color: rgba(15, 118, 110, 0.05); }
+        #mainTable tbody td.seg-vel { background-color: rgba(124, 58, 237, 0.05); }
+        #mainTable tbody td.seg-cenefa { background-color: rgba(146, 64, 14, 0.05); }
+        #mainTable tbody td.seg-comercial { background-color: rgba(190, 18, 60, 0.05); }
+        #mainTable tbody td.seg-trama { background-color: rgba(14, 116, 144, 0.05); }
+        #mainTable tbody td.seg-tiempos { background-color: rgba(55, 65, 81, 0.05); }
+        #mainTable tbody td.seg-prod { background-color: rgba(133, 77, 14, 0.06); }
 
         /* Fila seleccionada (bg-blue-500, text-white) */
         #mainTable tbody tr.codificacion-row-selected,
@@ -440,6 +487,7 @@
             const CONFIG = {
                 columnas: {!! json_encode($columnas ?? []) !!},
                 columnLabels: @json($columnLabels ?? []),
+                columnSegmentClass: @json($columnSegmentClass ?? []),
                 apiUrl: {!! json_encode($apiUrl ?? '/planeacion/codificacion/api/all-fast') !!},
                 totalRegistros: {{ isset($totalRegistros) ? (int) $totalRegistros : 0 }},
                 dateColumns: ['FechaTejido', 'FechaCumplimiento', 'FechaCompromiso', 'FechaCreacion', 'FechaModificacion'],
@@ -1074,8 +1122,9 @@
                     });
 
                     CONFIG.columnas.forEach((col, colIdx) => {
+                        const segmentClass = (CONFIG.columnSegmentClass && CONFIG.columnSegmentClass[col]) ? CONFIG.columnSegmentClass[col] : '';
                         const td = document.createElement('td');
-                        td.className = 'px-3 py-1.5 border-b border-gray-100 whitespace-nowrap text-[11px] column-' + colIdx + ' ' +
+                        td.className = 'px-3 py-1.5 border-b border-gray-100 whitespace-nowrap text-[11px] column-' + colIdx + ' ' + segmentClass + ' ' +
                             (isSelected ? 'text-white' : 'text-gray-700');
                         td.setAttribute('data-column', col);
                         td.setAttribute('data-index', colIdx);
@@ -1140,8 +1189,9 @@
                     $$('#mainTable th[data-index], #mainTable td[data-index]').forEach(el => {
                         el.classList.remove('codificacion-pinned');
                         el.style.left = '';
-                        el.style.position = '';
-                        el.style.top = '';
+                        el.style.zIndex = '';
+                        if (el.tagName === 'TD') el.style.position = '';
+                        if (el.tagName === 'TH') el.style.top = '';
                     });
                     return;
                 }
@@ -1155,7 +1205,12 @@
                         el.classList.add('codificacion-pinned');
                         el.style.left = left + 'px';
                         el.style.position = 'sticky';
-                        if (el.tagName === 'TH') el.style.top = '0';
+                        if (el.tagName === 'TH') {
+                            el.style.top = '0';
+                            el.style.zIndex = '1200';
+                        } else {
+                            el.style.zIndex = '30';
+                        }
                     });
                     left += w;
                 });
@@ -1165,8 +1220,9 @@
                     if (Number.isNaN(idx) || !state.pinnedColumns.includes(idx)) {
                         el.classList.remove('codificacion-pinned');
                         el.style.left = '';
-                        el.style.position = '';
-                        el.style.top = '';
+                        el.style.zIndex = '';
+                        if (el.tagName === 'TD') el.style.position = '';
+                        if (el.tagName === 'TH') el.style.top = '';
                     }
                 });
             }
@@ -1784,6 +1840,7 @@
             document.addEventListener('DOMContentLoaded', () => {
                 initPaginationEvents();
                 loadData();
+                window.addEventListener('resize', () => updatePinnedPositions());
 
                 // Eventos del menú contextual en encabezados
                 const thead = $('#mainTable thead');
