@@ -2,7 +2,7 @@
 
 @section('page-title', 'Desarrolladores')
 
-@section('navbar-right')
+{{-- @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-report
             id="btn-reporte-excel"
@@ -17,7 +17,7 @@
             onclick="abrirModalReporte()"
         />
     </div>
-@endsection
+@endsection --}}
 
 @section('content')
     <div class="flex w-full flex-col px-4 py-4 md:px-6 lg:px-6">
@@ -318,59 +318,59 @@
 
 @push('scripts')
 <script>
-    // Funciones para el modal de Reporte Excel
-    function abrirModalReporte() {
-        const modal = document.getElementById('modalReporteFecha');
-        if (modal) {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-    }
+    // // Funciones para el modal de Reporte Excel
+    // function abrirModalReporte() {
+    //     const modal = document.getElementById('modalReporteFecha');
+    //     if (modal) {
+    //         modal.classList.remove('hidden');
+    //         modal.classList.add('flex');
+    //     }
+    // }
 
-    function cerrarModalReporte() {
-        const modal = document.getElementById('modalReporteFecha');
-        if (modal) {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-    }
+    // function cerrarModalReporte() {
+    //     const modal = document.getElementById('modalReporteFecha');
+    //     if (modal) {
+    //         modal.classList.add('hidden');
+    //         modal.classList.remove('flex');
+    //     }
+    // }
 
-    function exportarReporteExcel() {
-        const fechaInput = document.getElementById('input-fecha-reporte');
-        if (!fechaInput || !fechaInput.value) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Atención',
-                text: 'Debes seleccionar una fecha para exportar el reporte.'
-            });
-            return;
-        }
+    // function exportarReporteExcel() {
+    //     const fechaInput = document.getElementById('input-fecha-reporte');
+    //     if (!fechaInput || !fechaInput.value) {
+    //         Swal.fire({
+    //             icon: 'warning',
+    //             title: 'Atención',
+    //             text: 'Debes seleccionar una fecha para exportar el reporte.'
+    //         });
+    //         return;
+    //     }
 
-        const fecha = fechaInput.value;
+    //     const fecha = fechaInput.value;
 
-        // Crear formulario para POST y descargar el archivo
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("desarrolladores.exportar.excel") }}';
+    //     // Crear formulario para POST y descargar el archivo
+    //     const form = document.createElement('form');
+    //     form.method = 'POST';
+    //     form.action = '{{ route("desarrolladores.exportar.excel") }}';
 
-        const tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = '_token';
-        tokenInput.value = '{{ csrf_token() }}';
+    //     const tokenInput = document.createElement('input');
+    //     tokenInput.type = 'hidden';
+    //     tokenInput.name = '_token';
+    //     tokenInput.value = '{{ csrf_token() }}';
 
-        const fechaFormInput = document.createElement('input');
-        fechaFormInput.type = 'hidden';
-        fechaFormInput.name = 'fecha';
-        fechaFormInput.value = fecha;
+    //     const fechaFormInput = document.createElement('input');
+    //     fechaFormInput.type = 'hidden';
+    //     fechaFormInput.name = 'fecha';
+    //     fechaFormInput.value = fecha;
 
-        form.appendChild(tokenInput);
-        form.appendChild(fechaFormInput);
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+    //     form.appendChild(tokenInput);
+    //     form.appendChild(fechaFormInput);
+    //     document.body.appendChild(form);
+    //     form.submit();
+    //     document.body.removeChild(form);
 
-        cerrarModalReporte();
-    }
+    //     cerrarModalReporte();
+    // }
 
     document.addEventListener('DOMContentLoaded', function() {
         const selectTelar = document.getElementById('telarOperador');
