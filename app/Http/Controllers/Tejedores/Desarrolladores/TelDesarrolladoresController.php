@@ -102,10 +102,30 @@ class TelDesarrolladoresController extends Controller
     public function obtenerProducciones($telarId)
     {
         try {
+            // Debug: Ver todos los registros del telar con su EnProceso
+            $todosRegistros = ReqProgramaTejido::where('NoTelarId', $telarId)
+                ->whereNotNull('NoProduccion')
+                ->where('NoProduccion', '!=', '')
+                ->select('Id', 'NoProduccion', 'EnProceso')
+                ->get();
+            
+            Log::info('obtenerProducciones - Todos los registros del telar', [
+                'telarId' => $telarId,
+                'registros' => $todosRegistros->map(function($r) {
+                    return [
+                        'Id' => $r->Id,
+                        'NoProduccion' => $r->NoProduccion,
+                        'EnProceso' => $r->EnProceso,
+                        'EnProcesoTipo' => gettype($r->EnProceso),
+                    ];
+                })->toArray(),
+            ]);
+
             $producciones = ReqProgramaTejido::where('NoTelarId', $telarId) 
                 ->where(function ($query) {
                     $query->whereNull('EnProceso')
-                        ->orWhere('EnProceso', 0);
+                        ->orWhere('EnProceso', 0)
+                        ->orWhere('EnProceso', false);
                 })
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
@@ -113,6 +133,12 @@ class TelDesarrolladoresController extends Controller
                 ->distinct()
                 ->orderBy('FechaInicio', 'asc')
                 ->get();
+
+            Log::info('obtenerProducciones - Producciones filtradas', [
+                'telarId' => $telarId,
+                'count' => $producciones->count(),
+                'producciones' => $producciones->pluck('NoProduccion')->toArray(),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -661,6 +687,13 @@ class TelDesarrolladoresController extends Controller
                 $registro->save();
 
             } catch (Exception $e) {
+                Log::error('moverRegistroConReprogramar - Error en transacción', [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'registroId' => $registro->Id ?? null,
+                    'reprogramar' => $reprogramar ?? null,
+                ]);
             }
 
             return $idsAfectados;
@@ -766,14 +799,29 @@ class TelDesarrolladoresController extends Controller
                         }
                     }
 
-                    ReqProgramaTejido::query()
+                    $resetCount = ReqProgramaTejido::query()
                         ->where('SalonTejidoId', $salonTejido)
                         ->where('NoTelarId', $noTelarId)
                         ->update(['EnProceso' => 0]);
 
-                    ReqProgramaTejido::query()
+                    $updateCount = ReqProgramaTejido::query()
                         ->where('Id', $registroActualizado->Id)
                         ->update(['EnProceso' => 1]);
+
+                    Log::info('moverRegistroEnProceso - Actualizando EnProceso', [
+                        'registroId' => $registroActualizado->Id,
+                        'noTelarId' => $noTelarId,
+                        'salonTejido' => $salonTejido,
+                        'registrosReseteados' => $resetCount,
+                        'registroActualizadoCount' => $updateCount,
+                    ]);
+
+                    // Verificar que realmente se actualizó
+                    $verificacion = ReqProgramaTejido::where('Id', $registroActualizado->Id)->first();
+                    Log::info('moverRegistroEnProceso - Verificación después de update', [
+                        'registroId' => $registroActualizado->Id,
+                        'EnProcesoActual' => $verificacion ? $verificacion->EnProceso : 'NO ENCONTRADO',
+                    ]);
 
                     $registros = ReqProgramaTejido::query()
                         ->where('SalonTejidoId', $salonTejido)
@@ -876,6 +924,15 @@ class TelDesarrolladoresController extends Controller
                     }
                 });
             } catch (Exception $e) {
+                Log::error('moverRegistroEnProceso - Error en transacción', [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
+                    'registroId' => $registroActualizado->Id ?? null,
+                    'salonTejido' => $salonTejido ?? null,
+                    'noTelarId' => $noTelarId ?? null,
+                ]);
             } finally {
                 if ($dispatcher) {
                     ReqProgramaTejido::setEventDispatcher($dispatcher);
