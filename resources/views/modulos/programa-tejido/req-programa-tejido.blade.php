@@ -193,12 +193,20 @@
 {{-- Modal Actualizar Calendarios --}}
 @include('modulos.programa-tejido.modal.act-calendarios')
 
+{{-- Modal Crear Repaso --}}
+@include('modulos.programa-tejido.modal.repaso')
+
 {{-- Menú contextual --}}
 <div id="contextMenu" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-50 py-1 min-w-[180px]">
   <button id="contextMenuCrear" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
     <i class="fas fa-plus-circle text-blue-500"></i>
     <span>Crear</span>
   </button>
+    {{-- agregar repaso --}}
+    <button id="contextMenuRepaso" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+        <i class="fas fa-redo text-blue-500"></i>
+        <span>Crear Repaso</span>
+      </button>
   <button id="contextMenuEditar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
     <i class="fas fa-pen text-yellow-500"></i>
     <span>Editar fila</span>
@@ -224,6 +232,7 @@
     <i class="fas fa-code text-green-500"></i>
     <span>Modelos</span>
   </button>
+
 </div>
 
 {{-- Menú contextual para encabezados de columnas --}}
@@ -283,7 +292,7 @@
   }
 
   .pinned-column { position: sticky !important; background-color: #3a6faf !important; color: #fff !important; }
-  
+
   /* Restaurar estilos por defecto del header cuando NO está fijado - forzar reset */
   thead th:not(.pinned-column) {
     background-color: #1b4a7b !important;
@@ -292,7 +301,7 @@
     top: 0 !important;
     z-index: 10 !important;
   }
-  
+
   /* Restaurar estilos por defecto de las celdas cuando NO están fijadas - forzar reset */
   tbody td:not(.pinned-column) {
     background-color: transparent !important;
@@ -301,7 +310,7 @@
     left: auto !important;
     z-index: auto !important;
   }
-  
+
   /* Asegurar que las celdas con estilos especiales se restauren cuando no están fijadas */
   tbody td:not(.pinned-column)[data-column="EficienciaSTD"],
   tbody td:not(.pinned-column)[data-column="VelocidadSTD"],

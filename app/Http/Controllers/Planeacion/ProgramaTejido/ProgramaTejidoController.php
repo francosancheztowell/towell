@@ -997,6 +997,34 @@ class ProgramaTejidoController extends Controller
         }
     }
 
+    /**
+     * Obtener todos los telares (salon|noTelar) en una sola petición.
+     * Formato: [ { value: "JACQUARD|203", label: "203" }, ... ]
+     */
+    public function getTelaresAll()
+    {
+        try {
+            $pares = ReqProgramaTejido::query()
+                ->select('SalonTejidoId', 'NoTelarId')
+                ->whereNotNull('SalonTejidoId')
+                ->whereNotNull('NoTelarId')
+                ->where('NoTelarId', '!=', '')
+                ->distinct()
+                ->orderBy('SalonTejidoId')
+                ->orderBy('NoTelarId')
+                ->get();
+
+            $result = $pares->map(fn ($p) => [
+                'value' => trim($p->SalonTejidoId) . '|' . trim($p->NoTelarId),
+                'label' => trim($p->NoTelarId),
+            ])->values()->toArray();
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Error al obtener telares: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function getUltimaFechaFinalTelar(Request $request)
     {
         try {

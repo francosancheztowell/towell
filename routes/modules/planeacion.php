@@ -15,6 +15,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReimprimirOrdenesController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\RepasoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReqProgramaTejidoLineController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
@@ -177,6 +178,7 @@ Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::cla
 Route::get('/planeacion/programa-tejido/all-registros-json', [ProgramaTejidoController::class, 'getAllRegistrosJson'])->name('programa-tejido.all-registros-json');
 Route::post('/planeacion/programa-tejido/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('programa-tejido.actualizar-calendarios-masivo');
 Route::post('/planeacion/programa-tejido/{id}/reprogramar', [ProgramaTejidoController::class, 'actualizarReprogramar'])->name('programa-tejido.reprogramar');
+Route::post('/planeacion/programa-tejido/crear-repaso', [RepasoController::class, 'createrepaso'])->name('programa-tejido.crear-repaso');
 Route::get('/planeacion/req-programa-tejido-line', [ReqProgramaTejidoLineController::class, 'index'])->name('planeacion.req-programa-tejido-line');
 
 Route::get('/programa-tejido/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
@@ -192,6 +194,7 @@ Route::get('/programa-tejido/calendario-lineas/{calendarioId}', [ProgramaTejidoC
 Route::get('/programa-tejido/aplicacion-id-options', [ProgramaTejidoController::class, 'getAplicacionIdOptions']);
 Route::match(['get', 'post'], '/programa-tejido/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
 Route::get('/programa-tejido/telares-by-salon', [ProgramaTejidoController::class, 'getTelaresBySalon']);
+Route::get('/programa-tejido/telares-all', [ProgramaTejidoController::class, 'getTelaresAll']);
 Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoController::class, 'getUltimaFechaFinalTelar']);
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);
@@ -237,6 +240,7 @@ Route::delete('/planeacion/muestras/{id}', [ProgramaTejidoController::class, 'de
 Route::get('/planeacion/muestras/all-registros-json', [ProgramaTejidoController::class, 'getAllRegistrosJson'])->name('muestras.all-registros-json');
 Route::post('/planeacion/muestras/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('muestras.actualizar-calendarios-masivo');
 Route::post('/planeacion/muestras/{id}/reprogramar', [ProgramaTejidoController::class, 'actualizarReprogramar'])->name('muestras.reprogramar');
+Route::post('/planeacion/muestras/crear-repaso', [RepasoController::class, 'createrepaso'])->name('muestras.crear-repaso');
 Route::get('/planeacion/muestras-line', [ReqProgramaTejidoLineController::class, 'index'])->name('planeacion.muestras-line');
 
 Route::get('/muestras/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
@@ -252,6 +256,7 @@ Route::get('/muestras/calendario-lineas/{calendarioId}', [ProgramaTejidoControll
 Route::get('/muestras/aplicacion-id-options', [ProgramaTejidoController::class, 'getAplicacionIdOptions']);
 Route::match(['get', 'post'], '/muestras/datos-relacionados', [ProgramaTejidoController::class, 'getDatosRelacionados']);
 Route::get('/muestras/telares-by-salon', [ProgramaTejidoController::class, 'getTelaresBySalon']);
+Route::get('/muestras/telares-all', [ProgramaTejidoController::class, 'getTelaresAll']);
 Route::get('/muestras/ultima-fecha-final-telar', [ProgramaTejidoController::class, 'getUltimaFechaFinalTelar']);
 Route::get('/muestras/hilos-options', [ProgramaTejidoController::class, 'getHilosOptions']);
 Route::get('/muestras/eficiencia-std', [ProgramaTejidoController::class, 'getEficienciaStd']);

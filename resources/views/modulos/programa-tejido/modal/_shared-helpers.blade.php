@@ -999,6 +999,11 @@ async function agregarRegistroSinRecargar(data) {
 			tb.appendChild(row);
 		}
 
+		// Hacer scroll para que la nueva fila sea visible
+		if (row.scrollIntoView) {
+			row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}
+
 		console.log(`[DEBUG] ✅ Fila ${registro.Id} insertada. Total filas después:`, tb.querySelectorAll('.selectable-row').length);
 
 		// Actualizar window.allRows manualmente y actualizar índices

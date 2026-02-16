@@ -632,6 +632,15 @@
           window.open('{{ route("planeacion.catalogos.codificacion-modelos") }}', '_blank');
         });
 
+        // Repaso - abrir modal
+        qs('#contextMenuRepaso')?.addEventListener('click', () => {
+          const row = menuRow || (window.selectedRowIndex != null ? (window.allRows || qsa('.selectable-row', tbodyEl()))[window.selectedRowIndex] : null);
+          hide();
+          if (typeof window.abrirModalRepaso === 'function') {
+            window.abrirModalRepaso(row);
+          }
+        });
+
         // Eliminar registro
         qs('#contextMenuEliminar')?.addEventListener('click', () => {
           const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tbodyEl());
