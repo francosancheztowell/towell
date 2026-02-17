@@ -17,15 +17,8 @@
 @endsection
 
 @php
-    // Verificar permiso 'registrar' igual que button-report
+    // Checkbox Fin visible para todos los usuarios (sin validación de permiso registrar)
     $hasFinalizarPermission = true;
-    try {
-        $moduloRol = \App\Models\Sistema\SYSRoles::where('modulo', 'Programa Urdido')->first();
-        $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Urdido';
-        $hasFinalizarPermission = function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
-    } catch (\Exception $e) {
-        $hasFinalizarPermission = true;
-    }
 @endphp
 
 @section('content')

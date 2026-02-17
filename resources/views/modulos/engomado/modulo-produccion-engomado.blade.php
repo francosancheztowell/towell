@@ -222,7 +222,7 @@
                                     $horaInicio = $registro && $registro->HoraInicial ? substr($registro->HoraInicial, 0, 5) : '';
                                     $horaFin = $registro && $registro->HoraFinal ? substr($registro->HoraFinal, 0, 5) : '';
                                     $noJulio = $registro ? ($registro->NoJulio ?? '') : '';
-                                    $kgBruto = $registro ? ($registro->KgBruto ?? '') : '';
+                                    $kgBruto = $registro && $registro->KgBruto !== null ? number_format((float)$registro->KgBruto, 2, '.', '') : '';
                                     $tara = $registro && $registro->Tara !== null ? number_format((float)$registro->Tara, 1, '.', '') : '';
                                     $kgNeto = $registro ? ($registro->KgNeto ?? '') : '';
                                     $solidos = $registro && $registro->Solidos !== null ? number_format((float)$registro->Solidos, 2, '.', '') : '';
@@ -1112,7 +1112,7 @@
                         },
                         body: JSON.stringify({
                             registro_id: registroId,
-                            kg_bruto: kgBruto !== null && kgBruto !== '' ? parseFloat(kgBruto) : null
+                            kg_bruto: kgBruto !== null && kgBruto !== '' ? parseFloat(kgBruto).toFixed(2) : null
                         })
                     });
 
@@ -1133,7 +1133,11 @@
 
                         const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                         if (row && result.data) {
+                            const brutoInput = row.querySelector('input[data-field="kg_bruto"]');
                             const netoInput = row.querySelector('input[data-field="kg_neto"]');
+                            if (brutoInput && result.data.kg_bruto !== undefined && result.data.kg_bruto !== null) {
+                                brutoInput.value = parseFloat(result.data.kg_bruto).toFixed(2);
+                            }
                             if (netoInput) {
                                 if (result.data.kg_neto !== undefined && result.data.kg_neto !== null) {
                                     netoInput.value = parseFloat(result.data.kg_neto).toFixed(2);
@@ -2052,7 +2056,11 @@
                                 }
 
                                 const timeoutId = setTimeout(() => {
-                                    actualizarKgBruto(registroId, kgBrutoValue);
+                                    const num = parseFloat(kgBrutoValue);
+                                    const valorFormateado = !isNaN(num) ? num.toFixed(2) : kgBrutoValue;
+                                    const inputBruto = row.querySelector('input[data-field="kg_bruto"]');
+                                    if (inputBruto && valorFormateado !== kgBrutoValue) inputBruto.value = valorFormateado;
+                                    actualizarKgBruto(registroId, valorFormateado);
                                     debounceTimeouts.delete(registroId);
                                 }, 1000);
 
@@ -2061,7 +2069,7 @@
                         }
                     });
 
-                    // Kg. Bruto: actualizar en la tabla también al salir del campo (blur)
+                    // Kg. Bruto: actualizar en la tabla también al salir del campo (blur), formato 2 decimales
                     tablaBody.querySelectorAll('input[data-field="kg_bruto"]').forEach(input => {
                         input.addEventListener('blur', function() {
                             const row = this.closest('tr');
@@ -2072,8 +2080,15 @@
                                 debounceTimeouts.delete(registroId);
                             }
                             if (!verificarOficialSeleccionado(registroId)) return;
-                            const valor = (this.value || '').trim();
-                            if (valor !== '') actualizarKgBruto(registroId, valor);
+                            let valor = (this.value || '').trim();
+                            if (valor !== '') {
+                                const num = parseFloat(valor);
+                                if (!isNaN(num)) {
+                                    valor = num.toFixed(2);
+                                    this.value = valor;
+                                }
+                                actualizarKgBruto(registroId, valor);
+                            }
                         });
                     });
 
@@ -2986,7 +3001,7 @@
                                 position: 'top-end',
                                 icon: 'error',
                                 title: 'No se puede finalizar',
-                                text: 'Debe existir al menos una formulación (EngProduccionFormulacion) con el Folio ' + ordenFolio + ' antes de finalizar.',
+                                text: 'Debe existir al menos una formulación con el Folio ' + ordenFolio + ' antes de finalizar.',
                                 showConfirmButton: false,
                                 timer: 5000,
                                 timerProgressBar: true

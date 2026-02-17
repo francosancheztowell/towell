@@ -8,7 +8,6 @@ use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProduccionFormulacionModel;
 use App\Models\Urdido\UrdCatJulios;
-use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Models\Engomado\CatUbicaciones;
@@ -24,13 +23,8 @@ class ModuloProduccionEngomadoController extends Controller
 {
     private function resolveFinalizarPermission(): bool
     {
-        try {
-            $moduloRol = SYSRoles::where('modulo', 'Programa Engomado')->first();
-            $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Engomado';
-            return function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
-        } catch (\Exception $e) {
-            return true;
-        }
+        // Checkbox Fin visible para todos los usuarios (sin validación de permiso registrar)
+        return true;
     }
 
     private function hasNegativeKgNetoByFolio(string $folio): bool
@@ -880,7 +874,7 @@ class ModuloProduccionEngomadoController extends Controller
 
             $kgBrutoValue = null;
             if ($request->has('kg_bruto') && $request->kg_bruto !== null && $request->kg_bruto !== '') {
-                $kgBrutoValue = (float)$request->kg_bruto;
+                $kgBrutoValue = round((float)$request->kg_bruto, 2);
             }
             $registro->KgBruto = $kgBrutoValue;
 
@@ -900,8 +894,8 @@ class ModuloProduccionEngomadoController extends Controller
                 'success' => true,
                 'message' => 'Kg. Bruto actualizado correctamente',
                 'data' => [
-                    'kg_bruto' => $registro->KgBruto,
-                    'kg_neto' => $registro->KgNeto,
+                    'kg_bruto' => $registro->KgBruto !== null ? round((float)$registro->KgBruto, 2) : null,
+                    'kg_neto' => $registro->KgNeto !== null ? round((float)$registro->KgNeto, 2) : null,
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
