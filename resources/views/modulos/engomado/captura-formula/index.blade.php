@@ -239,6 +239,7 @@
                                             data-calibre="{{ $prog->Calibre }}"
                                             data-tipo="{{ $prog->RizoPie }}"
                                             data-formula="{{ $prog->BomFormula }}"
+                                            data-status="{{ $prog->Status ?? '' }}"
                                             {{ isset($folioFiltro) && $folioFiltro === $prog->Folio ? 'selected' : '' }}>
                                         {{ $prog->Folio }} - {{ $prog->Cuenta }}
                                     </option>
@@ -713,6 +714,102 @@
         const observaciones = {};
         let fechaSortAsc = null;
         const desdeProduccion = {{ $desdeProduccion ? 'true' : 'false' }};
+        const STATUS_FINALIZADOS = ['FINALIZADO', 'TERMINADO'];
+
+        function normalizarStatus(status) {
+            return (status || '').toString().trim().toUpperCase();
+        }
+
+        function statusEsFinalizado(status) {
+            return STATUS_FINALIZADOS.includes(normalizarStatus(status));
+        }
+
+        function obtenerStatusSeleccionado() {
+            return selectedRow?.dataset?.status || '';
+        }
+
+        function obtenerStatusProgramaSeleccionado() {
+            const select = document.getElementById('create_folio_prog');
+            const option = select?.options?.[select.selectedIndex];
+            return option?.getAttribute('data-status') || '';
+        }
+
+        function actualizarDisponibilidadRegistroPorStatusPrograma(mostrarAlerta = false) {
+            const method = document.getElementById('create_method')?.value;
+            if (method !== 'POST') return true;
+
+            const status = obtenerStatusProgramaSeleccionado();
+            const bloqueado = statusEsFinalizado(status);
+            const submitBtn = document.getElementById('btn-submit-create');
+            if (submitBtn) {
+                submitBtn.disabled = bloqueado;
+                submitBtn.classList.toggle('opacity-50', bloqueado);
+                submitBtn.classList.toggle('cursor-not-allowed', bloqueado);
+                submitBtn.classList.toggle('pointer-events-none', bloqueado);
+            }
+
+            if (bloqueado && mostrarAlerta) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Registro bloqueado',
+                    text: 'No se puede registrar una fórmula para un folio con status Finalizado/Terminado.',
+                    confirmButtonColor: '#3b82f6'
+                });
+            }
+
+            return !bloqueado;
+        }
+
+        function mostrarBloqueoFinalizado() {
+            Swal.fire({
+                icon: 'info',
+                title: 'Edición bloqueada',
+                text: 'No se puede editar una fórmula con status Finalizado/Terminado.',
+                confirmButtonColor: '#3b82f6'
+            });
+        }
+
+        function setButtonEnabled(id, enabled) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.disabled = !enabled;
+            btn.classList.toggle('opacity-50', !enabled);
+            btn.classList.toggle('cursor-not-allowed', !enabled);
+        }
+
+        function actualizarEstadoBotonesAccion() {
+            const haySeleccion = !!selectedRow;
+            const statusFinal = statusEsFinalizado(obtenerStatusSeleccionado());
+
+            setButtonEnabled('btn-view', haySeleccion);
+            setButtonEnabled('btn-delete', haySeleccion);
+            setButtonEnabled('btn-edit', haySeleccion && !statusFinal);
+        }
+
+        function obtenerFormulacionSeleccionadaValida() {
+            if (!selectedRow || !selectedFolio || !selectedId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Selección requerida',
+                    text: 'Debe seleccionar una fórmula primero',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return null;
+            }
+
+            const formulacionId = parseInt(selectedId, 10);
+            if (isNaN(formulacionId) || formulacionId <= 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ID inválido',
+                    text: 'El ID de la formulación no es válido: ' + selectedId,
+                    confirmButtonColor: '#3b82f6'
+                });
+                return null;
+            }
+
+            return formulacionId;
+        }
 
         function selectRow(row, folio, id) {
             document.querySelectorAll('#formulaTable tbody tr.selected').forEach(existing => {
@@ -788,6 +885,8 @@
                 cargarDatosPrograma(select, false);
             }
 
+            actualizarDisponibilidadRegistroPorStatusPrograma(false);
+
             setCreateModalReadOnly(readOnly);
         }
 
@@ -799,23 +898,14 @@
         }
         // funcion para deshabilitar los botones de editar, ver y eliminar
         function disableButtons() {
-            ['btn-edit', 'btn-view', 'btn-delete'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn) {
-                    btn.disabled = true;
-                    btn.classList.add('opacity-50', 'cursor-not-allowed');
-                }
-            });
+            selectedRow = null;
+            selectedFolio = null;
+            selectedId = null;
+            actualizarEstadoBotonesAccion();
         }
 
         function enableButtons() {
-            ['btn-edit', 'btn-view', 'btn-delete'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn) {
-                    btn.disabled = false;
-                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-            });
+            actualizarEstadoBotonesAccion();
         }
 
         function obtenerFechaRow(row) {
@@ -868,25 +958,11 @@
         }
 
         function openEditModal() {
-            if (!selectedRow || !selectedFolio || !selectedId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Selección requerida',
-                    text: 'Debe seleccionar una fórmula primero',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
+            const formulacionId = obtenerFormulacionSeleccionadaValida();
+            if (!formulacionId) return;
 
-            // Validar que selectedId sea un número válido
-            const formulacionId = parseInt(selectedId);
-            if (isNaN(formulacionId) || formulacionId <= 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'ID inválido',
-                    text: 'El ID de la formulación no es válido: ' + selectedId,
-                    confirmButtonColor: '#3b82f6'
-                });
+            if (statusEsFinalizado(obtenerStatusSeleccionado())) {
+                mostrarBloqueoFinalizado();
                 return;
             }
 
@@ -1111,26 +1187,8 @@
         }
 
         function openViewModal() {
-            if (!selectedRow || !selectedFolio || !selectedId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Selección requerida',
-                    text: 'Debe seleccionar una fórmula primero',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
-
-            const formulacionId = parseInt(selectedId);
-            if (isNaN(formulacionId) || formulacionId <= 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'ID inválido',
-                    text: 'El ID de la formulación no es válido: ' + selectedId,
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
+            const formulacionId = obtenerFormulacionSeleccionadaValida();
+            if (!formulacionId) return;
 
             editMode = true;
             viewOnlyMode = true;
@@ -1535,6 +1593,7 @@
                 document.getElementById('create_componentes_tabla_container').classList.add('hidden');
                 document.getElementById('create_componentes_loading').classList.add('hidden');
                 document.getElementById('create_componentes_error').classList.add('hidden');
+                actualizarDisponibilidadRegistroPorStatusPrograma(false);
                 return;
             }
 
@@ -1559,6 +1618,7 @@
             @endif
 
             // Al cargar datos ya no se muestra alerta
+            actualizarDisponibilidadRegistroPorStatusPrograma(mostrarAlerta);
         }
 
         function fillEmpleadoEdit(select) {
@@ -2452,6 +2512,11 @@
                 createForm.addEventListener('input', debounce(actualizarBotonGuardarEdicion, 200));
                 createForm.addEventListener('change', actualizarBotonGuardarEdicion);
                 createForm.addEventListener('submit', function(e) {
+                    if (!actualizarDisponibilidadRegistroPorStatusPrograma(true)) {
+                        e.preventDefault();
+                        return;
+                    }
+
                     const kilosVal = parseFloat(document.getElementById('create_kilos')?.value) ?? NaN;
                     const litrosVal = parseFloat(document.getElementById('create_litros')?.value) ?? NaN;
                     const tiempoVal = parseFloat(document.getElementById('create_tiempo')?.value) ?? NaN;

@@ -38,7 +38,7 @@ class EngProduccionFormulacionController extends Controller
             if (!empty($folioFiltro)) {
                 $foliosProgramaQuery->where('Folio', $folioFiltro);
             }
-            $foliosPrograma = $foliosProgramaQuery->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
+            $foliosPrograma = $foliosProgramaQuery->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula', 'Status']);
 
             // Generar folio sugerido
             $year = date('Y');
@@ -125,6 +125,10 @@ class EngProduccionFormulacionController extends Controller
             if (!$programa) {
                 return redirect()->back()
                     ->with('error', 'El folio no existe en el programa de engomado: ' . $folio);
+            }
+            if ($this->isFinalStatus($programa->Status ?? null)) {
+                return redirect()->back()
+                    ->with('error', 'No se puede registrar una formulación para un folio finalizado: ' . $folio);
             }
 
             $validated['Folio'] = $folio;
@@ -668,5 +672,11 @@ class EngProduccionFormulacionController extends Controller
         }
 
         return $value;
+    }
+
+    private function isFinalStatus(?string $status): bool
+    {
+        $status = mb_strtoupper(trim((string) $status));
+        return in_array($status, ['FINALIZADO', 'TERMINADO'], true);
     }
 }

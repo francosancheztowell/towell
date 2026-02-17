@@ -3,9 +3,14 @@
 @section('page-title', 'Checklist BPM Engomado - ' . $header->Folio)
 
 @section('navbar-right')
+    @php
+        $statusHeader = strtoupper(trim((string) $header->Status));
+        $esCreado = $statusHeader === 'CREADO';
+        $esTerminado = $statusHeader === 'TERMINADO';
+    @endphp
     <div class="flex items-center gap-2">
         
-        @if($header->Status === 'Creado')
+        @if($esCreado)
             <form action="{{ route('eng-bpm-line.terminar', $header->Folio) }}" method="POST" class="inline" id="form-terminar">
                 @csrf
                 @method('PATCH')
@@ -13,7 +18,7 @@
                     Terminado
                 </button>
             </form>
-        @elseif($header->Status === 'Terminado')
+        @elseif($esTerminado)
             <form action="{{ route('eng-bpm-line.autorizar', $header->Folio) }}" method="POST" class="inline">
                 @csrf
                 @method('PATCH')
@@ -87,9 +92,9 @@
             <div>
                 <p class="text-xs text-gray-500 font-medium uppercase mb-0.5">Status</p>
                 <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
-                    @if($header->Status === 'Creado') bg-yellow-100 text-yellow-800
-                    @elseif($header->Status === 'Terminado') bg-blue-100 text-blue-800
-                    @elseif($header->Status === 'Autorizado') bg-green-100 text-green-800
+                    @if($statusHeader === 'CREADO') bg-yellow-100 text-yellow-800
+                    @elseif($statusHeader === 'TERMINADO') bg-blue-100 text-blue-800
+                    @elseif($statusHeader === 'AUTORIZADO') bg-green-100 text-green-800
                     @endif">
                     {{ $header->Status }}
                 </span>
@@ -126,7 +131,7 @@
                                            'bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100 hover:border-gray-400') }}"
                                     data-actividad="{{ $actividad->Actividad }}"
                                     data-valor="{{ $valor }}"
-                                    {{ $header->Status !== 'Creado' ? 'disabled' : '' }}
+                                    {{ !$esCreado ? 'disabled' : '' }}
                                     onclick="toggleActividad(this)">
                                    <span class="cell-icon text-lg font-bold">
                                         {!! $valor == 1 ? '✓' : ($valor == 2 ? '✗' : '○') !!}
@@ -146,6 +151,14 @@
         window.location.replace("{{ route('eng-bpm.index') }}");
     };
 
+    const statusHeaderActual = @json($header->Status);
+    const statusHeaderNormalizado = (statusHeaderActual || '').toString().trim().toUpperCase();
+    const statusFinalizados = ['FINALIZADO', 'TERMINADO', 'AUTORIZADO'];
+
+    function esStatusEditableChecklist() {
+        return !statusFinalizados.includes(statusHeaderNormalizado);
+    }
+
     // Interceptar el botón "atrás" del navegador
     window.addEventListener('popstate', function(event) {
         window.volverAlIndice();
@@ -160,6 +173,16 @@
 
     // Validar que todas las actividades estén marcadas antes de terminar
     function validarYTerminar() {
+        if (!esStatusEditableChecklist()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Registro bloqueado',
+                text: 'No se puede registrar/modificar un checklist en estado Finalizado/Terminado.',
+                confirmButtonColor: '#3b82f6'
+            });
+            return;
+        }
+
         const totalActividades = {{ $actividades->count() }};
         const actividadesMarcadas = document.querySelectorAll('.cell-btn[data-valor="1"], .cell-btn[data-valor="2"]').length;
         
@@ -180,6 +203,16 @@
 
     // Toggle individual activity: 0 (vacío) → 1 (palomita) → 2 (tache) → 0
     function toggleActividad(btn) {
+        if (!esStatusEditableChecklist()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Registro bloqueado',
+                text: 'No se pueden modificar actividades en estado Finalizado/Terminado.',
+                confirmButtonColor: '#3b82f6'
+            });
+            return;
+        }
+
         const actividad = btn.dataset.actividad;
         const valorActual = parseInt(btn.dataset.valor) || 0;
         
