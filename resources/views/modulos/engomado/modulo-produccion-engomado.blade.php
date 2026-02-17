@@ -222,7 +222,7 @@
                                     $horaInicio = $registro && $registro->HoraInicial ? substr($registro->HoraInicial, 0, 5) : '';
                                     $horaFin = $registro && $registro->HoraFinal ? substr($registro->HoraFinal, 0, 5) : '';
                                     $noJulio = $registro ? ($registro->NoJulio ?? '') : '';
-                                    $kgBruto = $registro ? ($registro->KgBruto ?? '') : '';
+                                    $kgBruto = $registro && $registro->KgBruto !== null ? number_format((float)$registro->KgBruto, 2, '.', '') : '';
                                     $tara = $registro && $registro->Tara !== null ? number_format((float)$registro->Tara, 1, '.', '') : '';
                                     $kgNeto = $registro ? ($registro->KgNeto ?? '') : '';
                                     $solidos = $registro && $registro->Solidos !== null ? number_format((float)$registro->Solidos, 2, '.', '') : '';
@@ -768,6 +768,19 @@
         (function () {
             'use strict';
 
+            // ─── helpers de notificación reutilizables ──────────────────
+            function mostrarToast(icon, text, timer = 2500) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon, text, timer, showConfirmButton: false, toast: true, position: 'top-end' });
+                }
+            }
+
+            function mostrarAlerta(icon, title, text) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon, title, text });
+                }
+            }
+
             const debounceTimeouts = new Map();
             const campoMap = {
                 solidos: 'Solidos',
@@ -952,19 +965,7 @@
             }
 
             function mostrarAlertaOficialRequerido() {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Oficial requerido',
-                        text: 'Debes seleccionar un oficial antes de actualizar este campo',
-                        timer: 3000,
-                        showConfirmButton: false,
-                        toast: true,
-                        position: 'top-end'
-                    });
-                } else {
-                    alert('Debes seleccionar un oficial antes de actualizar este campo');
-                }
+                mostrarToast('warning', 'Debes seleccionar un oficial antes de actualizar este campo', 3000);
             }
 
             // Disponibles para actualizar* (deben estar en el mismo ámbito)
@@ -976,17 +977,7 @@
             }
             function verificarFilaNoFinalizada(registroId) {
                 if (esFilaBloqueada(registroId)) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Registro finalizado',
-                            text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
-                            timer: 2500,
-                            showConfirmButton: false,
-                            toast: true,
-                            position: 'top-end'
-                        });
-                    }
+                    mostrarToast('info', 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.');
                     return false;
                 }
                 return true;
@@ -1012,26 +1003,12 @@
 
                     const result = await response.json();
 
-                    if (result.success && typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Fecha actualizada',
-                            text: 'La fecha ha sido actualizada correctamente',
-                            timer: 2000,
-                            showConfirmButton: false,
-                            toast: true,
-                            position: 'top-end'
-                        });
+                    if (result.success) {
+                        mostrarToast('success', 'La fecha ha sido actualizada correctamente', 2000);
                     }
                 } catch (error) {
                     console.error('Error al actualizar fecha:', error);
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'Error al actualizar la fecha. Por favor, intenta nuevamente.'
-                        });
-                    }
+                    mostrarAlerta('error', 'Error', 'Error al actualizar la fecha. Por favor, intenta nuevamente.');
                 }
             }
 
@@ -1054,17 +1031,7 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Turno actualizado',
-                                text: 'El turno ha sido actualizado correctamente',
-                                timer: 2000,
-                                showConfirmButton: false,
-                                toast: true,
-                                position: 'top-end'
-                            });
-                        }
+                        mostrarToast('success', 'El turno ha sido actualizado correctamente', 2000);
 
                         const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                         if (row) {
@@ -1086,13 +1053,7 @@
                     }
                 } catch (error) {
                     console.error('Error al actualizar turno del oficial:', error);
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'Error al actualizar el turno. Por favor, intenta nuevamente.'
-                        });
-                    }
+                    mostrarAlerta('error', 'Error', 'Error al actualizar el turno. Por favor, intenta nuevamente.');
                 }
             }
 
@@ -1112,28 +1073,22 @@
                         },
                         body: JSON.stringify({
                             registro_id: registroId,
-                            kg_bruto: kgBruto !== null && kgBruto !== '' ? parseFloat(kgBruto) : null
+                            kg_bruto: kgBruto !== null && kgBruto !== '' ? parseFloat(kgBruto).toFixed(2) : null
                         })
                     });
 
                     const result = await response.json();
 
                     if (result.success) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Actualizado',
-                                text: 'Kg. Bruto actualizado correctamente',
-                                timer: 2000,
-                                showConfirmButton: false,
-                                toast: true,
-                                position: 'top-end'
-                            });
-                        }
+                        mostrarToast('success', 'Kg. Bruto actualizado correctamente', 2000);
 
                         const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
                         if (row && result.data) {
+                            const brutoInput = row.querySelector('input[data-field="kg_bruto"]');
                             const netoInput = row.querySelector('input[data-field="kg_neto"]');
+                            if (brutoInput && result.data.kg_bruto !== undefined && result.data.kg_bruto !== null) {
+                                brutoInput.value = parseFloat(result.data.kg_bruto).toFixed(2);
+                            }
                             if (netoInput) {
                                 if (result.data.kg_neto !== undefined && result.data.kg_neto !== null) {
                                     netoInput.value = parseFloat(result.data.kg_neto).toFixed(2);
@@ -1145,13 +1100,7 @@
                     }
                 } catch (error) {
                     console.error('Error al actualizar KgBruto:', error);
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'Error al actualizar Kg. Bruto. Por favor, intenta nuevamente.'
-                        });
-                    }
+                    mostrarAlerta('error', 'Error', 'Error al actualizar Kg. Bruto. Por favor, intenta nuevamente.');
                 }
             }
 
@@ -1694,12 +1643,21 @@
                 }
             }
 
+            /**
+             * Propagar oficiales hacia abajo (filas siguientes).
+             * - Si hay Oficial 2: el segundo oficial pasa a ser Oficial 1 en las filas siguientes,
+             *   el anterior Oficial 1 se elimina. Se detiene al encontrar una fila con H. Inicio.
+             * - Si solo hay Oficial 1: se propagan todos los oficiales con sus mismos números.
+             */
             async function propagarOficialesHaciaAbajo(registroIdActual, oficiales) {
                 const tablaBody = document.getElementById('tabla-produccion-body');
                 if (!tablaBody) return;
                 const todasLasFilas = Array.from(tablaBody.querySelectorAll('tr[data-registro-id]'));
                 const indiceActual = todasLasFilas.findIndex(row => row.getAttribute('data-registro-id') == registroIdActual);
                 if (indiceActual === -1) return;
+
+                const tieneSegundoOficial = oficiales.some(o => o.numero_oficial === 2);
+                const segundoOficial = tieneSegundoOficial ? oficiales.find(o => o.numero_oficial === 2) : null;
 
                 for (let i = indiceActual + 1; i < todasLasFilas.length; i++) {
                     const fila = todasLasFilas[i];
@@ -1710,25 +1668,53 @@
                     if (hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '') break;
 
                     try {
-                        for (const oficial of oficiales) {
-                            const response = await fetch('{{ route('engomado.modulo.produccion.engomado.guardar.oficial') }}', {
+                        if (tieneSegundoOficial && segundoOficial) {
+                            const resEliminar = await fetch('{{ route('engomado.modulo.produccion.engomado.eliminar.oficial') }}', {
                                 method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                },
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                body: JSON.stringify({ registro_id: registroId, numero_oficial: 1 })
+                            });
+                            const elimResult = await resEliminar.json();
+                            if (!elimResult.success && elimResult.error && !elimResult.error.includes('Registro no encontrado')) {
+                                continue;
+                            }
+
+                            const resGuardar = await fetch('{{ route('engomado.modulo.produccion.engomado.guardar.oficial') }}', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                                 body: JSON.stringify({
                                     registro_id: registroId,
-                                    numero_oficial: oficial.numero_oficial,
-                                    cve_empl: oficial.cve_empl,
-                                    nom_empl: oficial.nom_empl,
-                                    turno: oficial.turno
+                                    numero_oficial: 1,
+                                    cve_empl: segundoOficial.cve_empl,
+                                    nom_empl: segundoOficial.nom_empl,
+                                    turno: segundoOficial.turno
                                 })
                             });
-                            const result = await response.json();
-                            if (!result.success) break;
+                            const guardarResult = await resGuardar.json();
+                            if (guardarResult.success) {
+                                actualizarOficialesEnTabla(registroId, [{ ...segundoOficial, numero_oficial: 1 }], { actualizarMetros: false });
+                            }
+                        } else {
+                            let todosGuardados = true;
+                            for (const oficial of oficiales) {
+                                const response = await fetch('{{ route('engomado.modulo.produccion.engomado.guardar.oficial') }}', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                    body: JSON.stringify({
+                                        registro_id: registroId,
+                                        numero_oficial: oficial.numero_oficial,
+                                        cve_empl: oficial.cve_empl,
+                                        nom_empl: oficial.nom_empl,
+                                        turno: oficial.turno
+                                    })
+                                });
+                                const result = await response.json();
+                                if (!result.success) todosGuardados = false;
+                            }
+                            if (todosGuardados) {
+                                actualizarOficialesEnTabla(registroId, oficiales, { actualizarMetros: false });
+                            }
                         }
-                        actualizarOficialesEnTabla(registroId, oficiales, { actualizarMetros: false });
                     } catch (err) {
                         console.error('Error propagando oficiales:', err);
                     }
@@ -1766,85 +1752,6 @@
                         el.disabled = false;
                         el.classList.remove('cursor-not-allowed', 'pointer-events-none', 'opacity-50');
                     });
-                }
-
-                /**
-                 * Validar que una fila tenga todos los campos requeridos para poder finalizarla.
-                 * Roturas puede ser null (opcional).
-                 * @param {Element} row - Fila DOM
-                 * @returns {Object} { valido: boolean, camposFaltantes: string[] }
-                 */
-                function validarFilaParaFinalizar(row) {
-                    const camposFaltantes = [];
-
-                    // Fecha
-                    const fechaInput = row.querySelector('input.input-fecha');
-                    if (!fechaInput || !fechaInput.value) camposFaltantes.push('Fecha');
-
-                    // Oficial
-                    const oficialTexto = row.querySelector('.oficial-texto');
-                    const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
-                    const tieneOficial = textoOficial && textoOficial !== 'Sin oficiales';
-                    if (!oficialTexto || !tieneOficial) camposFaltantes.push('Oficial');
-
-                    // Turno
-                    const turnoSelect = row.querySelector('select[data-field="turno"]');
-                    if (!turnoSelect || !turnoSelect.value) camposFaltantes.push('Turno');
-
-                    // H. Inicio
-                    const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
-                    if (!hInicioInput || !hInicioInput.value) camposFaltantes.push('H. Inicio');
-
-                    // H. Fin
-                    const hFinInput = row.querySelector('input[data-field="h_fin"]');
-                    if (!hFinInput || !hFinInput.value) camposFaltantes.push('H. Fin');
-
-                    // Julio
-                    const julioSelect = row.querySelector('select[data-field="no_julio"]');
-                    if (!julioSelect || !julioSelect.value) camposFaltantes.push('Julio');
-
-                    // Kg. Bruto
-                    const kgBrutoInput = row.querySelector('input[data-field="kg_bruto"]');
-                    if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') camposFaltantes.push('Kg. Bruto');
-
-                    // Tara
-                    const taraInput = row.querySelector('input[data-field="tara"]');
-                    if (!taraInput || !taraInput.value || taraInput.value.trim() === '') camposFaltantes.push('Tara');
-
-                    // Kg. Neto - no puede ser negativo
-                    const kgNetoInput = row.querySelector('input[data-field="kg_neto"]');
-                    if (kgNetoInput && kgNetoInput.value) {
-                        const kgNetoValue = parseFloat(kgNetoInput.value);
-                        if (!isNaN(kgNetoValue) && kgNetoValue < 0) camposFaltantes.push('Kg. Neto (no puede ser negativo)');
-                    }
-
-                    // Metros
-                    const metrosInput = row.querySelector('input[data-field="metros"]');
-                    if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') camposFaltantes.push('Metros');
-
-                    // Sólidos (Sol. Can.)
-                    const solidosInput = row.querySelector('input[data-field="solidos"]');
-                    if (!solidosInput || !solidosInput.value || solidosInput.value.trim() === '') camposFaltantes.push('Sólidos');
-
-                    // Temp Canoa 1
-                    const canoa1Btn = row.querySelector('button[onclick*="temp_canoa1"]');
-                    const canoa1Display = canoa1Btn ? canoa1Btn.querySelector('.quantity-display[data-field="temp_canoa1"]') : null;
-                    const canoa1Value = canoa1Display ? canoa1Display.textContent.trim() : '';
-                    if (!canoa1Value || canoa1Value === '0' || canoa1Value === '') camposFaltantes.push('Temp Canoa 1');
-
-                    // Temp Canoa 2
-                    const canoa2Btn = row.querySelector('button[onclick*="temp_canoa2"]');
-                    const canoa2Display = canoa2Btn ? canoa2Btn.querySelector('.quantity-display[data-field="temp_canoa2"]') : null;
-                    const canoa2Value = canoa2Display ? canoa2Display.textContent.trim() : '';
-                    if (!canoa2Value || canoa2Value === '0' || canoa2Value === '') camposFaltantes.push('Temp Canoa 2');
-
-                    // Ubicación
-                    const ubicacionSelect = row.querySelector('select[data-field="ubicacion"]');
-                    if (!ubicacionSelect || !ubicacionSelect.value || ubicacionSelect.value.trim() === '') camposFaltantes.push('Ubicación');
-
-                    // Roturas: opcional (puede ser null)
-
-                    return { valido: camposFaltantes.length === 0, camposFaltantes };
                 }
 
                 // esFilaBloqueada y verificarFilaNoFinalizada están en el ámbito exterior del IIFE
@@ -2052,7 +1959,11 @@
                                 }
 
                                 const timeoutId = setTimeout(() => {
-                                    actualizarKgBruto(registroId, kgBrutoValue);
+                                    const num = parseFloat(kgBrutoValue);
+                                    const valorFormateado = !isNaN(num) ? num.toFixed(2) : kgBrutoValue;
+                                    const inputBruto = row.querySelector('input[data-field="kg_bruto"]');
+                                    if (inputBruto && valorFormateado !== kgBrutoValue) inputBruto.value = valorFormateado;
+                                    actualizarKgBruto(registroId, valorFormateado);
                                     debounceTimeouts.delete(registroId);
                                 }, 1000);
 
@@ -2061,7 +1972,7 @@
                         }
                     });
 
-                    // Kg. Bruto: actualizar en la tabla también al salir del campo (blur)
+                    // Kg. Bruto: actualizar en la tabla también al salir del campo (blur), formato 2 decimales
                     tablaBody.querySelectorAll('input[data-field="kg_bruto"]').forEach(input => {
                         input.addEventListener('blur', function() {
                             const row = this.closest('tr');
@@ -2072,8 +1983,15 @@
                                 debounceTimeouts.delete(registroId);
                             }
                             if (!verificarOficialSeleccionado(registroId)) return;
-                            const valor = (this.value || '').trim();
-                            if (valor !== '') actualizarKgBruto(registroId, valor);
+                            let valor = (this.value || '').trim();
+                            if (valor !== '') {
+                                const num = parseFloat(valor);
+                                if (!isNaN(num)) {
+                                    valor = num.toFixed(2);
+                                    this.value = valor;
+                                }
+                                actualizarKgBruto(registroId, valor);
+                            }
                         });
                     });
 
@@ -2207,6 +2125,27 @@
                                 target.value = anterior;
                                 return;
                             }
+
+                            // Validar que Hora Inicio < Hora Fin
+                            if (horaValue) {
+                                const row = target.closest('tr');
+                                const hInicioInput = row ? row.querySelector('input[data-field="h_inicio"]') : null;
+                                const hFinInput = row ? row.querySelector('input[data-field="h_fin"]') : null;
+                                const hInicio = hInicioInput ? hInicioInput.value : '';
+                                const hFin = hFinInput ? hFinInput.value : '';
+
+                                if (field === 'h_inicio' && hFin && horaValue >= hFin) {
+                                    mostrarToast('error', `Hora Inicio (${horaValue}) debe ser anterior a Hora Fin (${hFin}).`);
+                                    target.value = target.getAttribute('data-valor-anterior') || '';
+                                    return;
+                                }
+                                if (field === 'h_fin' && hInicio && horaValue <= hInicio) {
+                                    mostrarToast('error', `Hora Fin (${horaValue}) debe ser posterior a Hora Inicio (${hInicio}).`);
+                                    target.value = target.getAttribute('data-valor-anterior') || '';
+                                    return;
+                                }
+                            }
+
                             actualizarHora(registroId, field === 'h_inicio' ? 'HoraInicial' : 'HoraFinal', horaValue);
                             target.setAttribute('data-valor-anterior', target.value || '');
                         }
@@ -2749,6 +2688,77 @@
                 });
             }
 
+            /**
+             * Validar que una fila tenga todos los campos requeridos (incluye Solidos, Canoa1, Canoa2, Ubicacion).
+             * @param {Element} row - Fila DOM
+             * @returns {Object} { valido: boolean, camposFaltantes: string[] }
+             */
+            function validarCamposFila(row) {
+                const camposFaltantes = [];
+
+                const fechaInput = row.querySelector('input.input-fecha');
+                if (!fechaInput || !fechaInput.value) camposFaltantes.push('Fecha');
+
+                const oficialTexto = row.querySelector('.oficial-texto');
+                const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
+                if (!textoOficial || textoOficial === 'Sin oficiales') camposFaltantes.push('Oficial');
+
+                const turnoSelect = row.querySelector('select[data-field="turno"]');
+                if (!turnoSelect || !turnoSelect.value) camposFaltantes.push('Turno');
+
+                const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                if (!hInicioInput || !hInicioInput.value) camposFaltantes.push('H. Inicio');
+
+                const hFinInput = row.querySelector('input[data-field="h_fin"]');
+                if (!hFinInput || !hFinInput.value) camposFaltantes.push('H. Fin');
+
+                if (hInicioInput && hInicioInput.value && hFinInput && hFinInput.value) {
+                    if (hInicioInput.value >= hFinInput.value) {
+                        camposFaltantes.push('H. Inicio debe ser anterior a H. Fin');
+                    }
+                }
+
+                const julioSelect = row.querySelector('select[data-field="no_julio"]');
+                if (!julioSelect || !julioSelect.value) camposFaltantes.push('Julio');
+
+                const kgBrutoInput = row.querySelector('input[data-field="kg_bruto"]');
+                if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') camposFaltantes.push('Kg. Bruto');
+
+                const taraInput = row.querySelector('input[data-field="tara"]');
+                if (!taraInput || !taraInput.value || taraInput.value.trim() === '') camposFaltantes.push('Tara');
+
+                const kgNetoInput = row.querySelector('input[data-field="kg_neto"]');
+                if (kgNetoInput && kgNetoInput.value) {
+                    const kgNetoValue = parseFloat(kgNetoInput.value);
+                    if (!isNaN(kgNetoValue) && kgNetoValue < 0) camposFaltantes.push('Kg. Neto (no puede ser negativo)');
+                }
+
+                const metrosInput = row.querySelector('input[data-field="metros"]');
+                if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') camposFaltantes.push('Metros');
+
+                const solidosInput = row.querySelector('input[data-field="solidos"]');
+                if (!solidosInput || !solidosInput.value || solidosInput.value.trim() === '') camposFaltantes.push('Sólidos');
+
+                const canoa1Btn = row.querySelector('button[onclick*="temp_canoa1"]');
+                const canoa1Display = canoa1Btn ? canoa1Btn.querySelector('.quantity-display[data-field="temp_canoa1"]') : null;
+                const canoa1Value = canoa1Display ? canoa1Display.textContent.trim() : '';
+                if (!canoa1Value || canoa1Value === '0' || canoa1Value === '') camposFaltantes.push('Temp Canoa 1');
+
+                const canoa2Btn = row.querySelector('button[onclick*="temp_canoa2"]');
+                const canoa2Display = canoa2Btn ? canoa2Btn.querySelector('.quantity-display[data-field="temp_canoa2"]') : null;
+                const canoa2Value = canoa2Display ? canoa2Display.textContent.trim() : '';
+                if (!canoa2Value || canoa2Value === '0' || canoa2Value === '') camposFaltantes.push('Temp Canoa 2');
+
+                const ubicacionSelect = row.querySelector('select[data-field="ubicacion"]');
+                if (!ubicacionSelect || !ubicacionSelect.value || ubicacionSelect.value.trim() === '') camposFaltantes.push('Ubicación');
+
+                return { valido: camposFaltantes.length === 0, camposFaltantes };
+            }
+
+            function validarFilaParaFinalizar(row) {
+                return validarCamposFila(row);
+            }
+
             function validarRegistrosCompletos() {
                 limpiarErroresVisuales();
 
@@ -2773,144 +2783,44 @@
                     hayErrores = true;
                 }
 
+                // Mapa de campo a selector para marcar errores visuales
+                const selectorMap = {
+                    'Fecha': 'input.input-fecha',
+                    'Oficial': '.oficial-texto',
+                    'Turno': 'select[data-field="turno"]',
+                    'H. Inicio': 'input[data-field="h_inicio"]',
+                    'H. Fin': 'input[data-field="h_fin"]',
+                    'Julio': 'select[data-field="no_julio"]',
+                    'Kg. Bruto': 'input[data-field="kg_bruto"]',
+                    'Tara': 'input[data-field="tara"]',
+                    'Kg. Neto (no puede ser negativo)': 'input[data-field="kg_neto"]',
+                    'Metros': 'input[data-field="metros"]',
+                    'Sólidos': 'input[data-field="solidos"]',
+                    'Ubicación': 'select[data-field="ubicacion"]',
+                };
+
                 filas.forEach((fila, index) => {
-                    const registroId = fila.getAttribute('data-registro-id');
-                    const camposFaltantes = [];
+                    const resultado = validarCamposFila(fila);
 
-                    // Fecha
-                    const fechaInput = fila.querySelector('input.input-fecha');
-                    if (!fechaInput || !fechaInput.value) {
-                        camposFaltantes.push('Fecha');
-                        marcarCampoError(fechaInput, true);
+                    if (!resultado.valido) {
                         hayErrores = true;
-                    }
-
-                    // Oficial (requerido)
-                    const oficialTexto = fila.querySelector('.oficial-texto');
-                    const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
-                    const tieneOficial = textoOficial && textoOficial !== 'Sin oficiales';
-                    if (!oficialTexto || !tieneOficial) {
-                        camposFaltantes.push('Oficial');
-                        marcarCampoError(oficialTexto, true);
-                        hayErrores = true;
-                    }
-
-                    // Turno
-                    const turnoSelect = fila.querySelector('select[data-field="turno"]');
-                    if (!turnoSelect || !turnoSelect.value) {
-                        camposFaltantes.push('Turno');
-                        marcarCampoError(turnoSelect, true);
-                        hayErrores = true;
-                    }
-
-                    // H. Inicio
-                    const hInicioInput = fila.querySelector('input[data-field="h_inicio"]');
-                    if (!hInicioInput || !hInicioInput.value) {
-                        camposFaltantes.push('H. Inicio');
-                        marcarCampoError(hInicioInput, true);
-                        hayErrores = true;
-                    }
-
-                    // H. Fin
-                    const hFinInput = fila.querySelector('input[data-field="h_fin"]');
-                    if (!hFinInput || !hFinInput.value) {
-                        camposFaltantes.push('H. Fin');
-                        marcarCampoError(hFinInput, true);
-                        hayErrores = true;
-                    }
-
-                    // Julio
-                    const julioSelect = fila.querySelector('select[data-field="no_julio"]');
-                    if (!julioSelect || !julioSelect.value) {
-                        camposFaltantes.push('Julio');
-                        marcarCampoError(julioSelect, true);
-                        hayErrores = true;
-                    }
-
-                    // Kg. Bruto
-                    const kgBrutoInput = fila.querySelector('input[data-field="kg_bruto"]');
-                    if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') {
-                        camposFaltantes.push('Kg. Bruto');
-                        marcarCampoError(kgBrutoInput, true);
-                        hayErrores = true;
-                    }
-
-                    // Tara
-                    const taraInput = fila.querySelector('input[data-field="tara"]');
-                    if (!taraInput || !taraInput.value || taraInput.value.trim() === '') {
-                        camposFaltantes.push('Tara');
-                        marcarCampoError(taraInput, true);
-                        hayErrores = true;
-                    }
-
-                    // Kg. Neto - Validar que no sea negativo
-                    const kgNetoInput = fila.querySelector('input[data-field="kg_neto"]');
-                    if (kgNetoInput && kgNetoInput.value) {
-                        const kgNetoValue = parseFloat(kgNetoInput.value);
-                        if (!isNaN(kgNetoValue) && kgNetoValue < 0) {
-                            camposFaltantes.push('Kg. Neto (no puede ser negativo)');
-                            marcarCampoError(kgNetoInput, true);
-                            hayErrores = true;
-                        }
-                    }
-
-                    // Metros
-                    const metrosInput = fila.querySelector('input[data-field="metros"]');
-                    if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') {
-                        camposFaltantes.push('Metros');
-                        marcarCampoError(metrosInput, true);
-                        hayErrores = true;
-                    }
-
-                    // Sólidos (Sol. Can.) - REQUERIDO
-                    const solidosInput = fila.querySelector('input[data-field="solidos"]');
-                    if (!solidosInput || !solidosInput.value || solidosInput.value.trim() === '') {
-                        camposFaltantes.push('Sólidos');
-                        marcarCampoError(solidosInput, true);
-                        hayErrores = true;
-                    }
-
-                    // Canoa 1 (Temp) - REQUERIDO
-                    const canoa1Btn = fila.querySelector('button[onclick*="temp_canoa1"]');
-                    const canoa1Display = canoa1Btn ? canoa1Btn.querySelector('.quantity-display[data-field="temp_canoa1"]') : null;
-                    const canoa1Value = canoa1Display ? canoa1Display.textContent.trim() : '';
-                    if (!canoa1Value || canoa1Value === '0' || canoa1Value === '') {
-                        camposFaltantes.push('Temp Canoa 1');
-                        if (canoa1Btn) {
-                            canoa1Btn.classList.add('border-red-500', 'border-2', 'ring-2', 'ring-red-300');
-                            canoa1Btn.style.border = '2px solid #ef4444';
-                        }
-                        hayErrores = true;
-                    }
-
-                    // Canoa 2 (Temp) - REQUERIDO
-                    const canoa2Btn = fila.querySelector('button[onclick*="temp_canoa2"]');
-                    const canoa2Display = canoa2Btn ? canoa2Btn.querySelector('.quantity-display[data-field="temp_canoa2"]') : null;
-                    const canoa2Value = canoa2Display ? canoa2Display.textContent.trim() : '';
-                    if (!canoa2Value || canoa2Value === '0' || canoa2Value === '') {
-                        camposFaltantes.push('Temp Canoa 2');
-                        if (canoa2Btn) {
-                            canoa2Btn.classList.add('border-red-500', 'border-2', 'ring-2', 'ring-red-300');
-                            canoa2Btn.style.border = '2px solid #ef4444';
-                        }
-                        hayErrores = true;
-                    }
-
-                    // Ubicación - REQUERIDO
-                    const ubicacionSelect = fila.querySelector('select[data-field="ubicacion"]');
-                    if (!ubicacionSelect || !ubicacionSelect.value || ubicacionSelect.value.trim() === '') {
-                        camposFaltantes.push('Ubicación');
-                        marcarCampoError(ubicacionSelect, true);
-                        hayErrores = true;
-                    }
-
-                    // Roturas es OPCIONAL, no se valida
-
-                    if (camposFaltantes.length > 0) {
-                        registrosIncompletos.push({
-                            fila: index + 1,
-                            campos: camposFaltantes
+                        resultado.camposFaltantes.forEach(campo => {
+                            // Canoas necesitan lógica especial de marcado visual
+                            if (campo === 'Temp Canoa 1') {
+                                const btn = fila.querySelector('button[onclick*="temp_canoa1"]');
+                                if (btn) { btn.classList.add('border-red-500', 'border-2', 'ring-2', 'ring-red-300'); btn.style.border = '2px solid #ef4444'; }
+                            } else if (campo === 'Temp Canoa 2') {
+                                const btn = fila.querySelector('button[onclick*="temp_canoa2"]');
+                                if (btn) { btn.classList.add('border-red-500', 'border-2', 'ring-2', 'ring-red-300'); btn.style.border = '2px solid #ef4444'; }
+                            } else {
+                                const selector = selectorMap[campo];
+                                if (selector) {
+                                    const el = fila.querySelector(selector);
+                                    marcarCampoError(el, true);
+                                }
+                            }
                         });
+                        registrosIncompletos.push({ fila: index + 1, campos: resultado.camposFaltantes });
                     }
                 });
 
@@ -2986,7 +2896,7 @@
                                 position: 'top-end',
                                 icon: 'error',
                                 title: 'No se puede finalizar',
-                                text: 'Debe existir al menos una formulación (EngProduccionFormulacion) con el Folio ' + ordenFolio + ' antes de finalizar.',
+                                text: 'Debe existir al menos una formulación con el Folio ' + ordenFolio + ' antes de finalizar.',
                                 showConfirmButton: false,
                                 timer: 5000,
                                 timerProgressBar: true

@@ -7,153 +7,62 @@ use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProduccionFormulacionModel;
-use App\Models\Urdido\UrdCatJulios;
-use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Models\Engomado\CatUbicaciones;
-use App\Helpers\TurnoHelper;
+use App\Traits\ProduccionTrait;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class ModuloProduccionEngomadoController extends Controller
 {
-    private function resolveFinalizarPermission(): bool
+    use ProduccionTrait;
+
+    protected function getProduccionModelClass(): string
     {
-        try {
-            $moduloRol = SYSRoles::where('modulo', 'Programa Engomado')->first();
-            $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Engomado';
-            return function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
-        } catch (\Exception $e) {
-            return true;
-        }
+        return EngProduccionEngomado::class;
     }
 
-    private function hasNegativeKgNetoByFolio(string $folio): bool
+    protected function getProgramaModelClass(): string
     {
-        return EngProduccionEngomado::where('Folio', $folio)
-            ->whereNotNull('KgNeto')
-            ->where('KgNeto', '<', 0)
-            ->exists();
+        return EngProgramaEngomado::class;
     }
 
-    private function hasHoraInicialCaptured(EngProduccionEngomado $registro): bool
+    protected function getDepartamento(): string
     {
-        return $registro->HoraInicial !== null && trim((string) $registro->HoraInicial) !== '';
+        return 'Engomado';
     }
 
-    private function autollenarOficial1EnRegistrosSinHoraInicial(EngProgramaEngomado $orden): void
+    protected function shouldRoundKgBruto(): bool
     {
-        $usuarioActual = Auth::user();
-        if (!$usuarioActual) {
-            return;
-        }
-
-        $claveUsuario = $usuarioActual->numero_empleado ?? null;
-        $nombreUsuario = $usuarioActual->nombre ?? null;
-        if (empty($claveUsuario) || empty($nombreUsuario)) {
-            return;
-        }
-
-        $turnoUsuario = $usuarioActual->turno ?? TurnoHelper::getTurnoActual();
-
-        EngProduccionEngomado::where('Folio', $orden->Folio)
-            ->where(function ($query) {
-                $query->whereNull('HoraInicial')->orWhere('HoraInicial', '');
-            })
-            ->update([
-                'CveEmpl1' => $claveUsuario,
-                'NomEmpl1' => $nombreUsuario,
-                'Turno1' => $turnoUsuario !== null && $turnoUsuario !== '' ? (int) $turnoUsuario : null,
-            ]);
+        return true;
     }
 
-    /**
-     * Extraer numero de tabla del campo MaquinaEng.
-     *
-     * @param string|null $maquinaEng
-     * @return int|null
-     */
-    private function extractTablaNumber(?string $maquinaEng): ?int
-    {
-        if (empty($maquinaEng)) {
-            return null;
-        }
+    // ─── index ───────────────────────────────────────────────────────
 
-        $maquinaEng = trim($maquinaEng);
-
-        if (preg_match('/west\s*point\s*(\d+)/i', $maquinaEng, $matches)) {
-            $numero = (int) $matches[1];
-            if ($numero === 2) return 1;
-            if ($numero === 3) return 2;
-            return null;
-        }
-
-        if (preg_match('/tabla\s*(\d+)/i', $maquinaEng, $matches)) {
-            $numero = (int) $matches[1];
-            return ($numero >= 1 && $numero <= 2) ? $numero : null;
-        }
-
-        if (preg_match('/izquierda/i', $maquinaEng)) {
-            return 1;
-        }
-
-        if (preg_match('/derecha/i', $maquinaEng)) {
-            return 2;
-        }
-
-        if (preg_match('/(\d+)\s*$/i', $maquinaEng, $matches)) {
-            $numero = (int) $matches[1];
-            return ($numero >= 1 && $numero <= 2) ? $numero : null;
-        }
-
-        if (preg_match('/^(\d+)$/', $maquinaEng, $matches)) {
-            $numero = (int) $matches[1];
-            return ($numero >= 1 && $numero <= 2) ? $numero : null;
-        }
-
-        return null;
-    }
-
-    /**
-     * Mostrar la vista de producción de engomado con los datos de la orden seleccionada
-     *
-     * @param Request $request
-     * @return View|RedirectResponse|JsonResponse
-     */
     public function index(Request $request)
     {
-        $hasFinalizarPermission = $this->resolveFinalizarPermission();
+        $hasFinalizarPermission = true;
         $ordenId = $request->query('orden_id');
-        $checkOnly = $request->query('check_only') === 'true';
 
-        // Si solo se está verificando permisos, retornar JSON
-        if ($checkOnly && $ordenId) {
+        if ($request->query('check_only') === 'true' && $ordenId) {
             $orden = EngProgramaEngomado::find($ordenId);
             if (!$orden) {
-                return response()->json([
-                    'puedeCrear' => false,
-                    'tieneRegistros' => false,
-                    'error' => 'Orden no encontrada'
-                ], 404);
+                return response()->json(['puedeCrear' => false, 'tieneRegistros' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
-            $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
-            $usuarioActual = Auth::user();
-            $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
+            $registrosCount = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
+            $user = Auth::user();
 
             return response()->json([
                 'puedeCrear' => true,
-                'tieneRegistros' => $registrosProduccion > 0,
-                'usuarioArea' => $usuarioArea,
+                'tieneRegistros' => $registrosCount > 0,
+                'usuarioArea' => $user ? ($user->area ?? null) : null,
             ]);
         }
 
-        // Si no hay orden_id, mostrar vista vacía
         if (!$ordenId) {
             $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
                 ->orderBy('Folio', 'desc')
@@ -177,23 +86,18 @@ class ModuloProduccionEngomadoController extends Controller
             ]);
         }
 
-        // Buscar la orden de engomado
         $orden = EngProgramaEngomado::find($ordenId);
-
         if (!$orden) {
-            return redirect()->route('engomado.programar.engomado')
-                ->with('error', 'Orden no encontrada');
+            return redirect()->route('engomado.programar.engomado')->with('error', 'Orden no encontrada');
         }
 
-        // Verificar que la orden de urdido esté finalizada antes de permitir poner en proceso
+        // Verificar que la orden de urdido esté finalizada
         $urdido = UrdProgramaUrdido::where('Folio', $orden->Folio)->first();
         if (!$urdido || $urdido->Status !== 'Finalizado') {
             return redirect()->route('engomado.programar.engomado')
                 ->with('error', "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.");
         }
 
-        // Pasar a "En Proceso" solo si está "Programado". No cambiar si ya es "En Proceso" o "Parcial"
-        // (así al entrar y recargar o salir no se pierde el status Parcial)
         if ($orden->Status === 'Programado') {
             try {
                 $orden->Status = 'En Proceso';
@@ -203,19 +107,12 @@ class ModuloProduccionEngomadoController extends Controller
             }
         }
 
-        // Obtener julios asociados al folio (comparten el mismo Folio con urdido)
         $julios = UrdJuliosOrden::where('Folio', $orden->Folio)
             ->whereNotNull('Julios')
             ->orderBy('Julios')
             ->get();
 
-        // Calcular el total de registros basado en No. De Telas
         $totalRegistros = (int) ($orden->NoTelas ?? 0);
-
-        // Obtener registros existentes en EngProduccionEngomado para este Folio
-        $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)
-            ->orderBy('Id')
-            ->get();
 
         // Obtener sólidos desde la última formulación del folio
         $solidosFormulacion = null;
@@ -224,706 +121,117 @@ class ModuloProduccionEngomadoController extends Controller
             $solidosFormulacion = $formulacion->Solidos;
         }
 
-        // Crear registros basándose en No. De Telas
+        // Crear registros faltantes
         if ($totalRegistros > 0) {
             try {
-                // Verificar que el Folio existe en EngProgramaEngomado
-                if (!$orden || !$orden->Folio) {
-                    Log::warning('No se pueden crear registros - Folio no válido', [
-                        'orden' => $orden ? $orden->Folio : 'null'
-                    ]);
-                } else {
-                    // Contar cuántos registros ya existen para este folio
-                    $registrosExistentes = $registrosProduccion->count();
-
-                    // Calcular cuántos registros faltan
+                if ($orden->Folio) {
+                    $registrosExistentes = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
                     $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
 
-                    // Si ya existen todos los registros necesarios, no crear más
                     if ($registrosFaltantes > 0) {
-                        // Obtener datos del usuario actual para asignar automáticamente
-                        $usuarioActual = Auth::user();
-                        $nombreUsuario = $usuarioActual ? ($usuarioActual->nombre ?? null) : null;
-                        $claveUsuario = $usuarioActual ? ($usuarioActual->numero_empleado ?? null) : null;
-                        $turnoUsuario = $usuarioActual ? ($usuarioActual->turno ?? null) : null;
-
-                        // Si no tiene turno asignado, usar TurnoHelper para obtener el turno actual
+                        $user = Auth::user();
+                        $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
+                        $nombreUsuario = $user ? ($user->nombre ?? null) : null;
+                        $turnoUsuario = $user ? ($user->turno ?? null) : null;
                         if (!$turnoUsuario) {
                             $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
                         }
-
-                        // Metros en producción = Metraje Telas de la orden (guardar en Metros1)
                         $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
 
-                        // Crear los registros faltantes
-                        $registrosACrear = [];
                         for ($i = 0; $i < $registrosFaltantes; $i++) {
-                            // Preparar datos del registro (solo campos que existen en la tabla)
-                            $registroData = [
+                            $data = [
                                 'Folio' => $orden->Folio,
-                                'NoJulio' => null, // NoJulio debe ser null al crear los registros
-                                'Fecha' => now()->format('Y-m-d'), // Establecer fecha actual al crear el registro
+                                'NoJulio' => null,
+                                'Fecha' => now()->format('Y-m-d'),
                             ];
-                            if ($solidosFormulacion !== null) {
-                                $registroData['Solidos'] = $solidosFormulacion;
-                            }
+                            if ($solidosFormulacion !== null) $data['Solidos'] = $solidosFormulacion;
+                            if (!empty($claveUsuario)) $data['CveEmpl1'] = $claveUsuario;
+                            if (!empty($nombreUsuario)) $data['NomEmpl1'] = $nombreUsuario;
+                            if ($metrosOrden > 0) $data['Metros1'] = round($metrosOrden, 2);
+                            if (!empty($turnoUsuario)) $data['Turno1'] = (int) $turnoUsuario;
 
-                            // Solo agregar campos de oficial si tienen valores
-                            if (!empty($claveUsuario)) {
-                                $registroData['CveEmpl1'] = $claveUsuario;
-                            }
-                            if (!empty($nombreUsuario)) {
-                                $registroData['NomEmpl1'] = $nombreUsuario;
-                            }
-                            if ($metrosOrden > 0) {
-                                $registroData['Metros1'] = round($metrosOrden, 2);
-                            }
-                            if (!empty($turnoUsuario)) {
-                                $registroData['Turno1'] = (int)$turnoUsuario;
-                            }
-
-                            $registrosACrear[] = $registroData;
-                        }
-
-                        // Crear todos los registros en lote si hay alguno
-                        if (count($registrosACrear) > 0) {
-                            $registrosCreados = 0;
-                            foreach ($registrosACrear as $index => $registroData) {
-                                try {
-                                    EngProduccionEngomado::create($registroData);
-                                    $registrosCreados++;
-                                } catch (\Illuminate\Database\QueryException $e) {
-                                    Log::error('Error al crear registro de producción Engomado (QueryException)', [
-                                        'folio' => $orden->Folio,
-                                        'index' => $index,
-                                        'error' => $e->getMessage(),
-                                        'data' => $registroData
-                                    ]);
-                                    // Continuar con el siguiente registro aunque falle uno
-                                    continue;
-                                } catch (\Throwable $e) {
-                                    Log::error('Error al crear registro de producción Engomado', [
-                                        'folio' => $orden->Folio,
-                                        'index' => $index,
-                                        'error' => $e->getMessage(),
-                                        'trace' => $e->getTraceAsString(),
-                                        'data' => $registroData
-                                    ]);
-                                    // Continuar con el siguiente registro aunque falle uno
-                                    continue;
-                                }
+                            try {
+                                EngProduccionEngomado::create($data);
+                            } catch (\Throwable $e) {
+                                Log::error('Error al crear registro de producción Engomado', [
+                                    'folio' => $orden->Folio,
+                                    'error' => $e->getMessage(),
+                                ]);
+                                continue;
                             }
                         }
                     }
                 }
             } catch (\Throwable $e) {
                 Log::error('Error general al crear registros en EngProduccionEngomado', [
-                    'folio' => $orden ? $orden->Folio : 'null',
+                    'folio' => $orden->Folio,
                     'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
                 ]);
             }
-
-            // Recargar los registros después de crear los faltantes
-            $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)
-                ->orderBy('Id')
-                ->get();
-        } else {
-            Log::warning('No se crearán registros - totalRegistros es 0', [
-                'folio' => $orden ? $orden->Folio : 'null',
-                'no_telas' => $orden ? ($orden->NoTelas ?? 0) : 0,
-            ]);
         }
 
-        $this->autollenarOficial1EnRegistrosSinHoraInicial($orden);
-        $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)
-            ->orderBy('Id')
-            ->get();
+        $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
+        $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)->orderBy('Id')->get();
 
-        // Metros en producción = Metraje Telas de la orden (formateado para vista)
-        $metros = $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : ($orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0');
-
-        // Obtener destino (SalonTejidoId)
-        $destino = $orden->SalonTejidoId ?? null;
-
-        // Obtener hilo (Fibra)
-        $hilo = $orden->Fibra ?? null;
-        $hiloFibra = !empty($orden->Fibra) ? $orden->Fibra : '-';
-
-        // Tipo atado
-        $tipoAtado = $orden->TipoAtado ?? null;
-
-        // Nombre del empleado que ordenó
-        $nomEmpl = $orden->NomEmpl ?? null;
-
-        // Observaciones (usar Observaciones que es el campo que se guarda)
-        $observaciones = $orden->Observaciones ?? '';
-
-        // Campos adicionales para la sección superior
-        $urdido = $orden->MaquinaUrd ?? null;
-        $nucleo = $orden->Nucleo ?? null;
-        $noTelas = $orden->NoTelas ?? null;
-        $anchoBalonas = $orden->AnchoBalonas ?? null;
-        $metrajeTelas = $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : null;
-        $metrosProduccion = $orden->MetrajeTelas ?? $orden->Metros ?? null;
-        $cuendeadosMin = $orden->Cuentados ?? null;
-        $loteProveedor = $orden->LoteProveedor ?? null;
-
-        // Obtener usuario autenticado para pre-rellenar en el modal
-        $usuarioActual = Auth::user();
-        $usuarioNombre = $usuarioActual ? ($usuarioActual->nombre ?? '') : '';
-        $usuarioClave = $usuarioActual ? ($usuarioActual->numero_empleado ?? '') : '';
-        $usuarioArea = $usuarioActual ? ($usuarioActual->area ?? null) : null;
-
-        // Obtener valores de merma de la orden
-        $mermaGoma = $orden ? ($orden->MermaGoma ?? null) : null;
-        $merma = $orden ? ($orden->Merma ?? null) : null;
-
-        // Obtener catálogo de ubicaciones
-        $ubicaciones = CatUbicaciones::orderBy('Codigo')->get();
-
-        // Folios disponibles para nueva formulación
+        $user = Auth::user();
         $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
             ->orderBy('Folio', 'desc')
             ->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
 
-        // Variables para la vista (sin restricción de área)
-        $puedeCrearRegistros = true;
-        $tieneRegistrosExistentes = $registrosProduccion->count() > 0;
-
         return view('modulos.engomado.modulo-produccion-engomado', [
             'orden' => $orden,
             'julios' => $julios,
-            'metros' => $metros,
-            'destino' => $destino,
-            'hilo' => $hilo,
-            'hiloFibra' => $hiloFibra,
-            'tipoAtado' => $tipoAtado,
-            'nomEmpl' => $nomEmpl,
+            'metros' => $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : ($orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0'),
+            'destino' => $orden->SalonTejidoId ?? null,
+            'hilo' => $orden->Fibra ?? null,
+            'hiloFibra' => !empty($orden->Fibra) ? $orden->Fibra : '-',
+            'tipoAtado' => $orden->TipoAtado ?? null,
+            'nomEmpl' => $orden->NomEmpl ?? null,
             'hasFinalizarPermission' => $hasFinalizarPermission,
-            'observaciones' => $observaciones,
+            'observaciones' => $orden->Observaciones ?? '',
             'totalRegistros' => $totalRegistros,
             'registrosProduccion' => $registrosProduccion,
-            'usuarioNombre' => $usuarioNombre,
-            'usuarioClave' => $usuarioClave,
-            'urdido' => $urdido,
-            'nucleo' => $nucleo,
-            'noTelas' => $noTelas,
-            'anchoBalonas' => $anchoBalonas,
-            'metrajeTelas' => $metrajeTelas,
-            'metrosProduccion' => $metrosProduccion,
-            'cuendeadosMin' => $cuendeadosMin,
-            'loteProveedor' => $loteProveedor,
-            'mermaGoma' => $mermaGoma,
-            'merma' => $merma,
-            'puedeCrearRegistros' => $puedeCrearRegistros,
-            'tieneRegistrosExistentes' => $tieneRegistrosExistentes,
-            'usuarioArea' => $usuarioArea,
-            'ubicaciones' => $ubicaciones,
+            'usuarioNombre' => $user ? ($user->nombre ?? '') : '',
+            'usuarioClave' => $user ? ($user->numero_empleado ?? '') : '',
+            'urdido' => $orden->MaquinaUrd ?? null,
+            'nucleo' => $orden->Nucleo ?? null,
+            'noTelas' => $orden->NoTelas ?? null,
+            'anchoBalonas' => $orden->AnchoBalonas ?? null,
+            'metrajeTelas' => $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : null,
+            'metrosProduccion' => $orden->MetrajeTelas ?? $orden->Metros ?? null,
+            'cuendeadosMin' => $orden->Cuentados ?? null,
+            'loteProveedor' => $orden->LoteProveedor ?? null,
+            'mermaGoma' => $orden->MermaGoma ?? null,
+            'merma' => $orden->Merma ?? null,
+            'usuarioArea' => $user ? ($user->area ?? null) : null,
+            'ubicaciones' => CatUbicaciones::orderBy('Codigo')->get(),
             'foliosPrograma' => $foliosPrograma,
         ]);
     }
 
-    /**
-     * Obtener catálogo de julios desde UrdCatJulios
-     * Filtrado por departamento "Engomado"
-     *
-     * @return JsonResponse
-     */
-    public function getCatalogosJulios(): JsonResponse
-    {
-        try {
-            // Obtener julios desde el catálogo UrdCatJulios filtrados por departamento "Engomado"
-            $julios = UrdCatJulios::select('NoJulio', 'Tara', 'Departamento')
-                ->whereNotNull('NoJulio')
-                ->where('Departamento', 'Engomado')
-                ->orderBy('NoJulio')
-                ->get()
-                ->map(function($item) {
-                    return [
-                        'julio' => $item->NoJulio,
-                        'tara' => $item->Tara ?? 0,
-                        'departamento' => $item->Departamento ?? null,
-                    ];
-                })
-                ->values();
+    // ─── endpoints específicos de Engomado ───────────────────────────
 
-            return response()->json([
-                'success' => true,
-                'data' => $julios,
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener catálogo de julios: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Obtener usuarios del área de Engomado
-     *
-     * @return JsonResponse
-     */
     public function getUsuariosEngomado(): JsonResponse
     {
         try {
-            $usuarios = SYSUsuario::select([
-                'idusuario',
-                'numero_empleado',
-                'nombre',
-                'turno',
-            ])
-            ->where('area', 'Engomado')
-            ->whereNotNull('numero_empleado')
-            ->orderBy('nombre')
-            ->get();
+            $usuarios = SYSUsuario::select(['idusuario', 'numero_empleado', 'nombre', 'turno'])
+                ->where('area', 'Engomado')
+                ->whereNotNull('numero_empleado')
+                ->orderBy('nombre')
+                ->get()
+                ->map(fn ($u) => [
+                    'id' => $u->idusuario,
+                    'numero_empleado' => $u->numero_empleado,
+                    'nombre' => $u->nombre,
+                    'turno' => $u->turno,
+                ]);
 
-            $usuariosFormateados = $usuarios->map(function ($usuario) {
-                return [
-                    'id' => $usuario->idusuario,
-                    'numero_empleado' => $usuario->numero_empleado,
-                    'nombre' => $usuario->nombre,
-                    'turno' => $usuario->turno,
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => $usuariosFormateados,
-            ]);
+            return response()->json(['success' => true, 'data' => $usuarios]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener usuarios: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'error' => 'Error al obtener usuarios: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Guardar oficial en un registro de producción
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function guardarOficial(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'registro_id' => 'required|integer',
-                'numero_oficial' => 'required|integer|in:1,2,3',
-                'cve_empl' => 'nullable|string|max:30',
-                'nom_empl' => 'nullable|string|max:150',
-                'metros' => 'nullable|numeric|min:0',
-                'turno' => 'nullable|integer|in:1,2,3',
-            ]);
-
-            $cveEmpl = trim((string) ($request->input('cve_empl') ?? ''));
-            $nomEmpl = trim((string) ($request->input('nom_empl') ?? ''));
-            if ($cveEmpl === '' && $nomEmpl === '') {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Debe llenar al menos la clave (No. Operador) o el nombre del oficial.',
-                ], 422);
-            }
-
-            $registro = EngProduccionEngomado::find($request->registro_id);
-
-            if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro no encontrado',
-                ], 404);
-            }
-
-            $numeroOficial = (int) $request->numero_oficial;
-            $folio = $registro->Folio;
-
-            $propagarOficial = false;
-            if ($numeroOficial === 1) {
-                $existeOficialEnFolio = EngProduccionEngomado::where('Folio', $folio)
-                    ->whereNotNull("NomEmpl{$numeroOficial}")
-                    ->where("NomEmpl{$numeroOficial}", '!=', '')
-                    ->exists();
-
-                $propagarOficial = !$existeOficialEnFolio;
-            }
-
-            if ($numeroOficial < 1 || $numeroOficial > 3) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Número de oficial inválido. Solo se permiten 3 oficiales (1, 2 o 3).',
-                ], 422);
-            }
-
-            // No permitir repetir No. Operador dentro del mismo registro (Oficial 1-3).
-            $cveSolicitada = $cveEmpl;
-            for ($i = 1; $i <= 3; $i++) {
-                if ($i === $numeroOficial) {
-                    continue;
-                }
-
-                $cveExistente = trim((string) ($registro->{"CveEmpl{$i}"} ?? ''));
-                if ($cveExistente !== '' && $cveExistente === $cveSolicitada) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => "El No. Operador {$cveSolicitada} ya está asignado al Oficial {$i}.",
-                    ], 422);
-                }
-            }
-
-            $oficialExistente = !empty($registro->{"NomEmpl{$numeroOficial}"});
-
-            if (!$oficialExistente) {
-                $oficialesRegistrados = 0;
-                for ($i = 1; $i <= 3; $i++) {
-                    if (!empty($registro->{"NomEmpl{$i}"})) {
-                        $oficialesRegistrados++;
-                    }
-                }
-
-                if ($oficialesRegistrados >= 3) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'Ya se han registrado 3 oficiales (máximo permitido). Solo puedes editar los existentes.',
-                    ], 422);
-                }
-            }
-
-            $registro->{"CveEmpl{$numeroOficial}"} = $cveEmpl !== '' ? $cveEmpl : null;
-            $registro->{"NomEmpl{$numeroOficial}"} = $nomEmpl !== '' ? $nomEmpl : null;
-
-            if ($request->has('metros')) {
-                $registro->{"Metros{$numeroOficial}"} = $request->metros;
-            }
-
-            if ($request->has('turno')) {
-                $registro->{"Turno{$numeroOficial}"} = $request->turno;
-            }
-
-            $registro->save();
-
-            if ($propagarOficial) {
-                // Solo propagar clave, nombre y turno; los metros no se encadenan a las órdenes de abajo
-                $updateData = [
-                    "CveEmpl{$numeroOficial}" => $cveEmpl !== '' ? $cveEmpl : null,
-                    "NomEmpl{$numeroOficial}" => $nomEmpl !== '' ? $nomEmpl : null,
-                ];
-
-                if ($request->has('turno')) {
-                    $updateData["Turno{$numeroOficial}"] = $request->turno;
-                }
-
-                EngProduccionEngomado::where('Folio', $folio)
-                    ->where('Id', '!=', $registro->Id)
-                    ->update($updateData);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Oficial guardado correctamente',
-                'data' => [
-                    'cve_empl' => $registro->{"CveEmpl{$numeroOficial}"},
-                    'nom_empl' => $registro->{"NomEmpl{$numeroOficial}"},
-                    'metros' => $registro->{"Metros{$numeroOficial}"} ?? null,
-                    'turno' => $registro->{"Turno{$numeroOficial}"} ?? null,
-                ],
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al guardar oficial: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function eliminarOficial(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'registro_id' => 'required|integer',
-                'numero_oficial' => 'required|integer|in:1,2,3',
-            ]);
-
-            $registro = EngProduccionEngomado::find($request->registro_id);
-
-            if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro no encontrado',
-                ], 404);
-            }
-            $numeroOficial = (int) $request->numero_oficial;
-
-            $registro->{"CveEmpl{$numeroOficial}"} = null;
-            $registro->{"NomEmpl{$numeroOficial}"} = null;
-            $registro->{"Metros{$numeroOficial}"} = null;
-            $registro->{"Turno{$numeroOficial}"} = null;
-            $registro->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Oficial eliminado correctamente',
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Error al eliminar oficial', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al eliminar oficial: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Actualizar turno de un oficial en un registro de producción
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function actualizarTurnoOficial(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'registro_id' => 'required|integer',
-                'numero_oficial' => 'required|integer|in:1,2,3',
-                'turno' => 'required|integer|in:1,2,3',
-            ]);
-
-            $registro = EngProduccionEngomado::find($request->registro_id);
-
-            if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro no encontrado',
-                ], 404);
-            }
-            $numeroOficial = $request->numero_oficial;
-
-            if (empty($registro->{"NomEmpl{$numeroOficial}"})) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No hay un oficial registrado en esta posición',
-                ], 422);
-            }
-
-            $registro->{"Turno{$numeroOficial}"} = $request->turno;
-            $registro->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Turno actualizado correctamente',
-                'data' => [
-                    'numero_oficial' => $numeroOficial,
-                    'nom_empl' => $registro->{"NomEmpl{$numeroOficial}"},
-                    'turno' => $registro->{"Turno{$numeroOficial}"},
-                ],
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar turno: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Actualizar fecha de un registro de producción
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function actualizarFecha(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'registro_id' => 'required|integer',
-                'fecha' => 'required|date',
-            ]);
-
-            $registro = EngProduccionEngomado::find($request->registro_id);
-
-            if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro no encontrado',
-                ], 404);
-            }
-
-            $registro->Fecha = $request->fecha;
-            $registro->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Fecha actualizada correctamente',
-                'data' => [
-                    'fecha' => $registro->Fecha,
-                ],
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar fecha: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Actualizar NoJulio y Tara de un registro de producción
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function actualizarJulioTara(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'registro_id' => 'required|integer',
-                'no_julio' => 'nullable|string|max:10',
-                'tara' => 'nullable|numeric|min:0',
-            ]);
-
-            $registro = EngProduccionEngomado::find($request->registro_id);
-
-            if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro no encontrado',
-                ], 404);
-            }
-
-            $registro->NoJulio = $request->no_julio ?? null;
-
-            $taraValue = null;
-            if ($request->has('tara') && $request->tara !== null && $request->tara !== '') {
-                $taraValue = (float)$request->tara;
-            }
-            $registro->Tara = $taraValue;
-
-            if ($taraValue !== null) {
-                $kgBruto = $registro->KgBruto !== null ? (float)$registro->KgBruto : 0;
-                $kgNetoCalculado = $kgBruto - $taraValue;
-                $registro->KgNeto = $kgNetoCalculado;
-            } else {
-                $registro->KgNeto = $registro->KgBruto !== null ? (float)$registro->KgBruto : null;
-            }
-
-            $registro->save();
-            $registro->refresh();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'No. Julio y Tara actualizados correctamente',
-                'data' => [
-                    'no_julio' => $registro->NoJulio,
-                    'tara' => $registro->Tara,
-                    'kg_neto' => $registro->KgNeto,
-                ],
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar No. Julio y Tara: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Actualizar KgBruto de un registro de producción
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function actualizarKgBruto(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'registro_id' => 'required|integer',
-                'kg_bruto' => 'nullable|numeric|min:0',
-            ]);
-
-            $registro = EngProduccionEngomado::find($request->registro_id);
-
-            if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro no encontrado',
-                ], 404);
-            }
-
-            $kgBrutoValue = null;
-            if ($request->has('kg_bruto') && $request->kg_bruto !== null && $request->kg_bruto !== '') {
-                $kgBrutoValue = (float)$request->kg_bruto;
-            }
-            $registro->KgBruto = $kgBrutoValue;
-
-            if ($registro->Tara !== null) {
-                $kgBruto = $kgBrutoValue !== null ? $kgBrutoValue : 0;
-                $tara = (float)$registro->Tara;
-                $kgNetoCalculado = $kgBruto - $tara;
-                $registro->KgNeto = $kgNetoCalculado;
-            } else {
-                $registro->KgNeto = $kgBrutoValue !== null ? $kgBrutoValue : null;
-            }
-
-            $registro->save();
-            $registro->refresh();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Kg. Bruto actualizado correctamente',
-                'data' => [
-                    'kg_bruto' => $registro->KgBruto,
-                    'kg_neto' => $registro->KgNeto,
-                ],
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar Kg. Bruto: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Actualizar campos de producción (Solidos, Canoa1-3, Humedad, Ubicacion, Roturas)
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function actualizarCamposProduccion(Request $request): JsonResponse
     {
         try {
@@ -936,28 +244,19 @@ class ModuloProduccionEngomadoController extends Controller
             $registro = EngProduccionEngomado::find($request->registro_id);
 
             if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro no encontrado con ID: ' . $request->registro_id,
-                ], 404);
+                return response()->json(['success' => false, 'error' => 'Registro no encontrado con ID: ' . $request->registro_id], 404);
             }
 
             $campo = $request->campo;
 
-            // Para Ubicacion, mantener como string
             if ($campo === 'Ubicacion') {
-                $valor = $request->valor !== null && $request->valor !== '' ? (string)$request->valor : null;
+                $valor = $request->valor !== null && $request->valor !== '' ? (string) $request->valor : null;
             } else {
-                // Validar que sea numérico si no es Ubicacion
                 if ($request->valor !== null && $request->valor !== '') {
                     if (!is_numeric($request->valor)) {
-                        return response()->json([
-                            'success' => false,
-                            'error' => 'El valor debe ser numérico para el campo ' . $campo,
-                        ], 422);
+                        return response()->json(['success' => false, 'error' => 'El valor debe ser numérico para el campo ' . $campo], 422);
                     }
-                    $valor = (float)$request->valor;
-                    // Sol. Can. (Solidos): redondear a 2 decimales para evitar 7.1999998
+                    $valor = (float) $request->valor;
                     if ($campo === 'Solidos') {
                         $valor = round($valor, 2);
                     }
@@ -966,28 +265,18 @@ class ModuloProduccionEngomadoController extends Controller
                 }
             }
 
-            // Para Roturas, convertir a entero
             if ($campo === 'Roturas' && $valor !== null) {
-                $valor = (int)$valor;
+                $valor = (int) $valor;
             }
 
-            // Verificar que el campo existe en el modelo
             if (!in_array($campo, $registro->getFillable())) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'El campo ' . $campo . ' no está permitido para actualización',
-                ], 422);
+                return response()->json(['success' => false, 'error' => 'El campo ' . $campo . ' no está permitido para actualización'], 422);
             }
 
-            // Asignar el valor al campo
             $registro->$campo = $valor;
 
-            // Intentar guardar
             if (!$registro->save()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se pudo guardar el registro',
-                ], 500);
+                return response()->json(['success' => false, 'error' => 'No se pudo guardar el registro'], 500);
             }
 
             $registro->refresh();
@@ -995,17 +284,10 @@ class ModuloProduccionEngomadoController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => ucfirst($campo) . ' actualizado correctamente',
-                'data' => [
-                    'campo' => $campo,
-                    'valor' => $registro->$campo,
-                ],
+                'data' => ['campo' => $campo, 'valor' => $registro->$campo],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
+            return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
@@ -1015,12 +297,6 @@ class ModuloProduccionEngomadoController extends Controller
         }
     }
 
-    /**
-     * Actualizar campos de merma en la orden (MermaGoma, Merma)
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function actualizarCampoOrden(Request $request): JsonResponse
     {
         try {
@@ -1033,39 +309,22 @@ class ModuloProduccionEngomadoController extends Controller
             $orden = EngProgramaEngomado::find($request->orden_id);
 
             if (!$orden) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Orden no encontrada',
-                ], 404);
+                return response()->json(['success' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
-            $campo = $request->campo;
-
-            // Validar que el valor sea numérico si se proporciona
             $valor = null;
             if ($request->has('valor') && $request->valor !== null && $request->valor !== '') {
                 if (!is_numeric($request->valor)) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'El valor debe ser numérico',
-                    ], 422);
+                    return response()->json(['success' => false, 'error' => 'El valor debe ser numérico'], 422);
                 }
-                $valor = (float)$request->valor;
+                $valor = (float) $request->valor;
             }
 
-            // Mapear nombres de campos a nombres de columna en BD
-            $campoMap = [
-                'merma_con_goma' => 'MermaGoma',
-                'merma_sin_goma' => 'Merma',
-            ];
-
-            $campoBD = $campoMap[$campo] ?? null;
+            $campoMap = ['merma_con_goma' => 'MermaGoma', 'merma_sin_goma' => 'Merma'];
+            $campoBD = $campoMap[$request->campo] ?? null;
 
             if (!$campoBD) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Campo no válido',
-                ], 422);
+                return response()->json(['success' => false, 'error' => 'Campo no válido'], 422);
             }
 
             $orden->$campoBD = $valor;
@@ -1074,128 +333,38 @@ class ModuloProduccionEngomadoController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => ucfirst(str_replace('_', ' ', $campo)) . ' actualizado correctamente',
-                'data' => [
-                    'campo' => $campo,
-                    'valor' => $orden->$campoBD,
-                ],
+                'message' => ucfirst(str_replace('_', ' ', $request->campo)) . ' actualizado correctamente',
+                'data' => ['campo' => $request->campo, 'valor' => $orden->$campoBD],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
+            return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Illuminate\Database\QueryException $e) {
-            // Error específico de SQL Server - columna no existe
             if (str_contains($e->getMessage(), 'Invalid column name')) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Las columnas MermaGoma y Merma no existen en la tabla. Por favor, ejecuta el script SQL para agregarlas.',
-                    'sql_error' => config('app.debug') ? $e->getMessage() : null,
                 ], 500);
             }
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de base de datos al actualizar campo: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'error' => 'Error de base de datos al actualizar campo: ' . $e->getMessage()], 500);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar campo: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'error' => 'Error al actualizar campo: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Actualizar horas (HoraInicial y HoraFinal) de un registro de producción
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function actualizarHoras(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'registro_id' => 'required|integer',
-                'campo' => 'required|string|in:HoraInicial,HoraFinal',
-                'valor' => ['nullable', 'string', 'regex:#^([0-1][0-9]|2[0-3]):[0-5][0-9]$#'],
-            ]);
-
-            $registro = EngProduccionEngomado::find($request->registro_id);
-
-            if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro no encontrado',
-                ], 404);
-            }
-
-            $campo = $request->campo;
-            $valor = $request->valor !== null && $request->valor !== '' ? $request->valor : null;
-
-            $registro->$campo = $valor;
-            $registro->save();
-            $registro->refresh();
-
-            return response()->json([
-                'success' => true,
-                'message' => ($campo === 'HoraInicial' ? 'Hora Inicial' : 'Hora Final') . ' actualizada correctamente',
-                'data' => [
-                    'campo' => $campo,
-                    'valor' => $registro->$campo,
-                ],
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar hora: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Verificar si existe al menos una formulación para un Folio
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function verificarFormulaciones(Request $request): JsonResponse
     {
         try {
-            $request->validate([
-                'folio' => 'required|string|max:50',
-            ]);
+            $request->validate(['folio' => 'required|string|max:50']);
 
             $folio = $request->input('folio');
-            $formulacionesExistentes = EngProduccionFormulacionModel::where('Folio', $folio)->count();
+            $count = EngProduccionFormulacionModel::where('Folio', $folio)->count();
 
-            return response()->json([
-                'success' => true,
-                'tieneFormulaciones' => $formulacionesExistentes > 0,
-                'cantidad' => $formulacionesExistentes,
-            ]);
+            return response()->json(['success' => true, 'tieneFormulaciones' => $count > 0, 'cantidad' => $count]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al verificar formulaciones: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'error' => 'Error al verificar formulaciones: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Finalizar orden de engomado cambiando el status de "En Proceso" a "Finalizado"
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function finalizar(Request $request): JsonResponse
     {
         try {
@@ -1206,29 +375,30 @@ class ModuloProduccionEngomadoController extends Controller
             $orden = EngProgramaEngomado::find($request->orden_id);
 
             if (!$orden) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Orden no encontrada',
-                ], 404);
+                return response()->json(['success' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
-            // Permitir finalizar si está "En Proceso" o "Parcial"
             if (!in_array($orden->Status, ['En Proceso', 'Parcial'])) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Solo se puede finalizar una orden en estado "En Proceso" o "Parcial". Estado actual: ' . $orden->Status,
                 ], 422);
             }
-            if ($this->hasNegativeKgNetoByFolio($orden->Folio)) {
+
+            if ($this->traitHasNegativeKgNetoByFolio($orden->Folio)) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No se puede finalizar la orden porque existen registros con Kg Neto negativo.',
                 ], 422);
             }
 
-            // Validar que exista al menos una formulación para este Folio antes de finalizar
-            $formulacionesExistentes = EngProduccionFormulacionModel::where('Folio', $orden->Folio)->count();
+            // Validar horas
+            $errorHoras = $this->validarHorasRegistros($orden->Folio);
+            if ($errorHoras) {
+                return response()->json(['success' => false, 'error' => $errorHoras], 422);
+            }
 
+            $formulacionesExistentes = EngProduccionFormulacionModel::where('Folio', $orden->Folio)->count();
             if ($formulacionesExistentes === 0) {
                 return response()->json([
                     'success' => false,
@@ -1236,14 +406,11 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 422);
             }
 
-            // Marcar todos los registros de producción como Finalizar = 1
             EngProduccionEngomado::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
 
-            // Cambiar el status a "Finalizado" en EngProgramaEngomado
             $orden->Status = 'Finalizado';
             $orden->save();
 
-            // Cambiar el Status a "Finalizado" en todas las formulaciones del mismo Folio
             EngProduccionFormulacionModel::where('Folio', $orden->Folio)->update(['Status' => 'Finalizado']);
 
             return response()->json([
@@ -1256,93 +423,10 @@ class ModuloProduccionEngomadoController extends Controller
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
+            return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al finalizar la orden: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Marcar/desmarcar un registro de producción como Listo (Finalizar).
-     * Si AX = 1 no se permite cambiar.
-     * El status de EngProgramaEngomado pasa a Parcial si hay al menos un registro con Finalizar=1, o En Proceso si ninguno.
-     */
-    public function marcarListo(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'registro_id' => 'required|integer',
-                'listo' => 'required|boolean',
-            ]);
-
-            $registro = EngProduccionEngomado::find($request->registro_id);
-            if (!$registro) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Registro de producción no encontrado',
-                ], 404);
-            }
-
-            if ((int) ($registro->AX ?? 0) === 1) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Este registro ya fue enviado a AX y no se puede modificar.',
-                    'bloqueado_ax' => true,
-                ], 422);
-            }
-
-            $registro->Finalizar = $request->listo ? 1 : 0;
-            $registro->save();
-
-            $orden = EngProgramaEngomado::where('Folio', $registro->Folio)->first();
-            $statusOrden = null;
-
-            if ($orden && in_array($orden->Status, ['En Proceso', 'Parcial'])) {
-                $registrosFinalizados = EngProduccionEngomado::where('Folio', $registro->Folio)
-                    ->where('Finalizar', 1)
-                    ->count();
-
-                if ($registrosFinalizados > 0) {
-                    $orden->Status = 'Parcial';
-                    $orden->save();
-                } else {
-                    $orden->Status = 'En Proceso';
-                    $orden->save();
-                }
-                $statusOrden = $orden->Status;
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => $request->listo ? 'Registro marcado como listo' : 'Registro desmarcado',
-                'data' => [
-                    'registro_id' => $registro->Id,
-                    'listo' => (int) $registro->Finalizar,
-                    'status_orden' => $statusOrden,
-                ],
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Throwable $e) {
-            Log::error('Error al marcar registro como listo (engomado)', [
-                'registro_id' => $request->registro_id ?? null,
-                'error' => $e->getMessage(),
-            ]);
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar el registro: ' . $e->getMessage(),
-            ], 500);
+            Log::error('Error al finalizar orden de engomado', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'error' => 'Error al finalizar la orden: ' . $e->getMessage()], 500);
         }
     }
 }

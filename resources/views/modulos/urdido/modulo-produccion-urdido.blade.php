@@ -17,15 +17,8 @@
 @endsection
 
 @php
-    // Verificar permiso 'registrar' igual que button-report
+    // Checkbox Fin visible para todos los usuarios (sin validación de permiso registrar)
     $hasFinalizarPermission = true;
-    try {
-        $moduloRol = \App\Models\Sistema\SYSRoles::where('modulo', 'Programa Urdido')->first();
-        $moduleParam = $moduloRol ? $moduloRol->idrol : 'Programa Urdido';
-        $hasFinalizarPermission = function_exists('userCan') ? userCan('registrar', $moduleParam) : true;
-    } catch (\Exception $e) {
-        $hasFinalizarPermission = true;
-    }
 @endphp
 
 @section('content')
@@ -659,6 +652,19 @@
         (function () {
     'use strict';
 
+    // ─── helpers de notificación reutilizables ──────────────────
+    function mostrarToast(icon, text, timer = 2500) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon, text, timer, showConfirmButton: false, toast: true, position: 'top-end' });
+        }
+    }
+
+    function mostrarAlerta(icon, title, text) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon, title, text });
+        }
+    }
+
             // Calcular Kg. NETO automáticamente
     function calcularNeto(row) {
         const brutoInput = row.querySelector('input[data-field="kg_bruto"]');
@@ -778,7 +784,6 @@
 
             document.addEventListener('DOMContentLoaded', function () {
                 const tablaBody = document.getElementById('tabla-produccion-body');
-                let autoFillOficialDone = false;
 
                 if (tablaBody) {
                     tablaBody.addEventListener('input', function (e) {
@@ -866,7 +871,6 @@
                             const taraInput = row ? row.querySelector('input[data-field="tara"]') : null;
                             const selectedOption = target.options[target.selectedIndex];
                             const noJulioValue = selectedOption ? selectedOption.value : '';
-                            const valorAnterior = target.getAttribute('data-valor-anterior') || '';
 
                             if (!(taraInput && registroId)) return;
 
@@ -989,6 +993,26 @@
                             }
 
                             const campoBD = field === 'h_inicio' ? 'HoraInicial' : 'HoraFinal';
+
+                            // Validar que Hora Inicio < Hora Fin
+                            if (horaValue) {
+                                const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                                const hFinInput = row.querySelector('input[data-field="h_fin"]');
+                                const hInicio = hInicioInput ? hInicioInput.value : '';
+                                const hFin = hFinInput ? hFinInput.value : '';
+
+                                if (field === 'h_inicio' && hFin && horaValue >= hFin) {
+                                    mostrarToast('error', `Hora Inicio (${horaValue}) debe ser anterior a Hora Fin (${hFin}).`);
+                                    target.value = target.getAttribute('data-valor-anterior') || '';
+                                    return;
+                                }
+                                if (field === 'h_fin' && hInicio && horaValue <= hInicio) {
+                                    mostrarToast('error', `Hora Fin (${horaValue}) debe ser posterior a Hora Inicio (${hInicio}).`);
+                                    target.value = target.getAttribute('data-valor-anterior') || '';
+                                    return;
+                                }
+                            }
+
                             actualizarHora(registroId, campoBD, horaValue);
                             target.setAttribute('data-valor-anterior', target.value || '');
                         }
@@ -1033,88 +1057,6 @@
                     return checkbox && checkbox.checked;
                 }
 
-                /**
-                 * Validar que una fila tenga todos los campos requeridos para poder finalizarla.
-                 * Las roturas (hilat, maq, operac, transf) pueden ir en cero.
-                 * @param {Element} row - Fila DOM
-                 * @returns {valido: boolean, camposFaltantes: string[]}
-                 */
-                function validarFilaParaFinalizar(row) {
-                    const camposFaltantes = [];
-
-                    // Fecha
-                    const fechaInput = row.querySelector('input.input-fecha');
-                    if (!fechaInput || !fechaInput.value) {
-                        camposFaltantes.push('Fecha');
-                    }
-
-                    // Oficial
-                    const oficialTexto = row.querySelector('.oficial-texto');
-                    const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
-                    const tieneOficial = textoOficial && textoOficial !== 'Sin oficiales';
-                    if (!oficialTexto || !tieneOficial) {
-                        camposFaltantes.push('Oficial');
-                    }
-
-                    // Turno
-                    const turnoSelect = row.querySelector('select[data-field="turno"]');
-                    if (!turnoSelect || !turnoSelect.value) {
-                        camposFaltantes.push('Turno');
-                    }
-
-                    // H. Inicio
-                    const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
-                    if (!hInicioInput || !hInicioInput.value) {
-                        camposFaltantes.push('H. Inicio');
-                    }
-
-                    // H. Fin
-                    const hFinInput = row.querySelector('input[data-field="h_fin"]');
-                    if (!hFinInput || !hFinInput.value) {
-                        camposFaltantes.push('H. Fin');
-                    }
-
-                    // No. Julio
-                    const noJulioSelect = row.querySelector('select[data-field="no_julio"]');
-                    if (!noJulioSelect || !noJulioSelect.value) {
-                        camposFaltantes.push('No. Julio');
-                    }
-
-                    // Kg. Bruto
-                    const kgBrutoInput = row.querySelector('input[data-field="kg_bruto"]');
-                    if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') {
-                        camposFaltantes.push('Kg. Bruto');
-                    }
-
-                    // Tara
-                    const taraInput = row.querySelector('input[data-field="tara"]');
-                    if (!taraInput || !taraInput.value || taraInput.value.trim() === '') {
-                        camposFaltantes.push('Tara');
-                    }
-
-                    // Kg. Neto - Validar que no sea negativo
-                    const kgNetoInput = row.querySelector('input[data-field="kg_neto"]');
-                    if (kgNetoInput && kgNetoInput.value) {
-                        const kgNetoValue = parseFloat(kgNetoInput.value);
-                        if (!isNaN(kgNetoValue) && kgNetoValue < 0) {
-                            camposFaltantes.push('Kg. Neto (no puede ser negativo)');
-                        }
-                    }
-
-                    // Metros
-                    const metrosInput = row.querySelector('input[data-field="metros"]');
-                    if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') {
-                        camposFaltantes.push('Metros');
-                    }
-
-                    // Roturas (hilat, maq, operac, transf) son opcionales, pueden ir en cero
-
-                    return {
-                        valido: camposFaltantes.length === 0,
-                        camposFaltantes
-                    };
-                }
-
                 // Bloquear filas que ya vienen con el check activo al cargar
                 if (tablaBody) {
                     tablaBody.querySelectorAll('.checkbox-finalizar:checked').forEach(checkbox => {
@@ -1135,17 +1077,7 @@
                         if (checkbox && checkbox.checked) {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'info',
-                                    title: 'Registro finalizado',
-                                    text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
-                                    timer: 2500,
-                                    showConfirmButton: false,
-                                    toast: true,
-                                    position: 'top-end'
-                                });
-                            }
+                            mostrarToast('info', 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.', 2500);
                         }
                     }, true);
                 }
@@ -1228,54 +1160,22 @@
                                 }
                             }
 
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: listo ? 'Finalizado' : 'Desmarcado',
-                                    text: listo ? 'Registro parcialmente finalizado' : 'Registro desbloqueado para edición',
-                                    timer: 1500,
-                                    showConfirmButton: false,
-                                    toast: true,
-                                    position: 'top-end'
-                                });
-                            }
+                            mostrarToast('success', listo ? 'Registro parcialmente finalizado' : 'Registro desbloqueado para edición', 1500);
                         } else {
                             checkbox.checked = !listo;
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: result.error || 'Error al actualizar el registro'
-                                });
-                            }
+                            mostrarAlerta('error', 'Error', result.error || 'Error al actualizar el registro');
                         }
                     } catch (error) {
                         console.error('Error al marcar como listo:', error);
                         checkbox.checked = !listo;
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: 'Error al actualizar el registro. Por favor, intenta nuevamente.'
-                            });
-                        }
+                        mostrarAlerta('error', 'Error', 'Error al actualizar el registro. Por favor, intenta nuevamente.');
                     }
                 }
 
                 // ===== FUNCIONES AUXILIARES =====
                 function verificarFilaNoFinalizada(registroId) {
                     if (esFilaBloqueada(registroId)) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'info',
-                                title: 'Registro finalizado',
-                                text: 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.',
-                                timer: 2500,
-                                showConfirmButton: false,
-                                toast: true,
-                                position: 'top-end'
-                            });
-                        }
+                        mostrarToast('info', 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.');
                         return false;
                     }
                     return true;
@@ -1293,19 +1193,7 @@
                 }
 
                 function mostrarAlertaOficialRequerido() {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Oficial requerido',
-                            text: 'Debes seleccionar un oficial antes de actualizar este campo',
-                            timer: 3000,
-                            showConfirmButton: false,
-                            toast: true,
-                            position: 'top-end'
-                        });
-                    } else {
-                        alert('Debes seleccionar un oficial antes de actualizar este campo');
-                    }
+                    mostrarToast('warning', 'Debes seleccionar un oficial antes de actualizar este campo', 3000);
                 }
 
                 async function actualizarFecha(registroId, fecha) {
@@ -1328,39 +1216,13 @@
                         const result = await response.json();
 
                         if (result.success) {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Fecha actualizada',
-                                    text: 'La fecha ha sido actualizada correctamente',
-                                    timer: 2000,
-                                    showConfirmButton: false,
-                                    toast: true,
-                                    position: 'top-end'
-                                });
-                            }
+                            mostrarToast('success', 'La fecha ha sido actualizada correctamente', 2000);
                         } else {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: result.error || 'Error al actualizar la fecha'
-                                });
-                            } else {
-                                alert('Error al actualizar la fecha: ' + (result.error || 'Error desconocido'));
-                            }
+                            mostrarAlerta('error', 'Error', result.error || 'Error al actualizar la fecha');
                         }
                     } catch (error) {
                         console.error('Error al actualizar fecha:', error);
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: 'Error al actualizar la fecha. Por favor, intenta nuevamente.'
-                            });
-                        } else {
-                            alert('Error al actualizar la fecha. Por favor, intenta nuevamente.');
-                        }
+                        mostrarAlerta('error', 'Error', 'Error al actualizar la fecha. Por favor, intenta nuevamente.');
                     }
                 }
 
@@ -1383,46 +1245,13 @@
                         const result = await response.json();
 
                         if (result.success) {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Turno actualizado',
-                                    text: 'El turno ha sido actualizado correctamente',
-                                    timer: 2000,
-                                    showConfirmButton: false,
-                                    toast: true,
-                                    position: 'top-end'
-                                });
-                            }
-
-                            const row = document.querySelector(`tr[data-registro-id="${registroId}"]`);
-                            if (row) {
-                                const oficialSelect = row.querySelector('.oficial-select');
-                                if (oficialSelect && oficialSelect.value === String(numeroOficial)) {
-                                    const selectedOption = oficialSelect.options[oficialSelect.selectedIndex];
-                                    if (selectedOption) {
-                                        selectedOption.setAttribute('data-turno', turno);
-                                    }
-                                }
-                            }
+                            mostrarToast('success', 'El turno ha sido actualizado correctamente', 2000);
                         } else {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: result.error || 'Error al actualizar el turno del oficial'
-                                });
-                            }
+                            mostrarAlerta('error', 'Error', result.error || 'Error al actualizar el turno del oficial');
                         }
                     } catch (error) {
                         console.error('Error al actualizar turno del oficial:', error);
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: 'Error al actualizar el turno. Por favor, intenta nuevamente.'
-                            });
-                        }
+                        mostrarAlerta('error', 'Error', 'Error al actualizar el turno. Por favor, intenta nuevamente.');
                     }
                 }
 
@@ -1565,13 +1394,7 @@
                         }
                     } catch (error) {
                         console.error('Error al actualizar NoJulio y Tara:', error);
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: 'Error al actualizar No. Julio y Tara. Por favor, intenta nuevamente.'
-                            });
-                        }
+                        mostrarAlerta('error', 'Error', 'Error al actualizar No. Julio y Tara. Por favor, intenta nuevamente.');
                     }
                 }
 
@@ -1594,39 +1417,13 @@
                         const result = await response.json();
 
                         if (result.success) {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Hora actualizada',
-                                    text: result.message || 'La hora ha sido actualizada correctamente',
-                                    timer: 2000,
-                                    showConfirmButton: false,
-                                    toast: true,
-                                    position: 'top-end'
-                                });
-                            }
+                            mostrarToast('success', result.message || 'La hora ha sido actualizada correctamente', 2000);
                         } else {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: result.error || 'Error al actualizar la hora'
-                                });
-                            } else {
-                                alert('Error al actualizar la hora: ' + (result.error || 'Error desconocido'));
-                            }
+                            mostrarAlerta('error', 'Error', result.error || 'Error al actualizar la hora');
                         }
                     } catch (error) {
                         console.error('Error al actualizar hora:', error);
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: 'Error al actualizar la hora. Por favor, intenta nuevamente.'
-                            });
-                        } else {
-                            alert('Error al actualizar la hora. Por favor, intenta nuevamente.');
-                        }
+                        mostrarAlerta('error', 'Error', 'Error al actualizar la hora. Por favor, intenta nuevamente.');
                     }
                 }
 
@@ -1816,35 +1613,13 @@
                         const result = await response.json();
 
                         if (result.success) {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Actualizado',
-                                    text: result.message || 'Campo actualizado correctamente',
-                                    timer: 2000,
-                                    showConfirmButton: false,
-                                    toast: true,
-                                    position: 'top-end'
-                                });
-                            }
+                            mostrarToast('success', result.message || 'Campo actualizado correctamente', 2000);
                         } else {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: result.error || 'Error al actualizar campo'
-                                });
-                            }
+                            mostrarAlerta('error', 'Error', result.error || 'Error al actualizar campo');
                         }
                     } catch (error) {
                         console.error('Error al actualizar campo de producción:', error);
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: 'Error al actualizar campo. Por favor, intenta nuevamente.'
-                            });
-                        }
+                        mostrarAlerta('error', 'Error', 'Error al actualizar campo. Por favor, intenta nuevamente.');
                     }
                 }
 
@@ -2259,15 +2034,7 @@
                 }
 
                 function mostrarAlertaErrorModal(mensaje) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Acción no permitida',
-                            text: mensaje
-                        });
-                    } else {
-                        alert(mensaje);
-                    }
+                    mostrarAlerta('warning', 'Acción no permitida', mensaje);
                 }
 
                 // Event listener para cuando se selecciona un empleado
@@ -2408,16 +2175,7 @@
                             }
                             actualizarOficialesEnTabla(registroId, oficialesRestantes);
 
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Oficial eliminado',
-                                    timer: 1500,
-                                    showConfirmButton: false,
-                                    toast: true,
-                                    position: 'top-end'
-                                });
-                            }
+                            mostrarToast('success', 'Oficial eliminado', 1500);
                         } catch (err) {
                             console.error(err);
                             mostrarAlertaErrorModal('Error al eliminar el oficial');
@@ -2525,7 +2283,12 @@
                     }
                 }
 
-                // Función para propagar oficiales hacia abajo (excepto si tienen H. Inicio)
+                /**
+                 * Propagar oficiales hacia abajo (filas siguientes).
+                 * - Si hay Oficial 2 registrado: el segundo oficial pasa a ser Oficial 1 en las filas siguientes,
+                 *   el anterior Oficial 1 se elimina. Se detiene al encontrar una fila con H. Inicio.
+                 * - Si solo hay Oficial 1: se propagan todos los oficiales con sus mismos números.
+                 */
                 async function propagarOficialesHaciaAbajo(registroIdActual, oficiales) {
                     const tablaBody = document.getElementById('tabla-produccion-body');
                     if (!tablaBody) return;
@@ -2535,48 +2298,70 @@
 
                     if (indiceActual === -1) return;
 
-                    // Iterar sobre las filas siguientes
+                    const tieneSegundoOficial = oficiales.some(o => o.numero_oficial === 2);
+                    const segundoOficial = tieneSegundoOficial ? oficiales.find(o => o.numero_oficial === 2) : null;
+
                     for (let i = indiceActual + 1; i < todasLasFilas.length; i++) {
                         const fila = todasLasFilas[i];
                         const registroId = fila.getAttribute('data-registro-id');
                         if (!registroId) continue;
 
-                        // Verificar si tiene H. Inicio
                         const hInicioInput = fila.querySelector('input[data-field="h_inicio"]');
                         const tieneHInicio = hInicioInput && hInicioInput.value && hInicioInput.value.trim() !== '';
 
-                        // Si tiene H. Inicio, no propagar
                         if (tieneHInicio) {
-                            break; // Detener la propagación
+                            break; // No propagar: esta fila ya tiene H. Inicio
                         }
 
-                        // Guardar oficiales en esta fila (sin metros: no encadenar metros a las órdenes de abajo)
                         try {
-                            let todosGuardados = true;
-                            for (const oficial of oficiales) {
-                                const data = {
-                                    registro_id: registroId,
-                                    numero_oficial: oficial.numero_oficial,
-                                    cve_empl: oficial.cve_empl,
-                                    nom_empl: oficial.nom_empl,
-                                    turno: oficial.turno
-                                    // metros no se envía para no afectar las órdenes de abajo
-                                };
-
-                                const response = await fetch('{{ route('urdido.modulo.produccion.urdido.guardar.oficial') }}', {
+                            if (tieneSegundoOficial && segundoOficial) {
+                                // Segundo oficial pasa a primer oficial; eliminar el anterior Oficial 1
+                                const resEliminar = await fetch('{{ route('urdido.modulo.produccion.urdido.eliminar.oficial') }}', {
                                     method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                    },
-                                    body: JSON.stringify(data)
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                    body: JSON.stringify({ registro_id: registroId, numero_oficial: 1 })
                                 });
+                                const elimResult = await resEliminar.json();
+                                if (!elimResult.success && elimResult.error && !elimResult.error.includes('Registro no encontrado')) {
+                                    continue;
+                                }
 
-                                const result = await response.json();
-                                if (!result.success) todosGuardados = false;
-                            }
-                            if (todosGuardados) {
-                                actualizarOficialesEnTabla(registroId, oficiales, { actualizarMetros: false });
+                                const resGuardar = await fetch('{{ route('urdido.modulo.produccion.urdido.guardar.oficial') }}', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                    body: JSON.stringify({
+                                        registro_id: registroId,
+                                        numero_oficial: 1,
+                                        cve_empl: segundoOficial.cve_empl,
+                                        nom_empl: segundoOficial.nom_empl,
+                                        turno: segundoOficial.turno
+                                    })
+                                });
+                                const guardarResult = await resGuardar.json();
+                                if (guardarResult.success) {
+                                    actualizarOficialesEnTabla(registroId, [{ ...segundoOficial, numero_oficial: 1 }], { actualizarMetros: false });
+                                }
+                            } else {
+                                // Solo Oficial 1 (o sin segundo): propagar todos los oficiales con sus mismos números
+                                let todosGuardados = true;
+                                for (const oficial of oficiales) {
+                                    const res = await fetch('{{ route('urdido.modulo.produccion.urdido.guardar.oficial') }}', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                        body: JSON.stringify({
+                                            registro_id: registroId,
+                                            numero_oficial: oficial.numero_oficial,
+                                            cve_empl: oficial.cve_empl,
+                                            nom_empl: oficial.nom_empl,
+                                            turno: oficial.turno
+                                        })
+                                    });
+                                    const result = await res.json();
+                                    if (!result.success) todosGuardados = false;
+                                }
+                                if (todosGuardados) {
+                                    actualizarOficialesEnTabla(registroId, oficiales, { actualizarMetros: false });
+                                }
                             }
                         } catch (error) {
                             console.error(`Error al propagar oficiales a registro ${registroId}:`, error);
@@ -2686,17 +2471,7 @@
                                 cerrarModalOficial();
 
                                 // Mostrar mensaje de éxito
-                                if (typeof Swal !== 'undefined') {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Oficiales guardados',
-                                        text: 'Los oficiales han sido guardados correctamente',
-                                        timer: 2000,
-                                        showConfirmButton: false,
-                                        toast: true,
-                                        position: 'top-end'
-                                    });
-                                }
+                                mostrarToast('success', 'Los oficiales han sido guardados correctamente', 2000);
 
                                 // Propagación hacia abajo (excepto si tienen H. Inicio)
                                 // Esperar un poco para que el mensaje se muestre antes de propagar
@@ -2714,6 +2489,61 @@
                 }
             });
 
+            /**
+             * Validar que una fila tenga todos los campos requeridos.
+             * @param {Element} row - Fila DOM
+             * @returns {valido: boolean, camposFaltantes: string[]}
+             */
+            function validarCamposFila(row) {
+                const camposFaltantes = [];
+
+                const fechaInput = row.querySelector('input.input-fecha');
+                if (!fechaInput || !fechaInput.value) camposFaltantes.push('Fecha');
+
+                const oficialTexto = row.querySelector('.oficial-texto');
+                const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
+                if (!textoOficial || textoOficial === 'Sin oficiales') camposFaltantes.push('Oficial');
+
+                const turnoSelect = row.querySelector('select[data-field="turno"]');
+                if (!turnoSelect || !turnoSelect.value) camposFaltantes.push('Turno');
+
+                const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                if (!hInicioInput || !hInicioInput.value) camposFaltantes.push('H. Inicio');
+
+                const hFinInput = row.querySelector('input[data-field="h_fin"]');
+                if (!hFinInput || !hFinInput.value) camposFaltantes.push('H. Fin');
+
+                if (hInicioInput && hInicioInput.value && hFinInput && hFinInput.value) {
+                    if (hInicioInput.value >= hFinInput.value) {
+                        camposFaltantes.push('H. Inicio debe ser anterior a H. Fin');
+                    }
+                }
+
+                const noJulioSelect = row.querySelector('select[data-field="no_julio"]');
+                if (!noJulioSelect || !noJulioSelect.value) camposFaltantes.push('No. Julio');
+
+                const kgBrutoInput = row.querySelector('input[data-field="kg_bruto"]');
+                if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') camposFaltantes.push('Kg. Bruto');
+
+                const taraInput = row.querySelector('input[data-field="tara"]');
+                if (!taraInput || !taraInput.value || taraInput.value.trim() === '') camposFaltantes.push('Tara');
+
+                const kgNetoInput = row.querySelector('input[data-field="kg_neto"]');
+                if (kgNetoInput && kgNetoInput.value) {
+                    const kgNetoValue = parseFloat(kgNetoInput.value);
+                    if (!isNaN(kgNetoValue) && kgNetoValue < 0) camposFaltantes.push('Kg. Neto (no puede ser negativo)');
+                }
+
+                const metrosInput = row.querySelector('input[data-field="metros"]');
+                if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') camposFaltantes.push('Metros');
+
+                return { valido: camposFaltantes.length === 0, camposFaltantes };
+            }
+
+            function validarFilaParaFinalizar(row) {
+                return validarCamposFila(row);
+            }
+
             function validarRegistrosCompletos() {
                 limpiarErroresVisuales();
 
@@ -2724,102 +2554,33 @@
                 const registrosIncompletos = [];
                 let hayErrores = false;
 
+                // Mapa de campo a selector para marcar errores visuales
+                const selectorMap = {
+                    'Fecha': 'input.input-fecha',
+                    'Oficial': '.oficial-texto',
+                    'Turno': 'select[data-field="turno"]',
+                    'H. Inicio': 'input[data-field="h_inicio"]',
+                    'H. Fin': 'input[data-field="h_fin"]',
+                    'No. Julio': 'select[data-field="no_julio"]',
+                    'Kg. Bruto': 'input[data-field="kg_bruto"]',
+                    'Tara': 'input[data-field="tara"]',
+                    'Kg. Neto (no puede ser negativo)': 'input[data-field="kg_neto"]',
+                    'Metros': 'input[data-field="metros"]',
+                };
+
                 filas.forEach((fila, index) => {
-                    const registroId = fila.getAttribute('data-registro-id');
-                    const camposFaltantes = [];
+                    const resultado = validarCamposFila(fila);
 
-                    // Fecha
-                    const fechaInput = fila.querySelector('input.input-fecha');
-                    if (!fechaInput || !fechaInput.value) {
-                        camposFaltantes.push('Fecha');
-                        marcarCampoError(fechaInput, true);
+                    if (!resultado.valido) {
                         hayErrores = true;
-                    }
-
-                    // Oficial (requerido)
-                    const oficialTexto = fila.querySelector('.oficial-texto');
-                    const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
-                    const tieneOficial = textoOficial && textoOficial !== 'Sin oficiales';
-                    if (!oficialTexto || !tieneOficial) {
-                        camposFaltantes.push('Oficial');
-                        marcarCampoError(oficialTexto, true);
-                        hayErrores = true;
-                    }
-
-                    // Turno
-                    const turnoSelect = fila.querySelector('select[data-field="turno"]');
-                    if (!turnoSelect || !turnoSelect.value) {
-                        camposFaltantes.push('Turno');
-                        marcarCampoError(turnoSelect, true);
-                        hayErrores = true;
-                    }
-
-                    // H. Inicio
-                    const hInicioInput = fila.querySelector('input[data-field="h_inicio"]');
-                    if (!hInicioInput || !hInicioInput.value) {
-                        camposFaltantes.push('H. Inicio');
-                        marcarCampoError(hInicioInput, true);
-                        hayErrores = true;
-                    }
-
-                    // H. Fin
-                    const hFinInput = fila.querySelector('input[data-field="h_fin"]');
-                    if (!hFinInput || !hFinInput.value) {
-                        camposFaltantes.push('H. Fin');
-                        marcarCampoError(hFinInput, true);
-                        hayErrores = true;
-                    }
-
-                    // No. Julio
-                    const noJulioSelect = fila.querySelector('select[data-field="no_julio"]');
-                    if (!noJulioSelect || !noJulioSelect.value) {
-                        camposFaltantes.push('No. Julio');
-                        marcarCampoError(noJulioSelect, true);
-                        hayErrores = true;
-                    }
-
-                    // Kg. Bruto
-                    const kgBrutoInput = fila.querySelector('input[data-field="kg_bruto"]');
-                    if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') {
-                        camposFaltantes.push('Kg. Bruto');
-                        marcarCampoError(kgBrutoInput, true);
-                        hayErrores = true;
-                    }
-
-                    // Tara
-                    const taraInput = fila.querySelector('input[data-field="tara"]');
-                    if (!taraInput || !taraInput.value || taraInput.value.trim() === '') {
-                        camposFaltantes.push('Tara');
-                        marcarCampoError(taraInput, true);
-                        hayErrores = true;
-                    }
-
-                    // Kg. Neto - Validar que no sea negativo
-                    const kgNetoInput = fila.querySelector('input[data-field="kg_neto"]');
-                    if (kgNetoInput && kgNetoInput.value) {
-                        const kgNetoValue = parseFloat(kgNetoInput.value);
-                        if (!isNaN(kgNetoValue) && kgNetoValue < 0) {
-                            camposFaltantes.push('Kg. Neto (no puede ser negativo)');
-                            marcarCampoError(kgNetoInput, true);
-                            hayErrores = true;
-                        }
-                    }
-
-                    // Metros
-                    const metrosInput = fila.querySelector('input[data-field="metros"]');
-                    if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') {
-                        camposFaltantes.push('Metros');
-                        marcarCampoError(metrosInput, true);
-                        hayErrores = true;
-                    }
-
-                    // Roturas son opcionales, no se validan
-
-                    if (camposFaltantes.length > 0) {
-                        registrosIncompletos.push({
-                            fila: index + 1,
-                            campos: camposFaltantes
+                        resultado.camposFaltantes.forEach(campo => {
+                            const selector = selectorMap[campo];
+                            if (selector) {
+                                const el = fila.querySelector(selector);
+                                marcarCampoError(el, true);
+                            }
                         });
+                        registrosIncompletos.push({ fila: index + 1, campos: resultado.camposFaltantes });
                     }
                 });
 
@@ -2935,19 +2696,11 @@
                                             }
                                         });
                                     } else {
-                                        Swal.fire({
-                                            icon: 'error',
-                                            title: 'Error',
-                                            text: result.error || 'Error al finalizar el registro'
-                                        });
+                                        mostrarAlerta('error', 'Error', result.error || 'Error al finalizar el registro');
                                     }
                                 } catch (error) {
                                     console.error('Error al finalizar:', error);
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Error',
-                                        text: 'Error al finalizar el registro. Por favor, intenta nuevamente.'
-                                    });
+                                    mostrarAlerta('error', 'Error', 'Error al finalizar el registro. Por favor, intenta nuevamente.');
                                 }
                             @else
                                 alert('No hay orden seleccionada');
