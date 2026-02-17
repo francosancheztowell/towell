@@ -7,6 +7,7 @@ use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOpera
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
 use App\Http\Controllers\Tejedores\InventarioTelaresController;
 use App\Http\Controllers\Tejedores\Reportes\ReportesDesarrolladoresController;
+use App\Http\Controllers\Tejedores\Reportes\ReportesTejedoresController;
 use App\Http\Controllers\Tejedores\NotificarMontadoJulios\NotificarMontadoJulioController;
 use App\Http\Controllers\Tejedores\NotificarMontadoRollo\NotificarMontRollosController;
 use App\Http\Controllers\Tejedores\TelActividadesBPMController;
@@ -134,3 +135,14 @@ Route::prefix('tejedores/reportes-desarrolladores')->name('tejedores.reportes-de
     Route::get('/programa', [ReportesDesarrolladoresController::class, 'reportePrograma'])->name('programa');
     Route::get('/programa/excel', [ReportesDesarrolladoresController::class, 'exportarExcel'])->name('programa.excel');
 });
+
+// Reportes Tejedores (BPM)
+Route::prefix('tejedores/reportes-tejedores')->name('tejedores.reportes-tejedores.')->group(function () {
+    Route::get('/', [ReportesTejedoresController::class, 'index'])->name('index');
+    Route::get('/programa', [ReportesTejedoresController::class, 'reportePrograma'])->name('programa');
+    Route::get('/programa/excel', [ReportesTejedoresController::class, 'exportarExcel'])->name('programa.excel');
+});
+
+// Redirects legacy para reportes BPM de tejedores
+Route::redirect('/tejedores/reportes-bpm', '/tejedores/reportes-tejedores', 301);
+Route::redirect('/tejedores/reportes-bpm/programa', '/tejedores/reportes-tejedores/programa', 301);

@@ -17,7 +17,6 @@
                     text="Terminado"
                     bg="bg-green-600"
                     hoverBg="hover:bg-green-700"
-                    module="BPM (Buenas Practicas Manufactura) Eng"
                 />
             </form>
         @elseif($header->Status === 'Terminado')
