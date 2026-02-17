@@ -412,7 +412,7 @@
                                             step="0.01"
                                             data-field="kg_bruto"
                                             class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-md text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                            value="{{ $kgBruto }}"
+                                            value="{{ isset($kgBruto) && $kgBruto !== '' ? number_format((float)$kgBruto, 2, '.', '') : '' }}"
                                         >
                         </td>
 
