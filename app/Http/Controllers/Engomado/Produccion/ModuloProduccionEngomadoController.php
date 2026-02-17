@@ -957,6 +957,10 @@ class ModuloProduccionEngomadoController extends Controller
                         ], 422);
                     }
                     $valor = (float)$request->valor;
+                    // Sol. Can. (Solidos): redondear a 2 decimales para evitar 7.1999998
+                    if ($campo === 'Solidos') {
+                        $valor = round($valor, 2);
+                    }
                 } else {
                     $valor = null;
                 }

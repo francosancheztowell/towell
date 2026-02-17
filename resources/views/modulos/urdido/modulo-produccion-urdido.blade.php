@@ -1033,6 +1033,88 @@
                     return checkbox && checkbox.checked;
                 }
 
+                /**
+                 * Validar que una fila tenga todos los campos requeridos para poder finalizarla.
+                 * Las roturas (hilat, maq, operac, transf) pueden ir en cero.
+                 * @param {Element} row - Fila DOM
+                 * @returns {valido: boolean, camposFaltantes: string[]}
+                 */
+                function validarFilaParaFinalizar(row) {
+                    const camposFaltantes = [];
+
+                    // Fecha
+                    const fechaInput = row.querySelector('input.input-fecha');
+                    if (!fechaInput || !fechaInput.value) {
+                        camposFaltantes.push('Fecha');
+                    }
+
+                    // Oficial
+                    const oficialTexto = row.querySelector('.oficial-texto');
+                    const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
+                    const tieneOficial = textoOficial && textoOficial !== 'Sin oficiales';
+                    if (!oficialTexto || !tieneOficial) {
+                        camposFaltantes.push('Oficial');
+                    }
+
+                    // Turno
+                    const turnoSelect = row.querySelector('select[data-field="turno"]');
+                    if (!turnoSelect || !turnoSelect.value) {
+                        camposFaltantes.push('Turno');
+                    }
+
+                    // H. Inicio
+                    const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                    if (!hInicioInput || !hInicioInput.value) {
+                        camposFaltantes.push('H. Inicio');
+                    }
+
+                    // H. Fin
+                    const hFinInput = row.querySelector('input[data-field="h_fin"]');
+                    if (!hFinInput || !hFinInput.value) {
+                        camposFaltantes.push('H. Fin');
+                    }
+
+                    // No. Julio
+                    const noJulioSelect = row.querySelector('select[data-field="no_julio"]');
+                    if (!noJulioSelect || !noJulioSelect.value) {
+                        camposFaltantes.push('No. Julio');
+                    }
+
+                    // Kg. Bruto
+                    const kgBrutoInput = row.querySelector('input[data-field="kg_bruto"]');
+                    if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') {
+                        camposFaltantes.push('Kg. Bruto');
+                    }
+
+                    // Tara
+                    const taraInput = row.querySelector('input[data-field="tara"]');
+                    if (!taraInput || !taraInput.value || taraInput.value.trim() === '') {
+                        camposFaltantes.push('Tara');
+                    }
+
+                    // Kg. Neto - Validar que no sea negativo
+                    const kgNetoInput = row.querySelector('input[data-field="kg_neto"]');
+                    if (kgNetoInput && kgNetoInput.value) {
+                        const kgNetoValue = parseFloat(kgNetoInput.value);
+                        if (!isNaN(kgNetoValue) && kgNetoValue < 0) {
+                            camposFaltantes.push('Kg. Neto (no puede ser negativo)');
+                        }
+                    }
+
+                    // Metros
+                    const metrosInput = row.querySelector('input[data-field="metros"]');
+                    if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') {
+                        camposFaltantes.push('Metros');
+                    }
+
+                    // Roturas (hilat, maq, operac, transf) son opcionales, pueden ir en cero
+
+                    return {
+                        valido: camposFaltantes.length === 0,
+                        camposFaltantes
+                    };
+                }
+
                 // Bloquear filas que ya vienen con el check activo al cargar
                 if (tablaBody) {
                     tablaBody.querySelectorAll('.checkbox-finalizar:checked').forEach(checkbox => {
@@ -1091,6 +1173,27 @@
                                 });
                             }
                             return;
+                        }
+
+                        // Si intenta marcar (finalizar), validar que la fila tenga todos los campos llenos
+                        if (listo) {
+                            const row = checkbox.closest('tr');
+                            const validacion = validarFilaParaFinalizar(row);
+                            if (!validacion.valido) {
+                                checkbox.checked = false; // Revertir el check
+                                const camposStr = validacion.camposFaltantes.join(', ');
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: 'Registro incompleto',
+                                        text: 'Completa los campos requeridos antes de finalizar: ' + camposStr,
+                                        confirmButtonColor: '#2563eb'
+                                    });
+                                } else {
+                                    alert('Completa los campos requeridos antes de finalizar: ' + camposStr);
+                                }
+                                return;
+                            }
                         }
 
                         marcarRegistroListo(registroId, listo, checkbox);

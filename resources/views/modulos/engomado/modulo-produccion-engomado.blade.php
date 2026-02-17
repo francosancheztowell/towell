@@ -225,7 +225,7 @@
                                     $kgBruto = $registro ? ($registro->KgBruto ?? '') : '';
                                     $tara = $registro && $registro->Tara !== null ? number_format((float)$registro->Tara, 1, '.', '') : '';
                                     $kgNeto = $registro ? ($registro->KgNeto ?? '') : '';
-                                    $solidos = $registro ? ($registro->Solidos ?? '') : '';
+                                    $solidos = $registro && $registro->Solidos !== null ? number_format((float)$registro->Solidos, 2, '.', '') : '';
 
                                     // Metros = suma de Metros1 + Metros2 + Metros3 del registro
                                     $metros = '';
@@ -1283,7 +1283,7 @@
                             registro_id: registroId,
                             campo,
                             valor: valor !== null && valor !== ''
-                                ? (campo === 'Ubicacion' ? valor : (campo === 'Roturas' ? parseInt(valor) : parseFloat(valor)))
+                                ? (campo === 'Ubicacion' ? valor : (campo === 'Roturas' ? parseInt(valor) : (campo === 'Solidos' ? parseFloat(valor).toFixed(2) : parseFloat(valor))))
                                 : null
                         })
                     });
@@ -1768,6 +1768,85 @@
                     });
                 }
 
+                /**
+                 * Validar que una fila tenga todos los campos requeridos para poder finalizarla.
+                 * Roturas puede ser null (opcional).
+                 * @param {Element} row - Fila DOM
+                 * @returns {Object} { valido: boolean, camposFaltantes: string[] }
+                 */
+                function validarFilaParaFinalizar(row) {
+                    const camposFaltantes = [];
+
+                    // Fecha
+                    const fechaInput = row.querySelector('input.input-fecha');
+                    if (!fechaInput || !fechaInput.value) camposFaltantes.push('Fecha');
+
+                    // Oficial
+                    const oficialTexto = row.querySelector('.oficial-texto');
+                    const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
+                    const tieneOficial = textoOficial && textoOficial !== 'Sin oficiales';
+                    if (!oficialTexto || !tieneOficial) camposFaltantes.push('Oficial');
+
+                    // Turno
+                    const turnoSelect = row.querySelector('select[data-field="turno"]');
+                    if (!turnoSelect || !turnoSelect.value) camposFaltantes.push('Turno');
+
+                    // H. Inicio
+                    const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
+                    if (!hInicioInput || !hInicioInput.value) camposFaltantes.push('H. Inicio');
+
+                    // H. Fin
+                    const hFinInput = row.querySelector('input[data-field="h_fin"]');
+                    if (!hFinInput || !hFinInput.value) camposFaltantes.push('H. Fin');
+
+                    // Julio
+                    const julioSelect = row.querySelector('select[data-field="no_julio"]');
+                    if (!julioSelect || !julioSelect.value) camposFaltantes.push('Julio');
+
+                    // Kg. Bruto
+                    const kgBrutoInput = row.querySelector('input[data-field="kg_bruto"]');
+                    if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') camposFaltantes.push('Kg. Bruto');
+
+                    // Tara
+                    const taraInput = row.querySelector('input[data-field="tara"]');
+                    if (!taraInput || !taraInput.value || taraInput.value.trim() === '') camposFaltantes.push('Tara');
+
+                    // Kg. Neto - no puede ser negativo
+                    const kgNetoInput = row.querySelector('input[data-field="kg_neto"]');
+                    if (kgNetoInput && kgNetoInput.value) {
+                        const kgNetoValue = parseFloat(kgNetoInput.value);
+                        if (!isNaN(kgNetoValue) && kgNetoValue < 0) camposFaltantes.push('Kg. Neto (no puede ser negativo)');
+                    }
+
+                    // Metros
+                    const metrosInput = row.querySelector('input[data-field="metros"]');
+                    if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') camposFaltantes.push('Metros');
+
+                    // Sólidos (Sol. Can.)
+                    const solidosInput = row.querySelector('input[data-field="solidos"]');
+                    if (!solidosInput || !solidosInput.value || solidosInput.value.trim() === '') camposFaltantes.push('Sólidos');
+
+                    // Temp Canoa 1
+                    const canoa1Btn = row.querySelector('button[onclick*="temp_canoa1"]');
+                    const canoa1Display = canoa1Btn ? canoa1Btn.querySelector('.quantity-display[data-field="temp_canoa1"]') : null;
+                    const canoa1Value = canoa1Display ? canoa1Display.textContent.trim() : '';
+                    if (!canoa1Value || canoa1Value === '0' || canoa1Value === '') camposFaltantes.push('Temp Canoa 1');
+
+                    // Temp Canoa 2
+                    const canoa2Btn = row.querySelector('button[onclick*="temp_canoa2"]');
+                    const canoa2Display = canoa2Btn ? canoa2Btn.querySelector('.quantity-display[data-field="temp_canoa2"]') : null;
+                    const canoa2Value = canoa2Display ? canoa2Display.textContent.trim() : '';
+                    if (!canoa2Value || canoa2Value === '0' || canoa2Value === '') camposFaltantes.push('Temp Canoa 2');
+
+                    // Ubicación
+                    const ubicacionSelect = row.querySelector('select[data-field="ubicacion"]');
+                    if (!ubicacionSelect || !ubicacionSelect.value || ubicacionSelect.value.trim() === '') camposFaltantes.push('Ubicación');
+
+                    // Roturas: opcional (puede ser null)
+
+                    return { valido: camposFaltantes.length === 0, camposFaltantes };
+                }
+
                 // esFilaBloqueada y verificarFilaNoFinalizada están en el ámbito exterior del IIFE
                 if (tablaBody) {
                     tablaBody.querySelectorAll('.checkbox-finalizar:checked').forEach(checkbox => {
@@ -1819,6 +1898,26 @@
                                 });
                             }
                             return;
+                        }
+                        // Si intenta marcar (finalizar), validar que la fila tenga todos los campos llenos
+                        if (listo) {
+                            const row = checkbox.closest('tr');
+                            const validacion = validarFilaParaFinalizar(row);
+                            if (!validacion.valido) {
+                                checkbox.checked = false;
+                                const camposStr = validacion.camposFaltantes.join(', ');
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: 'Registro incompleto',
+                                        text: 'Completa los campos requeridos antes de finalizar: ' + camposStr,
+                                        confirmButtonColor: '#2563eb'
+                                    });
+                                } else {
+                                    alert('Completa los campos requeridos antes de finalizar: ' + camposStr);
+                                }
+                                return;
+                            }
                         }
                         marcarRegistroListo(registroId, listo, checkbox);
                     });
@@ -1994,8 +2093,14 @@
                                 return;
                             }
 
-                            const valor = (this.value || '').trim();
+                            let valor = (this.value || '').trim();
                             if (valor !== '') {
+                                // Redondear a 2 decimales para evitar 7.1999998
+                                const num = parseFloat(valor);
+                                if (!isNaN(num)) {
+                                    valor = num.toFixed(2);
+                                    this.value = valor;
+                                }
                                 actualizarCampoProduccion(registroId, 'Solidos', valor || null);
                             }
                         });
@@ -2119,11 +2224,18 @@
                                 return;
                             }
 
-                            const valor = (target.value || '').trim();
+                            let valor = (target.value || '').trim();
                             const campoBD = campoMap[field];
                             if (campoBD) {
-                                // Actualizar el valor inicial después de la primera actualización exitosa
+                                // Sol. Can.: redondear a 2 decimales antes de enviar
                                 if (field === 'solidos') {
+                                    if (valor !== '') {
+                                        const num = parseFloat(valor);
+                                        if (!isNaN(num)) {
+                                            valor = num.toFixed(2);
+                                            target.value = valor;
+                                        }
+                                    }
                                     target.setAttribute('data-valor-inicial', valor || '');
                                 }
                                 actualizarCampoProduccion(registroId, campoBD, valor || null);
