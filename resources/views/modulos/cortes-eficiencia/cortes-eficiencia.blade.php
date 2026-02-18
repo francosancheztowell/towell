@@ -29,7 +29,7 @@
         3 => ['title' => 'HORARIO 3', 'shade' => 'bg-yellow-400', 'hover' => 'hover:bg-yellow-500', 'check' => 'text-yellow-600', 'cellHover' => 'hover:bg-yellow-100'],
     ];
 @endphp
-
+ 
 @if(session('warning'))
     <div class="container mx-auto px-4 pt-4">
         <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded" role="alert">
@@ -88,29 +88,27 @@
                                 @foreach($horarios as $h => $c)
                                     <!-- RPM -->
                                     <td class="border border-gray-300 px-1 py-2">
-                                        <div class="relative">
-                                            <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer {{ $c['cellHover'] }} px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $telar }}" data-horario="{{ $h }}" data-type="rpm">
-                                                <span class="valor-display-text">0</span>
-                                            </button>
-                                            <div class="valor-edit-container hidden absolute top-10 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
-                                                <div class="number-scroll-container overflow-x-auto scrollbar-hide w-64">
-                                                    <div class="number-options-flex flex space-x-1 min-w-max"></div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <input type="number" 
+                                            class="valor-input rpm-input w-full px-2 py-1 border border-gray-200 rounded text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400" 
+                                            data-telar="{{ $telar }}" 
+                                            data-horario="{{ $h }}" 
+                                            data-type="rpm" 
+                                            value="0" 
+                                            min="0" 
+                                            max="400"
+                                            placeholder="0">
                                     </td>
                                     <!-- EF -->
                                     <td class="border border-gray-300 px-1 py-2">
-                                        <div class="relative">
-                                            <button type="button" class="valor-display-btn text-sm text-gray-900 font-medium cursor-pointer {{ $c['cellHover'] }} px-3 py-1 rounded transition-colors bg-transparent border-0 w-full text-center" data-telar="{{ $telar }}" data-horario="{{ $h }}" data-type="eficiencia">
-                                                <span class="valor-display-text">0%</span>
-                                            </button>
-                                            <div class="valor-edit-container hidden absolute top-10 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
-                                                <div class="number-scroll-container overflow-x-auto scrollbar-hide w-48">
-                                                    <div class="number-options-flex flex space-x-1 min-w-max"></div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <input type="number" 
+                                            class="valor-input ef-input w-full px-2 py-1 border border-gray-200 rounded text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400" 
+                                            data-telar="{{ $telar }}" 
+                                            data-horario="{{ $h }}" 
+                                            data-type="eficiencia" 
+                                            value="0" 
+                                            min="0" 
+                                            max="100"
+                                            placeholder="0%">
                                     </td>
                                     <!-- Obs -->
                                     <td class="border border-gray-300 px-0 py-2 w-10 text-center">
@@ -266,29 +264,74 @@
         // Tomar hora desde headers
         document.querySelectorAll('[data-action="tomar-hora"]').forEach(btn => btn.addEventListener('click', () => actualizarYGuardarHoraHorario(parseInt(btn.dataset.horario,10))));
 
-        // Delegación en tabla
+        // Delegación en tabla para observaciones
         els.body().addEventListener('click', (e) => {
-            const opt = e.target.closest('.number-option');
-            const btn = e.target.closest('.valor-display-btn');
-            const cb  = e.target.closest('.obs-checkbox');
-            if (opt) return selectNumberOption(opt);
-            if (btn) return toggleValorSelector(btn);
-            if (cb)  {
+            const cb = e.target.closest('.obs-checkbox');
+            if (cb) {
                 if (PAGE_MODE.soloLectura || cb.dataset.readonly === '1') {
                     const key = `${cb.dataset.telar}-${cb.dataset.horario}`;
                     cb.checked = !!(state.observaciones[key] || '').trim();
                 }
                 return abrirModalObservaciones(cb);
             }
-            if (!e.target.closest('.valor-edit-container')) closeAllValorSelectors();
+        });
+
+        // Eventos para inputs de valor (RPM y Eficiencia)
+        document.querySelectorAll('.valor-input').forEach(input => {
+            // Al hacer focus, sugerir el valor del horario anterior
+            input.addEventListener('focus', (e) => {
+                if (PAGE_MODE.soloLectura) return;
+                const telar = input.dataset.telar;
+                const horario = parseInt(input.dataset.horario, 10);
+                const tipo = input.dataset.type;
+                
+                // Verificar que el horario esté tomado
+                if (!horarioTomado(horario)) {
+                    showToast({ icon:'warning', title:`Toma primero la hora del horario ${horario}` });
+                    input.blur();
+                    return;
+                }
+                
+                // Si el valor es 0, sugerir el valor del horario anterior
+                const currentVal = parseInt(input.value, 10) || 0;
+                if (currentVal === 0) {
+                    const sugerido = obtenerValorHorarioAnterior(telar, horario, tipo);
+                    if (sugerido > 0) {
+                        input.value = sugerido;
+                        input.select(); // Seleccionar todo para fácil reemplazo
+                    }
+                } else {
+                    input.select();
+                }
+            });
+            
+            // Al cambiar, validar y auto-guardar
+            input.addEventListener('input', () => {
+                if (PAGE_MODE.soloLectura) return;
+                const tipo = input.dataset.type;
+                const max = tipo === 'rpm' ? 400 : 100;
+                let val = parseInt(input.value, 10) || 0;
+                if (val < 0) val = 0;
+                if (val > max) val = max;
+                input.value = val;
+            });
+            
+            // Al perder focus, guardar automáticamente
+            input.addEventListener('blur', () => {
+                if (PAGE_MODE.soloLectura) return;
+                guardarAutomatico();
+            });
+            
+            // Feedback visual al cambiar
+            input.addEventListener('change', () => {
+                if (PAGE_MODE.soloLectura) return;
+                input.classList.add('bg-green-100');
+                setTimeout(() => input.classList.remove('bg-green-100'), 300);
+            });
         });
 
         // Cambios en STD => autoguardado
         document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]').forEach(i => i.addEventListener('input', () => guardarAutomatico()));
-
-        // Escape cierra selectores
-        document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') closeAllValorSelectors(); });
-        document.addEventListener('click', (e)=>{ if (!e.target.closest('.valor-edit-container') && !e.target.closest('.valor-display-btn')) closeAllValorSelectors(); });
     }
 
     function aplicarModoSoloLectura(){
@@ -300,8 +343,9 @@
             input.readOnly = true;
             input.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
         });
-        document.querySelectorAll('.valor-display-btn').forEach(btn => {
-            btn.classList.add('pointer-events-none', 'opacity-70', 'cursor-not-allowed');
+        document.querySelectorAll('.valor-input').forEach(input => {
+            input.readOnly = true;
+            input.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
         });
         document.querySelectorAll('.obs-checkbox').forEach(cb => {
             cb.dataset.readonly = '1';
@@ -327,7 +371,13 @@
                 const efInput  = document.querySelector(`input[data-telar="${n}"][data-field="eficiencia_std"]`);
                 if (rpmInput) { rpmInput.value = rpm; rpmInput.placeholder = ''; }
                 if (efInput)  { efInput.value  = `${Math.round(ef)}%`; efInput.placeholder = ''; }
-                for (let h=1; h<=3; h++){ const r = document.querySelector(`button[data-telar="${n}"][data-horario="${h}"][data-type="rpm"] .valor-display-text`); const e = document.querySelector(`button[data-telar="${n}"][data-horario="${h}"][data-type="eficiencia"] .valor-display-text`); if (r) r.textContent='0'; if (e) e.textContent='0%'; }
+                // Inicializar inputs de horarios en 0
+                for (let h=1; h<=3; h++){ 
+                    const rpmHInput = document.querySelector(`input.valor-input[data-telar="${n}"][data-horario="${h}"][data-type="rpm"]`); 
+                    const efHInput = document.querySelector(`input.valor-input[data-telar="${n}"][data-horario="${h}"][data-type="eficiencia"]`); 
+                    if (rpmHInput) rpmHInput.value = 0; 
+                    if (efHInput) efHInput.value = 0; 
+                }
             });
         } catch (err) {
             document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]').forEach(i => { if (!i.value) { i.placeholder='Error al cargar'; i.title=String(err); } });
@@ -412,7 +462,11 @@
         state.isNewRecord = false;
     }
 
-    function setDisplay(telarId, h, type, v){ const s = document.querySelector(`button[data-telar="${telarId}"][data-horario="${h}"][data-type="${type}"] .valor-display-text`); if (!s || v==null || v==='') return; s.textContent = type==='rpm' ? `${parseInt(v,10)}` : `${parseFloat(v).toFixed(0)}%`; }
+    function setDisplay(telarId, h, type, v){ 
+        const input = document.querySelector(`input.valor-input[data-telar="${telarId}"][data-horario="${h}"][data-type="${type}"]`); 
+        if (!input || v==null || v==='') return; 
+        input.value = type==='rpm' ? parseInt(v,10) : parseFloat(v).toFixed(0); 
+    }
     function setObs(telarId, h, st, text){
         const cb = document.querySelector(`input.obs-checkbox[data-telar="${telarId}"][data-horario="${h}"]`);
         if (cb) cb.checked = !!st;
@@ -422,66 +476,22 @@
         }
     }
 
-    /** Selectores */
-    function toggleValorSelector(btn){
-        if (PAGE_MODE.soloLectura) return;
-        closeAllValorSelectors();
-        const container = btn.parentElement.querySelector('.valor-edit-container');
-        const telar=btn.dataset.telar, horario=parseInt(btn.dataset.horario,10), tipo=btn.dataset.type;
-        if (!requireHorario(horario)) return;
-        if (container.classList.contains('hidden')){
-            const currentText = btn.querySelector('.valor-display-text').textContent;
-            const currentValue = tipo==='rpm' ? parseInt(currentText,10)||0 : parseInt(currentText.replace('%',''),10)||0;
-            const valorInicial = currentValue===0 ? obtenerValorHorarioAnterior(telar,horario,tipo) : currentValue;
-            buildNumberOptions(container, tipo, horario, valorInicial);
-            container.classList.remove('hidden');
-            positionValorSelector(btn, container);
-            scrollToCurrentValue(container, valorInicial);
-        } else container.classList.add('hidden');
-    }
-
-    function positionValorSelector(btn, container){
-        // Si hay poco espacio hacia abajo (filas finales), abrir hacia arriba.
-        const btnRect = btn.getBoundingClientRect();
-        const viewportH = window.innerHeight || document.documentElement.clientHeight;
-        const spaceBelow = viewportH - btnRect.bottom;
-        const spaceAbove = btnRect.top;
-        const menuHeight = Math.max(container.offsetHeight || 0, 84);
-        const shouldOpenUp = spaceBelow < (menuHeight + 12) && spaceAbove > spaceBelow;
-        container.classList.toggle('drop-up', shouldOpenUp);
-    }
-
-    function closeAllValorSelectors(){
-        document.querySelectorAll('.valor-edit-container').forEach(c => {
-            c.classList.add('hidden');
-            c.classList.remove('drop-up');
-            const flex=c.querySelector('.number-options-flex');
-            if (flex && flex.children.length>120) setTimeout(()=>{ if(c.classList.contains('hidden')) flex.innerHTML=''; },800);
-        });
-    }
-
-    function buildNumberOptions(container, tipo, horario, currentValue){
-        const flex = container.querySelector('.number-options-flex');
-        flex.innerHTML = '';
-        const max=(tipo==='rpm')?400:100; const hover=(horario===1?'hover:bg-blue-100':(horario===2?'hover:bg-green-100':'hover:bg-yellow-100'));
-        const mk=i=>{ const s=document.createElement('span'); s.className=`number-option inline-block w-8 h-8 text-center leading-8 text-sm cursor-pointer ${hover} rounded transition-colors bg-gray-100 text-gray-700`; s.dataset.value=String(i); s.textContent=String(i); if(i===currentValue){ s.classList.remove('bg-gray-100','text-gray-700'); s.classList.add('bg-blue-500','text-white'); } return s; };
-        for(let i=0;i<=max;i++) flex.appendChild(mk(i));
-        highlightCurrentOption(container,currentValue);
-    }
-
-    function selectNumberOption(option){
-        if (PAGE_MODE.soloLectura) return;
-        const val=parseInt(option.dataset.value,10); const container=option.closest('.valor-edit-container'); const btn=container.parentElement.querySelector('.valor-display-btn'); const tipo=btn.dataset.type;
-        btn.querySelector('.valor-display-text').textContent = (tipo==='rpm')?String(val):`${val}%`; container.classList.add('hidden'); btn.classList.add('bg-green-100'); setTimeout(()=>btn.classList.remove('bg-green-100'),250); guardarAutomatico();
-    }
-
-    function highlightCurrentOption(container,value){ requestAnimationFrame(()=>{ container.querySelectorAll('.number-option').forEach(o=>{ o.classList.remove('bg-blue-500','text-white'); o.classList.add('bg-gray-100','text-gray-700'); }); const cur=container.querySelector(`.number-option[data-value="${value}"]`); if(cur){ cur.classList.remove('bg-gray-100','text-gray-700'); cur.classList.add('bg-blue-500','text-white'); } }); }
-    function scrollToCurrentValue(container,value){ const sc=container.querySelector('.number-scroll-container'); const opt=container.querySelector(`.number-option[data-value="${value}"]`); const cw=sc.clientWidth, ow=36; const left=opt?opt.offsetLeft-(cw/2)+(opt.clientWidth/2):(value*ow)-(cw/2); sc.scrollTo({ left: Math.max(0,left), behavior:'smooth' }); }
-
     function obtenerValorHorarioAnterior(telar, horario, tipo){
-        const readStd = () => { const input=document.querySelector(`input[data-telar="${telar}"][data-field="${tipo==='rpm'?'rpm_std':'eficiencia_std'}"]`); if(!input||!input.value) return 0; const raw = tipo==='rpm'? parseFloat(input.value) : parsePct(input.value); return Math.round(raw||0); };
-        const readDisplay = (h) => { const span=document.querySelector(`button[data-telar="${telar}"][data-horario="${h}"][data-type="${tipo}"] .valor-display-text`); if(!span) return 0; return tipo==='rpm'? (parseInt(span.textContent,10)||0) : (parseInt(span.textContent.replace('%',''),10)||0); };
-        if(horario===1) return readStd(); if(horario===2) return readDisplay(1)||readStd(); if(horario===3) return readDisplay(2)||readDisplay(1)||readStd(); return 0;
+        const readStd = () => { 
+            const input=document.querySelector(`input[data-telar="${telar}"][data-field="${tipo==='rpm'?'rpm_std':'eficiencia_std'}"]`); 
+            if(!input||!input.value) return 0; 
+            const raw = tipo==='rpm'? parseFloat(input.value) : parsePct(input.value); 
+            return Math.round(raw||0); 
+        };
+        const readInputVal = (h) => { 
+            const input=document.querySelector(`input.valor-input[data-telar="${telar}"][data-horario="${h}"][data-type="${tipo}"]`); 
+            if(!input) return 0; 
+            return parseInt(input.value,10)||0; 
+        };
+        if(horario===1) return readStd(); 
+        if(horario===2) return readInputVal(1)||readStd(); 
+        if(horario===3) return readInputVal(2)||readInputVal(1)||readStd(); 
+        return 0;
     }
 
     /** Hora por horario */
@@ -557,19 +567,22 @@
             const telar = row.querySelector('td:first-child')?.textContent?.trim(); if (!telar) return;
             const rpmStd = row.querySelector(`input[data-telar="${telar}"][data-field="rpm_std"]`);
             const efStd  = row.querySelector(`input[data-telar="${telar}"][data-field="eficiencia_std"]`);
-            const read = (h,t) => row.querySelector(`button[data-telar="${telar}"][data-horario="${h}"][data-type="${t}"] .valor-display-text`)?.textContent || (t==='rpm'?'0':'0%');
+            const readInput = (h,t) => {
+                const input = row.querySelector(`input.valor-input[data-telar="${telar}"][data-horario="${h}"][data-type="${t}"]`);
+                return input ? (parseInt(input.value,10)||0) : 0;
+            };
             const k1=`${telar}-1`, k2=`${telar}-2`, k3=`${telar}-3`;
             out.push({
                 NoTelar: parseInt(telar,10),
                 SalonTejidoId: null,
                 RpmStd: rpmStd ? (parseFloat(rpmStd.value) || null) : null,
                 EficienciaStd: efStd ? parsePct(efStd.value) : null,
-                RpmR1: parseInt(read(1,'rpm'),10) || null,
-                EficienciaR1: parsePct(read(1,'eficiencia')),
-                RpmR2: parseInt(read(2,'rpm'),10) || null,
-                EficienciaR2: parsePct(read(2,'eficiencia')),
-                RpmR3: parseInt(read(3,'rpm'),10) || null,
-                EficienciaR3: parsePct(read(3,'eficiencia')),
+                RpmR1: readInput(1,'rpm') || null,
+                EficienciaR1: readInput(1,'eficiencia') || null,
+                RpmR2: readInput(2,'rpm') || null,
+                EficienciaR2: readInput(2,'eficiencia') || null,
+                RpmR3: readInput(3,'rpm') || null,
+                EficienciaR3: readInput(3,'eficiencia') || null,
                 ObsR1: state.observaciones[k1] || null,
                 ObsR2: state.observaciones[k2] || null,
                 ObsR3: state.observaciones[k3] || null,
@@ -687,27 +700,33 @@ table{ border-collapse:separate; border-spacing:0; }
 thead th{ position:sticky; top:0; z-index:30; box-shadow:0 2px 4px rgba(0,0,0,.08); }
 tbody tr:hover{ background-color:#eff6ff !important; }
 
-/* Inputs STD */
-tbody input{ transition:border-color .2s ease; }
+/* Inputs STD y valor */
+tbody input{ transition:border-color .2s ease, background-color .2s ease; }
 tbody input:focus{ border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6; outline:none; }
+
+/* Inputs de valor (RPM y Eficiencia) */
+.valor-input{ 
+    min-width:60px; 
+    max-width:80px;
+    -moz-appearance:textfield; /* Firefox - ocultar spinners */
+}
+.valor-input::-webkit-outer-spin-button,
+.valor-input::-webkit-inner-spin-button{ 
+    -webkit-appearance:none; 
+    margin:0; 
+}
+.valor-input:focus{ 
+    background-color:#eff6ff; 
+}
+.valor-input.bg-green-100{ 
+    background-color:#dcfce7 !important; 
+}
 
 /* Scrollbars */
 .overflow-x-auto::-webkit-scrollbar, .overflow-y-auto::-webkit-scrollbar{ width:8px; height:8px; }
 .overflow-x-auto::-webkit-scrollbar-track, .overflow-y-auto::-webkit-scrollbar-track{ background:#f1f1f1; }
 .overflow-x-auto::-webkit-scrollbar-thumb, .overflow-y-auto::-webkit-scrollbar-thumb{ background:#c1c1c1; border-radius:4px; }
 .overflow-x-auto::-webkit-scrollbar-thumb:hover, .overflow-y-auto::-webkit-scrollbar-thumb:hover{ background:#a8a8a8; }
-.scrollbar-hide{ -ms-overflow-style:none; scrollbar-width:none; }
-.scrollbar-hide::-webkit-scrollbar{ display:none; }
-
-/* Selector de valores */
-.valor-display-btn{ transition:transform .15s ease, background-color .15s ease; min-width:60px; }
-.valor-display-btn:hover{ transform:scale(1.05); }
-.valor-edit-container{ z-index:1000; box-shadow:0 10px 25px rgba(0,0,0,.08); }
-.valor-edit-container.drop-up{ top:auto !important; bottom:calc(100% + .35rem); }
-.number-option{ transition:transform .12s ease; flex-shrink:0; }
-.number-option:hover{ transform:scale(1.08); }
-.valor-edit-container.hidden{ opacity:0; transform: translateX(-50%) translateY(0) scale(.95); transition:all .18s ease; }
-.valor-edit-container:not(.hidden){ opacity:1; transform: translateX(-50%) translateY(0) scale(1); transition:all .18s ease; }
 </style>
 
 @endsection
