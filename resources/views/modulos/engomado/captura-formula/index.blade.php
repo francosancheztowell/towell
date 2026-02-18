@@ -137,7 +137,7 @@
                         data-kilos="{{ $item->Kilos }}"
                         data-litros="{{ $item->Litros }}"
                         data-tiempo="{{ $item->TiempoCocinado }}"
-                        data-solidos="{{ $item->Solidos }}"
+                        data-solidos="{{ number_format($item->Solidos ?? 0, 2) }}"
                         data-viscocidad="{{ $item->Viscocidad }}"
                         data-maquina="{{ $item->MaquinaId ?? '' }}"
                         data-prodid="{{ $item->ProdId ?? '' }}"
@@ -165,7 +165,7 @@
                                 data-formula="{{ $item->Formula ?? '' }}"
                                 data-litros="{{ $item->Litros ?? '' }}"
                                 data-tiempo="{{ $item->TiempoCocinado ?? '' }}"
-                                data-solidos="{{ $item->Solidos ?? '' }}"
+                                data-solidos="{{ number_format($item->Solidos ?? 0, 2) }}"
                                 data-viscocidad="{{ $item->Viscocidad ?? '' }}"
                                 data-oktiempo="{{ $item->OkTiempo === null ? '' : ($item->OkTiempo ? '1' : '0') }}"
                                 data-okviscocidad="{{ ($item->OkViscocidad ?? $item->OkViscosidad ?? null) === null ? '' : (($item->OkViscocidad ?? $item->OkViscosidad) ? '1' : '0') }}"
@@ -1078,7 +1078,7 @@
                         }
 
                         document.getElementById('create_tiempo').value = form.TiempoCocinado || '0';
-                        document.getElementById('create_solidos').value = form.Solidos || '0';
+                        document.getElementById('create_solidos').value = (parseFloat(form.Solidos) || 0).toFixed(2);
                         document.getElementById('create_viscocidad').value = form.Viscocidad || '0';
 
                         document.getElementById('create_nom_empl').value = form.NomEmpl || '';
@@ -1089,16 +1089,7 @@
                         if (displayNum) displayNum.value = form.CveEmpl || '';
                         if (displayOper) displayOper.value = form.NomEmpl || '';
 
-                        const obsSection = document.getElementById('create_obs_section');
-                        const obsText = document.getElementById('create_obs_text');
-                        if (obsSection && obsText) {
-                            if (form.obs_calidad) {
-                                obsText.textContent = form.obs_calidad;
-                                obsSection.classList.remove('hidden');
-                            } else {
-                                obsSection.classList.add('hidden');
-                            }
-                        }
+                        document.getElementById('create_obs_section')?.classList.add('hidden');
 
                         formulaCreateActual = form.Formula || '';
 
@@ -1268,7 +1259,7 @@
                         }
 
                         document.getElementById('create_tiempo').value = form.TiempoCocinado || '0';
-                        document.getElementById('create_solidos').value = form.Solidos || '0';
+                        document.getElementById('create_solidos').value = (parseFloat(form.Solidos) || 0).toFixed(2);
                         document.getElementById('create_viscocidad').value = form.Viscocidad || '0';
 
                         document.getElementById('create_nom_empl').value = form.NomEmpl || '';
@@ -1279,16 +1270,7 @@
                         if (displayNum) displayNum.value = form.CveEmpl || '';
                         if (displayOper) displayOper.value = form.NomEmpl || '';
 
-                        const obsSection = document.getElementById('create_obs_section');
-                        const obsText = document.getElementById('create_obs_text');
-                        if (obsSection && obsText) {
-                            if (form.obs_calidad) {
-                                obsText.textContent = form.obs_calidad;
-                                obsSection.classList.remove('hidden');
-                            } else {
-                                obsSection.classList.add('hidden');
-                            }
-                        }
+                        document.getElementById('create_obs_section')?.classList.add('hidden');
 
                         formulaCreateActual = form.Formula || '';
 
@@ -2229,6 +2211,61 @@
             });
         }
 
+        /** Inicializa solo select Articulo para filas nuevas. ConfigId se jala de fibras y queda bloqueado. */
+        async function initComponenteCalibreForNewRow(row, comp) {
+            const calibreEl = row.querySelector('[data-field="ItemId"]');
+            const configIdEl = row.querySelector('[data-field="ConfigId"]');
+
+            if (!calibreEl) return;
+
+            setComponenteSelectOptions(calibreEl, [], 'Cargando...');
+            const calibres = await getComponenteCalibres();
+            setComponenteSelectOptions(calibreEl, calibres, 'Selecciona calibre', comp.ItemId || '');
+
+            if (comp.ItemId) {
+                ensureComponenteOption(calibreEl, comp.ItemId, comp.ItemId);
+                calibreEl.value = comp.ItemId;
+                // Jalar ConfigId si ya hay ItemId (ej. al re-renderizar)
+                const fibras = await getComponenteFibras(comp.ItemId);
+                const configIdVal = fibras.length === 1 ? fibras[0] : (fibras[0] || comp.ConfigId || '');
+                if (configIdEl) configIdEl.value = configIdVal;
+                const idx = parseInt(calibreEl.getAttribute('data-index'));
+                if (componentesCreateData[idx]) componentesCreateData[idx].ConfigId = configIdVal;
+            }
+
+            calibreEl.addEventListener('change', async function(e) {
+                const itemId = e.target.value;
+                const itemNameEl = row.querySelector('[data-field="ItemName"]');
+                const idx = parseInt(calibreEl.getAttribute('data-index'));
+
+                if (itemId) {
+                    const selectedOption = e.target.options[e.target.selectedIndex];
+                    const itemName = selectedOption.getAttribute('data-itemname') || '';
+                    if (itemNameEl) itemNameEl.value = itemName;
+
+                    if (componentesCreateData[idx]) {
+                        componentesCreateData[idx].ItemId = itemId;
+                        componentesCreateData[idx].ItemName = itemName;
+                    }
+
+                    // Jalar ConfigId desde fibras
+                    const fibras = await getComponenteFibras(itemId);
+                    const configIdVal = fibras.length === 1 ? fibras[0] : (fibras[0] || '');
+                    if (configIdEl) configIdEl.value = configIdVal;
+                    if (componentesCreateData[idx]) componentesCreateData[idx].ConfigId = configIdVal;
+                } else {
+                    if (itemNameEl) itemNameEl.value = '';
+                    if (componentesCreateData[idx]) {
+                        componentesCreateData[idx].ItemId = '';
+                        componentesCreateData[idx].ItemName = '';
+                        componentesCreateData[idx].ConfigId = '';
+                    }
+                    if (configIdEl) configIdEl.value = '';
+                }
+                renderizarTablaComponentesCreate();
+            });
+        }
+
         function renderizarTablaComponentesCreate() {
             const tbody = document.getElementById('create_componentes_tbody');
             if (!tbody) {
@@ -2266,7 +2303,7 @@
                 const titleConsumo = sinCalibre ? 'Seleccione Artículo (calibre) primero' : (esAgua ? 'Máximo igual a Litros' : 'Máximo 100 (excepto agua)');
                 const consumoTotalDisabled = sinCalibre ? 'disabled' : disabledAttr;
 
-                // Solo usar selects si viene desde producción Y es una fila nueva (agregada con botón)
+                // Filas nuevas: select Articulo, Nombre bloqueado, ConfigId texto plano (no select)
                 if (desdeProduccion && comp.esNuevo) {
                     row.innerHTML = `
                         <td class="px-4 py-2 text-sm">
@@ -2277,13 +2314,11 @@
                         </td>
                         <td class="px-4 py-2 text-sm">
                             <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr} readonly>
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-50 cursor-not-allowed" readonly>
                         </td>
                         <td class="px-4 py-2 text-sm">
-                            <select data-index="${index}" data-field="ConfigId"
-                                class="componente-fibra w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
-                                <option value="">Selecciona calibre primero</option>
-                            </select>
+                            <input type="text" value="${comp.ConfigId || ''}" data-index="${index}" data-field="ConfigId"
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-50 cursor-not-allowed" readonly>
                         </td>
                         <td class="px-4 py-2 text-sm">
                             <input type="number" step="0.01" min="0" value="${consumoTotal.toFixed(2)}" data-index="${index}" data-field="ConsumoTotal"${maxAttr}
@@ -2292,19 +2327,23 @@
                         </td>
                     `;
                 } else {
+                    // Existentes: Articulo, Nombre, ConfigId bloqueados. Nuevos (!desdeProduccion): editables
+                    const esExistente = !comp.esNuevo;
+                    const bloqueadoAttr = esExistente ? 'readonly' : '';
+                    const bloqueadoClass = esExistente ? 'bg-gray-50 cursor-not-allowed' : '';
                     const consumoTotalDisabledInput = sinCalibre ? 'disabled' : disabledAttr;
                     row.innerHTML = `
                         <td class="px-4 py-2 text-sm">
                             <input type="text" value="${comp.ItemId || ''}" data-index="${index}" data-field="ItemId"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass} ${bloqueadoClass}" ${disabledAttr} ${bloqueadoAttr}>
                         </td>
                         <td class="px-4 py-2 text-sm">
                             <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass} ${bloqueadoClass}" ${disabledAttr} ${bloqueadoAttr}>
                         </td>
                         <td class="px-4 py-2 text-sm">
                             <input type="text" value="${comp.ConfigId || ''}" data-index="${index}" data-field="ConfigId"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass} ${bloqueadoClass}" ${disabledAttr} ${bloqueadoAttr}>
                         </td>
                         <td class="px-4 py-2 text-sm">
                             <input type="number" step="0.01" min="0" value="${consumoTotal.toFixed(2)}" data-index="${index}" data-field="ConsumoTotal"${maxAttr}
@@ -2316,9 +2355,9 @@
 
                 tbody.appendChild(row);
 
-                // Inicializar selects en cascada solo si viene desde producción Y es fila nueva
+                // Inicializar solo select Articulo (ConfigId es input texto) para filas nuevas
                 if (desdeProduccion && comp.esNuevo) {
-                    initComponenteSelectorsForRow(row, comp);
+                    initComponenteCalibreForNewRow(row, comp);
                 }
 
                 // Si ItemId es input (calibre manual), sincronizar al cambiar y re-renderizar para habilitar ConsumoTotal
@@ -2507,6 +2546,14 @@
                 });
             }
 
+            const solidosInput = document.getElementById('create_solidos');
+            if (solidosInput) {
+                solidosInput.addEventListener('blur', function() {
+                    const val = parseFloat(this.value);
+                    if (!isNaN(val)) this.value = (Math.round(val * 100) / 100).toFixed(2);
+                });
+            }
+
             const createForm = document.getElementById('createForm');
             if (createForm) {
                 createForm.addEventListener('input', debounce(actualizarBotonGuardarEdicion, 200));
@@ -2553,6 +2600,9 @@
                         Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'La Viscosidad debe ser mayor a cero', showConfirmButton: false, timer: 3000 });
                         return;
                     }
+                    // Redondear Sólidos a 2 decimales antes de enviar
+                    const solidosEl = document.getElementById('create_solidos');
+                    if (solidosEl && !isNaN(solidosVal)) solidosEl.value = (Math.round(solidosVal * 100) / 100).toFixed(2);
                     const method = document.getElementById('create_method');
                     if (method && method.value === 'PUT' && !haCambiadoFormulacionCreate()) {
                         e.preventDefault();
@@ -2587,7 +2637,9 @@
                         });
                         return;
                     }
-                    const conCalibre = componentes.filter(c => (c.ItemId || '').trim());
+                    const conCalibre = componentes.filter(c =>
+                        (c.ItemId || '').trim() && (parseFloat(c.ConsumoTotal) || 0) > 0
+                    );
 
                     const payload = document.getElementById('create_componentes_payload');
                     if (payload) {

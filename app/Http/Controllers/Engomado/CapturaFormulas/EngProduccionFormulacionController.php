@@ -134,6 +134,7 @@ class EngProduccionFormulacionController extends Controller
             $validated['Folio'] = $folio;
             $validated['Status'] = 'Creado';
             $validated['MaquinaId'] = $programa->MaquinaEng;
+            $validated['Solidos'] = round((float) ($validated['Solidos'] ?? 0), 2);
             $validated['CveEmpl'] = $programa->CveEmpl;
 
             DB::transaction(function () use ($validated, $folio, $request) {
@@ -299,7 +300,7 @@ class EngProduccionFormulacionController extends Controller
                     'Litros' => $formulacion->Litros,
                     'ProdId' => $formulacion->ProdId,
                     'TiempoCocinado' => $formulacion->TiempoCocinado,
-                    'Solidos' => $formulacion->Solidos,
+                    'Solidos' => $formulacion->Solidos !== null ? round((float) $formulacion->Solidos, 2) : null,
                     'Viscocidad' => $formulacion->Viscocidad,
                     'Status' => $formulacion->Status,
                     'obs_calidad' => $formulacion->obs_calidad,
@@ -492,6 +493,9 @@ class EngProduccionFormulacionController extends Controller
                     $v = $toUpdate['ok_solidos'];
                     $toUpdate['OkSolidos'] = ($v === null || $v === '') ? null : (int) $v;
                     unset($toUpdate['ok_solidos']);
+                }
+                if (array_key_exists('Solidos', $toUpdate)) {
+                    $toUpdate['Solidos'] = round((float) $toUpdate['Solidos'], 2);
                 }
                 $item->update($toUpdate);
                 $formulacionId = $item->Id; // Obtener el ID real de la tabla
