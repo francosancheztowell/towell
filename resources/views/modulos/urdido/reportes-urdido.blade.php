@@ -1,3 +1,4 @@
+@use('Carbon\Carbon')
 @extends('layouts.app')
 
 @section('page-title', 'Reportes 03 OEE ')
@@ -16,55 +17,64 @@
 @endsection
 
 @section('content')
-    <div class="w-full p-4" id="reportes-urdido-container">
-        {{-- Encabezado: total por máquina, suma total y rango --}}
-        <div class="bg-white rounded-t-lg px-4 py-2 flex flex-wrap items-center gap-4">
-            @foreach ($porMaquina ?? [] as $maq)
-                <span class="text-gray-700 text-sm">
-                    <span class="font-semibold">{{ $maq['label'] }}:</span>
-                    {{ number_format($maq['totalKg'] ?? 0, 2) }} Kg
-                </span>
-            @endforeach
-            <span class="font-bold text-gray-800 border-l border-gray-300 pl-4">Total:</span>
-            <span class="font-bold text-gray-900">{{ number_format($totalKg ?? 0, 2) }} Kg</span>
-            <span class="text-gray-600 text-sm">
-                {{ $fechaIni ? \Carbon\Carbon::parse($fechaIni)->translatedFormat('d/m/Y') : '—' }}
-                al
-                {{ $fechaFin ? \Carbon\Carbon::parse($fechaFin)->translatedFormat('d/m/Y') : '—' }}
-            </span>
+    <div class="w-full p-4 max-w-[1600px] mx-auto" id="reportes-urdido-container">
+        {{-- Encabezado: total por máquina, suma total y rango (blanco completo) --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-5 py-4 mb-4">
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                @foreach ($porMaquina ?? [] as $maq)
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-600 text-sm font-medium">{{ $maq['label'] }}</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md bg-gray-50 text-gray-800 font-semibold text-sm">
+                            {{ number_format($maq['totalKg'] ?? 0, 2) }} Kg
+                        </span>
+                    </div>
+                @endforeach
+                <div class="flex items-center gap-2 border-l border-gray-200 pl-5">
+                    <span class="text-gray-600 text-sm font-medium">Total</span>
+                    <span class="text-gray-900 font-bold text-base">{{ number_format($totalKg ?? 0, 2) }} Kg</span>
+                </div>
+                <div class="flex items-center gap-1.5 ml-auto text-gray-500 text-sm">
+                    <i class="fas fa-calendar-alt text-gray-400"></i>
+                    <span>
+                        {{ $fechaIni ? Carbon::parse($fechaIni)->translatedFormat('d/m/Y') : '—' }}
+                        al
+                        {{ $fechaFin ? Carbon::parse($fechaFin)->translatedFormat('d/m/Y') : '—' }}
+                    </span>
+                </div>
+            </div>
         </div>
 
         {{-- Secciones por máquina --}}
-        <div class="flex flex-wrap gap-4 overflow-x-auto pb-4 bg-white border border-t-0 border-gray-300 rounded-b-lg p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             @foreach ($porMaquina ?? [] as $maq)
-                <div class="flex-shrink-0 min-w-[200px] border border-gray-300 rounded-lg overflow-hidden">
-                    <div class="bg-blue-500 px-2 py-1.5 text-center font-bold text-white border-b border-gray-300">
-                        {{ $maq['label'] }}
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col min-w-0">
+                    <div class="bg-blue-500 px-4 py-3 border-b border-gray-100">
+                        <h3 class="text-white text-center font-semibold text-base">{{ $maq['label'] }}</h3>
                     </div>
 
-                    <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
-                        <table class="w-full text-sm border-collapse">
-                            <thead class="sticky top-0 bg-gray-100 z-10">
+                    <div class="overflow-x-auto overflow-y-auto max-h-[420px] flex-1">
+                        <table class="w-full text-sm">
+                            <thead class="sticky top-0 bg-white z-10 border-b-2 border-gray-200">
                                 <tr>
-                                    <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">ORDEN</th>
-                                    <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">JULIO</th>
-                                    <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">P. NETO</th>
-                                    <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">METROS</th>
-                                    <th class="px-1.5 py-1 text-center font-semibold text-xs border border-gray-300">Operador</th>
+                                    <th class="px-3 py-2.5 text-left font-semibold text-xs text-gray-600 uppercase tracking-wide">Orden</th>
+                                    <th class="px-3 py-2.5 text-left font-semibold text-xs text-gray-600 uppercase tracking-wide">Julio</th>
+                                    <th class="px-3 py-2.5 text-right font-semibold text-xs text-gray-600 uppercase tracking-wide">P. Neto</th>
+                                    <th class="px-3 py-2.5 text-right font-semibold text-xs text-gray-600 uppercase tracking-wide">Metros</th>
+                                    <th class="px-3 py-2.5 text-center font-semibold text-xs text-gray-600 uppercase tracking-wide">Operador</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @forelse(($maq['filas'] ?? []) as $fila)
-                                    <tr>
-                                        <td class="px-1.5 py-0.5 border border-gray-300">{{ $fila['orden'] ?? '' }}</td>
-                                        <td class="px-1.5 py-0.5 border border-gray-300">{{ $fila['julio'] ?? '' }}</td>
-                                        <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ isset($fila['p_neto']) && $fila['p_neto'] !== '' ? number_format((float)$fila['p_neto'], 1) : '' }}</td>
-                                        <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ (isset($fila['metros']) && $fila['metros'] != 0) ? $fila['metros'] : '' }}</td>
-                                        <td class="px-1.5 py-0.5 border border-gray-300 text-center">{{ $fila['ope'] ?? '' }}</td>
+                            <tbody class="divide-y divide-gray-100">
+                                @forelse(($maq['filas'] ?? []) as $idx => $fila)
+                                    <tr class="{{ $idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50' }} hover:bg-blue-50/50 transition-colors">
+                                        <td class="px-3 py-2 text-gray-800">{{ $fila['orden'] ?? '' }}</td>
+                                        <td class="px-3 py-2 text-gray-700">{{ $fila['julio'] ?? '' }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums text-gray-800">{{ isset($fila['p_neto']) && $fila['p_neto'] !== '' ? number_format((float)$fila['p_neto'], 1) : '' }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums text-gray-800">{{ (isset($fila['metros']) && $fila['metros'] != 0) ? $fila['metros'] : '' }}</td>
+                                        <td class="px-3 py-2 text-center text-gray-700">{{ $fila['ope'] ?? '' }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
+                                        <td colspan="5" class="px-4 py-8 text-center text-gray-400 text-sm">Sin datos</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -72,13 +82,13 @@
                     </div>
                 </div>
             @endforeach
-
-            @if (empty($porMaquina))
-                <div class="flex-1 text-center text-gray-500 py-8">
-                    No hay datos de producción para el rango de fechas seleccionado.
-                </div>
-            @endif
         </div>
+
+        @if (empty($porMaquina))
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-12 text-center text-gray-500">
+                No hay datos de producción para el rango de fechas seleccionado.
+            </div>
+        @endif
     </div>
 @endsection
 

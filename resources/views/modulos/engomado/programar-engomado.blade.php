@@ -150,6 +150,7 @@
                 guardarObservaciones: '{{ route('engomado.programar.engomado.guardar.observaciones') }}',
                 obtenerTodasOrdenes: '{{ route('engomado.programar.engomado.todas.ordenes') }}',
                 actualizarPrioridades: '{{ route('engomado.programar.engomado.actualizar.prioridades') }}',
+                actualizarStatus: '{{ route('engomado.programar.engomado.actualizar.status') }}',
             };
 
             const csrfToken = '{{ csrf_token() }}';
@@ -227,16 +228,39 @@
                     : `<span class="${normalBase} bg-gray-200 text-gray-800">${label}</span>`;
             };
 
-            const renderStatusText = (orden, isSelected = false) => {
+            const renderStatusSelect = (orden, isSelected = false) => {
                 const statusActual = String(orden.status || '').trim();
+                let opciones;
+                if (statusActual === 'En Proceso') {
+                    opciones = ['Programado', 'En Proceso', 'Cancelado'];
+                } else if (statusActual === 'Parcial') {
+                    opciones = ['Programado', 'En Proceso', 'Parcial', 'Cancelado'];
+                } else {
+                    opciones = ['Programado', 'Cancelado'];
+                }
+                const disabledAttr = canEdit ? '' : 'disabled';
                 const baseClasses = isSelected
-                    ? 'w-full h-9 px-2 border-0 bg-blue-500 text-white flex items-center'
-                    : 'w-full h-9 px-2 border-0 bg-transparent text-gray-900 flex items-center';
+                    ? 'w-full h-9 px-2 border-0 bg-blue-500 text-white'
+                    : 'w-full h-9 px-2 border-0 bg-transparent text-gray-900';
+                const disabledClasses = canEdit ? '' : 'opacity-70 cursor-not-allowed';
+
+                const optionsHtml = opciones.map((status) => {
+                    const selected = statusActual === status ? 'selected' : '';
+                    return `<option value="${status}" ${selected}>${status}</option>`;
+                }).join('');
 
                 return `
-                    <div class="${baseClasses}">
-                        ${statusActual || '-'}
-                    </div>
+                    <select
+                        class="${baseClasses} ${disabledClasses}"
+                        data-orden-id="${orden.id}"
+                        data-current="${statusActual}"
+                        onchange="actualizarStatus(event, ${orden.id})"
+                        onmousedown="event.stopPropagation()"
+                        onclick="event.stopPropagation()"
+                        ${disabledAttr}
+                    >
+                        ${optionsHtml}
+                    </select>
                 `;
             };
 
@@ -322,7 +346,7 @@
                             <td class="${baseTd}">${metros}</td>
                             <td class="${baseTd}">${orden.formula || '-'}</td>
                             <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
-                                ${renderStatusText(orden, isSelected)}
+                                ${canEdit ? renderStatusSelect(orden, isSelected) : (orden.status || '')}
                             </td>
                             <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
                                 ${observacionesCell}
@@ -642,6 +666,60 @@
                 }
             };
 
+            // ==========================
+            // Actualizar Status
+            // ==========================
+            const actualizarStatus = async (event, ordenId) => {
+                if (!canEdit) {
+                    showToast('warning', 'No autorizado');
+                    return;
+                }
+
+                const select = event.target;
+                const nuevoStatus = select.value;
+                const statusAnterior = select.dataset.current || '';
+
+                if (!nuevoStatus || nuevoStatus === statusAnterior) {
+                    return;
+                }
+
+                select.disabled = true;
+
+                try {
+                    const payload = JSON.stringify({
+                        id: ordenId,
+                        status: nuevoStatus,
+                    });
+
+                    const result = await fetchJson(routes.actualizarStatus, {
+                        method: 'POST',
+                        body: payload,
+                    });
+
+                    if (!result.success) {
+                        throw new Error(result.error || 'Error al actualizar status');
+                    }
+
+                    select.dataset.current = nuevoStatus;
+
+                    for (let tabla = 1; tabla <= 2; tabla++) {
+                        const orden = (state.ordenes[tabla] || []).find(o => o.id === ordenId);
+                        if (orden) {
+                            orden.status = nuevoStatus;
+                            break;
+                        }
+                    }
+
+                    showToast('success', 'Status actualizado correctamente');
+                    await cargarOrdenes(true);
+                } catch (error) {
+                    console.error('Error al actualizar status:', error);
+                    select.value = statusAnterior;
+                    showError(`Error al actualizar status: ${error.message}`);
+                } finally {
+                    select.disabled = false;
+                }
+            };
 
             // ==========================
             // Ir a Producción
@@ -983,6 +1061,7 @@
             window.cargarOrdenes = cargarOrdenes;
             window.irProduccion = irProduccion;
             window.guardarObservaciones = guardarObservaciones;
+            window.actualizarStatus = actualizarStatus;
             window.abrirModalEditarPrioridad = abrirModalEditarPrioridad;
             window.cerrarModalEditarPrioridad = cerrarModalEditarPrioridad;
             window.guardarPrioridades = guardarPrioridades;

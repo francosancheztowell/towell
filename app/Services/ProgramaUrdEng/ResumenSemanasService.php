@@ -7,8 +7,8 @@ namespace App\Services\ProgramaUrdEng;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejido\TejInventarioTelares;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ResumenSemanasService
 {
@@ -331,12 +331,12 @@ class ResumenSemanasService
 
     public function construirSemanas(int $n = 5): array
     {
-        $inicioBase = Carbon::now()->startOfWeek(Carbon::MONDAY);
+        $inicioBase = Carbon::now()->startOfWeek(CarbonInterface::MONDAY);
         $out = [];
 
         for ($i = 0; $i < $n; $i++) {
             $ini = $inicioBase->copy()->addWeeks($i)->startOfDay();
-            $fin = $ini->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay();
+            $fin = $ini->copy()->endOfWeek(CarbonInterface::SUNDAY)->endOfDay();
 
             $out[] = [
                 'numero' => $i + 1,
@@ -398,7 +398,7 @@ class ResumenSemanasService
 
             $salAct = strtoupper(trim((string)($t['salon'] ?? '')));
             if ($salonRef !== '' && $salAct !== '' && $salAct !== $salonRef) {
-                return ['error' => true, 'mensaje' => "Todos los telares deben tener el mismo salón. {$salAct} ≠ {$salonRef}"];
+                return ['error' => true, 'mensaje' => "Todos los telares deben tener el mismo salon. {$salAct} ≠ {$salonRef}"];
             }
         }
 
@@ -413,8 +413,8 @@ class ResumenSemanasService
     {
         $act = trim($actual);
         $esp = $esperado !== null ? trim((string)$esperado) : null;
-        if ($esperado === null) return true;
-        if ($esperado === '' || $esp === '') return ($act === '' || $act === 'null');
+        // "Todos" (esperado vacío/null) => no filtrar por hilo
+        if ($esperado === null || $esp === '') return true;
         return strcasecmp($act, $esp) === 0;
     }
 

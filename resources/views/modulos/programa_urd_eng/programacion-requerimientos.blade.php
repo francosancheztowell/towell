@@ -1076,7 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const filtrosAplicados = tipo === 'PIE' ? 'calibre' : 'hilo/calibre';
                 mensaje += `\n\nNota: Existen ${tieneDatosRizo ? data.rizo.length : data.pie.length} registro(s) en la base de datos, pero no coinciden con los filtros aplicados (${filtrosAplicados}) o no tienen fechas en el rango de las 5 semanas.`;
             } else {
-                mensaje += `\n\nNota: No se encontraron registros de programación para los telares seleccionados en el rango de fechas de las 5 semanas (${validacion?.semanas?.[0]?.inicio || 'N/A'} a ${validacion?.semanas?.[4]?.fin || 'N/A'}).`;
+                mensaje += `\n\nNota: No se encontraron registros de programación para los telares seleccionados en el rango de fechas de las 5 semanas (${semanas?.[0]?.inicio || 'N/A'} a ${semanas?.[4]?.fin || 'N/A'}).`;
             }
 
             renderResumenMensaje(mensaje);

@@ -194,16 +194,16 @@ class ModulosController extends Controller
             }
 
 
-            // Crear el mÃ³dulo
+            // Crear el modulo
             $modulo = SYSRoles::create($data);
 
-            // Actualizar permisos en SYSUsuariosRoles para el nuevo mÃ³dulo
+            // Actualizar permisos en SYSUsuariosRoles para el nuevo modulo
             $permisosActualizados = $this->actualizarPermisosNuevoModulo($modulo);
 
-            // Limpiar cachÃ© de mÃ³dulos para todos los usuarios
+            // Limpiar cache de modulos para todos los usuarios
             $this->limpiarCacheTodosUsuarios();
 
-            $mensaje = 'MÃ³dulo creado correctamente';
+            $mensaje = 'Modulo creado correctamente';
             if ($permisosActualizados > 0) {
                 $mensaje .= " y permisos actualizados para {$permisosActualizados} usuario(s)";
             }
@@ -346,37 +346,37 @@ class ModulosController extends Controller
 
             $modulo->update($data);
 
-            // Limpiar cachÃ© de mÃ³dulos para todos los usuarios
+            // Limpiar cache de modulos para todos los usuarios
             $this->limpiarCacheTodosUsuarios();
 
             return redirect()->route($this->getModulosIndexRoute())
-                ->with('success', 'MÃ³dulo actualizado correctamente')
+                ->with('success', 'Modulo actualizado correctamente')
                 ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
-            Log::error('Error al actualizar mÃ³dulo: ' . $e->getMessage(), [
+            Log::error('Error al actualizar modulo: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
                 'user_authenticated' => Auth::check(),
                 'module_id' => $id
             ]);
-            return back()->with('error', 'Error al actualizar el mÃ³dulo: ' . $e->getMessage())->withInput();
+            return back()->with('error', 'Error al actualizar el modulo: ' . $e->getMessage())->withInput();
         }
     }
 
     /**
-     * Eliminar un mÃ³dulo
+     * Eliminar un modulo
      */
     public function destroy($id)
     {
         try {
             $modulo = SYSRoles::findOrFail($id);
 
-            // Verificar si el mÃ³dulo tiene submÃ³dulos dependientes
+            // Verificar si el modulo tiene submodulos dependientes
             $tieneSubmodulos = SYSRoles::where('Dependencia', $modulo->orden)->exists();
 
             if ($tieneSubmodulos) {
-                return back()->with('error', 'No se puede eliminar el mÃ³dulo porque tiene submÃ³dulos dependientes');
+                return back()->with('error', 'No se puede eliminar el modulo porque tiene submodulos dependientes');
             }
 
             $nombreModulo = $modulo->modulo;
@@ -386,20 +386,20 @@ class ModulosController extends Controller
 
             $modulo->delete();
 
-            // Limpiar cachÃ©
+            // Limpiar cache
             $this->limpiarCacheTodosUsuarios();
 
             return redirect()->route($this->getModulosIndexRoute())
-                ->with('success', "MÃ³dulo '{$nombreModulo}' y permisos asociados eliminados correctamente");
+                ->with('success', "Modulo '{$nombreModulo}' y permisos asociados eliminados correctamente");
 
         } catch (\Exception $e) {
-            Log::error('Error al eliminar mÃ³dulo: ' . $e->getMessage());
-            return back()->with('error', 'Error al eliminar el mÃ³dulo');
+            Log::error('Error al eliminar modulo: ' . $e->getMessage());
+            return back()->with('error', 'Error al eliminar el modulo');
         }
     }
 
     /**
-     * Sincronizar permisos de un mÃ³dulo para todos los usuarios (vÃ­a AJAX)
+     * Sincronizar permisos de un modulo para todos los usuarios (via AJAX)
      */
     public function sincronizarPermisos($id)
     {
@@ -422,7 +422,7 @@ class ModulosController extends Controller
     }
 
     /**
-     * Obtener mÃ³dulos por nivel (API)
+     * Obtener modulos por nivel (API)
      */
     public function getModulosPorNivel($nivel)
     {
@@ -438,7 +438,7 @@ class ModulosController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener mÃ³dulos'
+                'message' => 'Error al obtener modulos'
             ], 500);
         }
     }
