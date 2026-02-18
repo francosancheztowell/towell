@@ -37,6 +37,15 @@ class ProgramarUrdEngController extends Controller
         ]);
 
         $grupo = $request->input('grupo');
+
+        // Validar que fibra/hilo no sea vacío (obligatorio para Rizo y Pie)
+        $fibra = trim((string) ($grupo['fibra'] ?? $grupo['hilo'] ?? ''));
+        if ($fibra === '') {
+            return response()->json([
+                'success' => false,
+                'error' => 'La fibra/hilo es obligatoria para crear órdenes. Regrese a Programación de Requerimientos y seleccione la fibra en cada telar.',
+            ], 422);
+        }
         $materialesEngomado = $request->input('materialesEngomado', []);
         $construccionUrdido = $request->input('construccionUrdido', []);
         $datosEngomado = $request->input('datosEngomado', []);
@@ -153,8 +162,7 @@ class ProgramarUrdEngController extends Controller
             $camposCreateEng = self::camposCreateParaAuditoria($engomado, ['Folio', 'Cuenta', 'Calibre', 'Fibra', 'Metros', 'Kilos', 'RizoPie', 'MaquinaUrd', 'BomUrd', 'NoTelas', 'AnchoBalonas', 'MetrajeTelas', 'Cuentados']);
             AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_CREATE, $camposCreateEng);
 
-            $hiloGrupo = $grupo['fibra'] ?? $grupo['hilo'] ?? null;
-            $telaresActualizados = $this->marcarTelaresProgramados($telaresStr, $tipo, $folio, $hiloGrupo);
+            $telaresActualizados = $this->marcarTelaresProgramados($telaresStr, $tipo, $folio);
 
             DB::commit();
 
@@ -236,8 +244,14 @@ class ProgramarUrdEngController extends Controller
         return min($fechas)->format('Y-m-d');
     }
 
-    /** @return int Cantidad de telares actualizados */
-    private function marcarTelaresProgramados(?string $telaresStr, ?string $tipo, string $folio, ?string $hilo = null): int
+    /**
+     * Marca los telares como programados en TejInventarioTelares.
+     * Solo actualiza no_orden y Programado. El hilo se guarda únicamente en el payload
+     * de UrdProgramaUrdido/EngProgramaEngomado, NO en tej_inventario_telares.
+     *
+     * @return int Cantidad de telares actualizados
+     */
+    private function marcarTelaresProgramados(?string $telaresStr, ?string $tipo, string $folio): int
     {
         if (empty($telaresStr)) return 0;
 
@@ -249,11 +263,7 @@ class ProgramarUrdEngController extends Controller
             if ($tipo) $q->where('tipo', $tipo);
             $telar = $q->first();
             if ($telar) {
-                $updateData = ['no_orden' => $folio, 'Programado' => true];
-                if ($hilo !== null && $hilo !== '') {
-                    $updateData['hilo'] = $hilo;
-                }
-                $telar->update($updateData);
+                $telar->update(['no_orden' => $folio, 'Programado' => true]);
                 $count++;
             }
         }

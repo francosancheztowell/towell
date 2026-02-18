@@ -148,7 +148,10 @@
 
             const cuenta   = String(telar.cuenta || '').trim();
             const calibre  = !isBlank(telar.calibre) ? parseFloat(telar.calibre).toFixed(2) : '';
-            const hilo     = esPie ? '' : (!isBlank(telar.hilo) ? String(telar.hilo).trim() : '');
+            // Para la clave de agrupación: PIE no usa hilo; RIZO sí.
+            const hiloClave = esPie ? '' : (!isBlank(telar.hilo) ? String(telar.hilo).trim() : '');
+            // Para el grupo enviado al backend: siempre preservar hilo (obligatorio para ambos tipos)
+            const hilo = !isBlank(telar.hilo) ? String(telar.hilo).trim() : '';
             const tamano   = !isBlank(telar.tamano) ? String(telar.tamano).trim() : '';
             const urdido   = String(telar.urdido || '').trim();
             const tipoAtado= String(telar.tipo_atado || 'Normal').trim();
@@ -156,7 +159,7 @@
 
             const clave = esPie
                 ? `${cuenta}|${calibre}|${up}|${urdido}|${tipoAtado}|${destino}`
-                : `${cuenta}|${hilo}|${calibre}|${up}|${urdido}|${tipoAtado}|${destino}`;
+                : `${cuenta}|${hiloClave}|${calibre}|${up}|${urdido}|${tipoAtado}|${destino}`;
 
             if (!grupos[clave]) {
                 grupos[clave] = { telares:[], cuenta, calibre, hilo, tamano, tipo:tipoN, urdido, tipoAtado, destino,
@@ -935,6 +938,18 @@
                     icon: 'warning',
                     title: 'BOM ID requerido',
                     text: 'Por favor, ingrese un BOM ID (L.Mat Urdido) para la fila seleccionada.',
+                    confirmButtonColor: '#2563eb'
+                });
+                return;
+            }
+
+            // Validar que tenga fibra/hilo (obligatorio para Rizo y Pie)
+            const fibraHilo = (grupo.fibra || grupo.hilo || '').trim();
+            if (isBlank(fibraHilo)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Fibra/Hilo requerido',
+                    text: 'La fila seleccionada no tiene fibra/hilo. Regrese a Programación de Requerimientos y seleccione la fibra correcta.',
                     confirmButtonColor: '#2563eb'
                 });
                 return;
