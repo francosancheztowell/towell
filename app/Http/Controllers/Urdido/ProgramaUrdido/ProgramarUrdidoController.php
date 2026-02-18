@@ -12,20 +12,39 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Sistema\SYSRoles;
+use App\Models\Sistema\SYSUsuariosRoles;
 
 class ProgramarUrdidoController extends Controller
 {
+    private const MODULO_PROGRAMA_URDIDO = 'Programa Urdido';
+
+    /**
+     * Verifica si el usuario puede editar (mismo criterio que el botón Editar del navbar:
+     * permiso "modificar" y acceso activo al módulo "Programa Urdido").
+     */
     private function usuarioPuedeEditar(): bool
     {
-        $usuario = Auth::user();
-        if (!$usuario) {
+        if (!Auth::id()) {
             return false;
         }
 
-        $area = strtolower($usuario->area ?? '');
-        $puesto = strtolower($usuario->puesto ?? '');
+        if (!function_exists('userCan')) {
+            return false;
+        }
 
-        return $area === 'urdido' && str_contains($puesto, 'supervisor');
+        $rol = SYSRoles::where('modulo', self::MODULO_PROGRAMA_URDIDO)->first();
+        if (!$rol) {
+            return false;
+        }
+
+        $tienePermisoModificar = userCan('modificar', self::MODULO_PROGRAMA_URDIDO);
+        $permission = SYSUsuariosRoles::where('idusuario', Auth::id())
+            ->where('idrol', $rol->idrol)
+            ->first();
+        $tieneAcceso = $permission && isset($permission->acceso) && (int) $permission->acceso === 1;
+
+        return $tienePermisoModificar && $tieneAcceso;
     }
     /**
      * Mostrar la vista de programar urdido
