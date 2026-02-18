@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Engomado\ProgramaEngomado;
 
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuariosRoles;
 
@@ -481,7 +483,13 @@ class ProgramarEngomadoController extends Controller
     public function guardarObservaciones(Request $request): JsonResponse
     {
         try {
-            // Habilitado para todos los usuarios
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
             $request->validate([
                 'id' => 'required|integer|exists:EngProgramaEngomado,Id',
                 'observaciones' => 'nullable|string|max:60',
@@ -508,7 +516,121 @@ class ProgramarEngomadoController extends Controller
         }
     }
 
+    /**
+     * Recalcular prioridades consecutivas para todas las órdenes activas de engomado
+     */
+    private function recalcularPrioridadesEngomado(): void
+    {
+        try {
+            $ordenes = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                ->whereNotNull('MaquinaEng')
+                ->where('MaquinaEng', '!=', '')
+                ->get();
 
+            $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
+                $prioridad = isset($orden->Prioridad) && !empty($orden->Prioridad) ? $orden->Prioridad : 999999;
+                $fecha = $orden->FechaProg ? (is_object($orden->FechaProg) ? $orden->FechaProg->format('Y-m-d H:i:s') : $orden->FechaProg) : '9999-12-31';
+                return [$prioridad, $fecha];
+            })->values();
+
+            DB::beginTransaction();
+
+            foreach ($ordenesOrdenadas as $index => $orden) {
+                $nuevaPrioridad = $index + 1;
+                DB::connection('sqlsrv')
+                    ->table('EngProgramaEngomado')
+                    ->where('Id', $orden->Id)
+                    ->update(['Prioridad' => $nuevaPrioridad]);
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Error al recalcular prioridades engomado: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Actualizar el status de una orden de engomado
+     * Si se cancela, se elimina la prioridad y se recalculan todas las demás
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function actualizarStatus(Request $request): JsonResponse
+    {
+        try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
+            $request->validate([
+                'id' => 'required|integer|exists:EngProgramaEngomado,Id',
+                'status' => ['required', 'string', Rule::in(['Programado', 'En Proceso', 'Parcial', 'Cancelado'])],
+            ]);
+
+            $orden = EngProgramaEngomado::findOrFail($request->id);
+            $nuevoStatus = $request->status;
+            $statusAnterior = $orden->Status;
+
+            if ($orden->Status === $nuevoStatus) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Status sin cambios',
+                ]);
+            }
+
+            DB::beginTransaction();
+
+            $orden->Status = $nuevoStatus;
+
+            if ($nuevoStatus === 'Cancelado') {
+                $orden->Prioridad = null;
+                $orden->save();
+
+                try {
+                    EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
+                } catch (\Throwable $e) {
+                    // No lanzar, solo registrar
+                }
+
+                $this->recalcularPrioridadesEngomado();
+            } elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ['Programado', 'En Proceso', 'Parcial'])) {
+                $maxPrioridad = EngProgramaEngomado::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                    ->whereNotNull('MaquinaEng')
+                    ->where('MaquinaEng', '!=', '')
+                    ->whereNotNull('Prioridad')
+                    ->max('Prioridad') ?? 0;
+
+                $orden->Prioridad = $maxPrioridad + 1;
+                $orden->save();
+            } else {
+                $orden->save();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Status actualizado correctamente',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación: ' . $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al actualizar status: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 
     /**
      * Obtener todas las órdenes sin agrupar por tabla
