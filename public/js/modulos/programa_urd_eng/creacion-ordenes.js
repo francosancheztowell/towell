@@ -402,6 +402,23 @@
         });
     }
 
+    /* =================== BomFormula (solo lectura) =================== */
+    async function cargarBomFormula(bomId) {
+        const el = qs('#inputBomFormula');
+        if (!el) return;
+        if (isBlank(bomId)) { el.textContent = '—'; return; }
+        const id = String(bomId).trim();
+        el.textContent = '…';
+        try {
+            const url = new URL(config.routes.bomFormula, window.location.origin);
+            url.searchParams.set('bomId', id);
+            const res = await fetchJSON(url.toString());
+            el.textContent = res.success && res.bomFormula ? String(res.bomFormula) : '—';
+        } catch {
+            el.textContent = '—';
+        }
+    }
+
     /* =================== Autocomplete: BOM Engomado (texto libre) =================== */
     function initAutocompleteBOMEngomado() {
         setupAutocomplete({
@@ -409,8 +426,19 @@
             searchRoute: config.routes.buscarBomEngomado,
             containerId: 'bom-engomado-suggestions',
             getLabel: s => `${s.BOMID} - ${s.NAME || ''}`,
-            onSelect: (inputEl, sug, hide) => { inputEl.value = sug.BOMID; hide(); }
+            onSelect: (inputEl, sug, hide) => {
+                inputEl.value = sug.BOMID;
+                cargarBomFormula(sug.BOMID);
+                hide();
+            }
         });
+        const inputLMatEngomado = qs('#inputLMatEngomado');
+        if (inputLMatEngomado) {
+            inputLMatEngomado.addEventListener('blur', () => {
+                const bomId = (inputLMatEngomado.value || '').trim();
+                cargarBomFormula(bomId);
+            });
+        }
     }
 
     /* =================== Materiales: Urdido =================== */

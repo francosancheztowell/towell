@@ -241,4 +241,30 @@ class BomMaterialesService
             ->get()
             ->toArray();
     }
+
+    /**
+     * Obtiene el BomFormula (ITEMID) a partir del BOM ID de engomado.
+     * Busca en BOM donde BOMID coincida y ITEMID sea tipo TE-PD-ENF%.
+     *
+     * @return string|null ITEMID de la fórmula o null si no existe
+     */
+    public function getBomFormula(?string $bomEngId): ?string
+    {
+        if (empty(trim($bomEngId ?? ''))) {
+            return null;
+        }
+
+        try {
+            $itemId = DB::connection(self::CONN)
+                ->table('BOM')
+                ->where('BOMID', trim($bomEngId))
+                ->where('DATAAREAID', self::DATAAREA)
+                ->where('ITEMID', 'like', 'TE-PD-ENF%')
+                ->value('ITEMID');
+
+            return $itemId ? (string) $itemId : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
 }
