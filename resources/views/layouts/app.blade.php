@@ -173,7 +173,7 @@
 
   <!-- ====== Modal Cortado de Rollo ====== -->
   <div id="modalCortadoRollos" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
-    <div class="relative bg-white rounded-lg shadow-xl w-[96vw] sm:w-[90vw] lg:w-[94vw] max-w-none mx-1 my-2 h-[85vh] max-h-[85vh] flex flex-col">
+    <div class="relative bg-white rounded-lg shadow-xl w-[96vw] sm:w-[90vw] lg:w-[94vw] max-w-none mx-1 my-2 h-[80vh] max-h-[80vh] flex flex-col">
       <!-- Header del Modal -->
       <div class="flex items-center justify-between gap-2 p-4 border-b border-gray-200">
         <h2 class="text-2xl font-bold text-gray-800 whitespace-nowrap">Cortado de Rollo</h2>
@@ -195,36 +195,8 @@
       <!-- Body del Modal -->
       <div class="p-6 flex-1 min-h-0 overflow-hidden flex flex-col">
 
-        <!-- Tabla de Producciones/Órdenes -->
-        <div id="tablaProduccionesCortadoContainer" class="mb-0 flex-shrink-0" style="display: none;">
-          <h3 class="text-xl font-semibold text-gray-800 mb-3">Seleccionar Orden de Producción</h3>
-          <div class="border-2 border-gray-300 rounded-lg overflow-hidden">
-            <div class="overflow-x-auto overflow-y-auto max-h-[200px]">
-              <table class="w-full bg-white table-fixed divide-y divide-gray-200">
-                <thead class="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salón</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Orden</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Inicio</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamaño</th>
-                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
-                    <th scope="col" class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Seleccionar</th>
-                  </tr>
-                </thead>
-                <tbody id="tablaProduccionesCortadoBody" class="bg-white divide-y divide-gray-200">
-                  <!-- Los datos se cargarán dinámicamente -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <!-- Mensaje cuando no hay datos -->
-          <div id="noDataProduccionesCortado" class="hidden text-center py-4 text-gray-500">
-            <p class="text-sm">No se encontraron órdenes/producciones para este telar</p>
-          </div>
-        </div>
-
-        <!-- Tabla de Datos de Producción (Marbetes) -->
-        <div id="tablaProduccionCortadoContainer" class="flex-1 min-h-0 mt-4" style="display: none;">
+        <!-- Tabla de Datos de Producción -->
+        <div id="tablaProduccionCortadoContainer" class="flex-1 min-h-0" style="display: none;">
           <h3 class="text-xl font-semibold text-gray-800 mb-4">Seleccionar Marbete a Liberar</h3>
           <div class="border-2 border-gray-300 rounded-lg overflow-hidden">
             <table class="w-full bg-white">
@@ -511,26 +483,10 @@
       document.getElementById('modalCortadoRollos').style.display = 'none';
       const select = document.getElementById('selectTelarCortado');
       if (select) select.value = '';
-      
-      // Limpiar tabla de producciones
-      const tablaProduccionesContainer = document.getElementById('tablaProduccionesCortadoContainer');
-      const tablaProduccionesBody = document.getElementById('tablaProduccionesCortadoBody');
-      if (tablaProduccionesContainer) tablaProduccionesContainer.style.display = 'none';
-      if (tablaProduccionesBody) tablaProduccionesBody.innerHTML = '';
-      
-      // Restaurar mensaje de no data
-      const noData = document.getElementById('noDataProduccionesCortado');
-      if (noData) {
-        noData.classList.add('hidden');
-        noData.innerHTML = '<p class="text-sm">No se encontraron órdenes/producciones para este telar</p>';
-      }
-      
-      // Limpiar tabla de marbetes
       const tabla = document.getElementById('tablaProduccionCortadoBody');
       if (tabla) tabla.innerHTML = '';
       const container = document.getElementById('tablaProduccionCortadoContainer');
       if (container) container.style.display = 'none';
-      
       const mensaje = document.getElementById('mensajeEstadoCortado');
       if (mensaje) mensaje.style.display = 'none';
       const btn = document.getElementById('btnNotificarCortado');
@@ -590,18 +546,13 @@
       const closeModalCortado = document.getElementById('closeModalCortado');
       const closeModalCortadoBtn = document.getElementById('closeModalCortadoBtn');
       const selectTelarCortado = document.getElementById('selectTelarCortado');
-      const tablaProduccionesCortadoContainer = document.getElementById('tablaProduccionesCortadoContainer');
-      const tablaProduccionesCortadoBody = document.getElementById('tablaProduccionesCortadoBody');
-      const noDataProduccionesCortado = document.getElementById('noDataProduccionesCortado');
       const tablaCortadoContainer = document.getElementById('tablaProduccionCortadoContainer');
       const tablaCortadoBody = document.getElementById('tablaProduccionCortadoBody');
       const mensajeCortado = document.getElementById('mensajeEstadoCortado');
       const btnNotificarCortado = document.getElementById('btnNotificarCortado');
 
       let ordenCortadoActual = null;
-      let produccionSeleccionada = null;
       let datosCortado = [];
-      let telarActualCortado = null;
 
       function mostrarMensajeCortado(mensaje, tipo) {
         mensajeCortado.textContent = mensaje;
@@ -609,163 +560,6 @@
         mensajeCortado.style.display = 'block';
         tablaCortadoContainer.style.display = 'none';
         btnNotificarCortado.style.display = 'none';
-      }
-
-      function ocultarMensajeCortado() {
-        mensajeCortado.style.display = 'none';
-      }
-
-      // Nivel 1 → 2: Cargar TODAS las órdenes en proceso del telar
-      function cargarOrdenEnProceso(telarId) {
-        telarActualCortado = telarId;
-        produccionSeleccionada = null;
-        tablaCortadoContainer.style.display = 'none';
-        btnNotificarCortado.style.display = 'none';
-        ocultarMensajeCortado();
-
-        // Mostrar loading
-        tablaProduccionesCortadoBody.innerHTML = `
-          <tr>
-            <td colspan="6" class="px-3 py-3 text-center text-gray-500">
-              <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <p class="mt-2">Cargando órdenes en proceso...</p>
-            </td>
-          </tr>
-        `;
-        tablaProduccionesCortadoContainer.style.display = 'block';
-        noDataProduccionesCortado.classList.add('hidden');
-
-        // Petición AJAX para TODAS las órdenes en proceso
-        fetch(`/tejedores/cortadoderollo/telar/${telarId}/ordenes-en-proceso`)
-          .then(response => response.json())
-          .then(data => {
-            tablaProduccionesCortadoBody.innerHTML = '';
-            
-            if (data.success && data.ordenes && data.ordenes.length > 0) {
-              data.ordenes.forEach(orden => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-green-50 transition-colors cursor-pointer';
-                row.innerHTML = `
-                  <td class="px-3 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
-                    ${orden.SalonTejidoId ?? 'N/A'}
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap text-xs font-bold text-green-700">
-                    ${orden.NoProduccion}
-                    <span class="ml-2 px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">EN PROCESO</span>
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-600">
-                    ${orden.FechaInicio ? new Date(orden.FechaInicio).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'}) : 'N/A'}
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-600">
-                    ${orden.TamanoClave ?? 'N/A'}
-                  </td>
-                  <td class="px-3 py-3 text-xs text-gray-600 break-words">
-                    ${orden.NombreProducto || 'N/A'}
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap text-center">
-                    <input type="checkbox"
-                           class="checkbox-produccion-cortado w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 cursor-pointer"
-                           data-telar="${telarId}"
-                           data-salon="${orden.SalonTejidoId ?? ''}"
-                           data-produccion="${orden.NoProduccion}"
-                           onchange="seleccionarProduccionCortado(this)">
-                  </td>
-                `;
-                tablaProduccionesCortadoBody.appendChild(row);
-              });
-            } else {
-              noDataProduccionesCortado.classList.remove('hidden');
-              noDataProduccionesCortado.innerHTML = '<p class="text-sm">No hay órdenes en proceso para este telar</p>';
-            }
-          })
-          .catch(error => {
-            console.error('Error:', error);
-            tablaProduccionesCortadoBody.innerHTML = `
-              <tr>
-                <td colspan="6" class="px-3 py-3 text-center text-red-500">
-                  Error al cargar las órdenes en proceso
-                </td>
-              </tr>
-            `;
-          });
-      }
-
-      // Nivel 2 → 3: Función global para seleccionar una orden y cargar sus marbetes
-      window.seleccionarProduccionCortado = function(checkbox) {
-        // Desmarcar otros checkboxes
-        document.querySelectorAll('.checkbox-produccion-cortado').forEach(cb => {
-          if (cb !== checkbox) {
-            cb.checked = false;
-          }
-        });
-
-        // Quitar selección visual de todas las filas
-        document.querySelectorAll('#tablaProduccionesCortadoBody tr').forEach(row => {
-          row.classList.remove('bg-green-200');
-        });
-
-        if (!checkbox.checked) {
-          produccionSeleccionada = null;
-          tablaCortadoContainer.style.display = 'none';
-          btnNotificarCortado.style.display = 'none';
-          ocultarMensajeCortado();
-          return;
-        }
-
-        // Marcar la fila seleccionada
-        checkbox.closest('tr').classList.add('bg-green-200');
-
-        // Guardar producción seleccionada
-        const noTelar = checkbox.dataset.telar;
-        const salon = checkbox.dataset.salon;
-        const noProduccion = checkbox.dataset.produccion;
-
-        produccionSeleccionada = {
-          NoProduccion: noProduccion,
-          NoTelarId: noTelar,
-          SalonTejidoId: salon
-        };
-
-        // Cargar marbetes de la orden seleccionada
-        cargarMarbetesCortado(noProduccion, noTelar, salon);
-      };
-
-      function cargarMarbetesCortado(noProduccion, noTelar, salon) {
-        mostrarMensajeCortado('Cargando marbetes de la producción seleccionada...', 'info');
-
-        fetch(`{{ route('notificar.cortado.rollo.datos.produccion') }}?no_produccion=${encodeURIComponent(noProduccion)}&no_telar=${encodeURIComponent(noTelar)}&salon=${encodeURIComponent(salon)}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (!data.success || data.datos.length === 0) {
-            let mensajeError = data.error || 'No se encontraron marbetes disponibles';
-            if (data.mensaje) {
-              mensajeError += '\n' + data.mensaje;
-            }
-            mostrarMensajeCortado(mensajeError, 'error');
-            console.log('Debug validación:', data.debug);
-            return;
-          }
-
-          datosCortado = data.datos;
-          renderizarTablaCortado(datosCortado);
-
-          ocultarMensajeCortado();
-          tablaCortadoContainer.style.display = 'block';
-          btnNotificarCortado.style.display = 'inline-block';
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          mostrarMensajeCortado('Error al cargar marbetes: ' + error.message, 'error');
-        });
       }
 
       function renderizarTablaCortado(datos) {
@@ -814,19 +608,67 @@
         }
       });
 
-      selectTelarCortado?.addEventListener('change', function() {
+      selectTelarCortado?.addEventListener('change', async function() {
         const noTelar = this.value;
 
         if (!noTelar) {
-          tablaProduccionesCortadoContainer.style.display = 'none';
           tablaCortadoContainer.style.display = 'none';
           btnNotificarCortado.style.display = 'none';
-          ocultarMensajeCortado();
           return;
         }
 
-        // Cargar primero la orden EN PROCESO del telar
-        cargarOrdenEnProceso(noTelar);
+        mostrarMensajeCortado('Buscando orden de producción...', 'info');
+
+        try {
+          const responseOrden = await fetch(`{{ route('notificar.cortado.rollo.orden.produccion') }}?no_telar=${encodeURIComponent(noTelar)}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          });
+
+          const dataOrden = await responseOrden.json();
+
+          if (!dataOrden.success) {
+            mostrarMensajeCortado(dataOrden.error || 'No se encontró orden activa', 'error');
+            console.log('Debug orden:', dataOrden.debug);
+            return;
+          }
+
+          ordenCortadoActual = dataOrden.orden;
+          mostrarMensajeCortado('Cargando datos de producción...', 'info');
+
+          const responseDatos = await fetch(`{{ route('notificar.cortado.rollo.datos.produccion') }}?no_produccion=${encodeURIComponent(ordenCortadoActual.NoProduccion)}&no_telar=${encodeURIComponent(noTelar)}&salon=${encodeURIComponent(ordenCortadoActual.SalonTejidoId || '')}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          });
+
+          const dataDatos = await responseDatos.json();
+
+          if (!dataDatos.success || dataDatos.datos.length === 0) {
+            let mensajeError = dataDatos.error || 'No se encontraron datos de producción';
+            if (dataDatos.mensaje) {
+              mensajeError += '\n' + dataDatos.mensaje;
+            }
+            mostrarMensajeCortado(mensajeError, 'error');
+            console.log('Debug validación:', dataDatos.debug);
+            return;
+          }
+
+          datosCortado = dataDatos.datos;
+          renderizarTablaCortado(datosCortado);
+
+          mensajeCortado.style.display = 'none';
+          tablaCortadoContainer.style.display = 'block';
+          btnNotificarCortado.style.display = 'inline-block';
+        } catch (error) {
+          console.error('Error:', error);
+          mostrarMensajeCortado('Error al cargar los datos: ' + error.message, 'error');
+        }
       });
 
       btnNotificarCortado?.addEventListener('click', async function() {
