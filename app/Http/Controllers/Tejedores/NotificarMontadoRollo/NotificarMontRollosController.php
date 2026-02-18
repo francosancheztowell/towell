@@ -6,11 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Tejedores\TelMarbeteLiberadoModel;
-use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 
 class NotificarMontRollosController extends Controller
@@ -133,117 +131,6 @@ class NotificarMontRollosController extends Controller
         }
 
         return response()->json(['detalles' => $detalles]);
-    }
-
-    /**
-     * Obtener TODAS las órdenes en proceso de un telar
-     * Un telar puede tener múltiples órdenes con EnProceso = 1
-     */
-    public function obtenerOrdenesEnProceso($telarId)
-    {
-        try {
-            $user = Auth::user();
-            
-            // Validar que el telar pertenece al operador
-            $telaresOperador = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
-                ->pluck('NoTelarId')
-                ->toArray();
-
-            if (!in_array($telarId, $telaresOperador)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No tiene permisos para ver este telar'
-                ], 403);
-            }
-
-            // Obtener TODAS las órdenes EN PROCESO (EnProceso = 1)
-            $ordenesEnProceso = ReqProgramaTejido::where('NoTelarId', $telarId)
-                ->where('EnProceso', 1)
-                ->whereNotNull('NoProduccion')
-                ->where('NoProduccion', '!=', '')
-                ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
-                ->distinct()
-                ->orderBy('FechaInicio', 'asc')
-                ->get();
-
-            Log::info('obtenerOrdenesEnProceso - Cortado de Rollo', [
-                'telarId' => $telarId,
-                'count' => $ordenesEnProceso->count(),
-                'ordenes' => $ordenesEnProceso->pluck('NoProduccion')->toArray(),
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'ordenes' => $ordenesEnProceso
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error en obtenerOrdenesEnProceso - Cortado de Rollo', [
-                'error' => $e->getMessage(),
-                'telarId' => $telarId
-            ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener las órdenes en proceso: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Obtener todas las producciones de un telar (excluyendo la que está en proceso)
-     * @deprecated Ya no se usa - ahora solo mostramos órdenes en proceso
-     */
-    public function obtenerProducciones($telarId)
-    {
-        try {
-            $user = Auth::user();
-            
-            // Validar que el telar pertenece al operador
-            $telaresOperador = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
-                ->pluck('NoTelarId')
-                ->toArray();
-
-            if (!in_array($telarId, $telaresOperador)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No tiene permisos para ver este telar'
-                ], 403);
-            }
-
-            // Obtener producciones del telar que NO están en proceso
-            $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
-                ->where(function ($query) {
-                    $query->whereNull('EnProceso')
-                        ->orWhere('EnProceso', 0);
-                })
-                ->whereNotNull('NoProduccion')
-                ->where('NoProduccion', '!=', '')
-                ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
-                ->distinct()
-                ->orderBy('FechaInicio', 'asc')
-                ->get();
-
-            Log::info('obtenerProducciones - Cortado de Rollo', [
-                'telarId' => $telarId,
-                'count' => $producciones->count(),
-                'producciones' => $producciones->pluck('NoProduccion')->toArray(),
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'producciones' => $producciones
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error en obtenerProducciones - Cortado de Rollo', [
-                'error' => $e->getMessage(),
-                'telarId' => $telarId
-            ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener las producciones: ' . $e->getMessage()
-            ], 500);
-        }
     }
 
     public function notificar(Request $request)
