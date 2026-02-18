@@ -49,5 +49,6 @@ Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () 
     Route::post('/crear-ordenes', [ProgramarUrdEngController::class, 'crearOrdenes'])->name('crear.ordenes');
     Route::get('/hilos', [BomMaterialesController::class, 'obtenerHilos'])->name('hilos');
     Route::get('/tamanos', [BomMaterialesController::class, 'obtenerTamanos'])->name('tamanos');
+    Route::get('/bom-formula', [BomMaterialesController::class, 'getBomFormula'])->name('bom.formula');
 });
 

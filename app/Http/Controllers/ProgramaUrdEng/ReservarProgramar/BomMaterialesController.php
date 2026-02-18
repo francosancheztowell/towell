@@ -119,4 +119,25 @@ class BomMaterialesController extends Controller
             return response()->json(['success' => false, 'message' => 'Error al obtener los tamaños: ' . $e->getMessage()], 500);
         }
     }
+
+    public function getBomFormula(Request $request): JsonResponse
+    {
+        try {
+            $bomId = trim((string) ($request->query('bomId') ?? $request->input('bomId', '')));
+            $formula = $this->service->getBomFormula($bomId ?: null);
+
+            return response()->json([
+                'success' => true,
+                'bomFormula' => $formula,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('getBomFormula', ['msg' => $e->getMessage()]);
+
+            return response()->json([
+                'success' => false,
+                'bomFormula' => null,
+                'message' => 'Error al obtener BomFormula',
+            ], 500);
+        }
+    }
 }

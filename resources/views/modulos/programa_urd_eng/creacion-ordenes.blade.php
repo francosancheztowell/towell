@@ -227,6 +227,7 @@
                             <th class="px-2 py-2 text-center text-sm font-semibold w-32">Cuendeados Mín. por Tela</th>
                             <th class="px-2 py-2 text-center text-sm font-semibold w-32">Máquina Engomado</th>
                             <th class="px-2 py-2 text-center text-sm font-semibold w-32">L Mat Engomado</th>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-32">Bom Formula</th>
                             <th class="px-2 py-2 text-center text-sm font-semibold w-40">Observaciones</th>
                         </tr>
                     </thead>
@@ -259,6 +260,9 @@
                             </td>
                             <td class="px-2 py-2">
                                 <input type="text" id="inputLMatEngomado" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar lista..." data-bom-engomado-input="true" autocomplete="off" required>
+                            </td>
+                            <td class="px-2 py-2">
+                                <span id="inputBomFormula" class="block w-full px-2 py-1.5 bg-gray-100 border border-gray-200 rounded-md text-xs text-gray-600" readonly aria-readonly="true">—</span>
                             </td>
                             <td class="px-2 py-2">
                                 <textarea id="inputObservaciones" rows="2" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder=""></textarea>
@@ -299,6 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 anchosBalona: '{{ route("programa.urd.eng.anchos.balona") }}',
                 maquinasEngomado: '{{ route("programa.urd.eng.maquinas.engomado") }}',
                 nucleos: '{{ route("programa.urd.eng.nucleos") }}',
+                bomFormula: '{{ route("programa.urd.eng.bom.formula") }}',
                 crearOrdenes: '{{ route("programa.urd.eng.crear.ordenes") }}'
             }
         });

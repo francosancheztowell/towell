@@ -6,6 +6,7 @@ namespace App\Services\ProgramaUrdEng;
 
 use App\Models\Engomado\EngAnchoBalonaCuenta;
 use App\Models\Urdido\URDCatalogoMaquina;
+use App\Models\Urdido\UrdConsumoHilo;
 use Illuminate\Support\Facades\DB;
 
 class BomMaterialesService
@@ -80,10 +81,14 @@ class BomMaterialesService
 
     public function getMaterialesEngomado(array $itemIds, array $configIds = []): array
     {
-        $itemIds = array_values(array_filter(array_map(fn ($id) => trim((string)$id) ?: null, $itemIds)));
-        if (empty($itemIds)) return [];
+        $itemIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $itemIds)));
+        if (empty($itemIds)) {
+            return [];
+        }
 
-        $configIds = array_values(array_filter(array_map(fn ($id) => trim((string)$id) ?: null, $configIds)));
+        $configIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $configIds)));
+
+        $consumidosKeys = $this->obtenerMaterialesConsumidosKeys($itemIds);
 
         $q = DB::connection(self::CONN)
             ->table('InventSum as sum')
@@ -98,18 +103,89 @@ class BomMaterialesService
             ->whereIn('dim.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
             ->where('ser.DATAAREAID', self::DATAAREA);
 
-        if (!empty($configIds)) {
+        if (! empty($configIds)) {
             $q->whereIn('dim.CONFIGID', $configIds);
         }
 
-        return $q->select([
-            'sum.ITEMID as ItemId', 'sum.PHYSICALINVENT as PhysicalInvent', 'sum.RESERVPHYSICAL as ReservPhysical',
-            'dim.CONFIGID as ConfigId', 'dim.INVENTSIZEID as InventSizeId', 'dim.INVENTCOLORID as InventColorId',
-            'dim.INVENTLOCATIONID as InventLocationId', 'dim.INVENTBATCHID as InventBatchId',
-            'dim.WMSLOCATIONID as WMSLocationId', 'dim.INVENTSERIALID as InventSerialId',
-            'ser.PRODDATE as ProdDate', 'ser.TWTIRAS as TwTiras',
-            'ser.TWCALIDADFLOG as TwCalidadFlog', 'ser.TWCLIENTEFLOG as TwClienteFlog'
-        ])->orderBy('sum.ITEMID')->get()->toArray();
+        $results = $q->select([
+            'sum.ITEMID as ItemId',
+            'sum.PHYSICALINVENT as PhysicalInvent',
+            'sum.RESERVPHYSICAL as ReservPhysical',
+            'dim.CONFIGID as ConfigId',
+            'dim.INVENTSIZEID as InventSizeId',
+            'dim.INVENTCOLORID as InventColorId',
+            'dim.INVENTLOCATIONID as InventLocationId',
+            'dim.INVENTBATCHID as InventBatchId',
+            'dim.WMSLOCATIONID as WMSLocationId',
+            'dim.INVENTSERIALID as InventSerialId',
+            'ser.PRODDATE as ProdDate',
+            'ser.TWTIRAS as TwTiras',
+            'ser.TWCALIDADFLOG as TwCalidadFlog',
+            'ser.TWCLIENTEFLOG as TwClienteFlog',
+        ])->orderBy('sum.ITEMID')->get();
+
+        return $this->excluirMaterialesConsumidos($results, $consumidosKeys);
+    }
+
+    /**
+     * Obtiene las claves (ItemId|InventSerialId) de materiales ya consumidos en UrdConsumoHilo.
+     * Sirve para no mostrar en la tabla materiales que ya fueron asignados a órdenes anteriores.
+     *
+     * @param  array<string>  $itemIds
+     * @return array<string, true> Map de claves consumidas para lookup O(1)
+     */
+    private function obtenerMaterialesConsumidosKeys(array $itemIds): array
+    {
+        $consumidos = UrdConsumoHilo::query()
+            ->whereIn('ItemId', $itemIds)
+            ->select('ItemId', 'InventSerialId')
+            ->distinct()
+            ->get();
+
+        $keys = [];
+        foreach ($consumidos as $row) {
+            $key = self::claveMaterialConsumido(
+                trim($row->ItemId ?? ''),
+                trim($row->InventSerialId ?? '')
+            );
+            $keys[$key] = true;
+        }
+
+        return $keys;
+    }
+
+    /**
+     * Genera la clave única para identificar un material consumido (ItemId + InventSerialId).
+     */
+    private static function claveMaterialConsumido(string $itemId, string $inventSerialId): string
+    {
+        return $itemId . '|' . $inventSerialId;
+    }
+
+    /**
+     * Filtra los materiales de inventario excluyendo los que ya están en UrdConsumoHilo.
+     *
+     * @param  \Illuminate\Support\Collection  $results
+     * @param  array<string, true>  $consumidosKeys
+     * @return array
+     */
+    private function excluirMaterialesConsumidos($results, array $consumidosKeys): array
+    {
+        if (empty($consumidosKeys)) {
+            return $results->toArray();
+        }
+
+        return $results
+            ->filter(function ($row) use ($consumidosKeys) {
+                $key = self::claveMaterialConsumido(
+                    trim($row->ItemId ?? ''),
+                    trim($row->InventSerialId ?? '')
+                );
+
+                return ! isset($consumidosKeys[$key]);
+            })
+            ->values()
+            ->toArray();
     }
 
     public function getAnchosBalona(?string $cuenta, ?string $tipo): array
@@ -164,5 +240,31 @@ class BomMaterialesService
             ->distinct()
             ->get()
             ->toArray();
+    }
+
+    /**
+     * Obtiene el BomFormula (ITEMID) a partir del BOM ID de engomado.
+     * Busca en BOM donde BOMID coincida y ITEMID sea tipo TE-PD-ENF%.
+     *
+     * @return string|null ITEMID de la fórmula o null si no existe
+     */
+    public function getBomFormula(?string $bomEngId): ?string
+    {
+        if (empty(trim($bomEngId ?? ''))) {
+            return null;
+        }
+
+        try {
+            $itemId = DB::connection(self::CONN)
+                ->table('BOM')
+                ->where('BOMID', trim($bomEngId))
+                ->where('DATAAREAID', self::DATAAREA)
+                ->where('ITEMID', 'like', 'TE-PD-ENF%')
+                ->value('ITEMID');
+
+            return $itemId ? (string) $itemId : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }
