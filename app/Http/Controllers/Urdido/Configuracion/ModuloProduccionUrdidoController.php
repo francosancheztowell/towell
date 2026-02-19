@@ -287,8 +287,8 @@ class ModuloProduccionUrdidoController extends Controller
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
-                'campo' => 'required|string|in:Hilatura,Maquina,Operac,Transf',
-                'valor' => 'nullable|integer|min:0|max:100',
+                'campo' => 'required|string|in:Hilos,Hilatura,Maquina,Operac,Transf',
+                'valor' => 'nullable|integer|min:0|max:9999',
             ]);
 
             $registro = UrdProduccionUrdido::find($request->registro_id);

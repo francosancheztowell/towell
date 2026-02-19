@@ -2,6 +2,7 @@
 
 namespace App\Models\Urdido;
 
+use App\Models\Engomado\EngProgramaEngomado;
 use Illuminate\Database\Eloquent\Model;
 
 class UrdProgramaUrdido extends Model

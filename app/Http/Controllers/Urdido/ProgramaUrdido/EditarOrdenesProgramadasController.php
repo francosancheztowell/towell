@@ -7,8 +7,8 @@ use App\Models\Urdido\UrdProgramaUrdido;
 use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\URDCatalogoMaquina;
-use App\Models\Planeacion\ReqMatrizHilos;
 use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Urdido\UrdProduccionUrdido;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +20,10 @@ use Illuminate\Validation\Rule;
 
 class EditarOrdenesProgramadasController extends Controller
 {
+    private const ACCION_METROS_SOLO_CAMPO = 'solo_campo';
+    private const ACCION_METROS_ACTUALIZAR_TODA = 'actualizar_produccion_toda';
+    private const ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO = 'actualizar_produccion_sin_hora_inicio';
+
     /**
      * Verificar si el usuario puede editar órdenes
      * Permite a cualquier supervisor editar, no solo los de urdido
@@ -54,6 +58,126 @@ class EditarOrdenesProgramadasController extends Controller
         }
 
         return EngProgramaEngomado::where('Folio', $folio)->first();
+    }
+
+    private function accionesMetrosPermitidasPorStatus(string $statusActual): array
+    {
+        if ($statusActual === 'Finalizado') {
+            return [
+                self::ACCION_METROS_SOLO_CAMPO,
+                self::ACCION_METROS_ACTUALIZAR_TODA,
+            ];
+        }
+
+        if ($statusActual === 'En Proceso') {
+            return [
+                self::ACCION_METROS_SOLO_CAMPO,
+                self::ACCION_METROS_ACTUALIZAR_TODA,
+                self::ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO,
+            ];
+        }
+
+        return [self::ACCION_METROS_SOLO_CAMPO];
+    }
+
+    private function sincronizarMetrosProduccion(UrdProgramaUrdido $orden, ?float $metros, string $accionMetros): int
+    {
+        $query = UrdProduccionUrdido::where('Folio', $orden->Folio);
+
+        if ($accionMetros === self::ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO) {
+            $query->where(function ($q) {
+                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+            });
+        }
+
+        $metrosNormalizados = $metros !== null ? round($metros, 2) : null;
+
+        return $query->update([
+            'Metros1' => $metrosNormalizados,
+            'Metros2' => null,
+            'Metros3' => null,
+        ]);
+    }
+
+    private function sincronizarHilosProduccionPorFolio(UrdProgramaUrdido $orden, ?int $hilosAnterior, ?int $hilosNuevo): int
+    {
+        if ($hilosAnterior === null || $hilosNuevo === null || $hilosAnterior === $hilosNuevo) {
+            return 0;
+        }
+
+        return UrdProduccionUrdido::where('Folio', $orden->Folio)
+            ->where('Hilos', $hilosAnterior)
+            ->update(['Hilos' => $hilosNuevo]);
+    }
+
+    private function crearRegistrosProduccionDesdeJulio(UrdProgramaUrdido $orden, int $cantidadJulios, int $hilos): array
+    {
+        if ($cantidadJulios <= 0 || $hilos <= 0) {
+            return [];
+        }
+
+        $usuario = Auth::user();
+        $claveUsuario = $usuario ? ($usuario->numero_empleado ?? null) : null;
+        $nombreUsuario = $usuario ? ($usuario->nombre ?? null) : null;
+        $turnoUsuario = $usuario ? ($usuario->turno ?? null) : null;
+        $metrosOrden = $orden->Metros !== null ? round((float) $orden->Metros, 2) : null;
+
+        $creados = [];
+        for ($i = 0; $i < $cantidadJulios; $i++) {
+            $data = [
+                'Folio' => $orden->Folio,
+                'TipoAtado' => $orden->TipoAtado ?? null,
+                'NoJulio' => null,
+                'Hilos' => $hilos,
+                'Fecha' => now()->format('Y-m-d'),
+            ];
+            if (!empty($claveUsuario)) {
+                $data['CveEmpl1'] = $claveUsuario;
+            }
+            if (!empty($nombreUsuario)) {
+                $data['NomEmpl1'] = $nombreUsuario;
+            }
+            if (!empty($turnoUsuario)) {
+                $data['Turno1'] = (int) $turnoUsuario;
+            }
+            if ($metrosOrden !== null && $metrosOrden > 0) {
+                $data['Metros1'] = $metrosOrden;
+            }
+
+            $registro = UrdProduccionUrdido::create($data);
+            $creados[] = [
+                'id' => (int) $registro->Id,
+                'hilos' => (int) ($registro->Hilos ?? $hilos),
+                'metros' => (float) (($registro->Metros1 ?? 0) + ($registro->Metros2 ?? 0) + ($registro->Metros3 ?? 0)),
+            ];
+        }
+
+        return $creados;
+    }
+
+    private function eliminarRegistrosProduccionPorEliminacionJulio(UrdProgramaUrdido $orden, int $hilos, int $cantidadJulios): array
+    {
+        if ($hilos <= 0 || $cantidadJulios <= 0) {
+            return [];
+        }
+
+        $ids = UrdProduccionUrdido::where('Folio', $orden->Folio)
+            ->where('Hilos', $hilos)
+            ->orderByRaw("CASE WHEN HoraInicial IS NULL OR LTRIM(RTRIM(HoraInicial)) = '' THEN 0 ELSE 1 END ASC")
+            ->orderBy('Id', 'desc')
+            ->limit($cantidadJulios)
+            ->pluck('Id')
+            ->map(static fn($id) => (int) $id)
+            ->values()
+            ->all();
+
+        if (count($ids) === 0) {
+            return [];
+        }
+
+        UrdProduccionUrdido::whereIn('Id', $ids)->delete();
+
+        return $ids;
     }
 
     /**
@@ -99,53 +223,46 @@ class EditarOrdenesProgramadasController extends Controller
         }
 
 
-        // Obtener engomado exacto: misma línea (Folio + NoTelarId) para no mezclar órdenes
-        $engomado = $this->obtenerEngomadoPorOrden($orden);
         $julios = $orden->julios()->orderBy('Id')->get();
         $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
-        $axEngomado = (int) ($engomado?->AX ?? $engomado?->Ax ?? $engomado?->getAttribute('ax') ?? 0);
         if ($axUrdido === 0) {
             $axUrdido = (int) (DB::table('UrdProgramaUrdido')->where('Id', $orden->Id)->value('ax') ?? 0);
         }
-        if ($axEngomado === 0 && $engomado) {
-            $axEngomado = (int) (DB::table('EngProgramaEngomado')->where('Id', $engomado->Id)->value('ax') ?? 0);
-        }
         $bloqueaUrdido = $axUrdido === 1;
-        $bloqueaEngomado = $axEngomado === 1;
 
         // Obtener máquinas disponibles del área Urdido
         $maquinas = URDCatalogoMaquina::where('Departamento', 'Urdido')
             ->orderBy('MaquinaId')
             ->get();
-        $maquinasEngomado = URDCatalogoMaquina::where('Departamento', 'Engomado')
-            ->orderBy('MaquinaId')
-            ->get();
-
-        // Obtener fibras/hilos disponibles del catálogo ReqMatrizHilos
-        // Usar distinct para obtener valores únicos de Hilo (que es el identificador principal)
-        $fibras = ReqMatrizHilos::select('Hilo', 'Fibra')
-            ->whereNotNull('Hilo')
-            ->where('Hilo', '!=', '')
-            ->orderBy('Hilo')
-            ->get()
-            ->unique('Hilo')
-            ->values();
 
         // Formatear metros con separador de miles
         $metros = $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0';
 
+        // Solo En Proceso o Programado permiten editar MaquinaId, BomId, Fibra, Calibre, Cuenta, RizoPie y Julios
+        $permiteEditarPorStatus = in_array(trim($orden->Status ?? ''), ['En Proceso', 'Programado'], true);
+
+        $registrosProduccion = collect();
+        $mapaJuliosHilos = [];
+        foreach ($julios as $j) {
+            $key = trim((string) ($j->Julios ?? ''));
+            if ($key !== '') {
+                $mapaJuliosHilos[$key] = (int) ($j->Hilos ?? 0);
+            }
+        }
+        if (in_array(trim($orden->Status ?? ''), ['Finalizado', 'En Proceso'], true)) {
+            $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)->orderBy('Id')->get();
+        }
+
         return view('modulos.urdido.editar-orden-programada', [
             'orden' => $orden,
-            'engomado' => $engomado,
             'metros' => $metros,
             'maquinas' => $maquinas,
-            'maquinasEngomado' => $maquinasEngomado,
-            'fibras' => $fibras,
             'julios' => $julios,
             'axUrdido' => $axUrdido,
-            'axEngomado' => $axEngomado,
             'bloqueaUrdido' => $bloqueaUrdido,
-            'bloqueaEngomado' => $bloqueaEngomado,
+            'permiteEditarPorStatus' => $permiteEditarPorStatus,
+            'registrosProduccion' => $registrosProduccion,
+            'mapaJuliosHilos' => $mapaJuliosHilos,
             'puedeEditar' => $puedeEditar,
             'fromReimpresion' => $fromReimpresion,
         ]);
@@ -168,7 +285,6 @@ class EditarOrdenesProgramadasController extends Controller
                     'Cuenta',
                     'Calibre',
                     'Metros',
-                    'Kilos',
                     'Fibra',
                     'InventSizeId',
                     'SalonTejidoId',
@@ -178,17 +294,15 @@ class EditarOrdenesProgramadasController extends Controller
                     'TipoAtado',
                     'LoteProveedor',
                     'FolioConsumo',
-                    'AnchoBalonas',
-                    'MetrajeTelas',
-                    'Cuentados',
-                    'NoTelas',
-                    'MaquinaEng',
-                    'BomEng',
-                    'BomUrd',
-                    'BomFormula',
+                    'NoTelarId',
                     'Observaciones',
                 ])],
                 'valor' => 'nullable|string|max:500',
+                'accion_metros' => ['nullable', 'string', Rule::in([
+                    self::ACCION_METROS_SOLO_CAMPO,
+                    self::ACCION_METROS_ACTUALIZAR_TODA,
+                    self::ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO,
+                ])],
             ]);
 
             // Validar que el folio no se pueda editar
@@ -212,99 +326,85 @@ class EditarOrdenesProgramadasController extends Controller
 
             $campo = $request->campo;
             $valor = $request->valor;
+            $statusActual = trim($orden->Status ?? '');
+            $accionMetros = (string) ($request->input('accion_metros') ?? self::ACCION_METROS_SOLO_CAMPO);
+
+            if ($campo !== 'Metros') {
+                $accionMetros = self::ACCION_METROS_SOLO_CAMPO;
+            }
+
+            if ($campo === 'Metros') {
+                $accionesPermitidas = $this->accionesMetrosPermitidasPorStatus($statusActual);
+                if (!in_array($accionMetros, $accionesPermitidas, true)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'La opcion seleccionada para actualizar metros no aplica para el estado actual de la orden.',
+                    ], 422);
+                }
+            }
+
             $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
-            $axEngomado = (int) ($engomado->AX ?? $engomado->Ax ?? $engomado->getAttribute('ax') ?? 0);
             if ($axUrdido === 0) {
                 $axUrdido = (int) (DB::table('UrdProgramaUrdido')->where('Id', $orden->Id)->value('ax') ?? 0);
             }
-            if ($axEngomado === 0) {
-                $axEngomado = (int) (DB::table('EngProgramaEngomado')->where('Id', $engomado->Id)->value('ax') ?? 0);
-            }
             $bloqueaUrdido = $axUrdido === 1;
-            $bloqueaEngomado = $axEngomado === 1;
 
-            $camposUrdido = [
-                'RizoPie',
+            // Campos que se bloquean con AX=1. NoTelarId, RizoPie, Metros, FolioConsumo, TipoAtado (Tipo) siempre se pueden editar
+            $camposBloqueadosPorAx = [
                 'Cuenta',
                 'Calibre',
-                'Metros',
-                'Kilos',
                 'Fibra',
                 'InventSizeId',
                 'SalonTejidoId',
                 'MaquinaId',
                 'BomId',
                 'FechaProg',
-                'TipoAtado',
                 'LoteProveedor',
-                'FolioConsumo',
                 'Observaciones',
             ];
-            $camposEngomado = [
-                'AnchoBalonas',
-                'MetrajeTelas',
-                'Cuentados',
-                'NoTelas',
-                'MaquinaEng',
-                'BomEng',
-                'BomUrd',
-                'BomFormula',
-            ];
 
-            if ($bloqueaUrdido && in_array($campo, $camposUrdido, true)) {
+            if ($bloqueaUrdido && in_array($campo, $camposBloqueadosPorAx, true)) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Urdido ya está en AX. No se pueden editar campos de Urdido.',
                 ], 403);
             }
 
-            if ($bloqueaEngomado && in_array($campo, $camposEngomado, true)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Engomado ya está en AX. No se pueden editar campos de Engomado.',
-                ], 403);
-            }
-            if ($campo === 'BomId' && $bloqueaEngomado) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Engomado ya está en AX. No se puede sincronizar Bom Urd.',
-                ], 403);
-            }
-            if ($campo === 'BomUrd' && $bloqueaUrdido) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Urdido ya está en AX. No se puede sincronizar Bom Urdido.',
-                ], 403);
+            // Solo En Proceso o Programado permiten editar MaquinaId, BomId, Fibra, Calibre, Cuenta, RizoPie
+            $camposPorStatus = ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaId', 'BomId'];
+            if (in_array($campo, $camposPorStatus, true)) {
+                if (!in_array($statusActual, ['En Proceso', 'Programado'], true)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Solo se pueden editar estos campos cuando el estado es En Proceso o Programado.',
+                    ], 403);
+                }
             }
 
-            // Mapeo de campos entre UrdProgramaUrdido y EngProgramaEngomado
+            // Mapeo de campos entre UrdProgramaUrdido y EngProgramaEngomado (solo campos editables en esta pantalla)
             $camposSincronizados = [
                 'RizoPie' => 'RizoPie',
                 'Cuenta' => 'Cuenta',
                 'Calibre' => 'Calibre',
                 'Metros' => 'Metros',
-                'Kilos' => 'Kilos',
                 'Fibra' => 'Fibra',
                 'InventSizeId' => 'InventSizeId',
                 'SalonTejidoId' => 'SalonTejidoId',
                 'FechaProg' => 'FechaProg',
                 'TipoAtado' => 'TipoAtado',
                 'LoteProveedor' => 'LoteProveedor',
-                'BomFormula' => 'BomFormula',
+                'NoTelarId' => 'NoTelarId',
                 'Observaciones' => 'Observaciones',
             ];
 
             // Campos especiales que requieren conversión
-            $camposNumericos = ['Calibre', 'Metros', 'Kilos', 'MetrajeTelas', 'AnchoBalonas', 'Cuentados', 'NoTelas'];
+            $camposNumericos = ['Calibre', 'Metros'];
             $camposFecha = ['FechaProg'];
-            $camposSoloEngomado = ['AnchoBalonas', 'MetrajeTelas', 'Cuentados', 'NoTelas', 'MaquinaEng', 'BomEng', 'BomUrd'];
-            if ($bloqueaUrdido) {
-                $camposSoloEngomado[] = 'BomFormula';
-            }
 
             DB::beginTransaction();
 
             try {
+                $registrosProduccionActualizados = 0;
                 // Convertir valor según el tipo de campo
                 if (in_array($campo, $camposNumericos)) {
                     $valor = $valor !== null && $valor !== '' ? (float)$valor : null;
@@ -329,31 +429,6 @@ class EditarOrdenesProgramadasController extends Controller
                             'error' => "Tamaño demasiado largo. Máximo {$maxLen} caracteres.",
                         ], 422);
                     }
-                }
-
-                // Si es un campo solo de Engomado, no tocar UrdProgramaUrdido
-                if (in_array($campo, $camposSoloEngomado, true)) {
-                    $valorAntEng = $engomado->getAttribute($campo);
-                    $engomado->$campo = $valor;
-                    $engomado->save();
-                    AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo($campo, $valorAntEng, $valor));
-                    if ($campo === 'BomUrd') {
-                        $valorAntOrden = $orden->BomId;
-                        $orden->BomId = $valor;
-                        $orden->save();
-                        AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_URDIDO, (int) $orden->Id, $orden->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo('BomId', $valorAntOrden, $valor));
-                    }
-
-                    DB::commit();
-
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Campo actualizado correctamente',
-                        'data' => [
-                            'campo' => $campo,
-                            'valor' => $valor,
-                        ],
-                    ]);
                 }
 
                 // Actualizar campo en UrdProgramaUrdido
@@ -384,21 +459,30 @@ class EditarOrdenesProgramadasController extends Controller
                     $engomado->save();
                     AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo('BomUrd', $valorAntEng, $valor));
                 }
-                if ($campo === 'BomUrd') {
-                    $valorAntOrden = $orden->BomId;
-                    $orden->BomId = $valor;
-                    $orden->save();
-                    AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_URDIDO, (int) $orden->Id, $orden->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo('BomId', $valorAntOrden, $valor));
+
+                if ($campo === 'Metros' && $accionMetros !== self::ACCION_METROS_SOLO_CAMPO) {
+                    $registrosProduccionActualizados = $this->sincronizarMetrosProduccion(
+                        $orden,
+                        $valor !== null ? (float) $valor : null,
+                        $accionMetros
+                    );
                 }
 
                 DB::commit();
 
+                $message = 'Campo actualizado correctamente';
+                if ($campo === 'Metros' && $accionMetros !== self::ACCION_METROS_SOLO_CAMPO) {
+                    $message .= ". Se sincronizaron {$registrosProduccionActualizados} registro(s) de produccion.";
+                }
+
                 return response()->json([
                     'success' => true,
-                    'message' => 'Campo actualizado correctamente',
+                    'message' => $message,
                     'data' => [
                         'campo' => $campo,
                         'valor' => $valor,
+                        'accion_metros' => $campo === 'Metros' ? $accionMetros : self::ACCION_METROS_SOLO_CAMPO,
+                        'registros_produccion_actualizados' => $registrosProduccionActualizados,
                     ],
                 ]);
             } catch (\Throwable $e) {
@@ -486,6 +570,57 @@ class EditarOrdenesProgramadasController extends Controller
     }
 
     /**
+     * Actualizar Hilos en UrdJuliosOrden (tabla No. Julio / Hilos) y
+     * sincronizar Hilos en UrdProduccionUrdido por Folio + Hilos anterior.
+     */
+    public function actualizarHilosProduccion(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'orden_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+                'no_julio' => 'required',
+                'hilos' => 'required',
+            ]);
+            $orden = UrdProgramaUrdido::findOrFail($request->orden_id);
+            $noJulio = $request->input('no_julio');
+            $hilos = (int) $request->input('hilos');
+            $hilosAnterior = null;
+            $registrosProduccionActualizados = 0;
+            $k = trim((string) $noJulio);
+            $julio = UrdJuliosOrden::where('Folio', $orden->Folio)
+                ->where(function ($q) use ($k) {
+                    $q->where('Julios', $k)->orWhere('Julios', (int) $k);
+                })->first();
+
+            if (!$julio) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se encontro el registro de julio para actualizar hilos.',
+                ], 404);
+            }
+
+            $hilosAnterior = $julio->Hilos !== null ? (int) $julio->Hilos : null;
+            $julio->Hilos = $hilos;
+            $julio->save();
+            if (trim((string) ($orden->Status ?? '')) !== 'Programado') {
+                $registrosProduccionActualizados = $this->sincronizarHilosProduccionPorFolio($orden, $hilosAnterior, $hilos);
+            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Hilos actualizados',
+                'data' => [
+                    'hilos_anterior' => $hilosAnterior,
+                    'hilos_nuevo' => $hilos,
+                    'registros_produccion_actualizados' => $registrosProduccionActualizados,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al actualizar hilos', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Actualizar No. Julio y Hilos para una orden
      *
      * @param Request $request
@@ -496,37 +631,118 @@ class EditarOrdenesProgramadasController extends Controller
         try {
             $request->validate([
                 'orden_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
-                'id' => 'nullable|integer|exists:UrdJuliosOrden,Id',
-                'no_julio' => 'nullable|integer|min:1',
-                'hilos' => 'nullable|integer|min:1',
+                'id' => 'nullable|integer',
+                'no_julio' => 'nullable',
+                'hilos' => 'nullable',
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->orden_id);
+
+            $statusActual = trim($orden->Status ?? '');
+            $registroId = $request->input('id');
+            $noJulio = $request->input('no_julio');
+            $hilos = $request->input('hilos');
+            $esSoloActualizarHilos = $noJulio !== null && $noJulio !== '' && $hilos !== null && $hilos !== '';
+
+            // En Proceso, Programado: permiten todo. Finalizado: solo actualizar Hilos (existente)
+            if (!in_array($statusActual, ['En Proceso', 'Programado'], true)) {
+                if ($statusActual !== 'Finalizado' || !$esSoloActualizarHilos) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Solo se pueden editar los julios cuando el estado es En Proceso o Programado.',
+                    ], 403);
+                }
+            }
+
             $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
             if ($axUrdido === 0) {
                 $axUrdido = (int) (DB::table('UrdProgramaUrdido')->where('Id', $orden->Id)->value('ax') ?? 0);
             }
             $bloqueaUrdido = $axUrdido === 1;
 
-            if ($bloqueaUrdido) {
+            if ($bloqueaUrdido && !$esSoloActualizarHilos) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Urdido ya está en AX. No se pueden editar julios.',
                 ], 403);
             }
 
-            $noJulio = $request->input('no_julio');
-            $hilos = $request->input('hilos');
-            $registroId = $request->input('id');
+            if ($esSoloActualizarHilos && $statusActual === 'Finalizado') {
+                $registro = null;
+                $hilosAnterior = null;
+                $registrosProduccionActualizados = 0;
+                if ($registroId) {
+                    $registro = UrdJuliosOrden::where('Id', (int) $registroId)->where('Folio', $orden->Folio)->first();
+                }
+                if (!$registro && $noJulio !== null && $noJulio !== '') {
+                    $k = trim((string) $noJulio);
+                    $registro = UrdJuliosOrden::where('Folio', $orden->Folio)
+                        ->where(function ($q) use ($k) {
+                            $q->where('Julios', $k)->orWhere('Julios', (int) $k);
+                        })->first();
+                }
+
+                if (!$registro) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'No se encontro el registro de julio para actualizar hilos.',
+                    ], 404);
+                }
+
+                if ($registro) {
+                    $hilosAnterior = $registro->Hilos !== null ? (int) $registro->Hilos : null;
+                    $registro->Hilos = (int) $hilos;
+                    $registro->save();
+                    $registrosProduccionActualizados = $this->sincronizarHilosProduccionPorFolio(
+                        $orden,
+                        $hilosAnterior,
+                        (int) $hilos
+                    );
+                }
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Hilos actualizados',
+                    'data' => [
+                        'id' => $registro ? $registro->Id : $registroId,
+                        'hilos_anterior' => $hilosAnterior,
+                        'hilos_nuevo' => (int) $hilos,
+                        'registros_produccion_actualizados' => $registrosProduccionActualizados,
+                    ],
+                ]);
+            }
 
             $noJulioVacio = $noJulio === null || $noJulio === '';
             $hilosVacio = $hilos === null || $hilos === '';
 
             if ($noJulioVacio && $hilosVacio) {
+                $registrosProduccionEliminadosIds = [];
                 if ($registroId) {
-                    UrdJuliosOrden::where('Id', $registroId)
-                        ->where('Folio', $orden->Folio)
-                        ->delete();
+                    DB::beginTransaction();
+                    try {
+                        $registroEliminar = UrdJuliosOrden::where('Id', $registroId)
+                            ->where('Folio', $orden->Folio)
+                            ->first();
+
+                        if ($registroEliminar) {
+                            $hilosEliminar = $registroEliminar->Hilos !== null ? (int) $registroEliminar->Hilos : 0;
+                            $cantidadJuliosEliminar = $registroEliminar->Julios !== null ? (int) $registroEliminar->Julios : 0;
+
+                            if ($statusActual !== 'Programado' && $hilosEliminar > 0 && $cantidadJuliosEliminar > 0) {
+                                $registrosProduccionEliminadosIds = $this->eliminarRegistrosProduccionPorEliminacionJulio(
+                                    $orden,
+                                    $hilosEliminar,
+                                    $cantidadJuliosEliminar
+                                );
+                            }
+
+                            $registroEliminar->delete();
+                        }
+
+                        DB::commit();
+                    } catch (\Throwable $e) {
+                        DB::rollBack();
+                        throw $e;
+                    }
                 }
 
                 return response()->json([
@@ -534,6 +750,8 @@ class EditarOrdenesProgramadasController extends Controller
                     'message' => 'Registro de julio eliminado',
                     'data' => [
                         'deleted' => true,
+                        'registros_produccion_eliminados' => count($registrosProduccionEliminadosIds),
+                        'registros_produccion_eliminados_ids' => $registrosProduccionEliminadosIds,
                     ],
                 ]);
             }
@@ -542,6 +760,13 @@ class EditarOrdenesProgramadasController extends Controller
                 return response()->json([
                     'success' => false,
                     'error' => 'No. Julio y Hilos son requeridos para guardar',
+                ], 422);
+            }
+
+            if (!is_numeric($noJulio) || (int) $noJulio <= 0 || !is_numeric($hilos) || (int) $hilos <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No. Julio y Hilos deben ser numeros mayores a 0.',
                 ], 422);
             }
 
@@ -562,14 +787,56 @@ class EditarOrdenesProgramadasController extends Controller
 
                 DB::beginTransaction();
 
+                $esNuevoRegistroJulio = !$registro;
                 if (!$registro) {
                     $registro = new UrdJuliosOrden();
                     $registro->Folio = $orden->Folio;
                 }
 
+                $hilosAnterior = $registro->exists && $registro->Hilos !== null ? (int) $registro->Hilos : null;
+                $juliosAnterior = $registro->exists && $registro->Julios !== null ? (int) $registro->Julios : 0;
+                $hilosNuevo = (int) $hilos;
                 $registro->Julios = (int) $noJulio;
-                $registro->Hilos = (int) $hilos;
+                $registro->Hilos = $hilosNuevo;
                 $registro->save();
+
+                $registrosProduccionCreados = [];
+                $registrosProduccionEliminadosIds = [];
+                $deltaJulios = 0;
+                if ($statusActual === 'En Proceso') {
+                    $deltaJulios = ((int) $noJulio) - max(0, $juliosAnterior);
+
+                    if (!$esNuevoRegistroJulio && $deltaJulios < 0) {
+                        $hilosParaEliminar = $hilosAnterior ?? $hilosNuevo;
+                        if ($hilosParaEliminar !== null && $hilosParaEliminar > 0) {
+                            $registrosProduccionEliminadosIds = $this->eliminarRegistrosProduccionPorEliminacionJulio(
+                                $orden,
+                                (int) $hilosParaEliminar,
+                                abs($deltaJulios)
+                            );
+                        }
+                    }
+                }
+
+                $registrosProduccionActualizados = 0;
+                if ($statusActual !== 'Programado') {
+                    $registrosProduccionActualizados = $this->sincronizarHilosProduccionPorFolio(
+                        $orden,
+                        $hilosAnterior,
+                        $hilosNuevo
+                    );
+                }
+
+                if ($statusActual === 'En Proceso' && $deltaJulios > 0) {
+                    $cantidadCrear = $deltaJulios;
+                    if ($cantidadCrear > 0) {
+                        $registrosProduccionCreados = $this->crearRegistrosProduccionDesdeJulio(
+                            $orden,
+                            $cantidadCrear,
+                            $hilosNuevo
+                        );
+                    }
+                }
 
                 DB::commit();
 
@@ -578,6 +845,12 @@ class EditarOrdenesProgramadasController extends Controller
                     'message' => 'Julio actualizado correctamente',
                     'data' => [
                         'id' => $registro->Id,
+                        'hilos_anterior' => $hilosAnterior,
+                        'hilos_nuevo' => $hilosNuevo,
+                        'registros_produccion_actualizados' => $registrosProduccionActualizados,
+                        'registros_produccion_creados' => $registrosProduccionCreados,
+                        'registros_produccion_eliminados' => count($registrosProduccionEliminadosIds),
+                        'registros_produccion_eliminados_ids' => $registrosProduccionEliminadosIds,
                     ],
                 ]);
             } catch (\Throwable $e) {

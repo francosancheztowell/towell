@@ -182,7 +182,7 @@ trait ProduccionTrait
             $registro->{"CveEmpl{$numeroOficial}"} = $cveEmpl !== '' ? $cveEmpl : null;
             $registro->{"NomEmpl{$numeroOficial}"} = $nomEmpl !== '' ? $nomEmpl : null;
 
-            if ($request->has('metros')) {
+            if ($request->exists('metros')) {
                 $registro->{"Metros{$numeroOficial}"} = $request->metros;
             }
             if ($request->has('turno')) {
