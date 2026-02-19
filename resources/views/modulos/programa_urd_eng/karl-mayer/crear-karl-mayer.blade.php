@@ -113,8 +113,9 @@
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-0.5">Lote Proveedor</label>
-                <input type="text" id="input-lote-proveedor" name="lote_proveedor" placeholder=""
-                    class="{{ $inputBaseClass }}">
+                <input type="text" readonly id="input-lote-proveedor" name="lote_proveedor" placeholder=""
+                    class="{{ $inputBaseClass }} bg-gray-100"
+                    title="Se completa al seleccionar un registro del inventario">
             </div>
         </div>
 
@@ -618,6 +619,15 @@
 
         form?.addEventListener('input', actualizarEstadoBotonCrear);
         form?.addEventListener('change', actualizarEstadoBotonCrear);
+
+        // Bloquear escritura en Lote Proveedor (solo se rellena al seleccionar inventario)
+        if (elements.inputLoteProveedor) {
+            const bloqueoLote = (e) => { e.preventDefault(); e.stopPropagation(); };
+            elements.inputLoteProveedor.addEventListener('keydown', bloqueoLote);
+            elements.inputLoteProveedor.addEventListener('keypress', bloqueoLote);
+            elements.inputLoteProveedor.addEventListener('paste', bloqueoLote);
+            elements.inputLoteProveedor.addEventListener('input', (e) => { e.preventDefault(); });
+        }
 
         elements.tbodyDetalle.addEventListener('change', (event) => {
             if (event.target && event.target.matches('.chk-detalle-lmat')) {
