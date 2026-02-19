@@ -143,13 +143,13 @@
 
                         <!-- Celdas editables (DRY) -->
                         @foreach($colsEditables as $col)
-                            <td class="px-1 md:px-3 py-2 md:py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
+                            <td class="px-3 py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
                                 @php
                                     $maxVal = $col['key'] === 'marcas' ? 250 : 100;
                                     $isEfi = $col['key'] === 'efi';
                                 @endphp
                                 <input type="number" 
-                                    class="valor-input w-full max-w-[60px] md:max-w-[70px] mx-auto px-1 md:px-2 py-1 md:py-1.5 border border-gray-300 rounded text-xs md:text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400 {{ !$puedeEditar ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white' }}" 
+                                    class="valor-input w-full max-w-[80px] mx-auto px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400 {{ !$puedeEditar ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white' }}" 
                                     data-telar="{{ $telar->NoTelarId }}"
                                     data-type="{{ $col['key'] }}"
                                     value="0"
