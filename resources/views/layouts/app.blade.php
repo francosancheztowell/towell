@@ -31,6 +31,25 @@
             background: -webkit-linear-gradient(to bottom, #60a5fa, #93c5fd);
             background: linear-gradient(to bottom, #60a5fa, #93c5fd);
         }
+        @media (min-width: 768px) and (max-width: 1024px) {
+            #modalCortadoRollos {
+                align-items: flex-start;
+                padding: 0.5rem;
+            }
+            #modalCortadoRollos > div {
+                max-width: 98vw;
+                margin-top: 0.5rem;
+                margin-bottom: 0.5rem;
+                height: calc(100dvh - 1rem) !important;
+                max-height: calc(100dvh - 1rem) !important;
+            }
+            #modalCortadoRollos .tabla-ordenes-cortado {
+                max-height: 13rem !important;
+            }
+            #modalCortadoRollos .tabla-marbetes-cortado {
+                max-height: 12rem !important;
+            }
+        }
     </style>
 </head>
 
@@ -163,77 +182,72 @@
   </div>
 
   <!-- ====== Modal Cortado de Rollo ====== -->
-  <div id="modalCortadoRollos" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
-    <div class="relative bg-white rounded-lg shadow-xl w-[96vw] sm:w-[90vw] lg:w-[94vw] max-w-none mx-1 my-2 h-[80vh] max-h-[80vh] flex flex-col">
+  <div id="modalCortadoRollos" class="fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 overflow-y-auto flex items-start justify-center p-2 sm:p-4" style="display: none;">
+    <div class="relative bg-white rounded-lg shadow-xl w-full max-w-[96vw] lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[88rem] mx-auto my-2 sm:my-4 flex flex-col"
+         style="height: calc(100vh - 1rem); height: calc(100dvh - 1rem); max-height: calc(100vh - 1rem); max-height: calc(100dvh - 1rem);">
+
       <!-- Header del Modal -->
-      <div class="flex items-center justify-between gap-2 p-4 border-b border-gray-200">
-        <h2 class="text-2xl font-bold text-gray-800 whitespace-nowrap">Cortado de Rollo</h2>
-        <div class="flex-1 flex items-center gap-3">
-          <label for="selectTelarCortado" class="text-lg font-semibold text-gray-700 whitespace-nowrap">
-            Telar:
-          </label>
-          <select id="selectTelarCortado" class="flex-1 border-2 border-gray-300 rounded-lg px-4 py-2.5 text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            <option value="">-- Seleccione un telar --</option>
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-5 p-4 sm:p-6 border-b border-gray-200 flex-shrink-0 mb-14">
+        <h2 class="text-xl sm:text-2xl font-bold text-gray-800 whitespace-nowrap">Cortado de Rollo</h2>
+        <div class="flex-1 w-full sm:w-auto flex items-center gap-2 sm:gap-4">
+          <label for="selectTelarCortado" class="text-base sm:text-lg font-semibold text-gray-700 whitespace-nowrap">Telar:</label>
+          <select id="selectTelarCortado" class="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-base sm:text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+            <option value="">-- Seleccione --</option>
           </select>
         </div>
-        <button type="button" id="closeModalCortado" class="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button type="button" id="closeModalCortado" class="absolute top-4 right-4 sm:relative sm:top-auto sm:right-auto text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
+          <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
       </div>
 
-      <!-- Body del Modal -->
-      <div class="p-6 flex-1 min-h-0 overflow-hidden flex flex-col">
+      <!-- Body del Modal (scrollable) -->
+      <div class="p-4 sm:p-6 flex-1 min-h-0 overflow-y-auto flex flex-col gap-5">
 
-        <!-- Nivel 2: Tabla de Órdenes en Proceso -->
-        <div id="tablaProduccionesCortadoContainer" class="mb-4" style="display: none;">
-          <h3 class="text-lg font-semibold text-gray-800 mb-2">Órdenes en Proceso</h3>
-          <div class="border-2 border-gray-300 rounded-lg overflow-hidden">
-            <table class="w-full bg-white">
-              <thead class="bg-green-100">
-                <tr>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Salón</th>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">No. Producción</th>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Fecha Inicio</th>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Tamaño</th>
-                  <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Producto</th>
-                  <th class="px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase">Seleccionar</th>
-                </tr>
-              </thead>
-            </table>
-            <div class="overflow-x-auto overflow-y-auto max-h-[150px]">
-              <table class="w-full bg-white">
-                <tbody id="tablaProduccionesCortadoBody" class="divide-y divide-gray-200">
+        <!-- Nivel 2: Tabla de Órdenes del Telar -->
+        <div id="tablaProduccionesCortadoContainer" style="display: none;">
+          <h3 class="text-base sm:text-lg font-semibold text-gray-700 mb-3">Órdenes del Telar</h3>
+          <div class="border border-blue-200 rounded-lg overflow-hidden">
+            <div class="tabla-ordenes-cortado overflow-x-auto overflow-y-auto" style="max-height: 15rem; max-height: min(26dvh, 15rem); -webkit-overflow-scrolling: touch;">
+              <table class="w-full text-sm sm:text-base table-fixed">
+                <thead class="bg-blue-50 sticky top-0 z-[1]">
+                  <tr>
+                    <th class="w-[10%] px-4 py-3 text-left text-xs sm:text-sm font-semibold text-blue-800 uppercase">Salón</th>
+                    <th class="w-[25%] px-4 py-3 text-left text-xs sm:text-sm font-semibold text-blue-800 uppercase">No. Producción</th>
+                    <th class="w-[15%] px-4 py-3 text-left text-xs sm:text-sm font-semibold text-blue-800 uppercase">Fecha</th>
+                    <th class="w-[12%] px-4 py-3 text-left text-xs sm:text-sm font-semibold text-blue-800 uppercase">Tamaño</th>
+                    <th class="w-[30%] px-4 py-3 text-left text-xs sm:text-sm font-semibold text-blue-800 uppercase">Producto</th>
+                    <th class="w-[8%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase"></th>
+                  </tr>
+                </thead>
+                <tbody id="tablaProduccionesCortadoBody" class="bg-white divide-y divide-gray-100">
                 </tbody>
               </table>
             </div>
-            <div id="noDataProduccionesCortado" class="hidden text-center py-3 text-gray-500"></div>
+            <div id="noDataProduccionesCortado" class="hidden text-center py-4 text-gray-500 text-base"></div>
           </div>
         </div>
 
         <!-- Nivel 3: Tabla de Marbetes -->
-        <div id="tablaProduccionCortadoContainer" class="flex-1 min-h-0" style="display: none;">
-          <h3 class="text-xl font-semibold text-gray-800 mb-4">Seleccionar Marbete a Liberar</h3>
-          <div class="border-2 border-gray-300 rounded-lg overflow-hidden">
-            <table class="w-full bg-white">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Cuantas</th>
-                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Marbete</th>
-                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Artículo</th>
-                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Tamaño</th>
-                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Orden</th>
-                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Telar</th>
-                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Piezas</th>
-                  <th class="px-5 py-4 text-left text-base font-semibold text-gray-700 uppercase whitespace-nowrap">Salón</th>
-                </tr>
-              </thead>
-            </table>
-            <div class="overflow-x-auto overflow-y-auto max-h-[300px]">
-              <table class="w-full bg-white">
-                <tbody id="tablaProduccionCortadoBody" class="divide-y divide-gray-200">
-                  <!-- Los datos se cargarán dinámicamente -->
+        <div id="tablaProduccionCortadoContainer" style="display: none;">
+          <h3 class="text-base sm:text-lg font-semibold text-gray-700 mb-3">Seleccionar Marbete a Liberar</h3>
+          <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <div class="tabla-marbetes-cortado overflow-x-auto overflow-y-auto" style="max-height: 13rem; max-height: min(30dvh, 13rem); -webkit-overflow-scrolling: touch;">
+              <table class="w-full text-sm sm:text-base table-fixed">
+                <thead class="bg-gray-50 sticky top-0 z-[1]">
+                  <tr>
+                    <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Cuantas</th>
+                    <th class="w-[16%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Marbete</th>
+                    <th class="w-[14%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Artículo</th>
+                    <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Tamaño</th>
+                    <th class="w-[16%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Orden</th>
+                    <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Telar</th>
+                    <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Piezas</th>
+                    <th class="w-[14%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Salón</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaProduccionCortadoBody" class="bg-white divide-y divide-gray-100">
                 </tbody>
               </table>
             </div>
@@ -241,15 +255,15 @@
         </div>
 
         <!-- Mensaje de carga o error -->
-        <div id="mensajeEstadoCortado" class="text-center text-lg text-gray-600 py-6 flex-shrink-0" style="display: none;"></div>
+        <div id="mensajeEstadoCortado" class="text-center text-base sm:text-lg text-gray-600 py-5" style="display: none;"></div>
       </div>
 
       <!-- Footer del Modal -->
-      <div class="flex justify-end gap-4 p-6 border-t border-gray-200 flex-shrink-0">
-        <button type="button" id="closeModalCortadoBtn" class="px-4 py-2 text-base bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors font-medium">
+      <div class="flex justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 flex-shrink-0">
+        <button type="button" id="closeModalCortadoBtn" class="px-5 py-2.5 text-base bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium border border-gray-300">
           Cerrar
         </button>
-        <button type="button" id="btnNotificarCortado" class="px-4 py-2 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium" style="display: none;">
+        <button type="button" id="btnNotificarCortado" class="px-5 py-2.5 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm" style="display: none;">
           Notificar
         </button>
       </div>
@@ -578,7 +592,7 @@
 
       function mostrarMensajeCortado(mensaje, tipo) {
         mensajeCortado.textContent = mensaje;
-        mensajeCortado.className = `text-center mb-4 ${tipo === 'error' ? 'text-red-600' : tipo === 'info' ? 'text-blue-600' : 'text-gray-500'}`;
+        mensajeCortado.className = `text-center text-base sm:text-lg mb-4 ${tipo === 'error' ? 'text-red-600' : tipo === 'info' ? 'text-blue-600' : 'text-gray-500'}`;
         mensajeCortado.style.display = 'block';
         tablaCortadoContainer.style.display = 'none';
         btnNotificarCortado.style.display = 'none';
@@ -588,7 +602,7 @@
         mensajeCortado.style.display = 'none';
       }
 
-      // Nivel 1 → 2: Cargar TODAS las órdenes en proceso del telar
+      // Nivel 1 → 2: Cargar TODAS las órdenes del telar
       function cargarOrdenesEnProceso(telarId) {
         telarActualCortado = telarId;
         produccionSeleccionada = null;
@@ -599,19 +613,19 @@
         // Mostrar loading
         tablaProduccionesCortadoBody.innerHTML = `
           <tr>
-            <td colspan="6" class="px-3 py-3 text-center text-gray-500">
-              <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <td colspan="6" class="px-4 py-4 text-center text-gray-500 text-base">
+              <svg class="animate-spin h-6 w-6 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <p class="mt-2">Cargando órdenes en proceso...</p>
+              <p class="mt-2">Cargando órdenes del telar...</p>
             </td>
           </tr>
         `;
         tablaProduccionesCortadoContainer.style.display = 'block';
         noDataProduccionesCortado.classList.add('hidden');
 
-        // Petición AJAX para TODAS las órdenes en proceso
+        // Petición AJAX para TODAS las órdenes del telar
         fetch(`/tejedores/cortadoderollo/telar/${telarId}/ordenes-en-proceso`)
           .then(response => response.json())
           .then(data => {
@@ -620,27 +634,22 @@
             if (data.success && data.ordenes && data.ordenes.length > 0) {
               data.ordenes.forEach(orden => {
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-green-50 transition-colors cursor-pointer';
+                const enProceso = orden.EnProceso == 1;
+                row.className = 'hover:bg-gray-50 transition-colors cursor-pointer orden-row';
+                
+                const badgeEnProceso = enProceso 
+                  ? '<span class="ml-1 inline-flex px-1.5 py-0.5 bg-green-500 text-white text-[10px] rounded-full font-medium leading-none align-middle">EN PROCESO</span>' 
+                  : '';
+                
                 row.innerHTML = `
-                  <td class="px-3 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
-                    ${orden.SalonTejidoId ?? 'N/A'}
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap text-xs font-bold text-green-700">
-                    ${orden.NoProduccion}
-                    <span class="ml-2 px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">EN PROCESO</span>
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-600">
-                    ${orden.FechaInicio ? new Date(orden.FechaInicio).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'}) : 'N/A'}
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-600">
-                    ${orden.TamanoClave ?? 'N/A'}
-                  </td>
-                  <td class="px-3 py-3 text-xs text-gray-600 break-words">
-                    ${orden.NombreProducto || 'N/A'}
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap text-center">
+                  <td class="w-[10%] px-4 py-3 text-sm text-gray-700 truncate">${orden.SalonTejidoId ?? 'N/A'}</td>
+                  <td class="w-[25%] px-4 py-3 text-sm text-gray-900 font-semibold truncate">${orden.NoProduccion}${badgeEnProceso}</td>
+                  <td class="w-[15%] px-4 py-3 text-sm text-gray-600 truncate">${orden.FechaInicio ? new Date(orden.FechaInicio).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'}) : 'N/A'}</td>
+                  <td class="w-[12%] px-4 py-3 text-sm text-gray-600 truncate">${orden.TamanoClave ?? 'N/A'}</td>
+                  <td class="w-[30%] px-4 py-3 text-sm text-gray-600 truncate" title="${orden.NombreProducto || 'N/A'}">${orden.NombreProducto || 'N/A'}</td>
+                  <td class="w-[8%] px-4 py-3 text-center">
                     <input type="checkbox"
-                           class="checkbox-produccion-cortado w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 cursor-pointer"
+                           class="checkbox-produccion-cortado w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                            data-telar="${telarId}"
                            data-salon="${orden.SalonTejidoId ?? ''}"
                            data-produccion="${orden.NoProduccion}"
@@ -651,15 +660,15 @@
               });
             } else {
               noDataProduccionesCortado.classList.remove('hidden');
-              noDataProduccionesCortado.innerHTML = '<p class="text-sm">No hay órdenes en proceso para este telar</p>';
+              noDataProduccionesCortado.innerHTML = '<p class="text-base">No hay órdenes disponibles para este telar</p>';
             }
           })
           .catch(error => {
             console.error('Error:', error);
             tablaProduccionesCortadoBody.innerHTML = `
               <tr>
-                <td colspan="6" class="px-3 py-3 text-center text-red-500">
-                  Error al cargar las órdenes en proceso
+                <td colspan="6" class="px-4 py-4 text-center text-red-500 text-base">
+                  Error al cargar las órdenes del telar
                 </td>
               </tr>
             `;
@@ -677,7 +686,13 @@
 
         // Quitar selección visual de todas las filas
         document.querySelectorAll('#tablaProduccionesCortadoBody tr').forEach(row => {
-          row.classList.remove('bg-green-200');
+          row.classList.remove('bg-blue-600', 'selected-orden');
+          row.querySelectorAll('td').forEach(td => {
+            td.classList.remove('text-white');
+            if (!td.classList.contains('text-gray-700') && !td.classList.contains('text-gray-900') && !td.classList.contains('text-gray-600')) {
+              td.classList.add('text-gray-700');
+            }
+          });
         });
 
         if (!checkbox.checked) {
@@ -688,8 +703,13 @@
           return;
         }
 
-        // Marcar la fila seleccionada
-        checkbox.closest('tr').classList.add('bg-green-200');
+        // Marcar la fila seleccionada con fondo azul y texto blanco
+        const selectedRow = checkbox.closest('tr');
+        selectedRow.classList.add('bg-blue-600', 'selected-orden');
+        selectedRow.querySelectorAll('td').forEach(td => {
+          td.classList.remove('text-gray-900', 'text-gray-600', 'text-gray-700');
+          td.classList.add('text-white');
+        });
 
         // Guardar producción seleccionada
         const noTelar = checkbox.dataset.telar;
@@ -752,27 +772,37 @@
 
         datos.forEach((dato, index) => {
           const row = document.createElement('tr');
-          row.className = 'hover:bg-blue-50 cursor-pointer transition-colors';
+          row.className = 'hover:bg-blue-50 cursor-pointer transition-colors marbete-row';
           row.dataset.marbete = JSON.stringify(dato);
           row.dataset.index = index;
 
           row.innerHTML = `
-            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.CUANTAS || 'N/A'}</td>
-            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.PurchBarCode || 'N/A'}</td>
-            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.ItemId || 'N/A'}</td>
-            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.InventSizeId || 'N/A'}</td>
-            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.InventBatchId || 'N/A'}</td>
-            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.WMSLocationId || 'N/A'}</td>
-            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap text-right">${formatearPiezas(dato.QtySched)}</td>
-            <td class="px-5 py-4 text-lg text-gray-900 whitespace-nowrap">${dato.Salon || 'N/A'}</td>
+            <td class="w-[10%] px-4 py-3 text-sm text-gray-700 text-center truncate">${dato.CUANTAS || 'N/A'}</td>
+            <td class="w-[16%] px-4 py-3 text-sm text-gray-900 text-center font-medium truncate">${dato.PurchBarCode || 'N/A'}</td>
+            <td class="w-[14%] px-4 py-3 text-sm text-gray-700 text-center truncate">${dato.ItemId || 'N/A'}</td>
+            <td class="w-[10%] px-4 py-3 text-sm text-gray-700 text-center truncate">${dato.InventSizeId || 'N/A'}</td>
+            <td class="w-[16%] px-4 py-3 text-sm text-gray-700 text-center truncate">${dato.InventBatchId || 'N/A'}</td>
+            <td class="w-[10%] px-4 py-3 text-sm text-gray-700 text-center truncate">${dato.WMSLocationId || 'N/A'}</td>
+            <td class="w-[10%] px-4 py-3 text-sm text-gray-700 text-center truncate">${formatearPiezas(dato.QtySched)}</td>
+            <td class="w-[14%] px-4 py-3 text-sm text-gray-700 text-center truncate">${dato.Salon || 'N/A'}</td>
           `;
 
           row.addEventListener('click', function() {
             document.querySelectorAll('#tablaProduccionCortadoBody tr').forEach(r => {
-              r.classList.remove('bg-blue-200', 'selected');
+              r.classList.remove('bg-blue-500', 'selected');
+              r.querySelectorAll('td').forEach(td => {
+                td.className = td.className.replace('text-white', 'text-gray-700').replace('text-gray-900 text-white', 'text-gray-900');
+                if (!td.classList.contains('text-gray-700') && !td.classList.contains('text-gray-900')) {
+                  td.classList.add('text-gray-700');
+                }
+              });
             });
 
-            this.classList.add('bg-blue-200', 'selected');
+            this.classList.add('bg-blue-500', 'selected');
+            this.querySelectorAll('td').forEach(td => {
+              td.classList.remove('text-gray-700', 'text-gray-900');
+              td.classList.add('text-white');
+            });
           });
 
           tablaCortadoBody.appendChild(row);
@@ -799,7 +829,7 @@
           return;
         }
 
-        // Cargar las órdenes en proceso del telar (Nivel 1 → 2)
+        // Cargar las órdenes del telar (Nivel 1 → 2)
         cargarOrdenesEnProceso(noTelar);
       });
 

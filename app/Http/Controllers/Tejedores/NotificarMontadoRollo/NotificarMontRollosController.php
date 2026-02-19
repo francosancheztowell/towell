@@ -160,8 +160,8 @@ class NotificarMontRollosController extends Controller
     }
 
     /**
-     * Obtener TODAS las órdenes en proceso de un telar
-     * Un telar puede tener múltiples órdenes con EnProceso = 1
+     * Obtener TODAS las órdenes de un telar (con NoProduccion)
+     * Muestra todas las órdenes, marcando cuáles están en proceso
      */
     public function obtenerOrdenesEnProceso($telarId)
     {
@@ -180,25 +180,25 @@ class NotificarMontRollosController extends Controller
                 ], 403);
             }
 
-            // Obtener TODAS las órdenes EN PROCESO (EnProceso = 1)
-            $ordenesEnProceso = ReqProgramaTejido::where('NoTelarId', $telarId)
-                ->where('EnProceso', 1)
+            // Obtener TODAS las órdenes del telar (que tengan NoProduccion)
+            $ordenes = ReqProgramaTejido::where('NoTelarId', $telarId)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
-                ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
+                ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto', 'EnProceso')
                 ->distinct()
+                ->orderBy('EnProceso', 'desc') // Primero las que están en proceso
                 ->orderBy('FechaInicio', 'asc')
                 ->get();
 
             Log::info('obtenerOrdenesEnProceso - Cortado de Rollo', [
                 'telarId' => $telarId,
-                'count' => $ordenesEnProceso->count(),
-                'ordenes' => $ordenesEnProceso->pluck('NoProduccion')->toArray(),
+                'count' => $ordenes->count(),
+                'ordenes' => $ordenes->pluck('NoProduccion')->toArray(),
             ]);
 
             return response()->json([
                 'success' => true,
-                'ordenes' => $ordenesEnProceso
+                'ordenes' => $ordenes
             ]);
         } catch (\Exception $e) {
             Log::error('Error en obtenerOrdenesEnProceso - Cortado de Rollo', [
@@ -208,7 +208,7 @@ class NotificarMontRollosController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener las órdenes en proceso: ' . $e->getMessage()
+                'message' => 'Error al obtener las órdenes: ' . $e->getMessage()
             ], 500);
         }
     }
