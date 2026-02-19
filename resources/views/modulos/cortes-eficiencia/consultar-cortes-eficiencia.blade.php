@@ -60,8 +60,8 @@
 @endsection
 
 @section('content')
-<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
-    <div class="flex flex-col-1 bg-white rounded-lg shadow-md max-w-full overflow-hidden">
+<div class="w-full max-w-7xl mx-auto h-full overflow-hidden flex flex-col px-4 md:px-8 lg:px-12 xl:px-16 py-4">
+    <div class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden">
     @if(isset($cortes) && $cortes->count() > 0)
         <!-- Tabla con header fijo -->
         <div class="flex-1 flex flex-col overflow-hidden">
@@ -75,11 +75,11 @@
                 </colgroup>
                 <thead class="bg-blue-500 text-white sticky top-0 z-10">
                     <tr>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Folio</th>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Fecha</th>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Turno</th>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Empleado</th>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Status</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Folio</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Fecha</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Turno</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Empleado</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Status</th>
                     </tr>
                 </thead>
             </table>
@@ -100,23 +100,23 @@
                             data-fecha="{{ $corte->Date ? Carbon::parse($corte->Date)->format('Y-m-d') : '' }}"
                             onclick="CortesManager.seleccionar('{{ $corte->Folio }}', this)"
                             ondblclick="CortesManager.accionVisualizar()">
-                            <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate">{{ $corte->Folio }}</td>
-                            <td class="px-4 py-3 text-gray-900 text-base truncate">
+                            <td class="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-900 text-sm md:text-base truncate">{{ $corte->Folio }}</td>
+                            <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate">
                                 @if($corte->Date)
                                     {{ Carbon::parse($corte->Date)->format('d/m/Y') }}
                                 @else
                                     -
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->Turno }}</td>
-                            <td class="px-4 py-3 text-gray-900 text-base truncate">{{ $corte->numero_empleado ?? 'N/A' }}</td>
-                            <td class="px-4 py-3">
+                            <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate">{{ $corte->Turno }}</td>
+                            <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate">{{ $corte->numero_empleado ?? 'N/A' }}</td>
+                            <td class="px-2 md:px-4 py-2 md:py-3">
                                 @if($corte->Status === 'Finalizado')
-                                    <span class="status-badge-finalizado px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
+                                    <span class="status-badge-finalizado px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
                                 @elseif($corte->Status === 'En Proceso')
-                                    <span class="status-badge-proceso px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
+                                    <span class="status-badge-proceso px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
                                 @else
-                                    <span class="status-badge-otro px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $corte->Status }}</span>
+                                    <span class="status-badge-otro px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $corte->Status }}</span>
                                 @endif
                             </td>
                         </tr>
