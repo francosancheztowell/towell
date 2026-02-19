@@ -83,9 +83,9 @@
 @section('content')
 <!-- Contenedor principal sin alertas flotantes (ahora usa SweetAlert) -->
 
-<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
+<div class="w-full h-full overflow-hidden flex flex-col px-4 py-4 md:px-8 lg:px-12 xl:px-16">
     <!-- Tabla principal -->
-    <div id="segunda-tabla" class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
+    <div id="segunda-tabla" class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden mx-auto w-full max-w-7xl">
         <!-- Header fijo (sticky) dentro del contenedor -->
         <div class="bg-blue-600 text-white sticky top-0 z-10">
             <table class="w-full text-sm">
@@ -101,10 +101,10 @@
                 </colgroup>
                 <thead>
                     <tr>
-                        <th class="px-4 py-3 text-center uppercase text-sm font-semibold">Telar</th>
-                        <th class="px-4 py-3 text-center uppercase text-sm font-semibold">Salón</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-center uppercase text-xs md:text-sm font-semibold">Telar</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-center uppercase text-xs md:text-sm font-semibold">Salón</th>
                         @foreach($colsEditables as $col)
-                            <th class="px-4 py-3 text-center uppercase text-sm font-semibold">
+                            <th class="px-2 md:px-4 py-2 md:py-3 text-center uppercase text-xs md:text-sm font-semibold">
                                 {{ $col['label'] }}
                             </th>
                         @endforeach
@@ -129,12 +129,12 @@
                 @foreach(($telares ?? []) as $telar)
                     <tr class="even:bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
                         <!-- Telar -->
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 text-center border-r border-gray-200">
+                        <td class="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-medium text-gray-900 text-center border-r border-gray-200">
                             {{ $telar->NoTelarId }}
                         </td>
 
                         <!-- Salón (badge) -->
-                        <td class="px-4 py-3 text-center border-r border-gray-200">
+                        <td class="px-2 md:px-4 py-2 md:py-3 text-center border-r border-gray-200">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                                   data-telar="{{ $telar->NoTelarId }}" data-field="salon">
                                 {{ $telar->SalonId ?? '-' }}
@@ -144,44 +144,19 @@
                         <!-- Celdas editables (DRY) -->
                         @foreach($colsEditables as $col)
                             <td class="px-3 py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
-                                <div class="relative">
-                                    @php
-                                        $btnClasses = 'valor-display-btn w-full min-w-[70px] px-3 py-2 border rounded text-sm font-medium flex items-center justify-between transition-all duration-200';
-                                        $btnClasses .= $puedeEditar
-                                            ? ' border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm'
-                                            : ' border-gray-200 text-gray-500 cursor-not-allowed bg-gray-100 shadow-none opacity-90';
-                                        $textClasses = 'valor-display-text font-semibold ' . ($puedeEditar ? 'text-blue-600' : 'text-gray-500');
-                                    @endphp
-                                    <button type="button"
-                                        class="{{ $btnClasses }}"
-                                        data-telar="{{ $telar->NoTelarId }}"
-                                        data-type="{{ $col['key'] }}"
-                                        @if(!$puedeEditar) disabled @endif>
-                                        <span class="{{ $textClasses }}">
-                                            @if($col['key'] === 'efi') 0%
-                                            @elseif($col['key'] === 'marcas') 0
-                                            @else 0
-                                            @endif
-                                        </span>
-                                        @if($puedeEditar)
-                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                            </svg>
-                                        @else
-                                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-                                            </svg>
-                                        @endif
-                                    </button>
-
-                                    @if($puedeEditar)
-                                        <div class="valor-edit-container hidden absolute left-1/2 top-full mt-1 -translate-x-1/2 z-[9999]">
-                                            <div class="number-scroll-container w-56 h-12 overflow-x-auto overflow-y-hidden bg-white border border-gray-300 rounded-md shadow-lg scrollbar-hide">
-                                                <div class="number-options-flex px-2 py-1 flex items-center space-x-1 min-w-max whitespace-nowrap"></div>
-                                            </div>
-                                        </div>
-                                    @endif
-                                </div>
+                                @php
+                                    $maxVal = $col['key'] === 'marcas' ? 250 : 100;
+                                    $isEfi = $col['key'] === 'efi';
+                                @endphp
+                                <input type="number" 
+                                    class="valor-input w-full max-w-[80px] mx-auto px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400 {{ !$puedeEditar ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white' }}" 
+                                    data-telar="{{ $telar->NoTelarId }}"
+                                    data-type="{{ $col['key'] }}"
+                                    value="0"
+                                    min="0"
+                                    max="{{ $maxVal }}"
+                                    placeholder="{{ $isEfi ? '0%' : '0' }}"
+                                    {{ !$puedeEditar ? 'readonly' : '' }}>
                             </td>
                         @endforeach
                     </tr>
@@ -238,16 +213,55 @@ const CAMPOS = ['efi', 'trama', 'pie', 'rizo', 'otros', 'marcas'];
 document.addEventListener('DOMContentLoaded', () => {
     initElements();
 
-    // Delegación de clicks
-    document.addEventListener('click', (e) => {
-        const btn = e.target.closest('.valor-display-btn');
-        if (btn) return toggleValorSelector(btn);
-
-        const opt = e.target.closest('.number-option');
-        if (opt) return selectNumberOption(opt);
-
-        // Clic fuera: cerrar selectores
-        if (!e.target.closest('.valor-edit-container')) closeAllValorSelectors();
+    // Eventos para inputs de valor
+    document.querySelectorAll('.valor-input').forEach(input => {
+        // Al hacer focus, sugerir valor si es 0
+        input.addEventListener('focus', () => {
+            if (PAGE_MODE.soloLectura || input.readOnly) return;
+            const tipo = input.dataset.type;
+            const currentVal = parseInt(input.value, 10) || 0;
+            
+            // Si el valor es 0 y es % Efi, sugerir el STD recomendado
+            if (currentVal === 0 && tipo === 'efi') {
+                const rec = parseInt(input.dataset.recommended || '0', 10);
+                if (rec > 0) {
+                    input.value = rec;
+                    input.select();
+                    return;
+                }
+            }
+            // Si es marcas y es 0, sugerir 100
+            if (currentVal === 0 && tipo === 'marcas') {
+                input.value = 100;
+                input.select();
+                return;
+            }
+            input.select();
+        });
+        
+        // Al escribir, validar rango
+        input.addEventListener('input', () => {
+            if (PAGE_MODE.soloLectura || input.readOnly) return;
+            const tipo = input.dataset.type;
+            const [min, max] = RANGOS[tipo] || [0, 100];
+            let val = parseInt(input.value, 10) || 0;
+            if (val < min) val = min;
+            if (val > max) val = max;
+            input.value = val;
+        });
+        
+        // Al perder focus, guardar automáticamente
+        input.addEventListener('blur', () => {
+            if (PAGE_MODE.soloLectura || input.readOnly) return;
+            guardarAutomatico();
+        });
+        
+        // Feedback visual al cambiar
+        input.addEventListener('change', () => {
+            if (PAGE_MODE.soloLectura || input.readOnly) return;
+            input.classList.add('bg-green-100');
+            setTimeout(() => input.classList.remove('bg-green-100'), 300);
+        });
     });
 
     // Cambio de turno => guardar
@@ -333,107 +347,6 @@ function mostrarAlerta(mensaje, tipo='success') {
 }
 
 /* =========================
-   Selectores numéricos
-   ========================= */
-function parseValorDisplay(text, tipo) {
-    if (!text) return 0;
-    const n = parseInt(String(text).replace('%',''), 10);
-    if (Number.isNaN(n)) return 0;
-    const [min, max] = RANGOS[tipo] || [0,100];
-    return Math.min(max, Math.max(min, n));
-}
-
-function toggleValorSelector(btn) {
-    if (PAGE_MODE.soloLectura || btn?.disabled) return;
-    closeAllValorSelectors();
-    const selector = btn.parentElement.querySelector('.valor-edit-container');
-    const tipo     = btn.dataset.type;
-
-    if (selector.classList.contains('hidden')) {
-        const currentText  = btn.querySelector('.valor-display-text')?.textContent || '0';
-        let currentValue = parseValorDisplay(currentText, tipo);
-        // Si es Efi y el valor mostrado es 0, usar recomendado (STD) como sugerencia
-        if (tipo === 'efi' && currentValue === 0) {
-            const rec = parseInt(btn.dataset.recommended || 'NaN', 10);
-            if (!Number.isNaN(rec)) currentValue = rec;
-        }
-        // Solo en el modal del botón Marcas: si el valor es 0, mostrar 100 por defecto en el selector
-        if (tipo === 'marcas' && currentValue === 0) {
-            currentValue = 100;
-        }
-        buildNumberOptions(selector, tipo, currentValue);
-
-        // Determinar si debe abrir hacia arriba o abajo según la posición en la ventana
-        const rect = btn.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const spaceAbove = rect.top;
-        const dropdownHeight = 60; // altura aproximada del dropdown
-
-        // Si hay más espacio arriba o no hay suficiente espacio abajo, abrir hacia arriba
-        if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-            selector.classList.remove('top-full', 'mt-1');
-            selector.classList.add('bottom-full', 'mb-1');
-        } else {
-            selector.classList.remove('bottom-full', 'mb-1');
-            selector.classList.add('top-full', 'mt-1');
-        }
-
-        selector.classList.remove('hidden');
-        scrollToCurrentValue(selector, currentValue);
-    } else {
-        selector.classList.add('hidden');
-    }
-}
-
-function closeAllValorSelectors() {
-    qa('.valor-edit-container').forEach(c => c.classList.add('hidden'));
-}
-
-function buildNumberOptions(selector, tipo, current) {
-    const container = selector.querySelector('.number-options-flex');
-    container.innerHTML = '';
-
-    const [min, max] = RANGOS[tipo] || [0, 100];
-    const frag = document.createDocumentFragment();
-
-    for (let i = min; i <= max; i++) {
-        const opt = document.createElement('button');
-        opt.type = 'button';
-        opt.className = 'number-option shrink-0 w-12 h-10 text-center rounded-md border border-gray-300 bg-white text-base font-medium hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500';
-        opt.dataset.value = String(i);
-        opt.textContent = String(i);
-        if (i === current) {
-            opt.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
-            opt.style.setProperty('background-color', '#3b82f6');
-            opt.style.setProperty('color', '#ffffff');
-            opt.style.setProperty('border-color', '#3b82f6');
-        }
-        frag.appendChild(opt);
-    }
-    container.appendChild(frag);
-}
-
-function selectNumberOption(option) {
-    const value    = parseInt(option.dataset.value, 10);
-    const selector = option.closest('.valor-edit-container');
-    const btn      = selector.previousElementSibling;
-    const tipo     = btn.dataset.type;
-    const span     = btn.querySelector('.valor-display-text');
-
-    span.textContent = (tipo === 'efi') ? `${value}%` : String(value);
-    selector.classList.add('hidden');
-    guardarAutomatico();
-}
-
-function scrollToCurrentValue(selector, value) {
-    setTimeout(() => {
-        const sc = selector.querySelector('.number-scroll-container');
-        const op = selector.querySelector(`.number-option[data-value="${value}"]`);
-        if (sc && op) sc.scrollLeft = op.offsetLeft - (sc.clientWidth/2) + (op.offsetWidth/2);
-    }, 10);
-}
-
-/* =========================
    Guardado automático
    ========================= */
 function guardarAutomatico() {
@@ -461,8 +374,8 @@ function guardarDatosTabla() {
 
         const datos = { NoTelarId: telar };
         CAMPOS.forEach(t => {
-            const text = row.querySelector(`button[data-telar="${telar}"][data-type="${t}"] .valor-display-text`)?.textContent || '0';
-            const val  = parseValorDisplay(text, t);
+            const input = row.querySelector(`input.valor-input[data-telar="${telar}"][data-type="${t}"]`);
+            const val = input ? (parseInt(input.value, 10) || 0) : 0;
             datos[(t === 'efi' ? 'PorcentajeEfi' : t.charAt(0).toUpperCase()+t.slice(1))] = val;
         });
         lineas.push(datos);
@@ -698,11 +611,11 @@ function cargarDatosSTD(soloVacios=false) {
                 const salon = q(`span[data-telar="${item.telar}"][data-field="salon"]`);
                 if (salon) salon.textContent = item.salon || '-';
 
-                // % Efi - no modificar el valor mostrado (debe iniciar en 0%), solo guardar recomendación (STD)
-                const btnEfi = q(`button[data-telar="${item.telar}"][data-type="efi"]`);
-                if (btnEfi) {
+                // % Efi - guardar recomendación (STD) en data-recommended del input
+                const inputEfi = q(`input.valor-input[data-telar="${item.telar}"][data-type="efi"]`);
+                if (inputEfi) {
                     const p = (item.porcentaje_efi ?? null);
-                    if (p != null) btnEfi.setAttribute('data-recommended', String(parseInt(p, 10)));
+                    if (p != null) inputEfi.setAttribute('data-recommended', String(parseInt(p, 10)));
                 }
             });
         });
@@ -753,16 +666,15 @@ function cargarMarcaExistente(folio) {
         if (elements.noEmpleado) elements.noEmpleado.value = d.marca.numero_empleado || '';
         if (elements.headerSection) elements.headerSection.style.display = 'block';
 
-        // Cargar líneas en la tabla
+        // Cargar líneas en la tabla (usar inputs)
         (d.lineas || []).forEach(l => {
             const telar = l.NoTelarId;
 
             // Actualizar % Efi - Ya viene como entero 0-100 desde la BD
-            const efiVal = l.Eficiencia ?? null;
-            const efiPercent = efiVal !== null ? parseInt(efiVal, 10) : null;
-            const efiSpan = q(`button[data-telar="${telar}"][data-type="efi"] .valor-display-text`);
-            if (efiSpan) {
-                efiSpan.textContent = (efiPercent !== null && efiPercent > 0) ? `${efiPercent}%` : '-';
+            const efiVal = l.Eficiencia ?? 0;
+            const efiInput = q(`input.valor-input[data-telar="${telar}"][data-type="efi"]`);
+            if (efiInput) {
+                efiInput.value = parseInt(efiVal, 10) || 0;
             }
 
             // Actualizar otros campos
@@ -775,9 +687,9 @@ function cargarMarcaExistente(folio) {
             };
 
             Object.entries(campos).forEach(([tipo, valor]) => {
-                const span = q(`button[data-telar="${telar}"][data-type="${tipo}"] .valor-display-text`);
-                if (span) {
-                    span.textContent = valor ?? 0;
+                const input = q(`input.valor-input[data-telar="${telar}"][data-type="${tipo}"]`);
+                if (input) {
+                    input.value = valor ?? 0;
                 }
             });
         });
@@ -805,6 +717,23 @@ thead th {
     z-index: 20;
 }
 
+/* Inputs de valor */
+.valor-input {
+    transition: border-color .2s ease, background-color .2s ease;
+    -moz-appearance: textfield; /* Firefox - ocultar spinners */
+}
+.valor-input::-webkit-outer-spin-button,
+.valor-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.valor-input:focus {
+    background-color: #eff6ff;
+}
+.valor-input.bg-green-100 {
+    background-color: #dcfce7 !important;
+}
+
 /* Scrollbar personalizado */
 .scrollbar-thin {
     scrollbar-width: thin;
@@ -822,12 +751,5 @@ thead th {
 .scrollbar-thin::-webkit-scrollbar {
     height: 6px;
 }
-
-/* Ocultar scrollbar (similar a cortes-eficiencia) */
-.scrollbar-hide{ -ms-overflow-style:none; scrollbar-width:none; }
-.scrollbar-hide::-webkit-scrollbar{ display:none; }
-
-/* Opciones numéricas: transición suave (Tailwind maneja el resto en clases) */
-.number-option { transition: background-color .15s ease, transform .15s ease; }
-    </style>
+</style>
 @endsection
