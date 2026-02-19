@@ -55,11 +55,15 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
-     * Mostrar ordenes finalizadas para reimpresion
+     * Mostrar ordenes para reimpresion y edicion (todos los status, con filtros)
      */
     public function reimpresionFinalizadas(Request $request)
     {
         $busqueda = trim((string) $request->query('q', ''));
+        $folio = trim((string) $request->query('folio', ''));
+        $maquina = trim((string) $request->query('maquina', ''));
+        $tipo = trim((string) $request->query('tipo', ''));
+        $status = trim((string) $request->query('status', ''));
 
         $query = EngProgramaEngomado::select([
             'Id',
@@ -71,10 +75,25 @@ class ProgramarEngomadoController extends Controller
             'MaquinaEng',
             'FechaProg',
             'Status',
-        ])
-        ->where('Status', 'Finalizado');
+        ]);
 
-        if ($busqueda !== '') {
+        if ($folio !== '') {
+            $query->where('Folio', 'like', "%{$folio}%");
+        }
+
+        if ($maquina !== '') {
+            $query->where('MaquinaEng', $maquina);
+        }
+
+        if ($tipo !== '') {
+            $query->where('RizoPie', $tipo);
+        }
+
+        if ($status !== '') {
+            $query->where('Status', $status);
+        }
+
+        if ($busqueda !== '' && $folio === '' && $maquina === '' && $tipo === '' && $status === '') {
             $query->where(function ($sub) use ($busqueda) {
                 $sub->where('Folio', 'like', "%{$busqueda}%")
                     ->orWhere('Cuenta', 'like', "%{$busqueda}%")
@@ -85,7 +104,6 @@ class ProgramarEngomadoController extends Controller
         $ordenes = $query
             ->orderBy('FechaProg', 'desc')
             ->orderBy('Id', 'desc')
-            ->limit(200)
             ->get();
 
         return view('modulos.engomado.reimpresion-engomado', [

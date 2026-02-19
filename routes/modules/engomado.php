@@ -6,6 +6,7 @@ use App\Http\Controllers\Engomado\CapturaFormulas\EngProduccionFormulacionContro
 use App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado\EngActividadesBpmController;
 use App\Http\Controllers\Engomado\Produccion\ModuloProduccionEngomadoController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
+use App\Http\Controllers\Engomado\ProgramaEngomado\EditarOrdenesEngomadoController;
 use App\Http\Controllers\Engomado\ReportesEngomadoController;
 use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
 use App\Http\Controllers\UsuarioController;
@@ -59,6 +60,9 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
 
     Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
     Route::get('/reimpresion-engomado', [ProgramarEngomadoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
+    Route::get('/editar-ordenes-programadas', [EditarOrdenesEngomadoController::class, 'index'])->name('editar.ordenes.programadas');
+    Route::post('/editar-ordenes-programadas/actualizar', [EditarOrdenesEngomadoController::class, 'actualizar'])->name('editar.ordenes.programadas.actualizar');
+    Route::get('/editar-ordenes-programadas/obtener-orden', [EditarOrdenesEngomadoController::class, 'obtenerOrden'])->name('editar.ordenes.programadas.obtener.orden');
     Route::get('/reimpresion-engomado/ventana-imprimir', [ProgramarEngomadoController::class, 'reimpresionVentanaImprimir'])->name('reimpresion.engomado.ventana.imprimir');
     Route::get('/reportesengomado', [ReportesEngomadoController::class, 'index'])->name('reportes.engomado');
     Route::get('/reportesengomado/bpm-engomado', [ReportesEngomadoController::class, 'reporteBpm'])->name('reportes.bpm');
