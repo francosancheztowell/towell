@@ -8,9 +8,10 @@
     $programaTejidoModuleLabel = $isMuestras ? 'Muestras' : 'Programa';
     $programaTejidoModulePermission = 'Programa Tejido';
     $liberarOrdenesBase = $isMuestras ? '/planeacion/muestras' : '/planeacion/programa-tejido';
+    // Ocultar Paro solo en la sección Programa Urd-Eng (/programaurdeng y sus subrutas)
     $showParoButton = !request()->routeIs('catalogos.req-programa-tejido')
         && !$isMuestras
-        && !request()->routeIs('programa.urd.eng.reservar.programar')
+        && !request()->routeIs('programa.urd.eng.*')
         && !request()->routeIs('codificacion-modelos')
         && !request()->routeIs('planeacion.alineacion.index')
         && !request()->is('simulacion*');

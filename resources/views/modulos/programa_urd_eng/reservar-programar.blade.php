@@ -1,9 +1,16 @@
 @extends('layouts.app')
 
-@section('page-title', 'Reservar y Programar ')
+@section('page-title', 'Reservar y Prog')
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
+    <a href="{{ route('programa.urd.eng.karl.mayer') }}"
+       id="btnKarlMayer"
+       class="px-3 py-2 rounded-lg transition flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium"
+       title="Karl Mayer">
+        <i class="fa-solid fa-robot text-base"></i>
+        <span>Karl Mayer</span>
+    </a>
     <x-navbar.button-create
         id="btnReservar"
         type="button"
@@ -19,12 +26,12 @@
     <x-navbar.button-create
         id="btnLiberarTelar"
         type="button"
-        title="Liberar telar"
+        title="Liberar"
         icon="fa-unlock"
         iconColor="text-white"
         hoverBg="hover:bg-red-600"
         bg="bg-red-500"
-        text="Liberar telar"
+        text="Liberar"
         />
 
     <x-navbar.button-create
@@ -37,6 +44,7 @@
         bg="bg-purple-500"
         text="Programar"
         />
+
 </div>
 @endsection
 

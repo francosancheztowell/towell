@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\BomMaterialesController;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\CrearOrdenKarlMayerController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InventarioTelaresController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InventarioDisponibleController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservaInventarioController;
@@ -23,6 +24,7 @@ Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () 
     Route::get('/reservar-programar', [ReservarProgramarController::class, 'index'])->name('reservar.programar');
     Route::get('/programacion-requerimientos', [ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
     Route::get('/creacion-ordenes', [ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
+    Route::get('/karl-mayer', [ReservarProgramarController::class, 'karlMayer'])->name('karl.mayer');
     
     Route::post('/programacion-requerimientos/resumen-semanas', [ResumenSemanasController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
     
@@ -42,11 +44,13 @@ Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () 
     Route::get('/buscar-bom-urdido', [BomMaterialesController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
     Route::get('/buscar-bom-engomado', [BomMaterialesController::class, 'buscarBomEngomado'])->name('buscar.bom.engomado');
     Route::get('/materiales-urdido', [BomMaterialesController::class, 'getMaterialesUrdido'])->name('materiales.urdido');
+    Route::get('/materiales-urdido-completo', [BomMaterialesController::class, 'getMaterialesUrdidoCompleto'])->name('materiales.urdido.completo');
     Route::get('/materiales-engomado', [BomMaterialesController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
     Route::get('/anchos-balona', [BomMaterialesController::class, 'getAnchosBalona'])->name('anchos.balona');
     Route::get('/maquinas-engomado', [BomMaterialesController::class, 'getMaquinasEngomado'])->name('maquinas.engomado');
     Route::get('/nucleos', [UrdEngNucleosController::class, 'getNucleos'])->name('nucleos');
     Route::post('/crear-ordenes', [ProgramarUrdEngController::class, 'crearOrdenes'])->name('crear.ordenes');
+    Route::post('/crear-orden-karl-mayer', [CrearOrdenKarlMayerController::class, 'store'])->name('crear.orden.karl.mayer');
     Route::get('/hilos', [BomMaterialesController::class, 'obtenerHilos'])->name('hilos');
     Route::get('/tamanos', [BomMaterialesController::class, 'obtenerTamanos'])->name('tamanos');
     Route::get('/bom-formula', [BomMaterialesController::class, 'getBomFormula'])->name('bom.formula');

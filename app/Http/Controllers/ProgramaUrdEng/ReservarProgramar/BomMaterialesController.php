@@ -53,6 +53,22 @@ class BomMaterialesController extends Controller
         }
     }
 
+    /**
+     * API para Karl Mayer: resumen (Articulo, Config, Consumo, Kilos) + detalle inventario.
+     */
+    public function getMaterialesUrdidoCompleto(Request $request): JsonResponse
+    {
+        try {
+            $bomId = trim((string) ($request->query('bomId') ?? $request->input('bomId', '')));
+            $kilosTotal = $request->query('kilosTotal') ? (float) $request->query('kilosTotal') : null;
+            $results = $this->service->getMaterialesUrdidoCompleto($bomId, $kilosTotal);
+            return response()->json($results);
+        } catch (\Throwable $e) {
+            Log::error('getMaterialesUrdidoCompleto', ['msg' => $e->getMessage()]);
+            return response()->json(['resumen' => [], 'detalle' => [], 'error' => $e->getMessage()], 500);
+        }
+    }
+
     public function getMaterialesEngomado(Request $request): JsonResponse
     {
         try {

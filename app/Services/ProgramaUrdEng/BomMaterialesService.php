@@ -79,6 +79,117 @@ class BomMaterialesService
             ->toArray();
     }
 
+    /**
+     * Obtiene resumen (materiales BOM) e inventario detalle para Karl Mayer.
+     * Resumen: Articulo, Config, Consumo, Kilos.
+     * Detalle: inventario por serie/lote con Conos, Kilos, etc.
+     */
+    public function getMaterialesUrdidoCompleto(string $bomId, ?float $kilosTotal = null): array
+    {
+        $resumen = $this->getMaterialesUrdido($bomId);
+        if (empty($resumen)) {
+            return ['resumen' => [], 'detalle' => []];
+        }
+
+        $itemIds = array_values(array_unique(array_map(fn ($r) => trim((string) ($r->ItemId ?? '')), $resumen)));
+        $configIds = array_values(array_unique(array_map(fn ($r) => trim((string) ($r->ConfigId ?? '')), $resumen)));
+        $itemIds = array_filter($itemIds);
+        $configIds = array_filter($configIds);
+
+        $detalle = $this->getInventarioPorMaterialesUrdido($itemIds, $configIds);
+
+        $kilosTotal = $kilosTotal > 0 ? (float) $kilosTotal : 1;
+        $resumenMapped = [];
+        foreach ($resumen as $r) {
+            $bomQty = (float) ($r->BomQty ?? 0);
+            $resumenMapped[] = [
+                'articulo' => trim($r->ItemId ?? ''),
+                'config' => trim($r->ConfigId ?? ''),
+                'consumo' => $bomQty,
+                'kilos' => number_format($bomQty * $kilosTotal, 2),
+            ];
+        }
+
+        return ['resumen' => $resumenMapped, 'detalle' => $detalle];
+    }
+
+    /**
+     * Inventario físico disponible por ItemId/ConfigId (para tabla detalle Karl Mayer).
+     */
+    private function getInventarioPorMaterialesUrdido(array $itemIds, array $configIds): array
+    {
+        $itemIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $itemIds)));
+        if (empty($itemIds)) return [];
+
+        $configIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $configIds)));
+        $consumidosKeys = $this->obtenerMaterialesConsumidosKeys($itemIds);
+
+        $q = DB::connection(self::CONN)
+            ->table('InventSum as sum')
+            ->join('InventDim as dim', 'dim.INVENTDIMID', '=', 'sum.INVENTDIMID')
+            ->join('InventSerial as ser', function ($j) {
+                $j->on('sum.ITEMID', '=', 'ser.ITEMID')->on('ser.INVENTSERIALID', '=', 'dim.INVENTSERIALID');
+            })
+            ->whereIn('sum.ITEMID', $itemIds)
+            ->whereRaw('sum.PhysicalInvent <> 0')
+            ->where('sum.DATAAREAID', self::DATAAREA)
+            ->where('dim.DATAAREAID', self::DATAAREA)
+            ->whereIn('dim.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
+            ->where('ser.DATAAREAID', self::DATAAREA);
+
+        if (! empty($configIds)) {
+            $q->whereIn('dim.CONFIGID', $configIds);
+        }
+
+        $rows = $q->select([
+            'sum.ITEMID as ItemId',
+            'sum.PHYSICALINVENT as PhysicalInvent',
+            'dim.CONFIGID as ConfigId',
+            'dim.INVENTSIZEID as InventSizeId',
+            'dim.INVENTCOLORID as InventColorId',
+            'dim.INVENTLOCATIONID as InventLocationId',
+            'dim.INVENTBATCHID as InventBatchId',
+            'dim.WMSLOCATIONID as WMSLocationId',
+            'dim.INVENTSERIALID as InventSerialId',
+            'ser.PRODDATE as ProdDate',
+            'ser.TWTIRAS as TwTiras',
+            'ser.TWCALIDADFLOG as TwCalidadFlog',
+            'ser.TWCLIENTEFLOG as TwClienteFlog',
+        ])->orderBy('sum.ITEMID')->get();
+
+        $filtered = $this->excluirMaterialesConsumidos($rows, $consumidosKeys);
+
+        return array_map(function ($row) {
+            $row = is_array($row) ? (object) $row : $row;
+            $physical = (float) ($row->PhysicalInvent ?? 0);
+            $twTiras = isset($row->TwTiras) ? (int) $row->TwTiras : 0;
+            $fecha = $row->ProdDate ?? null;
+            if ($fecha instanceof \DateTimeInterface) {
+                $fecha = $fecha->format('d/m/Y');
+            } elseif ($fecha !== null && $fecha !== '') {
+                $fecha = (string) $fecha;
+            } else {
+                $fecha = '';
+            }
+            return [
+                'articulo' => trim($row->ItemId ?? ''),
+                'config' => trim($row->ConfigId ?? ''),
+                'tamano' => trim($row->InventSizeId ?? '') ?: 'ENTERO',
+                'color' => trim($row->InventColorId ?? ''),
+                'almacen' => trim($row->InventLocationId ?? ''),
+                'lote' => trim($row->InventBatchId ?? ''),
+                'localidad' => trim($row->WMSLocationId ?? ''),
+                'serie' => trim($row->InventSerialId ?? ''),
+                'loteProveedor' => trim($row->TwCalidadFlog ?? ''),
+                'noProveedor' => trim($row->TwClienteFlog ?? ''),
+                'fecha' => $fecha,
+                'conos' => $twTiras,
+                'kilos' => $physical,
+                'id' => ($row->ItemId ?? '') . '|' . ($row->InventSerialId ?? ''),
+            ];
+        }, $filtered);
+    }
+
     public function getMaterialesEngomado(array $itemIds, array $configIds = []): array
     {
         $itemIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $itemIds)));

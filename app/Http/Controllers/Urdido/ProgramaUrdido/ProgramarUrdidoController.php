@@ -142,7 +142,8 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
-     * Extraer número de MC Coy del campo MaquinaId
+     * Extraer número de tarjeta (1-4) del campo MaquinaId.
+     * Mc Coy 1 -> 1, Mc Coy 2 -> 2, Mc Coy 3 -> 3, Karl Mayer -> 4.
      *
      * @param string|null $maquinaId
      * @return int|null
@@ -153,9 +154,17 @@ class ProgramarUrdidoController extends Controller
             return null;
         }
 
+        $m = trim($maquinaId);
+
+        // Karl Mayer -> tarjeta 4
+        if (stripos($m, 'Karl Mayer') !== false) {
+            return 4;
+        }
+
         // Buscar patrón "Mc Coy X" (case insensitive, permite espacios variables)
-        if (preg_match('/mc\s*coy\s*(\d+)/i', $maquinaId, $matches)) {
-            return (int) $matches[1];
+        if (preg_match('/mc\s*coy\s*(\d+)/i', $m, $matches)) {
+            $num = (int) $matches[1];
+            return ($num >= 1 && $num <= 3) ? $num : null;
         }
 
         return null;

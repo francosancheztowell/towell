@@ -70,6 +70,11 @@ class ReservarProgramarController extends Controller
         ]);
     }
 
+    public function karlMayer()
+    {
+        return view('modulos.programa_urd_eng.karl-mayer.crear-karl-mayer');
+    }
+
     /* ==================== API Endpoints ==================== */
 
     public function programarTelar(Request $request): JsonResponse

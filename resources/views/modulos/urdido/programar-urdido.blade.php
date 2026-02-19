@@ -60,7 +60,7 @@
                                         @endphp
                                         <th class="{{ $thBaseClasses }}">Prioridad</th>
                                         <th class="{{ $thBaseClasses }}">Folio</th>
-                                        <th class="{{ $thBaseClasses }}">Tipo</th>
+                                        <th class="{{ $thBaseClasses }}">@if($i == 4)Barras @else Tipo @endif</th>
                                         <th class="{{ $thBaseClasses }}">Cuenta</th>
                                         <th class="{{ $thBaseClasses }}">Calibre</th>
                                         <th class="{{ $thBaseClasses }}">Metros</th>
