@@ -62,8 +62,8 @@
 @endsection
 
 @section('content')
-<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
-    <div class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
+<div class="w-full max-w-7xl mx-auto h-full overflow-hidden flex flex-col px-4 md:px-8 lg:px-12 xl:px-16 py-4">
+    <div class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden">
     @if(isset($marcas) && $marcas->count() > 0)
         <!-- Header fijo (sticky) dentro del contenedor -->
         <div class="bg-blue-600 text-white sticky top-0 z-10">
@@ -77,11 +77,11 @@
                 </colgroup>
                 <thead>
                     <tr>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Folio</th>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Fecha</th>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Turno</th>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Empleado</th>
-                        <th class="px-4 py-3 text-left uppercase text-sm font-semibold">Status</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Folio</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Fecha</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Turno</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Empleado</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-left uppercase text-xs md:text-sm font-semibold">Status</th>
                     </tr>
                 </thead>
             </table>
@@ -102,23 +102,23 @@
                   id="row-{{ $marca->Folio }}"
                   data-folio="{{ $marca->Folio }}"
                   onclick="window.MarcasManager?.seleccionar('{{ $marca->Folio }}', this)">
-                <td class="px-4 py-3 font-semibold text-gray-900 text-base truncate hover:text-white">{{ $marca->Folio }}</td>
-                                <td class="px-4 py-3 text-gray-900 text-base truncate hover:text-white">
+                <td class="px-2 md:px-4 py-2 md:py-3 font-semibold text-gray-900 text-sm md:text-base truncate hover:text-white">{{ $marca->Folio }}</td>
+                                <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate hover:text-white">
                                     @if($marca->Date)
                                         {{ Carbon::parse($marca->Date)->format('d/m/Y') }}
                                     @else
                                         -
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-gray-900 text-base truncate hover:text-white">{{ $marca->Turno }}</td>
-                <td class="px-4 py-3 text-gray-900 text-base truncate hover:text-white">{{ $marca->numero_empleado ?? 'N/A' }}</td>
-                <td class="px-4 py-3">
+                                <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate hover:text-white">{{ $marca->Turno }}</td>
+                <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate hover:text-white">{{ $marca->numero_empleado ?? 'N/A' }}</td>
+                <td class="px-2 md:px-4 py-2 md:py-3">
                   @if($marca->Status === 'Finalizado')
-                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
+                    <span class="px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-semibold bg-green-100 text-green-700">Finalizado</span>
                   @elseif($marca->Status === 'En Proceso')
-                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
+                    <span class="px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-semibold bg-blue-100 text-blue-700">En Proceso</span>
                   @else
-                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $marca->Status }}</span>
+                    <span class="px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-semibold bg-yellow-100 text-yellow-700">{{ $marca->Status }}</span>
                   @endif
                 </td>
               </tr>

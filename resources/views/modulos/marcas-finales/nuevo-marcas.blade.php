@@ -83,9 +83,9 @@
 @section('content')
 <!-- Contenedor principal sin alertas flotantes (ahora usa SweetAlert) -->
 
-<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
+<div class="w-full h-full overflow-hidden flex flex-col px-4 py-4 md:px-8 lg:px-12 xl:px-16">
     <!-- Tabla principal -->
-    <div id="segunda-tabla" class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden max-w-full">
+    <div id="segunda-tabla" class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden mx-auto w-full max-w-7xl">
         <!-- Header fijo (sticky) dentro del contenedor -->
         <div class="bg-blue-600 text-white sticky top-0 z-10">
             <table class="w-full text-sm">
@@ -101,10 +101,10 @@
                 </colgroup>
                 <thead>
                     <tr>
-                        <th class="px-4 py-3 text-center uppercase text-sm font-semibold">Telar</th>
-                        <th class="px-4 py-3 text-center uppercase text-sm font-semibold">Salón</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-center uppercase text-xs md:text-sm font-semibold">Telar</th>
+                        <th class="px-2 md:px-4 py-2 md:py-3 text-center uppercase text-xs md:text-sm font-semibold">Salón</th>
                         @foreach($colsEditables as $col)
-                            <th class="px-4 py-3 text-center uppercase text-sm font-semibold">
+                            <th class="px-2 md:px-4 py-2 md:py-3 text-center uppercase text-xs md:text-sm font-semibold">
                                 {{ $col['label'] }}
                             </th>
                         @endforeach
@@ -129,12 +129,12 @@
                 @foreach(($telares ?? []) as $telar)
                     <tr class="even:bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
                         <!-- Telar -->
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 text-center border-r border-gray-200">
+                        <td class="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-medium text-gray-900 text-center border-r border-gray-200">
                             {{ $telar->NoTelarId }}
                         </td>
 
                         <!-- Salón (badge) -->
-                        <td class="px-4 py-3 text-center border-r border-gray-200">
+                        <td class="px-2 md:px-4 py-2 md:py-3 text-center border-r border-gray-200">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                                   data-telar="{{ $telar->NoTelarId }}" data-field="salon">
                                 {{ $telar->SalonId ?? '-' }}
@@ -143,13 +143,13 @@
 
                         <!-- Celdas editables (DRY) -->
                         @foreach($colsEditables as $col)
-                            <td class="px-3 py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
+                            <td class="px-1 md:px-3 py-2 md:py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
                                 @php
                                     $maxVal = $col['key'] === 'marcas' ? 250 : 100;
                                     $isEfi = $col['key'] === 'efi';
                                 @endphp
                                 <input type="number" 
-                                    class="valor-input w-full max-w-[80px] mx-auto px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400 {{ !$puedeEditar ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white' }}" 
+                                    class="valor-input w-full max-w-[60px] md:max-w-[70px] mx-auto px-1 md:px-2 py-1 md:py-1.5 border border-gray-300 rounded text-xs md:text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400 {{ !$puedeEditar ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white' }}" 
                                     data-telar="{{ $telar->NoTelarId }}"
                                     data-type="{{ $col['key'] }}"
                                     value="0"
