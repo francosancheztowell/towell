@@ -33,12 +33,12 @@
   <div class="h-screen flex overflow-hidden">
     <!-- Panel izquierdo - Branding -->
     <div class="hidden lg:flex lg:w-2/5 relative overflow-hidden bg-blue-600">
-      <div class="relative z-10 p-12 mt-16 h-full flex flex-col justify-center text-white">
-        <div class="text-center mb-8">
-          <div class="flex justify-center mb-10">
+      <div class="relative z-10 p-12 h-full flex flex-col justify-center text-white">
+        <div class="text-center mt-16">
+          <div class="flex justify-center">
             <img src="images/fotos_usuarios/TOWELLIN.png" alt="Logo" class="w-40 h-40">
           </div>
-          <div class="mt-20">
+          <div>
             <h1 class="text-white text-5xl font-bold leading-tight mb-6">Bienvenido</h1>
             <p class="text-xl text-white/90 leading-relaxed">
               Accede a tu cuenta de forma rápida y segura
