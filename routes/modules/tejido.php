@@ -10,6 +10,7 @@ use App\Http\Controllers\Tejido\InventarioTrama\ConsultarRequerimientoController
 use App\Http\Controllers\Tejido\InventarioTrama\NuevoRequerimientoController;
 use App\Http\Controllers\Tejido\MarcasFinales\MarcasController;
 use App\Http\Controllers\Tejido\ProduccionReenconado\ProduccionReenconadoCabezuelaController;
+use App\Http\Controllers\Tejido\Reportes\ReporteInvTelasController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,22 @@ Route::get('/tejido/{moduloPrincipal?}', [UsuarioController::class, 'showSubModu
     ->name('tejido.index');
 
 Route::prefix('tejido')->name('tejido.')->group(function () {
+    Route::get('/reportes', function () {
+        $reportes = [
+            [
+                'nombre' => 'Reporte inv telas',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('tejido.reportes.inv-telas'),
+                'disponible' => true,
+            ],
+        ];
+        return view('modulos.tejido.reportes.index', ['reportes' => $reportes]);
+    })->name('reportes.index');
+
+    Route::get('/reportes/inv-telas', [ReporteInvTelasController::class, 'index'])->name('reportes.inv-telas');
+    Route::get('/reportes/inv-telas/excel', [ReporteInvTelasController::class, 'exportarExcel'])->name('reportes.inv-telas.excel');
+    Route::get('/reportes/inv-telas/pdf', [ReporteInvTelasController::class, 'exportarPdf'])->name('reportes.inv-telas.pdf');
+
     Route::get('/configurar/{serie?}', [UsuarioController::class, 'showSubModulosConfiguracion'])
         ->defaults('serie', '205')
         ->where('serie', '205')
