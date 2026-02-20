@@ -52,13 +52,13 @@
     </div>
 
     <!-- Panel derecho - Formulario -->
-    <div class="login-panel-right w-full lg:w-3/5 flex flex-col items-center justify-start pt-16 lg:pt-0 p-8 lg:p-12 overflow-hidden h-screen">
+    <div class="login-panel-right w-full lg:w-3/5 flex flex-col items-center justify-start pt-16 lg:pt-0 p-8 lg:p-12 overflow-y-auto lg:overflow-hidden h-screen">
       <div class="w-full max-w-2xl flex flex-col items-center flex-shrink-0">
         <div class="text-center w-full flex-shrink-0">
           <img src="{{ asset('images/fondosTowell/logo.png') }}" class="h-20 mx-auto" alt="Logo_Towell">
         </div>
 
-        <div class="w-full bg-white rounded-2xl p-10 shadow-sm mt-6">
+        <div class="w-full bg-white  p-10 ">
           <x-auth.login-form
             :errors="$errors ?? []"
           />
@@ -75,6 +75,25 @@
         window.location.reload(); // Fuerza recarga completa
       }
     });
+  </script>
+  <!-- En tablet/móvil: al enfocar un input, bajar el scroll para que se vea el botón Iniciar sesión -->
+  <script>
+    (function() {
+      var form = document.getElementById('loginForm');
+      if (!form) return;
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (!submitBtn) return;
+
+      function scrollButtonIntoView() {
+        setTimeout(function() {
+          submitBtn.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
+        }, 400);
+      }
+
+      form.querySelectorAll('input').forEach(function(input) {
+        input.addEventListener('focus', scrollButtonIntoView);
+      });
+    })();
   </script>
 
 </body>
