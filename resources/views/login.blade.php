@@ -33,7 +33,7 @@
   <div class="h-screen flex overflow-hidden">
     <!-- Panel izquierdo - Branding -->
     <div class="hidden lg:flex lg:w-2/5 relative overflow-hidden bg-blue-600">
-      <div class="relative z-10 p-12 h-full flex flex-col justify-center text-white">
+      <div class="relative z-10 p-12 mt-16 h-full flex flex-col justify-center text-white">
         <div class="text-center mb-8">
           <div class="flex justify-center mb-10">
             <img src="images/fotos_usuarios/TOWELLIN.png" alt="Logo" class="w-40 h-40">
