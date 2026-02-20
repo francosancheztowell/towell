@@ -23,6 +23,9 @@
         justify-content: center !important;
         padding-top: 0 !important;
       }
+      .login-panel-left-content {
+        padding-top: 8rem !important;
+      }
     }
   </style>
   <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -33,19 +36,19 @@
   <div class="h-screen flex overflow-hidden">
     <!-- Panel izquierdo - Branding -->
     <div class="hidden lg:flex lg:w-2/5 relative overflow-hidden bg-blue-600">
-      <div class="relative z-10 p-12 h-full flex flex-col justify-center text-white">
-        <div class="text-center mt-16">
+      <div class="relative z-10 p-12 h-full flex flex-col justify-between text-white">
+        <div class="login-panel-left-content text-center flex-shrink-0">
           <div class="flex justify-center">
             <img src="images/fotos_usuarios/TOWELLIN.png" alt="Logo" class="w-40 h-40">
           </div>
           <div>
-            <h1 class="text-white text-5xl font-bold leading-tight mb-6">Bienvenido</h1>
+            <h1 class="text-white text-5xl font-bold leading-tight mb-6 mt-6">Bienvenido</h1>
             <p class="text-xl text-white/90 leading-relaxed">
               Accede a tu cuenta de forma rápida y segura
             </p>
           </div>
         </div>
-        <div class="mt-auto text-sm text-center text-white/70">
+        <div class="text-sm text-center text-white/70 flex-shrink-0">
           <p>© {{ date('Y') }} Towell. Todos los derechos reservados.</p>
         </div>
       </div>
