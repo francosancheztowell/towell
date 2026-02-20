@@ -141,13 +141,12 @@
     <!-- Sección inferior: Tabla de Producción -->
     <div class="bg-white shadow-md overflow-hidden">
             <div class="overflow-x-auto max-h-[55vh] overflow-y-auto">
-                <table class="text-md w-full min-w-[1200px]">
+                <table class="text-md w-full min-w-[1120px]">
                 <thead class="bg-blue-500 text-white sticky top-0 z-20">
                     <tr>
                         @if($hasFinalizarPermission)
                         <th class="py-1"></th>
                         @endif
-                        <th class="py-1"></th>
                         <th class="py-1"></th>
                         <th class="py-1"></th>
                         <th class="py-1"></th>
@@ -166,10 +165,9 @@
                         <th class="py-2 px-0 text-center font-semibold text-[9px] md:text-[10px]" style="width: 28px; min-width: 28px; max-width: 28px;">Fin</th>
                         @endif
                         <th class="py-2 px-1 md:px-1 text-center font-semibold sticky left-0 z-30 text-xs md:text-md" style="width: 3rem; min-width: 3rem; max-width: 3rem;">Fecha</th>
-                        <th class="py-2 px-1 md:px-1 text-left font-semibold text-md" style="width: 3.5rem; min-width: 3.5rem; max-width: 3.5rem;">Oficial</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md w-20 max-w-[60px]">Turno</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-32 max-w-[110px]">H. Inicio</th>
-                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-32 max-w-[110px]">H. Fin</th>
+                        <th class="py-2 px-1 md:px-1 text-left font-semibold text-xs md:text-sm" style="width: 9rem; min-width: 9rem; max-width: 9rem;">No. Empleado</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-28 max-w-[104px]">H. Inicio</th>
+                        <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-28 max-w-[104px]">H. Fin</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md w-24 max-w-[75px]">No. Julio</th>
                         <th class="py-2 px-1 md:px-2 text-center font-semibold text-xs md:text-md hidden lg:table-cell w-20 max-w-[60px]">Hilos</th>
                         <th class="py-2 px-1 md:px-0.5 text-center font-semibold text-[10px] md:text-xs w-12 md:w-10 lg:w-12">Kg. Bruto</th>
@@ -238,30 +236,37 @@
                                     $ax = $registro ? (int)($registro->AX ?? 0) : 0;
 
                                     $oficiales = [];
-                                    $primerOficialNombre = '';
-                                    $primerOficialNombreCompleto = '';
+                                    $codigosOficiales = [];
+                                    $infoOficial = [];
                                     for ($i = 1; $i <= 3; $i++) {
-                                        $nomEmpl = $registro ? ($registro->{"NomEmpl{$i}"} ?? null) : null;
-                                        if ($nomEmpl) {
+                                        $cve = trim((string) ($registro ? ($registro->{"CveEmpl{$i}"} ?? '') : ''));
+                                        $nomEmpl = trim((string) ($registro ? ($registro->{"NomEmpl{$i}"} ?? '') : ''));
+                                        $turnoOficial = $registro ? ($registro->{"Turno{$i}"} ?? null) : null;
+                                        $metrosOficial = $registro ? ($registro->{"Metros{$i}"} ?? null) : null;
+
+                                        if ($cve !== '' || $nomEmpl !== '' || $turnoOficial !== null || ($metrosOficial !== null && $metrosOficial !== '')) {
                                             $oficiales[] = [
                                                 'numero' => $i,
-                                                'nombre' => $nomEmpl,
-                                                'clave' => $registro->{"CveEmpl{$i}"} ?? null,
-                                                'metros' => $registro->{"Metros{$i}"} ?? null,
-                                                'turno' => $registro->{"Turno{$i}"} ?? null,
+                                                'nombre' => $nomEmpl !== '' ? $nomEmpl : null,
+                                                'clave' => $cve !== '' ? $cve : null,
+                                                'metros' => $metrosOficial,
+                                                'turno' => $turnoOficial,
                                             ];
-                                            // Solo tomar el primer oficial para mostrar
-                                            if ($i === 1 && !$primerOficialNombre) {
-                                                $primerOficialNombreCompleto = $nomEmpl;
-                                                // Truncar a máximo 12 caracteres
-                                                $primerOficialNombre = mb_strlen($nomEmpl) > 12 ? mb_substr($nomEmpl, 0, 12) . '...' : $nomEmpl;
-                                            }
+                                        }
+
+                                        if ($cve !== '') {
+                                            $codigosOficiales[] = $cve;
+                                        }
+
+                                        if ($nomEmpl !== '') {
+                                            $infoOficial[] = [
+                                                'nombre' => $nomEmpl,
+                                                'turno' => $turnoOficial,
+                                            ];
                                         }
                                     }
                                     $tieneOficiales = count($oficiales) > 0;
-                                    $textoOficiales = $primerOficialNombre ?: '';
-                                    // Obtener turno del primer oficial si existe
-                                    $turnoInicial = $tieneOficiales && isset($oficiales[0]['turno']) ? (string)$oficiales[0]['turno'] : '';
+                                    $textoCodigos = count($codigosOficiales) > 0 ? implode(', ', $codigosOficiales) : '-';
                                 @endphp
 
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $registroId }}">
@@ -308,58 +313,50 @@
                         </td>
 
                                     {{-- Oficial --}}
-                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-left whitespace-nowrap" style="width: 3.5rem; min-width: 3.5rem; max-width: 3.5rem;">
-                                        <div class="flex items-center justify-start gap-1">
-                                            <span
-                                                class="oficial-texto w-full text-xs text-gray-900 px-1 md:px-1 py-0.5 md:py-1 truncate text-left {{ !$tieneOficiales ? 'text-gray-400 italic' : '' }}"
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-left align-top" style="width: 9rem; min-width: 9rem; max-width: 9rem;">
+                                        <div class="flex items-start gap-0.5">
+                                            <div
+                                                class="oficial-texto text-xs leading-tight min-w-0"
                                                 data-registro-id="{{ $registroId }}"
                                                 data-oficiales-json="{{ $tieneOficiales ? json_encode($oficiales) : '[]' }}"
-                                                title="{{ $primerOficialNombreCompleto ?: 'Sin oficiales' }}"
                                             >
-                                                {{ $textoOficiales ?: 'Sin oficiales' }}
-                                            </span>
+                                                @if($tieneOficiales)
+                                                    <div class="text-gray-800 font-semibold">{{ $textoCodigos }}</div>
+                                                    @foreach($infoOficial as $of)
+                                                        <div class="text-xs text-gray-600">{{ $of['nombre'] }} <span class="text-amber-600">(T{{ $of['turno'] ?? '-' }})</span></div>
+                                                    @endforeach
+                                                @else
+                                                    <div class="text-gray-400 italic">Sin oficiales</div>
+                                                @endif
+                                            </div>
 
                                             @php
                                                 $cantidadOficiales = count($oficiales);
                                             @endphp
                                             <button
                                                 type="button"
-                                                class="btn-agregar-oficial flex-shrink-0 p-1 md:p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                                class="btn-agregar-oficial flex-shrink-0 p-1.5 md:p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                                                 data-registro-id="{{ $registroId }}"
                                                 data-cantidad-oficiales="{{ $cantidadOficiales }}"
                                                 title="Agregar oficial"
                                             >
-                                                <i class="fa-solid fa-plus-circle text-sm md:text-base"></i>
+                                                <i class="fa-solid fa-plus-circle text-lg md:text-xl"></i>
                                             </button>
                                         </div>
                         </td>
 
-                                    {{-- Turno --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap w-20 max-w-[60px]">
-                                        <select
-                                            data-field="turno"
-                                            class="w-full border border-gray-300 rounded px-1 py-0.5 text-md text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                            min="1"
-                                            max="3"
-                                        >
-                                <option value="">Seleccionar...</option>
-                                            <option value="1" {{ $turnoInicial == '1' ? 'selected' : '' }}>1</option>
-                                            <option value="2" {{ $turnoInicial == '2' ? 'selected' : '' }}>2</option>
-                                            <option value="3" {{ $turnoInicial == '3' ? 'selected' : '' }}>3</option>
-                            </select>
-                        </td>
-
                                     {{-- H. INICIO --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-32 max-w-[110px]">
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-28 max-w-[104px]">
                             <div class="flex items-center justify-center gap-1">
                                             <input
                                                 type="time"
                                                 data-field="h_inicio"
-                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                lang="en-US"
+                                                class="w-24 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                                 value="{{ $horaInicio }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-base md:text-lg cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-7 h-7 md:w-9 md:h-9 rounded-full transition-colors"
+                                                class="fa-solid fa-clock text-gray-400 text-2xl md:text-3xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-colors"
                                                 data-time-target="h_inicio"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -367,16 +364,17 @@
                         </td>
 
                                     {{-- H. FIN --}}
-                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-32 max-w-[110px]">
+                        <td class="px-1 md:px-2 py-1 md:py-1.5 text-center whitespace-nowrap hidden lg:table-cell w-28 max-w-[104px]">
                             <div class="flex items-center justify-center gap-1">
                                             <input
                                                 type="time"
                                                 data-field="h_fin"
-                                                class="flex-1 border border-gray-300 rounded px-1.5 py-0.5 text-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                lang="en-US"
+                                                class="w-24 border border-gray-300 rounded px-2 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                                 value="{{ $horaFin }}"
                                             >
                                             <i
-                                                class="fa-solid fa-clock text-gray-400 text-base md:text-lg cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-7 h-7 md:w-9 md:h-9 rounded-full transition-colors"
+                                                class="fa-solid fa-clock text-gray-400 text-2xl md:text-3xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-colors"
                                                 data-time-target="h_fin"
                                                 title="Establecer hora actual"
                                             ></i>
@@ -571,7 +569,7 @@
                             @endfor
                         @else
                             <tr>
-                                <td colspan="{{ $hasFinalizarPermission ? 16 : 15 }}" class="px-2 py-4 text-center text-gray-500 italic">
+                                <td colspan="{{ $hasFinalizarPermission ? 15 : 14 }}" class="px-2 py-4 text-center text-gray-500 italic">
                                     No hay registros para generar.
                                     @if(isset($julios) && $julios->count() > 0)
                                         <br>Total calculado: {{ $totalRegistros }} | Cantidad de julios: {{ $julios->count() }}
@@ -833,27 +831,6 @@
                         }
                     });
 
-                    // Inicializar valor anterior del oficial en cada fila y actualizar turno
-                    tablaBody.querySelectorAll('tr').forEach(row => {
-                        const oficialTexto = row.querySelector('.oficial-texto');
-                        if (oficialTexto) {
-                            // Obtener turno del primer oficial si existe
-                            const oficialesJson = oficialTexto.getAttribute('data-oficiales-json');
-                            if (oficialesJson) {
-                                try {
-                                    const oficiales = JSON.parse(oficialesJson);
-                                    if (oficiales.length > 0 && oficiales[0].turno) {
-                                        const turnoSelect = row.querySelector('select[data-field="turno"]');
-                                        if (turnoSelect) {
-                                            turnoSelect.value = oficiales[0].turno;
-                                        }
-                                    }
-                                } catch (e) {
-                                    console.error('Error al parsear oficiales:', e);
-                                }
-                            }
-                        }
-                    });
                 }
 
                 let catalogosJuliosCompleto = []; // Variable global para almacenar todos los julios
@@ -927,29 +904,6 @@
                         }
 
                         // El oficial ahora es texto, no hay cambio directo en la tabla
-
-                        // Cambio manual del turno
-                        if (target.getAttribute('data-field') === 'turno' && target.tagName === 'SELECT') {
-                            const row = target.closest('tr');
-                            const registroId = row ? row.getAttribute('data-registro-id') : null;
-                            const turnoValue = target.value;
-                            const oficialTexto = row ? row.querySelector('.oficial-texto') : null;
-
-                            if (oficialTexto && registroId && turnoValue) {
-                                const oficialesJson = oficialTexto.getAttribute('data-oficiales-json');
-                                if (oficialesJson) {
-                                    try {
-                                        const oficiales = JSON.parse(oficialesJson);
-                                        if (oficiales.length > 0) {
-                                            const primerOficial = oficiales[0];
-                                            actualizarTurnoOficial(registroId, primerOficial.numero, turnoValue, primerOficial.nombre);
-                                        }
-                                    } catch (e) {
-                                        console.error('Error al parsear oficiales:', e);
-                                    }
-                                }
-                            }
-                        }
 
                         // Cambio de fecha
                         if (target.classList.contains('input-fecha') && target.getAttribute('data-field') === 'fecha') {
@@ -2219,43 +2173,36 @@
 
                     const oficialTexto = row.querySelector('.oficial-texto');
                     if (!oficialTexto) return;
-
-                    // Mostrar solo el primer oficial (oficial actual)
-                    const primerOficial = oficiales.length > 0 ? oficiales[0] : null;
-                    const nombreCompleto = primerOficial && primerOficial.nom_empl ? primerOficial.nom_empl : '';
-
-                    // Truncar a máximo 12 caracteres
-                    let textoOficiales = 'Sin oficiales';
-                    if (nombreCompleto) {
-                        textoOficiales = nombreCompleto.length > 12 ? nombreCompleto.substring(0, 12) + '...' : nombreCompleto;
-                    }
-
-                    // Actualizar texto
-                    oficialTexto.textContent = textoOficiales;
-                    oficialTexto.setAttribute('title', nombreCompleto || 'Sin oficiales');
-                    oficialTexto.className = oficialTexto.className.replace('text-gray-400 italic', '');
-                    if (!primerOficial || !primerOficial.nom_empl) {
-                        oficialTexto.classList.add('text-gray-400', 'italic');
-                    } else {
-                        oficialTexto.classList.remove('text-gray-400', 'italic');
-                    }
+                    const escapeHtml = (value) => String(value ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
 
                     // Actualizar atributo data-oficiales-json
                     const oficialesParaJson = oficiales.map(o => ({
                         numero: o.numero_oficial,
-                        nombre: o.nom_empl || '',
-                        clave: o.cve_empl || '',
-                        metros: o.metros || '',
-                        turno: o.turno || ''
+                        nombre: o.nom_empl || null,
+                        clave: o.cve_empl || null,
+                        metros: o.metros || null,
+                        turno: o.turno || null
                     }));
                     oficialTexto.setAttribute('data-oficiales-json', JSON.stringify(oficialesParaJson));
 
-                    // Actualizar turno si hay oficiales
-                    if (oficiales.length > 0 && oficiales[0].turno) {
-                        const turnoSelect = row.querySelector('select[data-field="turno"]');
-                        if (turnoSelect) {
-                            turnoSelect.value = oficiales[0].turno;
-                        }
+                    // Render compacto: codigos en primer renglon y nombres con turno en renglones inferiores
+                    if (oficialesParaJson.length === 0) {
+                        oficialTexto.innerHTML = '<div class="text-gray-400 italic">Sin oficiales</div>';
+                    } else {
+                        const codigos = oficialesParaJson.map(o => (o.clave || '').toString().trim()).filter(Boolean);
+                        let html = `<div class="text-gray-800 font-semibold">${escapeHtml(codigos.length ? codigos.join(', ') : '-')}</div>`;
+                        oficialesParaJson.forEach(of => {
+                            const nombre = (of.nombre || '').toString().trim();
+                            if (!nombre) return;
+                            const turnoTxt = of.turno !== null && of.turno !== undefined && of.turno !== '' ? of.turno : '-';
+                            html += `<div class="text-xs text-gray-600">${escapeHtml(nombre)} <span class="text-amber-600">(T${escapeHtml(turnoTxt)})</span></div>`;
+                        });
+                        oficialTexto.innerHTML = html;
                     }
 
                     // Actualizar Metros solo si se indica (al propagar hacia abajo no se actualizan metros)
@@ -2504,9 +2451,6 @@
                 const textoOficial = oficialTexto ? oficialTexto.textContent.trim() : '';
                 if (!textoOficial || textoOficial === 'Sin oficiales') camposFaltantes.push('Oficial');
 
-                const turnoSelect = row.querySelector('select[data-field="turno"]');
-                if (!turnoSelect || !turnoSelect.value) camposFaltantes.push('Turno');
-
                 const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
                 if (!hInicioInput || !hInicioInput.value) camposFaltantes.push('H. Inicio');
 
@@ -2558,7 +2502,6 @@
                 const selectorMap = {
                     'Fecha': 'input.input-fecha',
                     'Oficial': '.oficial-texto',
-                    'Turno': 'select[data-field="turno"]',
                     'H. Inicio': 'input[data-field="h_inicio"]',
                     'H. Fin': 'input[data-field="h_fin"]',
                     'No. Julio': 'select[data-field="no_julio"]',
