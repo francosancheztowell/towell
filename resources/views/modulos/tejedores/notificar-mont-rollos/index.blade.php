@@ -2,23 +2,67 @@
 
 @section('page-title', 'Cortado de Rollo')
 
+@section('navbar-right')
+  @if(count($telaresUsuario) > 0)
+  <div class="relative">
+    {{-- Botón dropdown --}}
+    <button
+      type="button"
+      id="btnDropdownTelaresCortado"
+      class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+    >
+      <span class="font-medium" id="labelTelarSeleccionado">
+        {{ $telarSeleccionado ? 'Telar ' . $telarSeleccionado : 'Telares' }}
+      </span>
+      <i class="fas fa-chevron-down text-sm transition-transform duration-200 ease-out rotate-0" id="iconDropdownCortado"></i>
+    </button>
+
+    {{-- Menú dropdown --}}
+    <div
+      id="menuDropdownTelaresCortado"
+      class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 max-h-96 overflow-y-auto z-50"
+    >
+      <div class="py-2">
+        <button
+          type="button"
+          onclick="event.stopPropagation(); seleccionarTelarDropdown('');"
+          class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+        >
+          <span class="font-medium">Todos los telares</span>
+        </button>
+        <div class="border-t border-gray-200 my-1"></div>
+        @foreach($telaresUsuario as $telar)
+          <button
+            type="button"
+            onclick="event.stopPropagation(); seleccionarTelarDropdown('{{ $telar->NoTelarId }}');"
+            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+          >
+            Telar <span class="font-semibold">{{ $telar->NoTelarId }}</span>
+          </button>
+        @endforeach
+      </div>
+    </div>
+  </div>
+  @endif
+@endsection
+
 @section('content')
+{{-- Select oculto: mantiene la lógica JS existente --}}
+<select id="selectTelarCortado" class="hidden">
+  <option value="">-- Seleccione --</option>
+  @foreach($telaresUsuario as $telar)
+    <option value="{{ $telar->NoTelarId }}">
+      Telar {{ $telar->NoTelarId }}
+    </option>
+  @endforeach
+</select>
+
 <div class="w-full p-3 sm:p-5 flex flex-col gap-5">
 
-  {{-- Header --}}
-  <div class="bg-white rounded-xl shadow border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center gap-3 px-5 py-4">
-    <h1 class="text-xl sm:text-2xl font-bold text-gray-800 whitespace-nowrap flex-shrink-0">Cortado de Rollo</h1>
-    <div class="flex items-center gap-3 w-full sm:w-auto sm:flex-1 sm:justify-end">
-      <label for="selectTelarCortado" class="text-base font-semibold text-gray-700 whitespace-nowrap">Telar:</label>
-      <select id="selectTelarCortado" class="flex-1 sm:w-64 border border-gray-300 rounded-lg px-4 py-2.5 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-        <option value="">-- Seleccione --</option>
-        @foreach($telaresUsuario as $telar)
-          <option value="{{ $telar->NoTelarId }}" {{ $telarSeleccionado == $telar->NoTelarId ? 'selected' : '' }}>
-            Telar {{ $telar->NoTelarId }}
-          </option>
-        @endforeach
-      </select>
-    </div>
+  {{-- Mensaje inicial: selecciona un telar --}}
+  <div id="mensajeSeleccionaTelar" class="flex flex-col items-center justify-center py-16 text-gray-400">
+    <i class="fas fa-hand-point-up text-5xl mb-4"></i>
+    <p class="text-lg font-medium">Selecciona un telar en la parte superior</p>
   </div>
 
   {{-- Tabla Nivel 2: Órdenes del Telar --}}
@@ -48,22 +92,22 @@
 
   {{-- Tabla Nivel 3: Marbetes --}}
   <div id="tablaProduccionCortadoContainer" style="display: none;">
-    <div class="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-      <div class="bg-gray-50 px-5 py-3 border-b border-gray-200">
-        <h2 class="text-base sm:text-lg font-semibold text-gray-700">Seleccionar Marbete a Liberar</h2>
+    <div class="bg-white rounded-xl shadow border border-blue-200 overflow-hidden">
+      <div class="bg-blue-50 px-5 py-3 border-b border-blue-200">
+        <h2 class="text-base sm:text-lg font-semibold text-blue-800">Seleccionar Marbete a Liberar</h2>
       </div>
       <div class="tabla-marbetes-cortado overflow-x-auto overflow-y-auto" style="max-height: 16rem; -webkit-overflow-scrolling: touch;">
         <table class="w-full text-sm sm:text-base table-fixed">
-          <thead class="bg-gray-50 sticky top-0 z-[1]">
+          <thead class="bg-blue-50 sticky top-0 z-[1]">
             <tr>
-              <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Cuantas</th>
-              <th class="w-[16%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Marbete</th>
-              <th class="w-[14%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Artículo</th>
-              <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Tamaño</th>
-              <th class="w-[16%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Orden</th>
-              <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Telar</th>
-              <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Piezas</th>
-              <th class="w-[14%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-gray-600 uppercase">Salón</th>
+              <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase">Cuantas</th>
+              <th class="w-[16%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase">Marbete</th>
+              <th class="w-[14%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase">Artículo</th>
+              <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase">Tamaño</th>
+              <th class="w-[16%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase">Orden</th>
+              <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase">Telar</th>
+              <th class="w-[10%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase">Piezas</th>
+              <th class="w-[14%] px-4 py-3 text-center text-xs sm:text-sm font-semibold text-blue-800 uppercase">Salón</th>
             </tr>
           </thead>
           <tbody id="tablaProduccionCortadoBody" class="bg-white divide-y divide-gray-100"></tbody>
@@ -98,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const mensajeCortado           = document.getElementById('mensajeEstadoCortado');
   const btnNotificarWrapper      = document.getElementById('btnNotificarCortadoWrapper');
   const btnNotificarCortado      = document.getElementById('btnNotificarCortado');
+  const mensajeSeleccionaTelar   = document.getElementById('mensajeSeleccionaTelar');
 
   let produccionSeleccionada = null;
 
@@ -293,23 +338,62 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ── Select de telar ───────────────────────────────────────────────────────
+  // ── Select de telar (oculto, usado como fuente de verdad) ────────────────
   selectTelarCortado?.addEventListener('change', function () {
     const noTelar = this.value;
     if (!noTelar) {
+      mensajeSeleccionaTelar.style.display = 'flex';
       tablaProduccionesCortadoContainer.style.display = 'none';
       tablaCortadoContainer.style.display = 'none';
       btnNotificarWrapper.style.setProperty('display', 'none', 'important');
       ocultarMensajeCortado();
       return;
     }
+    mensajeSeleccionaTelar.style.display = 'none';
     cargarOrdenesEnProceso(noTelar);
   });
 
-  // Si ya hay un telar pre-seleccionado por PHP, cargar sus órdenes
-  if (selectTelarCortado?.value) {
-    cargarOrdenesEnProceso(selectTelarCortado.value);
-  }
+  // ── Dropdown de telares en navbar ─────────────────────────────────────────
+  const btnDropdown  = document.getElementById('btnDropdownTelaresCortado');
+  const menuDropdown = document.getElementById('menuDropdownTelaresCortado');
+  const iconDropdown = document.getElementById('iconDropdownCortado');
+  const labelTelar   = document.getElementById('labelTelarSeleccionado');
+
+  btnDropdown?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const hidden = menuDropdown.classList.contains('hidden');
+    menuDropdown.classList.toggle('hidden', !hidden);
+    iconDropdown.classList.toggle('rotate-180', hidden);
+    iconDropdown.classList.toggle('rotate-0', !hidden);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (menuDropdown && !menuDropdown.classList.contains('hidden')) {
+      if (!btnDropdown.contains(e.target) && !menuDropdown.contains(e.target)) {
+        menuDropdown.classList.add('hidden');
+        iconDropdown.classList.remove('rotate-180');
+        iconDropdown.classList.add('rotate-0');
+      }
+    }
+  });
+
+  window.seleccionarTelarDropdown = function(noTelar) {
+    // Cerrar dropdown
+    menuDropdown?.classList.add('hidden');
+    iconDropdown?.classList.remove('rotate-180');
+    iconDropdown?.classList.add('rotate-0');
+
+    // Actualizar label del botón
+    if (labelTelar) {
+      labelTelar.textContent = noTelar ? `Telar ${noTelar}` : 'Telares';
+    }
+
+    // Sincronizar select oculto y disparar change
+    if (selectTelarCortado) {
+      selectTelarCortado.value = noTelar;
+      selectTelarCortado.dispatchEvent(new Event('change'));
+    }
+  };
 
   // ── Botón Notificar ───────────────────────────────────────────────────────
   btnNotificarCortado?.addEventListener('click', async function () {
