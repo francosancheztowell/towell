@@ -171,10 +171,20 @@
                                                 {{ $t['tipo'] ?? '-' }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center editable-cell cursor-context-menu"
+                                            data-editable-field="cuenta"
+                                            data-id="{{ $t['id'] ?? '' }}"
+                                            data-telar="{{ $t['no_telar'] ?? '' }}"
+                                            data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
+                                            title="Clic derecho para editar">
                                             {{ $t['cuenta'] ?? '' }}
                                         </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
+                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center editable-cell cursor-context-menu"
+                                            data-editable-field="calibre"
+                                            data-id="{{ $t['id'] ?? '' }}"
+                                            data-telar="{{ $t['no_telar'] ?? '' }}"
+                                            data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
+                                            title="Clic derecho para editar">
                                             {{ number_format((float)($t['calibre'] ?? 0), 2) }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
@@ -742,11 +752,19 @@ const render = {
                         ${r.tipo || '-'}
                     </span>
                 </td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${r.cuenta || ''}
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center editable-cell cursor-context-menu"
+                    data-editable-field="cuenta"
+                    data-id="${r.id || ''}"
+                    data-telar="${telarNo}"
+                    data-tipo="${tipoUpper}"
+                    title="Clic derecho para editar">${r.cuenta || ''}
                 </td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${fmt.num(r.calibre)}
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center editable-cell cursor-context-menu"
+                    data-editable-field="calibre"
+                    data-id="${r.id || ''}"
+                    data-telar="${telarNo}"
+                    data-tipo="${tipoUpper}"
+                    title="Clic derecho para editar">${fmt.num(r.calibre)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     ${fmt.date(r.fecha)}
@@ -1857,6 +1875,126 @@ const actions = {
     }
 };
 
+/* ---------- Edición inline cuenta/calibre (clic derecho → input, Enter para guardar) ---------- */
+const editableCell = {
+    activeTd: null,
+    activeInput: null,
+    originalContent: '',
+    async startEdit(td) {
+        if (this.activeTd) this.cancelEdit();
+        const field = td.dataset.editableField;
+        if (!field || !['cuenta', 'calibre'].includes(field)) return;
+
+        this.activeTd = td;
+        this.originalContent = td.textContent.trim();
+        const isCalibre = field === 'calibre';
+        const value = isCalibre ? (parseFloat(this.originalContent) || '') : this.originalContent;
+
+        const input = document.createElement('input');
+        input.type = isCalibre ? 'number' : 'text';
+        input.step = '0.01';
+        input.className = 'w-full px-2 py-1 text-sm text-center bg-white text-gray-900 border border-gray-400 rounded focus:ring-2 focus:ring-gray-300 focus:border-gray-500 focus:outline-none selection:bg-gray-200 selection:text-gray-900';
+        input.value = value;
+        input.dataset.field = field;
+        this.activeInput = input;
+
+        td.textContent = '';
+        td.appendChild(input);
+        input.focus();
+        input.select();
+
+        const save = async () => {
+            const newVal = input.value.trim();
+            const id = td.dataset.id ? parseInt(td.dataset.id, 10) : null;
+            const noTelar = td.dataset.telar || '';
+            const tipo = td.dataset.tipo || '';
+
+            if (!noTelar) {
+                toast('warning', 'No se puede actualizar', 'Falta identificar el telar');
+                this.cancelEdit();
+                return;
+            }
+
+            const payload = {
+                no_telar: noTelar,
+                tipo: normalizeTipo(tipo),
+                id
+            };
+            if (field === 'cuenta') payload.cuenta = newVal;
+            if (field === 'calibre') payload.calibre = newVal !== '' ? parseFloat(newVal) : null;
+
+            try {
+                await http.post(API.actualizarTelar, payload);
+                td.textContent = field === 'calibre' ? (newVal !== '' ? fmt.num(parseFloat(newVal)) : '') : newVal;
+                const base = state.telaresDataOriginal.length ? state.telaresDataOriginal : state.telaresData;
+                const idx = base.findIndex(t =>
+                    String(t.no_telar || '') === noTelar &&
+                    String(t.tipo || '').toUpperCase().trim() === tipo
+                );
+                if (idx >= 0) {
+                    if (field === 'cuenta') base[idx].cuenta = newVal;
+                    if (field === 'calibre') base[idx].calibre = newVal !== '' ? parseFloat(newVal) : null;
+                }
+                // Actualizar dataset del row para que applyTelar/toggleTelarCheckbox lean el valor correcto
+                const row = td.closest('tr');
+                if (row) {
+                    if (field === 'cuenta') row.dataset.cuenta = newVal;
+                    if (field === 'calibre') row.dataset.calibre = newVal !== '' ? String(parseFloat(newVal)) : '';
+                }
+                // Actualizar state.selectedTelares para que Programación de Requerimientos reciba el valor correcto
+                if (Array.isArray(state.selectedTelares)) {
+                    const tTipo = String(tipo).toUpperCase().trim();
+                    state.selectedTelares.forEach(t => {
+                        if (String(t.no_telar || '') === noTelar && String(t.tipo || '').toUpperCase().trim() === tTipo) {
+                            if (field === 'cuenta') t.cuenta = newVal;
+                            if (field === 'calibre') t.calibre = newVal !== '' ? parseFloat(newVal) : null;
+                        }
+                    });
+                }
+                // Actualizar state.selectedTelar (selección individual) si es el telar editado
+                const tel = state.selectedTelar;
+                if (tel && String(tel.no_telar || '') === noTelar && String(tel.tipo || '').toUpperCase().trim() === String(tipo).toUpperCase().trim()) {
+                    if (field === 'cuenta') tel.cuenta = newVal;
+                    if (field === 'calibre') tel.calibre = newVal !== '' ? parseFloat(newVal) : null;
+                }
+                toast('success', 'Actualizado', '', 1500);
+            } catch (err) {
+                toast('error', 'Error', err.message || 'No se pudo actualizar');
+                td.textContent = this.originalContent;
+            }
+            this.activeTd = null;
+            this.activeInput = null;
+        };
+
+        const cancel = () => {
+            td.textContent = this.originalContent;
+            this.activeTd = null;
+            this.activeInput = null;
+        };
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancel();
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            if (this.activeInput === input) cancel();
+        }, { once: true });
+    },
+    cancelEdit() {
+        if (this.activeTd && this.activeInput) {
+            this.activeTd.textContent = this.originalContent;
+            this.activeTd = null;
+            this.activeInput = null;
+        }
+    }
+};
+
 /* ---------- Init ---------- */
 document.addEventListener('DOMContentLoaded', async () => {
     sorting.bind();
@@ -1879,6 +2017,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const th = e.target.closest('.sortable');
         if (!th) return;
         openContextMenu(e, 'telares', th.dataset.column);
+    });
+
+    $('#telaresTable tbody')?.addEventListener('contextmenu', e => {
+        const td = e.target.closest('.editable-cell');
+        if (td) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeContextMenu();
+            editableCell.startEdit(td);
+        }
     });
 
     $('#inventarioTable thead')?.addEventListener('contextmenu', e => {

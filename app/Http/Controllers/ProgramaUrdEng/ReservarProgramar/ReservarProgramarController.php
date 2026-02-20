@@ -325,6 +325,8 @@ class ReservarProgramarController extends Controller
         if ($request->filled('localidad'))   $update['localidad'] = (string) $request->input('localidad');
         if ($request->filled('tipo_atado'))  $update['tipo_atado'] = (string) $request->input('tipo_atado');
         if ($request->filled('hilo'))        $update['hilo'] = (string) $request->input('hilo');
+        if ($request->has('cuenta'))         $update['cuenta'] = (string) ($request->input('cuenta') ?? '');
+        if ($request->has('calibre'))        $update['calibre'] = $request->input('calibre') !== '' && $request->input('calibre') !== null ? (float) $request->input('calibre') : null;
         if ($request->filled('lote_proveedor')) $update['LoteProveedor'] = (string) $request->input('lote_proveedor');
         if ($request->filled('no_proveedor'))   $update['NoProveedor'] = (string) $request->input('no_proveedor');
         return $update;
