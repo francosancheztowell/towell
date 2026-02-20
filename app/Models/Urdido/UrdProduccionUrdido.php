@@ -44,6 +44,8 @@ class UrdProduccionUrdido extends Model
         'Turno3',
         'Finalizar',
         'AX',
+        'Vueltas',
+        'Diametro',
     ];
 
     protected $casts = [
@@ -67,6 +69,8 @@ class UrdProduccionUrdido extends Model
         'Metros3' => 'float',
         'Finalizar' => 'integer',
         'AX' => 'integer',
+        'Vueltas' => 'float',
+        'Diametro' => 'float',
     ];
 }
 

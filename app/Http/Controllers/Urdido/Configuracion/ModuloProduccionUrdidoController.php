@@ -120,6 +120,7 @@ class ModuloProduccionUrdidoController extends Controller
             'engomado' => null,
             'metros' => '0',
             'destino' => null,
+            'isKarlMayer' => false,
             'hilo' => null,
             'tipoAtado' => null,
             'nomEmpl' => null,
@@ -261,12 +262,16 @@ class ModuloProduccionUrdidoController extends Controller
 
         $user = Auth::user();
 
+        $destino = $orden->SalonTejidoId ?? ($engomado ? $engomado->SalonTejidoId : null);
+        $isKarlMayer = stripos($destino ?? '', 'karl') !== false || stripos($destino ?? '', 'karlmayer') !== false;
+
         return [
             'orden' => $orden,
             'julios' => $julios,
             'engomado' => $engomado,
             'metros' => $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0',
-            'destino' => $orden->SalonTejidoId ?? ($engomado ? $engomado->SalonTejidoId : null),
+            'destino' => $destino,
+            'isKarlMayer' => $isKarlMayer,
             'hilo' => $orden->Fibra ?? ($engomado ? $engomado->Fibra : null),
             'tipoAtado' => $orden->TipoAtado ?? ($engomado ? $engomado->TipoAtado : null),
             'nomEmpl' => $orden->NomEmpl ?? null,
@@ -287,8 +292,8 @@ class ModuloProduccionUrdidoController extends Controller
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
-                'campo' => 'required|string|in:Hilos,Hilatura,Maquina,Operac,Transf',
-                'valor' => 'nullable|integer|min:0|max:9999',
+                'campo' => 'required|string|in:Hilos,Hilatura,Maquina,Operac,Transf,Vueltas,Diametro',
+                'valor' => 'nullable|numeric|min:0|max:99999',
             ]);
 
             $registro = UrdProduccionUrdido::find($request->registro_id);
@@ -298,7 +303,10 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             $campo = $request->campo;
-            $registro->$campo = $request->valor !== null ? (int) $request->valor : null;
+            $floatCampos = ['Vueltas', 'Diametro'];
+            $registro->$campo = $request->valor !== null
+                ? (in_array($campo, $floatCampos) ? (float) $request->valor : (int) $request->valor)
+                : null;
             $registro->save();
             $registro->refresh();
 
@@ -368,6 +376,34 @@ class ModuloProduccionUrdidoController extends Controller
             $errorHoras = $this->validarHorasRegistros($orden->Folio);
             if ($errorHoras) {
                 return response()->json(['success' => false, 'error' => $errorHoras], 422);
+            }
+
+            // Validar Vueltas y Diámetro requeridos para Karl Mayer
+            $destino = $orden->SalonTejidoId;
+            if (!$destino) {
+                $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
+                $destino = $engomado ? $engomado->SalonTejidoId : null;
+            }
+            $isKarlMayer = stripos($destino ?? '', 'karl') !== false;
+
+            if ($isKarlMayer) {
+                $registrosSinKM = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                    ->whereNotNull('HoraInicial')
+                    ->whereNotNull('HoraFinal')
+                    ->where(function ($q) {
+                        $q->whereNull('Vueltas')
+                          ->orWhere('Vueltas', 0)
+                          ->orWhereNull('Diametro')
+                          ->orWhere('Diametro', 0);
+                    })
+                    ->count();
+
+                if ($registrosSinKM > 0) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => "No se puede finalizar: hay {$registrosSinKM} registro(s) sin Vueltas o Diámetro. Estos campos son obligatorios para Karl Mayer.",
+                    ], 422);
+                }
             }
 
             // Eliminar registros sin HoraInicial o HoraFinal

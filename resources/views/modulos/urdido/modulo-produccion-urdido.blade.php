@@ -55,7 +55,7 @@
             <!-- Columna Centro -->
                 <div class="col-span-12 md:col-span-2 flex flex-col space-y-4">
                 <div class="flex items-center gap-2">
-                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">Tipo:</span>
+                    <span class="text-md font-semibold text-gray-700 whitespace-nowrap min-w-[70px]">{{ ($isKarlMayer ?? false) ? 'Barras' : 'Tipo' }}:</span>
                         @if($orden && $orden->RizoPie)
                             @php
                                 $tipo = strtoupper(trim($orden->RizoPie));
@@ -157,6 +157,10 @@
                         <th class="py-1"></th>
                         <th class="py-1"></th>
                         <th class="py-1"></th>
+                        @if($isKarlMayer ?? false)
+                        <th class="py-1"></th>
+                        <th class="py-1"></th>
+                        @endif
                         <th colspan="4" class="py-1 text-center bg-blue-700">Roturas</th>
                     </tr>
                     <!-- Cabecera de la tabla de producción -->
@@ -186,6 +190,14 @@
                         <th class="py-2 px-1 md:px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-12 md:w-10 lg:w-12 h-10 md:h-12 relative align-bottom">
                             <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Transf.</span>
                         </th>
+                        @if($isKarlMayer ?? false)
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold bg-emerald-700 text-[10px] md:text-xs w-16 md:w-14 lg:w-16 h-10 md:h-12 relative align-bottom">
+                            <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Vueltas</span>
+                        </th>
+                        <th class="py-2 px-1 md:px-1 text-center font-semibold bg-emerald-700 text-[10px] md:text-xs w-16 md:w-14 lg:w-16 h-10 md:h-12 relative align-bottom">
+                            <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Diámetro</span>
+                        </th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody id="tabla-produccion-body" class="bg-white divide-y divide-gray-200">
@@ -231,6 +243,8 @@
                                     $maquina = $registro ? ($registro->Maquina ?? 0) : 0;
                                     $operac = $registro ? ($registro->Operac ?? 0) : 0;
                                     $transf = $registro ? ($registro->Transf ?? 0) : 0;
+                                    $vueltas = $registro ? ($registro->Vueltas ?? '') : '';
+                                    $diametro = $registro ? ($registro->Diametro ?? '') : '';
                                     $registroId = $registro ? $registro->Id : null;
                                     $listo = $registro ? (int)($registro->Finalizar ?? 0) : 0;
                                     $ax = $registro ? (int)($registro->AX ?? 0) : 0;
@@ -565,11 +579,38 @@
                             </div>
                         </td>
 
+                        @if($isKarlMayer ?? false)
+                        {{-- Vueltas --}}
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-16 md:w-14 lg:w-16">
+                            <input
+                                type="number"
+                                step="0.01"
+                                data-field="vueltas"
+                                data-campo="Vueltas"
+                                class="karl-mayer-input w-full border border-emerald-300 rounded px-1 md:px-2 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-emerald-50"
+                                value="{{ $vueltas }}"
+                                placeholder="0"
+                            >
+                        </td>
+                        {{-- Diametro --}}
+                        <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-16 md:w-14 lg:w-16">
+                            <input
+                                type="number"
+                                step="0.01"
+                                data-field="diametro"
+                                data-campo="Diametro"
+                                class="karl-mayer-input w-full border border-emerald-300 rounded px-1 md:px-2 py-0.5 md:py-1 text-sm text-center focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-emerald-50"
+                                value="{{ $diametro }}"
+                                placeholder="0"
+                            >
+                        </td>
+                        @endif
+
                     </tr>
                             @endfor
                         @else
                             <tr>
-                                <td colspan="{{ $hasFinalizarPermission ? 15 : 14 }}" class="px-2 py-4 text-center text-gray-500 italic">
+                                <td colspan="{{ ($hasFinalizarPermission ? 15 : 14) + (($isKarlMayer ?? false) ? 2 : 0) }}" class="px-2 py-4 text-center text-gray-500 italic">
                                     No hay registros para generar.
                                     @if(isset($julios) && $julios->count() > 0)
                                         <br>Total calculado: {{ $totalRegistros }} | Cantidad de julios: {{ $julios->count() }}
@@ -817,6 +858,28 @@
                                 debounceTimeouts.set(registroId, timeoutId);
                             }
                         }
+                    });
+
+                    // Event listeners para inputs de Karl Mayer (Vueltas / Diámetro)
+                    const karlMayerInputs = tablaBody.querySelectorAll('.karl-mayer-input');
+                    const karlMayerDebounce = new Map();
+                    karlMayerInputs.forEach(input => {
+                        input.addEventListener('change', function () {
+                            const row = this.closest('tr');
+                            if (!row) return;
+                            const registroId = row.getAttribute('data-registro-id');
+                            const campo = this.dataset.campo;
+                            const valor = this.value;
+                            if (!registroId || !campo) return;
+
+                            const key = `${registroId}-${campo}`;
+                            if (karlMayerDebounce.has(key)) clearTimeout(karlMayerDebounce.get(key));
+
+                            karlMayerDebounce.set(key, setTimeout(() => {
+                                actualizarCampoProduccion(registroId, campo, valor);
+                                karlMayerDebounce.delete(key);
+                            }, 500));
+                        });
                     });
 
                     tablaBody.querySelectorAll('tr').forEach(row => {
@@ -2481,6 +2544,14 @@
                 const metrosInput = row.querySelector('input[data-field="metros"]');
                 if (!metrosInput || !metrosInput.value || metrosInput.value.trim() === '') camposFaltantes.push('Metros');
 
+                @if($isKarlMayer ?? false)
+                const vueltasInput = row.querySelector('input[data-field="vueltas"]');
+                if (!vueltasInput || !vueltasInput.value || vueltasInput.value.trim() === '') camposFaltantes.push('Vueltas');
+
+                const diametroInput = row.querySelector('input[data-field="diametro"]');
+                if (!diametroInput || !diametroInput.value || diametroInput.value.trim() === '') camposFaltantes.push('Diámetro');
+                @endif
+
                 return { valido: camposFaltantes.length === 0, camposFaltantes };
             }
 
@@ -2509,6 +2580,10 @@
                     'Tara': 'input[data-field="tara"]',
                     'Kg. Neto (no puede ser negativo)': 'input[data-field="kg_neto"]',
                     'Metros': 'input[data-field="metros"]',
+                    @if($isKarlMayer ?? false)
+                    'Vueltas': 'input[data-field="vueltas"]',
+                    'Diámetro': 'input[data-field="diametro"]',
+                    @endif
                 };
 
                 filas.forEach((fila, index) => {
