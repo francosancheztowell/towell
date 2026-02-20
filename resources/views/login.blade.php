@@ -15,6 +15,15 @@
   <style>
     .font-inter{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
     html, body { margin: 0; padding: 0; }
+    @media (min-width: 1024px) {
+      .login-panel-right {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center !important;
+        padding-top: 0 !important;
+      }
+    }
   </style>
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="images-base" content="{{ asset('images') }}">
@@ -43,15 +52,17 @@
     </div>
 
     <!-- Panel derecho - Formulario -->
-    <div class="w-full lg:w-3/5 flex flex-col items-center justify-center p-8 lg:p-12 overflow-hidden h-screen">
-      <div class="text-center w-full flex-shrink-0 order-first">
-        <img src="{{ asset('images/fondosTowell/logo.png') }}" class="h-20 mx-auto" alt="Logo_Towell">
-      </div>
+    <div class="login-panel-right w-full lg:w-3/5 flex flex-col items-center justify-start pt-16 lg:pt-0 p-8 lg:p-12 overflow-hidden h-screen">
+      <div class="w-full max-w-2xl flex flex-col items-center flex-shrink-0">
+        <div class="text-center w-full flex-shrink-0">
+          <img src="{{ asset('images/fondosTowell/logo.png') }}" class="h-20 mx-auto" alt="Logo_Towell">
+        </div>
 
-      <div class="w-full max-w-2xl bg-white rounded-2xl p-10 shadow-sm">
-        <x-auth.login-form
-          :errors="$errors ?? []"
-        />
+        <div class="w-full bg-white rounded-2xl p-10 shadow-sm mt-6">
+          <x-auth.login-form
+            :errors="$errors ?? []"
+          />
+        </div>
       </div>
     </div>
   </div>
