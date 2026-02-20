@@ -87,6 +87,10 @@
       function scrollButtonIntoView() {
         setTimeout(function() {
           submitBtn.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
+          setTimeout(function() {
+            var panel = document.querySelector('.login-panel-right');
+            if (panel) panel.scrollBy({ top: 56, behavior: 'smooth' });
+          }, 350);
         }, 400);
       }
 
