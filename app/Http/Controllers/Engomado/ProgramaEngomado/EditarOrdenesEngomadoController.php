@@ -193,7 +193,7 @@ class EditarOrdenesEngomadoController extends Controller
         $metros = $orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0';
 
         $permiteEditarPorStatus = in_array(trim($orden->Status ?? ''), ['En Proceso', 'Programado', 'Parcial'], true);
-        $permiteEditarNoTelas = in_array(trim($orden->Status ?? ''), ['En Proceso', 'Programado'], true);
+        $permiteEditarNoTelas = in_array(trim($orden->Status ?? ''), ['En Proceso', 'Programado', 'Parcial'], true);
 
         $registrosProduccion = collect();
         $statusActual = trim($orden->Status ?? '');
@@ -288,10 +288,10 @@ class EditarOrdenesEngomadoController extends Controller
                 }
             }
 
-            if ($campo === 'NoTelas' && !in_array($statusActual, ['En Proceso', 'Programado'], true)) {
+            if ($campo === 'NoTelas' && !in_array($statusActual, ['En Proceso', 'Programado', 'Parcial'], true)) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'No. de Telas solo se puede editar cuando el estado es En Proceso o Programado.',
+                    'error' => 'No. de Telas solo se puede editar cuando el estado es En Proceso, Programado o Parcial.',
                 ], 403);
             }
 

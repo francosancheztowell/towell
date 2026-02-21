@@ -25,7 +25,7 @@
         @php
             $statusActual = trim($orden->Status ?? '');
             $mostrarTablaProduccion = in_array($statusActual, ['Finalizado', 'En Proceso', 'Parcial'], true);
-            $permiteEditarNoTelas = in_array($statusActual, ['En Proceso', 'Programado'], true);
+            $permiteEditarNoTelas = in_array($statusActual, ['En Proceso', 'Programado', 'Parcial'], true);
         @endphp
 
         <div class="bg-white p-3 mb-4">

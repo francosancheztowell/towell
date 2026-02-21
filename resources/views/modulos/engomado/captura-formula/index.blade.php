@@ -28,7 +28,8 @@
             module="Captura de Formula"
             :disabled="true"
             />
-            <x-navbar.button-edit
+        @endif
+        <x-navbar.button-edit
             id="btn-edit"
             onclick="openEditModal()"
             title="Editar"
@@ -39,8 +40,7 @@
             class="text-white"
             module="Captura de Formula"
             :disabled="true"
-            />
-        @endif
+        />
         <x-navbar.button-edit
         id="btn-view"
         onclick="openViewModal()"
@@ -701,6 +701,29 @@
         .formula-row:hover .obs-calidad-btn:hover,
         .formula-row.selected .obs-calidad-btn:hover {
             background-color: rgba(147, 197, 253, 0.8) !important;
+        }
+        .swal-ctx-popup {
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+        }
+        .swal-ctx-popup .swal2-title {
+            font-size: 1.125rem;
+            color: #1e3a8a;
+        }
+        .swal-ctx-popup .swal2-actions {
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .swal-ctx-popup #swal-ctx-values::-webkit-scrollbar {
+            width: 6px;
+        }
+        .swal-ctx-popup #swal-ctx-values::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        .swal-ctx-popup #swal-ctx-values::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 3px;
         }
     </style>
 
@@ -2485,9 +2508,238 @@
             }
         }
 
+        // ===== Filtro tipo Excel por columna (SweetAlert) =====
+        const ctxActiveFilters = {};
+        let ctxCurrentColumn = null;
+        let ctxAllValues = [];
+        let ctxCheckedValues = new Set();
+        let ctxValuesWithCount = [];
+
+        function initCtxMenuFiltering() {
+            const headers = document.querySelectorAll('#formulaTable thead tr:last-child th');
+            headers.forEach((th, idx) => {
+                th.dataset.colIndex = idx;
+                th.style.cursor = 'context-menu';
+                th.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const name = (this.childNodes[0]?.textContent || this.textContent || '').trim().replace(/[\u25B2\u25BC]/g, '').trim();
+                    showColumnCtxMenu(idx, name);
+                });
+            });
+        }
+
+        function getColumnUniqueValues(colIndex) {
+            const rows = document.querySelectorAll('#formulaTableBody tr[data-folio]');
+            const values = new Map();
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const cell = cells[parseInt(colIndex)];
+                if (cell) {
+                    const text = cell.textContent.trim();
+                    const key = text || '(Vacío)';
+                    values.set(key, (values.get(key) || 0) + 1);
+                }
+            });
+            return Array.from(values.entries())
+                .sort((a, b) => a[0].localeCompare(b[0], 'es', { numeric: true }));
+        }
+
+        function ctxEscape(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function showColumnCtxMenu(colIndex, colName) {
+            ctxCurrentColumn = colIndex;
+            ctxValuesWithCount = getColumnUniqueValues(colIndex);
+            ctxAllValues = ctxValuesWithCount.map(v => v[0]);
+            ctxCheckedValues = ctxActiveFilters[colIndex]
+                ? new Set(ctxActiveFilters[colIndex])
+                : new Set(ctxAllValues);
+
+            const footerHtml = Object.keys(ctxActiveFilters).length > 0
+                ? '<div class="mt-3 pt-3 border-t border-gray-200"><a href="#" id="swal-ctx-clear-all" class="text-xs text-red-500 hover:text-red-700 hover:underline"><i class="fa-solid fa-filter-circle-xmark mr-1"></i>Quitar todos los filtros</a></div>'
+                : '';
+
+            const buildCheckboxes = (search) => {
+                const filtered = search
+                    ? ctxValuesWithCount.filter(([v]) => v.toLowerCase().includes(search))
+                    : ctxValuesWithCount;
+                if (filtered.length === 0) return '<div class="px-3 py-6 text-center text-sm text-gray-400 italic">Sin resultados</div>';
+                return filtered.map(([val, count]) => {
+                    const safeVal = ctxEscape(val);
+                    const checked = ctxCheckedValues.has(val) ? 'checked' : '';
+                    const vacio = val === '(Vacío)' ? ' italic text-gray-400' : '';
+                    return `<label class="swal-ctx-row flex items-center gap-2.5 py-2 px-3 hover:bg-blue-50 cursor-pointer rounded text-sm border-b border-gray-100 last:border-b-0" data-val="${safeVal}">
+                        <input type="checkbox" class="swal-ctx-cb w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0" value="${safeVal}" ${checked}>
+                        <span class="truncate flex-1${vacio}" title="${safeVal}">${ctxEscape(val)}</span>
+                        <span class="text-[10px] text-gray-400 tabular-nums shrink-0">${count}</span>
+                    </label>`;
+                }).join('');
+            };
+
+            Swal.fire({
+                title: `<span class="flex items-center gap-2"><i class="fa-solid fa-filter text-blue-500"></i><span>${ctxEscape(colName)}</span></span>`,
+                html: `
+                    <div class="text-left">
+                        <div class="relative mb-3">
+                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" id="swal-ctx-search" class="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Buscar en lista...">
+                        </div>
+                        <div class="flex justify-between items-center mb-2">
+                            <button type="button" id="swal-ctx-select-all" class="text-xs text-blue-600 hover:text-blue-800 font-medium"><i class="fa-solid fa-check-double mr-1"></i>Todos</button>
+                            <button type="button" id="swal-ctx-deselect-all" class="text-xs text-gray-500 hover:text-gray-700 font-medium"><i class="fa-regular fa-square mr-1"></i>Ninguno</button>
+                            <span id="swal-ctx-count" class="text-xs text-gray-400 font-medium">${ctxCheckedValues.size} de ${ctxAllValues.length}</span>
+                        </div>
+                        <div id="swal-ctx-values" class="max-h-[220px] overflow-y-auto border border-gray-200 rounded-lg bg-gray-50/50">${buildCheckboxes('')}</div>
+                        ${footerHtml}
+                    </div>
+                `,
+                width: '400px',
+                showConfirmButton: true,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="fa-solid fa-filter mr-1"></i> Aplicar',
+                cancelButtonText: 'Cancelar',
+                denyButtonText: 'Limpiar filtro',
+                confirmButtonColor: '#2563eb',
+                cancelButtonColor: '#6b7280',
+                denyButtonColor: '#dc2626',
+                customClass: { popup: 'swal-ctx-popup' },
+                didOpen: () => {
+                    const container = document.getElementById('swal-ctx-values');
+                    const countEl = document.getElementById('swal-ctx-count');
+                    const searchInput = document.getElementById('swal-ctx-search');
+
+                    const updateCount = () => {
+                        if (!countEl) return;
+                        const checked = container?.querySelectorAll('.swal-ctx-cb:checked') || [];
+                        countEl.textContent = `${checked.length} de ${ctxAllValues.length}`;
+                    };
+
+                    const render = (search) => {
+                        if (!container) return;
+                        container.innerHTML = buildCheckboxes(search);
+                        container.querySelectorAll('.swal-ctx-cb').forEach(cb => {
+                            cb.addEventListener('change', function() {
+                                const v = this.value === '(Vacío)' ? '(Vacío)' : this.value;
+                                if (this.checked) ctxCheckedValues.add(v);
+                                else ctxCheckedValues.delete(v);
+                                updateCount();
+                            });
+                        });
+                        updateCount();
+                    };
+
+                    searchInput?.addEventListener('input', () => render(searchInput.value.trim().toLowerCase()));
+
+                    document.getElementById('swal-ctx-select-all')?.addEventListener('click', () => {
+                        const s = (searchInput?.value || '').trim().toLowerCase();
+                        const vis = s ? ctxAllValues.filter(v => v.toLowerCase().includes(s)) : ctxAllValues;
+                        vis.forEach(v => ctxCheckedValues.add(v));
+                        render(s);
+                    });
+
+                    document.getElementById('swal-ctx-deselect-all')?.addEventListener('click', () => {
+                        const s = (searchInput?.value || '').trim().toLowerCase();
+                        const vis = s ? ctxAllValues.filter(v => v.toLowerCase().includes(s)) : ctxAllValues;
+                        vis.forEach(v => ctxCheckedValues.delete(v));
+                        render(s);
+                    });
+
+                    document.getElementById('swal-ctx-clear-all')?.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        for (const k in ctxActiveFilters) delete ctxActiveFilters[k];
+                        filterCtxRows();
+                        updateCtxFilterInfo();
+                        updateCtxIndicators();
+                        Swal.close();
+                    });
+
+                    render('');
+                    setTimeout(() => searchInput?.focus(), 100);
+                },
+                preConfirm: () => {
+                    const checked = document.querySelectorAll('#swal-ctx-values .swal-ctx-cb:checked');
+                    return Array.from(checked).map(cb => cb.value);
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const selected = result.value || [];
+                    if (selected.length >= ctxAllValues.length || selected.length === 0) {
+                        delete ctxActiveFilters[ctxCurrentColumn];
+                    } else {
+                        ctxActiveFilters[ctxCurrentColumn] = new Set(selected);
+                    }
+                    filterCtxRows();
+                    updateCtxFilterInfo();
+                    updateCtxIndicators();
+                } else if (result.isDenied) {
+                    delete ctxActiveFilters[ctxCurrentColumn];
+                    filterCtxRows();
+                    updateCtxFilterInfo();
+                    updateCtxIndicators();
+                }
+            });
+        }
+
+        function clearAllCtxFilters() {
+            for (const k in ctxActiveFilters) delete ctxActiveFilters[k];
+            filterCtxRows();
+            updateCtxFilterInfo();
+            updateCtxIndicators();
+        }
+
+        function filterCtxRows() {
+            const rows = document.querySelectorAll('#formulaTableBody tr[data-folio]');
+            const filterEntries = Object.entries(ctxActiveFilters);
+            rows.forEach(row => {
+                if (filterEntries.length === 0) { row.style.display = ''; return; }
+                const cells = row.querySelectorAll('td');
+                let match = true;
+                for (const [col, allowedSet] of filterEntries) {
+                    const cell = cells[parseInt(col)];
+                    if (!cell) { match = false; break; }
+                    const text = cell.textContent.trim() || '(Vacío)';
+                    if (!allowedSet.has(text)) { match = false; break; }
+                }
+                row.style.display = match ? '' : 'none';
+            });
+        }
+
+        function updateCtxFilterInfo() {
+            const rows = document.querySelectorAll('#formulaTableBody tr[data-folio]');
+            const visible = Array.from(rows).filter(r => r.style.display !== 'none').length;
+            const total = rows.length;
+            const count = Object.keys(ctxActiveFilters).length;
+            const info = document.getElementById('ctxFilterInfo');
+            if (info) {
+                info.textContent = count > 0
+                    ? `${visible} de ${total} (${count} filtro${count > 1 ? 's' : ''})`
+                    : `${total} registros`;
+            }
+        }
+
+        function updateCtxIndicators() {
+            document.querySelectorAll('#formulaTable thead tr:last-child th').forEach(th => {
+                const idx = parseInt(th.dataset.colIndex);
+                let dot = th.querySelector('.ctx-filter-dot');
+                if (ctxActiveFilters[idx]) {
+                    if (!dot) {
+                        dot = document.createElement('span');
+                        dot.className = 'ctx-filter-dot ml-1 inline-block w-2 h-2 rounded-full bg-yellow-300 align-middle';
+                        th.appendChild(dot);
+                    }
+                } else {
+                    if (dot) dot.remove();
+                }
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             disableButtons();
-            // No cargar aquí: se carga al abrir el modal para evitar renders duplicados
+            initCtxMenuFiltering();
+            updateCtxFilterInfo();
 
             const thFecha = document.getElementById('th-fecha');
             if (thFecha) {
