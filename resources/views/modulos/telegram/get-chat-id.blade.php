@@ -20,7 +20,6 @@
             <div class="p-4 space-y-4">
                 <ol class="list-decimal list-inside space-y-3 text-gray-700">
                     <li>
-                        <strong>Abre Telegram</strong> en tu celular (app) o en el navegador: <a href="https://web.telegram.org" target="_blank" rel="noopener" class="text-blue-600 hover:underline">web.telegram.org</a>
                     </li>
                     <li>
                         <strong>Busca tu bot</strong> por su nombre de usuario. En la barra de búsqueda escribe <code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm">@NombreDeTuBot</code> (el mismo que te dio @BotFather al crear el bot). Por ejemplo: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm">@MiBotDeNotificaciones_bot</code>.
@@ -34,7 +33,6 @@
                 </ol>
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                     <p class="font-medium mb-1">¿No recuerdas el nombre de tu bot?</p>
-                    <p class="mb-0">Abre Telegram, busca <strong>@BotFather</strong>, escribe <code class="bg-blue-100 px-1 rounded">/mybots</code> y ahí te mostrará la lista de tus bots con su nombre de usuario (por ejemplo <code class="bg-blue-100 px-1 rounded">@MiBot_bot</code>). También puedes abrir el bot directamente con un enlace: <code class="bg-blue-100 px-1 rounded break-all">https://t.me/NombreDeTuBot</code>.</p>
                 </div>
             </div>
         </div>

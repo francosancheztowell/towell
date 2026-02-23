@@ -246,24 +246,9 @@
                 }
             };
             setTimeout(function() {
-                if (pc) {
-                    pc.close();
-                    tryPublicIp();
-                }
+                if (pc) pc.close();
             }, 3000);
-        } catch (e) {
-            tryPublicIp();
-        }
-
-        function tryPublicIp() {
-            if (!ipEl || (ipEl.textContent !== '127.0.0.1' && ipEl.textContent !== '::1' && ipEl.textContent !== '')) return;
-            fetch('https://api.ipify.org?format=json', { method: 'GET', mode: 'cors' })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data && data.ip && ipEl) setIp(data.ip, 'IPv4 (pública): ' + data.ip);
-                })
-                .catch(function() {});
-        }
+        } catch (e) {}
     }
 
     // Inicializar

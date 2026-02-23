@@ -47,7 +47,7 @@ if ('serviceWorker' in navigator) {
                                  window.location.hostname.match(/^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\./);
 
         if (!isSecureContext && window.location.protocol !== 'https:') {
-            console.warn('[PWA] Advertencia: SW puede no funcionar en HTTP con IPs pÃºblicas. Usa HTTPS o localhost.');
+            console.warn('[PWA] Advertencia: SW puede no funcionar en HTTP con IPs publicas. Usa HTTPS o localhost.');
         }
 
         // Intentar registrar el SW
@@ -59,7 +59,7 @@ if ('serviceWorker' in navigator) {
                 reg.addEventListener('updatefound', () => {
                 });
 
-                // Verificar estado periÃ³dicamente
+                // Verificar estado periodicamente
                 setInterval(() => {
                     reg.update().catch(() => {});
                 }, 60000); // Cada minuto
@@ -69,7 +69,7 @@ if ('serviceWorker' in navigator) {
             });
     });
 
-    // Exponer diagnÃ³stico globalmente
+    // Exponer diagnostico globalmente
     window.pwaDiagnostics = pwaDiagnostics;
 }
 

@@ -4,15 +4,6 @@
     <x-layout-head />
     <x-layout-styles />
     <x-layout-scripts />
-    <!-- Fallback de SweetAlert2 solo si no fue cargado por Vite -->
-    <script>
-        if (typeof window.Swal === 'undefined') {
-            const swalScript = document.createElement('script');
-            swalScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11.10.7/dist/sweetalert2.all.min.js';
-            swalScript.defer = true;
-            document.head.appendChild(swalScript);
-        }
-    </script>
     <style>
         /* Animación de spin para iconos */
         .fa-spin {
