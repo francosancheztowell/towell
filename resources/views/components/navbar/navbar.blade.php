@@ -85,7 +85,7 @@
                 <!-- Botón Salir -->
                 @if($isProduccionIndex)
                     <button id="logout-btn"
-                            class="flex items-center gap-1 px-4 py-3 text-md font-bold text-white bg-red-500 hover:bg-red-700 rounded-lg transition-colors">
+                            class="flex items-center gap-1 px-4 py-3 text-md font-bold text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors">
                         <i class="fas fa-sign-out-alt"></i>
                         Salir
                     </button>

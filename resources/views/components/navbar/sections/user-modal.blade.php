@@ -37,6 +37,8 @@
                 @if($fotoUrl)
                     <img src="{{ $fotoUrl }}"
                          alt="Foto de {{ $usuario->nombre }}"
+                         width="48"
+                         height="48"
                          class="w-full h-full object-cover">
                 @else
                     <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-base">

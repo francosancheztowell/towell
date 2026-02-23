@@ -13,7 +13,7 @@
             <div class="flex items-center justify-between">
                 <!-- Logo Towell -->
                 <a href="/produccionProceso" class="flex items-center">
-                    <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" class="h-10">
+                    <img src="{{ asset('images/fondosTowell/logo.png') }}" alt="Logo Towell" width="144" height="40" class="h-10">
                 </a>
 
                 <!-- Botones de acción -->

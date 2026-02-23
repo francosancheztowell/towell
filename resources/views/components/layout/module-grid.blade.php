@@ -80,6 +80,8 @@
 
                             <img src="{{ $imagenUrl }}"
                                 alt="{{ $modulo['nombre'] }}"
+                                width="176"
+                                height="176"
                                 class="w-32 h-32 md:w-44 md:h-44 lg:w-44 lg:h-44 object-cover rounded-xl shadow-md group-hover:shadow-xl transition-shadow duration-300"
                                 onerror="this.src='{{ $imagenFallback }}'; this.onerror=null;"
                                 title="{{ $modulo['nombre'] }} - {{ $modulo['imagen'] ?? 'Sin imagen' }}"
@@ -91,7 +93,7 @@
 
                     <!-- Texto del módulo optimizado -->
                     <div class="text-center px-2 -mt-3">
-                        <h2 class="font-bold text-white leading-tight group-hover:text-blue-100 transition-colors duration-300 text-xs md:text-sm lg:text-sm break-words drop-shadow-lg bg-black/50 px-2 py-1 rounded-md backdrop-blur-sm max-w-full">
+                        <h2 class="font-bold text-white leading-tight group-hover:text-white transition-colors duration-300 text-xs md:text-sm lg:text-sm break-words drop-shadow-lg bg-black/80 px-2 py-1 rounded-md backdrop-blur-sm max-w-full">
                             {{ $modulo['nombre'] }}
                         </h2>
                     </div>

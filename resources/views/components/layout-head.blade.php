@@ -1,7 +1,12 @@
-@props(['title' => 'Produccion Towell', 'simple' => false])
+@props([
+    'title' => 'Produccion Towell',
+    'description' => 'Sistema de gestion de produccion y planeacion empresarial Towell.',
+    'simple' => false
+])
 
 <meta charset="UTF-8">
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="description" content="@yield('meta_description', $description)">
 
 @if(!$simple)
     <link rel="manifest" href="{{ asset('manifest.json') }}">
