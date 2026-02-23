@@ -3,47 +3,63 @@
 @section('page-title', 'Cortado de Rollo')
 
 @section('navbar-right')
-  @if(count($telaresUsuario) > 0)
-  <div class="relative">
-    {{-- Botón dropdown --}}
+  <div class="flex items-center gap-2">
+
+    {{-- Botón Notificar (deshabilitado por defecto) --}}
     <button
       type="button"
-      id="btnDropdownTelaresCortado"
-      class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+      id="btnNotificarCortado"
+      disabled
+      class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+             bg-gray-200 text-gray-400 cursor-not-allowed"
     >
-      <span class="font-medium" id="labelTelarSeleccionado">
-        {{ $telarSeleccionado ? 'Telar ' . $telarSeleccionado : 'Telares' }}
-      </span>
-      <i class="fas fa-chevron-down text-sm transition-transform duration-200 ease-out rotate-0" id="iconDropdownCortado"></i>
+      <i class="fas fa-bell text-sm"></i>
+      <span>Notificar</span>
     </button>
 
-    {{-- Menú dropdown --}}
-    <div
-      id="menuDropdownTelaresCortado"
-      class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 max-h-96 overflow-y-auto z-50"
-    >
-      <div class="py-2">
-        <button
-          type="button"
-          onclick="event.stopPropagation(); seleccionarTelarDropdown('');"
-          class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-        >
-          <span class="font-medium">Todos los telares</span>
-        </button>
-        <div class="border-t border-gray-200 my-1"></div>
-        @foreach($telaresUsuario as $telar)
+    {{-- Botón dropdown telares --}}
+    @if(count($telaresUsuario) > 0)
+    <div class="relative">
+      <button
+        type="button"
+        id="btnDropdownTelaresCortado"
+        class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        <span class="font-medium" id="labelTelarSeleccionado">
+          {{ $telarSeleccionado ? 'Telar ' . $telarSeleccionado : 'Telares' }}
+        </span>
+        <i class="fas fa-chevron-down text-sm transition-transform duration-200 ease-out rotate-0" id="iconDropdownCortado"></i>
+      </button>
+
+      {{-- Menú dropdown --}}
+      <div
+        id="menuDropdownTelaresCortado"
+        class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 max-h-96 overflow-y-auto z-50"
+      >
+        <div class="py-2">
           <button
             type="button"
-            onclick="event.stopPropagation(); seleccionarTelarDropdown('{{ $telar->NoTelarId }}');"
+            onclick="event.stopPropagation(); seleccionarTelarDropdown('');"
             class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
           >
-            Telar <span class="font-semibold">{{ $telar->NoTelarId }}</span>
+            <span class="font-medium">Todos los telares</span>
           </button>
-        @endforeach
+          <div class="border-t border-gray-200 my-1"></div>
+          @foreach($telaresUsuario as $telar)
+            <button
+              type="button"
+              onclick="event.stopPropagation(); seleccionarTelarDropdown('{{ $telar->NoTelarId }}');"
+              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+            >
+              Telar <span class="font-semibold">{{ $telar->NoTelarId }}</span>
+            </button>
+          @endforeach
+        </div>
       </div>
     </div>
+    @endif
+
   </div>
-  @endif
 @endsection
 
 @section('content')
@@ -60,7 +76,7 @@
 <div class="w-full p-3 sm:p-5 flex flex-col gap-5">
 
   {{-- Mensaje inicial: selecciona un telar --}}
-  <div id="mensajeSeleccionaTelar" class="flex flex-col items-center justify-center py-16 text-gray-400">
+  <div id="mensajeSeleccionaTelar" class="flex flex-col items-center justify-center py-16 text-white">
     <i class="fas fa-hand-point-up text-5xl mb-4"></i>
     <p class="text-lg font-medium">Selecciona un telar en la parte superior</p>
   </div>
@@ -68,9 +84,6 @@
   {{-- Tabla Nivel 2: Órdenes del Telar --}}
   <div id="tablaProduccionesCortadoContainer" style="display: none;">
     <div class="bg-white rounded-xl shadow border border-blue-200 overflow-hidden">
-      <div class="bg-blue-50 px-5 py-3 border-b border-blue-200">
-        <h2 class="text-base sm:text-lg font-semibold text-blue-800">Órdenes del Telar</h2>
-      </div>
       <div class="tabla-ordenes-cortado overflow-x-auto overflow-y-auto" style="max-height: 16rem; -webkit-overflow-scrolling: touch;">
         <table class="w-full text-sm sm:text-base table-fixed">
           <thead class="bg-blue-50 sticky top-0 z-[1]">
@@ -93,9 +106,6 @@
   {{-- Tabla Nivel 3: Marbetes --}}
   <div id="tablaProduccionCortadoContainer" style="display: none;">
     <div class="bg-white rounded-xl shadow border border-blue-200 overflow-hidden">
-      <div class="bg-blue-50 px-5 py-3 border-b border-blue-200">
-        <h2 class="text-base sm:text-lg font-semibold text-blue-800">Seleccionar Marbete a Liberar</h2>
-      </div>
       <div class="tabla-marbetes-cortado overflow-x-auto overflow-y-auto" style="max-height: 16rem; -webkit-overflow-scrolling: touch;">
         <table class="w-full text-sm sm:text-base table-fixed">
           <thead class="bg-blue-50 sticky top-0 z-[1]">
@@ -119,13 +129,6 @@
   {{-- Mensaje de estado --}}
   <div id="mensajeEstadoCortado" class="text-center text-base sm:text-lg text-gray-600 py-5 bg-white rounded-xl shadow border border-gray-200" style="display: none;"></div>
 
-  {{-- Botón Notificar --}}
-  <div class="flex justify-end" id="btnNotificarCortadoWrapper" style="display: none !important;">
-    <button type="button" id="btnNotificarCortado"
-      class="px-6 py-3 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm">
-      Notificar
-    </button>
-  </div>
 
 </div>
 @endsection
@@ -140,11 +143,21 @@ document.addEventListener('DOMContentLoaded', function () {
   const tablaCortadoContainer    = document.getElementById('tablaProduccionCortadoContainer');
   const tablaCortadoBody         = document.getElementById('tablaProduccionCortadoBody');
   const mensajeCortado           = document.getElementById('mensajeEstadoCortado');
-  const btnNotificarWrapper      = document.getElementById('btnNotificarCortadoWrapper');
   const btnNotificarCortado      = document.getElementById('btnNotificarCortado');
   const mensajeSeleccionaTelar   = document.getElementById('mensajeSeleccionaTelar');
 
   let produccionSeleccionada = null;
+
+  // ── Helpers botón Notificar ───────────────────────────────────────────────
+  function habilitarBtnNotificar() {
+    btnNotificarCortado.disabled = false;
+    btnNotificarCortado.className = 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white cursor-pointer';
+  }
+
+  function deshabilitarBtnNotificar() {
+    btnNotificarCortado.disabled = true;
+    btnNotificarCortado.className = 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-gray-200 text-gray-400 cursor-not-allowed';
+  }
 
   // ── Helpers de mensaje ────────────────────────────────────────────────────
   function mostrarMensajeCortado(mensaje, tipo) {
@@ -153,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
       ${tipo === 'error' ? 'text-red-600' : tipo === 'info' ? 'text-blue-600' : 'text-gray-500'}`;
     mensajeCortado.style.display = 'block';
     tablaCortadoContainer.style.display = 'none';
-    btnNotificarWrapper.style.setProperty('display', 'none', 'important');
+    deshabilitarBtnNotificar();
   }
 
   function ocultarMensajeCortado() {
@@ -164,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function cargarOrdenesEnProceso(telarId) {
     produccionSeleccionada = null;
     tablaCortadoContainer.style.display = 'none';
-    btnNotificarWrapper.style.setProperty('display', 'none', 'important');
+    deshabilitarBtnNotificar();
     ocultarMensajeCortado();
 
     tablaProduccionesCortadoBody.innerHTML = `
@@ -246,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!checkbox.checked) {
       produccionSeleccionada = null;
       tablaCortadoContainer.style.display = 'none';
-      btnNotificarWrapper.style.setProperty('display', 'none', 'important');
+      deshabilitarBtnNotificar();
       ocultarMensajeCortado();
       return;
     }
@@ -284,8 +297,6 @@ document.addEventListener('DOMContentLoaded', function () {
         renderizarTablaCortado(data.datos);
         ocultarMensajeCortado();
         tablaCortadoContainer.style.display = 'block';
-        btnNotificarWrapper.style.removeProperty('display');
-        btnNotificarWrapper.style.display = 'flex';
       })
       .catch(error => {
         console.error('Error:', error);
@@ -318,6 +329,9 @@ document.addEventListener('DOMContentLoaded', function () {
         <td class="w-[14%] px-4 py-3 text-sm text-gray-700 text-center truncate">${dato.Salon || 'N/A'}</td>`;
 
       row.addEventListener('click', function () {
+        const yaSeleccionado = this.classList.contains('selected');
+
+        // Limpiar selección de todas las filas
         document.querySelectorAll('#tablaProduccionCortadoBody tr').forEach(r => {
           r.classList.remove('bg-blue-500', 'selected');
           r.querySelectorAll('td').forEach(td => {
@@ -327,11 +341,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
           });
         });
-        this.classList.add('bg-blue-500', 'selected');
-        this.querySelectorAll('td').forEach(td => {
-          td.classList.remove('text-gray-700', 'text-gray-900');
-          td.classList.add('text-white');
-        });
+
+        if (!yaSeleccionado) {
+          this.classList.add('bg-blue-500', 'selected');
+          this.querySelectorAll('td').forEach(td => {
+            td.classList.remove('text-gray-700', 'text-gray-900');
+            td.classList.add('text-white');
+          });
+          habilitarBtnNotificar();
+        } else {
+          deshabilitarBtnNotificar();
+        }
       });
 
       tablaCortadoBody.appendChild(row);
@@ -345,7 +365,7 @@ document.addEventListener('DOMContentLoaded', function () {
       mensajeSeleccionaTelar.style.display = 'flex';
       tablaProduccionesCortadoContainer.style.display = 'none';
       tablaCortadoContainer.style.display = 'none';
-      btnNotificarWrapper.style.setProperty('display', 'none', 'important');
+      deshabilitarBtnNotificar();
       ocultarMensajeCortado();
       return;
     }
@@ -467,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // Recargar órdenes del telar actual tras liberar
       const telarActual = selectTelarCortado?.value;
       tablaCortadoContainer.style.display = 'none';
-      btnNotificarWrapper.style.setProperty('display', 'none', 'important');
+      deshabilitarBtnNotificar();
       if (telarActual) cargarOrdenesEnProceso(telarActual);
 
     } catch (error) {
