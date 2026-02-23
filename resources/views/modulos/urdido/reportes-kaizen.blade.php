@@ -50,6 +50,9 @@
                                 <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">Mts</th>
                                 <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">MermaGoma</th>
                                 <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">MermaS/Goma</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Julios</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Oficiales</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">No. Oficiales</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -69,10 +72,13 @@
                                     <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ $f['mts'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ isset($f['merma_goma']) ? number_format($f['merma_goma'], 2) : '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ isset($f['merma']) ? number_format($f['merma'], 2) : '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['julios'] ?? '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['oficiales'] ?? '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['no_oficiales'] ?? '' }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="14" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
+                                    <td colspan="17" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -101,6 +107,9 @@
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Config</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Tamaño</th>
                                 <th class="px-1.5 py-1 text-right font-semibold text-xs border border-gray-300">Mts</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Julios</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Oficiales</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">No. Oficiales</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -118,10 +127,13 @@
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['configuracion'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['tamano'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300 text-right">{{ $f['mts'] ?? '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['julios'] ?? '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['oficiales'] ?? '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['no_oficiales'] ?? '' }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="12" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
+                                    <td colspan="15" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
                                 </tr>
                             @endforelse
                         </tbody>

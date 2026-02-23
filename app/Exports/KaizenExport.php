@@ -83,7 +83,25 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
 
     private function setHeadersEngomado(Worksheet $sheet): void
     {
-        $headers = ['Fecha', 'AÑO', 'MES', 'Código', 'Localidad', 'Estado', 'Lote', 'CALIBRE', 'Cantidad', 'Configuración', 'Tamaño', 'Mts', 'MermaGoma', 'Merma', 'Julios'];
+        $headers = [
+            'Fecha',
+            'AÑO',
+            'MES',
+            'Código',
+            'Localidad',
+            'Estado',
+            'Lote',
+            'CALIBRE',
+            'Cantidad',
+            'Configuración',
+            'Tamaño',
+            'Mts',
+            'MermaGoma',
+            'Merma',
+            'Julios',
+            'Oficiales',
+            'No. Oficiales',
+        ];
         foreach ($headers as $col => $val) {
             $sheet->setCellValueByColumnAndRow($col + 1, 1, $val);
         }
@@ -91,13 +109,28 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
 
     private function setHeadersUrdido(Worksheet $sheet): void
     {
-        $headers = ['Fecha', 'AÑO', 'MES', 'Código', 'Localidad', 'Estado', 'Lote', 'CALIBRE', 'Cantidad', 'Configuración', 'Tamaño', 'Mts', 'Julios'];
+        $headers = [
+            'Fecha',
+            'AÑO',
+            'MES',
+            'Código',
+            'Localidad',
+            'Estado',
+            'Lote',
+            'CALIBRE',
+            'Cantidad',
+            'Configuración',
+            'Tamaño',
+            'Mts',
+            '',
+            '',
+            'Julios',
+            'Oficiales',
+            'No. Oficiales',
+        ];
         foreach ($headers as $col => $val) {
             $sheet->setCellValueByColumnAndRow($col + 1, 1, $val);
         }
-        // Limpiar columnas sobrantes que vienen de la plantilla (MermaGoma, Merma, etc.)
-        $sheet->setCellValueByColumnAndRow(14, 1, '');
-        $sheet->setCellValueByColumnAndRow(15, 1, '');
     }
 
     private function fillKaizenSheet(Worksheet $sheet, array $filas): void
@@ -117,7 +150,11 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow(10, $row, $f['configuracion'] ?? '');
             $sheet->setCellValueByColumnAndRow(11, $row, $f['tamano'] ?? '');
             $sheet->setCellValueByColumnAndRow(12, $row, $f['mts'] ?? '');
-            $sheet->setCellValueByColumnAndRow(13, $row, $f['julios'] ?? '');
+            $sheet->setCellValueByColumnAndRow(13, $row, '');
+            $sheet->setCellValueByColumnAndRow(14, $row, '');
+            $sheet->setCellValueByColumnAndRow(15, $row, $f['julios'] ?? '');
+            $sheet->setCellValueByColumnAndRow(16, $row, $f['oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(17, $row, $f['no_oficiales'] ?? '');
         }
     }
 
@@ -141,6 +178,8 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow(13, $row, $f['merma_goma'] ?? '');
             $sheet->setCellValueByColumnAndRow(14, $row, $f['merma'] ?? '');
             $sheet->setCellValueByColumnAndRow(15, $row, $f['julios'] ?? '');
+            $sheet->setCellValueByColumnAndRow(16, $row, $f['oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(17, $row, $f['no_oficiales'] ?? '');
         }
     }
 }

@@ -266,6 +266,12 @@ class ReportesUrdidoController extends Controller
                 'EngProduccionEngomado.Metros1',
                 'EngProduccionEngomado.Metros2',
                 'EngProduccionEngomado.Metros3',
+                'EngProduccionEngomado.CveEmpl1',
+                'EngProduccionEngomado.NomEmpl1',
+                'EngProduccionEngomado.CveEmpl2',
+                'EngProduccionEngomado.NomEmpl2',
+                'EngProduccionEngomado.CveEmpl3',
+                'EngProduccionEngomado.NomEmpl3',
                 'p.Calibre',
                 'p.Cuenta',
                 'p.Fibra',
@@ -293,6 +299,7 @@ class ReportesUrdidoController extends Controller
             if ($wp === null) $wp = 'WP2';
 
             $calibre = $r->Calibre ?? '';
+            $oficialesData = $this->obtenerOficialesKaizen($r);
 
             $filasEngomado[] = [
                 'fecha_mod' => $carbon->format('d/m/Y'),
@@ -310,6 +317,8 @@ class ReportesUrdidoController extends Controller
                 'merma_goma' => (float)($r->MermaGoma ?? 0),
                 'merma' => (float)($r->Merma ?? 0),
                 'julios' => $r->NoJulio ?? '',
+                'oficiales' => $oficialesData['oficiales'],
+                'no_oficiales' => $oficialesData['no_oficiales'],
             ];
         }
 
@@ -333,6 +342,12 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.Metros1',
                 'UrdProduccionUrdido.Metros2',
                 'UrdProduccionUrdido.Metros3',
+                'UrdProduccionUrdido.CveEmpl1',
+                'UrdProduccionUrdido.NomEmpl1',
+                'UrdProduccionUrdido.CveEmpl2',
+                'UrdProduccionUrdido.NomEmpl2',
+                'UrdProduccionUrdido.CveEmpl3',
+                'UrdProduccionUrdido.NomEmpl3',
                 'p.Calibre',
                 'p.Cuenta',
                 'p.Fibra',
@@ -361,6 +376,7 @@ class ReportesUrdidoController extends Controller
             if (is_string($calibre) && $calibre !== '' && !str_contains($calibre, '/')) {
                 $calibre = (string) $calibre;
             }
+            $oficialesData = $this->obtenerOficialesKaizen($r);
 
             $filasUrdido[] = [
                 'fecha_mod' => $carbon->format('d/m/Y'),
@@ -376,10 +392,41 @@ class ReportesUrdidoController extends Controller
                 'tamano' => $r->Cuenta ?? '',
                 'mts' => (int) round($metros),
                 'julios' => $r->NoJulio ?? '',
+                'oficiales' => $oficialesData['oficiales'],
+                'no_oficiales' => $oficialesData['no_oficiales'],
             ];
         }
 
         return [$filasEngomado, $filasUrdido];
+    }
+
+    private function obtenerOficialesKaizen(object $registro): array
+    {
+        $nombres = [];
+        $numeros = [];
+
+        foreach ([1, 2, 3] as $numeroOficial) {
+            $nombre = trim((string) ($registro->{"NomEmpl{$numeroOficial}"} ?? ''));
+            $numero = trim((string) ($registro->{"CveEmpl{$numeroOficial}"} ?? ''));
+
+            if ($nombre === '' && $numero === '') {
+                continue;
+            }
+
+            if ($nombre !== '') {
+                $nombreNormalizado = preg_replace('/\s+/', ' ', $nombre);
+                $nombres[] = $nombreNormalizado ?? $nombre;
+            }
+
+            if ($numero !== '') {
+                $numeros[] = $numero;
+            }
+        }
+
+        return [
+            'oficiales' => implode(', ', $nombres),
+            'no_oficiales' => implode(', ', $numeros),
+        ];
     }
 
     /**
