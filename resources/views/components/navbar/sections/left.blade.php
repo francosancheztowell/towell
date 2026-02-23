@@ -18,7 +18,7 @@
 
     <a href="{{ route('produccion.index') }}" class="flex items-center">
         <picture>
-            <source srcset="{{ asset('images/fondosTowell/logo.webp') }}" type="image/webp">
+            <source srcset="{{ asset('images/fondosTowell/logo-sm.webp') }}" type="image/webp">
             <img src="{{ asset('images/fondosTowell/logo.png') }}"
                  alt="Logo Towell"
                  width="792"

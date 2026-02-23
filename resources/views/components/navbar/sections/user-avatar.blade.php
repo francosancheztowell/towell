@@ -12,6 +12,7 @@
                  alt="Foto de {{ $usuario->nombre }}"
                  width="48"
                  height="48"
+                 decoding="async"
                  class="w-full h-full object-cover">
         @else
             <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm md:text-base hover:from-blue-600 hover:to-blue-700">

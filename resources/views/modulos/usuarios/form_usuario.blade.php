@@ -174,11 +174,18 @@
                                         @php
                                             $fotoUrl = null;
                                             if ($isEdit && !empty($usuario->foto)) {
-                                                // Si la DB almacena solo el nombre (imagen.jpg), construir ruta /storage/usuarios/imagen.jpg
                                                 if (!Str::startsWith($usuario->foto, ['http://', 'https://', '/'])) {
-                                                    $fotoUrl = asset('storage/usuarios/' . $usuario->foto) . '?v=' . time();
+                                                    $relativeStoragePath = 'storage/usuarios/' . $usuario->foto;
+                                                    $storagePath = public_path($relativeStoragePath);
+                                                    $fotoUrl = asset($relativeStoragePath) . (file_exists($storagePath) ? ('?v=' . filemtime($storagePath)) : '');
                                                 } else {
-                                                    $fotoUrl = asset('storage/' . ltrim($usuario->foto, '/')) . '?v=' . time();
+                                                    if (Str::startsWith($usuario->foto, ['http://', 'https://'])) {
+                                                        $fotoUrl = $usuario->foto;
+                                                    } else {
+                                                        $relativeStoragePath = 'storage/' . ltrim($usuario->foto, '/');
+                                                        $storagePath = public_path($relativeStoragePath);
+                                                        $fotoUrl = asset($relativeStoragePath) . (file_exists($storagePath) ? ('?v=' . filemtime($storagePath)) : '');
+                                                    }
                                                 }
                                             }
                                         @endphp

@@ -68,6 +68,9 @@
                             @endphp
                             @if ($fotoUrl)
                                 <img src="{{ $fotoUrl }}" alt="Foto de {{ $u->nombre }}"
+                                    width="48"
+                                    height="48"
+                                    decoding="async"
                                     class="h-12 w-12 rounded-full object-cover border-2 border-gray-200">
                             @else
                                 <div class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-2 border-gray-200">

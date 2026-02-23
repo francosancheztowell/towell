@@ -1,6 +1,7 @@
 @props(['modulos', 'columns' => 'xl:grid-cols-5', 'filterConfig' => true, 'imageFolder' => 'fotos_modulos', 'isSubmodulos' => false])
 
 @php
+    $imagenFallbackWebp = asset('images/fondosTowell/TOWELLIN.webp');
     $imagenFallback = asset('images/fondosTowell/TOWELLIN.png');
 
     // Contar módulos después de filtrar
@@ -46,16 +47,25 @@
 
 <div class="w-full flex justify-center items-start px-3 py-4">
     <div class="{{ $gridClasses }} {{ $gapClasses }} max-w-5xl mx-auto">
-    @foreach ($modulosFiltrados as $modulo)
+    @foreach ($modulosFiltrados->values() as $index => $modulo)
             @php
                 if (!empty($modulo['imagen'])) {
                     $relativeImagePath = 'images/' . $imageFolder . '/' . $modulo['imagen'];
                     $absoluteImagePath = public_path($relativeImagePath);
                     $version = file_exists($absoluteImagePath) ? filemtime($absoluteImagePath) : null;
                     $imagenUrl = asset($relativeImagePath) . ($version ? '?v=' . $version : '');
+
+                    $pathInfo = pathinfo($relativeImagePath);
+                    $webpRelativeImagePath = $pathInfo['dirname'] . '/' . $pathInfo['filename'] . '.webp';
+                    $webpAbsoluteImagePath = public_path($webpRelativeImagePath);
+                    $webpVersion = file_exists($webpAbsoluteImagePath) ? filemtime($webpAbsoluteImagePath) : null;
+                    $imagenWebpUrl = $webpVersion ? asset($webpRelativeImagePath) . '?v=' . $webpVersion : null;
                 } else {
                     $imagenUrl = $imagenFallback;
+                    $imagenWebpUrl = $imagenFallbackWebp;
                 }
+
+                $isLcpImage = $index === 0;
 
                 // Verificar si es el módulo de Atado de Julio / Cortado de Rollo
                 $esNotificarMontado = in_array($modulo['nombre'], ['Atado de Julio', 'Atado de Julio (Tej.)', 'Notificar Montado de Julio', 'Notificar Montado de Julio (Tej.)']);
@@ -78,16 +88,21 @@
                     <div class="flex-shrink-0 mb-3">
                         <div class="relative transform transition-transform duration-300 group-hover:-translate-y-0.5">
 
-                            <img src="{{ $imagenUrl }}"
-                                alt="{{ $modulo['nombre'] }}"
-                                width="176"
-                                height="176"
-                                class="w-32 h-32 md:w-44 md:h-44 lg:w-44 lg:h-44 object-cover rounded-xl shadow-md group-hover:shadow-xl transition-shadow duration-300"
-                                onerror="this.src='{{ $imagenFallback }}'; this.onerror=null;"
-                                title="{{ $modulo['nombre'] }} - {{ $modulo['imagen'] ?? 'Sin imagen' }}"
-                                loading="lazy"
-                                decoding="async"
-                                fetchpriority="low">
+                            <picture>
+                                @if($imagenWebpUrl)
+                                    <source srcset="{{ $imagenWebpUrl }}" type="image/webp">
+                                @endif
+                                <img src="{{ $imagenUrl }}"
+                                    alt="{{ $modulo['nombre'] }}"
+                                    width="176"
+                                    height="176"
+                                    class="w-32 h-32 md:w-44 md:h-44 lg:w-44 lg:h-44 object-cover rounded-xl shadow-md group-hover:shadow-xl transition-shadow duration-300"
+                                    onerror="this.src='{{ $imagenFallback }}'; this.onerror=null;"
+                                    title="{{ $modulo['nombre'] }} - {{ $modulo['imagen'] ?? 'Sin imagen' }}"
+                                    loading="{{ $isLcpImage ? 'eager' : 'lazy' }}"
+                                    decoding="async"
+                                    fetchpriority="{{ $isLcpImage ? 'high' : 'low' }}">
+                            </picture>
                         </div>
                     </div>
 

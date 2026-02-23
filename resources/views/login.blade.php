@@ -57,7 +57,7 @@
       <div class="w-full max-w-2xl flex flex-col items-center flex-shrink-0">
         <div class="text-center w-full flex-shrink-0">
           <picture>
-            <source srcset="{{ asset('images/fondosTowell/logo.webp') }}" type="image/webp">
+            <source srcset="{{ asset('images/fondosTowell/logo-sm.webp') }}" type="image/webp">
             <img src="{{ asset('images/fondosTowell/logo.png') }}" width="792" height="227" class="h-20 w-auto mx-auto" decoding="async" alt="Logo_Towell">
           </picture>
         </div>
