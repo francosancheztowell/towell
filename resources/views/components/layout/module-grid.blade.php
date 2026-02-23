@@ -66,7 +66,7 @@
                 <a href="javascript:void(0)" onclick="abrirModalTelares()"
                    class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
             @elseif($esNotificarCortado)
-                <a href="javascript:void(0)" onclick="abrirModalCortadoRollos()"
+                <a href="{{ route('notificar.cortado.rollo') }}"
                    class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
             @else
                 <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}"

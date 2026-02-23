@@ -44,6 +44,7 @@ Route::prefix('tejedores')->group(function () {
     Route::get('/cortadoderollo/telares', [NotificarMontRollosController::class, 'telares'])->name('notificar.cortado.rollo.telares');
     Route::get('/cortadoderollo/detalle', [NotificarMontRollosController::class, 'detalle'])->name('notificar.cortado.rollo.detalle');
     Route::post('/cortadoderollo/notificar', [NotificarMontRollosController::class, 'notificar'])->name('notificar.cortado.rollo.notificar');
+    Route::get('/cortadoderollo/telar/{telarId}/ordenes-en-proceso', [NotificarMontRollosController::class, 'obtenerOrdenesEnProceso'])->name('notificar.cortado.rollo.ordenes.enproceso');
     Route::get('/cortadoderollo/orden-produccion', [NotificarMontRollosController::class, 'getOrdenProduccion'])->name('notificar.cortado.rollo.orden.produccion');
     Route::get('/cortadoderollo/datos-produccion', [NotificarMontRollosController::class, 'getDatosProduccion'])->name('notificar.cortado.rollo.datos.produccion');
     Route::post('/cortadoderollo/insertar', [NotificarMontRollosController::class, 'insertarMarbetes'])->name('notificar.cortado.rollo.insertar');
