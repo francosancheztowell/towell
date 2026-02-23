@@ -218,8 +218,7 @@
   </script>
 
   <!-- ====== Scripts ====== -->
-    <script src="{{ asset('js/app-core.js') }}?v={{ @filemtime(public_path('js/app-core.js')) ?: time() }}"></script>
-    <script src="{{ asset('js/app-filters.js') }}"></script>
+    @vite(['public/js/app-core.js', 'public/js/app-filters.js'])
 
   @stack('scripts')
 

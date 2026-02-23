@@ -17,11 +17,15 @@
     </button>
 
     <a href="{{ route('produccion.index') }}" class="flex items-center">
-        <img src="{{ asset('images/fondosTowell/logo.png') }}"
-             alt="Logo Towell"
-             width="auto"
-             height="auto"
-             fetchpriority="high"
-             class="h-10 md:h-12 w-auto">
+        <picture>
+            <source srcset="{{ asset('images/fondosTowell/logo.webp') }}" type="image/webp">
+            <img src="{{ asset('images/fondosTowell/logo.png') }}"
+                 alt="Logo Towell"
+                 width="792"
+                 height="227"
+                 fetchpriority="high"
+                 decoding="async"
+                 class="h-10 md:h-12 w-auto">
+        </picture>
     </a>
 </div>

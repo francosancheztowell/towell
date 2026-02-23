@@ -19,7 +19,15 @@
 </IfModule>
 
 <IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript application/x-javascript text/javascript application/json
+    AddOutputFilterByType DEFLATE application/xml application/rss+xml application/atom+xml image/svg+xml
+</IfModule>
+
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css
+    AddOutputFilterByType BROTLI_COMPRESS application/javascript application/x-javascript text/javascript application/json
+    AddOutputFilterByType BROTLI_COMPRESS application/xml application/rss+xml application/atom+xml image/svg+xml
 </IfModule>
 
 <IfModule mod_rewrite.c>

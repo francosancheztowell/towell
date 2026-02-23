@@ -65,9 +65,15 @@
                         <!-- Imagen TOWELLIN en el centro del QR -->
                         <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div class="bg-white p-2 rounded-lg shadow-lg">
-                                <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}"
-                                     alt="TOWELLIN Logo"
-                                     class="w-20 h-20 object-contain">
+                                <picture>
+                                    <source srcset="{{ asset('images/fotos_usuarios/TOWELLIN.webp') }}" type="image/webp">
+                                    <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}"
+                                         alt="TOWELLIN Logo"
+                                         width="307"
+                                         height="391"
+                                         decoding="async"
+                                         class="w-20 h-20 object-contain">
+                                </picture>
                             </div>
                         </div>
                     </div>
@@ -140,12 +146,9 @@
                     link.click();
                 };
 
-                img.src = '{{ asset('images/fotos_usuarios/TOWELLIN.png') }}';
+                img.src = '{{ asset('images/fotos_usuarios/TOWELLIN.webp') }}';
             }
         }
     </script>
 @endsection
-
-
-
 

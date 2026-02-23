@@ -566,7 +566,7 @@
     </div>
 
     <!-- Modal Componentes de Fórmula -->
-    <div id="componentesModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div id="componentesModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
             <!-- Header -->
             <div class="bg-gradient-to-r from-blue-500 to-blue-700 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">

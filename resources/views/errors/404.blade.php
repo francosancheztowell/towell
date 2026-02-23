@@ -15,7 +15,10 @@
     <div class="max-w-md mx-auto px-6 text-center">
         <!-- Logo TOWELLIN -->
         <div class="mb-6">
-            <img src="{{ asset('images/fotos_usuarios/towelin404.png') }}" alt="TOWELLIN" class="h-56 mx-auto">
+            <picture>
+                <source srcset="{{ asset('images/fotos_usuarios/towelin404.webp') }}" type="image/webp">
+                <img src="{{ asset('images/fotos_usuarios/towelin404.png') }}" alt="TOWELLIN" width="700" height="906" decoding="async" class="h-56 w-auto mx-auto">
+            </picture>
         </div>
 
         <!-- Número 404 -->

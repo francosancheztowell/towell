@@ -9,7 +9,9 @@
 <meta name="description" content="@yield('meta_description', $description)">
 
 @if(!$simple)
-    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
+        <link rel="manifest" href="{{ asset('manifest.json') }}">
+    @endif
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#0f4c81">
     <meta name="mobile-web-app-capable" content="yes">

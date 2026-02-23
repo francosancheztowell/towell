@@ -12,6 +12,8 @@ export default defineConfig({
       input: [
         'resources/css/app.css',
         'resources/js/app.js',
+        'public/js/app-core.js',
+        'public/js/app-filters.js',
       ],
       refresh: true,
     }),

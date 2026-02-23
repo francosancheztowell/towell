@@ -23,12 +23,3 @@ import 'select2';
 // Configurar Toastr global
 import toastr from 'toastr';
 window.toastr = toastr;
-
-// Configurar Chart.js global
-import { Chart, registerables } from 'chart.js/auto';
-Chart.register(...registerables);
-window.Chart = Chart;
-
-// Configurar SortableJS global
-import Sortable from 'sortablejs';
-window.Sortable = Sortable;

@@ -15,7 +15,10 @@
     <div class="max-w-md mx-auto px-6 text-center">
         <!-- Logo TOWELLIN -->
         <div class="mb-12">
-            <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}" alt="TOWELLIN" class="h-24 mx-auto">
+            <picture>
+                <source srcset="{{ asset('images/fotos_usuarios/TOWELLIN.webp') }}" type="image/webp">
+                <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}" alt="TOWELLIN" width="307" height="391" decoding="async" class="h-24 w-auto mx-auto">
+            </picture>
         </div>
 
         <!-- Número 403 -->

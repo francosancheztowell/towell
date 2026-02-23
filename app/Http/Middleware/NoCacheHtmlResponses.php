@@ -22,11 +22,20 @@ class NoCacheHtmlResponses
             return $response;
         }
 
-        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $isLoginLikeRoute = $request->routeIs('login', 'home')
+            || $request->is('/')
+            || $request->is('login');
+
+        // Mantener no-store estricto en login para evitar persistencia de credenciales.
+        // Para el resto de HTML, usar no-cache privado para permitir bfcache del navegador.
+        if ($isLoginLikeRoute) {
+            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        } else {
+            $response->headers->set('Cache-Control', 'private, no-cache, must-revalidate, max-age=0');
+        }
         $response->headers->set('Pragma', 'no-cache');
         $response->headers->set('Expires', '0');
 
         return $response;
     }
 }
-

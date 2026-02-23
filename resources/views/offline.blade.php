@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sin conexi贸n - Towell</title>
+    <title>Sin conexi髇 - Towell</title>
     @vite(['resources/css/app.css'])
 </head>
 <body class="min-h-screen bg-blue-300 flex items-center justify-center p-4">
     <div class="max-w-md w-full text-center">
-        <img src="{{ asset('images/fotos_usuarios/towelin404.png') }}" alt="Sin conexi贸n" class="h-56 mx-auto mb-6">
-        <h1 class="text-3xl font-bold text-white mb-4">Sin conexi贸n</h1>
-        <p class="text-white mb-6">No hay conexi贸n a internet disponible.</p>
+        <picture>
+            <source srcset="{{ asset('images/fotos_usuarios/towelin404.webp') }}" type="image/webp">
+            <img src="{{ asset('images/fotos_usuarios/towelin404.png') }}" alt="Sin conexi髇" width="700" height="906" decoding="async" class="h-56 w-auto mx-auto mb-6">
+        </picture>
+        <h1 class="text-3xl font-bold text-white mb-4">Sin conexi髇</h1>
+        <p class="text-white mb-6">No hay conexi髇 a internet disponible.</p>
         <button onclick="window.location.href='{{ url('/produccionProceso') }}'" class="bg-white text-blue-500 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
             Intentar nuevamente
         </button>
