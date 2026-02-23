@@ -8,12 +8,8 @@
 
   <!-- Tailwind CSS compilado a través de Vite -->
   @vite(['resources/css/app.css'])
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    .font-inter{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
     html, body { margin: 0; padding: 0; }
     @media (min-width: 1024px) {
       .login-panel-right {
@@ -28,11 +24,9 @@
       }
     }
   </style>
-  <meta name="csrf-token" content="{{ csrf_token() }}">
-  <meta name="images-base" content="{{ asset('images') }}">
 </head>
 
-<body class="bg-white h-screen overflow-hidden font-inter  p-0">
+<body class="bg-white h-screen overflow-hidden p-0">
   <div class="h-screen flex overflow-hidden">
     <!-- Panel izquierdo - Branding -->
     <div class="hidden lg:flex lg:w-2/5 relative overflow-hidden bg-blue-600">
@@ -62,9 +56,7 @@
         </div>
 
         <div class="w-full bg-white  p-10 ">
-          <x-auth.login-form
-            :errors="$errors ?? []"
-          />
+          <x-auth.login-form />
         </div>
       </div>
     </div>

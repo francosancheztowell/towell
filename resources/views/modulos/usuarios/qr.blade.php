@@ -88,7 +88,7 @@
     </div>
 
     <!-- QRCode.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>-->
     <script>
         // Generar QR Code
         const qrcode = new QRCode(document.getElementById("qrcode"), {

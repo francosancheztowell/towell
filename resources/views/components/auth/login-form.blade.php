@@ -2,35 +2,24 @@
     Componente: Login Form
 
     Descripción:
-        Formulario de login reutilizable con validación y funcionalidades de autenticación.
-        Incluye campos para empleado, contraseña y manejo de errores.
+        Formulario de login reutilizable con validación y autenticación.
 
     Props:
         @param string $action - URL de acción del formulario (default: '/login')
         @param string $method - Método HTTP (default: 'POST')
-        @param string $title - Título del formulario (default: 'Acceso por ID')
-        @param string $subtitle - Subtítulo del formulario (default: 'Ingresa tu identificador único')
-        @param array $errors - Errores de validación (opcional)
         @param string $successMessage - Mensaje de éxito (opcional)
 
     Uso:
-        <x-auth.login-form
-            title="Iniciar Sesión"
-            subtitle="Accede a tu cuenta"
-            :errors="$errors"
-        />
+        <x-auth.login-form />
 --}}
 
 @props([
     'action' => '/login',
     'method' => 'POST',
-    'errors' => [],
     'successMessage' => null
 ])
 
 <div class="login-form-container">
-
-
     <!-- Mostrar errores de sesión -->
     @if (session('error'))
         <x-ui.alert type="error" :message="session('error')" />
@@ -106,8 +95,6 @@
             Iniciar Sesión
         </x-ui.button>
     </form>
-
-
 </div>
 
 <script>
