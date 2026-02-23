@@ -19,9 +19,9 @@
     <a href="{{ route('produccion.index') }}" class="flex items-center">
         <img src="{{ asset('images/fondosTowell/logo.png') }}"
              alt="Logo Towell"
-             width="144"
-             height="48"
+             width="auto"
+             height="auto"
              fetchpriority="high"
-             class="h-10 md:h-12">
+             class="h-10 md:h-12 w-auto">
     </a>
 </div>

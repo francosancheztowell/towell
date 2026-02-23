@@ -34,7 +34,7 @@
       <div class="relative z-10 p-12 h-full flex flex-col justify-between text-white">
         <div class="login-panel-left-content text-center flex-shrink-0">
           <div class="flex justify-center">
-            <img src="images/fotos_usuarios/TOWELLIN.png" alt="Logo" width="160" height="160" class="w-40 h-40">
+            <img src="images/fotos_usuarios/TOWELLIN.png" alt="Logo" width="auto" height="auto" class="h-40 w-auto">
           </div>
           <div>
             <h1 class="text-white text-5xl font-bold leading-tight mb-6 mt-6">Bienvenido</h1>
@@ -53,7 +53,7 @@
     <div class="login-panel-right w-full lg:w-3/5 flex flex-col items-center justify-start pt-24 lg:pt-0 p-8 lg:p-12 overflow-y-auto lg:overflow-hidden h-screen">
       <div class="w-full max-w-2xl flex flex-col items-center flex-shrink-0">
         <div class="text-center w-full flex-shrink-0">
-          <img src="{{ asset('images/fondosTowell/logo.png') }}" width="320" height="80" class="h-20 mx-auto" alt="Logo_Towell">
+          <img src="{{ asset('images/fondosTowell/logo.png') }}" width="auto" height="auto" class="h-20 w-auto mx-auto" alt="Logo_Towell">
         </div>
 
         <div class="w-full bg-white  p-10 ">
