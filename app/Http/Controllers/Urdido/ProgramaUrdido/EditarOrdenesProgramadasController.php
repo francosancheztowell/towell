@@ -253,6 +253,10 @@ class EditarOrdenesProgramadasController extends Controller
             $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)->orderBy('Id')->get();
         }
 
+        $destino = trim($orden->SalonTejidoId ?? '');
+        $maquina = trim($orden->MaquinaId ?? '');
+        $isKarlMayer = (stripos($destino, 'karl') !== false) && (stripos($maquina, 'karl') !== false);
+
         return view('modulos.urdido.editar-orden-programada', [
             'orden' => $orden,
             'metros' => $metros,
@@ -265,6 +269,7 @@ class EditarOrdenesProgramadasController extends Controller
             'mapaJuliosHilos' => $mapaJuliosHilos,
             'puedeEditar' => $puedeEditar,
             'fromReimpresion' => $fromReimpresion,
+            'isKarlMayer' => $isKarlMayer,
         ]);
     }
 
@@ -315,13 +320,20 @@ class EditarOrdenesProgramadasController extends Controller
 
             $orden = UrdProgramaUrdido::findOrFail($request->orden_id);
 
-            // Engomado solo por Folio (no NoTelarId). Una instancia por tabla.
-            $engomado = $this->obtenerEngomadoPorOrden($orden);
-            if (!$engomado) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se encontro un folio relacionado en Engomado para esta orden.',
-                ], 422);
+            // Karl Mayer: no tiene engomado, solo urdido. No validar ni sincronizar con Engomado.
+            $destino = trim($orden->SalonTejidoId ?? '');
+            $maquina = trim($orden->MaquinaId ?? '');
+            $isKarlMayer = (stripos($destino, 'karl') !== false) || (stripos($maquina, 'karl') !== false);
+
+            $engomado = null;
+            if (!$isKarlMayer) {
+                $engomado = $this->obtenerEngomadoPorOrden($orden);
+                if (!$engomado) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'No se encontro un folio relacionado en Engomado para esta orden.',
+                    ], 422);
+                }
             }
 
             $campo = $request->campo;
@@ -437,8 +449,8 @@ class EditarOrdenesProgramadasController extends Controller
                 $orden->save();
                 AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_URDIDO, (int) $orden->Id, $orden->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo($campo, $valorAntOrden, $valor));
 
-                // Si el campo debe sincronizarse con EngProgramaEngomado
-                if (isset($camposSincronizados[$campo])) {
+                // Si el campo debe sincronizarse con EngProgramaEngomado (no aplica para Karl Mayer)
+                if ($engomado !== null && isset($camposSincronizados[$campo])) {
                     $campoEngomado = $camposSincronizados[$campo];
                     $valorAntEng = $engomado->getAttribute($campoEngomado);
                     $engomado->$campoEngomado = $valor;
@@ -446,14 +458,14 @@ class EditarOrdenesProgramadasController extends Controller
                     AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo($campoEngomado, $valorAntEng, $valor));
                 }
 
-                // Campos especiales que también se sincronizan con nombres diferentes
-                if ($campo === 'MaquinaId') {
+                // Campos especiales que también se sincronizan con nombres diferentes (no aplica para Karl Mayer)
+                if ($engomado !== null && $campo === 'MaquinaId') {
                     $valorAntEng = $engomado->MaquinaUrd;
                     $engomado->MaquinaUrd = $valor;
                     $engomado->save();
                     AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_UPDATE, AuditoriaUrdEng::formatoCampo('MaquinaUrd', $valorAntEng, $valor));
                 }
-                if ($campo === 'BomId') {
+                if ($engomado !== null && $campo === 'BomId') {
                     $valorAntEng = $engomado->BomUrd;
                     $engomado->BomUrd = $valor;
                     $engomado->save();

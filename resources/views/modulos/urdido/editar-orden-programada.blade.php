@@ -75,18 +75,24 @@
                     >
                 </div>
 
-                <!-- Rizo/Pie -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Tipo</label>
+                <!-- Rizo/Pie o Barras (Karl Mayer) -->
+                <div id="contenedor-tipo-barras">
+                    <label id="label-tipo-barras" class="block text-sm font-semibold text-gray-700 mb-0.5">{{ ($isKarlMayer ?? false) ? 'Barras' : 'Tipo' }}</label>
                     <select
                         id="campo_RizoPie"
                         data-campo="RizoPie"
+                        data-es-karl-mayer="{{ ($isKarlMayer ?? false) ? '1' : '0' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-
                     >
                         <option value="">Seleccionar...</option>
-                        <option value="Rizo" {{ $orden->RizoPie === 'Rizo' ? 'selected' : '' }}>Rizo</option>
-                        <option value="Pie" {{ $orden->RizoPie === 'Pie' ? 'selected' : '' }}>Pie</option>
+                        @if($isKarlMayer ?? false)
+                            @foreach([1, 2, 3, 4] as $v)
+                                <option value="{{ $v }}" {{ (string)($orden->RizoPie ?? '') === (string)$v ? 'selected' : '' }}>{{ $v }}</option>
+                            @endforeach
+                        @else
+                            <option value="Rizo" {{ $orden->RizoPie === 'Rizo' ? 'selected' : '' }}>Rizo</option>
+                            <option value="Pie" {{ $orden->RizoPie === 'Pie' ? 'selected' : '' }}>Pie</option>
+                        @endif
                     </select>
                 </div>
 
@@ -175,6 +181,7 @@
                         <option value="">Seleccionar...</option>
                         <option value="JACQUARD" {{ ($orden->SalonTejidoId ?? '') === 'JACQUARD' ? 'selected' : '' }}>JACQUARD</option>
                         <option value="SMIT" {{ ($orden->SalonTejidoId ?? '') === 'SMIT' ? 'selected' : '' }}>SMIT</option>
+                        <option value="Karl Mayer" {{ ($orden->SalonTejidoId ?? '') === 'Karl Mayer' ? 'selected' : '' }}>Karl Mayer</option>
                     </select>
                 </div>
 
@@ -188,9 +195,15 @@
 
                     >
                         <option value="">Seleccionar...</option>
+                        @php
+                            $maquinaValor = $orden->MaquinaId ?? '';
+                            $yaIncluyeKarlMayer = $maquinas->contains(fn($m) => stripos(($m->MaquinaId ?? '').($m->Nombre ?? ''), 'karl') !== false);
+                        @endphp
+                        @if(!$yaIncluyeKarlMayer)
+                            <option value="Karl Mayer" {{ $maquinaValor === 'Karl Mayer' ? 'selected' : '' }}>Karl Mayer</option>
+                        @endif
                         @foreach($maquinas as $maquina)
                             @php
-                                $maquinaValor = $orden->MaquinaId ?? '';
                                 $esSeleccionada = ($maquinaValor === $maquina->MaquinaId) ||
                                                   ($maquinaValor === ($maquina->Nombre ?? ''));
                             @endphp
@@ -1655,6 +1668,41 @@
 
                 // Autocomplete BOM Urdido (consulta SQL a otra DB - sqlsrv_ti)
                 setupBomAutocomplete('#campo_BomId', RUTA_BOM_URDIDO, 'bom-urdido-suggestions-editar');
+
+                // Actualizar label y opciones Tipo/Barras cuando cambian Salón o Máquina (Karl Mayer = Barras 1-6, else Tipo Rizo/Pie)
+                const esKarlMayerDesdeCampos = () => {
+                    const salon = String(document.getElementById('campo_SalonTejidoId')?.value ?? '').trim().toLowerCase();
+                    const maquina = String(document.getElementById('campo_MaquinaId')?.value ?? '').trim().toLowerCase();
+                    return (salon.includes('karl') || salon === 'karl mayer') && (maquina.includes('karl') || maquina === 'karl mayer');
+                };
+                const actualizarTipoBarras = () => {
+                    const label = document.getElementById('label-tipo-barras');
+                    const select = document.getElementById('campo_RizoPie');
+                    if (!label || !select) return;
+                    const isKM = esKarlMayerDesdeCampos();
+                    label.textContent = isKM ? 'Barras' : 'Tipo';
+                    select.dataset.esKarlMayer = isKM ? '1' : '0';
+                    const valorActual = select.value;
+                    if (isKM) {
+                        const opcionesValidas = ['1', '2', '3', '4', '5', '6'];
+                        if (!opcionesValidas.includes(valorActual)) {
+                            select.innerHTML = '<option value="">Seleccionar...</option>' + opcionesValidas.map(v => `<option value="${v}">${v}</option>`).join('');
+                        } else {
+                            select.innerHTML = '<option value="">Seleccionar...</option>' + opcionesValidas.map(v => `<option value="${v}" ${v === valorActual ? 'selected' : ''}>${v}</option>`).join('');
+                        }
+                    } else {
+                        const opcionesValidas = ['Rizo', 'Pie'];
+                        if (!opcionesValidas.includes(valorActual)) {
+                            select.innerHTML = '<option value="">Seleccionar...</option><option value="Rizo">Rizo</option><option value="Pie">Pie</option>';
+                        } else {
+                            select.innerHTML = '<option value="">Seleccionar...</option><option value="Rizo" ' + (valorActual === 'Rizo' ? 'selected' : '') + '>Rizo</option><option value="Pie" ' + (valorActual === 'Pie' ? 'selected' : '') + '>Pie</option>';
+                        }
+                    }
+                };
+                const salonSelect = document.getElementById('campo_SalonTejidoId');
+                const maquinaSelect = document.getElementById('campo_MaquinaId');
+                if (salonSelect) salonSelect.addEventListener('change', actualizarTipoBarras);
+                if (maquinaSelect) maquinaSelect.addEventListener('change', actualizarTipoBarras);
 
                 const cuentaInput = document.getElementById('campo_Cuenta');
                 const calibreInput = document.getElementById('campo_Calibre');

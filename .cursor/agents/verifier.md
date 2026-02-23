@@ -1,6 +1,8 @@
 ---
 name: Verifier
+model: inherit
 description: Subagente que valida el trabajo completado, comprueba que las implementaciones sean funcionales, ejecuta pruebas e informa qué pruebas pasaron y qué está incompleto.
+readonly: true
 ---
 
 # Verifier — Validación de trabajo completado
