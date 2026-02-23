@@ -66,7 +66,7 @@
   <script>
     // Detecta si esta página fue accedida desde el historial (adelante o atrás)
     window.addEventListener('pageshow', function (event) {
-      if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+      if (event.persisted) {
         window.location.reload(); // Fuerza recarga completa
       }
     });
@@ -93,3 +93,4 @@
 
 </body>
 </html>
+

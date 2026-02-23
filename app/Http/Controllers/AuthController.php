@@ -2,90 +2,65 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Http\Requests\LoginRequest;  // Asegúrate de importar el FormRequest
-use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\LoginRequest;
 use App\Models\Sistema\Usuario;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
     public function showLoginForm()
     {
+        if (Auth::check()) {
+            return redirect('/produccionProceso');
+        }
+
         return view('login');
     }
 
     public function login(LoginRequest $request)
     {
-        // La validación se aplica automáticamente
         $request->validated();
 
-        // Buscar el empleado en la base de datos
         $empleado = Usuario::query()
             ->select(['idusuario', 'numero_empleado', 'nombre', 'contrasenia'])
             ->where('numero_empleado', $request->numero_empleado)
             ->first();
 
         $passwordOk = false;
-        if ($empleado) {
-            // Verificar si la contraseña está hasheada o en texto plano
-            $storedPassword = $empleado->contrasenia;
+        $needsLegacyRehash = false;
 
-            // Si la contraseña almacenada parece ser un hash (empieza con $2y$)
+        if ($empleado) {
+            $storedPassword = (string) $empleado->contrasenia;
+
             if (str_starts_with($storedPassword, '$2y$')) {
                 $passwordOk = Hash::check($request->contrasenia, $storedPassword);
+
+                if ($passwordOk && Hash::needsRehash($storedPassword)) {
+                    $empleado->contrasenia = Hash::make($request->contrasenia);
+                    $empleado->save();
+                }
             } else {
-                // Si está en texto plano, comparar directamente
-                $passwordOk = $request->contrasenia === $storedPassword;
+                $passwordOk = hash_equals($storedPassword, (string) $request->contrasenia);
+                $needsLegacyRehash = $passwordOk;
             }
         }
 
         if ($empleado && $passwordOk) {
-            // Contraseña correcta, realizar login (seguro)
+            if ($needsLegacyRehash) {
+                $empleado->contrasenia = Hash::make($request->contrasenia);
+                $empleado->save();
+            }
+
             Auth::login($empleado);
             $request->session()->regenerate();
             session()->flash('bienvenida', true);
+
             return redirect()->intended('/produccionProceso');
         }
 
-        // Credenciales inválidas
-        return back()->with('error', 'Credenciales incorrectas. Verifica tu número de empleado y contraseña.');
-    }
-
-    public function loginQR(Request $request)
-    {
-        try {
-            $request->validate([
-                'numero_empleado' => 'required|string'
-            ]);
-
-            // Buscar el usuario en la BD
-            $empleado = Usuario::where('numero_empleado', $request->numero_empleado)->first();
-
-            if ($empleado) {
-                // Iniciar sesión sin contraseña
-                Auth::login($empleado);
-                $request->session()->regenerate();
-                session()->flash('bienvenida', true);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Login exitoso',
-                    'user' => $empleado->nombre
-                ]);
-            }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Empleado no encontrado: ' . $request->numero_empleado
-            ], 401);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
-        }
+        return back()->with('error', 'Credenciales incorrectas. Verifica tu numero de empleado y contrasenia.');
     }
 
     public function logout(Request $request)

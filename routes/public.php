@@ -6,30 +6,21 @@ use App\Http\Controllers\SystemController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [AuthController::class, 'showLoginForm'])->name('home');
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/login-qr', [AuthController::class, 'loginQR']);
-Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
+Route::middleware('guest')->group(function () {
+    Route::get('/', [AuthController::class, 'showLoginForm'])->name('home');
+    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+});
+
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware('auth')
+    ->name('logout');
 
 Route::get('/obtener-empleados/{area}', [UsuarioController::class, 'obtenerEmpleados'])
     ->name('usuarios.obtener-empleados');
 
 Route::get('/test-404', [SystemController::class, 'test404'])->name('test-404');
 Route::view('/offline', 'offline')->name('offline');
-
-// Muchos navegadores piden /favicon.ico aunque exista <link rel="icon">.
-// Servimos el PNG oficial para evitar el ícono "fantasma" cuando falta/corrompe el .ico.
-Route::get('/favicon.ico', function () {
-    $path = public_path('images/fotosTowell/TOWELLIN.png');
-    if (file_exists($path)) {
-        return response()->file($path, [
-            'Content-Type' => 'image/png',
-            'Cache-Control' => 'public, max-age=86400',
-        ]);
-    }
-    abort(404);
-})->name('favicon.ico');
 
 Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () {
     Route::get('/', [ModulosController::class, 'index'])->name('index');

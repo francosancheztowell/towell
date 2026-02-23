@@ -295,7 +295,6 @@
     <script src="{{ asset('js/programa-tejido-menu.js') }}"></script>
   @endif
 
-  <script src="{{ asset('js/simple-click-sounds.js') }}"></script>
   @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
     <script src="{{ asset('js/app-pwa.js') }}"></script>
   @endif

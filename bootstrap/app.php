@@ -17,8 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // Trust all proxies to work behind any proxy or load balancer
         $middleware->trustProxies(at: '*');
 
+        // Redirecciones consistentes para guest/auth
+        $middleware->redirectUsersTo('/produccionProceso');
+        $middleware->redirectGuestsTo('/login');
+
         // Middleware para establecer contexto de SQL Server antes de queries
-        // Esto permite que los triggers capturen información del usuario
+        // Esto permite que los triggers capturen informacion del usuario
         $middleware->web(append: [
             \App\Http\Middleware\SetSqlContextInfo::class,
             \App\Http\Middleware\ProgramaTejidoContext::class,

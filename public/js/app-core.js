@@ -139,8 +139,14 @@
                 cancelButtonText: "Cancelar"
             }).then((res) => {
                 if (res.isConfirmed) {
-                    // Usar GET como salida robusta para evitar 419 por CSRF expirado.
-                    window.location.href = "/logout";
+                    const logoutForm = document.getElementById("logout-form");
+                    if (logoutForm) {
+                        if (typeof logoutForm.requestSubmit === "function") {
+                            logoutForm.requestSubmit();
+                        } else {
+                            logoutForm.submit();
+                        }
+                    }
                 }
             });
         });
@@ -340,3 +346,4 @@
         initAppScripts();
     }
 })();
+
