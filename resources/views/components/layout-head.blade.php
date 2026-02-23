@@ -1,20 +1,18 @@
-@props(['title' => 'TOWEL S.A DE C.V', 'simple' => false])
+@props(['title' => 'Produccion Towell', 'simple' => false])
 
 <meta charset="UTF-8">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 @if(!$simple)
-    <link rel="icon" href="{{ url('/favicon.ico') }}">
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#0f4c81">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Towell">
-    <meta name="application-name" content="Towell">
+    <meta name="apple-mobile-web-app-title" content="Produccion Towell">
+    <meta name="application-name" content="Produccion Towell">
     <meta name="msapplication-TileColor" content="#0f4c81">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('icons/icon-180x180.png') }}">
 @else
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 @endif

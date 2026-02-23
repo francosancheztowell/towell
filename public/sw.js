@@ -1,13 +1,10 @@
-const CACHE = "pwa-v11";
+const CACHE = "pwa-v12";
 const BASE_URL = self.registration?.scope || self.location.href;
 const OFFLINE_URL = new URL("offline", BASE_URL).toString();
 const ASSETS = [
   "./", "offline",
   "manifest.json",
   "js/app-pwa.js",
-  "icons/icon-192x192.png",
-  "icons/icon-512x512.png",
-  "icons/icon-512x512-maskable.png",
   "browserconfig.xml"
 ];
 
