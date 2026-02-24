@@ -572,23 +572,26 @@
                 return input ? (parseInt(input.value,10)||0) : 0;
             };
             const k1=`${telar}-1`, k2=`${telar}-2`, k3=`${telar}-3`;
+            const statusOB1 = row.querySelector(`input.obs-checkbox[data-telar="${telar}"][data-horario="1"]`)?.checked;
+            const statusOB2 = row.querySelector(`input.obs-checkbox[data-telar="${telar}"][data-horario="2"]`)?.checked;
+            const statusOB3 = row.querySelector(`input.obs-checkbox[data-telar="${telar}"][data-horario="3"]`)?.checked;
             out.push({
                 NoTelar: parseInt(telar,10),
                 SalonTejidoId: null,
                 RpmStd: rpmStd ? (parseFloat(rpmStd.value) || null) : null,
                 EficienciaStd: efStd ? parsePct(efStd.value) : null,
-                RpmR1: readInput(1,'rpm') || null,
-                EficienciaR1: readInput(1,'eficiencia') || null,
-                RpmR2: readInput(2,'rpm') || null,
-                EficienciaR2: readInput(2,'eficiencia') || null,
-                RpmR3: readInput(3,'rpm') || null,
-                EficienciaR3: readInput(3,'eficiencia') || null,
+                RpmR1: statusOB1 ? readInput(1,'rpm') : (readInput(1,'rpm') || null),
+                EficienciaR1: statusOB1 ? readInput(1,'eficiencia') : (readInput(1,'eficiencia') || null),
+                RpmR2: statusOB2 ? readInput(2,'rpm') : (readInput(2,'rpm') || null),
+                EficienciaR2: statusOB2 ? readInput(2,'eficiencia') : (readInput(2,'eficiencia') || null),
+                RpmR3: statusOB3 ? readInput(3,'rpm') : (readInput(3,'rpm') || null),
+                EficienciaR3: statusOB3 ? readInput(3,'eficiencia') : (readInput(3,'eficiencia') || null),
                 ObsR1: state.observaciones[k1] || null,
                 ObsR2: state.observaciones[k2] || null,
                 ObsR3: state.observaciones[k3] || null,
-                StatusOB1: row.querySelector(`input.obs-checkbox[data-telar="${telar}"][data-horario="1"]`)?.checked ? 1 : 0,
-                StatusOB2: row.querySelector(`input.obs-checkbox[data-telar="${telar}"][data-horario="2"]`)?.checked ? 1 : 0,
-                StatusOB3: row.querySelector(`input.obs-checkbox[data-telar="${telar}"][data-horario="3"]`)?.checked ? 1 : 0,
+                StatusOB1: statusOB1 ? 1 : 0,
+                StatusOB2: statusOB2 ? 1 : 0,
+                StatusOB3: statusOB3 ? 1 : 0,
             });
         });
         return out;
