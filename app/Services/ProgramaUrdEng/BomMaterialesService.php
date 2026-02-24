@@ -96,7 +96,7 @@ class BomMaterialesService
         $itemIds = array_filter($itemIds);
         $configIds = array_filter($configIds);
 
-        $detalle = $this->getInventarioPorMaterialesUrdido($itemIds, $configIds);
+        $detalleRaw = $this->getInventarioPorMaterialesUrdidoRaw($itemIds, $configIds);
 
         $kilosTotal = $kilosTotal > 0 ? (float) $kilosTotal : 1;
         $resumenMapped = [];
@@ -110,11 +110,86 @@ class BomMaterialesService
             ];
         }
 
-        return ['resumen' => $resumenMapped, 'detalle' => $detalle];
+        return ['resumen' => $resumenMapped, 'detalle' => $detalleRaw];
+    }
+
+    /**
+     * Inventario físico disponible (formato raw, igual que getMaterialesEngomado).
+     * Para Karl Mayer: mismo formato que creacion-ordenes para UrdConsumoHilo.
+     */
+    private function getInventarioPorMaterialesUrdidoRaw(array $itemIds, array $configIds): array
+    {
+        $itemIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $itemIds)));
+        if (empty($itemIds)) return [];
+
+        $configIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $configIds)));
+        $consumidosKeys = $this->obtenerMaterialesConsumidosKeys($itemIds);
+
+        $q = DB::connection(self::CONN)
+            ->table('InventSum as sum')
+            ->join('InventDim as dim', 'dim.INVENTDIMID', '=', 'sum.INVENTDIMID')
+            ->join('InventSerial as ser', function ($j) {
+                $j->on('sum.ITEMID', '=', 'ser.ITEMID')->on('ser.INVENTSERIALID', '=', 'dim.INVENTSERIALID');
+            })
+            ->whereIn('sum.ITEMID', $itemIds)
+            ->whereRaw('sum.PhysicalInvent <> 0')
+            ->where('sum.DATAAREAID', self::DATAAREA)
+            ->where('dim.DATAAREAID', self::DATAAREA)
+            ->whereIn('dim.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
+            ->where('ser.DATAAREAID', self::DATAAREA);
+
+        if (! empty($configIds)) {
+            $q->whereIn('dim.CONFIGID', $configIds);
+        }
+
+        $rows = $q->select([
+            'sum.ITEMID as ItemId',
+            'sum.PHYSICALINVENT as PhysicalInvent',
+            'dim.CONFIGID as ConfigId',
+            'dim.INVENTSIZEID as InventSizeId',
+            'dim.INVENTCOLORID as InventColorId',
+            'dim.INVENTLOCATIONID as InventLocationId',
+            'dim.INVENTBATCHID as InventBatchId',
+            'dim.WMSLOCATIONID as WMSLocationId',
+            'dim.INVENTSERIALID as InventSerialId',
+            'ser.PRODDATE as ProdDate',
+            'ser.TWTIRAS as TwTiras',
+            'ser.TWCALIDADFLOG as TwCalidadFlog',
+            'ser.TWCLIENTEFLOG as TwClienteFlog',
+        ])->orderBy('sum.ITEMID')->get();
+
+        $filtered = $this->excluirMaterialesConsumidos($rows, $consumidosKeys);
+
+        return array_map(function ($row) {
+            $row = is_array($row) ? (object) $row : $row;
+            $prodDate = $row->ProdDate ?? null;
+            $prodDateStr = null;
+            if ($prodDate instanceof \DateTimeInterface) {
+                $prodDateStr = $prodDate->format('Y-m-d');
+            } elseif ($prodDate !== null && $prodDate !== '') {
+                $prodDateStr = (string) $prodDate;
+            }
+            return [
+                'ItemId' => trim($row->ItemId ?? ''),
+                'ConfigId' => trim($row->ConfigId ?? ''),
+                'InventSizeId' => trim($row->InventSizeId ?? '') ?: 'ENTERO',
+                'InventColorId' => trim($row->InventColorId ?? ''),
+                'InventLocationId' => trim($row->InventLocationId ?? ''),
+                'InventBatchId' => trim($row->InventBatchId ?? ''),
+                'WMSLocationId' => trim($row->WMSLocationId ?? ''),
+                'InventSerialId' => trim($row->InventSerialId ?? ''),
+                'ProdDate' => $prodDateStr,
+                'TwTiras' => isset($row->TwTiras) ? (int) $row->TwTiras : 0,
+                'TwCalidadFlog' => trim($row->TwCalidadFlog ?? ''),
+                'TwClienteFlog' => trim($row->TwClienteFlog ?? ''),
+                'PhysicalInvent' => (float) ($row->PhysicalInvent ?? 0),
+            ];
+        }, $filtered);
     }
 
     /**
      * Inventario físico disponible por ItemId/ConfigId (para tabla detalle Karl Mayer).
+     * @deprecated Usar getInventarioPorMaterialesUrdidoRaw para formato creacion-ordenes
      */
     private function getInventarioPorMaterialesUrdido(array $itemIds, array $configIds): array
     {

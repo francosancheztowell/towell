@@ -7,8 +7,10 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 use App\Http\Controllers\Controller;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Urdido\AuditoriaUrdEng;
+use App\Models\Urdido\UrdConsumoHilo;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,6 +44,21 @@ class CrearOrdenKarlMayerController extends Controller
             'hilos.*' => 'nullable',
             'obs' => 'array',
             'obs.*' => 'nullable|string|max:255',
+            'materiales' => 'required|array',
+            'materiales.*' => 'array',
+            'materiales.*.itemId' => 'nullable|string|max:50',
+            'materiales.*.configId' => 'nullable|string|max:50',
+            'materiales.*.inventSizeId' => 'nullable|string|max:50',
+            'materiales.*.inventColorId' => 'nullable|string|max:50',
+            'materiales.*.inventLocationId' => 'nullable|string|max:50',
+            'materiales.*.inventBatchId' => 'nullable|string|max:50',
+            'materiales.*.wmsLocationId' => 'nullable|string|max:50',
+            'materiales.*.inventSerialId' => 'nullable|string|max:50',
+            'materiales.*.kilos' => 'nullable|numeric',
+            'materiales.*.conos' => 'nullable|integer',
+            'materiales.*.loteProv' => 'nullable|string|max:100',
+            'materiales.*.noProv' => 'nullable|string|max:100',
+            'materiales.*.prodDate' => 'nullable|string|max:50',
         ]);
 
         $usuario = Auth::user();
@@ -89,6 +106,38 @@ class CrearOrdenKarlMayerController extends Controller
                 AuditoriaUrdEng::ACCION_CREATE,
                 $this->camposCreateParaAuditoria($urdido, $camposCreate)
             );
+
+            $tamanoOrden = trim($validated['tamano'] ?? '');
+            foreach ($validated['materiales'] ?? [] as $material) {
+                $inventBatchId = $this->derivarInventBatchId(
+                    $material['inventSerialId'] ?? '',
+                    $material['inventBatchId'] ?? ''
+                );
+                $inventSizeId = trim((string) ($material['inventSizeId'] ?? ''));
+                if ($inventSizeId === '' && $tamanoOrden !== '') {
+                    $inventSizeId = $tamanoOrden;
+                }
+                UrdConsumoHilo::create([
+                    'Folio' => $folio,
+                    'FolioConsumo' => $folioConsumo,
+                    'ItemId' => $material['itemId'] ?? '',
+                    'ConfigId' => $material['configId'] ?? '',
+                    'InventSizeId' => $inventSizeId,
+                    'InventColorId' => $material['inventColorId'] ?? '',
+                    'InventLocationId' => $material['inventLocationId'] ?? '',
+                    'InventBatchId' => $inventBatchId,
+                    'WMSLocationId' => $material['wmsLocationId'] ?? '',
+                    'InventSerialId' => $material['inventSerialId'] ?? '',
+                    'InventQty' => isset($material['kilos']) ? (float) $material['kilos'] : 0,
+                    'ProdDate' => $this->parseProdDate($material['prodDate'] ?? null) ?? now()->format('Y-m-d'),
+                    'Status' => 'Programado',
+                    'NumeroEmpleado' => (string) ($numeroEmpleado ?? ''),
+                    'NombreEmpl' => (string) ($nombreEmpleado ?? ''),
+                    'Conos' => isset($material['conos']) ? (int) $material['conos'] : 0,
+                    'LoteProv' => $material['loteProv'] ?? '',
+                    'NoProv' => $material['noProv'] ?? '',
+                ]);
+            }
 
             $julios = $validated['julios'] ?? [];
             $hilos = $validated['hilos'] ?? [];
@@ -152,6 +201,36 @@ class CrearOrdenKarlMayerController extends Controller
         if ($v === null || $v === '') return null;
         $f = filter_var($v, FILTER_VALIDATE_FLOAT);
         return $f !== false ? (float) $f : null;
+    }
+
+    /** InventBatchId = prefijo de InventSerialId (ej. 00061-744 → 00061) */
+    private function derivarInventBatchId(string $inventSerialId, string $inventBatchId): string
+    {
+        $serial = trim($inventSerialId);
+        if ($serial !== '' && strpos($serial, '-') !== false) {
+            $prefijo = trim(explode('-', $serial)[0] ?? '');
+            if ($prefijo !== '') {
+                return $prefijo;
+            }
+        }
+        return trim($inventBatchId);
+    }
+
+    private function parseProdDate($prodDate): ?string
+    {
+        if ($prodDate === null || $prodDate === '') return null;
+        if (is_string($prodDate)) {
+            try {
+                $parsed = Carbon::parse($prodDate);
+                if ($parsed->year === 1900 && $parsed->month === 1 && $parsed->day === 1) {
+                    return null;
+                }
+                return $parsed->format('Y-m-d');
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private function camposCreateParaAuditoria(object $modelo, array $nombresCampos): string

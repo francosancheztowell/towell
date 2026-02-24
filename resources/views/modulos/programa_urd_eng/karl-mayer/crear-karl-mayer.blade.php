@@ -23,6 +23,13 @@
 @endsection
 
 @section('content')
+<style>
+    .sort-icon { opacity: 0.5; transition: opacity 0.2s; }
+    .sortable:hover .sort-icon { opacity: 1; }
+    .sortable.sort-asc .sort-icon::before { content: "\f0de"; }
+    .sortable.sort-desc .sort-icon::before { content: "\f0dd"; }
+    .sortable.sort-asc .sort-icon, .sortable.sort-desc .sort-icon { opacity: 1; }
+</style>
 <form id="form-karl-mayer" method="post" action="{{ route('programa.urd.eng.crear.orden.karl.mayer') }}">
     @csrf
 @php
@@ -145,19 +152,19 @@
                     <table id="tabla-detalle-lmat" class="min-w-full text-sm">
                         <thead class="text-white sticky top-0 z-10 whitespace-nowrap">
                             <tr>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500">Articulo</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600">Config</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500">Tamaño</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600">Color</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500">Almacen</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600">Lote</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500">Localidad</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600">Serie</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500">No Prov.</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600">Lote Prov.</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500">Fecha</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600">Conos</th>
-                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500">Kilos</th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500 sortable cursor-pointer hover:bg-blue-600" data-sort="itemId">Articulo <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600 sortable cursor-pointer hover:bg-blue-600" data-sort="configId">Config <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500 sortable cursor-pointer hover:bg-blue-600" data-sort="inventSizeId">Tamaño <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600 sortable cursor-pointer hover:bg-blue-600" data-sort="inventColorId">Color <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500 sortable cursor-pointer hover:bg-blue-600" data-sort="inventLocationId">Almacen <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600 sortable cursor-pointer hover:bg-blue-600" data-sort="inventBatchId">Lote <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500 sortable cursor-pointer hover:bg-blue-600" data-sort="wmsLocationId">Localidad <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600 sortable cursor-pointer hover:bg-blue-600" data-sort="inventSerialId">Serie <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500 sortable cursor-pointer hover:bg-blue-600" data-sort="noProv">No Prov. <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600 sortable cursor-pointer hover:bg-blue-600" data-sort="loteProv">Lote Prov. <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500 sortable cursor-pointer hover:bg-blue-600" data-sort="prodDate">Fecha <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600 sortable cursor-pointer hover:bg-blue-600" data-sort="conos">Conos <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
+                                <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-500 sortable cursor-pointer hover:bg-blue-600" data-sort="kilos">Kilos <i class="fa-solid fa-sort sort-icon ml-1"></i></th>
                                 <th class="px-1.5 py-1.5 text-center font-semibold bg-blue-600 w-10">Seleccionar</th>
                             </tr>
                         </thead>
@@ -273,6 +280,9 @@
 
     if (!elements.tbodyResumen || !elements.tbodyDetalle) return;
 
+    let materialesDetalle = [];
+    let sortState = { column: null, direction: null };
+
     const debounce = (fn, ms) => {
         let timeoutId;
         return (...args) => {
@@ -289,6 +299,12 @@
     const toInt = (value, fallback = 0) => {
         const parsed = parseInt(value, 10);
         return Number.isInteger(parsed) ? parsed : fallback;
+    };
+
+    const toNumber = (v, def = 0) => {
+        if (v === null || v === undefined) return def;
+        const num = parseFloat(String(v).replace(/,/g, ''));
+        return Number.isNaN(num) ? def : num;
     };
 
     const escapeHtml = (value) => {
@@ -342,7 +358,7 @@
     };
 
     const actualizarTotalesSeleccionados = () => {
-        const checks = elements.tbodyDetalle.querySelectorAll('.chk-detalle-lmat:checked');
+        const checks = elements.tbodyDetalle?.querySelectorAll('.chk-detalle-lmat:checked') ?? [];
         let totalConos = 0;
         let totalKilos = 0;
 
@@ -361,6 +377,15 @@
         }
         if (elements.txtTotalKilos) {
             elements.txtTotalKilos.textContent = checks.length > 0 ? formatKilos(totalKilos) : '';
+        }
+
+        if (elements.inputLoteProveedor) {
+            let lote = '';
+            for (const chk of checks) {
+                const v = String(chk.closest('tr')?.dataset?.loteProv ?? '').trim();
+                if (v) { lote = v; break; }
+            }
+            elements.inputLoteProveedor.value = lote;
         }
     };
 
@@ -382,49 +407,163 @@
 
     const getDetalleCellClass = (index) => (index % 2 === 0 ? 'bg-blue-50' : 'bg-white');
 
+    function ordenarMateriales(materiales, column, direction) {
+        if (!column || !direction || !materiales || !materiales.length) return materiales;
+        const sorted = [...materiales].sort((a, b) => {
+            let valA, valB;
+            switch (column) {
+                case 'itemId': valA = String(a.ItemId || '').toLowerCase(); valB = String(b.ItemId || '').toLowerCase(); break;
+                case 'configId': valA = String(a.ConfigId || '').toLowerCase(); valB = String(b.ConfigId || '').toLowerCase(); break;
+                case 'inventSizeId': valA = String(a.InventSizeId || '').toLowerCase(); valB = String(b.InventSizeId || '').toLowerCase(); break;
+                case 'inventColorId': valA = String(a.InventColorId || '').toLowerCase(); valB = String(b.InventColorId || '').toLowerCase(); break;
+                case 'inventLocationId': valA = String(a.InventLocationId || '').toLowerCase(); valB = String(b.InventLocationId || '').toLowerCase(); break;
+                case 'inventBatchId': valA = String(a.InventBatchId || '').toLowerCase(); valB = String(b.InventBatchId || '').toLowerCase(); break;
+                case 'wmsLocationId': valA = String(a.WMSLocationId || '').toLowerCase(); valB = String(b.WMSLocationId || '').toLowerCase(); break;
+                case 'inventSerialId': valA = String(a.InventSerialId || '').toLowerCase(); valB = String(b.InventSerialId || '').toLowerCase(); break;
+                case 'loteProv': valA = String(a.TwCalidadFlog || '').toLowerCase(); valB = String(b.TwCalidadFlog || '').toLowerCase(); break;
+                case 'noProv': valA = String(a.TwClienteFlog || '').toLowerCase(); valB = String(b.TwClienteFlog || '').toLowerCase(); break;
+                case 'prodDate':
+                    valA = a.ProdDate ? new Date(a.ProdDate).getTime() : 0;
+                    valB = b.ProdDate ? new Date(b.ProdDate).getTime() : 0;
+                    break;
+                case 'conos': valA = toNumber(a.TwTiras, 0); valB = toNumber(b.TwTiras, 0); break;
+                case 'kilos': valA = toNumber(a.PhysicalInvent, 0); valB = toNumber(b.PhysicalInvent, 0); break;
+                default: return 0;
+            }
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sorted;
+    }
+
+    const actualizarIconosOrdenamiento = (column, direction) => {
+        document.querySelectorAll('#tabla-detalle-lmat th.sortable').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+            if (th.dataset.sort === column) th.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+        });
+    };
+
+    let ordenamientoInicializado = false;
+    const initOrdenamientoTabla = () => {
+        if (ordenamientoInicializado) return;
+        document.querySelectorAll('#tabla-detalle-lmat th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.dataset.sort;
+                if (!column) return;
+                let newDirection = 'asc';
+                if (sortState.column === column && sortState.direction === 'asc') newDirection = 'desc';
+                sortState.column = column;
+                sortState.direction = newDirection;
+                actualizarIconosOrdenamiento(column, newDirection);
+                const selecciones = getSelectedIds();
+                const materialesOrdenados = ordenarMateriales(materialesDetalle, column, newDirection);
+                const frag = document.createDocumentFragment();
+                materialesOrdenados.forEach(m => {
+                    const checkboxKey = `${m.ItemId || ''}_${m.InventSerialId || ''}`;
+                    const checked = selecciones.has(checkboxKey) ? ' checked' : '';
+                    const kilos = toNumber(m.PhysicalInvent, 0);
+                    const conos = toNumber(m.TwTiras, 0);
+                    const lotePr = m.TwCalidadFlog || '-';
+                    const noProv = m.TwClienteFlog || '-';
+                    const prodDate = m.ProdDate ? formatFecha(m.ProdDate) : (m.ProdDate || '-');
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-blue-50';
+                    tr.dataset.materialData = JSON.stringify(m);
+                    tr.dataset.id = checkboxKey;
+                    tr.dataset.conos = String(conos);
+                    tr.dataset.kilos = String(kilos);
+                    tr.dataset.lote = String(m.InventBatchId ?? '').trim();
+                    tr.innerHTML = `
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(0)}">${escapeHtml(m.ItemId)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(1)}">${escapeHtml(m.ConfigId)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(2)}">${escapeHtml(m.InventSizeId)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(3)}">${escapeHtml(m.InventColorId)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(4)}">${escapeHtml(m.InventLocationId)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(5)}">${escapeHtml(m.InventBatchId)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(6)}">${escapeHtml(m.WMSLocationId)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(7)}">${escapeHtml(m.InventSerialId)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(8)}">${escapeHtml(noProv)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(9)}">${escapeHtml(lotePr)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(10)}">${escapeHtml(prodDate)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(11)}">${conos.toFixed(0)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(12)}">${formatKilos(kilos)}</td>
+                        <td class="px-1.5 py-1 text-center ${getDetalleCellClass(13)}">
+                            <input type="checkbox" class="chk-detalle-lmat w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" data-id="${escapeHtml(checkboxKey)}"${checked}>
+                        </td>
+                    `;
+                    frag.appendChild(tr);
+                });
+                elements.tbodyDetalle.innerHTML = '';
+                elements.tbodyDetalle.appendChild(frag);
+                actualizarTotalesSeleccionados();
+            });
+        });
+        ordenamientoInicializado = true;
+    };
+
     const getSelectedIds = () => {
         const checks = elements.tbodyDetalle?.querySelectorAll('.chk-detalle-lmat:checked') ?? [];
         return new Set(Array.from(checks).map((chk) => chk.dataset.id).filter(Boolean));
     };
 
-    const renderDetalle = (rows = [], preserveSelection = true) => {
+    const renderDetalle = (materiales = [], preserveSelection = true) => {
         const selectedIds = preserveSelection ? getSelectedIds() : new Set();
 
-        if (!Array.isArray(rows) || rows.length === 0) {
+        if (!Array.isArray(materiales) || materiales.length === 0) {
             setTableMessage(elements.tbodyDetalle, TABLE_COLS.detalle, MESSAGES.sinDatos);
             resetTotales();
+            materialesDetalle = [];
             return;
         }
 
-        elements.tbodyDetalle.innerHTML = rows.map((row) => {
-            const checked = selectedIds.has(String(row.id ?? '')) ? ' checked' : '';
-            const lote = String(row.lote ?? '').trim();
-            return `
-            <tr data-conos="${toInt(row.conos, 0)}" data-kilos="${toFloat(row.kilos, 0)}" data-lote="${escapeHtml(lote)}">
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(0)}">${escapeHtml(row.articulo)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(1)}">${escapeHtml(row.config)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(2)}">${escapeHtml(row.tamano)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(3)}">${escapeHtml(row.color)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(4)}">${escapeHtml(row.almacen)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(5)}">${escapeHtml(row.lote)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(6)}">${escapeHtml(row.localidad)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(7)}">${escapeHtml(row.serie)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(8)}">${escapeHtml(row.noProveedor)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(9)}">${escapeHtml(row.loteProveedor)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(10)}">${escapeHtml(formatFecha(row.fecha))}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(11)}">${escapeHtml(row.conos ?? '')}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(12)}">${formatKilos(row.kilos)}</td>
-                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(13)}">
-                    <input
-                        type="checkbox"
-                        class="chk-detalle-lmat w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        data-id="${escapeHtml(row.id)}"${checked}
-                    >
-                </td>
-            </tr>
-        `;
-        }).join('');
+        materialesDetalle = materiales;
+        let materialesParaRender = materiales;
+        if (sortState.column && sortState.direction) {
+            materialesParaRender = ordenarMateriales(materiales, sortState.column, sortState.direction);
+        }
 
+        const frag = document.createDocumentFragment();
+        for (const m of materialesParaRender) {
+            const checkboxKey = `${m.ItemId || ''}_${m.InventSerialId || ''}`;
+            const checked = selectedIds.has(checkboxKey) ? ' checked' : '';
+            const kilos = toNumber(m.PhysicalInvent, 0);
+            const conos = toNumber(m.TwTiras, 0);
+            const lotePr = m.TwCalidadFlog || '-';
+            const noProv = m.TwClienteFlog || '-';
+            const prodDate = m.ProdDate ? formatFecha(m.ProdDate) : (m.ProdDate || '-');
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-blue-50';
+            tr.dataset.materialData = JSON.stringify(m);
+            tr.dataset.id = checkboxKey;
+            tr.dataset.conos = String(conos);
+            tr.dataset.kilos = String(kilos);
+            tr.dataset.lote = String(m.InventBatchId ?? '').trim();
+            tr.innerHTML = `
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(0)}">${escapeHtml(m.ItemId)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(1)}">${escapeHtml(m.ConfigId)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(2)}">${escapeHtml(m.InventSizeId)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(3)}">${escapeHtml(m.InventColorId)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(4)}">${escapeHtml(m.InventLocationId)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(5)}">${escapeHtml(m.InventBatchId)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(6)}">${escapeHtml(m.WMSLocationId)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(7)}">${escapeHtml(m.InventSerialId)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(8)}">${escapeHtml(noProv)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(9)}">${escapeHtml(lotePr)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(10)}">${escapeHtml(prodDate)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(11)}">${conos.toFixed(0)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(12)}">${formatKilos(kilos)}</td>
+                <td class="px-1.5 py-1 text-center ${getDetalleCellClass(13)}">
+                    <input type="checkbox" class="chk-detalle-lmat w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" data-id="${escapeHtml(checkboxKey)}"${checked}>
+                </td>
+            `;
+            frag.appendChild(tr);
+        }
+        elements.tbodyDetalle.innerHTML = '';
+        elements.tbodyDetalle.appendChild(frag);
+        initOrdenamientoTabla();
+        if (sortState.column && sortState.direction) actualizarIconosOrdenamiento(sortState.column, sortState.direction);
         actualizarTotalesSeleccionados();
     };
 
@@ -568,6 +707,52 @@
 
     const form = document.getElementById('form-karl-mayer');
 
+    const getMaterialesSeleccionados = () => {
+        const checks = elements.tbodyDetalle?.querySelectorAll('.chk-detalle-lmat:checked') ?? [];
+        return Array.from(checks).map((chk) => {
+            const tr = chk.closest('tr');
+            if (!tr) return null;
+            let material;
+            try {
+                material = tr.dataset.materialData ? JSON.parse(tr.dataset.materialData) : null;
+            } catch (e) {
+                material = null;
+            }
+            if (material) {
+                return {
+                    itemId: material.ItemId || '',
+                    configId: material.ConfigId || '',
+                    inventSizeId: material.InventSizeId || '',
+                    inventColorId: material.InventColorId || '',
+                    inventLocationId: material.InventLocationId || '',
+                    inventBatchId: material.InventBatchId || '',
+                    wmsLocationId: material.WMSLocationId || '',
+                    inventSerialId: material.InventSerialId || '',
+                    kilos: toNumber(material.PhysicalInvent, 0),
+                    conos: toNumber(material.TwTiras, 0),
+                    loteProv: material.TwCalidadFlog || '',
+                    noProv: material.TwClienteFlog || '',
+                    prodDate: material.ProdDate || null,
+                };
+            }
+            return {
+                itemId: tr.dataset.itemId ?? '',
+                configId: tr.dataset.configId ?? '',
+                inventSizeId: tr.dataset.inventSizeId ?? '',
+                inventColorId: tr.dataset.inventColorId ?? '',
+                inventLocationId: tr.dataset.inventLocationId ?? '',
+                inventBatchId: tr.dataset.inventBatchId ?? '',
+                wmsLocationId: tr.dataset.wmsLocationId ?? '',
+                inventSerialId: tr.dataset.inventSerialId ?? '',
+                kilos: toNumber(tr.dataset.kilos, 0),
+                conos: toNumber(tr.dataset.conos, 0),
+                loteProv: tr.dataset.loteProv ?? '',
+                noProv: tr.dataset.noProv ?? '',
+                prodDate: tr.dataset.fecha || null,
+            };
+        }).filter((m) => m && (m.itemId || m.inventSerialId));
+    };
+
     const validarFormulario = () => {
         if (!form) return false;
         const v = (name) => String(form.querySelector(`[name="${name}"]`)?.value ?? '').trim();
@@ -575,6 +760,8 @@
         const metros = parseFloat(v('metros'));
         if (!Number.isFinite(metros) || metros < 0) return false;
         if (!v('fecha_programada') || !v('tipo_atado') || !v('bom_id')) return false;
+        const materiales = getMaterialesSeleccionados();
+        if (materiales.length === 0) return false;
         const julios = form.querySelectorAll('input[name="julios[]"]');
         const hilos = form.querySelectorAll('input[name="hilos[]"]');
         let tieneJulioOHilo = false;
@@ -630,16 +817,6 @@
         elements.tbodyDetalle.addEventListener('change', (event) => {
             if (event.target && event.target.matches('.chk-detalle-lmat')) {
                 actualizarTotalesSeleccionados();
-                const checks = elements.tbodyDetalle.querySelectorAll('.chk-detalle-lmat:checked');
-                if (elements.inputLoteProveedor) {
-                    if (checks.length === 0) {
-                        elements.inputLoteProveedor.value = '';
-                    } else {
-                        const primera = checks[0].closest('tr');
-                        const lote = primera?.dataset?.lote ?? '';
-                        elements.inputLoteProveedor.value = String(lote).trim();
-                    }
-                }
                 actualizarEstadoBotonCrear();
             }
         });
@@ -651,7 +828,13 @@
 
         form?.addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (!validarFormulario()) return;
+            if (!validarFormulario()) {
+                const materiales = getMaterialesSeleccionados();
+                if (materiales.length === 0 && elements.tbodyDetalle?.querySelector('tr[data-item-id]')) {
+                    notifyWarning('Seleccione al menos un material de la tabla de inventario.');
+                }
+                return;
+            }
             const btn = document.getElementById('btnCrearOrden');
             const originalText = btn?.innerHTML ?? '';
             if (btn) {
@@ -677,6 +860,7 @@
                 julios: formData.getAll('julios[]'),
                 hilos: formData.getAll('hilos[]'),
                 obs: formData.getAll('obs[]'),
+                materiales: getMaterialesSeleccionados(),
             };
 
             try {

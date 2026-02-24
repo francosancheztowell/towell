@@ -244,11 +244,11 @@
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             <input type="checkbox"
-                                                   class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 {{ $checkboxCursor }}"
-                                                   data-telar="{{ $t['no_telar'] ?? '' }}"
-                                                   data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
-                                                   {{ $checkboxDisabled }}
-                                                   title="{{ $checkboxTitle }}">
+                                                class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 {{ $checkboxCursor }}"
+                                                data-telar="{{ $t['no_telar'] ?? '' }}"
+                                                data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
+                                                {{ $checkboxDisabled }}
+                                                title="{{ $checkboxTitle }}">
                                         </td>
                                     </tr>
                                 @endforeach
@@ -492,6 +492,22 @@ const fmt = {
         const d = new Date(iso);
         return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
     }
+};
+
+/** InventBatchId = prefijo de InventSerialId (ej. 00061-744 → 00061). Para comparar lote. */
+const deriveInventBatchFromSerial = (serialId, batchId) => {
+    const serial = String(serialId || '').trim();
+    if (!serial || serial.indexOf('-') === -1) return batchId || '';
+    const prefijo = (serial.split('-')[0] || '').trim();
+    return prefijo || batchId || '';
+};
+
+/** Coincidencia de lote: inventBatchId o prefijo de InventSerialId debe coincidir con telNoOrden */
+const matchLote = (telNoOrden, invBatchId, invSerialId) => {
+    if (!telNoOrden) return true;
+    const batch = String(invBatchId || '').trim();
+    const derived = deriveInventBatchFromSerial(invSerialId, batch);
+    return batch === telNoOrden || derived === telNoOrden;
 };
 
 /** Coincidencia de cuenta: telar "3156" => InventSizeId que empiece por "3156" */
@@ -846,18 +862,25 @@ const render = {
                 const hasTelar      = !!(r.NoTelarId && r.NoTelarId !== '');
                 const invTipo       = String(r.Tipo || '').toUpperCase().trim();
                 const inventBatchId = String(r.InventBatchId || '').trim();
+                const inventSerialId = String(r.InventSerialId || '').trim();
+                const asignadoAMiTelar = hasTelar && r.NoTelarId === telNo;
 
-                // Si el telar tiene no_orden, el lote debe coincidir
-                if (telNoOrden && inventBatchId !== telNoOrden) return false;
+                // Vincular julio ↔ no_julio: si la pieza está reservada para nuestro telar, mostrarla siempre
+                // (un telar puede tener varias reservas: Rizo 00043-455 + Pie 00044-454)
+                if (asignadoAMiTelar) return true;
+
+                // Si el telar tiene no_orden, el lote debe coincidir (InventBatchId o prefijo de InventSerialId)
+                if (telNoOrden && !matchLote(telNoOrden, inventBatchId, inventSerialId)) return false;
 
                 // Misma cuenta (InventSizeId inicia con cuenta del telar)
-                if (telCuenta && !matchCuenta(telCuenta, r.InventSizeId)) return false;
+                const cuentaOk = !telCuenta || matchCuenta(telCuenta, r.InventSizeId);
+                if (!cuentaOk) return false;
 
-                // Si el telar ya tiene No. Julio, mostrar sÃ³lo esa pieza
-                if (telJulio) return (r.InventSerialId || '') === telJulio;
+                // Si el telar ya tiene No. Julio, mostrar esa pieza concreta
+                if (telJulio) return inventSerialId === telJulio;
 
                 // Ocultar piezas asignadas a otro telar
-                if (!tel.is_reservado && hasTelar && r.NoTelarId !== telNo) return false;
+                if (hasTelar && r.NoTelarId !== telNo) return false;
 
                 // Coincidencia por Tipo (Rizo/Pie)
                 if (telTipo && invTipo && invTipo !== telTipo) return false;
