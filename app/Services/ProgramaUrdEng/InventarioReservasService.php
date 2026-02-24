@@ -255,6 +255,15 @@ class InventarioReservasService
         $created = false;
         $msg = 'Pieza reservada correctamente';
 
+        // Derivar InventBatchId del prefijo de InventSerialId (ej. 00061-744 → 00061)
+        $serialId = trim((string) ($data['InventSerialId'] ?? ''));
+        if ($serialId !== '' && strpos($serialId, '-') !== false) {
+            $prefijo = trim(explode('-', $serialId)[0] ?? '');
+            if ($prefijo !== '') {
+                $data['InventBatchId'] = $prefijo;
+            }
+        }
+
         try {
             InvTelasReservadas::create($data);
             $created = true;
