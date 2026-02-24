@@ -382,7 +382,7 @@
         if (elements.inputLoteProveedor) {
             let lote = '';
             for (const chk of checks) {
-                const v = String(chk.closest('tr')?.dataset?.loteProv ?? '').trim();
+                const v = String(chk.closest('tr')?.dataset?.lote ?? '').trim();
                 if (v) { lote = v; break; }
             }
             elements.inputLoteProveedor.value = lote;
