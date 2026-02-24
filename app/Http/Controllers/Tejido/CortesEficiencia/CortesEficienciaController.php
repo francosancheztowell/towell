@@ -183,19 +183,20 @@ class CortesEficienciaController extends Controller
             // Este será el folio definitivo que se usará para guardar
             $folio = FolioHelper::obtenerSiguienteFolio('CorteEficiencia', 4);
 
+            // Usar fecha y turno del request si se proporcionaron, de lo contrario usar valores del sistema
+            $fecha = $request->query('fecha', now()->toDateString());
+            $turno = $request->query('turno', TurnoHelper::getTurnoActual());
+
             // Crear inmediatamente el registro en TejEficiencia con status "En Proceso"
             // Esto reserva el folio y evita duplicados
             TejEficiencia::create([
                 'Folio' => $folio,
-                'Date' => now()->toDateString(),
-                'Turno' => TurnoHelper::getTurnoActual(),
+                'Date' => $fecha,
+                'Turno' => $turno,
                 'Status' => 'En Proceso',
                 'numero_empleado' => $user->numero_empleado ?? 'N/A',
                 'nombreEmpl' => $user->nombre ?? 'Usuario',
             ]);
-
-            // Obtener turno actual
-            $turno = TurnoHelper::getTurnoActual();
 
             // Obtener información del usuario actual desde la autenticación
             $usuario = [

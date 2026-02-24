@@ -237,6 +237,41 @@
     </div>
     @endif
 
+    {{-- Modal: Nuevo Corte de Eficiencia --}}
+    <div id="modal-nuevo-corte" class="hidden fixed inset-0 bg-black/40 z-50 items-center justify-center">
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-5">Nuevo Corte de Eficiencia</h2>
+
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha</label>
+                <input type="date" id="input-fecha-nuevo-corte"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Turno</label>
+                <select id="select-turno-nuevo-corte"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">-- Seleccione un turno --</option>
+                    <option value="1">Turno 1</option>
+                    <option value="2">Turno 2</option>
+                    <option value="3">Turno 3</option>
+                </select>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="cerrarModalNuevoCorte()"
+                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium border border-gray-300 transition-colors">
+                    Cancelar
+                </button>
+                <button type="button" onclick="confirmarNuevoCorte()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+                    Crear Corte
+                </button>
+            </div>
+        </div>
+    </div>
+
 <style>
     .selected-row td, .selected-row span {
         color: #fff !important;
@@ -423,51 +458,14 @@
             }
         }
 
-        async accionNuevo() {
-            // Generar nuevo folio y redirigir a la página de edición
-            try {
-                const response = await fetch('/modulo-cortes-de-eficiencia/generar-folio', {
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
-                    }
-                });
-
-                const data = await response.json();
-
-                if (response.status === 400 && data.folio_existente) {
-                    // Ya existe un folio en proceso, preguntar si quiere editarlo
-                    const result = await Swal.fire({
-                        icon: 'warning',
-                        title: 'Folio en proceso',
-                        text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. ¿Desea continuar editándolo?',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sí, editar',
-                        cancelButtonText: 'Cancelar',
-                        confirmButtonColor: '#3085d6'
-                    });
-
-                    if (result.isConfirmed) {
-                        // Redirigir al folio existente para editarlo
-                        window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio_existente;
-                    }
-                    return;
-                }
-
-                if (!data.success) {
-                    throw new Error(data.message || 'No se pudo generar el folio');
-                }
-
-                // Folio generado exitosamente, redirigir a la página de edición con el nuevo folio
-                window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio;
-
-            } catch (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'No se pudo generar el folio: ' + error.message
-                });
-            }
+        accionNuevo() {
+            // Mostrar modal para seleccionar fecha y turno antes de crear el folio
+            const hoy = new Date().toISOString().split('T')[0];
+            document.getElementById('input-fecha-nuevo-corte').value = hoy;
+            document.getElementById('select-turno-nuevo-corte').value = '';
+            const modal = document.getElementById('modal-nuevo-corte');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
 
         accionEditar() {
@@ -791,7 +789,7 @@
         const btnNuevoEmpty = document.getElementById('btn-nuevo-empty');
         if (btnNuevoEmpty) {
             btnNuevoEmpty.addEventListener('click', () => {
-                window.location.href = '{{ route("cortes.eficiencia") }}';
+                window.CortesManager.accionNuevo();
             });
         }
 
@@ -813,6 +811,69 @@
     });
 
 })();
+
+// ── Funciones del modal Nuevo Corte ─────────────────────────────────────────
+async function generarFolioConDatos(fecha, turno) {
+    const response = await fetch(`/modulo-cortes-de-eficiencia/generar-folio?fecha=${encodeURIComponent(fecha)}&turno=${encodeURIComponent(turno)}`, {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json'
+        }
+    });
+
+    const data = await response.json();
+
+    if (response.status === 400 && data.folio_existente) {
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: 'Folio en proceso',
+            text: 'Ya existe un folio en proceso: ' + data.folio_existente + '. ¿Desea continuar editándolo?',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, editar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#3085d6'
+        });
+        if (result.isConfirmed) {
+            window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio_existente;
+        }
+        return;
+    }
+
+    if (!data.success) {
+        throw new Error(data.message || 'No se pudo generar el folio');
+    }
+
+    window.location.href = '{{ route("cortes.eficiencia") }}?folio=' + data.folio;
+}
+
+function cerrarModalNuevoCorte() {
+    const modal = document.getElementById('modal-nuevo-corte');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+async function confirmarNuevoCorte() {
+    const fecha = document.getElementById('input-fecha-nuevo-corte').value;
+    const turno = document.getElementById('select-turno-nuevo-corte').value;
+
+    if (!fecha) {
+        Swal.fire({ icon: 'warning', title: 'Fecha requerida', text: 'Por favor seleccione una fecha.', confirmButtonColor: '#3b82f6' });
+        return;
+    }
+    if (!turno) {
+        Swal.fire({ icon: 'warning', title: 'Turno requerido', text: 'Por favor seleccione un turno.', confirmButtonColor: '#3b82f6' });
+        return;
+    }
+
+    cerrarModalNuevoCorte();
+
+    try {
+        Swal.fire({ title: 'Generando folio...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        await generarFolioConDatos(fecha, turno);
+    } catch (error) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo generar el folio: ' + error.message });
+    }
+}
 
 function exportarExcelVisualizacion(fecha) {
     const form = document.createElement('form');
