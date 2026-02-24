@@ -82,10 +82,9 @@ class ReservaInventarioController extends Controller
                 'message' => $result['message'],
             ]);
         } catch (Throwable $e) {
-            Log::error('ReservaInventario.reservar error', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return response()->json([
+                return response()->json([
                 'success' => false,
-                'message' => 'Error al reservar la pieza: ' . $e->getMessage(),
+                'message' => 'Error al reservar la pieza',
             ], 500);
         }
     }

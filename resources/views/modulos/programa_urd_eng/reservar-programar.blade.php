@@ -300,7 +300,7 @@
                             <tr>
                                 @php
                                     $inventarioHeaders = [
-                                        ['key' => 'ItemId', 'label' => 'ArtÃ­culo'],
+                                        ['key' => 'ItemId', 'label' => 'Articulo'],
                                         ['key' => 'Tipo', 'label' => 'Tipo'],
                                         ['key' => 'ConfigId', 'label' => 'Fibra'],
                                         ['key' => 'InventSizeId', 'label' => 'Cuenta'],

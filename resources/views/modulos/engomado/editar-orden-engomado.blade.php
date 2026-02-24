@@ -202,10 +202,10 @@
                                         </div>
                                     </td>
                                     <td class="px-0.5 py-0.5 text-center">
-                                        <input type="time" data-field="h_inicio" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $horaInicio }}" class="produccion-input w-14 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                        <input type="time" data-field="h_inicio" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $horaInicio }}" class="produccion-input w-24 max-w-24 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
                                     </td>
                                     <td class="px-0.5 py-0.5 text-center">
-                                        <input type="time" data-field="h_fin" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $horaFin }}" class="produccion-input w-14 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                        <input type="time" data-field="h_fin" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $horaFin }}" class="produccion-input w-24 max-w-24 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
                                     </td>
                                     <td class="px-1 py-1 text-center">{{ $reg->NoJulio ?? '-' }}</td>
                                     <td class="px-1 py-1 text-center">{{ ($reg->KgBruto ?? null) !== null && ($reg->KgBruto ?? '') !== '' ? number_format((float)($reg->KgBruto ?? 0), 2) : '-' }}</td>
@@ -576,10 +576,10 @@
                             </div>
                         </td>
                         <td class="px-0.5 py-0.5 text-center">
-                            <input type="time" data-field="h_inicio" data-registro-id="${rid}" value="" class="produccion-input w-14 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                            <input type="time" data-field="h_inicio" data-registro-id="${rid}" value="" class="produccion-input w-24 max-w-24 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
                         </td>
                         <td class="px-0.5 py-0.5 text-center">
-                            <input type="time" data-field="h_fin" data-registro-id="${rid}" value="" class="produccion-input w-14 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                            <input type="time" data-field="h_fin" data-registro-id="${rid}" value="" class="produccion-input w-24 max-w-24 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
                         </td>
                         <td class="px-1 py-1 text-center">-</td>
                         <td class="px-1 py-1 text-center">-</td>

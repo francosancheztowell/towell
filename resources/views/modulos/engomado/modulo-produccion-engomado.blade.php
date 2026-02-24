@@ -372,7 +372,7 @@
                                             <input
                                                 type="time"
                                                 data-field="h_inicio"
-                                                class="flex-1 border border-gray-300 rounded px-1 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-20 md:w-24"
+                                                class="flex-1 border border-gray-300 rounded px-1 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-24 md:w-28"
                                                 value="{{ $horaInicio }}"
                                             >
                                             <i
@@ -389,7 +389,7 @@
                                             <input
                                                 type="time"
                                                 data-field="h_fin"
-                                                class="flex-1 border border-gray-300 rounded px-1 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-20 md:w-24"
+                                                class="flex-1 border border-gray-300 rounded px-1 py-1 text-base focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-24 md:w-28"
                                                 value="{{ $horaFin }}"
                                             >
                                             <i

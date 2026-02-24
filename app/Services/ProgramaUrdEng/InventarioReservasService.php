@@ -6,6 +6,7 @@ namespace App\Services\ProgramaUrdEng;
 
 use App\Models\Inventario\InvTelasReservadas;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Tejedores\TejNotificaTejedorModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -264,6 +265,9 @@ class InventarioReservasService
             }
         }
 
+        // Regla previa: si existe notificación pendiente del telar/tipo, trasladar hora->horaParo y cerrar notificación.
+        $this->aplicarReglaNotificaTejedorAntesDeReservar($data);
+
         try {
             InvTelasReservadas::create($data);
             $created = true;
@@ -312,6 +316,102 @@ class InventarioReservasService
         }
 
         return ['created' => $created, 'message' => $msg];
+    }
+
+    /**
+     * Antes de reservar:
+     * - Busca en TejNotificaTejedor por telar + tipo con Reserva = 0/null.
+     * - Si encuentra, pasa hora a tej_inventario_telares.horaParo.
+     * - Marca Reserva = 1 en los registros coincidentes.
+     */
+    private function aplicarReglaNotificaTejedorAntesDeReservar(array $data): void
+    {
+        $noTelar = trim((string) ($data['NoTelarId'] ?? ''));
+        $tipo = $this->resolverTipoReserva($data);
+
+        if ($noTelar === '' || $tipo === null) {
+            return;
+        }
+
+        $pendientes = TejNotificaTejedorModel::query()
+            ->whereRaw('LTRIM(RTRIM(telar)) = ?', [$noTelar])
+            ->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower($tipo, 'UTF-8')])
+            ->where(function ($q) {
+                $q->whereNull('Reserva')
+                    ->orWhere('Reserva', 0)
+                    ->orWhere('Reserva', false);
+            });
+
+        $hayPendientes = (clone $pendientes)->exists();
+        if (!$hayPendientes) {
+            return;
+        }
+
+        $horaParo = (clone $pendientes)
+            ->whereNotNull('hora')
+            ->where('hora', '!=', '')
+            ->orderByDesc('hora')
+            ->value('hora');
+
+        if ($horaParo !== null && trim((string) $horaParo) !== '') {
+            $tejInventarioTelaresId = isset($data['TejInventarioTelaresId']) && is_numeric($data['TejInventarioTelaresId'])
+                ? (int) $data['TejInventarioTelaresId']
+                : null;
+
+            if ($tejInventarioTelaresId) {
+                TejInventarioTelares::where('id', $tejInventarioTelaresId)
+                    ->where('status', 'Activo')
+                    ->update(['horaParo' => (string) $horaParo]);
+            } else {
+                $qTelar = TejInventarioTelares::where('no_telar', $noTelar)
+                    ->where('status', 'Activo');
+                if ($tipo !== null) {
+                    $qTelar->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower($tipo, 'UTF-8')]);
+                }
+                $qTelar->update(['horaParo' => (string) $horaParo]);
+            }
+        }
+
+        (clone $pendientes)->update(['Reserva' => 1]);
+    }
+
+    private function resolverTipoReserva(array $data): ?string
+    {
+        $tipo = $this->normalizeTipoReserva($data['Tipo'] ?? null);
+        if ($tipo !== null) {
+            return $tipo;
+        }
+
+        $tejInventarioTelaresId = isset($data['TejInventarioTelaresId']) && is_numeric($data['TejInventarioTelaresId'])
+            ? (int) $data['TejInventarioTelaresId']
+            : null;
+
+        if (!$tejInventarioTelaresId) {
+            return null;
+        }
+
+        $tipoTelar = TejInventarioTelares::where('id', $tejInventarioTelaresId)->value('tipo');
+        return $this->normalizeTipoReserva($tipoTelar);
+    }
+
+    private function normalizeTipoReserva($tipo): ?string
+    {
+        if ($tipo === null) {
+            return null;
+        }
+
+        $t = mb_strtolower(trim((string) $tipo), 'UTF-8');
+        if ($t === '') {
+            return null;
+        }
+        if ($t === 'rizo') {
+            return 'Rizo';
+        }
+        if ($t === 'pie') {
+            return 'Pie';
+        }
+
+        return trim((string) $tipo);
     }
 
     /**

@@ -6,7 +6,6 @@ use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InventarioTelaresContr
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\InventarioDisponibleController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservaInventarioController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ProgramarUrdEngController;
-use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\RequerimientoController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ReservarProgramarController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ResumenSemanasController;
 use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
@@ -25,18 +24,18 @@ Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () 
     Route::get('/programacion-requerimientos', [ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
     Route::get('/creacion-ordenes', [ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
     Route::get('/karl-mayer', [ReservarProgramarController::class, 'karlMayer'])->name('karl.mayer');
-    
+
     Route::post('/programacion-requerimientos/resumen-semanas', [ResumenSemanasController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
-    
+
     Route::get('/inventario-telares', [InventarioTelaresController::class, 'getInventarioTelares'])->name('inventario.telares');
     Route::get('/inventario-disponible', [InventarioDisponibleController::class, 'disponible'])->name('inventario.disponible.get');
     Route::post('/inventario-disponible', [InventarioDisponibleController::class, 'disponible'])->name('inventario.disponible');
     Route::post('/programar-telar', [ReservarProgramarController::class, 'programarTelar'])->name('programar.telar');
     Route::post('/actualizar-telar', [ReservarProgramarController::class, 'actualizarTelar'])->name('actualizar.telar');
     Route::post('/reservar-inventario', [ReservaInventarioController::class, 'reservar'])->name('reservar.inventario');
-    
+
     Route::post('/liberar-telar', [ReservarProgramarController::class, 'liberarTelar'])->name('liberar.telar');
-    
+
 
     Route::get('/reservas/{noTelar}', [InventarioDisponibleController::class, 'porTelar'])->name('reservas.porTelar');
     Route::post('/reservas/cancelar', [ReservaInventarioController::class, 'cancelar'])->name('reservas.cancelar');
