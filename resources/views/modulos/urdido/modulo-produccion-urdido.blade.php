@@ -1011,25 +1011,6 @@
 
                             const campoBD = field === 'h_inicio' ? 'HoraInicial' : 'HoraFinal';
 
-                            // Validar que Hora Inicio < Hora Fin
-                            if (horaValue) {
-                                const hInicioInput = row.querySelector('input[data-field="h_inicio"]');
-                                const hFinInput = row.querySelector('input[data-field="h_fin"]');
-                                const hInicio = hInicioInput ? hInicioInput.value : '';
-                                const hFin = hFinInput ? hFinInput.value : '';
-
-                                if (field === 'h_inicio' && hFin && horaValue >= hFin) {
-                                    mostrarToast('error', `Hora Inicio (${horaValue}) debe ser anterior a Hora Fin (${hFin}).`);
-                                    target.value = target.getAttribute('data-valor-anterior') || '';
-                                    return;
-                                }
-                                if (field === 'h_fin' && hInicio && horaValue <= hInicio) {
-                                    mostrarToast('error', `Hora Fin (${horaValue}) debe ser posterior a Hora Inicio (${hInicio}).`);
-                                    target.value = target.getAttribute('data-valor-anterior') || '';
-                                    return;
-                                }
-                            }
-
                             actualizarHora(registroId, campoBD, horaValue);
                             target.setAttribute('data-valor-anterior', target.value || '');
                         }
@@ -2519,12 +2500,6 @@
 
                 const hFinInput = row.querySelector('input[data-field="h_fin"]');
                 if (!hFinInput || !hFinInput.value) camposFaltantes.push('H. Fin');
-
-                if (hInicioInput && hInicioInput.value && hFinInput && hFinInput.value) {
-                    if (hInicioInput.value >= hFinInput.value) {
-                        camposFaltantes.push('H. Inicio debe ser anterior a H. Fin');
-                    }
-                }
 
                 const noJulioSelect = row.querySelector('select[data-field="no_julio"]');
                 if (!noJulioSelect || !noJulioSelect.value) camposFaltantes.push('No. Julio');

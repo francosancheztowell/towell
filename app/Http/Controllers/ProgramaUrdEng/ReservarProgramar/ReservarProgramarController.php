@@ -6,6 +6,7 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventario\InvTelasReservadas;
+use App\Models\Planeacion\ReqTelares;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\ProgramaUrdEng\InventarioTelaresService;
@@ -49,12 +50,51 @@ class ReservarProgramarController extends Controller
     public function programacionRequerimientos(Request $request)
     {
         $telares = $this->parseTelaresFromQuery($request->query('telares'));
+        $telares = $this->enriquecerTelaresConId($telares);
+
         $maquinasUrdido = URDCatalogoMaquina::where('Departamento', 'Urdido')
             ->orderBy('Nombre')->pluck('Nombre')->toArray();
 
         return view('modulos.programa_urd_eng.programacion-requerimientos', [
             'telaresSeleccionados' => $telares,
             'opcionesUrdido' => $maquinasUrdido,
+        ]);
+    }
+
+    /**
+     * Obtener el grupo (Destino) de la tabla ReqTelares por NoTelarId.
+     * Uso: GET ?notelarid=XXX o ?notelarid=XXX&salon_tejido_id=YYY
+     */
+    public function getGrupoByTelar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'notelarid' => ['required', 'string', 'max:50'],
+            'salon_tejido_id' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $query = ReqTelares::where('NoTelarId', $request->input('notelarid'));
+
+        if ($request->filled('salon_tejido_id')) {
+            $query->where('SalonTejidoId', $request->input('salon_tejido_id'));
+        }
+
+        $telar = $query->first();
+
+        if (!$telar) {
+            return response()->json([
+                'success' => true,
+                'grupo' => null,
+                'message' => 'No se encontró telar en ReqTelares',
+            ]);
+        }
+
+        $grupo = $telar->Grupo !== null && trim((string) $telar->Grupo) !== ''
+            ? trim((string) $telar->Grupo)
+            : null;
+
+        return response()->json([
+            'success' => true,
+            'grupo' => $grupo,
         ]);
     }
 
@@ -109,14 +149,20 @@ class ReservarProgramarController extends Controller
                 'cuenta'   => ['nullable', 'string', 'max:50'],
                 'calibre'  => ['nullable', 'numeric'],
                 'id'       => ['nullable', 'integer'],
+                'fecha'    => ['nullable', 'string'],
+                'turno'    => ['nullable'],
                 'folio'    => ['nullable', 'string', 'max:50'],
                 'lote_proveedor' => ['nullable', 'string', 'max:50'],
                 'no_proveedor'   => ['nullable', 'string', 'max:50'],
+                'solo_inventario' => ['nullable', 'boolean'],
             ]);
 
             $noTelar = (string) $request->input('no_telar');
             $tipo = $this->telaresService->normalizeTipo($request->input('tipo'));
             $id = $request->filled('id') ? (int) $request->input('id') : null;
+            $fechaRaw = $request->filled('fecha') ? (string) $request->input('fecha') : null;
+            $fecha = $fechaRaw ? substr(trim($fechaRaw), 0, 10) : null;
+            $turno = $request->filled('turno') ? $request->input('turno') : null;
 
             // Separar campos para inventario vs programas
             $updateInventario = $this->extraerCamposInventario($request);
@@ -132,16 +178,15 @@ class ReservarProgramarController extends Controller
 
             // Actualizar inventario
             if (!empty($updateInventario)) {
-                $actualizadosInventario = $this->actualizarInventarioTelares($id, $noTelar, $tipo, $updateInventario);
+                $actualizadosInventario = $this->actualizarInventarioTelares($id, $noTelar, $tipo, $updateInventario, $fecha, $turno);
                 if ($actualizadosInventario === -1) {
                     return response()->json(['success' => false, 'message' => 'Telar no encontrado o no está activo'], 404);
                 }
             }
 
-            // Actualizar programas (UrdProgramaUrdido / EngProgramaEngomado) solo por Folio:
-            // usamos no_orden del telar en BD (que es el Folio de la orden), nunca folio/no_orden del request.
-            // Urd/Eng se identifican SOLO por Folio; no_telar puede repetirse en registros.
-            if (!empty($updateProgramas)) {
+            // Actualizar programas (UrdProgramaUrdido / EngProgramaEngomado) solo por Folio.
+            // Desde Programación de Requerimientos no se actualizan programas, solo inventario (solo_inventario=true).
+            if (!empty($updateProgramas) && !$request->boolean('solo_inventario')) {
                 $telar = $this->obtenerTelarParaActualizar($id, $noTelar, $tipo);
                 $folioDesdeTelar = $telar ? trim((string)($telar->no_orden ?? '')) : '';
                 if ($folioDesdeTelar !== '') {
@@ -269,6 +314,61 @@ class ReservarProgramarController extends Controller
 
     /* ==================== Métodos privados ==================== */
 
+    /**
+     * Para cada telar sin id, busca el registro real en tej_inventario_telares
+     * usando no_telar + tipo (+ fecha + turno si disponibles) y le asigna el id de BD.
+     */
+    private function enriquecerTelaresConId(array $telares): array
+    {
+        foreach ($telares as &$t) {
+            if (!empty($t['id'])) {
+                continue;
+            }
+
+            $noTelar = trim((string) ($t['no_telar'] ?? ''));
+            if ($noTelar === '') {
+                continue;
+            }
+
+            $query = TejInventarioTelares::where('no_telar', $noTelar)
+                ->where('status', self::STATUS_ACTIVO);
+
+            $tipo = $this->telaresService->normalizeTipo($t['tipo'] ?? null);
+            if ($tipo !== null) {
+                $query->where('tipo', $tipo);
+            }
+
+            if (!empty($t['fecha'])) {
+                $query->whereDate('fecha', $t['fecha']);
+            }
+            if (isset($t['turno']) && $t['turno'] !== '' && $t['turno'] !== null) {
+                $query->where('turno', $t['turno']);
+            }
+
+            $registros = $query->get(['id', 'fecha', 'turno']);
+
+            if ($registros->count() === 1) {
+                $r = $registros->first();
+                $t['id'] = $r->id;
+                $t['fecha'] = $r->fecha ? substr(trim((string) $r->fecha), 0, 10) : null;
+                $t['turno'] = $r->turno;
+            } elseif ($registros->count() > 1) {
+                $r = $registros->first();
+                $t['id'] = $r->id;
+                $t['fecha'] = $r->fecha ? substr(trim((string) $r->fecha), 0, 10) : null;
+                $t['turno'] = $r->turno;
+                Log::warning('enriquecerTelaresConId: múltiples registros', [
+                    'no_telar' => $noTelar,
+                    'tipo' => $tipo,
+                    'count' => $registros->count(),
+                    'ids' => $registros->pluck('id')->toArray(),
+                ]);
+            }
+        }
+        unset($t);
+        return $telares;
+    }
+
     private function parseTelaresFromQuery(?string $telaresJson): array
     {
         if (!$telaresJson) return [];
@@ -345,21 +445,26 @@ class ReservarProgramarController extends Controller
     /**
      * @return int Registros actualizados, o -1 si no se encontró el telar
      */
-    private function actualizarInventarioTelares(?int $id, string $noTelar, ?string $tipo, array $updateData): int
+    private function actualizarInventarioTelares(?int $id, string $noTelar, ?string $tipo, array $updateData, ?string $fecha = null, $turno = null): int
     {
         if ($id) {
-            $telar = TejInventarioTelares::where('id', $id)
-                ->where('no_telar', $noTelar)
-                ->where('status', self::STATUS_ACTIVO)
-                ->first();
-
+            $telar = TejInventarioTelares::where('id', $id)->where('status', self::STATUS_ACTIVO)->first();
             if (!$telar) return -1;
             $telar->update($updateData);
             return 1;
         }
 
+        // Sin id: usar no_telar + tipo + fecha + turno para acotar al registro exacto
         $query = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
-        if ($tipo !== null) $query->where('tipo', $tipo);
+        if ($tipo !== null) {
+            $query->where('tipo', $tipo);
+        }
+        if ($fecha !== null && $fecha !== '') {
+            $query->whereDate('fecha', $fecha);
+        }
+        if ($turno !== null && $turno !== '') {
+            $query->where('turno', $turno);
+        }
 
         /** @var \Illuminate\Database\Eloquent\Collection<int, TejInventarioTelares> $telares */
         $telares = $query->get();

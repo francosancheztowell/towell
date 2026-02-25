@@ -456,27 +456,6 @@ trait ProduccionTrait
             $campo = $request->campo;
             $valor = $request->valor !== null && $request->valor !== '' ? $request->valor : null;
 
-            // Validar que HoraInicial < HoraFinal
-            if ($valor !== null) {
-                if ($campo === 'HoraInicial') {
-                    $horaFin = $registro->HoraFinal ? trim((string) $registro->HoraFinal) : null;
-                    if ($horaFin && $valor >= $horaFin) {
-                        return response()->json([
-                            'success' => false,
-                            'error' => 'La Hora Inicio debe ser anterior a la Hora Fin (' . $horaFin . ').',
-                        ], 422);
-                    }
-                } elseif ($campo === 'HoraFinal') {
-                    $horaInicio = $registro->HoraInicial ? trim((string) $registro->HoraInicial) : null;
-                    if ($horaInicio && $valor <= $horaInicio) {
-                        return response()->json([
-                            'success' => false,
-                            'error' => 'La Hora Fin debe ser posterior a la Hora Inicio (' . $horaInicio . ').',
-                        ], 422);
-                    }
-                }
-            }
-
             $registro->$campo = $valor;
             $registro->save();
             $registro->refresh();
@@ -557,23 +536,10 @@ trait ProduccionTrait
     /**
      * Validar que todos los registros de un folio tengan HoraInicial < HoraFinal.
      * Retorna null si todo está bien, o un mensaje de error.
+     * Deshabilitado: se permite Hora Fin <= Hora Inicio (ej. turnos que cruzan medianoche).
      */
     protected function validarHorasRegistros(string $folio): ?string
     {
-        $model = $this->getProduccionModelClass();
-        $registros = $model::where('Folio', $folio)
-            ->whereNotNull('HoraInicial')
-            ->whereNotNull('HoraFinal')
-            ->get();
-
-        foreach ($registros as $registro) {
-            $inicio = trim((string) $registro->HoraInicial);
-            $fin = trim((string) $registro->HoraFinal);
-            if ($inicio !== '' && $fin !== '' && $inicio >= $fin) {
-                return "El registro #{$registro->Id} tiene Hora Inicio ({$inicio}) >= Hora Fin ({$fin}).";
-            }
-        }
-
         return null;
     }
 }

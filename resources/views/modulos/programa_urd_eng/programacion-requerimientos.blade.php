@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /* =================== Estado & Constantes =================== */
     const RUTA_RESUMEN = '{{ route("programa.urd.eng.programacion.resumen.semanas") }}';
     const RUTA_ACTUALIZAR_TELAR = '{{ route("programa.urd.eng.actualizar.telar") }}';
+    const RUTA_GRUPO_BY_TELAR = '{{ route("programa.urd.eng.programacion.requerimientos.grupo.by.telar") }}';
     const RUTA_HILOS = '{{ route("programa.urd.eng.hilos") }}';
     const RUTA_TAMANOS = '{{ route("programa.urd.eng.tamanos") }}';
     const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -100,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tamanos: [] // Se cargará dinámicamente desde TI_PRO
     };
 
-    // Función para mapear salón a destino (ITEMA y SMITH ambos usan SMIT)
+    // Función para mapear salón a destino (ITEMA y SMITH ambos usan SMIT) — fallback si no hay grupo en ReqTelares
     function mapearSalonADestino(salon) {
         if (!salon) return 'JACQUARD';
         const s = String(salon).toUpperCase().trim();
@@ -109,6 +110,50 @@ document.addEventListener('DOMContentLoaded', () => {
         if (s === 'SMIT') return 'SMIT';
         if (s === 'SULZER') return 'SULZER';
         return 'JACQUARD'; // Default
+    }
+
+    // Establecer valor de Destino (grupo) en una fila y actualizar telaresData
+    function setDestinoEnFila(row, grupo) {
+        if (!row || grupo == null || grupo === '') return;
+        const select = row.querySelector('select[data-field="destino"]');
+        if (!select) return;
+        const grupoStr = String(grupo).trim();
+        if (!opciones.destino.includes(grupoStr)) {
+            const opt = document.createElement('option');
+            opt.value = grupoStr;
+            opt.textContent = grupoStr;
+            select.appendChild(opt);
+        }
+        select.value = grupoStr;
+        const index = parseInt(row.dataset.index, 10);
+        if (!isNaN(index) && telaresData[index]) telaresData[index].destino = grupoStr;
+    }
+
+    // Cargar grupo (Destino) desde ReqTelares por NoTelarId para cada fila
+    async function cargarDestinoDesdeReqTelares() {
+        const tbody = document.getElementById('tbodyRequerimientos');
+        if (!tbody) return;
+        const filas = tbody.querySelectorAll('tr[data-telar-id]');
+        const cacheGrupo = {};
+        for (const row of filas) {
+            const noTelarId = row.dataset.telarId || '';
+            if (!noTelarId) continue;
+            if (cacheGrupo[noTelarId] !== undefined) {
+                setDestinoEnFila(row, cacheGrupo[noTelarId]);
+                continue;
+            }
+            try {
+                const url = `${RUTA_GRUPO_BY_TELAR}?notelarid=${encodeURIComponent(noTelarId)}`;
+                const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                if (data.success && data.grupo != null && data.grupo !== '') {
+                    cacheGrupo[noTelarId] = data.grupo;
+                    setDestinoEnFila(row, data.grupo);
+                }
+            } catch (e) {
+                console.warn('Error al cargar grupo para telar', noTelarId, e);
+            }
+        }
     }
 
     let telaresData = normalizeInput(@json($telaresSeleccionados ?? []));
@@ -263,6 +308,9 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.className = ' hover:bg-gray-50';
         tr.dataset.index = index;
         tr.dataset.telarId = telar.no_telar || '';
+        tr.dataset.inventarioId = (telar.id != null && telar.id !== '') ? String(telar.id) : '';
+        tr.dataset.fecha = telar.fecha || '';
+        tr.dataset.turno = (telar.turno != null && telar.turno !== '') ? String(telar.turno) : '';
 
         // Construir opciones del select de hilo (siempre iniciar vacío, el usuario elige)
         const opcionesHilo = opciones.hilos.map(hilo => `<option value="${hilo}">${hilo}</option>`).join('');
@@ -317,11 +365,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </select>
             </td>
             <td class="px-2 py-3 w-28">
-                <select class="w-full px-2 py-1.5 text-md bg-transparent border-0 cursor-default appearance-none" data-field="destino" disabled>
+                <select class="w-full px-2 py-1.5 text-md bg-transparent border-0 cursor-default appearance-none" data-field="destino" data-telar-id="${telar.no_telar || ''}" disabled>
                     ${(() => {
-                        const destinoMapeado = telar.destino ? mapearSalonADestino(telar.destino) : mapearSalonADestino(telar.salon);
-                        return opciones.destino.map(x => {
-                            return `<option value="${x}" ${destinoMapeado === x ? 'selected' : ''}>${x}</option>`;
+                        const destinoInicial = telar.grupo || (telar.destino ? mapearSalonADestino(telar.destino) : mapearSalonADestino(telar.salon));
+                        const opcionesUnicas = [...new Set([...opciones.destino, destinoInicial].filter(Boolean))];
+                        return opcionesUnicas.map(x => {
+                            return `<option value="${x}" ${destinoInicial === x ? 'selected' : ''}>${x}</option>`;
                         }).join('');
                     })()}
                 </select>
@@ -421,6 +470,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Mantener dataset filtrado para el resumen
         telaresData = filtrados;
         cargarResumenDesdeServidor(v);
+        // Destino = Grupo desde ReqTelares por NoTelarId
+        cargarDestinoDesdeReqTelares();
     }
 
     // Función para aplicar agrupación automática basada en Cuenta, Hilo, Calibre y Tipo
@@ -619,10 +670,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function agregarEventListenersCamposEditables() {
         // Función para guardar cambios con debounce
         let timeoutId = null;
-        const debounceGuardar = (campo, valor, telarId, tipo) => {
+        const debounceGuardar = (campo, valor, telarId, tipo, fila) => {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(async () => {
-                await guardarCampoTelar(campo, valor, telarId, tipo);
+                await guardarCampoTelar(campo, valor, telarId, tipo, fila);
             }, 800); // Esperar 800ms después del último cambio
         };
 
@@ -638,15 +689,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 input.addEventListener('blur', async function() {
                     const valor = this.value.trim();
-                    await guardarCampoTelar(campo, valor, telarId, tipo);
-                    // Autocompletar tamaño cuando cambie cuenta o calibre
+                    await guardarCampoTelar(campo, valor, telarId, tipo, fila);
                     autocompletarTamano(fila);
                 });
 
                 input.addEventListener('input', function() {
                     const valor = this.value.trim();
-                    debounceGuardar(campo, valor, telarId, tipo);
-                    // Autocompletar tamaño cuando cambie cuenta o calibre
+                    debounceGuardar(campo, valor, telarId, tipo, fila);
                     autocompletarTamano(fila);
                 });
             });
@@ -662,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             select.addEventListener('change', async function() {
                 const valor = this.value.trim();
-                await guardarCampoTelar('hilo', valor, telarId, tipo);
+                await guardarCampoTelar('hilo', valor, telarId, tipo, fila);
             });
         });
 
@@ -676,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             select.addEventListener('change', async function() {
                 const valor = this.value.trim();
-                await guardarCampoTelar('tamano', valor, telarId, tipo);
+                await guardarCampoTelar('tamano', valor, telarId, tipo, fila);
             });
         });
 
@@ -684,12 +733,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const tipoSelects = document.querySelectorAll('select[data-field="tipo"]');
         tipoSelects.forEach(select => {
             const telarId = select.dataset.telarId || '';
+            const fila = select.closest('tr');
 
             select.addEventListener('change', async function() {
                 const valor = this.value;
                 const tipoNormalizado = normalizarTipo(valor);
 
-                // Actualizar estilo del select según el tipo
                 if (tipoNormalizado === 'Rizo') {
                     this.style.backgroundColor = '#fee2e2';
                     this.style.color = '#be123c';
@@ -698,40 +747,45 @@ document.addEventListener('DOMContentLoaded', () => {
                     this.style.color = '#0f766e';
                 }
 
-                await guardarCampoTelar('tipo', valor, telarId, valor);
+                await guardarCampoTelar('tipo', valor, telarId, valor, fila);
 
-                // Actualizar el telar en telaresData (solo en memoria, sin recargar tabla)
                 const telarEnData = telaresData.find(t => String(t.no_telar || '') === telarId);
                 if (telarEnData) {
                     telarEnData.tipo = tipoNormalizado;
                 }
-
-                // NO recargar la tabla para preservar metros y kilos en el resumen
-                // Solo se actualiza en memoria y en las tablas de programas
             });
         });
     }
 
-    // Función para guardar un campo del telar en el servidor
-    async function guardarCampoTelar(campo, valor, telarId, tipo) {
+    // Función para guardar un campo del telar en el servidor (usa id para identificar registro único)
+    async function guardarCampoTelar(campo, valor, telarId, tipo, fila) {
         if (!telarId) {
             console.warn('No se puede guardar: telarId no disponible');
             return;
         }
 
+        const inventarioId = fila?.dataset?.inventarioId || '';
+        const fechaFila = fila?.dataset?.fecha || '';
+        const turnoFila = fila?.dataset?.turno || '';
+
         try {
             const payload = {
                 no_telar: telarId,
-                [campo]: valor
+                [campo]: valor,
+                solo_inventario: true
             };
 
-            // Si es tipo, normalizarlo
-            if (campo === 'tipo' && valor) {
-                payload.tipo = normalizarTipo(valor);
+            if (inventarioId !== '' && !isNaN(parseInt(inventarioId, 10))) {
+                payload.id = parseInt(inventarioId, 10);
             }
 
-            // Si hay tipo disponible, incluirlo para identificar el registro correcto
-            if (tipo) {
+            // Fecha y turno como discriminadores adicionales cuando hay registros similares
+            if (fechaFila) payload.fecha = fechaFila;
+            if (turnoFila) payload.turno = turnoFila;
+
+            if (campo === 'tipo' && valor) {
+                payload.tipo = normalizarTipo(valor);
+            } else if (tipo) {
                 payload.tipo = normalizarTipo(tipo);
             }
 
@@ -748,8 +802,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (result.success) {
-                // Actualizar el telar en telaresData
-                const telarEnData = telaresData.find(t => String(t.no_telar || '') === telarId);
+                // Actualizar el telar correcto en telaresData (por id si disponible, sino por no_telar)
+                const telarEnData = inventarioId
+                    ? telaresData.find(t => String(t.id) === inventarioId)
+                    : telaresData.find(t => String(t.no_telar || '') === telarId);
                 if (telarEnData) {
                     telarEnData[campo] = campo === 'calibre' ? parseFloat(valor) || null : valor;
                 }

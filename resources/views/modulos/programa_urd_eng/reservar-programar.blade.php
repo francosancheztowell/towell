@@ -701,10 +701,11 @@ const render = {
             const telarNo     = r.no_telar || '';
             const tipoUpper   = String(r.tipo || '').toUpperCase().trim();
 
+            const rowId = r.id || '';
             const isInMultiple = Array.isArray(state.selectedTelares)
                 && state.selectedTelares.some(t =>
-                    t.no_telar === telarNo &&
-                    String(t.tipo || '').toUpperCase().trim() === tipoUpper
+                    (rowId && t.id) ? String(t.id) === String(rowId)
+                    : (t.no_telar === telarNo && String(t.tipo || '').toUpperCase().trim() === tipoUpper)
                 );
 
             let baseBg = hasBoth ? 'bg-blue-100' : (idx % 2 === 0 ? 'bg-white' : 'bg-gray-50');
@@ -1067,12 +1068,15 @@ const selection = {
         const tipoUpper = String(row.dataset.tipo || '').toUpperCase().trim();
 
         const item = {
+            id:       row.dataset.id || null,
             no_telar: row.dataset.telar || '',
             tipo:     normalizeTipo(tipoUpper),
             calibre:  row.dataset.calibre,
             hilo:     row.dataset.hilo,
             salon:    row.dataset.salon,
             cuenta:   row.dataset.cuenta || '',
+            fecha:    row.dataset.fecha || '',
+            turno:    row.dataset.turno || '',
             no_julio: row.dataset.noJulio || '',
             no_orden: row.dataset.noOrden || '',
             reservado: row.dataset.isReservado === 'true',
@@ -1126,18 +1130,19 @@ const selection = {
                 }
             }
 
-            const exists = state.selectedTelares.some(
-                t => t.no_telar === item.no_telar && eq.str(t.tipo, item.tipo)
-            );
+            const exists = item.id
+                ? state.selectedTelares.some(t => String(t.id) === String(item.id))
+                : state.selectedTelares.some(t => t.no_telar === item.no_telar && eq.str(t.tipo, item.tipo));
 
             if (!exists) state.selectedTelares.push(item);
 
             row.classList.add('bg-yellow-50');
             row.style.setProperty('border-left', '3px solid #eab308', 'important');
         } else {
-            state.selectedTelares = state.selectedTelares.filter(
-                t => !(t.no_telar === item.no_telar && eq.str(t.tipo, item.tipo))
-            );
+            state.selectedTelares = state.selectedTelares.filter(t => {
+                if (item.id) return String(t.id) !== String(item.id);
+                return !(t.no_telar === item.no_telar && eq.str(t.tipo, item.tipo));
+            });
             row.classList.remove('bg-yellow-50');
             row.style.removeProperty('border-left');
         }
@@ -1634,20 +1639,25 @@ const actions = {
                 ? state.telaresDataOriginal
                 : state.telaresData;
 
-            const telarCompleto = base.find(t => {
-                const telarMatch = String(t.no_telar || '') === String(tel.no_telar || '');
-                const tipoMatch  = String(t.tipo || '').toUpperCase().trim() ===
-                                   String(tel.tipo || '').toUpperCase().trim();
-                return telarMatch && tipoMatch;
-            });
+            const telarCompleto = tel.id
+                ? base.find(t => String(t.id) === String(tel.id))
+                : base.find(t => {
+                    const telarMatch = String(t.no_telar || '') === String(tel.no_telar || '');
+                    const tipoMatch  = String(t.tipo || '').toUpperCase().trim() ===
+                                       String(tel.tipo || '').toUpperCase().trim();
+                    return telarMatch && tipoMatch;
+                });
 
             const telarArray = [{
+                id:       tel.id || (telarCompleto ? telarCompleto.id : null),
                 no_telar: tel.no_telar,
                 tipo:     tel.tipo,
                 cuenta:   tel.cuenta || (telarCompleto ? (telarCompleto.cuenta || '') : ''),
                 salon:    tel.salon  || (telarCompleto ? (telarCompleto.salon  || '') : ''),
                 calibre:  tel.calibre|| (telarCompleto ? (telarCompleto.calibre|| '') : ''),
                 hilo:     tel.hilo   || (telarCompleto ? (telarCompleto.hilo   || '') : ''),
+                fecha:    tel.fecha  || (telarCompleto ? (telarCompleto.fecha  || '') : ''),
+                turno:    tel.turno  || (telarCompleto ? (telarCompleto.turno  || '') : ''),
                 tipo_atado: tel.tipo_atado || (telarCompleto ? (telarCompleto.tipo_atado || 'Normal') : 'Normal')
             }];
 
