@@ -17,7 +17,9 @@ class TejNotificaTejedorModel extends Model
         'hora',
         'NomEmpleado',
         'NoEmpleado',
-        'Reserva'
+        'Reserva',
+        'no_julio',
+        'no_orden',
     ];
 
     public $timestamps = false;

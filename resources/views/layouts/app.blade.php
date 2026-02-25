@@ -237,6 +237,8 @@
     // Funciones para modal de telares
     let telaresUsuario = [];
     let registroActualId = null;
+    let telarActual = null; // { no_telar, tipo }
+    let registroCompleto = false;
 
     async function abrirModalTelares() {
       try {
@@ -273,6 +275,8 @@
       document.getElementById('detallesTelar').classList.add('hidden');
       document.getElementById('mensajeNoData').classList.add('hidden');
       registroActualId = null;
+      telarActual = null;
+      registroCompleto = false;
     }
 
     async function buscarDetallesTelar() {
@@ -297,11 +301,15 @@
 
         if (data.detalles) {
           registroActualId = data.detalles.id;
+          telarActual = { no_telar: data.detalles.no_telar, tipo: data.detalles.tipo };
+          registroCompleto = data.detalles.registroCompleto === true;
           mostrarDetallesTelar(data.detalles);
         } else {
           document.getElementById('detallesTelar').classList.add('hidden');
           document.getElementById('mensajeNoData').classList.remove('hidden');
           registroActualId = null;
+          telarActual = null;
+          registroCompleto = false;
         }
       } catch (error) {
         console.error('Error al cargar detalles del telar:', error);
@@ -315,10 +323,10 @@
     }
 
     async function notificarTelares(){
-      if (!registroActualId) {
+      if (!telarActual) {
         Swal.fire({
           icon: 'warning',
-          title: 'Sin registro',
+          title: 'Sin telar',
           text: 'Por favor seleccione un telar y tipo primero',
           confirmButtonColor: '#3b82f6'
         });
@@ -348,7 +356,9 @@
           },
           body: JSON.stringify({
             id: registroActualId,
-            horaParo: horaParo
+            horaParo: horaParo,
+            no_telar: telarActual.no_telar,
+            tipo: telarActual.tipo
           })
         });
 

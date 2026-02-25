@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Tejedores\TejNotificaTejedorModel;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\SYSMensaje;
 use Carbon\Carbon;
 
@@ -24,27 +26,15 @@ class NotificarMontadoJulioController extends Controller
         
         // Si es una petición AJAX
         if ($request->ajax() || $request->wantsJson()) {
-            // Si se solicita solo el listado de telares
+            // Si se solicita solo el listado de telares: retornar TODOS los asignados al usuario
             if ($request->has('listado')) {
-                $telaresDisponibles = TejInventarioTelares::whereIn('no_telar', $telaresOperador)
-                    ->whereNotNull('no_julio')
-                    ->whereNotNull('no_orden')
-                    ->where('no_julio', '<>', '')
-                    ->where('no_orden', '<>', '')
-                    ->where(function ($query) {
-                        $query->whereNull('horaParo')
-                            ->orWhere('horaParo', '=', '');
-                    })
-                    ->distinct()
-                    ->orderBy('no_telar')
-                    ->pluck('no_telar')
-                    ->values();
-
-                return response()->json(['telares' => $telaresDisponibles]);
+                $telares = collect($telaresOperador)->sort()->values();
+                return response()->json(['telares' => $telares]);
             }
-            
+
             // Si se solicita detalle de un telar específico con tipo
             if ($request->has('no_telar') && $request->has('tipo')) {
+                // 1) Buscar registro completo (con no_julio y no_orden, sin notificar)
                 $detalles = TejInventarioTelares::where('no_telar', $request->no_telar)
                     ->where('tipo', $request->tipo)
                     ->whereIn('no_telar', $telaresOperador)
@@ -60,10 +50,70 @@ class NotificarMontadoJulioController extends Controller
                     ->orderByDesc('fecha')
                     ->orderByDesc('turno')
                     ->first();
-                
-                return response()->json(['detalles' => $detalles]);
+
+                if ($detalles) {
+                    $result = $detalles->toArray();
+                    $result['registroCompleto'] = true;
+                    return response()->json(['detalles' => $result]);
+                }
+
+                // 2) Buscar registro parcial (existe en tej_inventario_telares pero sin no_julio/no_orden)
+                $parcial = TejInventarioTelares::where('no_telar', $request->no_telar)
+                    ->where('tipo', $request->tipo)
+                    ->whereIn('no_telar', $telaresOperador)
+                    ->where(function ($query) {
+                        $query->whereNull('horaParo')
+                            ->orWhere('horaParo', '=', '');
+                    })
+                    ->select('id', 'no_telar', 'tipo', 'tipo_atado', 'metros')
+                    ->orderByDesc('fecha')
+                    ->orderByDesc('turno')
+                    ->first();
+
+                // Buscar cuenta/calibre en reqProgramaTejido cuando no hay registro completo
+                [$cuentaReq, $calibreReq] = $this->getCuentaCalibreDePrograma(
+                    $request->no_telar,
+                    $request->tipo
+                );
+
+                if ($parcial) {
+                    return response()->json([
+                        'detalles' => [
+                            'id'               => $parcial->id,
+                            'no_telar'         => $parcial->no_telar,
+                            'tipo'             => $parcial->tipo,
+                            'tipo_atado'       => $parcial->tipo_atado ?? '',
+                            'metros'           => $parcial->metros ?? '',
+                            'cuenta'           => $cuentaReq,
+                            'calibre'          => $calibreReq,
+                            'no_orden'         => '',
+                            'no_julio'         => '',
+                            'registroCompleto' => false,
+                        ]
+                    ]);
+                }
+
+                // 3) Sin registro en tej_inventario_telares, pero telar asignado
+                if (in_array($request->no_telar, $telaresOperador)) {
+                    return response()->json([
+                        'detalles' => [
+                            'id'               => null,
+                            'no_telar'         => $request->no_telar,
+                            'tipo'             => $request->tipo,
+                            'tipo_atado'       => '',
+                            'metros'           => '',
+                            'cuenta'           => $cuentaReq,
+                            'calibre'          => $calibreReq,
+                            'no_orden'         => '',
+                            'no_julio'         => '',
+                            'registroCompleto' => false,
+                        ]
+                    ]);
+                }
+
+                return response()->json(['detalles' => null]);
             }
-            
+
             return response()->json(['error' => 'Parámetros inválidos'], 400);
         }
         
@@ -80,32 +130,73 @@ class NotificarMontadoJulioController extends Controller
     public function notificar(Request $request)
     {
         try {
-            $registro = TejInventarioTelares::find($request->id);
-            
-            if (!$registro) {
-                return response()->json(['error' => 'Registro no encontrado'], 404);
-            }
+            $user        = Auth::user();
+            $horaActual  = Carbon::now()->format('H:i:s');
+            $noTelar     = $request->no_telar;
+            $tipo        = $request->tipo;
 
-            // Actualizar horaParo con la hora actual
-            $horaActual = Carbon::now()->format('H:i:s');
-            $registro->horaParo = $horaActual;
-            $registro->save();
+            // Buscar registro en tej_inventario_telares si viene id
+            $registro = $request->id ? TejInventarioTelares::find($request->id) : null;
 
-            try {
-                $this->enviarNotificacionTelegram($registro, Auth::user());
-            } catch (\Throwable $e) {
-                Log::warning('No se pudo enviar notificacion de atado de julio a Telegram', [
-                    'error' => $e->getMessage(),
-                    'telar' => $registro->no_telar ?? null,
-                    'orden' => $registro->no_orden ?? null,
-                    'julio' => $registro->no_julio ?? null,
+            // Registro completo: tiene no_julio y no_orden
+            $esCompleto = $registro
+                && !empty($registro->no_julio)
+                && !empty($registro->no_orden);
+
+            if ($esCompleto) {
+                // Flujo normal: actualizar horaParo y notificar por Telegram
+                $registro->horaParo = $horaActual;
+                $registro->save();
+
+                try {
+                    $this->enviarNotificacionTelegram($registro, $user);
+                } catch (\Throwable $e) {
+                    Log::warning('No se pudo enviar notificacion de atado de julio a Telegram', [
+                        'error' => $e->getMessage(),
+                        'telar' => $registro->no_telar ?? null,
+                        'orden' => $registro->no_orden ?? null,
+                        'julio' => $registro->no_julio ?? null,
+                    ]);
+                }
+            } else {
+                // Registro incompleto o sin registro: insertar en TejNotificaTejedor
+                TejNotificaTejedorModel::create([
+                    'telar'       => $noTelar,
+                    'tipo'        => $tipo,
+                    'hora'        => $horaActual,
+                    'NomEmpleado' => $user->nombre ?? $user->name ?? null,
+                    'NoEmpleado'  => $user->numero_empleado ?? null,
+                    'Reserva'     => 0,
+                    'no_julio'    => 0,
+                    'no_orden'    => 0,
                 ]);
+
+                // Enviar Telegram con los datos disponibles
+                try {
+                    $datosNotificacion = [
+                        'no_telar'   => $noTelar,
+                        'tipo'       => $tipo,
+                        'tipo_atado' => $registro->tipo_atado ?? null,
+                        'cuenta'     => null,
+                        'calibre'    => null,
+                        'no_orden'   => null,
+                        'no_julio'   => null,
+                        'metros'     => $registro->metros ?? null,
+                        'horaParo'   => $horaActual,
+                    ];
+                    $this->enviarNotificacionTelegram((object) $datosNotificacion, $user);
+                } catch (\Throwable $e) {
+                    Log::warning('No se pudo enviar notificacion de atado de julio (sin orden) a Telegram', [
+                        'error' => $e->getMessage(),
+                        'telar' => $noTelar,
+                    ]);
+                }
             }
 
             return response()->json([
-                'success' => true,
+                'success'  => true,
                 'horaParo' => $horaActual,
-                'message' => 'Notificación registrada correctamente'
+                'message'  => 'Notificación registrada correctamente',
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
@@ -113,10 +204,46 @@ class NotificarMontadoJulioController extends Controller
     }
 
     /**
+     * Obtener cuenta y calibre desde ReqProgramaTejido según el tipo (rizo/pie).
+     * Retorna [cuenta, calibre] o ['', ''] si no se encuentra registro.
+     */
+    private function getCuentaCalibreDePrograma(string $noTelar, string $tipo): array
+    {
+        $programa = ReqProgramaTejido::where('NoTelarId', $noTelar)
+            ->where('EnProceso', 1)
+            ->orderBy('Posicion', 'asc')
+            ->orderBy('FechaInicio', 'asc')
+            ->select('CuentaRizo', 'CalibreRizo', 'CuentaPie', 'CalibrePie')
+            ->first();
+
+        if (!$programa) {
+            return ['', ''];
+        }
+
+        $tipoLower = strtolower(trim($tipo));
+
+        if ($tipoLower === 'rizo') {
+            return [
+                $programa->CuentaRizo ?? '',
+                $programa->CalibreRizo ?? '',
+            ];
+        }
+
+        if ($tipoLower === 'pie') {
+            return [
+                $programa->CuentaPie ?? '',
+                $programa->CalibrePie ?? '',
+            ];
+        }
+
+        return ['', ''];
+    }
+
+    /**
      * Enviar notificacion de Atado de Julio a Telegram.
      * Destinatarios: registros de SYSMensajes con NotificarAtadoJulio=1 y Activo=1.
      */
-    private function enviarNotificacionTelegram(TejInventarioTelares $registro, $usuario = null): void
+    private function enviarNotificacionTelegram($registro, $usuario = null): void
     {
         $botToken = config('services.telegram.bot_token');
         if (empty($botToken)) {
