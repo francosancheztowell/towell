@@ -20,6 +20,7 @@ class TejNotificaTejedorModel extends Model
         'Reserva',
         'no_julio',
         'no_orden',
+        'fecha'
     ];
 
     public $timestamps = false;
