@@ -20,7 +20,12 @@ class TejNotificaTejedorModel extends Model
         'Reserva',
         'no_julio',
         'no_orden',
-        'fecha'
+        'Fecha',
+    ];
+
+    protected $casts = [
+        'Fecha' => 'date',
+        'Reserva' => 'boolean',
     ];
 
     public $timestamps = false;

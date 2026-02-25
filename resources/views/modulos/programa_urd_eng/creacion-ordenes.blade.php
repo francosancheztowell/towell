@@ -44,11 +44,11 @@
                 <thead>
                     <tr class="bg-blue-500 text-white">
                         <th class="px-2 py-2 text-center text-sm font-semibold w-24">Telar</th>
-                        <th class="px-2 py-2 text-center text-sm font-semibold w-28">Fec Req</th>
+                        <th class="px-2 py-2 text-center text-sm font-semibold w-28">Fecha</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-20">Cuenta</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-20">Calibre</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-24">Hilo</th>
-                        <th class="px-2 py-2 text-center text-sm font-semibold w-24">Tamaño</th>
+                        <th class="px0-2 py-2 text-center text-sm font-semibold w-24">Tamaño</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-28">Urdido</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-20">Tipo</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-28">Destino</th>
