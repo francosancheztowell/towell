@@ -173,7 +173,7 @@ class NotificarMontadoJulioController extends Controller
                     'Reserva'     => 0,
                     'no_julio'    => 0,
                     'no_orden'    => 0,
-                    'fecha'       => $fecha,
+                    'Fecha'       => $fecha,
                 ]);
 
                 // Enviar Telegram con los datos disponibles
