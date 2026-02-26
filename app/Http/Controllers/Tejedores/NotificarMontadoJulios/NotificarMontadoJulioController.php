@@ -13,9 +13,6 @@ use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\SYSMensaje;
 use Carbon\Carbon;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
-
-use function Symfony\Component\Clock\now;
 
 class NotificarMontadoJulioController extends Controller
 {
@@ -152,6 +149,19 @@ class NotificarMontadoJulioController extends Controller
                 $registro->horaParo = $horaActual;
                 $registro->save();
 
+                // Insertar en TejNotificaTejedor con todos los datos y Reserva = 1
+                TejNotificaTejedorModel::create([
+                    'telar'       => $registro->no_telar,
+                    'tipo'        => $registro->tipo,
+                    'hora'        => $horaActual,
+                    'NomEmpleado' => $user->nombre ?? $user->name ?? null,
+                    'NoEmpleado'  => $user->numero_empleado ?? null,
+                    'Reserva'     => 1,
+                    'no_julio'    => $registro->no_julio,
+                    'no_orden'    => $registro->no_orden,
+                    'Fecha'       => $fecha,
+                ]);
+
                 try {
                     $this->enviarNotificacionTelegram($registro, $user);
                 } catch (\Throwable $e) {
@@ -186,6 +196,7 @@ class NotificarMontadoJulioController extends Controller
                         'calibre'    => null,
                         'no_orden'   => null,
                         'no_julio'   => null,
+                        'Fecha'      => $fecha,
                         'metros'     => $registro->metros ?? null,
                         'horaParo'   => $horaActual,
                     ];
