@@ -134,7 +134,7 @@
             <div>
               <label class="block text-sm font-semibold text-gray-600 mb-1">Hora Paro</label>
             </div>
-              <input type="text" id="detalle_hora_paro" readonly class="w-full px-4 py-3 bg-green-50 border border-green-300 rounded-md text-3xl font-bold text-green-700 text-center">
+              <input type="text" id="detalle_hora_paro" readonly class="w-full py-3 bg-green-50 border border-green-300 rounded-md text-3xl font-bold text-green-700 text-center">
           </div>
         </div>
 

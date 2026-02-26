@@ -159,10 +159,38 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
             }
 
             $estado = (int) ($registro->Estado ?? 0) === 1;
-            $operador = $estado ? 'SI' : '-';
+            $operador = $this->formatearResponsable(
+                $estado,
+                $registro->CveEmpl ?? null,
+                $registro->NomEmpl ?? $registro->NomEmpleado ?? null
+            );
 
             $this->actividadesPorFolio[$folioKey][$actividadId] = $operador;
         }
+    }
+
+    protected function formatearResponsable(bool $estado, $noEmpleado, $nombre): string
+    {
+        if (!$estado) {
+            return '-';
+        }
+
+        $noEmpleado = trim((string) ($noEmpleado ?? ''));
+        $nombre = trim((string) ($nombre ?? ''));
+
+        if ($noEmpleado !== '' && $nombre !== '') {
+            return $noEmpleado . ' - ' . $nombre;
+        }
+
+        if ($noEmpleado !== '') {
+            return $noEmpleado;
+        }
+
+        if ($nombre !== '') {
+            return $nombre;
+        }
+
+        return '-';
     }
 
     protected function baseHeadings(): array
