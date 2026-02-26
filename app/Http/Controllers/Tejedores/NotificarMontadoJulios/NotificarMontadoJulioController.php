@@ -13,6 +13,9 @@ use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\SYSMensaje;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+
+use function Symfony\Component\Clock\now;
 
 class NotificarMontadoJulioController extends Controller
 {
@@ -134,6 +137,7 @@ class NotificarMontadoJulioController extends Controller
             $horaActual  = Carbon::now()->format('H:i:s');
             $noTelar     = $request->no_telar;
             $tipo        = $request->tipo;
+            $fecha       = Carbon::now()->toDateString();
 
             // Buscar registro en tej_inventario_telares si viene id
             $registro = $request->id ? TejInventarioTelares::find($request->id) : null;
@@ -169,6 +173,7 @@ class NotificarMontadoJulioController extends Controller
                     'Reserva'     => 0,
                     'no_julio'    => 0,
                     'no_orden'    => 0,
+                    'fecha'       => $fecha,
                 ]);
 
                 // Enviar Telegram con los datos disponibles
