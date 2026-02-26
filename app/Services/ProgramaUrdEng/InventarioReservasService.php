@@ -321,8 +321,9 @@ class InventarioReservasService
     /**
      * Antes de reservar:
      * - Busca en TejNotificaTejedor por telar + tipo con Reserva = 0/null.
+     * - Toma solo el registro más reciente (Fecha DESC, Id DESC).
      * - Si encuentra, pasa hora a tej_inventario_telares.horaParo.
-     * - Marca Reserva = 1 en los registros coincidentes.
+     * - Marca Reserva = 1 y copia no_julio/no_orden en ese único registro consumido.
      */
     private function aplicarReglaNotificaTejedorAntesDeReservar(array $data): void
     {
@@ -333,46 +334,77 @@ class InventarioReservasService
             return;
         }
 
-        $pendientes = TejNotificaTejedorModel::query()
+        $pendiente = TejNotificaTejedorModel::query()
             ->whereRaw('LTRIM(RTRIM(telar)) = ?', [$noTelar])
             ->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower($tipo, 'UTF-8')])
             ->where(function ($q) {
                 $q->whereNull('Reserva')
                     ->orWhere('Reserva', 0)
                     ->orWhere('Reserva', false);
-            });
+            })
+            ->orderByDesc('Fecha')
+            ->orderByDesc('id')
+            ->first();
 
-        $hayPendientes = (clone $pendientes)->exists();
-        if (!$hayPendientes) {
+        if (!$pendiente) {
             return;
         }
 
-        $horaParo = (clone $pendientes)
-            ->whereNotNull('hora')
-            ->where('hora', '!=', '')
-            ->orderByDesc('hora')
-            ->value('hora');
-
-        if ($horaParo !== null && trim((string) $horaParo) !== '') {
-            $tejInventarioTelaresId = isset($data['TejInventarioTelaresId']) && is_numeric($data['TejInventarioTelaresId'])
-                ? (int) $data['TejInventarioTelaresId']
-                : null;
-
-            if ($tejInventarioTelaresId) {
-                TejInventarioTelares::where('id', $tejInventarioTelaresId)
-                    ->where('status', 'Activo')
-                    ->update(['horaParo' => (string) $horaParo]);
-            } else {
-                $qTelar = TejInventarioTelares::where('no_telar', $noTelar)
-                    ->where('status', 'Activo');
-                if ($tipo !== null) {
-                    $qTelar->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower($tipo, 'UTF-8')]);
-                }
-                $qTelar->update(['horaParo' => (string) $horaParo]);
+        $telar = $this->obtenerTelarObjetivoParaNotificacion($data, $noTelar, $tipo);
+        if (!$telar) {
+            Log::warning('ReservaInventario: pendiente en TejNotificaTejedor sin telar objetivo', [
+                'notifica_id' => $pendiente->id ?? null,
+                'no_telar' => $noTelar,
+                'tipo' => $tipo,
+            ]);
+        } else {
+            $horaPendiente = trim((string) ($pendiente->hora ?? ''));
+            if ($horaPendiente !== '') {
+                $telar->horaParo = $horaPendiente;
+                $telar->save();
             }
         }
 
-        (clone $pendientes)->update(['Reserva' => 1]);
+        $pendiente->Reserva = 1;
+        if ($telar) {
+            $pendiente->no_julio = $telar->no_julio;
+            $pendiente->no_orden = $telar->no_orden;
+        }
+        $pendiente->save();
+
+        Log::info('ReservaInventario: notificación consumida y actualizada', [
+            'notifica_id' => $pendiente->id ?? null,
+            'no_telar' => $noTelar,
+            'tipo' => $tipo,
+            'tej_inventario_telares_id' => $telar?->id,
+            'hora' => $pendiente->hora ?? null,
+            'no_julio' => $pendiente->no_julio ?? null,
+            'no_orden' => $pendiente->no_orden ?? null,
+        ]);
+    }
+
+    private function obtenerTelarObjetivoParaNotificacion(array $data, string $noTelar, ?string $tipo): ?TejInventarioTelares
+    {
+        $tejInventarioTelaresId = isset($data['TejInventarioTelaresId']) && is_numeric($data['TejInventarioTelaresId'])
+            ? (int) $data['TejInventarioTelaresId']
+            : null;
+
+        if ($tejInventarioTelaresId) {
+            $telar = TejInventarioTelares::where('id', $tejInventarioTelaresId)
+                ->where('status', 'Activo')
+                ->first();
+            if ($telar) {
+                return $telar;
+            }
+        }
+
+        $query = TejInventarioTelares::where('no_telar', $noTelar)
+            ->where('status', 'Activo');
+        if ($tipo !== null) {
+            $query->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower($tipo, 'UTF-8')]);
+        }
+
+        return $query->orderByDesc('id')->first();
     }
 
     private function resolverTipoReserva(array $data): ?string

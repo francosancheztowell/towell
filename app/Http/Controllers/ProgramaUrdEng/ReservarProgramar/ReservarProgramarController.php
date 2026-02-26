@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Inventario\InvTelasReservadas;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Tejedores\TejNotificaTejedorModel;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\ProgramaUrdEng\InventarioTelaresService;
 use App\Services\ProgramaUrdEng\ProgramasUrdidoEngomadoService;
@@ -233,6 +234,7 @@ class ReservarProgramarController extends Controller
 
             $noJulio = trim((string)($telar->no_julio ?? ''));
             $noOrden = trim((string)($telar->no_orden ?? ''));
+            $tipoTelar = $this->telaresService->normalizeTipo($telar->tipo ?? $tipo);
             if ($noJulio === '' || $noOrden === '') {
                 return response()->json([
                     'success' => false,
@@ -240,12 +242,41 @@ class ReservarProgramarController extends Controller
                 ], 400);
             }
 
-            // Eliminar reservas activas
-            $eliminadas = InvTelasReservadas::where('NoTelarId', $noTelar)
+            // Eliminar solo la reserva activa del telar que coincide con No. Julio y Lote/No. Orden.
+            // Esto evita borrar otras reservas activas del mismo NoTelarId.
+            $reservasEliminar = InvTelasReservadas::where('NoTelarId', $noTelar)
                 ->where('Status', 'Reservado')
+                ->where('InventSerialId', $noJulio)
+                ->where('InventBatchId', $noOrden);
+
+            if ($tipoTelar !== null && $tipoTelar !== '') {
+                $reservasEliminar->where('Tipo', $tipoTelar);
+            }
+
+            $eliminadas = $reservasEliminar
                 ->get()
                 ->each(fn ($r) => $r->delete())
                 ->count();
+
+            // Si existe notificación que coincida con telar+tipo+no_julio+no_orden, resetearla.
+            $notifica = TejNotificaTejedorModel::query()
+                ->whereRaw('LTRIM(RTRIM(telar)) = ?', [trim($noTelar)])
+                ->whereRaw('LTRIM(RTRIM(no_julio)) = ?', [$noJulio])
+                ->whereRaw('LTRIM(RTRIM(no_orden)) = ?', [$noOrden])
+                ->when($tipoTelar !== null && $tipoTelar !== '', function ($q) use ($tipoTelar) {
+                    $q->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower(trim((string) $tipoTelar), 'UTF-8')]);
+                })
+                ->orderByDesc('Fecha')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($notifica) {
+                $notifica->update([
+                    'no_julio' => null,
+                    'no_orden' => null,
+                    'Reserva' => 0,
+                ]);
+            }
 
             // Limpiar campos al liberar el telar
             $telar->update([
@@ -401,17 +432,7 @@ class ReservarProgramarController extends Controller
         return $query->first();
     }
 
-    private function resolverFolioParaActualizar(?int $id, string $noTelar, Request $request): string
-    {
-        $telar = $this->obtenerTelarParaActualizar($id, $noTelar, null);
-        if ($telar) {
-            return trim((string)($telar->no_orden ?? ''));
-        }
-        if ($request->filled('no_orden')) {
-            return trim((string) $request->input('no_orden'));
-        }
-        return '';
-    }
+
 
     private function extraerCamposInventario(Request $request): array
     {
