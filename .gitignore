@@ -28,3 +28,5 @@ yarn-error.log
 Atadores.md
 ISSUES.md
 /routes/ai.php
+.gemini/
+gha-creds-*.json
