@@ -20,13 +20,11 @@ use Carbon\Carbon;
 class CortesEficienciaExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithEvents, WithColumnFormatting
 {
     protected Collection $datos;
-    protected array $foliosPorTurno;
     protected string $fecha;
 
     public function __construct(array $info, string $fecha)
     {
         $this->datos = $info['datos'];
-        $this->foliosPorTurno = $info['foliosPorTurno'];
         $this->fecha = $fecha;
     }
 
@@ -35,37 +33,60 @@ class CortesEficienciaExport implements FromCollection, WithHeadings, WithStyles
         $rows = collect();
 
         foreach ($this->datos as $row) {
-            $rows->push($this->mapLinea($row['telar'], $row['t1'], 'Turno 1'));
-            $rows->push($this->mapLinea($row['telar'], $row['t2'], 'Turno 2'));
-            $rows->push($this->mapLinea($row['telar'], $row['t3'], 'Turno 3'));
+            $rows->push($this->mapFilaVisualizacion($row));
         }
 
         return $rows;
     }
 
-    protected function mapLinea($telar, $linea, $turno)
+    protected function mapFilaVisualizacion($row)
     {
-        if (!$linea) {
-            return [
-                'Fecha' => $this->fecha,
-                'Telar' => $telar,
-                'Turno' => $turno,
-            ];
-        }
+        $t1 = $row['t1'] ?? null;
+        $t2 = $row['t2'] ?? null;
+        $t3 = $row['t3'] ?? null;
+        $lineaBase = $t1 ?: ($t2 ?: $t3);
 
         return [
-            'Fecha' => optional($linea->Date ? Carbon::parse($linea->Date) : null)->format('Y-m-d') ?? $this->fecha,
-            'Telar' => $telar,
-            'Turno' => $turno,
-            'RPM Std' => $linea->RpmStd,
-            '% EF Std' => $linea->EficienciaSTD,
-            'RPM R1' => $linea->RpmR1,
-            '% EF R1' => $linea->EficienciaR1,
-            'RPM R2' => $linea->RpmR2,
-            '% EF R2' => $linea->EficienciaR2,
-            'RPM R3' => $linea->RpmR3,
-            '% EF R3' => $linea->EficienciaR3,
+            'Fecha' => optional($lineaBase && $lineaBase->Date ? Carbon::parse($lineaBase->Date) : null)->format('Y-m-d') ?? $this->fecha,
+            'Telar' => $row['telar'],
+            'RPM Std' => $lineaBase->RpmStd ?? null,
+            '% EF Std' => $lineaBase->EficienciaSTD ?? null,
+
+            'T1 RPM' => $this->obtenerUltimaRpm($t1),
+            'T1 % EF H1' => $t1->EficienciaR1 ?? null,
+            'T1 Obs H1' => $t1->ObsR1 ?? null,
+            'T1 % EF H2' => $t1->EficienciaR2 ?? null,
+            'T1 Obs H2' => $t1->ObsR2 ?? null,
+            'T1 % EF H3' => $t1->EficienciaR3 ?? null,
+            'T1 Obs H3' => $t1->ObsR3 ?? null,
+
+            'T2 RPM' => $this->obtenerUltimaRpm($t2),
+            'T2 % EF H1' => $t2->EficienciaR1 ?? null,
+            'T2 Obs H1' => $t2->ObsR1 ?? null,
+            'T2 % EF H2' => $t2->EficienciaR2 ?? null,
+            'T2 Obs H2' => $t2->ObsR2 ?? null,
+            'T2 % EF H3' => $t2->EficienciaR3 ?? null,
+            'T2 Obs H3' => $t2->ObsR3 ?? null,
+
+            'T3 RPM' => $this->obtenerUltimaRpm($t3),
+            'T3 % EF H1' => $t3->EficienciaR1 ?? null,
+            'T3 Obs H1' => $t3->ObsR1 ?? null,
+            'T3 % EF H2' => $t3->EficienciaR2 ?? null,
+            'T3 Obs H2' => $t3->ObsR2 ?? null,
+            'T3 % EF H3' => $t3->EficienciaR3 ?? null,
+            'T3 Obs H3' => $t3->ObsR3 ?? null,
         ];
+    }
+
+    protected function obtenerUltimaRpm($linea)
+    {
+        foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
+            $valor = $linea->{$campo} ?? null;
+            if ($valor !== null && $valor !== '' && is_numeric($valor)) {
+                return $valor;
+            }
+        }
+        return null;
     }
 
     public function headings(): array
@@ -73,15 +94,29 @@ class CortesEficienciaExport implements FromCollection, WithHeadings, WithStyles
         return [
             'Fecha',
             'Telar',
-            'Turno',
             'RPM Std',
             '% EF Std',
-            'RPM R1',
-            '% EF R1',
-            'RPM R2',
-            '% EF R2',
-            'RPM R3',
-            '% EF R3',
+            'T1 RPM',
+            'T1 % EF H1',
+            'T1 Obs H1',
+            'T1 % EF H2',
+            'T1 Obs H2',
+            'T1 % EF H3',
+            'T1 Obs H3',
+            'T2 RPM',
+            'T2 % EF H1',
+            'T2 Obs H1',
+            'T2 % EF H2',
+            'T2 Obs H2',
+            'T2 % EF H3',
+            'T2 Obs H3',
+            'T3 RPM',
+            'T3 % EF H1',
+            'T3 Obs H1',
+            'T3 % EF H2',
+            'T3 Obs H2',
+            'T3 % EF H3',
+            'T3 Obs H3',
         ];
     }
 
@@ -106,16 +141,30 @@ class CortesEficienciaExport implements FromCollection, WithHeadings, WithStyles
     {
         return [
             'A' => 12,
-            'B' => 10,
+            'B' => 8,
             'C' => 10,
             'D' => 10,
-            'E' => 10,
+            'E' => 8,
             'F' => 10,
-            'G' => 10,
+            'G' => 24,
             'H' => 10,
-            'I' => 10,
+            'I' => 24,
             'J' => 10,
-            'K' => 10,
+            'K' => 24,
+            'L' => 8,
+            'M' => 10,
+            'N' => 24,
+            'O' => 10,
+            'P' => 24,
+            'Q' => 10,
+            'R' => 24,
+            'S' => 8,
+            'T' => 10,
+            'U' => 24,
+            'V' => 10,
+            'W' => 24,
+            'X' => 10,
+            'Y' => 24,
         ];
     }
 
