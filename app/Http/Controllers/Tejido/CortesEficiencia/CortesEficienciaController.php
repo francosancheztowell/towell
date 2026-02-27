@@ -964,6 +964,9 @@ class CortesEficienciaController extends Controller
         $fechaNorm = $this->normalizarFecha($fecha);
 
         $lineasFecha = TejEficienciaLine::whereDate('Date', $fechaNorm)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('Folio')
             ->orderBy('Turno')
             ->orderBy('NoTelarId')
             ->get();
@@ -982,7 +985,9 @@ class CortesEficienciaController extends Controller
             if (!isset($porTelarTurno[$telar])) {
                 $porTelarTurno[$telar] = [];
             }
-            $porTelarTurno[$telar][$turno] = $linea;
+            if (!isset($porTelarTurno[$telar][$turno])) {
+                $porTelarTurno[$telar][$turno] = $linea;
+            }
             if (!isset($foliosPorTurno[$turno])) {
                 $foliosPorTurno[$turno] = $linea->Folio;
             }
