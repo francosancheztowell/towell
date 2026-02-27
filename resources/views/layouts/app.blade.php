@@ -218,7 +218,7 @@
   </script>
 
   <!-- ====== Scripts ====== -->
-    @vite(['public/js/app-core.js', 'public/js/app-filters.js'])
+    @vite(['resources/js/app-core.js', 'resources/js/app-filters.js'])
 
   @stack('scripts')
 

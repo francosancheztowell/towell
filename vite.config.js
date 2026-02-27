@@ -4,16 +4,23 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   build: {
-    sourcemap: true,
+    sourcemap: false,
     minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['jquery', 'sweetalert2', 'select2', 'toastr', 'axios']
+        }
+      }
+    }
   },
   plugins: [
     laravel({
       input: [
         'resources/css/app.css',
         'resources/js/app.js',
-        'public/js/app-core.js',
-        'public/js/app-filters.js',
+        'resources/js/app-core.js',
+        'resources/js/app-filters.js',
       ],
       refresh: true,
     }),
