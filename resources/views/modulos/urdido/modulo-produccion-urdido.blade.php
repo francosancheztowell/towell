@@ -1075,8 +1075,8 @@
 
                         const checkbox = row.querySelector('.checkbox-finalizar');
                         if (checkbox && checkbox.checked) {
-                            const target = e.target.closest('input[data-field]');
-                            if (target && (target.getAttribute('data-field') === 'vueltas' || target.getAttribute('data-field') === 'diametro')) return;
+                            const td = e.target.closest('td');
+                            if (td && (td.querySelector('input[data-field="vueltas"]') || td.querySelector('input[data-field="diametro"]'))) return;
                             e.preventDefault();
                             e.stopPropagation();
                             mostrarToast('info', 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.', 2500);
@@ -1592,7 +1592,8 @@
         });
 
                 async function actualizarCampoProduccion(registroId, campo, valor) {
-                    if (!verificarFilaNoFinalizada(registroId)) return;
+                    const camposEditablesEnParcial = ['Vueltas', 'Diametro'];
+                    if (!camposEditablesEnParcial.includes(campo) && !verificarFilaNoFinalizada(registroId)) return;
                     if (!verificarOficialSeleccionado(registroId)) {
                         mostrarAlertaOficialRequerido();
                         return;
