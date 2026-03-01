@@ -1021,6 +1021,8 @@
                 function bloquearFila(row) {
                     row.classList.add('bg-green-50', 'opacity-75');
                     row.querySelectorAll('input:not(.checkbox-finalizar), select, button:not(.checkbox-finalizar)').forEach(el => {
+                        const field = el.getAttribute('data-field');
+                        if (field === 'vueltas' || field === 'diametro') return;
                         el.disabled = true;
                         el.classList.add('cursor-not-allowed', 'pointer-events-none');
                     });
@@ -1073,6 +1075,8 @@
 
                         const checkbox = row.querySelector('.checkbox-finalizar');
                         if (checkbox && checkbox.checked) {
+                            const target = e.target.closest('input[data-field]');
+                            if (target && (target.getAttribute('data-field') === 'vueltas' || target.getAttribute('data-field') === 'diametro')) return;
                             e.preventDefault();
                             e.stopPropagation();
                             mostrarToast('info', 'Este registro ya está parcialmente finalizado. Desmarca la casilla para editarlo.', 2500);
