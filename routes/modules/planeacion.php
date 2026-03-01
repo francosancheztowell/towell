@@ -175,6 +175,7 @@ Route::post('/planeacion/programa-tejido/balancear-automatico', [ProgramaTejidoC
 Route::get('/planeacion/programa-tejido/ver-detalles-grupo-balanceo/{ordCompartida}', [BalancearTejido::class, 'verDetallesGrupoBalanceo'])->name('verdetallesgrupobalanceo');
 Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
 Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
+Route::delete('/planeacion/programa-tejido/{id}/en-proceso', [ProgramaTejidoController::class, 'destroyEnProceso'])->name('programa-tejido.destroy-en-proceso');
 Route::get('/planeacion/programa-tejido/all-registros-json', [ProgramaTejidoController::class, 'getAllRegistrosJson'])->name('programa-tejido.all-registros-json');
 Route::post('/planeacion/programa-tejido/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('programa-tejido.actualizar-calendarios-masivo');
 Route::post('/planeacion/programa-tejido/{id}/reprogramar', [ProgramaTejidoController::class, 'actualizarReprogramar'])->name('programa-tejido.reprogramar');

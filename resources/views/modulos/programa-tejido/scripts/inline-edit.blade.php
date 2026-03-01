@@ -203,6 +203,12 @@ const uiInlineEditableFields = {
     step: 1,
     displayFormatter: (v) => (v == null || v === '') ? '' : String(v)
   },
+  NoProduccion: {
+    type: 'text',
+    maxLength: 80,
+    toPayload: (v) => (v === '' ? null : String(v).trim()),
+    displayFormatter: (v) => (v == null || v === '') ? '' : String(v)
+  },
   // NOTA: Las siguientes columnas NO son editables (calculadas automáticamente):
   // - DiasEficiencia (Dias Ef)
   // - ProdKgDia

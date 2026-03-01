@@ -114,6 +114,106 @@ class EliminarTejido
     }
 
     /**
+     * Eliminar el registro que está en proceso (EnProceso = 1).
+     * El siguiente en la cola del telar pasa a ser el nuevo EnProceso.
+     * Se recalcula toda la secuencia del telar.
+     *
+     * @param int $id ID del registro en proceso a eliminar
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public static function eliminarEnProceso(int $id)
+    {
+        DB::beginTransaction();
+        try {
+            $registro = ReqProgramaTejido::findOrFail($id);
+
+            if ($registro->EnProceso != 1) {
+                throw new \RuntimeException('El registro seleccionado no está en proceso.');
+            }
+
+            $salon = $registro->SalonTejidoId;
+            $telar = $registro->NoTelarId;
+
+            $registros = ReqProgramaTejido::query()
+                ->salon($salon)
+                ->telar($telar)
+                ->orderBy('Posicion', 'asc')
+                ->orderBy('FechaInicio', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            $idx = $registros->search(fn($r) => $r->Id === $registro->Id);
+            if ($idx === false) {
+                throw new \RuntimeException('No se encontró el registro dentro del telar.');
+            }
+
+            // Eliminar el registro en proceso (líneas se eliminan por ON DELETE CASCADE)
+            $registro->delete();
+
+            // Obtener los registros restantes
+            $restantes = ReqProgramaTejido::query()
+                ->salon($salon)
+                ->telar($telar)
+                ->orderBy('Posicion', 'asc')
+                ->orderBy('FechaInicio', 'asc')
+                ->get();
+
+            if ($restantes->isEmpty()) {
+                DB::commit();
+                return response()->json([
+                    'success'  => true,
+                    'message'  => 'Registro en proceso eliminado. No quedan más registros en el telar.',
+                ]);
+            }
+
+            // Recalcular posiciones (el en-proceso era el primero, así que siempre aplica)
+            TejidoHelpers::recalcularPosicionesPorTelar($salon, $telar);
+
+            // El nuevo EnProceso arranca desde ahora
+            $inicioOriginal = Carbon::now();
+
+            // Deshabilitar observers durante la actualización masiva
+            ReqProgramaTejido::unsetEventDispatcher();
+
+            [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
+
+            foreach ($updates as $idU => $data) {
+                DB::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
+            }
+
+            DB::commit();
+
+            // Re-habilitar observer
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+
+            // Regenerar líneas de todos los registros afectados
+            $observer = new ReqProgramaTejidoObserver();
+            foreach (array_column($detalles, 'Id') as $idAct) {
+                if ($r = ReqProgramaTejido::find($idAct)) {
+                    $observer->saved($r);
+                }
+            }
+
+            return response()->json([
+                'success'          => true,
+                'message'          => 'Registro en proceso eliminado. El siguiente registro ahora está en proceso y el telar fue recalculado.',
+                'cascaded_records' => count($detalles),
+                'detalles'         => $detalles,
+                'registros_ids'    => array_column($detalles, 'Id'),
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            Log::error('eliminarEnProceso error', ['id' => $id, 'msg' => $e->getMessage()]);
+            return response()->json(
+                ['success' => false, 'message' => $e->getMessage()],
+                $e instanceof \RuntimeException ? 422 : 500
+            );
+        }
+    }
+
+    /**
      * Mover registro en lugar de eliminarlo según el valor de Reprogramar
      *
      * @param ReqProgramaTejido $registro

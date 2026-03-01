@@ -215,6 +215,11 @@
     <i class="fas fa-trash text-red-500"></i>
     <span>Eliminar</span>
   </button>
+  {{-- Eliminar el registro que está en proceso --}}
+  <button id="contextMenuEliminarEnProceso" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center gap-2">
+    <i class="fas fa-stop-circle text-red-700"></i>
+    <span>Eliminar en proceso</span>
+  </button>
   {{-- Desvincular registro --}}
   <button id="contextMenuDesvincular" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
     <i class="fas fa-unlink text-purple-500"></i>

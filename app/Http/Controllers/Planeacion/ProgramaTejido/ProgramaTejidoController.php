@@ -1631,6 +1631,11 @@ class ProgramaTejidoController extends Controller
         return EliminarTejido::eliminar($id);
     }
 
+    public function destroyEnProceso(int $id)
+    {
+        return EliminarTejido::eliminarEnProceso($id);
+    }
+
     /**
      * Duplicar todos los registros de un telar
      */

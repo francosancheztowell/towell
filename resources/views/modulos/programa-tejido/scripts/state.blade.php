@@ -170,7 +170,8 @@ const inlineFieldPayloadMap = {
 	EntregaProduc: 'entrega_produc',
 	EntregaPT: 'entrega_pt',
 	EntregaCte: 'entrega_cte',
-	PTvsCte: 'pt_vs_cte'
+	PTvsCte: 'pt_vs_cte',
+	NoProduccion: 'no_produccion'
 };
 
 // ===== Helpers DOM =====

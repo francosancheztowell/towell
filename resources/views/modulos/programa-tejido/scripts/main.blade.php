@@ -518,18 +518,20 @@
         if (rect.right > window.innerWidth)  menu.style.left = (e.clientX - rect.width) + 'px';
         if (rect.bottom > window.innerHeight) menu.style.top = (e.clientY - rect.height) + 'px';
 
-        // Verificar si el registro está en proceso para ocultar el botón de eliminar
-        const eliminarBtn = qs('#contextMenuEliminar');
-        if (eliminarBtn && row) {
-          const meta = rowMeta(row);
-          const enProceso = meta.enProceso;
+        // Verificar si el registro está en proceso para mostrar/ocultar botones
+        const meta = rowMeta(row);
+        const enProceso = meta.enProceso;
 
-          // Ocultar el botón de eliminar si EnProceso === 1
-          if (enProceso) {
-            eliminarBtn.style.display = 'none';
-          } else {
-            eliminarBtn.style.display = '';
-          }
+        const eliminarBtn = qs('#contextMenuEliminar');
+        if (eliminarBtn) {
+          // Ocultar el botón de eliminar normal si está en proceso
+          eliminarBtn.style.display = enProceso ? 'none' : '';
+        }
+
+        const eliminarEnProcesoBtn = qs('#contextMenuEliminarEnProceso');
+        if (eliminarEnProcesoBtn) {
+          // Mostrar el botón "Eliminar en proceso" solo si está en proceso
+          eliminarEnProcesoBtn.style.display = enProceso ? '' : 'none';
         }
 
         // Mostrar/ocultar el botón de desvincular según si el registro tiene OrdCompartida
@@ -653,6 +655,26 @@
             const id = row.getAttribute('data-id');
             if (id && typeof window.eliminarRegistro === 'function') {
               window.eliminarRegistro(id);
+            } else {
+              toast('No se pudo obtener el ID del registro', 'error');
+            }
+          } else {
+            toast('No hay registro seleccionado', 'error');
+          }
+        });
+
+        // Eliminar en proceso
+        qs('#contextMenuEliminarEnProceso')?.addEventListener('click', () => {
+          const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tbodyEl());
+          const selectedRow = (window.selectedRowIndex !== null && window.selectedRowIndex !== undefined && window.selectedRowIndex >= 0)
+            ? rows[window.selectedRowIndex]
+            : null;
+          const row = menuRow || selectedRow;
+          hide();
+          if (row) {
+            const id = row.getAttribute('data-id');
+            if (id && typeof window.eliminarEnProcesoRegistro === 'function') {
+              window.eliminarEnProcesoRegistro(id);
             } else {
               toast('No se pudo obtener el ID del registro', 'error');
             }
@@ -1709,6 +1731,70 @@
     window.descargarPrograma = PT.actions.descargarPrograma;
     window.abrirNuevo = PT.actions.abrirNuevo;
     window.eliminarRegistro = PT.actions.eliminarRegistro;
+
+    // =========================
+    // Eliminar en proceso
+    // =========================
+    window.eliminarEnProcesoRegistro = async function eliminarEnProcesoRegistro(id) {
+      const doDelete = async () => {
+        PT.loader.show();
+        try {
+          const response = await fetch(`/planeacion/programa-tejido/${id}/en-proceso`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+            }
+          });
+
+          const data = await response.json();
+          PT.loader.hide();
+
+          if (data.success) {
+            // Eliminar la fila del DOM
+            const tb = tbodyEl();
+            const rowToDelete = tb ? tb.querySelector(`tr.selectable-row[data-id="${id}"]`) : null;
+            if (rowToDelete) {
+              rowToDelete.remove();
+              window.selectedRowIndex = null;
+            }
+
+            // Actualizar los registros restantes del telar (fechas, EnProceso, Ultimo, etc.)
+            if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
+              await actualizarRegistrosVinculados(data.registros_ids, null);
+            }
+
+            if (typeof refreshAllRows === 'function') refreshAllRows();
+            if (typeof window.updateTotales === 'function') window.updateTotales();
+
+            toast(data.message || 'Registro en proceso eliminado y telar recalculado', 'success');
+          } else {
+            toast(data.message || 'No se pudo eliminar el registro en proceso', 'error');
+          }
+        } catch (err) {
+          PT.loader.hide();
+          toast('Ocurrió un error al procesar la solicitud', 'error');
+        }
+      };
+
+      if (typeof Swal === 'undefined') {
+        if (confirm('¿Eliminar el registro en proceso? El siguiente registro pasará a ser el activo y el telar será recalculado. Esta acción no se puede deshacer.')) {
+          doDelete();
+        }
+        return;
+      }
+
+      Swal.fire({
+        title: '¿Eliminar registro en proceso?',
+        text: 'El siguiente registro en la cola pasará a estar en proceso y se recalcularán las fechas del telar.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+      }).then(r => { if (r.isConfirmed) doDelete(); });
+    };
 
     // =========================
     // Desvincular registro

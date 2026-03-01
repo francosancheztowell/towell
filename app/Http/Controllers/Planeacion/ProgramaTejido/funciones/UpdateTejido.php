@@ -29,7 +29,7 @@ class UpdateTejido
         foreach ([
             'programar_prod','entrega_produc','entrega_pt','entrega_cte','fecha_final',
             'pedido','no_tiras','peine','largo_crudo','luchaje','peso_crudo','pt_vs_cte',
-            'ancho','ancho_toalla'
+            'ancho','ancho_toalla','no_produccion'
         ] as $k) {
             if ($request->has($k) && is_string($request->input($k)) && trim($request->input($k)) === '') {
                 $request->merge([$k => null]);
@@ -40,6 +40,7 @@ class UpdateTejido
             'hilo'          => ['sometimes','nullable','string'],
             'calendario_id' => ['sometimes','nullable','string'],
             'tamano_clave'  => ['sometimes','nullable','string'],
+            'no_produccion' => ['sometimes','nullable','string','max:80'],
             'rasurado'      => ['sometimes','nullable','string'],
             'pedido'        => ['sometimes','nullable','numeric','min:0'],
             'programar_prod'=> ['sometimes','nullable','date'],
@@ -354,6 +355,10 @@ class UpdateTejido
                     $afectaFormulas = true;
                 }
             }
+        }
+
+        if (array_key_exists('no_produccion', $data)) {
+            $registro->NoProduccion = ($data['no_produccion'] === null || trim($data['no_produccion']) === '') ? null : trim($data['no_produccion']);
         }
 
         if (array_key_exists('rasurado', $data)) {
