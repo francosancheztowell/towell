@@ -149,8 +149,8 @@ class NotificarMontadoJulioController extends Controller
                 $registro->horaParo = $horaActual;
                 $registro->save();
 
-                // Insertar en TejNotificaTejedor con todos los datos y Reserva = 1
-                TejNotificaTejedorModel::create([
+                // Evitar duplicados en TejNotificaTejedor: actualizar si ya existe, insertar si no.
+                $this->registrarNotificacionTejedor([
                     'telar'       => $registro->no_telar,
                     'tipo'        => $registro->tipo,
                     'hora'        => $horaActual,
@@ -160,7 +160,7 @@ class NotificarMontadoJulioController extends Controller
                     'no_julio'    => $registro->no_julio,
                     'no_orden'    => $registro->no_orden,
                     'Fecha'       => $fecha,
-                ]);
+                ], true);
 
                 try {
                     $this->enviarNotificacionTelegram($registro, $user);
@@ -173,8 +173,8 @@ class NotificarMontadoJulioController extends Controller
                     ]);
                 }
             } else {
-                // Registro incompleto o sin registro: insertar en TejNotificaTejedor
-                TejNotificaTejedorModel::create([
+                // Registro incompleto o sin registro: evitar duplicados (actualizar fecha/hora si existe pendiente).
+                $this->registrarNotificacionTejedor([
                     'telar'       => $noTelar,
                     'tipo'        => $tipo,
                     'hora'        => $horaActual,
@@ -184,7 +184,7 @@ class NotificarMontadoJulioController extends Controller
                     'no_julio'    => 0,
                     'no_orden'    => 0,
                     'Fecha'       => $fecha,
-                ]);
+                ], false);
 
                 // Enviar Telegram con los datos disponibles
                 try {
@@ -217,6 +217,63 @@ class NotificarMontadoJulioController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Registra notificación en TejNotificaTejedor evitando duplicados:
+     * - Completo: busca por telar+tipo+no_julio+no_orden.
+     * - Incompleto: busca pendiente por telar+tipo con Reserva=0/null y sin no_julio/no_orden.
+     */
+    private function registrarNotificacionTejedor(array $payload, bool $esCompleto): void
+    {
+        $telar = trim((string) ($payload['telar'] ?? ''));
+        $tipo  = strtolower(trim((string) ($payload['tipo'] ?? '')));
+
+        $query = TejNotificaTejedorModel::query()
+            ->whereRaw('LTRIM(RTRIM(telar)) = ?', [$telar])
+            ->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [$tipo]);
+
+        if ($esCompleto) {
+            $noJulio = trim((string) ($payload['no_julio'] ?? ''));
+            $noOrden = trim((string) ($payload['no_orden'] ?? ''));
+
+            $query->whereRaw('LTRIM(RTRIM(no_julio)) = ?', [$noJulio])
+                ->whereRaw('LTRIM(RTRIM(no_orden)) = ?', [$noOrden]);
+        } else {
+            $query->where(function ($q) {
+                $q->whereNull('Reserva')
+                    ->orWhere('Reserva', 0)
+                    ->orWhere('Reserva', false);
+            })
+                ->where(function ($q) {
+                    $q->whereNull('no_julio')
+                        ->orWhere('no_julio', '')
+                        ->orWhere('no_julio', '0')
+                        ->orWhere('no_julio', 0);
+                })
+                ->where(function ($q) {
+                    $q->whereNull('no_orden')
+                        ->orWhere('no_orden', '')
+                        ->orWhere('no_orden', '0')
+                        ->orWhere('no_orden', 0);
+                });
+        }
+
+        $existente = $query->orderByDesc('Fecha')->orderByDesc('id')->first();
+        if ($existente) {
+            $existente->update([
+                'hora'        => $payload['hora'] ?? $existente->hora,
+                'Fecha'       => $payload['Fecha'] ?? $existente->Fecha,
+                'NomEmpleado' => $payload['NomEmpleado'] ?? $existente->NomEmpleado,
+                'NoEmpleado'  => $payload['NoEmpleado'] ?? $existente->NoEmpleado,
+                'Reserva'     => $payload['Reserva'] ?? $existente->Reserva,
+                'no_julio'    => $payload['no_julio'] ?? $existente->no_julio,
+                'no_orden'    => $payload['no_orden'] ?? $existente->no_orden,
+            ]);
+            return;
+        }
+
+        TejNotificaTejedorModel::create($payload);
     }
 
     /**
