@@ -20,6 +20,8 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\ReqProgramaTejidoLineControll
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
+use App\Http\Controllers\Planeacion\Utilerias\FinalizarOrdenesController;
+use App\Http\Controllers\Planeacion\Utilerias\MoverOrdenesController;
 
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +31,7 @@ Route::get('/planeacion', fn() => app(UsuarioController::class)->showSubModulos(
 
 Route::redirect('/planeacion/programatejido', '/planeacion/programa-tejido', 301);
 Route::redirect('/planeacion/simulaciones', '/simulacion', 301);
+Route::redirect('/planeacion/utilera', '/planeacion/utileria', 301);
 
 Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::prefix('catalogos')->name('catalogos.')->group(function () {
@@ -85,6 +88,21 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');
     Route::get('/alineacion/api/data', [AlineacionController::class, 'apiData'])->name('alineacion.api.data');
+
+    // ====== RUTAS DE UTILERÍA ======
+    Route::prefix('utileria')->name('utileria.')->group(function () {
+        Route::get('/', fn () => view('planeacion.utileria.index'))->name('index');
+
+        // * Finalizar Órdenes
+        Route::get('/finalizar/telares', [FinalizarOrdenesController::class, 'getTelares'])->name('finalizar.telares');
+        Route::get('/finalizar/ordenes', [FinalizarOrdenesController::class, 'getOrdenesByTelar'])->name('finalizar.ordenes');
+        Route::post('/finalizar/procesar', [FinalizarOrdenesController::class, 'finalizarOrdenes'])->name('finalizar.procesar');
+
+        // * Mover Órdenes
+        Route::get('/mover/telares', [MoverOrdenesController::class, 'getTelares'])->name('mover.telares');
+        Route::get('/mover/registros', [MoverOrdenesController::class, 'getRegistrosByTelar'])->name('mover.registros');
+        Route::post('/mover/procesar', [MoverOrdenesController::class, 'moverOrdenes'])->name('mover.procesar');
+    });
 
     Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
     Route::get('/telares/falla', [CatalagoTelarController::class, 'falla'])->name('telares.falla');
