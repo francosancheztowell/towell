@@ -40,6 +40,14 @@
         2 => 'bg-green-50  text-green-800 border-green-200',
         3 => 'bg-yellow-50 text-yellow-900 border-yellow-200',
     ];
+    $horariosTurno = [];
+    foreach ([1, 2, 3] as $turno) {
+        $horariosTurno[$turno] = [
+            1 => $horariosPorTurno[(string) $turno][1] ?? '--:--',
+            2 => $horariosPorTurno[(string) $turno][2] ?? '--:--',
+            3 => $horariosPorTurno[(string) $turno][3] ?? '--:--',
+        ];
+    }
 
     // Helpers reutilizables
     $val = fn($line, $campo) => $line ? ($line->$campo ?? '') : '';
@@ -53,6 +61,32 @@
         'status' => $line ? (bool) ($line->$campoStatus ?? false) : false,
         'text'   => $line ? trim($line->$campoText ?? '') : '',
     ];
+
+    // Última RPM real (no-cero) de cualquier turno/horario: prioriza Turno 3>2>1, Horario 3>2>1
+    $lastRpm = function ($t1, $t2, $t3) {
+        foreach ([$t3, $t2, $t1] as $line) {
+            if (!$line) continue;
+            foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
+                $v = $line->$campo ?? null;
+                if ($v !== null && $v !== '' && (float) $v != 0) return (int) $v;
+            }
+        }
+        // Fallback: RpmStd del primer turno disponible
+        foreach ([$t1, $t2, $t3] as $line) {
+            if ($line && !empty($line->RpmStd)) return $line->RpmStd;
+        }
+        return '';
+    };
+
+    // Última RPM real (no-cero) de un turno específico: Horario 3>2>1
+    $lastRpmTurno = function ($line) {
+        if (!$line) return '';
+        foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
+            $v = $line->$campo ?? null;
+            if ($v !== null && $v !== '' && (float) $v != 0) return (int) $v;
+        }
+        return '';
+    };
 @endphp
 
 <div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
@@ -70,6 +104,10 @@
             <button onclick="descargarCortesPDF('{{ $fecha }}')"
                     class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">
                 <i class="fa fa-file-pdf mr-2"></i> Descargar PDF
+            </button>
+                        <button onclick="notificarTelegram('{{ $fecha }}')" id="btn-telegram"
+                    class="inline-flex items-center px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-md transition-colors">
+                <i class="fa-brands fa-telegram mr-2"></i> Notificar Telegram
             </button>
         </div>
     </div>
@@ -125,48 +163,67 @@
                         @endfor
                     </tr>
 
-                    {{-- ── Fila 2: Horario 1 / 2 / 3 (dentro de cada turno) ── --}}
+                    {{-- ── Fila 2: RPM + Horarios (HR reales del folio por turno) ── --}}
                     <tr>
                         @for ($turno = 1; $turno <= 3; $turno++)
-                            <th colspan="3"
+                            <th rowspan="2"
+                                class="px-2 py-1 text-center border border-gray-300
+                                       sticky top-0 z-20
+                                       {{ $horarioColors[1]['header'] }} text-xs font-semibold min-w-[70px]">
+                                RPM
+                            </th>
+                            <th
                                 class="px-3 py-1 text-center border border-gray-300
                                        sticky top-0 z-20
                                        {{ $horarioColors[1]['header'] }} text-xs font-semibold">
-                                Horario 1
+                                Horario: {{ $horariosTurno[$turno][1] }}
                             </th>
-                            <th colspan="2"
+                            <th
                                 class="px-3 py-1 text-center border border-gray-300
                                        sticky top-0 z-20
                                        {{ $horarioColors[2]['header'] }} text-xs font-semibold">
-                                Horario 2
+                                Horario: {{ $horariosTurno[$turno][2] }}
                             </th>
-                            <th colspan="2"
+                            <th
                                 class="px-3 py-1 text-center border border-gray-300
                                        sticky top-0 z-20
                                        {{ $horarioColors[3]['header'] }} text-xs font-semibold">
-                                Horario 3
+                                Horario: {{ $horariosTurno[$turno][3] }}
+                            </th>
+                            <th
+                                class="px-3 py-1 text-center border border-gray-300
+                                       sticky top-0 z-20
+                                       {{ $horarioColors[1]['header'] }} text-xs font-semibold">
+                                Horario: {{ $horariosTurno[$turno][1] }}
+                            </th>
+                            <th
+                                class="px-3 py-1 text-center border border-gray-300
+                                       sticky top-0 z-20
+                                       {{ $horarioColors[2]['header'] }} text-xs font-semibold">
+                                Horario: {{ $horariosTurno[$turno][2] }}
+                            </th>
+                            <th
+                                class="px-3 py-1 text-center border border-gray-300
+                                       sticky top-0 z-20
+                                       {{ $horarioColors[3]['header'] }} text-xs font-semibold">
+                                Horario: {{ $horariosTurno[$turno][3] }}
                             </th>
                         @endfor
                     </tr>
 
-                    {{-- ── Fila 3: nombres de columna ── --}}
+                    {{-- ── Fila 3: nombres de columna (EF x3, Obs x3) ── --}}
                     <tr>
                         @for ($turno = 1; $turno <= 3; $turno++)
-                            {{-- Horario 1: RPM · % EF · Obs --}}
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[70px]">RPM</th>
+                                       sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[70px]">EF</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[70px]">% EF</th>
+                                       sticky top-0 z-10 {{ $horarioColors[2]['cols'] }} min-w-[70px]">EF</th>
+                            <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
+                                       sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[70px]">EF</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
                                        sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[120px]">Obs</th>
-                            {{-- Horario 2: % EF · Obs --}}
-                            <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[2]['cols'] }} min-w-[70px]">% EF</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
                                        sticky top-0 z-10 {{ $horarioColors[2]['cols'] }} min-w-[120px]">Obs</th>
-                            {{-- Horario 3: % EF · Obs --}}
-                            <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[70px]">% EF</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
                                        sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[120px]">Obs</th>
                         @endfor
@@ -197,9 +254,9 @@
                                 {{ $row['telar'] }}
                             </td>
 
-                            {{-- STD (tomado del turno 1) --}}
+                            {{-- STD (última RPM real no-cero de cualquier turno/horario) --}}
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700">
-                                {{ $val($t1, 'RpmStd') }}
+                                {{ $lastRpm($t1, $t2, $t3) }}
                             </td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium">
                                 {{ $efi($t1, 'EficienciaSTD') }}
@@ -213,13 +270,23 @@
                                     $o3 = $obsData($tx, 'StatusOB3', 'ObsR3');
                                 @endphp
 
-                                {{-- ── Horario 1: RPM · % EF · Obs ── --}}
+                                {{-- ── RPM (misma lógica actual: última no-cero de H3>H2>H1) ── --}}
                                 <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 {{ $horarioColors[1]['cell'] }}">
-                                    {{ $val($tx, 'RpmR1') }}
+                                    {{ $lastRpmTurno($tx) }}
                                 </td>
+
+                                {{-- ── EF por horario (1,2,3) ── --}}
                                 <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[1]['cell'] }}">
                                     {{ $efi($tx, 'EficienciaR1') }}
                                 </td>
+                                <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[2]['cell'] }}">
+                                    {{ $efi($tx, 'EficienciaR2') }}
+                                </td>
+                                <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[3]['cell'] }}">
+                                    {{ $efi($tx, 'EficienciaR3') }}
+                                </td>
+
+                                {{-- ── Observaciones por horario (1,2,3) ── --}}
                                 <td class="px-2 py-2 border border-gray-300 {{ $horarioColors[1]['cell'] }}">
                                     @if ($o1['status'] || $o1['text'] !== '')
                                         <span class="inline-flex items-center gap-1 text-xs text-gray-700"
@@ -235,11 +302,6 @@
                                         </span>
                                     @endif
                                 </td>
-
-                                {{-- ── Horario 2: % EF · Obs ── --}}
-                                <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[2]['cell'] }}">
-                                    {{ $efi($tx, 'EficienciaR2') }}
-                                </td>
                                 <td class="px-2 py-2 border border-gray-300 {{ $horarioColors[2]['cell'] }}">
                                     @if ($o2['status'] || $o2['text'] !== '')
                                         <span class="inline-flex items-center gap-1 text-xs text-gray-700"
@@ -254,11 +316,6 @@
                                             @endif
                                         </span>
                                     @endif
-                                </td>
-
-                                {{-- ── Horario 3: % EF · Obs ── --}}
-                                <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[3]['cell'] }}">
-                                    {{ $efi($tx, 'EficienciaR3') }}
                                 </td>
                                 <td class="px-2 py-2 border border-gray-300 {{ $horarioColors[3]['cell'] }}">
                                     @if ($o3['status'] || $o3['text'] !== '')
@@ -347,6 +404,41 @@
         } catch (error) {
             console.error('Excepción al descargar PDF:', error);
             alert('Ocurrió un error al intentar descargar el PDF.');
+        }
+    }
+
+    async function notificarTelegram(fecha) {
+        const btn = document.getElementById('btn-telegram');
+        const originalHtml = btn.innerHTML;
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Enviando...';
+
+            const response = await fetch('{{ route("cortes.eficiencia.visualizar.telegram") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: new URLSearchParams({ fecha })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                console.error('Error al notificar por Telegram:', data);
+                alert(data.message || 'No se pudo enviar la notificación por Telegram.');
+                return;
+            }
+
+            alert('Reporte enviado por Telegram exitosamente.');
+        } catch (error) {
+            console.error('Excepción al notificar por Telegram:', error);
+            alert('Ocurrió un error al intentar enviar la notificación por Telegram.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
         }
     }
 </script>

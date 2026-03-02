@@ -114,7 +114,9 @@ class CortesEficienciaController extends Controller
     }
 
     /**
-     * Obtener datos de telares desde ReqProgramaTejido
+     * Obtener datos de telares desde TejEficienciaLine.
+     * Para RPM: busca la última RPM real (no-cero) de cualquier turno y horario,
+     * revisando los registros más recientes y priorizando Horario 3 > 2 > 1.
      */
     public function getDatosTelares()
     {
@@ -122,20 +124,59 @@ class CortesEficienciaController extends Controller
             // 1) Ordenar telares según InvSecuenciaCorteEf
             $secuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->get(['NoTelarId']);
 
-            // 2) Para cada telar, buscar el último registro en TejEficienciaLine (si existe)
+            // 2) Para cada telar, buscar la última RPM real != 0 de cualquier turno/horario
             $list = [];
             foreach ($secuencia as $row) {
-                $noTelar = (int)$row->NoTelarId;
-                $lastLine = TejEficienciaLine::where('NoTelarId', $noTelar)
+                $noTelar = (int) $row->NoTelarId;
+
+                // Obtener los registros más recientes (por fecha desc, turno desc)
+                $recentLines = TejEficienciaLine::where('NoTelarId', $noTelar)
                     ->orderBy('Date', 'desc')
+                    ->orderBy('Turno', 'desc')
                     ->orderBy('created_at', 'desc')
-                    ->first();
+                    ->limit(20)
+                    ->get();
+
+                $lastRpm = null;
+                $lastEficiencia = null;
+
+                foreach ($recentLines as $line) {
+                    // Buscar última RPM real != 0: priorizar Horario 3 > 2 > 1
+                    if ($lastRpm === null) {
+                        if (!empty($line->RpmR3) && (float) $line->RpmR3 != 0) {
+                            $lastRpm = $line->RpmR3;
+                        } elseif (!empty($line->RpmR2) && (float) $line->RpmR2 != 0) {
+                            $lastRpm = $line->RpmR2;
+                        } elseif (!empty($line->RpmR1) && (float) $line->RpmR1 != 0) {
+                            $lastRpm = $line->RpmR1;
+                        }
+                    }
+
+                    // Buscar última Eficiencia real != 0: misma lógica Horario 3 > 2 > 1
+                    if ($lastEficiencia === null) {
+                        if (!empty($line->EficienciaR3) && (float) $line->EficienciaR3 != 0) {
+                            $lastEficiencia = $line->EficienciaR3;
+                        } elseif (!empty($line->EficienciaR2) && (float) $line->EficienciaR2 != 0) {
+                            $lastEficiencia = $line->EficienciaR2;
+                        } elseif (!empty($line->EficienciaR1) && (float) $line->EficienciaR1 != 0) {
+                            $lastEficiencia = $line->EficienciaR1;
+                        }
+                    }
+
+                    // Si ya encontramos ambos, no seguir buscando
+                    if ($lastRpm !== null && $lastEficiencia !== null) {
+                        break;
+                    }
+                }
+
+                // Fallback al RpmStd / EficienciaSTD del registro más reciente
+                $lastLine = $recentLines->first();
 
                 $list[] = [
                     'NoTelarId'     => $noTelar,
                     // Mantener nombres esperados por el frontend
-                    'VelocidadStd'  => $lastLine->RpmStd ?? null,
-                    'EficienciaStd' => $lastLine->EficienciaSTD ?? null,
+                    'VelocidadStd'  => $lastRpm ?? ($lastLine->RpmStd ?? null),
+                    'EficienciaStd' => $lastEficiencia ?? ($lastLine->EficienciaSTD ?? null),
                 ];
             }
 
@@ -839,6 +880,7 @@ class CortesEficienciaController extends Controller
                 'fecha' => $info['fecha'],
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
+                'horariosPorTurno' => $info['horariosPorTurno'],
             ]);
         } catch (\Exception $e) {
             Log::error('Error al visualizar cortes de eficiencia: ' . $e->getMessage());
@@ -916,6 +958,7 @@ class CortesEficienciaController extends Controller
                 'fecha' => $info['fecha'],
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
+                'horariosPorTurno' => $info['horariosPorTurno'],
             ])->render();
 
             $options = new Options();
@@ -993,6 +1036,28 @@ class CortesEficienciaController extends Controller
             }
         }
 
+        $cortesPorTurnoFolio = TejEficiencia::whereDate('Date', $fechaNorm)
+            ->whereIn('Turno', [1, 2, 3])
+            ->get()
+            ->groupBy(function ($corte) {
+                return (string) $corte->Turno . '|' . (string) $corte->Folio;
+            });
+
+        $horariosPorTurno = [];
+        foreach ([1, 2, 3] as $turno) {
+            $folioTurno = $foliosPorTurno[(string) $turno] ?? null;
+            $key = (string) $turno . '|' . (string) $folioTurno;
+            $corteTurno = ($folioTurno !== null && isset($cortesPorTurnoFolio[$key]))
+                ? $cortesPorTurnoFolio[$key]->first()
+                : null;
+
+            $horariosPorTurno[(string) $turno] = [
+                1 => $this->formatearHora($corteTurno->Horario1 ?? null),
+                2 => $this->formatearHora($corteTurno->Horario2 ?? null),
+                3 => $this->formatearHora($corteTurno->Horario3 ?? null),
+            ];
+        }
+
         $datos = $telares->map(function ($telar) use ($porTelarTurno) {
             $t1 = $porTelarTurno[$telar]['1'] ?? null;
             $t2 = $porTelarTurno[$telar]['2'] ?? null;
@@ -1009,6 +1074,7 @@ class CortesEficienciaController extends Controller
             'fecha' => $fechaNorm,
             'datos' => $datos,
             'foliosPorTurno' => $foliosPorTurno,
+            'horariosPorTurno' => $horariosPorTurno,
         ];
     }
 
@@ -1097,6 +1163,71 @@ class CortesEficienciaController extends Controller
                 'fecha' => $fecha,
                 'filename' => $filename,
             ]);
+        }
+    }
+
+    /**
+     * Generar PDF y enviarlo por Telegram (sin descarga al navegador).
+     */
+    public function notificarTelegram(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['success' => false, 'message' => 'Fecha requerida'], 400);
+            }
+
+            $fechaNorm = $this->normalizarFecha($fecha);
+            $info = $this->obtenerDatosVisualizacionPorFecha($fechaNorm);
+
+            if ($info['datos']->isEmpty()) {
+                return response()->json(['success' => false, 'message' => 'Sin datos para la fecha seleccionada'], 404);
+            }
+
+            // Generar el PDF
+            $html = view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia-pdf', [
+                'fecha' => $info['fecha'],
+                'datos' => $info['datos'],
+                'foliosPorTurno' => $info['foliosPorTurno'],
+                'horariosPorTurno' => $info['horariosPorTurno'],
+            ])->render();
+
+            $options = new Options();
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('isRemoteEnabled', true);
+            $options->set('defaultFont', 'Arial');
+            $options->set('isPhpEnabled', false);
+            $options->set('chroot', public_path());
+            $options->set('tempDir', sys_get_temp_dir());
+
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('a4', 'landscape');
+            $dompdf->render();
+
+            $pdfContent = $dompdf->output();
+            $filename = 'cortes_eficiencia_' . $fechaNorm . '.pdf';
+
+            if (empty($pdfContent)) {
+                return response()->json(['success' => false, 'message' => 'Error: PDF generado está vacío'], 500);
+            }
+
+            // Enviar por Telegram
+            $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reporte enviado por Telegram exitosamente',
+            ]);
+        } catch (\Throwable $th) {
+            Log::error('Error al notificar por Telegram cortes de eficiencia', [
+                'mensaje' => $th->getMessage(),
+                'trace' => $th->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar por Telegram: ' . $th->getMessage(),
+            ], 500);
         }
     }
 

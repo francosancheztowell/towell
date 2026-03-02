@@ -186,6 +186,7 @@ Route::get('/modulo-cortes-de-eficiencia/visualizar/{folio}', [CortesEficienciaC
 Route::get('/modulo-cortes-de-eficiencia/visualizar-folio/{folio}', [CortesEficienciaController::class, 'visualizarFolio'])->name('cortes.eficiencia.visualizar.folio');
 Route::post('/modulo-cortes-de-eficiencia/visualizar/exportar-excel', [CortesEficienciaController::class, 'exportarVisualizacionExcel'])->name('cortes.eficiencia.visualizar.excel');
 Route::post('/modulo-cortes-de-eficiencia/visualizar/descargar-pdf', [CortesEficienciaController::class, 'descargarVisualizacionPDF'])->name('cortes.eficiencia.visualizar.pdf');
+Route::post('/modulo-cortes-de-eficiencia/visualizar/notificar-telegram', [CortesEficienciaController::class, 'notificarTelegram'])->name('cortes.eficiencia.visualizar.telegram');
 
 Route::get('/modulo-nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('modulo.nuevo.requerimiento');
 Route::post('/modulo-nuevo-requerimiento/guardar', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('modulo.nuevo.requerimiento.store');
