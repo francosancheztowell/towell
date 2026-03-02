@@ -5,6 +5,9 @@
     },
     "cursor-team-kit": {
       "enabled": true
+    },
+    "compound-engineering": {
+      "enabled": true
     }
   }
 }
