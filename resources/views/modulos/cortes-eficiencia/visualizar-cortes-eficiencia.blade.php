@@ -53,6 +53,32 @@
         'status' => $line ? (bool) ($line->$campoStatus ?? false) : false,
         'text'   => $line ? trim($line->$campoText ?? '') : '',
     ];
+
+    // Última RPM real (no-cero) de cualquier turno/horario: prioriza Turno 3>2>1, Horario 3>2>1
+    $lastRpm = function ($t1, $t2, $t3) {
+        foreach ([$t3, $t2, $t1] as $line) {
+            if (!$line) continue;
+            foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
+                $v = $line->$campo ?? null;
+                if ($v !== null && $v !== '' && (float) $v != 0) return (int) $v;
+            }
+        }
+        // Fallback: RpmStd del primer turno disponible
+        foreach ([$t1, $t2, $t3] as $line) {
+            if ($line && !empty($line->RpmStd)) return $line->RpmStd;
+        }
+        return '';
+    };
+
+    // Última RPM real (no-cero) de un turno específico: Horario 3>2>1
+    $lastRpmTurno = function ($line) {
+        if (!$line) return '';
+        foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
+            $v = $line->$campo ?? null;
+            if ($v !== null && $v !== '' && (float) $v != 0) return (int) $v;
+        }
+        return '';
+    };
 @endphp
 
 <div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
@@ -70,6 +96,10 @@
             <button onclick="descargarCortesPDF('{{ $fecha }}')"
                     class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">
                 <i class="fa fa-file-pdf mr-2"></i> Descargar PDF
+            </button>
+                        <button onclick="notificarTelegram('{{ $fecha }}')" id="btn-telegram"
+                    class="inline-flex items-center px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-md transition-colors">
+                <i class="fa-brands fa-telegram mr-2"></i> Notificar Telegram
             </button>
         </div>
     </div>
@@ -197,9 +227,9 @@
                                 {{ $row['telar'] }}
                             </td>
 
-                            {{-- STD (tomado del turno 1) --}}
+                            {{-- STD (última RPM real no-cero de cualquier turno/horario) --}}
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700">
-                                {{ $val($t1, 'RpmStd') }}
+                                {{ $lastRpm($t1, $t2, $t3) }}
                             </td>
                             <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium">
                                 {{ $efi($t1, 'EficienciaSTD') }}
@@ -213,9 +243,9 @@
                                     $o3 = $obsData($tx, 'StatusOB3', 'ObsR3');
                                 @endphp
 
-                                {{-- ── Horario 1: RPM · % EF · Obs ── --}}
+                                {{-- ── Horario 1: RPM (última no-cero de H3>H2>H1) · % EF · Obs ── --}}
                                 <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 {{ $horarioColors[1]['cell'] }}">
-                                    {{ $val($tx, 'RpmR1') }}
+                                    {{ $lastRpmTurno($tx) }}
                                 </td>
                                 <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[1]['cell'] }}">
                                     {{ $efi($tx, 'EficienciaR1') }}
@@ -347,6 +377,41 @@
         } catch (error) {
             console.error('Excepción al descargar PDF:', error);
             alert('Ocurrió un error al intentar descargar el PDF.');
+        }
+    }
+
+    async function notificarTelegram(fecha) {
+        const btn = document.getElementById('btn-telegram');
+        const originalHtml = btn.innerHTML;
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Enviando...';
+
+            const response = await fetch('{{ route("cortes.eficiencia.visualizar.telegram") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: new URLSearchParams({ fecha })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                console.error('Error al notificar por Telegram:', data);
+                alert(data.message || 'No se pudo enviar la notificación por Telegram.');
+                return;
+            }
+
+            alert('Reporte enviado por Telegram exitosamente.');
+        } catch (error) {
+            console.error('Excepción al notificar por Telegram:', error);
+            alert('Ocurrió un error al intentar enviar la notificación por Telegram.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
         }
     }
 </script>
