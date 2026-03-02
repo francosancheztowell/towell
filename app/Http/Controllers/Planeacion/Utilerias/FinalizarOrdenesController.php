@@ -25,9 +25,12 @@
 namespace App\Http\Controllers\Planeacion\Utilerias;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
+use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -138,65 +141,227 @@ class FinalizarOrdenesController extends Controller
     }
 
     /**
-     * Finaliza las órdenes seleccionadas: EnProceso = 0, FechaFinaliza = now().
-     * Recalcula posiciones del telar para mantener consecutividad.
+     * Elimina las órdenes seleccionadas (cualquier registro con NoProduccion, sin importar EnProceso).
+     *
+     * Por cada registro eliminado:
+     *  1. Maneja OrdCompartida: transfiere saldo al líder si aplica.
+     *  2. Sincroniza FechaFinaliza a CatCodificados.
+     *  3. Sincroniza Pedido/Produccion/Saldos a CatCodificados.
+     *  4. Elimina el registro físicamente.
+     *
+     * Después, por cada telar afectado:
+     *  5. Si el registro eliminado tenía EnProceso=1, asigna EnProceso=1 al primer restante por Posicion.
+     *  6. Recalcula la cadena de fechas (FechaInicio/FechaFinal) con DateHelpers.
+     *  7. Dispara ReqProgramaTejidoObserver para regenerar líneas diarias y fórmulas.
      */
     public function finalizarOrdenes(Request $request): JsonResponse
     {
         $request->validate([
-            'ids' => 'required|array|min:1',
+            'ids'   => 'required|array|min:1',
             'ids.*' => 'required|integer',
         ]);
 
         $ids = $request->input('ids');
 
+        $dispatcher     = ReqProgramaTejido::getEventDispatcher();
+        $idsAfectados   = [];   // IDs de registros restantes en telares afectados
+        $tabla          = ReqProgramaTejido::tableName();
+
         DB::beginTransaction();
         try {
             $registros = ReqProgramaTejido::whereIn('Id', $ids)
-                ->where('EnProceso', 1)
+                ->whereNotNull('NoProduccion')
+                ->where('NoProduccion', '!=', '')
+                ->lockForUpdate()
                 ->get();
 
             if ($registros->isEmpty()) {
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se encontraron órdenes en proceso con los IDs proporcionados',
+                    'message' => 'No se encontraron órdenes con NoOrden válido en los IDs proporcionados',
                 ], 422);
             }
 
-            $telaresAfectados = [];
-            $ahora = Carbon::now();
+            $telaresAfectados        = [];
+            $telaresNecesitanEnProceso = [];  // telares cuyo EnProceso=1 fue eliminado
+            $ahora                   = Carbon::now();
+            $movimientoService       = new MovimientoDesarrolladorService();
+            $ordCompartidasVistas    = [];
 
-            /** @var \App\Models\Planeacion\ReqProgramaTejido $registro */
+            // ─── PASO 1: Finalizar cada registro y sincronizar CatCodificados ────────
+            /** @var ReqProgramaTejido $registro */
             foreach ($registros as $registro) {
-                $registro->EnProceso = false;
-                $registro->FechaFinaliza = $ahora;
-                $registro->UpdatedAt = $ahora;
-                $registro->save();
+                $salonTejido = $registro->SalonTejidoId;
+                $noTelarId   = $registro->NoTelarId;
+                $key         = $salonTejido . '|' . $noTelarId;
 
-                // * Registrar telar afectado para recalcular posiciones después
-                $key = $registro->SalonTejidoId . '|' . $registro->NoTelarId;
+                // 1a) Manejar OrdCompartida: transferir saldo al líder
+                $ordCompartidaRaw = trim((string) ($registro->OrdCompartida ?? ''));
+                $ordCompartida    = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
+
+                if ($ordCompartida && $ordCompartida > 0) {
+                    $saldoTransferir = (float) ($registro->SaldoPedido ?? 0);
+                    if ($saldoTransferir !== 0.0) {
+                        $lider = ReqProgramaTejido::query()
+                            ->where('OrdCompartida', $ordCompartida)
+                            ->where('OrdCompartidaLider', 1)
+                            ->where('Id', '!=', $registro->Id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (!$lider) {
+                            $lider = ReqProgramaTejido::query()
+                                ->where('OrdCompartida', $ordCompartida)
+                                ->where('Id', '!=', $registro->Id)
+                                ->orderBy('FechaInicio', 'asc')
+                                ->lockForUpdate()
+                                ->first();
+                            if ($lider) {
+                                $lider->OrdCompartidaLider = 1;
+                            }
+                        }
+
+                        if ($lider) {
+                            $saldoActual = (float) ($lider->SaldoPedido ?? 0);
+                            $lider->SaldoPedido = $saldoActual + $saldoTransferir;
+                            $lider->saveQuietly();
+                            $movimientoService->actualizarReqModelosDesdePrograma($lider);
+                        }
+                    }
+
+                    $ordCompartidasVistas[$ordCompartida] = true;
+                }
+
+                // 1b) Si tenía EnProceso=1, este telar necesitará reasignación
+                if ($registro->EnProceso) {
+                    $telaresNecesitanEnProceso[$key] = true;
+                }
+
+                // 1c) Sincronizar FechaFinaliza a CatCodificados antes de eliminar
+                $registro->FechaFinaliza = $ahora;
+                $movimientoService->actualizarFechasArranqueFinaliza($registro, null, 'now');
+
+                // 1d) Sincronizar Pedido/Produccion/Saldos a CatCodificados
+                $movimientoService->actualizarReqModelosDesdePrograma($registro);
+
+                // 1e) Eliminar el registro físicamente
+                $registro->delete();
+
+                // Registrar telar afectado
                 if (!isset($telaresAfectados[$key])) {
                     $telaresAfectados[$key] = [
-                        'salon' => $registro->SalonTejidoId,
-                        'telar' => $registro->NoTelarId,
+                        'salon' => $salonTejido,
+                        'telar' => $noTelarId,
                     ];
                 }
             }
 
-            // * Recalcular posiciones en cada telar afectado
-            foreach ($telaresAfectados as $info) {
-                TejidoHelpers::recalcularPosicionesPorTelar($info['salon'], $info['telar']);
+            // 1f) Actualizar OrdPrincipal para todas las OrdCompartida afectadas
+            foreach (array_keys($ordCompartidasVistas) as $ordComp) {
+                VincularTejido::actualizarOrdPrincipalPorOrdCompartida((int) $ordComp);
             }
 
+            // 1g) Asignar EnProceso=1 al primer restante en telares que lo perdieron
+            foreach ($telaresNecesitanEnProceso as $key => $_) {
+                if (!isset($telaresAfectados[$key])) {
+                    continue;
+                }
+                $info  = $telaresAfectados[$key];
+                $salon = $info['salon'];
+                $telar = $info['telar'];
+
+                $primerRestante = ReqProgramaTejido::query()
+                    ->where('SalonTejidoId', $salon)
+                    ->where('NoTelarId', $telar)
+                    ->orderBy('Posicion', 'asc')
+                    ->orderBy('FechaInicio', 'asc')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($primerRestante) {
+                    DB::table($tabla)
+                        ->where('SalonTejidoId', $salon)
+                        ->where('NoTelarId', $telar)
+                        ->update(['EnProceso' => 0]);
+
+                    DB::table($tabla)
+                        ->where('Id', $primerRestante->Id)
+                        ->update(['EnProceso' => 1]);
+                }
+            }
+
+            // ─── PASO 2: Recalcular fechas encadenadas por telar ─────────────────────
+            ReqProgramaTejido::unsetEventDispatcher();
+
+            foreach ($telaresAfectados as $info) {
+                $salon = $info['salon'];
+                $telar = $info['telar'];
+
+                $registrosTelar = ReqProgramaTejido::query()
+                    ->where('SalonTejidoId', $salon)
+                    ->where('NoTelarId', $telar)
+                    ->orderBy('Posicion', 'asc')
+                    ->orderBy('FechaInicio', 'asc')
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($registrosTelar->isEmpty()) {
+                    continue;
+                }
+
+                $primeroConFecha = $registrosTelar->first(fn ($r) => !empty($r->FechaInicio));
+                if (!$primeroConFecha) {
+                    continue;
+                }
+
+                $inicioOriginal = Carbon::parse($primeroConFecha->FechaInicio);
+
+                [$updates] = DateHelpers::recalcularFechasSecuencia(
+                    $registrosTelar->values(),
+                    $inicioOriginal,
+                    true
+                );
+
+                if (empty($updates)) {
+                    continue;
+                }
+
+                // No dejar que recalcularFechasSecuencia sobrescriba EnProceso:
+                // esa función siempre pone el primer registro como EnProceso=1,
+                // pero aquí los estados fueron definidos en el Paso 1 y deben respetarse.
+                foreach ($updates as &$upd) {
+                    unset($upd['EnProceso']);
+                }
+                unset($upd);
+
+                // Collision-avoidance para índice único en Posicion
+                DB::table($tabla)
+                    ->whereIn('Id', array_keys($updates))
+                    ->where('SalonTejidoId', $salon)
+                    ->where('NoTelarId', $telar)
+                    ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
+
+                foreach ($updates as $idU => $dataU) {
+                    if (isset($dataU['Posicion'])) {
+                        $dataU['Posicion'] = (int) $dataU['Posicion'];
+                    }
+                    DB::table($tabla)
+                        ->where('Id', $idU)
+                        ->where('SalonTejidoId', $salon)
+                        ->where('NoTelarId', $telar)
+                        ->update($dataU);
+
+                    $idsAfectados[] = (int) $idU;
+                }
+            }
+
+            // ─── PASO 3: Restaurar dispatcher y confirmar ────────────────────────────
+            ReqProgramaTejido::setEventDispatcher($dispatcher);
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Se finalizaron ' . $registros->count() . ' orden(es) correctamente',
-                'finalizadas' => $registros->count(),
-            ]);
         } catch (\Throwable $e) {
+            ReqProgramaTejido::setEventDispatcher($dispatcher);
             DB::rollBack();
             Log::error('Utilería/Finalizar - Error al finalizar órdenes: ' . $e->getMessage());
             return response()->json([
@@ -204,5 +369,23 @@ class FinalizarOrdenesController extends Controller
                 'message' => 'Error al finalizar las órdenes: ' . $e->getMessage(),
             ], 500);
         }
+
+        // ─── PASO 4: Disparar observer (fuera de transacción) ────────────────────
+        $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
+        if (!empty($idsAfectados)) {
+            $observer = new ReqProgramaTejidoObserver();
+            $modelos  = ReqProgramaTejido::query()->whereIn('Id', $idsAfectados)->get();
+            /** @var ReqProgramaTejido $modelo */
+            foreach ($modelos as $modelo) {
+                $modelo->refresh();
+                $observer->saved($modelo);
+            }
+        }
+
+        return response()->json([
+            'success'     => true,
+            'message'     => 'Se finalizaron ' . $registros->count() . ' orden(es) correctamente',
+            'finalizadas' => $registros->count(),
+        ]);
     }
 }
