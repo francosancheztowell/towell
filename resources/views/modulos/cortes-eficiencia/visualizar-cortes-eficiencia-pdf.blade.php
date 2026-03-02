@@ -73,6 +73,7 @@
             font-size: 7.5px;
         }
         .col-telar { width: 42px; }
+        .col-fecha { width: 46px; }
         .col-std   { width: 32px; }
         .col-ef    { width: 32px; }
 
@@ -169,6 +170,39 @@
             return '✓';
         };
 
+        $lastRpm = function ($t1, $t2, $t3) {
+            foreach ([$t3, $t2, $t1] as $line) {
+                if (!$line) continue;
+                foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
+                    $v = $line->$campo ?? null;
+                    if ($v !== null && $v !== '' && (float) $v != 0) return (int) $v;
+                }
+            }
+            foreach ([$t1, $t2, $t3] as $line) {
+                if ($line && !empty($line->RpmStd)) return $line->RpmStd;
+            }
+            return '';
+        };
+
+        $lastRpmTurno = function ($line) {
+            if (!$line) return '';
+            foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
+                $v = $line->$campo ?? null;
+                if ($v !== null && $v !== '' && (float) $v != 0) return (int) $v;
+            }
+            return '';
+        };
+
+        $horariosBase = $horariosPorTurno ?? [];
+        $horariosTurno = [];
+        foreach ([1, 2, 3] as $turno) {
+            $horariosTurno[$turno] = [
+                1 => $horariosBase[(string) $turno][1] ?? '--:--',
+                2 => $horariosBase[(string) $turno][2] ?? '--:--',
+                3 => $horariosBase[(string) $turno][3] ?? '--:--',
+            ];
+        }
+
         $turnoHdr = ['hdr-t1', 'hdr-t2', 'hdr-t3'];
         $hdrH     = ['hdr-h1', 'hdr-h2', 'hdr-h3'];
         $hdrC     = ['hdr-c1', 'hdr-c2', 'hdr-c3'];
@@ -180,36 +214,36 @@
 
             {{-- ── Fila 1: Telar / STD / %EF Std + Turno N ── --}}
             <tr>
+                <th rowspan="3" class="hdr-fixed col-fecha">Fecha</th>
                 <th rowspan="3" class="hdr-fixed col-telar">Telar</th>
                 <th rowspan="3" class="hdr-fixed col-std">STD</th>
                 <th rowspan="3" class="hdr-fixed col-ef">% EF<br>Std</th>
                 @for ($t = 1; $t <= 3; $t++)
-                    {{-- colspan 7 = H1(3) + H2(2) + H3(2) --}}
                     <th colspan="7" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}</th>
                 @endfor
             </tr>
 
-            {{-- ── Fila 2: Horario 1 / 2 / 3 por cada turno ── --}}
+            {{-- ── Fila 2: RPM + Horarios por turno ── --}}
             <tr>
                 @for ($t = 1; $t <= 3; $t++)
-                    <th colspan="3" class="{{ $hdrH[0] }}">Horario 1</th>
-                    <th colspan="2" class="{{ $hdrH[1] }}">Horario 2</th>
-                    <th colspan="2" class="{{ $hdrH[2] }}">Horario 3</th>
+                    <th rowspan="2" class="{{ $hdrH[0] }} col-rpm">RPM</th>
+                    <th class="{{ $hdrH[0] }}">Horario: {{ $horariosTurno[$t][1] }}</th>
+                    <th class="{{ $hdrH[1] }}">Horario: {{ $horariosTurno[$t][2] }}</th>
+                    <th class="{{ $hdrH[2] }}">Horario: {{ $horariosTurno[$t][3] }}</th>
+                    <th class="{{ $hdrH[0] }}">Horario: {{ $horariosTurno[$t][1] }}</th>
+                    <th class="{{ $hdrH[1] }}">Horario: {{ $horariosTurno[$t][2] }}</th>
+                    <th class="{{ $hdrH[2] }}">Horario: {{ $horariosTurno[$t][3] }}</th>
                 @endfor
             </tr>
 
-            {{-- ── Fila 3: nombres de columna ── --}}
+            {{-- ── Fila 3: EF x3 y Obs x3 ── --}}
             <tr>
                 @for ($t = 1; $t <= 3; $t++)
-                    {{-- H1: RPM · % EF · Obs --}}
-                    <th class="{{ $hdrC[0] }} col-rpm">RPM</th>
-                    <th class="{{ $hdrC[0] }} col-pef">% EF</th>
+                    <th class="{{ $hdrC[0] }} col-pef">EF</th>
+                    <th class="{{ $hdrC[1] }} col-pef">EF</th>
+                    <th class="{{ $hdrC[2] }} col-pef">EF</th>
                     <th class="{{ $hdrC[0] }} col-obs">Obs</th>
-                    {{-- H2: % EF · Obs --}}
-                    <th class="{{ $hdrC[1] }} col-pef">% EF</th>
                     <th class="{{ $hdrC[1] }} col-obs">Obs</th>
-                    {{-- H3: % EF · Obs --}}
-                    <th class="{{ $hdrC[2] }} col-pef">% EF</th>
                     <th class="{{ $hdrC[2] }} col-obs">Obs</th>
                 @endfor
             </tr>
@@ -224,11 +258,17 @@
                     $turnos = [1 => $t1, 2 => $t2, 3 => $t3];
                 @endphp
                 <tr>
+                    @if ($i === 0)
+                        <td rowspan="{{ count($datos) }}" class="col-fecha">
+                            {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}
+                        </td>
+                    @endif
+
                     {{-- Telar --}}
                     <td class="td-telar">{{ $row['telar'] }}</td>
 
-                    {{-- STD (del turno 1) --}}
-                    <td>{{ $val($t1, 'RpmStd') }}</td>
+                    {{-- STD (misma lógica que vista normal) --}}
+                    <td>{{ $lastRpm($t1, $t2, $t3) }}</td>
                     <td class="{{ $efiClass($t1, 'EficienciaSTD') }}">{{ $efi($t1, 'EficienciaSTD') }}</td>
 
                     {{-- ── 3 Turnos ── --}}
@@ -239,23 +279,19 @@
                             $h3 = $cellH[2];
                         @endphp
 
-                        {{-- Horario 1: RPM · % EF · Obs --}}
-                        <td class="{{ $h1 }} col-rpm">{{ $val($tx, 'RpmR1') }}</td>
+                        {{-- RPM + EFx3 + Obsx3 por turno --}}
+                        <td class="{{ $h1 }} col-rpm">{{ $lastRpmTurno($tx) }}</td>
                         <td class="{{ $h1 }} {{ $efiClass($tx, 'EficienciaR1', $tNum) }}">{{ $efi($tx, 'EficienciaR1') }}</td>
-                        <td class="{{ $h1 }} col-obs">{{ $obsText($tx, 'StatusOB1', 'ObsR1') }}</td>
-
-                        {{-- Horario 2: % EF · Obs --}}
                         <td class="{{ $h2 }} {{ $efiClass($tx, 'EficienciaR2', $tNum) }}">{{ $efi($tx, 'EficienciaR2') }}</td>
-                        <td class="{{ $h2 }} col-obs">{{ $obsText($tx, 'StatusOB2', 'ObsR2') }}</td>
-
-                        {{-- Horario 3: % EF · Obs --}}
                         <td class="{{ $h3 }} {{ $efiClass($tx, 'EficienciaR3', $tNum) }}">{{ $efi($tx, 'EficienciaR3') }}</td>
+                        <td class="{{ $h1 }} col-obs">{{ $obsText($tx, 'StatusOB1', 'ObsR1') }}</td>
+                        <td class="{{ $h2 }} col-obs">{{ $obsText($tx, 'StatusOB2', 'ObsR2') }}</td>
                         <td class="{{ $h3 }} col-obs">{{ $obsText($tx, 'StatusOB3', 'ObsR3') }}</td>
                     @endforeach
                 </tr>
             @empty
                 <tr>
-                    <td colspan="24" style="padding: 12px; color: #6b7280;">
+                    <td colspan="25" style="padding: 12px; color: #6b7280;">
                         Sin datos para la fecha seleccionada.
                     </td>
                 </tr>

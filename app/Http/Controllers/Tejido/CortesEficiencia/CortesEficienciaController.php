@@ -880,6 +880,7 @@ class CortesEficienciaController extends Controller
                 'fecha' => $info['fecha'],
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
+                'horariosPorTurno' => $info['horariosPorTurno'],
             ]);
         } catch (\Exception $e) {
             Log::error('Error al visualizar cortes de eficiencia: ' . $e->getMessage());
@@ -957,6 +958,7 @@ class CortesEficienciaController extends Controller
                 'fecha' => $info['fecha'],
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
+                'horariosPorTurno' => $info['horariosPorTurno'],
             ])->render();
 
             $options = new Options();
@@ -1034,6 +1036,28 @@ class CortesEficienciaController extends Controller
             }
         }
 
+        $cortesPorTurnoFolio = TejEficiencia::whereDate('Date', $fechaNorm)
+            ->whereIn('Turno', [1, 2, 3])
+            ->get()
+            ->groupBy(function ($corte) {
+                return (string) $corte->Turno . '|' . (string) $corte->Folio;
+            });
+
+        $horariosPorTurno = [];
+        foreach ([1, 2, 3] as $turno) {
+            $folioTurno = $foliosPorTurno[(string) $turno] ?? null;
+            $key = (string) $turno . '|' . (string) $folioTurno;
+            $corteTurno = ($folioTurno !== null && isset($cortesPorTurnoFolio[$key]))
+                ? $cortesPorTurnoFolio[$key]->first()
+                : null;
+
+            $horariosPorTurno[(string) $turno] = [
+                1 => $this->formatearHora($corteTurno->Horario1 ?? null),
+                2 => $this->formatearHora($corteTurno->Horario2 ?? null),
+                3 => $this->formatearHora($corteTurno->Horario3 ?? null),
+            ];
+        }
+
         $datos = $telares->map(function ($telar) use ($porTelarTurno) {
             $t1 = $porTelarTurno[$telar]['1'] ?? null;
             $t2 = $porTelarTurno[$telar]['2'] ?? null;
@@ -1050,6 +1074,7 @@ class CortesEficienciaController extends Controller
             'fecha' => $fechaNorm,
             'datos' => $datos,
             'foliosPorTurno' => $foliosPorTurno,
+            'horariosPorTurno' => $horariosPorTurno,
         ];
     }
 
@@ -1164,6 +1189,7 @@ class CortesEficienciaController extends Controller
                 'fecha' => $info['fecha'],
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
+                'horariosPorTurno' => $info['horariosPorTurno'],
             ])->render();
 
             $options = new Options();
