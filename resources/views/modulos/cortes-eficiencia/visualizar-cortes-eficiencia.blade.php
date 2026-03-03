@@ -15,19 +15,16 @@
             'header' => 'bg-blue-400   text-white',
             'cols'   => 'bg-blue-300   text-white',
             'cell'   => 'bg-blue-50/40',
-            'icon'   => 'text-blue-500',
         ],
         2 => [
             'header' => 'bg-green-400  text-white',
             'cols'   => 'bg-green-300  text-white',
             'cell'   => 'bg-green-50/40',
-            'icon'   => 'text-green-500',
         ],
         3 => [
             'header' => 'bg-yellow-400 text-white',
             'cols'   => 'bg-yellow-300 text-white',
             'cell'   => 'bg-yellow-50/40',
-            'icon'   => 'text-yellow-500',
         ],
     ];
     $folioTurnos = [
@@ -55,7 +52,7 @@
         if (!$line) return '';
         $e = $line->$campo ?? null;
         if ($e === null || $e === '') return '';
-        return number_format((float) $e, 2);
+        return (string) round((float) $e);
     };
     $obsData = fn($line, $campoStatus, $campoText) => [
         'status' => $line ? (bool) ($line->$campoStatus ?? false) : false,
@@ -221,11 +218,11 @@
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
                                        sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[70px]">EF</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[120px]">Obs</th>
+                                       sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[260px]">Obs</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[2]['cols'] }} min-w-[120px]">Obs</th>
+                                       sticky top-0 z-10 {{ $horarioColors[2]['cols'] }} min-w-[260px]">Obs</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[120px]">Obs</th>
+                                       sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[260px]">Obs</th>
                         @endfor
                     </tr>
 
@@ -287,47 +284,32 @@
                                 </td>
 
                                 {{-- ── Observaciones por horario (1,2,3) ── --}}
-                                <td class="px-2 py-2 border border-gray-300 {{ $horarioColors[1]['cell'] }}">
+                                <td class="px-2 py-2 border border-gray-300 align-top min-w-[260px] {{ $horarioColors[1]['cell'] }}">
                                     @if ($o1['status'] || $o1['text'] !== '')
-                                        <span class="inline-flex items-center gap-1 text-xs text-gray-700"
+                                        <span class="block text-[9px] leading-4 text-gray-700 whitespace-pre-wrap break-words"
                                               title="{{ $o1['text'] }}">
-                                            <svg class="w-3 h-3 flex-shrink-0 {{ $horarioColors[1]['icon'] }}"
-                                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                      stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                            </svg>
                                             @if ($o1['text'] !== '')
-                                                <span class="truncate max-w-[100px]">{{ $o1['text'] }}</span>
+                                                {{ $o1['text'] }}
                                             @endif
                                         </span>
                                     @endif
                                 </td>
-                                <td class="px-2 py-2 border border-gray-300 {{ $horarioColors[2]['cell'] }}">
+                                <td class="px-2 py-2 border border-gray-300 align-top min-w-[260px] {{ $horarioColors[2]['cell'] }}">
                                     @if ($o2['status'] || $o2['text'] !== '')
-                                        <span class="inline-flex items-center gap-1 text-xs text-gray-700"
+                                        <span class="block text-[9px] leading-4 text-gray-700 whitespace-pre-wrap break-words"
                                               title="{{ $o2['text'] }}">
-                                            <svg class="w-3 h-3 flex-shrink-0 {{ $horarioColors[2]['icon'] }}"
-                                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                      stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                            </svg>
                                             @if ($o2['text'] !== '')
-                                                <span class="truncate max-w-[100px]">{{ $o2['text'] }}</span>
+                                                {{ $o2['text'] }}
                                             @endif
                                         </span>
                                     @endif
                                 </td>
-                                <td class="px-2 py-2 border border-gray-300 {{ $horarioColors[3]['cell'] }}">
+                                <td class="px-2 py-2 border border-gray-300 align-top min-w-[260px] {{ $horarioColors[3]['cell'] }}">
                                     @if ($o3['status'] || $o3['text'] !== '')
-                                        <span class="inline-flex items-center gap-1 text-xs text-gray-700"
+                                        <span class="block text-[9px] leading-4 text-gray-700 whitespace-pre-wrap break-words"
                                               title="{{ $o3['text'] }}">
-                                            <svg class="w-3 h-3 flex-shrink-0 {{ $horarioColors[3]['icon'] }}"
-                                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                      stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                            </svg>
                                             @if ($o3['text'] !== '')
-                                                <span class="truncate max-w-[100px]">{{ $o3['text'] }}</span>
+                                                {{ $o3['text'] }}
                                             @endif
                                         </span>
                                     @endif

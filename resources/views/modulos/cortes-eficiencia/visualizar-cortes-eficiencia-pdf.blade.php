@@ -116,9 +116,6 @@
         .efi-low    { background-color: #fde047 !important; color: #111827; font-weight: bold; }
         .efi-low-t3 { background-color: #f59e0b !important; color: #111827; font-weight: bold; }
 
-        /* ── Observación ── */
-        .obs-check { color: #16a34a; font-weight: bold; }
-
         /* ── Footer ── */
         .footer {
             margin-top: 8px;
@@ -149,7 +146,7 @@
             if (!$line) return '';
             $e = $line->$campo ?? null;
             if ($e === null || $e === '') return '';
-            return is_numeric($e) ? number_format((float) $e, 2) : $e;
+            return is_numeric($e) ? (string) round((float) $e) : $e;
         };
 
         $efiClass = function ($line, $campo, $turno = null) {
@@ -166,22 +163,7 @@
             $status = (bool) ($line->$campoStatus ?? false);
             $text   = trim($line->$campoText ?? '');
             if (!$status && $text === '') return '';
-            if ($text !== '') return '✓ ' . $text;
-            return '✓';
-        };
-
-        $lastRpm = function ($t1, $t2, $t3) {
-            foreach ([$t3, $t2, $t1] as $line) {
-                if (!$line) continue;
-                foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
-                    $v = $line->$campo ?? null;
-                    if ($v !== null && $v !== '' && (float) $v != 0) return (int) $v;
-                }
-            }
-            foreach ([$t1, $t2, $t3] as $line) {
-                if ($line && !empty($line->RpmStd)) return $line->RpmStd;
-            }
-            return '';
+            return $text;
         };
 
         $lastRpmTurno = function ($line) {
@@ -212,12 +194,9 @@
     <table>
         <thead>
 
-            {{-- ── Fila 1: Telar / STD / %EF Std + Turno N ── --}}
+            {{-- ── Fila 1: Telar + Turno N ── --}}
             <tr>
-                <th rowspan="3" class="hdr-fixed col-fecha">Fecha</th>
                 <th rowspan="3" class="hdr-fixed col-telar">Telar</th>
-                <th rowspan="3" class="hdr-fixed col-std">STD</th>
-                <th rowspan="3" class="hdr-fixed col-ef">% EF<br>Std</th>
                 @for ($t = 1; $t <= 3; $t++)
                     <th colspan="7" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}</th>
                 @endfor
@@ -258,18 +237,8 @@
                     $turnos = [1 => $t1, 2 => $t2, 3 => $t3];
                 @endphp
                 <tr>
-                    @if ($i === 0)
-                        <td rowspan="{{ count($datos) }}" class="col-fecha">
-                            {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}
-                        </td>
-                    @endif
-
                     {{-- Telar --}}
                     <td class="td-telar">{{ $row['telar'] }}</td>
-
-                    {{-- STD (misma lógica que vista normal) --}}
-                    <td>{{ $lastRpm($t1, $t2, $t3) }}</td>
-                    <td class="{{ $efiClass($t1, 'EficienciaSTD') }}">{{ $efi($t1, 'EficienciaSTD') }}</td>
 
                     {{-- ── 3 Turnos ── --}}
                     @foreach ($turnos as $tNum => $tx)
@@ -291,7 +260,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="25" style="padding: 12px; color: #6b7280;">
+                    <td colspan="22" style="padding: 12px; color: #6b7280;">
                         Sin datos para la fecha seleccionada.
                     </td>
                 </tr>
