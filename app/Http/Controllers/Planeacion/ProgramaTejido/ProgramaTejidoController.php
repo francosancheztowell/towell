@@ -31,6 +31,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\Rule;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqMatrizHilos;
+use App\Helpers\AuditoriaHelper;
+use Illuminate\Support\Facades\Artisan;
 /**
  * Controlador para gestionar el programa de tejido
  */
@@ -2106,7 +2108,7 @@ class ProgramaTejidoController extends Controller
 
                         // Auditoría: cambio de FechaInicio (no aplica a EnProceso, no se cambia)
                         if (!$esEnProceso && $oldInicioStr !== $inicioStr) {
-                            \App\Helpers\AuditoriaHelper::logCambioFechaInicio(
+                            AuditoriaHelper::logCambioFechaInicio(
                                 'ReqProgramaTejido',
                                 $p->Id,
                                 $oldInicioStr,
@@ -2249,6 +2251,17 @@ class ProgramaTejidoController extends Controller
     /**
      * Actualizar campo Reprogramar
      */
+    public function recalcularFechas(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            Artisan::call('programa-tejido:recalcular-fechas-produccion', ['--all' => true]);
+            $output = Artisan::output();
+            return response()->json(['ok' => true, 'message' => trim($output) ?: 'Recálculo completado.']);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function actualizarReprogramar(Request $request, int $id)
     {
         try {

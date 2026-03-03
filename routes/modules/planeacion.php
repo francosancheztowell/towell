@@ -198,6 +198,8 @@ Route::get('/planeacion/programa-tejido/all-registros-json', [ProgramaTejidoCont
 Route::post('/planeacion/programa-tejido/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('programa-tejido.actualizar-calendarios-masivo');
 Route::post('/planeacion/programa-tejido/{id}/reprogramar', [ProgramaTejidoController::class, 'actualizarReprogramar'])->name('programa-tejido.reprogramar');
 Route::post('/planeacion/programa-tejido/crear-repaso', [RepasoController::class, 'createrepaso'])->name('programa-tejido.crear-repaso');
+Route::post('/planeacion/programa-tejido/recalcular-fechas', [ProgramaTejidoController::class, 'recalcularFechas'])->name('programa-tejido.recalcular-fechas');
+Route::post('/planeacion/muestras/recalcular-fechas', [ProgramaTejidoController::class, 'recalcularFechas'])->name('muestras.recalcular-fechas');
 Route::get('/planeacion/req-programa-tejido-line', [ReqProgramaTejidoLineController::class, 'index'])->name('planeacion.req-programa-tejido-line');
 
 Route::get('/programa-tejido/salon-options', [ProgramaTejidoController::class, 'getSalonTejidoOptions']);
@@ -256,6 +258,7 @@ Route::post('/planeacion/muestras/balancear-automatico', [ProgramaTejidoControll
 Route::get('/planeacion/muestras/ver-detalles-grupo-balanceo/{ordCompartida}', [BalancearTejido::class, 'verDetallesGrupoBalanceo'])->name('muestras.verdetallesgrupobalanceo');
 Route::put('/planeacion/muestras/{id}', [ProgramaTejidoController::class, 'update'])->name('muestras.update');
 Route::delete('/planeacion/muestras/{id}', [ProgramaTejidoController::class, 'destroy'])->name('muestras.destroy');
+Route::delete('/planeacion/muestras/{id}/en-proceso', [ProgramaTejidoController::class, 'destroyEnProceso'])->name('muestras.destroy-en-proceso');
 Route::get('/planeacion/muestras/all-registros-json', [ProgramaTejidoController::class, 'getAllRegistrosJson'])->name('muestras.all-registros-json');
 Route::post('/planeacion/muestras/actualizar-calendarios-masivo', [ProgramaTejidoController::class, 'actualizarCalendariosMasivo'])->name('muestras.actualizar-calendarios-masivo');
 Route::post('/planeacion/muestras/{id}/reprogramar', [ProgramaTejidoController::class, 'actualizarReprogramar'])->name('muestras.reprogramar');

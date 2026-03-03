@@ -2,6 +2,46 @@
 
 @section('page-title', $pageTitle ?? 'Programa de Tejido')
 
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btn = document.getElementById('btn-recalcular-fechas');
+    if (!btn) return;
+
+    const url = @json($isMuestras ?? false
+        ? route('muestras.recalcular-fechas')
+        : route('programa-tejido.recalcular-fechas'));
+
+    btn.addEventListener('click', function () {
+        btn.disabled = true;
+        btn.querySelector('i').classList.add('fa-spin');
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                Swal.fire({ icon: 'success', title: 'Listo', text: data.message, timer: 2000, showConfirmButton: false })
+                    .then(() => window.location.reload());
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+            }
+        })
+        .catch(() => Swal.fire({ icon: 'error', title: 'Error de conexión' }))
+        .finally(() => {
+            btn.disabled = false;
+            btn.querySelector('i').classList.remove('fa-spin');
+        });
+    });
+});
+</script>
+@endpush
+
 @section('content')
 <div class="w-full pt-page">
   <div class="bg-white overflow-hidden w-full pt-page-card">

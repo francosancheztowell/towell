@@ -36,6 +36,7 @@
         // Columnas según la lista del usuario
         $columns = [
             ['field' => 'select', 'label' => 'Seleccionar'],
+            ['field' => 'no_produccion', 'label' => 'No. Orden'],
             ['field' => 'prioridad', 'label' => 'Prioridad'],
             ['field' => 'Maquina', 'label' => 'Maq'],
             ['field' => 'Ancho', 'label' => 'Ancho'],
@@ -79,6 +80,15 @@
             if ($field === 'select') {
                 $checked = 'checked'; // Todos marcados por defecto
                 return '<input type="checkbox" class="row-checkbox w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 mx-auto block" data-id="' . ($registro->Id ?? '') . '" ' . $checked . '>';
+            }
+
+            if ($field === 'no_produccion') {
+                $id = $registro->Id ?? '';
+                return '<input type="text"
+                               class="no-produccion-input w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               data-id="' . htmlspecialchars((string)$id, ENT_QUOTES, 'UTF-8') . '"
+                               placeholder="Auto (folio)"
+                               style="min-width:160px;">';
             }
 
             if ($field === 'prioridad') {
@@ -1827,7 +1837,8 @@ function obtenerRegistrosSeleccionados() {
             densidad: getNumericValue('Densidad'),
             observaciones: getCellValue('Observaciones'),
             cambioRepaso: getCellValue('CambioRepaso'),
-            combinaTram: getCellValue('CombinaTrama')
+            combinaTram: getCellValue('CombinaTrama'),
+            noProduccion: getCellValue('no_produccion')
         };
     });
 }
