@@ -52,9 +52,6 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
     {
         try {
             $producciones = Muestras::where('NoTelarId', $telarId)
-                ->where(function ($query) {
-                    $query->where('EnProceso', 0);
-                })
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
                 ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
