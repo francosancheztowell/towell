@@ -65,7 +65,7 @@
 @section('content')
 {{-- Select oculto: mantiene la lógica JS existente --}}
 <select id="selectTelarCortado" class="hidden">
-  <option value="">-- Seleccione --</option>
+  <option value="">Selecciona un telar</option>
   @foreach($telaresUsuario as $telar)
     <option value="{{ $telar->NoTelarId }}">
       Telar {{ $telar->NoTelarId }}

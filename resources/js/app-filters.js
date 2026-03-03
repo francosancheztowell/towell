@@ -108,7 +108,7 @@ function openModal() {
     // Llenar select de columnas visibles
     const select = document.getElementById('f_col_select');
     if (select) {
-        select.innerHTML = '<option value="">-- Selecciona una columna --</option>';
+        select.innerHTML = '<option value="">Selecciona una columna</option>';
 
         const headers = document.querySelectorAll('#mainTable thead th[data-column]');
         headers.forEach(th => {

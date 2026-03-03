@@ -162,10 +162,42 @@ class MoverOrdenesController extends Controller
         $tabla               = ReqProgramaTejido::tableName();
         $estadoOriginalPorId = [];   // [id => ['salon', 'telar', 'enProceso']]
         $telaresAfectados    = [];   // [telarKey => ['salon', 'telar']]
+        $inicioBasePorTelar  = [];   // [telarKey => Carbon|null] inicio del telar ANTES del movimiento
 
         DB::beginTransaction();
         try {
             $ahora = Carbon::now();
+            $normalizar = static fn ($value) => trim((string) ($value ?? ''));
+            $registrarInicioBaseTelar = function (?string $salon, ?string $telar) use (&$inicioBasePorTelar) {
+                $salonNorm = trim((string) ($salon ?? ''));
+                $telarNorm = trim((string) ($telar ?? ''));
+                if ($salonNorm === '' || $telarNorm === '') {
+                    return;
+                }
+
+                $telarKey = $salonNorm . '|' . $telarNorm;
+                if (array_key_exists($telarKey, $inicioBasePorTelar)) {
+                    return;
+                }
+
+                $fechaBase = ReqProgramaTejido::query()
+                    ->where('SalonTejidoId', $salonNorm)
+                    ->where('NoTelarId', $telarNorm)
+                    ->whereNotNull('FechaInicio')
+                    ->orderBy('Posicion', 'asc')
+                    ->orderBy('FechaInicio', 'asc')
+                    ->lockForUpdate()
+                    ->value('FechaInicio');
+
+                $inicioBasePorTelar[$telarKey] = $fechaBase ? Carbon::parse($fechaBase) : null;
+            };
+
+            foreach ($telares as $cfg) {
+                $registrarInicioBaseTelar(
+                    (string) ($cfg['salon'] ?? ''),
+                    (string) ($cfg['telar'] ?? '')
+                );
+            }
 
             if (!empty($idsSolicitados)) {
                 $registrosOriginales = ReqProgramaTejido::query()
@@ -175,21 +207,26 @@ class MoverOrdenesController extends Controller
                     ->get();
 
                 foreach ($registrosOriginales as $ro) {
+                    $salonOriginal = $normalizar($ro->SalonTejidoId);
+                    $telarOriginal = $normalizar($ro->NoTelarId);
+
                     $estadoOriginalPorId[(int) $ro->Id] = [
-                        'salon' => (string) ($ro->SalonTejidoId ?? ''),
-                        'telar' => (string) ($ro->NoTelarId ?? ''),
+                        'salon' => $salonOriginal,
+                        'telar' => $telarOriginal,
                         'enProceso' => (bool) $ro->EnProceso,
                     ];
+
+                    $registrarInicioBaseTelar($salonOriginal, $telarOriginal);
                 }
             }
 
             // --- PASO 1: Guardar posicion/telar/salon con collision-avoidance ---
             foreach ($telares as $cfg) {
-                $salon   = $cfg['salon'];
-                $telar   = $cfg['telar'];
+                $salon   = $normalizar($cfg['salon'] ?? null);
+                $telar   = $normalizar($cfg['telar'] ?? null);
                 $ordenes = $cfg['ordenes'];
 
-                if (empty($salon) || empty($telar) || empty($ordenes)) {
+                if ($salon === '' || $telar === '' || empty($ordenes)) {
                     continue;
                 }
 
@@ -217,11 +254,11 @@ class MoverOrdenesController extends Controller
                     }
 
                     $original = $estadoOriginalPorId[(int) $id] ?? null;
-                    $salonOriginal = (string) ($original['salon'] ?? $registro->SalonTejidoId ?? '');
-                    $telarOriginal = (string) ($original['telar'] ?? $registro->NoTelarId ?? '');
+                    $salonOriginal = $normalizar($original['salon'] ?? $registro->SalonTejidoId ?? '');
+                    $telarOriginal = $normalizar($original['telar'] ?? $registro->NoTelarId ?? '');
 
-                    $cambiaSalon = ($salonOriginal !== (string) $salon);
-                    $cambiaTelar = ($telarOriginal !== (string) $telar);
+                    $cambiaSalon = ($salonOriginal !== $salon);
+                    $cambiaTelar = ($telarOriginal !== $telar);
                     $cambiaUbicacion = $cambiaSalon || $cambiaTelar;
 
                     if ($salonOriginal !== '' && $telarOriginal !== '') {
@@ -302,21 +339,24 @@ class MoverOrdenesController extends Controller
                     ->where('NoTelarId', $telar)
                     ->orderBy('Posicion', 'asc')
                     ->orderBy('FechaInicio', 'asc')
+                    ->lockForUpdate()
                     ->get();
 
                 if ($registros->isEmpty()) {
                     continue;
                 }
 
-                $primeroConFecha = $registros->first(fn ($r) => !empty($r->FechaInicio));
-                $inicioOriginal = $primeroConFecha
-                    ? Carbon::parse($primeroConFecha->FechaInicio)
+                $inicioBase = $inicioBasePorTelar[$telarKey] ?? null;
+                $inicioOriginal = $inicioBase instanceof Carbon
+                    ? $inicioBase->copy()
                     : Carbon::now();
 
-                // Para recálculo de cadena, no depender del estado EnProceso previo.
-                $registrosParaCalculo = $registros->values()->map(function (ReqProgramaTejido $r) {
+                // Para recálculo de cadena:
+                // - Primer registro se trata como EnProceso (usa now() y NO actualiza FechaInicio).
+                // - El resto queda fuera de proceso y se encadena desde el primero.
+                $registrosParaCalculo = $registros->values()->map(function (ReqProgramaTejido $r, int $index) {
                     $copia = clone $r;
-                    $copia->EnProceso = 0;
+                    $copia->EnProceso = $index === 0 ? 1 : 0;
                     return $copia;
                 });
 

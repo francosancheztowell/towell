@@ -137,7 +137,7 @@
         finalizarState.selectedIds.clear();
 
         const select = document.getElementById('finalizarSelectTelar');
-        select.innerHTML = '<option value="">-- Seleccione un telar --</option>';
+        select.innerHTML = '<option value="">Selecciona un telar</option>';
 
         document.getElementById('finalizarTablaContainer').classList.add('hidden');
         document.getElementById('finalizarEmpty').classList.add('hidden');
@@ -279,7 +279,7 @@
 
         Swal.fire({
             title: '¿Finalizar órdenes?',
-            html: 'Se finalizarán <strong>' + count + '</strong> orden(es) de producción.<br>Esta acción cambiará su estado a <strong>no en proceso</strong>.',
+            html: 'Se finalizarán <strong>' + count + '</strong> orden(es) de producción.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Sí, finalizar',
