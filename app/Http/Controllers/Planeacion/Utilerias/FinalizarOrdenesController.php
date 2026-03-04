@@ -31,14 +31,16 @@ use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarroll
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class FinalizarOrdenesController extends Controller
 {
+    use HandlesApiErrors;
+
     /**
      * Obtiene telares que tienen al menos un registro con NoProduccion (no orden).
      * Agrupa por SalonTejidoId y NoTelarId para identificar cada telar único.
@@ -64,8 +66,11 @@ class FinalizarOrdenesController extends Controller
 
             return response()->json(['success' => true, 'telares' => $telares]);
         } catch (\Throwable $e) {
-            Log::error('Utilería/Finalizar - Error al obtener telares: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error al obtener telares'], 500);
+            return $this->apiErrorResponse(
+                $e,
+                'Utileria/Finalizar - Error al obtener telares',
+                'Error al obtener telares'
+            );
         }
     }
 
@@ -135,8 +140,16 @@ class FinalizarOrdenesController extends Controller
 
             return response()->json(['success' => true, 'ordenes' => $items]);
         } catch (\Throwable $e) {
-            Log::error('Utilería/Finalizar - Error al obtener órdenes: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error al obtener órdenes del telar'], 500);
+            return $this->apiErrorResponse(
+                $e,
+                'Utileria/Finalizar - Error al obtener ordenes',
+                'Error al obtener ordenes del telar',
+                500,
+                [
+                    'salon' => (string) $request->query('salon', ''),
+                    'telar' => (string) $request->query('telar', ''),
+                ]
+            );
         }
     }
 
@@ -363,11 +376,13 @@ class FinalizarOrdenesController extends Controller
         } catch (\Throwable $e) {
             ReqProgramaTejido::setEventDispatcher($dispatcher);
             DB::rollBack();
-            Log::error('Utilería/Finalizar - Error al finalizar órdenes: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al finalizar las órdenes: ' . $e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse(
+                $e,
+                'Utileria/Finalizar - Error al finalizar ordenes',
+                'Error al finalizar las ordenes',
+                500,
+                ['ids' => $ids]
+            );
         }
 
         // ─── PASO 4: Disparar observer (fuera de transacción) ────────────────────

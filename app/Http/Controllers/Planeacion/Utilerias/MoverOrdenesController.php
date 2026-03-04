@@ -31,14 +31,17 @@ use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarroll
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class MoverOrdenesController extends Controller
 {
+    use HandlesApiErrors;
+
     /**
      * Obtiene todos los telares que tienen al menos un registro con NoProduccion (no orden).
      */
@@ -63,8 +66,13 @@ class MoverOrdenesController extends Controller
 
             return response()->json(['success' => true, 'telares' => $telares]);
         } catch (\Throwable $e) {
-            Log::error('Mover - Error al obtener telares: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error al obtener telares'], 500);
+            return $this->apiErrorResponse(
+                $e,
+                'Utileria/Mover - Error al obtener telares',
+                'Error al obtener telares',
+                500,
+                ['action' => __METHOD__]
+            );
         }
     }
 
@@ -79,7 +87,15 @@ class MoverOrdenesController extends Controller
             $noTelarId = $request->query('telar');
 
             if (!$salonId || !$noTelarId) {
-                return response()->json(['success' => false, 'message' => 'Salón y telar son requeridos'], 422);
+                return $this->apiClientErrorResponse(
+                    'Salon y telar son requeridos',
+                    422,
+                    [
+                        'action' => __METHOD__,
+                        'salon' => $salonId,
+                        'telar' => $noTelarId,
+                    ]
+                );
             }
 
             $registros = ReqProgramaTejido::query()
@@ -109,8 +125,17 @@ class MoverOrdenesController extends Controller
 
             return response()->json(['success' => true, 'registros' => $registros]);
         } catch (\Throwable $e) {
-            Log::error('Utilería/Mover - Error al obtener registros: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error al obtener registros del telar'], 500);
+            return $this->apiErrorResponse(
+                $e,
+                'Utileria/Mover - Error al obtener registros',
+                'Error al obtener registros del telar',
+                500,
+                [
+                    'action' => __METHOD__,
+                    'salon' => (string) $request->query('salon', ''),
+                    'telar' => (string) $request->query('telar', ''),
+                ]
+            );
         }
     }
 
@@ -128,17 +153,26 @@ class MoverOrdenesController extends Controller
      */
     public function moverOrdenes(Request $request): JsonResponse
     {
-        $request->validate([
-            'ordenes_origen'   => 'nullable|array',
-            'ordenes_origen.*' => 'integer',
-            'origen_salon'     => 'nullable|string',
-            'origen_telar'     => 'nullable|string',
-            'ordenes_destino'   => 'nullable|array',
-            'ordenes_destino.*' => 'integer',
-            'destino_salon'     => 'nullable|string',
-            'destino_telar'     => 'nullable|string',
+        $validator = Validator::make($request->all(), [
+            'ordenes_origen'      => 'nullable|array',
+            'ordenes_origen.*'    => 'integer',
+            'origen_salon'        => 'nullable|string',
+            'origen_telar'        => 'nullable|string',
+            'ordenes_destino'     => 'nullable|array',
+            'ordenes_destino.*'   => 'integer',
+            'destino_salon'       => 'nullable|string',
+            'destino_telar'       => 'nullable|string',
             'solo_reorden_origen' => 'nullable|boolean',
         ]);
+
+        if ($validator->fails()) {
+            return $this->apiClientErrorResponse(
+                'Datos de entrada invalidos',
+                422,
+                ['action' => __METHOD__, 'errors' => $validator->errors()->toArray()],
+                ['errors' => $validator->errors()->toArray()]
+            );
+        }
 
         $soloReordenOrigen = $request->boolean('solo_reorden_origen', false);
         $telares = [
@@ -150,339 +184,410 @@ class MoverOrdenesController extends Controller
 
         $idsSolicitados = array_values(array_unique(array_filter(array_map(
             'intval',
-            array_merge(
-                $request->input('ordenes_origen', []),
-                $request->input('ordenes_destino', [])
-            )
+            array_merge($request->input('ordenes_origen', []), $request->input('ordenes_destino', []))
         ))));
 
-        $dispatcher          = ReqProgramaTejido::getEventDispatcher();
-        $idsAfectados        = [];   // [telarKey => [ids...]]
-        $idsCambioSalon      = [];   // ids de registros que cambiaron de salón
-        $tabla               = ReqProgramaTejido::tableName();
-        $estadoOriginalPorId = [];   // [id => ['salon', 'telar', 'enProceso']]
-        $telaresAfectados    = [];   // [telarKey => ['salon', 'telar']]
-        $inicioBasePorTelar  = [];   // [telarKey => Carbon|null] inicio del telar ANTES del movimiento
+        $dispatcher     = ReqProgramaTejido::getEventDispatcher();
+        $idsAfectados   = [];
+        $idsCambioSalon = [];
+        $tabla          = ReqProgramaTejido::tableName();
 
         DB::beginTransaction();
         try {
-            $ahora = Carbon::now();
-            $normalizar = static fn ($value) => trim((string) ($value ?? ''));
-            $registrarInicioBaseTelar = function (?string $salon, ?string $telar) use (&$inicioBasePorTelar) {
-                $salonNorm = trim((string) ($salon ?? ''));
-                $telarNorm = trim((string) ($telar ?? ''));
-                if ($salonNorm === '' || $telarNorm === '') {
-                    return;
-                }
-
-                $telarKey = $salonNorm . '|' . $telarNorm;
-                if (array_key_exists($telarKey, $inicioBasePorTelar)) {
-                    return;
-                }
-
-                $fechaBase = ReqProgramaTejido::query()
-                    ->where('SalonTejidoId', $salonNorm)
-                    ->where('NoTelarId', $telarNorm)
-                    ->whereNotNull('FechaInicio')
-                    ->orderBy('Posicion', 'asc')
-                    ->orderBy('FechaInicio', 'asc')
-                    ->lockForUpdate()
-                    ->value('FechaInicio');
-
-                $inicioBasePorTelar[$telarKey] = $fechaBase ? Carbon::parse($fechaBase) : null;
-            };
+            $ahora               = Carbon::now();
+            $inicioBasePorTelar  = [];
+            $telaresAfectados    = [];
+            $estadoOriginalPorId = [];
 
             foreach ($telares as $cfg) {
-                $registrarInicioBaseTelar(
-                    (string) ($cfg['salon'] ?? ''),
-                    (string) ($cfg['telar'] ?? '')
-                );
+                $this->registrarInicioBaseTelar((string) ($cfg['salon'] ?? ''), (string) ($cfg['telar'] ?? ''), $inicioBasePorTelar);
             }
 
             if (!empty($idsSolicitados)) {
-                $registrosOriginales = ReqProgramaTejido::query()
-                    ->select('Id', 'SalonTejidoId', 'NoTelarId', 'EnProceso')
-                    ->whereIn('Id', $idsSolicitados)
-                    ->lockForUpdate()
-                    ->get();
-
-                foreach ($registrosOriginales as $ro) {
-                    $salonOriginal = $normalizar($ro->SalonTejidoId);
-                    $telarOriginal = $normalizar($ro->NoTelarId);
-
-                    $estadoOriginalPorId[(int) $ro->Id] = [
-                        'salon' => $salonOriginal,
-                        'telar' => $telarOriginal,
-                        'enProceso' => (bool) $ro->EnProceso,
-                    ];
-
-                    $registrarInicioBaseTelar($salonOriginal, $telarOriginal);
-                }
+                $this->capturarEstadoOriginal($idsSolicitados, $estadoOriginalPorId, $inicioBasePorTelar);
             }
 
-            // --- PASO 1: Guardar posicion/telar/salon con collision-avoidance ---
+            // Paso 1: Guardar posicion, telar y salon con control de colisiones.
             foreach ($telares as $cfg) {
-                $salon   = $normalizar($cfg['salon'] ?? null);
-                $telar   = $normalizar($cfg['telar'] ?? null);
-                $ordenes = $cfg['ordenes'];
-
-                if ($salon === '' || $telar === '' || empty($ordenes)) {
-                    continue;
-                }
-
-                $telarKey = $salon . '|' . $telar;
-                $telaresAfectados[$telarKey] = [
-                    'salon' => (string) $salon,
-                    'telar' => (string) $telar,
-                ];
-
-                // Bump temporal para evitar violación del índice único (NoTelarId, Posicion).
-                // Se hace sobre TODOS los registros del telar (no solo $ordenes) para que
-                // los registros que no están en $ordenes tampoco colisionen al reasignar.
-                DB::table($tabla)
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
-                    ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
-
-                foreach ($ordenes as $index => $id) {
-                    $registro = ReqProgramaTejido::query()
-                        ->whereKey($id)
-                        ->lockForUpdate()
-                        ->first();
-                    if (!$registro) {
-                        continue;
-                    }
-
-                    $original = $estadoOriginalPorId[(int) $id] ?? null;
-                    $salonOriginal = $normalizar($original['salon'] ?? $registro->SalonTejidoId ?? '');
-                    $telarOriginal = $normalizar($original['telar'] ?? $registro->NoTelarId ?? '');
-
-                    $cambiaSalon = ($salonOriginal !== $salon);
-                    $cambiaTelar = ($telarOriginal !== $telar);
-                    $cambiaUbicacion = $cambiaSalon || $cambiaTelar;
-
-                    if ($salonOriginal !== '' && $telarOriginal !== '') {
-                        $origenKey = $salonOriginal . '|' . $telarOriginal;
-                        $telaresAfectados[$origenKey] = [
-                            'salon' => $salonOriginal,
-                            'telar' => $telarOriginal,
-                        ];
-                    }
-
-                    $registro->SalonTejidoId = $salon;
-                    $registro->NoTelarId     = $telar;
-                    $registro->Posicion      = $index + 1;
-                    $registro->UpdatedAt     = $ahora;
-
-                    if ($cambiaUbicacion) {
-                        // En cruces de telar se normaliza al final.
-                        $registro->EnProceso = 0;
-
-                        // Actualizar campo Maquina con el nuevo salón/telar
-                        $registro->Maquina = TejidoHelpers::construirMaquinaConSalon(
-                            $registro->Maquina,
-                            $salon,
-                            $telar
-                        );
-
-                        // Obtener modelo del salón destino para std y cuentas
-                        $tamanoClave  = trim((string) ($registro->TamanoClave ?? ''));
-                        $modeloDestino = null;
-                        if ($tamanoClave !== '') {
-                            $modeloDestino = ReqModelosCodificados::query()
-                                ->where('TamanoClave', $tamanoClave)
-                                ->where('SalonTejidoId', $salon)
-                                ->first();
-                        }
-
-                        // Actualizar EficienciaSTD y VelocidadSTD según telar/salón destino
-                        [$nuevaEficiencia, $nuevaVelocidad] = QueryHelpers::resolverStdSegunTelar(
-                            $registro, $modeloDestino, $telar, $salon
-                        );
-                        if (!is_null($nuevaEficiencia)) {
-                            $registro->EficienciaSTD = round((float) $nuevaEficiencia, 2);
-                        }
-                        if (!is_null($nuevaVelocidad)) {
-                            $registro->VelocidadSTD = (float) $nuevaVelocidad;
-                        }
-
-                        // Actualizar CuentaRizo y CuentaPie desde el modelo destino
-                        if ($modeloDestino) {
-                            if (!is_null($modeloDestino->CuentaRizo)) {
-                                $registro->CuentaRizo = (string) $modeloDestino->CuentaRizo;
-                            }
-                            if (!is_null($modeloDestino->CuentaPie)) {
-                                $registro->CuentaPie = (string) $modeloDestino->CuentaPie;
-                            }
-                        }
-
-                        if ($cambiaSalon) {
-                            $idsCambioSalon[] = (int) $id;
-                        }
-
-                    }
-
-                    $registro->saveQuietly();
-                    $idsAfectados[$telarKey][] = (int) $id;
-                }
+                $this->procesarMovimientoPorTelar($cfg, $tabla, $ahora, $estadoOriginalPorId, $telaresAfectados, $idsAfectados, $idsCambioSalon);
             }
 
-            // --- PASO 2: Recalcular fechas encadenadas por telar ---
+            // Paso 2: Recalcular fechas encadenadas por telar.
             ReqProgramaTejido::unsetEventDispatcher();
-
             foreach ($telaresAfectados as $telarKey => $cfg) {
-                $salon = $cfg['salon'];
-                $telar = $cfg['telar'];
-
-                $registros = ReqProgramaTejido::query()
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
-                    ->orderBy('Posicion', 'asc')
-                    ->orderBy('FechaInicio', 'asc')
-                    ->lockForUpdate()
-                    ->get();
-
-                if ($registros->isEmpty()) {
-                    continue;
-                }
-
-                $inicioBase = $inicioBasePorTelar[$telarKey] ?? null;
-                $inicioOriginal = $inicioBase instanceof Carbon
-                    ? $inicioBase->copy()
-                    : Carbon::now();
-
-                // Para recálculo de cadena:
-                // - Primer registro se trata como EnProceso (usa now() y NO actualiza FechaInicio).
-                // - El resto queda fuera de proceso y se encadena desde el primero.
-                $registrosParaCalculo = $registros->values()->map(function (ReqProgramaTejido $r, int $index) {
-                    $copia = clone $r;
-                    $copia->EnProceso = $index === 0 ? 1 : 0;
-                    return $copia;
-                });
-
-                [$updates] = DateHelpers::recalcularFechasSecuencia(
-                    $registrosParaCalculo,
-                    $inicioOriginal,
-                    true // respetar inicio del primer registro
-                );
-
-                if (empty($updates)) {
-                    continue;
-                }
-
-                // No dejar que recalcularFechasSecuencia sobrescriba EnProceso:
-                // la normalización final de EnProceso se hace en el paso 2.5.
-                foreach ($updates as &$upd) {
-                    unset($upd['EnProceso']);
-                }
-                unset($upd);
-
-                // Bump temporal antes de actualizar fechas (evita colisiones de Posicion)
-                DB::table($tabla)
-                    ->whereIn('Id', array_keys($updates))
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
-                    ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
-
-                foreach ($updates as $idU => $dataU) {
-                    if (isset($dataU['Posicion'])) {
-                        $dataU['Posicion'] = (int) $dataU['Posicion'];
-                    }
-                    DB::table($tabla)
-                        ->where('Id', $idU)
-                        ->where('SalonTejidoId', $salon)
-                        ->where('NoTelarId', $telar)
-                        ->update($dataU);
-
-                    $idsAfectados[$telarKey][] = (int) $idU;
-                }
+                $this->recalcularFechasPorTelar((string) $telarKey, (array) $cfg, $tabla, $inicioBasePorTelar, $idsAfectados);
             }
 
-            // --- PASO 2.5: Normalizar EnProceso en todos los telares afectados ---
-            // Regla: solo Posicion=1 queda EnProceso=1; cualquier otra posición queda EnProceso=0.
+            // Paso 2.5: Normalizar EnProceso — solo Posicion=1 queda activo.
             foreach ($telaresAfectados as $telarKey => $cfg) {
-                $salon = (string) ($cfg['salon'] ?? '');
-                $telar = (string) ($cfg['telar'] ?? '');
-
-                if ($salon === '' || $telar === '') {
-                    continue;
-                }
-
-                $idPosicionUno = ReqProgramaTejido::query()
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
-                    ->orderBy('Posicion', 'asc')
-                    ->orderBy('FechaInicio', 'asc')
-                    ->value('Id');
-                $idPosicionUno = $idPosicionUno ? (int) $idPosicionUno : null;
-
-                DB::table($tabla)
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
-                    ->update(['EnProceso' => 0]);
-
-                if ($idPosicionUno) {
-                    DB::table($tabla)
-                        ->where('Id', $idPosicionUno)
-                        ->where('SalonTejidoId', $salon)
-                        ->where('NoTelarId', $telar)
-                        ->update(['EnProceso' => 1]);
-                }
-
-                $idsTelar = ReqProgramaTejido::query()
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
-                    ->pluck('Id')
-                    ->map(fn ($idDb) => (int) $idDb)
-                    ->all();
-
-                if (!empty($idsTelar)) {
-                    $idsAfectados[$telarKey] = array_merge($idsAfectados[$telarKey] ?? [], $idsTelar);
-                }
+                $this->normalizarEnProceso((string) $telarKey, (array) $cfg, $tabla, $idsAfectados);
             }
 
-            // --- PASO 3: Restaurar dispatcher y confirmar ---
+            // Paso 3: Restaurar dispatcher y confirmar.
             ReqProgramaTejido::setEventDispatcher($dispatcher);
             DB::commit();
 
         } catch (\Throwable $e) {
             ReqProgramaTejido::setEventDispatcher($dispatcher);
             DB::rollBack();
-            Log::error('Mover - Error al mover órdenes: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al guardar los cambios: ' . $e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse(
+                $e,
+                'Utileria/Mover - Error al mover ordenes',
+                'Error al guardar los cambios',
+                500,
+                [
+                    'action'        => __METHOD__,
+                    'origen_salon'  => (string) $request->input('origen_salon', ''),
+                    'origen_telar'  => (string) $request->input('origen_telar', ''),
+                    'destino_salon' => (string) $request->input('destino_salon', ''),
+                    'destino_telar' => (string) $request->input('destino_telar', ''),
+                ]
+            );
         }
 
-        // --- PASO 4: Disparar observer (fuera de la transaccion) ---
+        // Paso 4: Disparar observer fuera de la transaccion.
+        $this->dispararObserver($idsAfectados);
+
+        // Paso 5: Sincronizar CatCodificados solo para cambios de salon.
+        $this->sincronizarCatCodificados($idsCambioSalon);
+
+        return response()->json(['success' => true, 'message' => 'Se guardaron los cambios correctamente.']);
+    }
+
+    /**
+     * Normaliza un valor a string sin espacios extremos.
+     */
+    private function normalizar(mixed $value): string
+    {
+        return trim((string) ($value ?? ''));
+    }
+
+    /**
+     * Registra la FechaInicio del primer registro del telar como ancla para el recálculo.
+     *
+     * @param  array<string, Carbon|null>  &$inicioBasePorTelar
+     */
+    private function registrarInicioBaseTelar(string $salon, string $telar, array &$inicioBasePorTelar): void
+    {
+        $salonNorm = trim($salon);
+        $telarNorm = trim($telar);
+        if ($salonNorm === '' || $telarNorm === '') {
+            return;
+        }
+        $telarKey = $salonNorm . '|' . $telarNorm;
+        if (array_key_exists($telarKey, $inicioBasePorTelar)) {
+            return;
+        }
+        $fechaBase = ReqProgramaTejido::query()
+            ->where('SalonTejidoId', $salonNorm)
+            ->where('NoTelarId', $telarNorm)
+            ->whereNotNull('FechaInicio')
+            ->orderBy('Posicion', 'asc')
+            ->orderBy('FechaInicio', 'asc')
+            ->lockForUpdate()
+            ->value('FechaInicio');
+        $inicioBasePorTelar[$telarKey] = $fechaBase ? Carbon::parse($fechaBase) : null;
+    }
+
+    /**
+     * Bloquea y captura el estado original (salon, telar, enProceso) de cada id solicitado.
+     *
+     * @param  int[]                       $idsSolicitados
+     * @param  array<int, array>           &$estadoOriginalPorId
+     * @param  array<string, Carbon|null>  &$inicioBasePorTelar
+     */
+    private function capturarEstadoOriginal(array $idsSolicitados, array &$estadoOriginalPorId, array &$inicioBasePorTelar): void
+    {
+        $registrosOriginales = ReqProgramaTejido::query()
+            ->select('Id', 'SalonTejidoId', 'NoTelarId', 'EnProceso')
+            ->whereIn('Id', $idsSolicitados)
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($registrosOriginales as $ro) {
+            $salonOriginal = $this->normalizar($ro->SalonTejidoId);
+            $telarOriginal = $this->normalizar($ro->NoTelarId);
+            $estadoOriginalPorId[(int) $ro->Id] = [
+                'salon'     => $salonOriginal,
+                'telar'     => $telarOriginal,
+                'enProceso' => (bool) $ro->EnProceso,
+            ];
+            $this->registrarInicioBaseTelar($salonOriginal, $telarOriginal, $inicioBasePorTelar);
+        }
+    }
+
+    /**
+     * Paso 1: Asigna posición, telar y salón definitivos a los registros de un telar,
+     * controlando colisiones en el índice único (NoTelarId, Posicion).
+     *
+     * @param  array<string, mixed>  $cfg               ['salon', 'telar', 'ordenes']
+     * @param  array<int, array>     $estadoOriginalPorId
+     * @param  array<string, array>  &$telaresAfectados
+     * @param  array<string, int[]>  &$idsAfectados
+     * @param  int[]                 &$idsCambioSalon
+     */
+    private function procesarMovimientoPorTelar(
+        array $cfg,
+        string $tabla,
+        Carbon $ahora,
+        array $estadoOriginalPorId,
+        array &$telaresAfectados,
+        array &$idsAfectados,
+        array &$idsCambioSalon
+    ): void {
+        $salon   = $this->normalizar($cfg['salon'] ?? null);
+        $telar   = $this->normalizar($cfg['telar'] ?? null);
+        $ordenes = $cfg['ordenes'] ?? [];
+
+        if ($salon === '' || $telar === '' || empty($ordenes)) {
+            return;
+        }
+
+        $telarKey = $salon . '|' . $telar;
+        $telaresAfectados[$telarKey] = ['salon' => $salon, 'telar' => $telar];
+
+        // Bump temporal para evitar violación del índice único (NoTelarId, Posicion).
+        // Se hace sobre TODOS los registros del telar para que los que no están en $ordenes
+        // tampoco colisionen al reasignar.
+        DB::table($tabla)
+            ->where('SalonTejidoId', $salon)
+            ->where('NoTelarId', $telar)
+            ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
+
+        foreach ($ordenes as $index => $id) {
+            $registro = ReqProgramaTejido::query()->whereKey($id)->lockForUpdate()->first();
+            if (!$registro) {
+                continue;
+            }
+
+            $original      = $estadoOriginalPorId[(int) $id] ?? null;
+            $salonOriginal = $this->normalizar($original['salon'] ?? $registro->SalonTejidoId ?? '');
+            $telarOriginal = $this->normalizar($original['telar'] ?? $registro->NoTelarId ?? '');
+
+            $cambiaSalon     = ($salonOriginal !== $salon);
+            $cambiaUbicacion = $cambiaSalon || ($telarOriginal !== $telar);
+
+            if ($salonOriginal !== '' && $telarOriginal !== '') {
+                $origenKey = $salonOriginal . '|' . $telarOriginal;
+                $telaresAfectados[$origenKey] = ['salon' => $salonOriginal, 'telar' => $telarOriginal];
+            }
+
+            $registro->SalonTejidoId = $salon;
+            $registro->NoTelarId     = $telar;
+            $registro->Posicion      = $index + 1;
+            $registro->UpdatedAt     = $ahora;
+
+            if ($cambiaUbicacion) {
+                $this->aplicarCambioUbicacion($registro, $salon, $telar, $cambiaSalon, (int) $id, $idsCambioSalon);
+            }
+
+            $registro->saveQuietly();
+            $idsAfectados[$telarKey][] = (int) $id;
+        }
+    }
+
+    /**
+     * Aplica cambios de ubicación a un registro: EnProceso, Maquina, STD y cuentas del salón destino.
+     *
+     * @param  ReqProgramaTejido  $registro
+     * @param  int[]  &$idsCambioSalon
+     */
+    private function aplicarCambioUbicacion(
+        ReqProgramaTejido $registro,
+        string $salon,
+        string $telar,
+        bool $cambiaSalon,
+        int $id,
+        array &$idsCambioSalon
+    ): void {
+        // En cruces de telar se normaliza al final.
+        $registro->EnProceso = 0;
+        $registro->Maquina   = TejidoHelpers::construirMaquinaConSalon($registro->Maquina, $salon, $telar);
+
+        $tamanoClave   = trim((string) ($registro->TamanoClave ?? ''));
+        $modeloDestino = $tamanoClave !== ''
+            ? ReqModelosCodificados::query()->where('TamanoClave', $tamanoClave)->where('SalonTejidoId', $salon)->first()
+            : null;
+
+        $stdResult = QueryHelpers::resolverStdSegunTelar($registro, $modeloDestino, $telar, $salon);
+        $nuevaEficiencia = $stdResult[0] ?? null;
+        $nuevaVelocidad = $stdResult[1] ?? null;
+        if (!is_null($nuevaEficiencia)) {
+            $registro->EficienciaSTD = round((float) $nuevaEficiencia, 2);
+        }
+        if (!is_null($nuevaVelocidad)) {
+            $registro->VelocidadSTD = (float) $nuevaVelocidad;
+        }
+
+        if ($modeloDestino) {
+            if (!is_null($modeloDestino->CuentaRizo)) {
+                $registro->CuentaRizo = (string) $modeloDestino->CuentaRizo;
+            }
+            if (!is_null($modeloDestino->CuentaPie)) {
+                $registro->CuentaPie = (string) $modeloDestino->CuentaPie;
+            }
+        }
+
+        if ($cambiaSalon) {
+            $idsCambioSalon[] = $id;
+        }
+    }
+
+    /**
+     * Paso 2: Recalcula la cadena de fechas (FechaInicio/FechaFinal) de un telar.
+     *
+     * @param  array<string, Carbon|null>  $inicioBasePorTelar
+     * @param  array<string, int[]>        &$idsAfectados
+     */
+    private function recalcularFechasPorTelar(
+        string $telarKey,
+        array $cfg,
+        string $tabla,
+        array $inicioBasePorTelar,
+        array &$idsAfectados
+    ): void {
+        $salon = (string) ($cfg['salon'] ?? '');
+        $telar = (string) ($cfg['telar'] ?? '');
+
+        $registros = ReqProgramaTejido::query()
+            ->where('SalonTejidoId', $salon)
+            ->where('NoTelarId', $telar)
+            ->orderBy('Posicion', 'asc')
+            ->orderBy('FechaInicio', 'asc')
+            ->lockForUpdate()
+            ->get();
+
+        if ($registros->isEmpty()) {
+            return;
+        }
+
+        $inicioBase     = $inicioBasePorTelar[$telarKey] ?? null;
+        $inicioOriginal = $inicioBase instanceof Carbon ? $inicioBase->copy() : Carbon::now();
+
+        // Primer registro se trata como EnProceso (usa now() y NO actualiza FechaInicio).
+        // El resto queda fuera de proceso y se encadena desde el primero.
+        $registrosParaCalculo = $registros->values()->map(function (ReqProgramaTejido $r, int $index) {
+            $copia = clone $r;
+            $copia->EnProceso = $index === 0 ? 1 : 0;
+            return $copia;
+        });
+
+        [$updates] = DateHelpers::recalcularFechasSecuencia($registrosParaCalculo, $inicioOriginal, true);
+
+        if (empty($updates)) {
+            return;
+        }
+
+        // No sobrescribir EnProceso; la normalización final ocurre en el paso 2.5.
+        foreach ($updates as &$upd) {
+            unset($upd['EnProceso']);
+        }
+        unset($upd);
+
+        // Bump temporal antes de actualizar fechas (evita colisiones de Posicion).
+        DB::table($tabla)
+            ->whereIn('Id', array_keys($updates))
+            ->where('SalonTejidoId', $salon)
+            ->where('NoTelarId', $telar)
+            ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
+
+        foreach ($updates as $idU => $dataU) {
+            if (isset($dataU['Posicion'])) {
+                $dataU['Posicion'] = (int) $dataU['Posicion'];
+            }
+            DB::table($tabla)
+                ->where('Id', $idU)
+                ->where('SalonTejidoId', $salon)
+                ->where('NoTelarId', $telar)
+                ->update($dataU);
+
+            $idsAfectados[$telarKey][] = (int) $idU;
+        }
+    }
+
+    /**
+     * Paso 2.5: Normaliza EnProceso — solo el registro en Posicion=1 queda activo.
+     *
+     * @param  array<string, int[]>  &$idsAfectados
+     */
+    private function normalizarEnProceso(string $telarKey, array $cfg, string $tabla, array &$idsAfectados): void
+    {
+        $salon = (string) ($cfg['salon'] ?? '');
+        $telar = (string) ($cfg['telar'] ?? '');
+
+        if ($salon === '' || $telar === '') {
+            return;
+        }
+
+        $idPosicionUno = ReqProgramaTejido::query()
+            ->where('SalonTejidoId', $salon)
+            ->where('NoTelarId', $telar)
+            ->orderBy('Posicion', 'asc')
+            ->orderBy('FechaInicio', 'asc')
+            ->value('Id');
+        $idPosicionUno = $idPosicionUno ? (int) $idPosicionUno : null;
+
+        DB::table($tabla)->where('SalonTejidoId', $salon)->where('NoTelarId', $telar)->update(['EnProceso' => 0]);
+
+        if ($idPosicionUno) {
+            DB::table($tabla)
+                ->where('Id', $idPosicionUno)
+                ->where('SalonTejidoId', $salon)
+                ->where('NoTelarId', $telar)
+                ->update(['EnProceso' => 1]);
+        }
+
+        $idsTelar = ReqProgramaTejido::query()
+            ->where('SalonTejidoId', $salon)
+            ->where('NoTelarId', $telar)
+            ->pluck('Id')
+            ->map(fn ($idDb) => (int) $idDb)
+            ->all();
+
+        if (!empty($idsTelar)) {
+            $key = (string) $telarKey;
+            $existentes = $idsAfectados[$key] ?? [];
+            $idsAfectados[$key] = array_merge($existentes, $idsTelar);
+        }
+    }
+
+    /**
+     * Paso 4: Dispara el observer de ReqProgramaTejido para regenerar líneas diarias y fórmulas.
+     *
+     * @param  array<string, int[]>  $idsAfectados
+     */
+    private function dispararObserver(array $idsAfectados): void
+    {
         $todosIds = array_unique(array_merge(...array_values($idsAfectados ?: [[]])));
-        if (!empty($todosIds)) {
-            $observer = new ReqProgramaTejidoObserver();
-            $modelos  = ReqProgramaTejido::query()->whereIn('Id', $todosIds)->get();
-            /** @var ReqProgramaTejido $modelo */
-            foreach ($modelos as $modelo) {
-                $modelo->refresh();
-                $observer->saved($modelo);
-            }
+        if (empty($todosIds)) {
+            return;
         }
-
-        // --- PASO 5: Sincronizar CatCodificados (solo cambios de salon) ---
-        if (!empty($idsCambioSalon)) {
-            $movimientoService = new MovimientoDesarrolladorService();
-            $registrosMovidos  = ReqProgramaTejido::query()
-                ->whereIn('Id', array_unique($idsCambioSalon))
-                ->get();
-            /** @var ReqProgramaTejido $regMovido */
-            foreach ($registrosMovidos as $regMovido) {
-                $movimientoService->actualizarReqModelosDesdePrograma($regMovido);
-                $movimientoService->actualizarFechasArranqueFinaliza($regMovido, null, null);
-            }
+        $observer = new ReqProgramaTejidoObserver();
+        $modelos  = ReqProgramaTejido::query()->whereIn('Id', $todosIds)->get();
+        /** @var ReqProgramaTejido $modelo */
+        foreach ($modelos as $modelo) {
+            $modelo->refresh();
+            $observer->saved($modelo);
         }
+    }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Se guardaron los cambios correctamente.',
-        ]);
+    /**
+     * Paso 5: Sincroniza CatCodificados para los registros que cambiaron de salón.
+     *
+     * @param  int[]  $idsCambioSalon
+     */
+    private function sincronizarCatCodificados(array $idsCambioSalon): void
+    {
+        if (empty($idsCambioSalon)) {
+            return;
+        }
+        $movimientoService = new MovimientoDesarrolladorService();
+        $registrosMovidos  = ReqProgramaTejido::query()->whereIn('Id', array_unique($idsCambioSalon))->get();
+        /** @var ReqProgramaTejido $regMovido */
+        foreach ($registrosMovidos as $regMovido) {
+            $movimientoService->actualizarReqModelosDesdePrograma($regMovido);
+            $movimientoService->actualizarFechasArranqueFinaliza($regMovido, null, null);
+        }
     }
 }
+
