@@ -13,15 +13,13 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Helpers\AuditoriaHelper;
+use App\Helpers\StringTruncator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log as LogFacade;
 
 class UpdateTejido
 {
-    private static array $totalModeloCache = [];
-    private static array $modeloCodificadoCache = [];
-
     public static function actualizar(Request $request, int $id)
     {
         $registro = ReqProgramaTejido::findOrFail($id);
@@ -564,7 +562,7 @@ class UpdateTejido
         $fechaFinalCambiada = ((string)($registro->FechaFinal ?? '') !== $fechaFinalAntes);
 
         // ===== 4) Truncar strings antes de guardar (evitar error "String or binary data would be truncated")
-        self::truncarStringsAntesDeGuardar($registro);
+        StringTruncator::truncateModelAttributes($registro);
 
         // ===== 5) Log de campos que se actualizarán y guardar =====
         $dirty = $registro->getDirty();
@@ -627,43 +625,6 @@ class UpdateTejido
         ]);
     }
 
-    /**
-     * Trunca todos los atributos string del registro a longitudes seguras antes de guardar,
-     * para evitar el error SQL "String or binary data would be truncated".
-     */
-    private static function truncarStringsAntesDeGuardar(ReqProgramaTejido $registro): void
-    {
-        $limites = [
-            'NombreProyecto' => 50,
-            'NombreProducto' => 50,
-            'FlogsId' => 30,
-            'InventSizeId' => 20,
-            'ItemId' => 20,
-            'TamanoClave' => 50,
-            'TipoPedido' => 10,
-            'FibraRizo' => 40,
-            'DobladilloId' => 40,
-            'CuentaRizo' => 20,
-            'CuentaPie' => 20,
-            'CodColorCtaPie' => 10,
-            'NombreCPie' => 60,
-            'FibraTrama' => 40,
-            'CodColorTrama' => 40,
-            'ColorTrama' => 40,
-            'Rasurado' => 10,
-            'FibraComb1' => 40, 'FibraComb2' => 40, 'FibraComb3' => 40, 'FibraComb4' => 40, 'FibraComb5' => 40,
-            'CodColorComb1' => 40, 'CodColorComb2' => 40, 'CodColorComb3' => 40, 'CodColorComb4' => 40, 'CodColorComb5' => 40,
-            'NombreCC1' => 60, 'NombreCC2' => 60, 'NombreCC3' => 60, 'NombreCC4' => 60, 'NombreCC5' => 60,
-            'CalibreComb1' => 40, 'CalibreComb2' => 40, 'CalibreComb3' => 40, 'CalibreComb4' => 40, 'CalibreComb5' => 40,
-        ];
-        foreach ($limites as $attr => $max) {
-            if (!isset($registro->$attr) || !is_string($registro->$attr)) {
-                continue;
-            }
-            $registro->$attr = mb_substr($registro->$attr, 0, $max);
-        }
-    }
-
     private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
         return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
@@ -671,62 +632,7 @@ class UpdateTejido
 
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
-        $vel   = (float) ($p->VelocidadSTD ?? 0);
-        $efic  = (float) ($p->EficienciaSTD ?? 0);
-        $cant  = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-        $noTiras = (float) ($p->NoTiras ?? 0);
-        $luchaje = (float) ($p->Luchaje ?? 0);
-        $rep     = (float) ($p->Repeticiones ?? 0);
-
-        $total = self::obtenerTotalModelo($p->TamanoClave ?? null);
-        return TejidoHelpers::calcularHorasProd(
-            $vel,
-            $efic,
-            $cant,
-            $noTiras,
-            $total,
-            $luchaje,
-            $rep
-        );
-    }
-
-    private static function obtenerTotalModelo(?string $tamanoClave): float
-    {
-        $key = trim((string)$tamanoClave);
-        if ($key === '') return 0.0;
-
-        if (isset(self::$totalModeloCache[$key])) return self::$totalModeloCache[$key];
-
-        $modelo = self::getModeloCodificado($key);
-        $total  = $modelo ? (float)$modelo['Total'] : 0.0;
-
-        self::$totalModeloCache[$key] = $total;
-        return $total;
-    }
-
-    private static function getModeloCodificado(string $tamanoClave): ?array
-    {
-        $key = trim($tamanoClave);
-        if ($key === '') return null;
-
-        if (array_key_exists($key, self::$modeloCodificadoCache)) return self::$modeloCodificadoCache[$key];
-
-        $m = ReqModelosCodificados::query()
-            ->select(['TamanoClave','Total','NoTiras','Luchaje','Repeticiones'])
-            ->where('TamanoClave', $key)
-            ->first();
-
-        if (!$m) {
-            self::$modeloCodificadoCache[$key] = null;
-            return null;
-        }
-
-        return self::$modeloCodificadoCache[$key] = [
-            'Total'        => (float)($m->Total ?? 0),
-            'NoTiras'      => (float)($m->NoTiras ?? 0),
-            'Luchaje'      => (float)($m->Luchaje ?? 0),
-            'Repeticiones' => (float)($m->Repeticiones ?? 0),
-        ];
+        return TejidoHelpers::calcularHorasProdFromPrograma($p);
     }
 
     /**

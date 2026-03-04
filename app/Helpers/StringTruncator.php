@@ -3,8 +3,11 @@
 namespace App\Helpers;
 
 /**
- * Helper para truncar valores STRING según límites de BD
- * Basado en la migración 2025_10_10_000002_create_req_programa_tejido_table.php
+ * @file StringTruncator.php
+ * @description Helper para truncar valores STRING según límites de BD, evitando el error SQL
+ *              "String or binary data would be truncated". Límites basados en migración
+ *              ReqProgramaTejido. truncateModelAttributes() para modelos Eloquent.
+ * @dependencies Ninguno (standalone)
  */
 class StringTruncator
 {
@@ -13,22 +16,22 @@ class StringTruncator
      * Si no aparece, no hay límite o es numérico
      */
     private static array $fieldLimits = [
-        'CuentaRizo'     => 10,
+        'CuentaRizo'     => 20,
         'SalonTejidoId'  => 10,
         'NoTelarId'      => 10,
         'Ultimo'         => 2,
         'CambioHilo'     => 2,
         'Maquina'        => 15,
-        'FlogsId'        => 80,
-        'NombreProyecto' => 60,
+        'FlogsId'        => 30,
+        'NombreProyecto' => 50,
         'CustName'       => 60,
         'AplicacionId'   => 10,
         'Observaciones'  => 100,
-        'TipoPedido'     => 20,
-        'DobladilloId'   => 20,
-        'CodColorTrama'  => null, // String sin límite explícito en migración
-        'ColorTrama'     => null,
-        'FibraTrama'     => 15,
+        'TipoPedido'     => 10,
+        'DobladilloId'   => 40,
+        'CodColorTrama'  => 40,
+        'ColorTrama'     => 40,
+        'FibraTrama'     => 40,
         'CodColorC1'     => null,
         'NomColorC1'     => null,
         'CodColorC2'     => null,
@@ -40,26 +43,37 @@ class StringTruncator
         'CodColorC5'     => null,
         'NomColorC5'     => null,
         'FibraComb1'     => 50, // Ampliado de 15 a 50 según actualización de BD
-        'CodColorComb1'  => 10, // Según migración: string('CodColorComb1', 10)
+        'CodColorComb1'  => 40,
         'NombreCC1'      => 60, // Según migración: string('NombreCC1', 60)
         'FibraComb2'     => 50, // Ampliado de 15 a 50 según actualización de BD
         'CodColorComb2'  => 10, // Según migración: string('CodColorComb2', 10)
         'NombreCC2'      => 60, // Según migración: string('NombreCC2', 60)
         'FibraComb3'     => 50, // Ampliado de 15 a 50 según actualización de BD
-        'CodColorComb3'  => 10, // Según migración: string('CodColorComb3', 10)
+        'CodColorComb3'  => 40,
         'NombreCC3'      => 60, // Según migración: string('NombreCC3', 60)
         'FibraComb4'     => 50, // Ampliado de 15 a 50 según actualización de BD
-        'CodColorComb4'  => 10, // Según migración: string('CodColorComb4', 10)
+        'CodColorComb4'  => 40,
         'NombreCC4'      => 60, // Según migración: string('NombreCC4', 60)
         'FibraComb5'     => 50, // Ampliado de 15 a 50 según actualización de BD
-        'CodColorComb5'  => 10, // Según migración: string('CodColorComb5', 10)
+        'CodColorComb5'  => 40,
         'NombreCC5'      => 60, // Según migración: string('NombreCC5', 60)
         'FibraPie'       => 15,
-        'CodColorCtaPie' => null,
-        'NombreCPie'     => null,
-        'NombreProducto' => 60,   // Extrapolado de NombreProyecto
+        'CodColorCtaPie' => 10,
+        'NombreCPie'     => 60,
+        'NombreProducto' => 50,
         'MedidaPlano'    => null, // Integer
-        'Rasurado'       => 2,    // Límite de 2 caracteres según migración
+        'Rasurado'       => 10,
+        // Campos adicionales para ReqProgramaTejido (UpdateTejido, etc.)
+        'InventSizeId'   => 20,
+        'ItemId'         => 20,
+        'TamanoClave'    => 50,
+        'FibraRizo'      => 40,
+        'CuentaPie'      => 20,
+        'CalibreComb1'   => 40,
+        'CalibreComb2'   => 40,
+        'CalibreComb3'   => 40,
+        'CalibreComb4'   => 40,
+        'CalibreComb5'   => 40,
     ];
 
     /**
@@ -110,6 +124,24 @@ class StringTruncator
             $result[$field] = self::truncate($field, $value);
         }
         return $result;
+    }
+
+    /**
+     * Trunca los atributos string de un modelo Eloquent in-place
+     * para evitar el error SQL "String or binary data would be truncated".
+     *
+     * @param object $model Modelo con getAttributes()
+     * @return void
+     */
+    public static function truncateModelAttributes(object $model): void
+    {
+        $attrs = $model->getAttributes();
+        $truncated = self::truncateArray($attrs);
+        foreach ($truncated as $key => $val) {
+            if (array_key_exists($key, $attrs) && $attrs[$key] !== $val) {
+                $model->$key = $val;
+            }
+        }
     }
 
     /**
