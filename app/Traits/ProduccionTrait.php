@@ -162,6 +162,37 @@ trait ProduccionTrait
                 }
             }
 
+            // Validar secuencialidad: Oficial N requiere Oficial N-1
+            if ($numeroOficial === 2 && empty($registro->NomEmpl1)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede agregar Oficial 2 sin tener Oficial 1 registrado.',
+                ], 422);
+            }
+            if ($numeroOficial === 3 && empty($registro->NomEmpl2)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede agregar Oficial 3 sin tener Oficial 2 registrado.',
+                ], 422);
+            }
+
+            // Validar que no se repita el turno dentro del mismo registro
+            $turnoNuevo = $request->input('turno');
+            if ($turnoNuevo !== null) {
+                for ($i = 1; $i <= 3; $i++) {
+                    if ($i === $numeroOficial) {
+                        continue;
+                    }
+                    $turnoExistente = $registro->{"Turno{$i}"};
+                    if ($turnoExistente !== null && (int) $turnoExistente === (int) $turnoNuevo && !empty($registro->{"NomEmpl{$i}"})) {
+                        return response()->json([
+                            'success' => false,
+                            'error' => "El Turno {$turnoNuevo} ya está asignado al Oficial {$i}.",
+                        ], 422);
+                    }
+                }
+            }
+
             $oficialExistente = !empty($registro->{"NomEmpl{$numeroOficial}"});
 
             if (!$oficialExistente) {
