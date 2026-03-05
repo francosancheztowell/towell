@@ -6,10 +6,15 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        @page {
+            size: A4 portrait;
+            margin: 5px 5px 6px 5px;
+        }
+
         body {
             font-family: Arial, sans-serif;
-            font-size: 7.5px;
-            padding: 10px 12px;
+            font-size: 6px;
+            padding: 0;
             color: #111827;
             background: #ffffff;
         }
@@ -17,32 +22,32 @@
         /* ── Título ── */
         .titulo {
             text-align: center;
-            font-size: 13px;
+            font-size: 9px;
             font-weight: bold;
             color: #1f2937;
-            margin-bottom: 3px;
+            margin-bottom: 1px;
         }
         .subtitle {
             text-align: center;
-            font-size: 8px;
+            font-size: 6px;
             color: #6b7280;
-            margin-bottom: 8px;
+            margin-bottom: 3px;
         }
 
         /* ── Badges de folio ── */
         .folios {
             display: block;
             text-align: center;
-            font-size: 8px;
-            margin-bottom: 8px;
+            font-size: 6px;
+            margin-bottom: 3px;
             color: #374151;
         }
         .folio-badge {
             display: inline-block;
-            border-radius: 10px;
-            padding: 2px 8px;
-            margin: 0 3px;
-            font-size: 8px;
+            border-radius: 8px;
+            padding: 1px 4px;
+            margin: 0 1px;
+            font-size: 6px;
             font-weight: bold;
             border: 1px solid;
         }
@@ -58,11 +63,12 @@
         }
         th, td {
             border: 1px solid #d1d5db;
-            padding: 2px 2px;
+            padding: 1px;
             text-align: center;
             vertical-align: middle;
-            font-size: 7px;
+            font-size: 5.2px;
             word-break: break-word;
+            line-height: 1.05;
         }
 
         /* ── Cabeceras fijas (Telar / STD / %EF Std) ── */
@@ -70,22 +76,22 @@
             background-color: #374151;
             color: #ffffff;
             font-weight: bold;
-            font-size: 7.5px;
+            font-size: 5.6px;
         }
-        .col-telar { width: 42px; }
-        .col-fecha { width: 46px; }
-        .col-std   { width: 32px; }
-        .col-ef    { width: 32px; }
+        .col-telar { width: 23px; }
+        .col-fecha { width: 26px; }
+        .col-std   { width: 18px; }
+        .col-ef    { width: 18px; }
 
         /* ── Cabeceras de Turno (fila 1) ── */
-        .hdr-t1 { background-color: #1e40af; color: #ffffff; font-weight: bold; font-size: 8px; }
-        .hdr-t2 { background-color: #166534; color: #ffffff; font-weight: bold; font-size: 8px; }
-        .hdr-t3 { background-color: #92400e; color: #ffffff; font-weight: bold; font-size: 8px; }
+        .hdr-t1 { background-color: #1e40af; color: #ffffff; font-weight: bold; font-size: 6px; }
+        .hdr-t2 { background-color: #166534; color: #ffffff; font-weight: bold; font-size: 6px; }
+        .hdr-t3 { background-color: #92400e; color: #ffffff; font-weight: bold; font-size: 6px; }
 
         /* ── Cabeceras de Horario (fila 2) ── */
-        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 7px; }
-        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: 7px; }
-        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: 7px; }
+        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 5.2px; }
+        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: 5.2px; }
+        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: 5.2px; }
 
         /* ── Cabeceras de columna (fila 3) ── */
         .hdr-c1 { background-color: #93c5fd; color: #1e3a8a; font-weight: bold; }
@@ -93,9 +99,14 @@
         .hdr-c3 { background-color: #fde047; color: #78350f; font-weight: bold; }
 
         /* ── Anchos de columnas de datos ── */
-        .col-rpm { width: 30px; }
-        .col-pef { width: 28px; }
-        .col-obs { width: 50px; text-align: left; }
+        .col-rpm { width: 16px; }
+        .col-pef { width: 13px; }
+        .col-obs { width: 22px; text-align: left; }
+        tbody td.col-obs {
+            font-size: 4.6px;
+            line-height: 1;
+            padding: 1px;
+        }
 
         /* ── Celdas de datos por horario ── */
         .cell-h1 { background-color: #eff6ff; }
@@ -118,8 +129,8 @@
 
         /* ── Footer ── */
         .footer {
-            margin-top: 8px;
-            font-size: 8px;
+            margin-top: 3px;
+            font-size: 5.5px;
             color: #6b7280;
             text-align: center;
         }
@@ -206,12 +217,12 @@
             <tr>
                 @for ($t = 1; $t <= 3; $t++)
                     <th rowspan="2" class="{{ $hdrH[0] }} col-rpm">RPM</th>
-                    <th class="{{ $hdrH[0] }}">Horario: {{ $horariosTurno[$t][1] }}</th>
-                    <th class="{{ $hdrH[1] }}">Horario: {{ $horariosTurno[$t][2] }}</th>
-                    <th class="{{ $hdrH[2] }}">Horario: {{ $horariosTurno[$t][3] }}</th>
-                    <th class="{{ $hdrH[0] }}">Horario: {{ $horariosTurno[$t][1] }}</th>
-                    <th class="{{ $hdrH[1] }}">Horario: {{ $horariosTurno[$t][2] }}</th>
-                    <th class="{{ $hdrH[2] }}">Horario: {{ $horariosTurno[$t][3] }}</th>
+                    <th class="{{ $hdrH[0] }}">{{ $horariosTurno[$t][1] }}</th>
+                    <th class="{{ $hdrH[1] }}">{{ $horariosTurno[$t][2] }}</th>
+                    <th class="{{ $hdrH[2] }}">{{ $horariosTurno[$t][3] }}</th>
+                    <th class="{{ $hdrH[0] }}">{{ $horariosTurno[$t][1] }}</th>
+                    <th class="{{ $hdrH[1] }}">{{ $horariosTurno[$t][2] }}</th>
+                    <th class="{{ $hdrH[2] }}">{{ $horariosTurno[$t][3] }}</th>
                 @endfor
             </tr>
 
