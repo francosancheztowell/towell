@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Models\Planeacion\Catalogos\CatCodificados;
@@ -86,7 +87,7 @@ class VincularTejido
             }
 
             // Crear un nuevo OrdCompartida disponible
-            $ordCompartidaAVincular = self::obtenerNuevoOrdCompartidaDisponible();
+            $ordCompartidaAVincular = OrdCompartidaHelper::obtenerNuevoOrdCompartidaDisponible();
         }
 
         DBFacade::beginTransaction();
@@ -566,40 +567,6 @@ class VincularTejido
                 'error' => $e->getMessage()
             ]);
         }
-    }
-
-    /**
-     * Obtiene un nuevo OrdCompartida disponible verificando que no esté en uso
-     *
-     * @return int
-     */
-    private static function obtenerNuevoOrdCompartidaDisponible(): int
-    {
-        // Obtener el máximo OrdCompartida existente
-        $maxOrdCompartida = ReqProgramaTejido::max('OrdCompartida') ?? 0;
-
-        // Empezar desde el siguiente número
-        $candidato = $maxOrdCompartida + 1;
-
-        // Verificar que no esté en uso (buscar hasta encontrar uno disponible)
-        // Límite de seguridad para evitar loops infinitos
-        $intentos = 0;
-        $maxIntentos = 1000;
-
-        while ($intentos < $maxIntentos) {
-            // Verificar si el OrdCompartida candidato ya existe
-            $existe = ReqProgramaTejido::where('OrdCompartida', $candidato)->exists();
-
-            if (!$existe) {
-                return $candidato;
-            }
-
-            // Si existe, probar el siguiente
-            $candidato++;
-            $intentos++;
-        }
-
-        return $candidato;
     }
 
     /**

@@ -309,6 +309,7 @@ class LiberarOrdenesController extends Controller
             'registros.*.observaciones' => 'nullable|string|max:500',
             'registros.*.cambioRepaso' => ['nullable', 'string', Rule::in(['SI', 'NO', 'Si', 'No', 'si', 'no'])],
             'registros.*.combinaTram' => 'nullable|string|max:60',
+            'registros.*.noProduccion' => 'nullable|string|max:100',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
             'registros.*.id.exists' => 'Uno de los registros seleccionados no existe.',
@@ -346,8 +347,9 @@ class LiberarOrdenesController extends Controller
                     continue;
                 }
 
-                // Generar folio único y configurar valores básicos
-                $folio = FolioHelper::obtenerSiguienteFolio('Planeacion', 5);
+                // Generar folio o usar el valor manual ingresado por el usuario
+                $noProduccionManual = trim((string) ($item['noProduccion'] ?? ''));
+                $folio = $noProduccionManual !== '' ? $noProduccionManual : FolioHelper::obtenerSiguienteFolio('Planeacion', 5);
                 $programado = $this->calcularFechaProgramada($registro, $hoy, $fechaFormula);
 
                 // Configurar valores básicos del registro

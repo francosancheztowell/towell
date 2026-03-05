@@ -535,16 +535,16 @@
         },
         {
             "name": "dompdf/dompdf",
-            "version": "v3.1.4",
+            "version": "v3.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/dompdf/dompdf.git",
-                "reference": "db712c90c5b9868df3600e64e68da62e78a34623"
+                "reference": "f11ead23a8a76d0ff9bbc6c7c8fd7e05ca328496"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dompdf/dompdf/zipball/db712c90c5b9868df3600e64e68da62e78a34623",
-                "reference": "db712c90c5b9868df3600e64e68da62e78a34623",
+                "url": "https://api.github.com/repos/dompdf/dompdf/zipball/f11ead23a8a76d0ff9bbc6c7c8fd7e05ca328496",
+                "reference": "f11ead23a8a76d0ff9bbc6c7c8fd7e05ca328496",
                 "shasum": ""
             },
             "require": {
@@ -593,9 +593,9 @@
             "homepage": "https://github.com/dompdf/dompdf",
             "support": {
                 "issues": "https://github.com/dompdf/dompdf/issues",
-                "source": "https://github.com/dompdf/dompdf/tree/v3.1.4"
+                "source": "https://github.com/dompdf/dompdf/tree/v3.1.5"
             },
-            "time": "2025-10-29T12:43:30+00:00"
+            "time": "2026-03-03T13:54:37+00:00"
         },
         {
             "name": "dompdf/php-font-lib",
@@ -1426,16 +1426,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.2.1",
+            "version": "v2.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "e27f1616177377fef95296620530c44a7dda4df9"
+                "reference": "2b0366559e9ff591c65ea0321dfb91fd950c2cbd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/e27f1616177377fef95296620530c44a7dda4df9",
-                "reference": "e27f1616177377fef95296620530c44a7dda4df9",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/2b0366559e9ff591c65ea0321dfb91fd950c2cbd",
+                "reference": "2b0366559e9ff591c65ea0321dfb91fd950c2cbd",
                 "shasum": ""
             },
             "require": {
@@ -1444,7 +1444,7 @@
                 "illuminate/contracts": "^11.45.3|^12.41.1",
                 "illuminate/routing": "^11.45.3|^12.41.1",
                 "illuminate/support": "^11.45.3|^12.41.1",
-                "laravel/mcp": "^0.5.1",
+                "laravel/mcp": "^0.5.1|^0.6.0",
                 "laravel/prompts": "^0.3.10",
                 "laravel/roster": "^0.5.0",
                 "php": "^8.2"
@@ -1488,7 +1488,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-02-25T16:07:36+00:00"
+            "time": "2026-03-03T14:36:03+00:00"
         },
         {
             "name": "laravel/framework",
@@ -4372,16 +4372,16 @@
         },
         {
             "name": "sabberworm/php-css-parser",
-            "version": "v9.2.0",
+            "version": "v9.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/MyIntervals/PHP-CSS-Parser.git",
-                "reference": "59373045e11ad47b5c18fc615feee0219e42f6d3"
+                "reference": "88dbd0f7f91abbfe4402d0a3071e9ff4d81ed949"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/MyIntervals/PHP-CSS-Parser/zipball/59373045e11ad47b5c18fc615feee0219e42f6d3",
-                "reference": "59373045e11ad47b5c18fc615feee0219e42f6d3",
+                "url": "https://api.github.com/repos/MyIntervals/PHP-CSS-Parser/zipball/88dbd0f7f91abbfe4402d0a3071e9ff4d81ed949",
+                "reference": "88dbd0f7f91abbfe4402d0a3071e9ff4d81ed949",
                 "shasum": ""
             },
             "require": {
@@ -4408,7 +4408,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "9.3.x-dev"
+                    "dev-main": "9.4.x-dev"
                 }
             },
             "autoload": {
@@ -4446,9 +4446,9 @@
             ],
             "support": {
                 "issues": "https://github.com/MyIntervals/PHP-CSS-Parser/issues",
-                "source": "https://github.com/MyIntervals/PHP-CSS-Parser/tree/v9.2.0"
+                "source": "https://github.com/MyIntervals/PHP-CSS-Parser/tree/v9.3.0"
             },
-            "time": "2026-02-21T17:12:03+00:00"
+            "time": "2026-03-03T17:31:43+00:00"
         },
         {
             "name": "symfony/clock",

@@ -5,6 +5,7 @@ use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmLineController;
 use App\Http\Controllers\Tejedores\Configuracion\CatDesarrolladores\catDesarrolladoresController;
 use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOperadorController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
+use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresMuestrasController;
 use App\Http\Controllers\Tejedores\InventarioTelaresController;
 use App\Http\Controllers\Tejedores\Reportes\ReportesDesarrolladoresController;
 use App\Http\Controllers\Tejedores\Reportes\ReportesTejedoresController;
@@ -30,6 +31,7 @@ Route::prefix('tejedores')->name('tejedores.')->group(function () {
     Route::redirect('/bpm', '/tejedores/bpmtejedores', 301);
 
     Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
+    Route::get('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'index'])->name('desarrolladores-muestras');
 });
 
 Route::prefix('tejedores')->group(function () {
@@ -125,6 +127,13 @@ Route::get('/desarrolladores/modelo-codificado/{salonTejidoId}/{tamanoClave}', [
 Route::get('/desarrolladores/catcodificados/{telarId}/{noProduccion}', [TelDesarrolladoresController::class, 'obtenerRegistroCatCodificado'])->name('desarrolladores.obtener-registro-catcodificado');
 Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
 Route::post('/desarrolladores/exportar-excel', [TelDesarrolladoresController::class, 'exportarExcel'])->name('desarrolladores.exportar.excel');
+
+// Desarrolladores Muestras
+Route::get('/desarrolladores-muestras/telar/{telarId}/producciones', [TelDesarrolladoresMuestrasController::class, 'obtenerProducciones']);
+Route::get('/desarrolladores-muestras/orden/{noProduccion}/detalles', [TelDesarrolladoresMuestrasController::class, 'obtenerDetallesOrden']);
+Route::get('/desarrolladores-muestras/modelo-codificado/{salonTejidoId}/{tamanoClave}', [TelDesarrolladoresMuestrasController::class, 'obtenerCodigoDibujo']);
+Route::get('/desarrolladores-muestras/catcodificados/{telarId}/{noProduccion}', [TelDesarrolladoresMuestrasController::class, 'obtenerRegistroCatCodificado']);
+Route::post('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'store'])->name('desarrolladores-muestras.store');
 
 Route::get('catalogo-desarrolladores', [catDesarrolladoresController::class, 'index'])->name('desarrolladores.catalogo-desarrolladores');
 Route::post('catalogo-desarrolladores', [catDesarrolladoresController::class, 'store'])->name('cat-desarrolladores.store');

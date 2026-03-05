@@ -162,6 +162,37 @@ trait ProduccionTrait
                 }
             }
 
+            // Validar secuencialidad: Oficial N requiere Oficial N-1
+            if ($numeroOficial === 2 && empty($registro->NomEmpl1)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede agregar Oficial 2 sin tener Oficial 1 registrado.',
+                ], 422);
+            }
+            if ($numeroOficial === 3 && empty($registro->NomEmpl2)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede agregar Oficial 3 sin tener Oficial 2 registrado.',
+                ], 422);
+            }
+
+            // Validar que no se repita el turno dentro del mismo registro
+            $turnoNuevo = $request->input('turno');
+            if ($turnoNuevo !== null) {
+                for ($i = 1; $i <= 3; $i++) {
+                    if ($i === $numeroOficial) {
+                        continue;
+                    }
+                    $turnoExistente = $registro->{"Turno{$i}"};
+                    if ($turnoExistente !== null && (int) $turnoExistente === (int) $turnoNuevo && !empty($registro->{"NomEmpl{$i}"})) {
+                        return response()->json([
+                            'success' => false,
+                            'error' => "El Turno {$turnoNuevo} ya está asignado al Oficial {$i}.",
+                        ], 422);
+                    }
+                }
+            }
+
             $oficialExistente = !empty($registro->{"NomEmpl{$numeroOficial}"});
 
             if (!$oficialExistente) {
@@ -495,6 +526,35 @@ trait ProduccionTrait
                     'error' => 'Este registro ya fue enviado a AX y no se puede modificar.',
                     'bloqueado_ax' => true,
                 ], 422);
+            }
+
+            // Validar campos requeridos antes de marcar como listo
+            if ($request->listo) {
+                $camposFaltantes = [];
+
+                if (empty($registro->HoraInicial)) {
+                    $camposFaltantes[] = 'Hora Inicial es requerida';
+                }
+                if (empty($registro->HoraFinal)) {
+                    $camposFaltantes[] = 'Hora Final es requerida';
+                }
+                if (empty($registro->NoJulio)) {
+                    $camposFaltantes[] = 'No. Julio es requerido';
+                }
+                if (is_null($registro->KgBruto) || $registro->KgBruto < 0) {
+                    $camposFaltantes[] = 'Kg Bruto debe ser un valor mayor o igual a 0';
+                }
+                if (!is_null($registro->KgNeto) && $registro->KgNeto < 0) {
+                    $camposFaltantes[] = 'Kg Neto debe ser un valor mayor o igual a 0';
+                }
+
+                if (!empty($camposFaltantes)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'No se puede marcar como listo. Faltan campos requeridos.',
+                        'campos_faltantes' => $camposFaltantes,
+                    ], 422);
+                }
             }
 
             $registro->Finalizar = $request->listo ? 1 : 0;

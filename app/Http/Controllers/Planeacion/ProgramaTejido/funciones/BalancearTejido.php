@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Log;
 class BalancearTejido
 {
     /** Cache para modelo (TamanoClave) */
-    private static array $modeloCache = [];
     /** Cache de líneas por calendario (ya parseadas) */
     private static array $calLinesCache = []; // [calId => [ ['ini'=>Carbon,'fin'=>Carbon,'ini_ts'=>int,'fin_ts'=>int], ... ] ]
 
@@ -564,25 +563,11 @@ class BalancearTejido
     }
 
     // =========================================================
-    // HorasProd EXACTO (igual a DuplicarTejido)
+    // HorasProd EXACTO (delegado a TejidoHelpers)
     // =========================================================
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
-        $vel   = (float) ($p->VelocidadSTD ?? 0);
-        $efic  = (float) ($p->EficienciaSTD ?? 0);
-        $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-
-        $m = self::getModeloParams($p->TamanoClave ?? null, $p);
-
-        return TejidoHelpers::calcularHorasProd(
-            $vel,
-            $efic,
-            $cantidad,
-            (float)($m['no_tiras'] ?? 0),
-            (float)($m['total'] ?? 0),
-            (float)($m['luchaje'] ?? 0),
-            (float)($m['repeticiones'] ?? 0)
-        );
+        return TejidoHelpers::calcularHorasProdFromPrograma($p);
     }
 
     // =========================================================
@@ -669,7 +654,7 @@ class BalancearTejido
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
         try {
-            $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
+            $m = TejidoHelpers::obtenerModeloParams($programa);
             return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, false);
         } catch (\Throwable $e) {
             Log::warning('BalancearTejido: Error al calcular formulas', [
@@ -682,63 +667,16 @@ class BalancearTejido
     }
 
     // =========================================================
-    // Modelo params (cache) + warm batch (solo performance)
-    // =========================================================
-    private static function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
-    {
-        $noTiras = (float)($p->NoTiras ?? 0);
-        $luchaje = (float)($p->Luchaje ?? 0);
-        $rep     = (float)($p->Repeticiones ?? 0);
-
-        $key = trim((string)$tamanoClave);
-        if ($key === '') {
-            return [
-                'total' => 0.0,
-                'no_tiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $rep,
-            ];
-        }
-
-        if (!isset(self::$modeloCache[$key])) {
-            // si no fue warm, cae aquí (igual que tu lógica)
-            $m = ReqModelosCodificados::where('TamanoClave', $key)->first();
-            self::$modeloCache[$key] = [
-                'total' => (float)($m->Total ?? 0),
-                'no_tiras' => (float)($m->NoTiras ?? 0),
-                'luchaje' => (float)($m->Luchaje ?? 0),
-                'repeticiones' => (float)($m->Repeticiones ?? 0),
-            ];
-        }
-
-        $cached = self::$modeloCache[$key];
-
-        return [
-            'total' => (float)$cached['total'],
-            'no_tiras' => $noTiras > 0 ? $noTiras : (float)$cached['no_tiras'],
-            'luchaje' => $luchaje > 0 ? $luchaje : (float)$cached['luchaje'],
-            'repeticiones' => $rep > 0 ? $rep : (float)$cached['repeticiones'],
-        ];
-    }
-
-    // =========================================================
     // Helpers de cache (solo performance, no cambia resultados)
     // =========================================================
     private static function warmCachesFromProgramas($programas): void
     {
         $calIds = [];
-        $tamKeys = [];
-
         foreach ($programas as $p) {
             $calId = trim((string)($p->CalendarioId ?? ''));
             if ($calId !== '') $calIds[] = $calId;
-
-            $tk = trim((string)($p->TamanoClave ?? ''));
-            if ($tk !== '') $tamKeys[] = $tk;
         }
-
         self::warmCalendarios($calIds);
-        self::warmModelos($tamKeys);
     }
 
     private static function warmCalendarios(array $calIds): void
@@ -787,35 +725,6 @@ class BalancearTejido
         }
 
         return self::$calLinesCache[$calendarioId] ?? [];
-    }
-
-    private static function warmModelos(array $tamanoClaves): void
-    {
-        $keys = array_values(array_unique(array_filter(array_map(fn($x) => trim((string)$x), $tamanoClaves))));
-        if (empty($keys)) return;
-
-        $missing = [];
-        foreach ($keys as $k) {
-            if ($k !== '' && !isset(self::$modeloCache[$k])) {
-                $missing[] = $k;
-            }
-        }
-        if (empty($missing)) return;
-
-        $rows = ReqModelosCodificados::query()
-            ->whereIn('TamanoClave', $missing)
-            ->get(['TamanoClave', 'Total', 'NoTiras', 'Luchaje', 'Repeticiones']);
-
-        foreach ($rows as $m) {
-            $k = trim((string)$m->TamanoClave);
-            if ($k === '') continue;
-            self::$modeloCache[$k] = [
-                'total' => (float)($m->Total ?? 0),
-                'no_tiras' => (float)($m->NoTiras ?? 0),
-                'luchaje' => (float)($m->Luchaje ?? 0),
-                'repeticiones' => (float)($m->Repeticiones ?? 0),
-            ];
-        }
     }
 
     private static function sanitizeNumber($value): float

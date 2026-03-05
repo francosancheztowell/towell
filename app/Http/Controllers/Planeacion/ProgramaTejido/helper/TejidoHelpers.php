@@ -2,6 +2,14 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
+/**
+ * @file TejidoHelpers.php
+ * @description API canónica para cálculos del módulo Programa Tejido: HorasProd, fórmulas de
+ *              eficiencia, parámetros de modelo codificado, snap al calendario. Usado por
+ *              BalancearTejido, DuplicarTejido, DividirTejido, UpdateTejido.
+ * @dependencies ReqProgramaTejido, ReqModelosCodificados, ReqCalendarioLine, ReqEficienciaStd, ReqVelocidadStd
+ */
+
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqEficienciaStd;
 use App\Models\Planeacion\ReqModelosCodificados;
@@ -162,6 +170,32 @@ class TejidoHelpers
         if (!$prefijo) $prefijo = 'TEL';
 
         return trim($prefijo) . ' ' . trim((string)$telar);
+    }
+
+    /**
+     * Calcula horas de producción a partir de un ReqProgramaTejido.
+     * API canónica para Balancear, Duplicar, Dividir, Update.
+     *
+     * @param ReqProgramaTejido $programa
+     * @param callable|null $obtenerModeloCallback (string $tamanoClave, string $salonTejidoId) => ReqModelosCodificados|null
+     * @return float
+     */
+    public static function calcularHorasProdFromPrograma(ReqProgramaTejido $programa, ?callable $obtenerModeloCallback = null): float
+    {
+        $vel = (float) ($programa->VelocidadSTD ?? 0);
+        $efic = (float) ($programa->EficienciaSTD ?? 0);
+        $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
+        $m = self::obtenerModeloParams($programa, $obtenerModeloCallback);
+
+        return self::calcularHorasProd(
+            $vel,
+            $efic,
+            $cantidad,
+            (float) ($m['no_tiras'] ?? 0),
+            (float) ($m['total'] ?? 0),
+            (float) ($m['luchaje'] ?? 0),
+            (float) ($m['repeticiones'] ?? 0)
+        );
     }
 
     public static function calcularHorasProd(

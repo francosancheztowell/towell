@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -104,9 +105,8 @@ class DividirTejido
                 ], 404);
             }
 
-            // Obtener el siguiente n├║mero consecutivo de OrdCompartida
-            $maxOrdCompartida = ReqProgramaTejido::max('OrdCompartida') ?? 0;
-            $nuevoOrdCompartida = $maxOrdCompartida + 1;
+            // Obtener el siguiente OrdCompartida disponible
+            $nuevoOrdCompartida = OrdCompartidaHelper::obtenerNuevoOrdCompartidaDisponible();
 
             // El primer destino es el registro original (ya viene bloqueado en el modal)
             // Los dem├ís destinos son los telares donde se dividir├í
@@ -1235,66 +1235,18 @@ class DividirTejido
     }
 
     /**
-     * Calcular horas de producci├│n necesarias (igual que BalancearTejido)
+     * Calcular horas de producción necesarias (delegado a TejidoHelpers con callback por salón)
      */
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
-        $vel   = (float) ($p->VelocidadSTD ?? 0);
-        $efic  = (float) ($p->EficienciaSTD ?? 0);
-        $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-
-        $m = self::getModeloParams($p->TamanoClave ?? null, $p);
-
-        return TejidoHelpers::calcularHorasProd(
-            $vel,
-            $efic,
-            $cantidad,
-            (float)($m['no_tiras'] ?? 0),
-            (float)($m['total'] ?? 0),
-            (float)($m['luchaje'] ?? 0),
-            (float)($m['repeticiones'] ?? 0)
+        return TejidoHelpers::calcularHorasProdFromPrograma(
+            $p,
+            fn (?string $k, ?string $s) => self::obtenerModeloCodificadoPorSalon($k, $s)
         );
     }
 
     /**
-     * Obtener par├ímetros del modelo (igual que BalancearTejido)
-     */
-    private static function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
-    {
-        $noTiras = (float)($p->NoTiras ?? 0);
-        $luchaje = (float)($p->Luchaje ?? 0);
-        $rep     = (float)($p->Repeticiones ?? 0);
-
-        $key = trim((string)$tamanoClave);
-        if ($key === '') {
-            return [
-                'total' => 0.0,
-                'no_tiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $rep,
-            ];
-        }
-
-        $m = self::obtenerModeloCodificadoPorSalon($key, $p->SalonTejidoId);
-        if (!$m) {
-            return [
-                'total' => 0.0,
-                'no_tiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $rep,
-            ];
-        }
-
-        return [
-            'total' => (float)($m->Total ?? 0),
-            'no_tiras' => $noTiras > 0 ? $noTiras : (float)($m->NoTiras ?? 0),
-            'luchaje' => $luchaje > 0 ? $luchaje : (float)($m->Luchaje ?? 0),
-            'repeticiones' => $rep > 0 ? $rep : (float)($m->Repeticiones ?? 0),
-        ];
-    }
-
-    /**
-     * Sanitizar n├║mero (igual que BalancearTejido)
+     * Sanitizar número (igual que BalancearTejido)
      */
     private static function sanitizeNumber($value): float
     {

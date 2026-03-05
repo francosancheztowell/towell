@@ -478,18 +478,44 @@ class OrdenDeCambioFelpaController extends Controller
         $pageSetup = $sheet->getPageSetup();
         $pageSetup->setPrintArea(self::PRINT_AREA_FORMATO);
         $pageSetup->setPaperSize(PageSetup::PAPERSIZE_LEGAL);
+        $pageSetup->setOrientation(PageSetup::ORIENTATION_PORTRAIT);
         $pageSetup->setFitToPage(true);
         $pageSetup->setFitToWidth(1);
         $pageSetup->setFitToHeight(1);
 
-        // Margenes normales de Excel.
+        // Margenes angostos para aprovechar el ancho completo de la hoja.
         $margins = $sheet->getPageMargins();
-        $margins->setTop(0.75);
-        $margins->setBottom(0.75);
-        $margins->setLeft(3.3 / 2.54);
-        $margins->setRight(1.8 / 2.54);
-        $margins->setHeader(0.3);
-        $margins->setFooter(0.3);
+        $margins->setTop(0.4);
+        $margins->setBottom(0.4);
+        $margins->setLeft(0.25);
+        $margins->setRight(0.25);
+        $margins->setHeader(0.2);
+        $margins->setFooter(0.2);
+
+        // El contenido a escala de ancho completo ocupa 1.25 páginas de alto.
+        // Reducir alturas de fila ×0.8 (= 1/1.25) para que quede exactamente en 1 página
+        // al tiempo que llena todo el ancho.
+        $this->escalarAlturaFilas($sheet, 0.8);
+    }
+
+    /**
+     * Escala todas las alturas de fila de la hoja por el factor dado.
+     */
+    private function escalarAlturaFilas(Worksheet $sheet, float $factor): void
+    {
+        // Escalar la altura por defecto de la hoja
+        $defaultDim = $sheet->getDefaultRowDimension();
+        $defaultHeight = $defaultDim->getRowHeight();
+        $defaultHeight = ($defaultHeight > 0) ? $defaultHeight : 15.0; // 15pt = default de Excel
+        $defaultDim->setRowHeight($defaultHeight * $factor);
+
+        // Escalar las alturas explícitas de cada fila
+        foreach ($sheet->getRowDimensions() as $rowDimension) {
+            $height = $rowDimension->getRowHeight();
+            if ($height > 0) {
+                $rowDimension->setRowHeight($height * $factor);
+            }
+        }
     }
 
     /**

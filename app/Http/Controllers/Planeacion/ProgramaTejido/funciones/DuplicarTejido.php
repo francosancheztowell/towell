@@ -13,13 +13,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 
 class DuplicarTejido
 {
-    /** Cache de modelo para no pegar a ReqModelosCodificados por cada registro */
-    private static array $modeloCache = [];
-
     /** Cache para datos completos del modelo codificado */
     private static array $datosModeloCache = [];
 
@@ -108,7 +106,7 @@ class DuplicarTejido
                     $ordCompartidaAVincular = (int) $ordCompartidaExistente;
                 } else {
                     // Crear un nuevo OrdCompartida verificando que no esté en uso
-                    $ordCompartidaAVincular = self::obtenerNuevoOrdCompartidaDisponible();
+                    $ordCompartidaAVincular = OrdCompartidaHelper::obtenerNuevoOrdCompartidaDisponible();
                 }
             }
 
@@ -667,62 +665,7 @@ class DuplicarTejido
 
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
-        $vel   = (float) ($p->VelocidadSTD ?? 0);
-        $efic  = (float) ($p->EficienciaSTD ?? 0);
-        $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-
-        $m = self::getModeloParams($p->TamanoClave ?? null, $p);
-
-        return TejidoHelpers::calcularHorasProd(
-            $vel,
-            $efic,
-            $cantidad,
-            (float)($m['no_tiras'] ?? 0),
-            (float)($m['total'] ?? 0),
-            (float)($m['luchaje'] ?? 0),
-            (float)($m['repeticiones'] ?? 0)
-        );
-    }
-
-    private static function getModeloParams(?string $tamanoClave, ReqProgramaTejido $p): array
-    {
-        $noTiras = (float)($p->NoTiras ?? 0);
-        $luchaje = (float)($p->Luchaje ?? 0);
-        $rep     = (float)($p->Repeticiones ?? 0);
-
-        $key = trim((string)$tamanoClave);
-        if ($key === '') {
-            return [
-                'total' => 0.0,
-                'no_tiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $rep,
-            ];
-        }
-
-        if (!isset(self::$modeloCache[$key])) {
-            $m = ReqModelosCodificados::where('TamanoClave', $key)->first();
-            self::$modeloCache[$key] = $m ? [
-                'total' => (float)($m->Total ?? 0),
-                'no_tiras' => (float)($m->NoTiras ?? 0),
-                'luchaje' => (float)($m->Luchaje ?? 0),
-                'repeticiones' => (float)($m->Repeticiones ?? 0),
-            ] : [
-                'total' => 0.0,
-                'no_tiras' => 0.0,
-                'luchaje' => 0.0,
-                'repeticiones' => 0.0,
-            ];
-        }
-
-        $base = self::$modeloCache[$key];
-
-        return [
-            'total' => (float)($base['total'] ?? 0),
-            'no_tiras' => $noTiras > 0 ? $noTiras : (float)($base['no_tiras'] ?? 0),
-            'luchaje' => $luchaje > 0 ? $luchaje : (float)($base['luchaje'] ?? 0),
-            'repeticiones' => $rep > 0 ? $rep : (float)($base['repeticiones'] ?? 0),
-        ];
+        return TejidoHelpers::calcularHorasProdFromPrograma($p);
     }
 
     // =========================
@@ -737,7 +680,7 @@ class DuplicarTejido
     public static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
         try {
-            $m = self::getModeloParams($programa->TamanoClave ?? null, $programa);
+            $m = TejidoHelpers::obtenerModeloParams($programa);
             return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, true);
         } catch (\Throwable $e) {
             LogFacade::warning('DuplicarTejido: Error al calcular formulas', [
@@ -962,42 +905,5 @@ class DuplicarTejido
             }
         }
 
-    }
-
-    /**
-     * Obtiene un nuevo OrdCompartida disponible verificando que no esté en uso
-     *
-     * @return int
-     */
-    private static function obtenerNuevoOrdCompartidaDisponible(): int
-    {
-        // Obtener el máximo OrdCompartida existente
-        $maxOrdCompartida = ReqProgramaTejido::max('OrdCompartida') ?? 0;
-
-        // Empezar desde el siguiente número
-        $candidato = $maxOrdCompartida + 1;
-
-        // Verificar que no esté en uso (buscar hasta encontrar uno disponible)
-        // Límite de seguridad para evitar loops infinitos
-        $intentos = 0;
-        $maxIntentos = 1000;
-
-        while ($intentos < $maxIntentos) {
-            // Verificar si el OrdCompartida candidato ya existe
-            $existe = ReqProgramaTejido::where('OrdCompartida', $candidato)->exists();
-
-            if (!$existe) {
-                // Este OrdCompartida está disponible
-                return $candidato;
-            }
-
-            // Si existe, probar el siguiente
-            $candidato++;
-            $intentos++;
-        }
-
-        // Si llegamos aquí, algo está mal (muchos gaps en la secuencia)
-        // Usar el máximo + 1 de todas formas y loggear advertencia
-        return $candidato;
     }
 }

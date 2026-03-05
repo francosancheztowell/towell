@@ -130,6 +130,8 @@ class RepasoController extends Controller
         $fechaFinal = $fechaInicio->copy()->addHours(12);
 
         $registro = new ReqProgramaTejido([
+            'CreatedAt'     => Carbon::now(),
+            'UpdatedAt'     => Carbon::now(),
             'EnProceso'     => false,
             'CuentaRizo'    => $cuentaRizo,
             'CalibreRizo'   => $calibre,

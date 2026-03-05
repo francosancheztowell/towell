@@ -23,7 +23,10 @@
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-white">
             <div class="flex items-center gap-3">
                 <div>
-                    <h2 class="text-xl font-bold text-gray-800">Finalizar Órdenes</h2>
+                    <h2 class="text-xl font-bold text-gray-800">
+                        Finalizar Órdenes
+                        <span id="finalizarContador" class="text-sm font-semibold text-blue-600"></span>
+                    </h2>
                 </div>
             </div>
             <button type="button" onclick="cerrarModalFinalizar()" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
@@ -144,6 +147,8 @@
         document.getElementById('finalizarLoader').classList.add('hidden');
         document.getElementById('finalizarTbody').innerHTML = '';
         document.getElementById('finalizarSeleccionados').textContent = '';
+        var contadorReset = document.getElementById('finalizarContador');
+        if (contadorReset) contadorReset.textContent = '';
         document.getElementById('btnFinalizarConfirm').disabled = true;
     }
 
@@ -201,9 +206,12 @@
                 finalizarState.ordenes = data.ordenes;
                 renderTablaFinalizar();
                 document.getElementById('finalizarTablaContainer').classList.remove('hidden');
-                document.getElementById('finalizarContador').textContent = '(' + data.ordenes.length + ')';
+                var contador = document.getElementById('finalizarContador');
+                if (contador) contador.textContent = '(' + data.ordenes.length + ')';
             } else {
                 document.getElementById('finalizarEmpty').classList.remove('hidden');
+                var contadorEmpty = document.getElementById('finalizarContador');
+                if (contadorEmpty) contadorEmpty.textContent = '';
             }
         } catch (e) {
             document.getElementById('finalizarLoader').classList.add('hidden');

@@ -318,6 +318,14 @@ class ModuloProduccionEngomadoController extends Controller
                     return response()->json(['success' => false, 'error' => 'El valor debe ser numérico'], 422);
                 }
                 $valor = (float) $request->valor;
+
+                // Validar que mermas no sean negativas
+                if ($valor < 0) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'El valor de ' . str_replace('_', ' ', $request->campo) . ' no puede ser negativo.',
+                    ], 422);
+                }
             }
 
             $campoMap = ['merma_con_goma' => 'MermaGoma', 'merma_sin_goma' => 'Merma'];

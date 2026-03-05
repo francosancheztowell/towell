@@ -87,6 +87,15 @@
             <i class="fa-solid fa-database text-sm"></i>
         </a>
 
+        <!-- Recalcular fechas -->
+        <button type="button"
+                id="btn-recalcular-fechas"
+                class="w-9 h-9 flex items-center justify-center rounded-full bg-amber-500 text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
+                title="Recalcular fechas de producción"
+                aria-label="Recalcular fechas">
+            <i class="fa-solid fa-rotate text-sm"></i>
+        </button>
+
         <!-- Botón Actualizar con Dropdown -->
         <div class="relative">
             <button type="button"
