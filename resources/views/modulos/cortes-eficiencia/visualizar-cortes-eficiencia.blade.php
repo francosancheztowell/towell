@@ -24,7 +24,7 @@
         3 => [
             'header' => 'bg-yellow-400 text-white',
             'cols'   => 'bg-yellow-300 text-white',
-            'cell'   => 'bg-yellow-50/40',
+            'cell'   => 'bg-yellow-50/40',  
         ],
     ];
     $folioTurnos = [

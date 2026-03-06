@@ -63,12 +63,17 @@
         }
         th, td {
             border: 1px solid #d1d5db;
-            padding: 1px;
+            padding: 0.3px;
             text-align: center;
             vertical-align: middle;
-            font-size: 5.2px;
             word-break: break-word;
-            line-height: 1.05;
+            line-height: 0.95;
+        }
+        th {
+            font-size: 5px;
+        }
+        td {
+            font-size: 6.1px;
         }
 
         /* ── Cabeceras fijas (Telar / STD / %EF Std) ── */
@@ -76,12 +81,12 @@
             background-color: #374151;
             color: #ffffff;
             font-weight: bold;
-            font-size: 5.6px;
+            font-size: 6px;
         }
-        .col-telar { width: 23px; }
-        .col-fecha { width: 26px; }
-        .col-std   { width: 18px; }
-        .col-ef    { width: 18px; }
+        .col-telar { width: 20px; }
+        .col-fecha { width: 22px; }
+        .col-std   { width: 16px; }
+        .col-ef    { width: 16px; }
 
         /* ── Cabeceras de Turno (fila 1) ── */
         .hdr-t1 { background-color: #1e40af; color: #ffffff; font-weight: bold; font-size: 6px; }
@@ -89,9 +94,9 @@
         .hdr-t3 { background-color: #92400e; color: #ffffff; font-weight: bold; font-size: 6px; }
 
         /* ── Cabeceras de Horario (fila 2) ── */
-        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 5.2px; }
-        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: 5.2px; }
-        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: 5.2px; }
+        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 5.8px; }
+        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: 5.8px; }
+        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: 5.8px; }
 
         /* ── Cabeceras de columna (fila 3) ── */
         .hdr-c1 { background-color: #93c5fd; color: #1e3a8a; font-weight: bold; }
@@ -99,13 +104,13 @@
         .hdr-c3 { background-color: #fde047; color: #78350f; font-weight: bold; }
 
         /* ── Anchos de columnas de datos ── */
-        .col-rpm { width: 16px; }
-        .col-pef { width: 13px; }
-        .col-obs { width: 22px; text-align: left; }
+        .col-rpm { width: 10px; }
+        .col-pef { width: 8px; }
+        .col-obs { width: 10px; text-align: left; }
         tbody td.col-obs {
-            font-size: 4.6px;
-            line-height: 1;
-            padding: 1px;
+            font-size: 4.8px;
+            line-height: 0.9;
+            padding: 0.2px 0.5px;
         }
 
         /* ── Celdas de datos por horario ── */
@@ -140,14 +145,14 @@
 
     {{-- ── Título ── --}}
     <div class="titulo">Cortes de Eficiencia &mdash; {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</div>
-    <div class="subtitle">Celdas de % EF por debajo de 70% se resaltan</div>
+    {{-- <div class="subtitle">Celdas de % EF por debajo de 70% se resaltan</div> --}}
 
     {{-- ── Badges de folio por turno ── --}}
-    <div class="folios">
+    {{-- <div class="folios">
         <span class="folio-badge folio-t1">Turno 1: {{ $foliosPorTurno['1'] ?? '—' }}</span>
         <span class="folio-badge folio-t2">Turno 2: {{ $foliosPorTurno['2'] ?? '—' }}</span>
         <span class="folio-badge folio-t3">Turno 3: {{ $foliosPorTurno['3'] ?? '—' }}</span>
-    </div>
+    </div> --}}
 
     @php
         /* ── Helpers ── */
@@ -226,7 +231,7 @@
                 @endfor
             </tr>
 
-            {{-- ── Fila 3: EF x3 y Obs x3 ── --}}
+            {{-- ── Fila 3: EF x3 + Obs x3 ── --}}
             <tr>
                 @for ($t = 1; $t <= 3; $t++)
                     <th class="{{ $hdrC[0] }} col-pef">EF</th>
@@ -271,7 +276,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="22" style="padding: 12px; color: #6b7280;">
+                    <td colspan="22" style="padding: 6px; color: #6b7280;">
                         Sin datos para la fecha seleccionada.
                     </td>
                 </tr>
