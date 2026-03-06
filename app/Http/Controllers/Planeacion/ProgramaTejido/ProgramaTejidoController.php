@@ -12,6 +12,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 
@@ -290,8 +291,8 @@ class ProgramaTejidoController extends Controller
 
                 $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salon, $noTelarId);
 
-                $nuevo->CreatedAt = now();
-                $nuevo->UpdatedAt = now();
+                $nuevo->CreatedAt = Carbon::now();
+                $nuevo->UpdatedAt = Carbon::now();
                 $nuevo->save();
                 $creados[] = $nuevo;
             }
