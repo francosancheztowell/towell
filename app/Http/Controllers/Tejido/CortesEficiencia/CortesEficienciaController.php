@@ -971,7 +971,7 @@ class CortesEficienciaController extends Controller
 
             $dompdf = new Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');
-            $dompdf->setPaper('a4', 'portrait');
+            $dompdf->setPaper('a4', 'landscape');
             $dompdf->render();
 
             $pdfContent = $dompdf->output();
@@ -1202,7 +1202,7 @@ class CortesEficienciaController extends Controller
 
             $dompdf = new Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');
-            $dompdf->setPaper('a4', 'portrait');
+            $dompdf->setPaper('a4', 'landscape');
             $dompdf->render();
 
             $pdfContent = $dompdf->output();
