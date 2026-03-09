@@ -155,10 +155,8 @@
             };
 
             const csrfToken = '{{ csrf_token() }}';
-            // El componente button-edit ya verifica permisos con module="Reservar y Programar"
-            // Solo renderiza el botón si el usuario tiene permisos (modificar, módulo 51)
-            // Verificar si el botón existe en el DOM después de que se renderice
-            let canEdit = false;
+            // Solo usuarios del área Supervisores pueden editar (cambiar status, observaciones, prioridades)
+            let canEdit = {{ json_encode($canEdit ?? false) }};
 
             const state = {
                 ordenes: {},            // { 1: [..], 2: [..], 3: [..], 4: [..] }
@@ -1124,9 +1122,6 @@
             // Init
             // ==========================
             document.addEventListener('DOMContentLoaded', () => {
-                // Habilitar drag and drop para todos los usuarios
-                canEdit = true;
-
                 setButtonsEnabled(false);
                 setupRowClickDelegates();
                 cargarOrdenes();

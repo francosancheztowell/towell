@@ -34,6 +34,7 @@ class UrdConsumoHilo extends Model
         'Conos',
         'LoteProv',
         'NoProv',
+        'Registrado',
     ];
 
     protected $casts = [
@@ -41,7 +42,16 @@ class UrdConsumoHilo extends Model
         'InventQty' => 'float',
         'ProdDate' => 'date',
         'Conos' => 'integer',
+        'Registrado' => 'boolean',
     ];
+
+    /**
+     * Scope para filtrar solo consumos registrados por el servicio externo (Registrado = 1).
+     */
+    public function scopeRegistrados($query)
+    {
+        return $query->where('Registrado', 1);
+    }
 
     /**
      * Relación con UrdProgramaUrdido (N:1)

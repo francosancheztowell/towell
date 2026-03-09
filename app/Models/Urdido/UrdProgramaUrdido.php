@@ -98,5 +98,13 @@ class UrdProgramaUrdido extends Model
     {
         return $this->hasMany(UrdConsumoHilo::class, 'Folio', 'Folio');
     }
+
+    /**
+     * Relación con UrdConsumoHilo (1:N) solo consumos registrados por el servicio externo.
+     */
+    public function consumosRegistrados()
+    {
+        return $this->hasMany(UrdConsumoHilo::class, 'Folio', 'Folio')->registrados();
+    }
 }
 

@@ -144,6 +144,7 @@
                         data-oktiempo="{{ $item->OkTiempo === null ? '' : ($item->OkTiempo ? '1' : '0') }}"
                         data-okviscocidad="{{ ($item->OkViscocidad ?? $item->OkViscosidad ?? null) === null ? '' : (($item->OkViscocidad ?? $item->OkViscosidad) ? '1' : '0') }}"
                         data-oksolidos="{{ $item->OkSolidos === null ? '' : ($item->OkSolidos ? '1' : '0') }}"
+                        data-ax="{{ $item->AX ?? 0 }}"
                     >
                         @if($puedeVerCalidad)
                         <td class="px-4 py-3 text-center">
@@ -747,6 +748,11 @@
             return STATUS_FINALIZADOS.includes(normalizarStatus(status));
         }
 
+        function formulacionTieneAX1() {
+            const ax = selectedRow?.dataset?.ax ?? '';
+            return ax === 1 || ax === '1' || ax === true;
+        }
+
         function obtenerStatusSeleccionado() {
             return selectedRow?.dataset?.status || '';
         }
@@ -792,6 +798,15 @@
             });
         }
 
+        function mostrarBloqueoAX1() {
+            Swal.fire({
+                icon: 'info',
+                title: 'Edición bloqueada',
+                text: 'No se puede editar una formulación con AX = 1.',
+                confirmButtonColor: '#3b82f6'
+            });
+        }
+
         function setButtonEnabled(id, enabled) {
             const btn = document.getElementById(id);
             if (!btn) return;
@@ -802,11 +817,11 @@
 
         function actualizarEstadoBotonesAccion() {
             const haySeleccion = !!selectedRow;
-            const statusFinal = statusEsFinalizado(obtenerStatusSeleccionado());
+            const bloqueadoPorAX = formulacionTieneAX1();
 
             setButtonEnabled('btn-view', haySeleccion);
             setButtonEnabled('btn-delete', haySeleccion);
-            setButtonEnabled('btn-edit', haySeleccion && !statusFinal);
+            setButtonEnabled('btn-edit', haySeleccion && !bloqueadoPorAX);
         }
 
         function obtenerFormulacionSeleccionadaValida() {
@@ -984,8 +999,8 @@
             const formulacionId = obtenerFormulacionSeleccionadaValida();
             if (!formulacionId) return;
 
-            if (statusEsFinalizado(obtenerStatusSeleccionado())) {
-                mostrarBloqueoFinalizado();
+            if (formulacionTieneAX1()) {
+                mostrarBloqueoAX1();
                 return;
             }
 

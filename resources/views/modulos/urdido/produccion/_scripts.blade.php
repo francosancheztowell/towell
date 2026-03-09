@@ -12,6 +12,15 @@
         (function () {
     'use strict';
 
+    const canEdit = document.querySelector('[data-can-edit]')?.getAttribute('data-can-edit') === '1';
+    function requireCanEdit() {
+        if (!canEdit) {
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', text: 'No tiene permiso para modificar en este módulo', toast: true, position: 'top-end', timer: 2500 });
+            return false;
+        }
+        return true;
+    }
+
     // ═══════════════════════════════════════════════════════
     // Helpers de notificación reutilizables (Swal)
     // ═══════════════════════════════════════════════════════
@@ -240,6 +249,7 @@
                 // ─── Event listeners de cambio en la tabla (Julio, Fecha, Horas) ───
                 if (tablaBody) {
                     tablaBody.addEventListener('change', function (e) {
+                        if (!requireCanEdit()) return;
                         const target = e.target;
 
                         // Cambio de No Julio
@@ -427,6 +437,7 @@
                 if (tablaBody) {
                     tablaBody.addEventListener('change', function (e) {
                         if (!e.target.classList.contains('checkbox-finalizar')) return;
+                        if (!requireCanEdit()) return;
 
                         const checkbox = e.target;
                         const registroId = checkbox.getAttribute('data-registro-id');
@@ -949,6 +960,7 @@
                 // Actualización de campos de producción (roturas y Karl Mayer)
                 // ═══════════════════════════════════════════════════════
                 async function actualizarCampoProduccion(registroId, campo, valor) {
+                    if (!requireCanEdit()) return;
                     const camposEditablesEnParcial = ['Vueltas', 'Diametro'];
                     if (!camposEditablesEnParcial.includes(campo) && !verificarFilaNoFinalizada(registroId)) return;
                     if (!verificarOficialSeleccionado(registroId)) {
@@ -1487,6 +1499,7 @@
                 document.addEventListener('click', function (e) {
                     const btnEliminar = e.target.closest('.btn-eliminar-oficial');
                     if (!btnEliminar || btnEliminar.disabled) return;
+                    if (!requireCanEdit()) return;
 
                     e.preventDefault();
                     const numero = btnEliminar.getAttribute('data-numero');
@@ -1739,6 +1752,7 @@
                 document.addEventListener('click', function (e) {
                     const btnAgregar = e.target.closest('.btn-agregar-oficial');
                     if (!btnAgregar) return;
+                    if (!requireCanEdit()) return;
 
                     e.preventDefault();
                     if (btnAgregar.disabled) return;
@@ -1765,6 +1779,7 @@
                 const btnGuardarOficiales = document.getElementById('btn-guardar-oficiales');
                 if (btnGuardarOficiales) {
                     btnGuardarOficiales.addEventListener('click', async function () {
+                        if (!requireCanEdit()) return;
                         if (!modalRegistroId || !modalRegistroId.value) {
                             alert('Error: No se encontró el registro');
                             return;
@@ -2001,6 +2016,7 @@
     // Función global: Finalizar orden completa
     // ═══════════════════════════════════════════════════════
             window.finalizar = async function () {
+                if (!requireCanEdit()) return;
                 // Validar que todos los registros estén completos
                 const validacion = validarRegistrosCompletos();
 

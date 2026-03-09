@@ -24,6 +24,17 @@ trait ProduccionTrait
     abstract protected function getProgramaModelClass(): string;
     abstract protected function getDepartamento(): string;
     abstract protected function shouldRoundKgBruto(): bool;
+    abstract protected function getModuleNameForPermissions(): string;
+
+    /**
+     * Verifica que el usuario tenga permiso de modificar. Usa permisos del módulo, no el área.
+     */
+    protected function ensureUserCanEdit(): void
+    {
+        if (!function_exists('userCan') || !userCan('modificar', $this->getModuleNameForPermissions())) {
+            abort(403, 'No tiene permiso para modificar en este módulo.');
+        }
+    }
 
     // ─── helpers reutilizables ────────────────────────────────────────
 
@@ -102,6 +113,7 @@ trait ProduccionTrait
 
     public function guardarOficial(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -259,6 +271,7 @@ trait ProduccionTrait
 
     public function eliminarOficial(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -288,6 +301,7 @@ trait ProduccionTrait
 
     public function actualizarTurnoOficial(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -330,6 +344,7 @@ trait ProduccionTrait
 
     public function actualizarFecha(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -412,6 +427,7 @@ trait ProduccionTrait
 
     public function actualizarKgBruto(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -470,6 +486,7 @@ trait ProduccionTrait
 
     public function actualizarHoras(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -506,6 +523,7 @@ trait ProduccionTrait
 
     public function marcarListo(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -558,6 +576,12 @@ trait ProduccionTrait
             }
 
             $registro->Finalizar = $request->listo ? 1 : 0;
+
+            // Al desmarcar: limpiar Impresion para que el registro vuelva a ser imprimible
+            if (!$request->listo) {
+                $this->onRegistroDesmarcado($registro);
+            }
+
             $registro->save();
 
             $orden = $programaModel::where('Folio', $registro->Folio)->first();
@@ -591,6 +615,14 @@ trait ProduccionTrait
             ]);
             return response()->json(['success' => false, 'error' => 'Error al actualizar el registro: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Hook llamado al desmarcar Finalizar. Sobreescribir en subclases si aplica.
+     */
+    protected function onRegistroDesmarcado($registro): void
+    {
+        // por defecto no hace nada
     }
 
     /**

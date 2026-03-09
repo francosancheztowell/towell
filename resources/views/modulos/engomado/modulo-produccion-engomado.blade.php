@@ -2,8 +2,24 @@
 
 @section('page-title', 'Producción de Engomado')
 
+@php
+    $canEdit = $canEdit ?? false;
+@endphp
 @section('navbar-right')
     <div class="flex items-center gap-2">
+        @if($canEdit && isset($orden) && $orden && $registrosProduccion && $registrosProduccion->count() > 0)
+        <button
+            type="button"
+            id="btn-imprimir-parcial"
+            onclick="imprimirProduccionParcial()"
+            @if(!($tieneRegistrosParciales ?? false)) disabled @endif
+            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500"
+            title="{{ ($tieneRegistrosParciales ?? false) ? 'Imprimir producción parcial' : 'No hay registros pendientes de imprimir' }}"
+        >
+            <i class="fa-solid fa-print"></i>
+            <span>Imprimir producción parcial</span>
+        </button>
+        @endif
         <x-navbar.button-create
             onclick="window.location.href='{{ isset($orden) && $orden && $orden->Folio ? route('engomado.captura-formula', ['folio' => $orden->Folio]) : route('engomado.captura-formula') }}'"
             title="Agregar fórmula"
@@ -13,6 +29,7 @@
             text="Agregar fórmula"
             bg="bg-blue-500"
         />
+        @if($canEdit)
         <x-navbar.button-create
             onclick="finalizar()"
             title="Finalizar"
@@ -22,6 +39,7 @@
             text="Finalizar"
             bg="bg-blue-500"
         />
+        @endif
     </div>
 @endsection
 
@@ -32,6 +50,15 @@
         .grid-produccion-columnas {
             grid-template-columns: 0.75fr 0.75fr 0.75fr 0.9fr 1.2fr !important;
         }
+    }
+    .produccion-solo-lectura input, .produccion-solo-lectura select,
+    .produccion-solo-lectura .btn-agregar-oficial, .produccion-solo-lectura .btn-fecha-display,
+    .produccion-solo-lectura .set-current-time, .produccion-solo-lectura .checkbox-finalizar,
+    .produccion-solo-lectura .edit-quantity-btn, .produccion-solo-lectura .quantity-edit-container,
+    .produccion-solo-lectura .number-option {
+        pointer-events: none;
+        opacity: 0.7;
+        cursor: not-allowed;
     }
 </style>
 
@@ -152,7 +179,7 @@
         </div>
 
         <!-- Sección inferior: Tabla de Producción -->
-        <div class="bg-white shadow-md overflow-hidden">
+        <div class="bg-white shadow-md overflow-hidden {{ $canEdit ? '' : 'produccion-solo-lectura' }}" data-can-edit="{{ $canEdit ? '1' : '0' }}">
             <div class="overflow-x-auto max-h-[62vh] overflow-y-auto" style="min-width: 100%;">
                 <table class="divide-y divide-gray-200 text-sm" style="min-width: max-content; width: 100%;">
                     <thead class="bg-blue-500 text-white sticky top-0 z-20">
@@ -780,6 +807,15 @@
         (function () {
             'use strict';
 
+            const canEdit = document.querySelector('[data-can-edit]')?.getAttribute('data-can-edit') === '1';
+            function requireCanEdit() {
+                if (!canEdit) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', text: 'No tiene permiso para modificar en este módulo', toast: true, position: 'top-end', timer: 2500 });
+                    return false;
+                }
+                return true;
+            }
+
             // ─── helpers de notificación reutilizables ──────────────────
             function mostrarToast(icon, text, timer = 2500) {
                 if (typeof Swal !== 'undefined') {
@@ -997,6 +1033,7 @@
 
             // ===== Llamadas al backend =====
             async function actualizarFecha(registroId, fecha) {
+                if (!requireCanEdit()) return;
                 if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
@@ -1025,6 +1062,7 @@
             }
 
             async function actualizarTurnoOficial(registroId, numeroOficial, turno) {
+                if (!requireCanEdit()) return;
                 if (!verificarFilaNoFinalizada(registroId)) return;
                 try {
                     const response = await fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.turno.oficial') }}', {
@@ -1089,6 +1127,7 @@
             }
 
             async function actualizarKgBruto(registroId, kgBruto) {
+                if (!requireCanEdit()) return;
                 if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
@@ -1136,6 +1175,7 @@
             }
 
             async function actualizarJulioTara(registroId, noJulio, tara, kgNetoCalculado) {
+                if (!requireCanEdit()) return;
                 if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
@@ -1200,6 +1240,7 @@
             }
 
             async function actualizarHora(registroId, campo, valor) {
+                if (!requireCanEdit()) return;
                 if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
@@ -1246,6 +1287,7 @@
             }
 
             async function actualizarCampoProduccion(registroId, campo, valor) {
+                if (!requireCanEdit()) return;
                 if (!verificarFilaNoFinalizada(registroId)) return;
                 if (!verificarOficialSeleccionado(registroId)) {
                     mostrarAlertaOficialRequerido();
@@ -1844,6 +1886,7 @@
                 if (tablaBody) {
                     tablaBody.addEventListener('change', function (e) {
                         if (!e.target.classList.contains('checkbox-finalizar')) return;
+                        if (!requireCanEdit()) return;
                         const checkbox = e.target;
                         const registroId = checkbox.getAttribute('data-registro-id');
                         const listo = checkbox.checked;
@@ -1899,6 +1942,7 @@
                                 if (listo) bloquearFila(row);
                                 else desbloquearFila(row);
                             }
+                            actualizarBotonImprimirParcial();
                             if (typeof Swal !== 'undefined') {
                                 Swal.fire({
                                     icon: 'success',
@@ -1923,6 +1967,19 @@
                             Swal.fire({ icon: 'error', title: 'Error', text: 'Error al actualizar el registro. Por favor, intenta nuevamente.' });
                         }
                     }
+                }
+
+                // Actualiza el estado del botón "Imprimir producción parcial" según checkboxes marcados
+                function actualizarBotonImprimirParcial() {
+                    const btn = document.getElementById('btn-imprimir-parcial');
+                    if (!btn) return;
+                    const hayFinalizados = tablaBody
+                        ? tablaBody.querySelectorAll('.checkbox-finalizar:checked').length > 0
+                        : false;
+                    btn.disabled = !hayFinalizados;
+                    btn.title = hayFinalizados
+                        ? 'Imprimir producción parcial'
+                        : 'Marca al menos un registro como "Listo" (Finalizar) para imprimir';
                 }
 
                 // Remover borde rojo cuando el usuario corrige los campos
@@ -2080,6 +2137,7 @@
                     });
 
                     tablaBody.addEventListener('change', function (e) {
+                        if (!requireCanEdit()) return;
                         const target = e.target;
                         const field = target.getAttribute('data-field');
                         const row = target.closest('tr');
@@ -2394,6 +2452,7 @@
                 document.addEventListener('click', function (e) {
                     const btnAgregar = e.target.closest('.btn-agregar-oficial');
                     if (!btnAgregar) return;
+                    if (!requireCanEdit()) return;
 
                     e.preventDefault();
                     if (btnAgregar.disabled) return;
@@ -2538,6 +2597,7 @@
                 document.addEventListener('click', function (e) {
                     const btnEliminar = e.target.closest('.btn-eliminar-oficial');
                     if (!btnEliminar || btnEliminar.disabled) return;
+                    if (!requireCanEdit()) return;
                     e.preventDefault();
                     const numero = btnEliminar.getAttribute('data-numero');
                     const registroId = modalRegistroId ? modalRegistroId.value : null;
@@ -2677,6 +2737,7 @@
                 // Guardar oficiales
                 if (btnGuardarOficiales) {
                     btnGuardarOficiales.addEventListener('click', async function () {
+                        if (!requireCanEdit()) return;
                         if (!modalRegistroId || !modalRegistroId.value) {
                             alert('Error: No se encontró el registro');
                             return;
@@ -2937,8 +2998,68 @@
                 return { valido: true };
             }
 
+            // ===== Imprimir producción parcial =====
+            window.imprimirProduccionParcial = async function () {
+                const btn = document.getElementById('btn-imprimir-parcial');
+                if (btn && btn.disabled) return;
+
+                @if(isset($orden) && $orden)
+                    const ordenId = {{ $orden->Id }};
+                    const url = '{{ route('engomado.modulo.produccion.engomado.pdf') }}?orden_id=' + ordenId + '&tipo=engomado&parcial=1';
+
+                    // Deshabilitar botón mientras se procesa
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.title = 'Generando PDF...';
+                    }
+
+                    try {
+                        const response = await fetch(url);
+
+                        if (!response.ok) {
+                            // El servidor devolvió error JSON
+                            const data = await response.json().catch(() => ({ error: 'Error desconocido' }));
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.title = 'Imprimir producción parcial';
+                            }
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'No se pudo generar el PDF.' });
+                            } else {
+                                alert(data.error || 'No se pudo generar el PDF.');
+                            }
+                            return;
+                        }
+
+                        // Convertir respuesta a blob y abrir en nueva pestaña
+                        const blob = await response.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        window.open(blobUrl, '_blank');
+
+                        // Botón queda deshabilitado: los registros ya tienen Impresion=1 en BD
+                        if (btn) {
+                            btn.disabled = true;
+                            btn.title = 'Registros ya impresos. Marca nuevos como "Listo" para habilitar.';
+                        }
+
+                    } catch (err) {
+                        console.error('Error al imprimir parcial:', err);
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.title = 'Imprimir producción parcial';
+                        }
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión al generar el PDF.' });
+                        }
+                    }
+                @else
+                    alert('No hay orden seleccionada');
+                @endif
+            };
+
             // ===== Acción Finalizar =====
             window.finalizar = async function () {
+                if (!requireCanEdit()) return;
                 // Validar que todos los registros estén completos
                 const validacion = validarRegistrosCompletos();
 

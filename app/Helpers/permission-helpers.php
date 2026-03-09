@@ -60,6 +60,51 @@ if (!function_exists('userCan')) {
     }
 }
 
+if (!function_exists('moduleNameForRoute')) {
+    /**
+     * Obtener el nombre del módulo en SYSRoles para una ruta.
+     * Útil para validar permisos en pantallas que tienen su propio módulo (ej. Producción Urdido).
+     *
+     * @param string|null $path Ruta a buscar (ej. 'urdido/modulo-produccion-urdido'). Si null, usa request()->path()
+     * @return string|null Nombre del módulo o null si no se encuentra
+     */
+    function moduleNameForRoute(?string $path = null): ?string
+    {
+        $ruta = $path ?? request()->path();
+        $rutaNormalizada = '/' . ltrim($ruta, '/');
+
+        // 1. Buscar coincidencia exacta
+        $modulo = SYSRoles::where('Ruta', $rutaNormalizada)->select('modulo')->first();
+        if ($modulo) {
+            return $modulo->modulo;
+        }
+
+        // 2. Buscar por prefijo (ruta más específica)
+        $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaNormalizada . '%')
+            ->select('modulo')
+            ->orderByRaw('LEN(Ruta) DESC')
+            ->first();
+        if ($modulo) {
+            return $modulo->modulo;
+        }
+
+        // 3. Buscar por última parte de la ruta (ej. modulo-produccion-urdido)
+        $partes = array_filter(explode('/', trim($rutaNormalizada, '/')));
+        if (count($partes) > 0) {
+            $ultimaParte = end($partes);
+            $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
+                ->select('modulo')
+                ->orderByRaw('LEN(Ruta) DESC')
+                ->first();
+            if ($modulo) {
+                return $modulo->modulo;
+            }
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('userPermissions')) {
     /**
      * Obtener todos los permisos del usuario para un módulo

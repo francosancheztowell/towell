@@ -154,7 +154,7 @@
             };
 
             const csrfToken = '{{ csrf_token() }}';
-            const canEdit = {{ $puedeEditar ? 'true' : 'false' }};
+            const canEdit = {{ json_encode($canEdit ?? false) }};
 
             const state = {
                 ordenes: {},            // { 1: [..], 2: [..] }

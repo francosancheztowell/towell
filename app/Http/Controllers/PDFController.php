@@ -20,6 +20,8 @@ class PDFController extends Controller
      * Parámetros (query string):
      *  - orden_id (obligatorio)
      *  - tipo = 'urdido' | 'engomado' (por defecto 'urdido')
+     *  - parcial = 1 (solo engomado): imprime registros con Impresion=0, luego los marca Impresion=1
+     *  - reimpresion = 1: orden finalizada, para engomado solo registros con Impresion=0
      */
     public function generarPDFUrdidoEngomado(Request $request)
     {
@@ -44,6 +46,8 @@ class PDFController extends Controller
                 ], 404);
             }
 
+            $esParcial = strtolower($tipo) === 'engomado' && $request->boolean('parcial');
+
             if ($request->boolean('reimpresion')) {
                 if (strtolower($tipo) === 'engomado' && ($orden->Status ?? '') !== 'Finalizado') {
                     return response()->json([
@@ -66,7 +70,14 @@ class PDFController extends Controller
             }
 
             // 3) Registros de producción
-            $registrosProduccion = $this->obtenerRegistrosProduccion($orden->Folio, $tipo);
+            $registrosProduccion = $this->obtenerRegistrosProduccion($orden->Folio, $tipo, $esParcial, $request->boolean('reimpresion'));
+
+            if ($esParcial && (!$registrosProduccion || $registrosProduccion->count() === 0)) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'No hay registros pendientes de impresión. Todos los registros ya fueron impresos anteriormente.',
+                ], 422);
+            }
 
             // 4) Julios
             $julios = UrdJuliosOrden::where('Folio', $orden->Folio)
@@ -113,8 +124,20 @@ class PDFController extends Controller
             // 6) Configurar DomPDF
             $dompdf = $this->crearDompdf($html);
 
+            // 6.1) Si es impresión parcial de engomado, marcar registros como impresos
+            if ($esParcial && strtolower($tipo) === 'engomado' && $registrosProduccion && $registrosProduccion->count() > 0) {
+                $ids = $registrosProduccion->pluck('Id')->filter()->values()->all();
+                if (!empty($ids)) {
+                    try {
+                        EngProduccionEngomado::whereIn('Id', $ids)->update(['Impresion' => 1]);
+                    } catch (\Throwable $e) {
+                        Log::warning('No se pudo marcar Impresion=1 (¿columna existe?): ' . $e->getMessage());
+                    }
+                }
+            }
+
             // 7) Devolver PDF: descarga (attachment) en reimpresión; inline en el resto
-            $nombreArchivo = $this->construirNombreArchivo($orden, $tipo);
+            $nombreArchivo = $this->construirNombreArchivo($orden, $tipo, $esParcial);
             $disposition = $esReimpresion ? 'attachment' : 'inline';
 
             return response($dompdf->output(), 200)
@@ -148,15 +171,34 @@ class PDFController extends Controller
 
     /**
      * Obtener registros de producción según el tipo.
+     *
+     * Para engomado parcial: solo registros con Finalizar=1 e Impresion=NULL/0.
+     * Tras generar el PDF parcial se marcan con Impresion=1 para no repetirlos.
+     * Al desmarcar Finalizar (→0), Impresion se resetea a NULL vía onRegistroDesmarcado.
+     *
+     * @param  bool  $esParcial       Si true (engomado): marca Impresion=1 en los registros tras generar el PDF
+     * @param  bool  $esReimpresion   No afecta el filtrado en engomado
      */
-    protected function obtenerRegistrosProduccion(string $folio, string $tipo)
+    protected function obtenerRegistrosProduccion(string $folio, string $tipo, bool $esParcial = false, bool $esReimpresion = false)
     {
         $tipo = strtolower($tipo);
 
         if ($tipo === 'engomado') {
-            return EngProduccionEngomado::where('Folio', $folio)
-                ->orderBy('Id')
-                ->get();
+            try {
+                // Solo registros marcados como listos (Finalizar=1) y aún no impresos (Impresion=NULL/0)
+                return EngProduccionEngomado::where('Folio', $folio)
+                    ->where('Finalizar', 1)
+                    ->whereRaw('(Impresion IS NULL OR Impresion = 0)')
+                    ->orderBy('Id')
+                    ->get();
+            } catch (\Throwable $e) {
+                // Columna Impresion puede no existir aún; usar todos los registros con Finalizar=1
+                Log::warning('Columna Impresion no encontrada, usando registros con Finalizar=1: ' . $e->getMessage());
+                return EngProduccionEngomado::where('Folio', $folio)
+                    ->where('Finalizar', 1)
+                    ->orderBy('Id')
+                    ->get();
+            }
         }
 
         return UrdProduccionUrdido::where('Folio', $folio)
@@ -234,13 +276,14 @@ class PDFController extends Controller
     /**
      * Construir nombre de archivo para el PDF.
      */
-    protected function construirNombreArchivo($orden, string $tipo): string
+    protected function construirNombreArchivo($orden, string $tipo, bool $esParcial = false): string
     {
         $folio = $orden->Folio ?? 'ORDEN';
         $tipo  = strtoupper($tipo);
+        $sufijo = $esParcial ? '_PARCIAL' : '';
 
         if ($tipo === 'ENGOMADO') {
-            return "ORDEN_ENGOMADO_{$folio}.pdf";
+            return "ORDEN_ENGOMADO_{$folio}{$sufijo}.pdf";
         }
 
         return "ORDEN_URDIDO_ENGOMADO_{$folio}.pdf";

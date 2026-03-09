@@ -40,6 +40,21 @@ class ModuloProduccionUrdidoController extends Controller
         return false;
     }
 
+    protected function getModuleNameForPermissions(): string
+    {
+        return 'Producción Urdido';
+    }
+
+    /**
+     * Verifica si el usuario puede editar según permisos del módulo (no área).
+     * Usa el módulo asociado a la ruta de producción urdido en SYSRoles.
+     */
+    private function usuarioPuedeEditar(): bool
+    {
+        $modulo = $this->getModuleNameForPermissions();
+        return function_exists('userCan') && userCan('modificar', $modulo);
+    }
+
     // ─── helpers privados específicos de Urdido ──────────────────────
 
     private function extractMcCoyNumber(?string $maquinaId): ?int
@@ -127,6 +142,7 @@ class ModuloProduccionUrdidoController extends Controller
             'observaciones' => '',
             'totalRegistros' => 0,
             'registrosProduccion' => collect([]),
+            'canEdit' => $this->usuarioPuedeEditar(),
         ];
     }
 
@@ -282,6 +298,7 @@ class ModuloProduccionUrdidoController extends Controller
             'usuarioNombre' => $user ? ($user->nombre ?? '') : '',
             'usuarioClave' => $user ? ($user->numero_empleado ?? '') : '',
             'usuarioArea' => $user ? ($user->area ?? null) : null,
+            'canEdit' => $this->usuarioPuedeEditar(),
         ];
     }
 
@@ -347,6 +364,7 @@ class ModuloProduccionUrdidoController extends Controller
 
     public function finalizar(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'orden_id' => 'required|integer|exists:UrdProgramaUrdido,Id',

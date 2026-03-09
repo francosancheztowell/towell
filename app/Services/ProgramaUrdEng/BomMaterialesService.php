@@ -8,6 +8,7 @@ use App\Models\Engomado\EngAnchoBalonaCuenta;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Models\Urdido\UrdConsumoHilo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BomMaterialesService
 {
@@ -322,9 +323,14 @@ class BomMaterialesService
      */
     private function obtenerMaterialesConsumidosKeys(array $itemIds): array
     {
-        $consumidos = UrdConsumoHilo::query()
-            ->whereIn('ItemId', $itemIds)
-            ->select('ItemId', 'InventSerialId')
+        $query = UrdConsumoHilo::query()
+            ->whereIn('ItemId', $itemIds);
+
+        if (Schema::connection('sqlsrv')->hasColumn('UrdConsumoHilo', 'Registrado')) {
+            $query->where('Registrado', 1);
+        }
+
+        $consumidos = $query->select('ItemId', 'InventSerialId')
             ->distinct()
             ->get();
 
