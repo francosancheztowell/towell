@@ -6,10 +6,15 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        @page {
+            size: A4 landscape;
+            margin: 8px 8px 9px 8px;
+        }
+
         body {
             font-family: Arial, sans-serif;
-            font-size: 7.5px;
-            padding: 10px 12px;
+            font-size: 6px;
+            padding: 0;
             color: #111827;
             background: #ffffff;
         }
@@ -17,32 +22,32 @@
         /* ── Título ── */
         .titulo {
             text-align: center;
-            font-size: 13px;
+            font-size: 9px;
             font-weight: bold;
             color: #1f2937;
-            margin-bottom: 3px;
+            margin-bottom: 1px;
         }
         .subtitle {
             text-align: center;
-            font-size: 8px;
+            font-size: 6px;
             color: #6b7280;
-            margin-bottom: 8px;
+            margin-bottom: 3px;
         }
 
         /* ── Badges de folio ── */
         .folios {
             display: block;
             text-align: center;
-            font-size: 8px;
-            margin-bottom: 8px;
+            font-size: 6px;
+            margin-bottom: 3px;
             color: #374151;
         }
         .folio-badge {
             display: inline-block;
-            border-radius: 10px;
-            padding: 2px 8px;
-            margin: 0 3px;
-            font-size: 8px;
+            border-radius: 8px;
+            padding: 1px 4px;
+            margin: 0 1px;
+            font-size: 6px;
             font-weight: bold;
             border: 1px solid;
         }
@@ -58,11 +63,17 @@
         }
         th, td {
             border: 1px solid #d1d5db;
-            padding: 2px 2px;
+            padding: 1.5px;
             text-align: center;
             vertical-align: middle;
-            font-size: 7px;
             word-break: break-word;
+            line-height: 1.1;
+        }
+        th {
+            font-size: 7px;
+        }
+        td {
+            font-size: 8px;
         }
 
         /* ── Cabeceras fijas (Telar / STD / %EF Std) ── */
@@ -70,22 +81,22 @@
             background-color: #374151;
             color: #ffffff;
             font-weight: bold;
-            font-size: 7.5px;
+            font-size: 7.3px;
         }
-        .col-telar { width: 42px; }
-        .col-fecha { width: 46px; }
-        .col-std   { width: 32px; }
-        .col-ef    { width: 32px; }
+        .col-telar { width: 34px; }
+        .col-fecha { width: 22px; }
+        .col-std   { width: 16px; }
+        .col-ef    { width: 16px; }
 
         /* ── Cabeceras de Turno (fila 1) ── */
-        .hdr-t1 { background-color: #1e40af; color: #ffffff; font-weight: bold; font-size: 8px; }
-        .hdr-t2 { background-color: #166534; color: #ffffff; font-weight: bold; font-size: 8px; }
-        .hdr-t3 { background-color: #92400e; color: #ffffff; font-weight: bold; font-size: 8px; }
+        .hdr-t1 { background-color: #1e40af; color: #ffffff; font-weight: bold; font-size: 7.2px; }
+        .hdr-t2 { background-color: #166534; color: #ffffff; font-weight: bold; font-size: 7.2px; }
+        .hdr-t3 { background-color: #92400e; color: #ffffff; font-weight: bold; font-size: 7.2px; }
 
         /* ── Cabeceras de Horario (fila 2) ── */
-        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 7px; }
-        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: 7px; }
-        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: 7px; }
+        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 6.8px; }
+        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: 6.8px; }
+        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: 6.8px; }
 
         /* ── Cabeceras de columna (fila 3) ── */
         .hdr-c1 { background-color: #93c5fd; color: #1e3a8a; font-weight: bold; }
@@ -93,9 +104,20 @@
         .hdr-c3 { background-color: #fde047; color: #78350f; font-weight: bold; }
 
         /* ── Anchos de columnas de datos ── */
-        .col-rpm { width: 30px; }
-        .col-pef { width: 28px; }
-        .col-obs { width: 50px; text-align: left; }
+        .col-rpm { width: 16px; }
+        .col-pef { width: 26px; }
+        th.col-rpm { font-size: 7.5px; }
+        td.col-rpm { font-size: 9px; font-weight: 700; }
+        .ef-wrap { line-height: 1.05; }
+        .ef-value { font-size: 10px; font-weight: 700; }
+        .ef-comment {
+            margin-top: 1px;
+            font-size: 6.3px;
+            font-weight: 400;
+            text-align: center;
+            white-space: normal;
+            word-break: break-word;
+        }
 
         /* ── Celdas de datos por horario ── */
         .cell-h1 { background-color: #eff6ff; }
@@ -110,6 +132,7 @@
             font-weight: bold;
             background-color: #f3f4f6;
             color: #111827;
+            font-size: 9px;
         }
 
         /* ── Eficiencia baja ── */
@@ -118,8 +141,8 @@
 
         /* ── Footer ── */
         .footer {
-            margin-top: 8px;
-            font-size: 8px;
+            margin-top: 3px;
+            font-size: 5.5px;
             color: #6b7280;
             text-align: center;
         }
@@ -129,14 +152,14 @@
 
     {{-- ── Título ── --}}
     <div class="titulo">Cortes de Eficiencia &mdash; {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</div>
-    <div class="subtitle">Celdas de % EF por debajo de 70% se resaltan</div>
+    {{-- <div class="subtitle">Celdas de % EF por debajo de 70% se resaltan</div> --}}
 
     {{-- ── Badges de folio por turno ── --}}
-    <div class="folios">
+    {{-- <div class="folios">
         <span class="folio-badge folio-t1">Turno 1: {{ $foliosPorTurno['1'] ?? '—' }}</span>
         <span class="folio-badge folio-t2">Turno 2: {{ $foliosPorTurno['2'] ?? '—' }}</span>
         <span class="folio-badge folio-t3">Turno 3: {{ $foliosPorTurno['3'] ?? '—' }}</span>
-    </div>
+    </div> --}}
 
     @php
         /* ── Helpers ── */
@@ -198,7 +221,7 @@
             <tr>
                 <th rowspan="3" class="hdr-fixed col-telar">Telar</th>
                 @for ($t = 1; $t <= 3; $t++)
-                    <th colspan="7" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}</th>
+                    <th colspan="4" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}</th>
                 @endfor
             </tr>
 
@@ -206,24 +229,18 @@
             <tr>
                 @for ($t = 1; $t <= 3; $t++)
                     <th rowspan="2" class="{{ $hdrH[0] }} col-rpm">RPM</th>
-                    <th class="{{ $hdrH[0] }}">Horario: {{ $horariosTurno[$t][1] }}</th>
-                    <th class="{{ $hdrH[1] }}">Horario: {{ $horariosTurno[$t][2] }}</th>
-                    <th class="{{ $hdrH[2] }}">Horario: {{ $horariosTurno[$t][3] }}</th>
-                    <th class="{{ $hdrH[0] }}">Horario: {{ $horariosTurno[$t][1] }}</th>
-                    <th class="{{ $hdrH[1] }}">Horario: {{ $horariosTurno[$t][2] }}</th>
-                    <th class="{{ $hdrH[2] }}">Horario: {{ $horariosTurno[$t][3] }}</th>
+                    <th class="{{ $hdrH[0] }}">{{ $horariosTurno[$t][1] }}</th>
+                    <th class="{{ $hdrH[1] }}">{{ $horariosTurno[$t][2] }}</th>
+                    <th class="{{ $hdrH[2] }}">{{ $horariosTurno[$t][3] }}</th>
                 @endfor
             </tr>
 
-            {{-- ── Fila 3: EF x3 y Obs x3 ── --}}
+            {{-- ── Fila 3: EF x3 (incluye comentario debajo) ── --}}
             <tr>
                 @for ($t = 1; $t <= 3; $t++)
                     <th class="{{ $hdrC[0] }} col-pef">EF</th>
                     <th class="{{ $hdrC[1] }} col-pef">EF</th>
                     <th class="{{ $hdrC[2] }} col-pef">EF</th>
-                    <th class="{{ $hdrC[0] }} col-obs">Obs</th>
-                    <th class="{{ $hdrC[1] }} col-obs">Obs</th>
-                    <th class="{{ $hdrC[2] }} col-obs">Obs</th>
                 @endfor
             </tr>
 
@@ -248,19 +265,37 @@
                             $h3 = $cellH[2];
                         @endphp
 
-                        {{-- RPM + EFx3 + Obsx3 por turno --}}
+                        {{-- RPM + EFx3 (comentario debajo en cada EF) --}}
                         <td class="{{ $h1 }} col-rpm">{{ $lastRpmTurno($tx) }}</td>
-                        <td class="{{ $h1 }} {{ $efiClass($tx, 'EficienciaR1', $tNum) }}">{{ $efi($tx, 'EficienciaR1') }}</td>
-                        <td class="{{ $h2 }} {{ $efiClass($tx, 'EficienciaR2', $tNum) }}">{{ $efi($tx, 'EficienciaR2') }}</td>
-                        <td class="{{ $h3 }} {{ $efiClass($tx, 'EficienciaR3', $tNum) }}">{{ $efi($tx, 'EficienciaR3') }}</td>
-                        <td class="{{ $h1 }} col-obs">{{ $obsText($tx, 'StatusOB1', 'ObsR1') }}</td>
-                        <td class="{{ $h2 }} col-obs">{{ $obsText($tx, 'StatusOB2', 'ObsR2') }}</td>
-                        <td class="{{ $h3 }} col-obs">{{ $obsText($tx, 'StatusOB3', 'ObsR3') }}</td>
+                        <td class="{{ $h1 }} {{ $efiClass($tx, 'EficienciaR1', $tNum) }}">
+                            <div class="ef-wrap">
+                                <div class="ef-value">{{ $efi($tx, 'EficienciaR1') }}</div>
+                                @if ($obsText($tx, 'StatusOB1', 'ObsR1') !== '')
+                                    <div class="ef-comment">{{ $obsText($tx, 'StatusOB1', 'ObsR1') }}</div>
+                                @endif
+                            </div>
+                        </td>
+                        <td class="{{ $h2 }} {{ $efiClass($tx, 'EficienciaR2', $tNum) }}">
+                            <div class="ef-wrap">
+                                <div class="ef-value">{{ $efi($tx, 'EficienciaR2') }}</div>
+                                @if ($obsText($tx, 'StatusOB2', 'ObsR2') !== '')
+                                    <div class="ef-comment">{{ $obsText($tx, 'StatusOB2', 'ObsR2') }}</div>
+                                @endif
+                            </div>
+                        </td>
+                        <td class="{{ $h3 }} {{ $efiClass($tx, 'EficienciaR3', $tNum) }}">
+                            <div class="ef-wrap">
+                                <div class="ef-value">{{ $efi($tx, 'EficienciaR3') }}</div>
+                                @if ($obsText($tx, 'StatusOB3', 'ObsR3') !== '')
+                                    <div class="ef-comment">{{ $obsText($tx, 'StatusOB3', 'ObsR3') }}</div>
+                                @endif
+                            </div>
+                        </td>
                     @endforeach
                 </tr>
             @empty
                 <tr>
-                    <td colspan="22" style="padding: 12px; color: #6b7280;">
+                    <td colspan="13" style="padding: 8px; color: #6b7280;">
                         Sin datos para la fecha seleccionada.
                     </td>
                 </tr>
