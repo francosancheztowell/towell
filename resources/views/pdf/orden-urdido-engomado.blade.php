@@ -481,5 +481,138 @@
     </div>
 @endif
 
+@if($isUrdido && !$isKarlMayer)
+    {{-- Tabla de Engomado (solo MC Coy, no Karl Mayer) --}}
+    <table class="engomado-table">
+        <tbody>
+            <tr>
+                <td><strong>COCINERO:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>TURNO:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>OLLAS:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>VOL. INICIAL:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>ALMIDÓN:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>RESINA:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>VOL. FINAL:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>FÓRMULA:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>% SÓLIDOS:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>PRODUCCIÓN:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    {{-- Footer de Engomado --}}
+    <div class="engomado-footer">
+        <div class="engomado-footer-row">
+            <div class="engomado-footer-cell"><strong>NÚCLEO:</strong> {{ optional($ordenEngomado)->Nucleo ?? '-' }}</div>
+            <div class="engomado-footer-cell"><strong>ANCHO BALONAS:</strong> {{ optional($ordenEngomado)->AnchoBalonas ?? '-' }}</div>
+            <div class="engomado-footer-cell"><strong>CUENDEADOS MÍNIMO:</strong> {{ optional($ordenEngomado)->Cuentados ?? '-' }}</div>
+            @if($ordenEngomado && !empty($ordenEngomado->Obs))
+                <div class="engomado-footer-cell"><strong>OBSERVACIONES:</strong> {{ $ordenEngomado->Obs }}</div>
+            @endif
+        </div>
+        <div class="engomado-footer-row">
+            <div class="engomado-footer-cell"><strong>NO. TELAS:</strong> {{ optional($ordenEngomado)->NoTelas ?? '-' }}</div>
+        </div>
+    </div>
+@endif
+
 </body>
 </html>
