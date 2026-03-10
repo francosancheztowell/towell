@@ -578,13 +578,7 @@ class ProgramarUrdidoController extends Controller
     public function intercambiarPrioridad(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 200);
-            }
-
+            // Habilitado para todos los usuarios con acceso al módulo
             $request->validate([
                 'source_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'target_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
@@ -981,13 +975,7 @@ class ProgramarUrdidoController extends Controller
     public function actualizarPrioridades(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 200);
-            }
-
+            // Habilitado para todos los usuarios con acceso al módulo
             $request->validate([
                 'prioridades' => 'required|array',
                 'prioridades.*.id' => 'required|integer|exists:UrdProgramaUrdido,Id',
