@@ -45,7 +45,7 @@
                         <th class="px-2 py-1.5 text-right font-semibold text-xs border border-blue-800">HILOS X JULIO</th>
                         <th class="px-2 py-1.5 text-right font-semibold text-xs border border-blue-800">MILLÓN</th>
                         <th class="px-2 py-1.5 text-right font-semibold text-xs border border-blue-800">MTS ORDEN</th>
-                        <th class="px-2 py-1.5 text-right font-semibold text-xs border border-blue-800">MILLÓN MTS ANAL.</th>
+                        <th class="px-2 py-1.5 text-right font-semibold text-xs border border-blue-800">MILLÓN MTS ANUAL.</th>
                         <th class="px-2 py-1.5 text-right font-semibold text-xs border border-blue-800">ROT. HILATURA</th>
                         <th class="px-2 py-1.5 text-right font-semibold text-xs border border-blue-800">ROT. MÁQUINA</th>
                         <th class="px-2 py-1.5 text-right font-semibold text-xs border border-blue-800">ROT. OPERACIÓN</th>
