@@ -39,14 +39,16 @@
             iconColor="text-orange-600"
             hoverBg="hover:bg-orange-100" />
 
-        <x-navbar.button-report
+        <x-navbar.button-create
             id="btn-fechas"
             title="Fechas"
             module="Marcas Finales"
-
             icon="fa-calendar"
             iconColor="text-indigo-600"
-            hoverBg="hover:bg-indigo-100" />
+            hoverBg="hover:bg-indigo-100"
+            text=""
+            bg=""
+            />
 
         @if($esSupervisor ?? false)
         <x-navbar.button-report

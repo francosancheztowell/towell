@@ -59,22 +59,6 @@
         'text'   => $line ? trim($line->$campoText ?? '') : '',
     ];
 
-    // Última RPM real (no-cero) de cualquier turno/horario: prioriza Turno 3>2>1, Horario 3>2>1
-    $lastRpm = function ($t1, $t2, $t3) {
-        foreach ([$t3, $t2, $t1] as $line) {
-            if (!$line) continue;
-            foreach (['RpmR3', 'RpmR2', 'RpmR1'] as $campo) {
-                $v = $line->$campo ?? null;
-                if ($v !== null && $v !== '' && (float) $v != 0) return (int) $v;
-            }
-        }
-        // Fallback: RpmStd del primer turno disponible
-        foreach ([$t1, $t2, $t3] as $line) {
-            if ($line && !empty($line->RpmStd)) return $line->RpmStd;
-        }
-        return '';
-    };
-
     // Última RPM real (no-cero) de un turno específico: Horario 3>2>1
     $lastRpmTurno = function ($line) {
         if (!$line) return '';
@@ -128,29 +112,13 @@
                     {{-- ── Fila 1: cabeceras fijas + Turno N ── --}}
                     <tr>
                         <th rowspan="3"
-                            class="px-4 py-3 border border-gray-300 min-w-[80px]
-                                   sticky left-0 top-0 bg-gray-100 z-50 shadow-md text-gray-800">
-                            Fecha
-                        </th>
-                        <th rowspan="3"
-                            class="px-4 py-3 border border-gray-300 min-w-[80px]
+                            class="px-4 py-3 border border-gray-300 min-w-[90px]
                                    sticky top-0 z-30 bg-gray-100 font-bold text-gray-800">
                             Telar
                         </th>
-                        <th rowspan="3"
-                            class="px-3 py-2 border border-gray-300 min-w-[80px]
-                                   sticky top-0 z-30 bg-gray-100 font-bold text-gray-800">
-                            STD
-                        </th>
-                        <th rowspan="3"
-                            class="px-3 py-2 border border-gray-300 min-w-[90px]
-                                   sticky top-0 z-30 bg-gray-100 font-bold text-gray-800">
-                            % EF Std
-                        </th>
 
                         @for ($turno = 1; $turno <= 3; $turno++)
-                            {{-- 7 cols: H1(3) + H2(2) + H3(2) --}}
-                            <th colspan="7"
+                            <th colspan="4"
                                 class="px-4 py-2 text-center border border-gray-300
                                        sticky top-0 z-30
                                        {{ $turnoColors[$turno]['bg'] }} {{ $turnoColors[$turno]['text'] }}
@@ -166,7 +134,7 @@
                             <th rowspan="2"
                                 class="px-2 py-1 text-center border border-gray-300
                                        sticky top-0 z-20
-                                       {{ $horarioColors[1]['header'] }} text-xs font-semibold min-w-[70px]">
+                                       {{ $horarioColors[1]['header'] }} text-xs font-semibold min-w-[52px]">
                                 RPM
                             </th>
                             <th
@@ -187,49 +155,25 @@
                                        {{ $horarioColors[3]['header'] }} text-xs font-semibold">
                                 Horario: {{ $horariosTurno[$turno][3] }}
                             </th>
-                            <th
-                                class="px-3 py-1 text-center border border-gray-300
-                                       sticky top-0 z-20
-                                       {{ $horarioColors[1]['header'] }} text-xs font-semibold">
-                                Horario: {{ $horariosTurno[$turno][1] }}
-                            </th>
-                            <th
-                                class="px-3 py-1 text-center border border-gray-300
-                                       sticky top-0 z-20
-                                       {{ $horarioColors[2]['header'] }} text-xs font-semibold">
-                                Horario: {{ $horariosTurno[$turno][2] }}
-                            </th>
-                            <th
-                                class="px-3 py-1 text-center border border-gray-300
-                                       sticky top-0 z-20
-                                       {{ $horarioColors[3]['header'] }} text-xs font-semibold">
-                                Horario: {{ $horariosTurno[$turno][3] }}
-                            </th>
                         @endfor
                     </tr>
 
-                    {{-- ── Fila 3: nombres de columna (EF x3, Obs x3) ── --}}
+                    {{-- ── Fila 3: nombres de columna (EF x3) ── --}}
                     <tr>
                         @for ($turno = 1; $turno <= 3; $turno++)
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[70px]">EF</th>
+                                       sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[56px]">EF</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[2]['cols'] }} min-w-[70px]">EF</th>
+                                       sticky top-0 z-10 {{ $horarioColors[2]['cols'] }} min-w-[56px]">EF</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[70px]">EF</th>
-                            <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[260px]">Obs</th>
-                            <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[2]['cols'] }} min-w-[260px]">Obs</th>
-                            <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
-                                       sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[260px]">Obs</th>
+                                       sticky top-0 z-10 {{ $horarioColors[3]['cols'] }} min-w-[56px]">EF</th>
                         @endfor
                     </tr>
 
                 </thead>
 
                 <tbody class="divide-y divide-gray-200">
-                    @forelse ($datos as $index => $row)
+                    @forelse ($datos as $row)
                         @php
                             $t1 = $row['t1'];
                             $t2 = $row['t2'];
@@ -237,30 +181,13 @@
                         @endphp
                         <tr class="hover:bg-gray-50">
 
-                            {{-- Fecha (rowspan, sticky) --}}
-                            @if ($index === 0)
-                                <td rowspan="{{ count($datos) }}"
-                                    class="px-4 py-3 text-center border border-gray-300
-                                           font-bold text-gray-900 sticky left-0 bg-white z-10">
-                                    {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}
-                                </td>
-                            @endif
-
                             {{-- Telar --}}
                             <td class="px-4 py-3 font-bold text-gray-900 border border-gray-300 bg-gray-50 whitespace-nowrap">
                                 {{ $row['telar'] }}
                             </td>
 
-                            {{-- STD (última RPM real no-cero de cualquier turno/horario) --}}
-                            <td class="px-3 py-2 text-center border border-gray-300 text-gray-700">
-                                {{ $lastRpm($t1, $t2, $t3) }}
-                            </td>
-                            <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium">
-                                {{ $efi($t1, 'EficienciaSTD') }}
-                            </td>
-
                             {{-- ── 3 turnos ── --}}
-                            @foreach ([1 => $t1, 2 => $t2, 3 => $t3] as $tNum => $tx)
+                            @foreach ([1 => $t1, 2 => $t2, 3 => $t3] as $tx)
                                 @php
                                     $o1 = $obsData($tx, 'StatusOB1', 'ObsR1');
                                     $o2 = $obsData($tx, 'StatusOB2', 'ObsR2');
@@ -268,58 +195,47 @@
                                 @endphp
 
                                 {{-- ── RPM (misma lógica actual: última no-cero de H3>H2>H1) ── --}}
-                                <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 {{ $horarioColors[1]['cell'] }}">
+                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 {{ $horarioColors[1]['cell'] }}">
                                     {{ $lastRpmTurno($tx) }}
                                 </td>
 
                                 {{-- ── EF por horario (1,2,3) ── --}}
-                                <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[1]['cell'] }}">
-                                    {{ $efi($tx, 'EficienciaR1') }}
-                                </td>
-                                <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[2]['cell'] }}">
-                                    {{ $efi($tx, 'EficienciaR2') }}
-                                </td>
-                                <td class="px-3 py-2 text-center border border-gray-300 text-gray-700 font-medium {{ $horarioColors[3]['cell'] }}">
-                                    {{ $efi($tx, 'EficienciaR3') }}
-                                </td>
-
-                                {{-- ── Observaciones por horario (1,2,3) ── --}}
-                                <td class="px-2 py-2 border border-gray-300 align-top min-w-[260px] {{ $horarioColors[1]['cell'] }}">
-                                    @if ($o1['status'] || $o1['text'] !== '')
-                                        <span class="block text-[9px] leading-4 text-gray-700 whitespace-pre-wrap break-words"
-                                              title="{{ $o1['text'] }}">
-                                            @if ($o1['text'] !== '')
+                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[1]['cell'] }}">
+                                    <div class="flex flex-col items-center justify-center leading-tight text-center">
+                                        <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR1') }}</div>
+                                        @if ($o1['status'] || $o1['text'] !== '')
+                                            <div class="mt-0.5 text-[10px] leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
                                                 {{ $o1['text'] }}
-                                            @endif
-                                        </span>
-                                    @endif
+                                            </div>
+                                        @endif
+                                    </div>
                                 </td>
-                                <td class="px-2 py-2 border border-gray-300 align-top min-w-[260px] {{ $horarioColors[2]['cell'] }}">
-                                    @if ($o2['status'] || $o2['text'] !== '')
-                                        <span class="block text-[9px] leading-4 text-gray-700 whitespace-pre-wrap break-words"
-                                              title="{{ $o2['text'] }}">
-                                            @if ($o2['text'] !== '')
+                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[2]['cell'] }}">
+                                    <div class="flex flex-col items-center justify-center leading-tight text-center">
+                                        <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR2') }}</div>
+                                        @if ($o2['status'] || $o2['text'] !== '')
+                                            <div class="mt-0.5 text-[10px] leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
                                                 {{ $o2['text'] }}
-                                            @endif
-                                        </span>
-                                    @endif
+                                            </div>
+                                        @endif
+                                    </div>
                                 </td>
-                                <td class="px-2 py-2 border border-gray-300 align-top min-w-[260px] {{ $horarioColors[3]['cell'] }}">
-                                    @if ($o3['status'] || $o3['text'] !== '')
-                                        <span class="block text-[9px] leading-4 text-gray-700 whitespace-pre-wrap break-words"
-                                              title="{{ $o3['text'] }}">
-                                            @if ($o3['text'] !== '')
+                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[3]['cell'] }}">
+                                    <div class="flex flex-col items-center justify-center leading-tight text-center">
+                                        <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR3') }}</div>
+                                        @if ($o3['status'] || $o3['text'] !== '')
+                                            <div class="mt-0.5 text-[10px] leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
                                                 {{ $o3['text'] }}
-                                            @endif
-                                        </span>
-                                    @endif
+                                            </div>
+                                        @endif
+                                    </div>
                                 </td>
                             @endforeach
 
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="25"
+                            <td colspan="13"
                                 class="px-6 py-8 text-center text-gray-500 text-base border border-gray-300">
                                 Sin datos para la fecha seleccionada.
                             </td>

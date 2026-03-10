@@ -3,26 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <title>Cortes de Eficiencia - {{ $fecha }}</title>
+    @php
+        $totalFilas = isset($datos) ? $datos->count() : 0;
+
+        // Escalado dinámico para conservar 1 sola hoja.
+        if ($totalFilas >= 44) {
+            $bodySize = '5px';
+            $thSize = '5.2px';
+            $tdSize = '5px';
+            $efSize = '6.2px';
+            $commentSize = '4.2px';
+            $cellPadding = '1px 1px';
+            $marginPage = '3mm';
+            $titleSize = '8px';
+        } elseif ($totalFilas >= 36) {
+            $bodySize = '5.3px';
+            $thSize = '5.5px';
+            $tdSize = '5.3px';
+            $efSize = '6.8px';
+            $commentSize = '4.4px';
+            $cellPadding = '1px 1.2px';
+            $marginPage = '3mm';
+            $titleSize = '8.4px';
+        } elseif ($totalFilas >= 28) {
+            $bodySize = '5.8px';
+            $thSize = '6px';
+            $tdSize = '5.8px';
+            $efSize = '7.6px';
+            $commentSize = '4.8px';
+            $cellPadding = '1.2px 1.5px';
+            $marginPage = '3.2mm';
+            $titleSize = '8.8px';
+        } else {
+            $bodySize = '6.2px';
+            $thSize = '6.5px';
+            $tdSize = '6.2px';
+            $efSize = '8.4px';
+            $commentSize = '5px';
+            $cellPadding = '1.4px 1.8px';
+            $marginPage = '3.5mm';
+            $titleSize = '9.2px';
+        }
+    @endphp
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         @page {
             size: A4 landscape;
-            margin: 8px 8px 9px 8px;
+            margin: {{ $marginPage }};
         }
 
         body {
             font-family: Arial, sans-serif;
-            font-size: 6px;
+            font-size: {{ $bodySize }};
             padding: 0;
             color: #111827;
             background: #ffffff;
+            line-height: 1.03;
         }
 
         /* ── Título ── */
         .titulo {
             text-align: center;
-            font-size: 9px;
+            font-size: {{ $titleSize }};
             font-weight: bold;
             color: #1f2937;
             margin-bottom: 1px;
@@ -63,17 +106,17 @@
         }
         th, td {
             border: 1px solid #d1d5db;
-            padding: 1.5px;
+            padding: {{ $cellPadding }};
             text-align: center;
             vertical-align: middle;
             word-break: break-word;
-            line-height: 1.1;
+            line-height: 1.03;
         }
         th {
-            font-size: 7px;
+            font-size: {{ $thSize }};
         }
         td {
-            font-size: 8px;
+            font-size: {{ $tdSize }};
         }
 
         /* ── Cabeceras fijas (Telar / STD / %EF Std) ── */
@@ -81,22 +124,22 @@
             background-color: #374151;
             color: #ffffff;
             font-weight: bold;
-            font-size: 7.3px;
+            font-size: {{ $thSize }};
         }
-        .col-telar { width: 34px; }
-        .col-fecha { width: 22px; }
-        .col-std   { width: 16px; }
-        .col-ef    { width: 16px; }
+        .col-telar { width: 32px; }
+        .col-fecha { width: 18px; }
+        .col-std   { width: 13px; }
+        .col-ef    { width: 13px; }
 
         /* ── Cabeceras de Turno (fila 1) ── */
-        .hdr-t1 { background-color: #1e40af; color: #ffffff; font-weight: bold; font-size: 7.2px; }
-        .hdr-t2 { background-color: #166534; color: #ffffff; font-weight: bold; font-size: 7.2px; }
-        .hdr-t3 { background-color: #92400e; color: #ffffff; font-weight: bold; font-size: 7.2px; }
+        .hdr-t1 { background-color: #1e40af; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
+        .hdr-t2 { background-color: #166534; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
+        .hdr-t3 { background-color: #92400e; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
 
         /* ── Cabeceras de Horario (fila 2) ── */
-        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: 6.8px; }
-        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: 6.8px; }
-        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: 6.8px; }
+        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
+        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
+        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: {{ $thSize }}; }
 
         /* ── Cabeceras de columna (fila 3) ── */
         .hdr-c1 { background-color: #93c5fd; color: #1e3a8a; font-weight: bold; }
@@ -104,19 +147,21 @@
         .hdr-c3 { background-color: #fde047; color: #78350f; font-weight: bold; }
 
         /* ── Anchos de columnas de datos ── */
-        .col-rpm { width: 16px; }
-        .col-pef { width: 26px; }
-        th.col-rpm { font-size: 7.5px; }
-        td.col-rpm { font-size: 9px; font-weight: 700; }
-        .ef-wrap { line-height: 1.05; }
-        .ef-value { font-size: 10px; font-weight: 700; }
+        .col-rpm { width: 15px; }
+        .col-pef { width: 25px; }
+        th.col-rpm { font-size: {{ $thSize }}; }
+        td.col-rpm { font-size: {{ $tdSize }}; font-weight: 700; }
+        .ef-wrap { line-height: 1.02; }
+        .ef-value { font-size: {{ $efSize }}; font-weight: 700; }
         .ef-comment {
             margin-top: 1px;
-            font-size: 6.3px;
+            font-size: {{ $commentSize }};
             font-weight: 400;
             text-align: center;
-            white-space: normal;
-            word-break: break-word;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
+            max-height: 5px;
         }
 
         /* ── Celdas de datos por horario ── */
@@ -132,7 +177,7 @@
             font-weight: bold;
             background-color: #f3f4f6;
             color: #111827;
-            font-size: 9px;
+            font-size: {{ $tdSize }};
         }
 
         /* ── Eficiencia baja ── */
