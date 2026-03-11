@@ -154,7 +154,9 @@
             };
 
             const csrfToken = '{{ csrf_token() }}';
-            const canEdit = {{ $puedeEditar ? 'true' : 'false' }};
+            const canEdit = {{ json_encode($canEdit ?? false) }};
+            // Cambiar prioridad: habilitado para todos con acceso al módulo
+            const canChangePrioridad = true;
 
             const state = {
                 ordenes: {},            // { 1: [..], 2: [..] }
@@ -300,13 +302,13 @@
                         ? `bg-blue-500 text-white h-9 transition-all duration-200 ${bgColor}`
                         : `hover:bg-gray-50 h-9 transition-all duration-200 select-none ${bgColor}`;
 
-                    const rowCursorClass = canEdit ? 'cursor-move' : 'cursor-default';
+                    const rowCursorClass = canChangePrioridad ? 'cursor-move' : 'cursor-default';
 
                     const metros = orden.metros
                         ? Math.round(parseFloat(orden.metros))
                         : '';
 
-                    const dragIcon = canEdit
+                    const dragIcon = canChangePrioridad
                         ? '<i class="fas fa-grip-vertical text-gray-400 mr-1"></i>'
                         : '';
 
@@ -334,7 +336,7 @@
                             data-orden-id="${orden.id}"
                             data-tabla="${tabla}"
                             data-index="${index}"
-                            draggable="${canEdit ? 'true' : 'false'}"
+                            draggable="${canChangePrioridad ? 'true' : 'false'}"
                         >
                             <td class="${baseTd} text-center font-semibold">
                                 ${dragIcon}${prioridad}
@@ -404,7 +406,7 @@
             // Prioridad única global pero drag solo en misma tabla
             // ==========================
             const setupDragAndDrop = (tabla) => {
-                if (!canEdit) {
+                if (!canChangePrioridad) {
                     return;
                 }
 
@@ -935,7 +937,7 @@
             };
 
             const setupModalDragAndDrop = () => {
-                if (!canEdit) {
+                if (!canChangePrioridad) {
                     return;
                 }
 

@@ -5,12 +5,27 @@
      H. Inicio, H. Fin, No. Julio, Hilos, Kg. Bruto, Tara,
      Kg. Neto, Metros, Roturas (Hilat., Maq., Operac., Transf.),
      y campos Karl Mayer (Vueltas, Diámetro).
-     Variables requeridas: $hasFinalizarPermission, $isKarlMayer,
-     $totalRegistros, $julios, $registrosProduccion
+     Variables requeridas: $hasFinalizarPermission, $canEdit,
+     $isKarlMayer, $totalRegistros, $julios, $registrosProduccion
      ============================================================ --}}
-
+@php
+    $canEdit = $canEdit ?? false;
+@endphp
+@once
+<style>
+.produccion-solo-lectura input, .produccion-solo-lectura select,
+.produccion-solo-lectura .btn-agregar-oficial, .produccion-solo-lectura .btn-fecha-display,
+.produccion-solo-lectura .set-current-time, .produccion-solo-lectura .checkbox-finalizar,
+.produccion-solo-lectura .edit-quantity-btn, .produccion-solo-lectura .quantity-edit-container,
+.produccion-solo-lectura .number-option {
+    pointer-events: none;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+</style>
+@endonce
     <!-- Sección inferior: Tabla de Producción -->
-    <div class="bg-white shadow-md overflow-hidden">
+    <div class="bg-white shadow-md overflow-hidden {{ $canEdit ? '' : 'produccion-solo-lectura' }}" data-can-edit="{{ $canEdit ? '1' : '0' }}">
             <div class="overflow-x-auto max-h-[55vh] overflow-y-auto">
                 <table class="text-md w-full min-w-[1120px]">
                 <thead class="bg-blue-500 text-white sticky top-0 z-20">

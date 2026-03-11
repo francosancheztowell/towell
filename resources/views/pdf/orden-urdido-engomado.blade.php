@@ -202,6 +202,10 @@
 @php
     $isEngomado = ($tipo === 'engomado');
     $isUrdido = ($tipo === 'urdido');
+    $isKarlMayer = $isUrdido && (
+        (isset($orden->MaquinaId) && stripos((string)$orden->MaquinaId, 'karl mayer') !== false) ||
+        (isset($orden->SalonTejidoId) && stripos((string)$orden->SalonTejidoId, 'karl mayer') !== false)
+    );
 @endphp
 
 <div class="header">
@@ -243,7 +247,7 @@
                 <div class="info-grid-item"><span class="info-grid-label">FECHA:</span> <span class="info-grid-value">{{ $fechaOrden }}</span></div>
                 <div class="info-grid-item"><span class="info-grid-label">CUENTA:</span> <span class="info-grid-value">{{ $orden->Cuenta ?? '-' }}</span></div>
                 <div class="info-grid-item"><span class="info-grid-label">ORDENADO POR:</span> <span class="info-grid-value">{{ $orden->NomEmpl ?? '-' }}</span></div>
-                <div class="info-grid-item"><span class="info-grid-label">TIPO:</span> <span class="info-grid-value">{{ $orden->RizoPie ?? '-' }}</span></div>
+                <div class="info-grid-item"><span class="info-grid-label">{{ $isKarlMayer ? 'BARRAS:' : 'TIPO:' }}</span> <span class="info-grid-value">{{ $orden->RizoPie ?? '-' }}</span></div>
                 <div class="info-grid-item"><span class="info-grid-label">DESTINO:</span> <span class="info-grid-value">{{ $orden->SalonTejidoId ?? '-' }}</span></div>
             </div>
             {{-- Columna 2 --}}
@@ -360,6 +364,10 @@
                     <th rowspan="2">Roturas</th>
                 @else
                     <th colspan="4">Roturas</th>
+                    @if($isKarlMayer)
+                        <th rowspan="2">Vueltas</th>
+                        <th rowspan="2">Diámetro</th>
+                    @endif
                 @endif
             </tr>
 
@@ -461,146 +469,149 @@
                         <td>{{ $registro->Maquina ?? '0' }}</td>
                         <td>{{ $registro->Operac ?? '0' }}</td>
                         <td>{{ $registro->Transf ?? '0' }}</td>
+                        @if($isKarlMayer)
+                            <td>{{ ($registro->Vueltas !== null && $registro->Vueltas !== '') ? number_format((float)$registro->Vueltas, 2, '.', '') : '-' }}</td>
+                            <td>{{ ($registro->Diametro !== null && $registro->Diametro !== '') ? number_format((float)$registro->Diametro, 2, '.', '') : '-' }}</td>
+                        @endif
                     @endif
                 </tr>
             @endforeach
             </tbody>
         </table>
     </div>
+@endif
 
-    @if($isUrdido)
-        {{-- Tabla de Engomado --}}
-        <table class="engomado-table">
+@if($isUrdido && !$isKarlMayer)
+    {{-- Tabla de Engomado (solo MC Coy, no Karl Mayer) --}}
+    <table class="engomado-table">
+        <tbody>
+            <tr>
+                <td><strong>COCINERO:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>TURNO:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>OLLAS:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>VOL. INICIAL:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>ALMIDÓN:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>RESINA:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>VOL. FINAL:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>FÓRMULA:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>% SÓLIDOS:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><strong>PRODUCCIÓN:</strong></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
 
-            <tbody>
-                <tr>
-                    <td><strong>COCINERO:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>TURNO:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>OLLAS:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>VOL. INICIAL:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>ALMIDÓN:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>RESINA:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>VOL. FINAL:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>FÓRMULA:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>% SÓLIDOS:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td><strong>PRODUCCIÓN:</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-            </tbody>
-        </table>
-
-        {{-- Footer de Engomado --}}
-        <div class="engomado-footer">
-            <div class="engomado-footer-row">
-                <div class="engomado-footer-cell"><strong>NÚCLEO:</strong> {{ $ordenEngomado->Nucleo ?? '-' }}</div>
-                <div class="engomado-footer-cell"><strong>ANCHO BALONAS:</strong> {{ $ordenEngomado->AnchoBalonas ?? '-' }}</div>
-                <div class="engomado-footer-cell"><strong>CUENDEADOS MÍNIMO:</strong> {{ $ordenEngomado->Cuentados ?? '-' }}</div>
-                @if(!empty($ordenEngomado->Obs))
-                    <div class="engomado-footer-cell"><strong>OBSERVACIONES:</strong> {{ $ordenEngomado->Obs }}</div>
-                @endif
-            </div>
-            <div class="engomado-footer-row">
-                <div class="engomado-footer-cell"><strong>NO. TELAS:</strong> {{ $ordenEngomado->NoTelas ?? '-' }}</div>
-            </div>
+    {{-- Footer de Engomado --}}
+    <div class="engomado-footer">
+        <div class="engomado-footer-row">
+            <div class="engomado-footer-cell"><strong>NÚCLEO:</strong> {{ optional($ordenEngomado)->Nucleo ?? '-' }}</div>
+            <div class="engomado-footer-cell"><strong>ANCHO BALONAS:</strong> {{ optional($ordenEngomado)->AnchoBalonas ?? '-' }}</div>
+            <div class="engomado-footer-cell"><strong>CUENDEADOS MÍNIMO:</strong> {{ optional($ordenEngomado)->Cuentados ?? '-' }}</div>
+            @if($ordenEngomado && !empty($ordenEngomado->Obs))
+                <div class="engomado-footer-cell"><strong>OBSERVACIONES:</strong> {{ $ordenEngomado->Obs }}</div>
+            @endif
         </div>
-    @endif
+        <div class="engomado-footer-row">
+            <div class="engomado-footer-cell"><strong>NO. TELAS:</strong> {{ optional($ordenEngomado)->NoTelas ?? '-' }}</div>
+        </div>
+    </div>
 @endif
 
 </body>

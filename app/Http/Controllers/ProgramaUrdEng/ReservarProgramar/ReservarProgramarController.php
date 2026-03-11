@@ -36,14 +36,18 @@ class ReservarProgramarController extends Controller
             return view('modulos.programa_urd_eng.reservar-programar', [
                 'inventarioTelares' => $this->telaresService->normalizeTelares($rows),
                 'columnOptions'     => $this->columnOptionsData(),
-                'esSupervisor'      => $this->resolveEsSupervisor(),
+                'canModificar'      => function_exists('userCan') && userCan('modificar', 'Programa Urd / Eng'),
+                'canCrear'          => function_exists('userCan') && userCan('crear', 'Programa Urd / Eng'),
+                'canEliminar'       => function_exists('userCan') && userCan('eliminar', 'Programa Urd / Eng'),
             ]);
         } catch (\Throwable $e) {
             Log::error('ReservarProgramarController::index', ['msg' => $e->getMessage()]);
             return view('modulos.programa_urd_eng.reservar-programar', [
                 'inventarioTelares' => collect([]),
                 'columnOptions'     => $this->columnOptionsData(),
-                'esSupervisor'      => $this->resolveEsSupervisor(),
+                'canModificar'      => function_exists('userCan') && userCan('modificar', 'Programa Urd / Eng'),
+                'canCrear'          => function_exists('userCan') && userCan('crear', 'Programa Urd / Eng'),
+                'canEliminar'       => function_exists('userCan') && userCan('eliminar', 'Programa Urd / Eng'),
             ]);
         }
     }
@@ -120,6 +124,9 @@ class ReservarProgramarController extends Controller
 
     public function programarTelar(Request $request): JsonResponse
     {
+        if (!function_exists('userCan') || !userCan('crear', 'Programa Urd / Eng')) {
+            abort(403, 'No tiene permiso para programar.');
+        }
         try {
             $request->validate(['no_telar' => ['required', 'string', 'max:50']]);
             $noTelar = (string) $request->string('no_telar');
@@ -137,6 +144,9 @@ class ReservarProgramarController extends Controller
 
     public function actualizarTelar(Request $request): JsonResponse
     {
+        if (!function_exists('userCan') || !userCan('modificar', 'Programa Urd / Eng')) {
+            abort(403, 'No tiene permiso para modificar.');
+        }
         try {
             $request->validate([
                 'no_telar' => ['required', 'string', 'max:50'],
@@ -215,6 +225,9 @@ class ReservarProgramarController extends Controller
 
     public function liberarTelar(Request $request): JsonResponse
     {
+        if (!function_exists('userCan') || !userCan('eliminar', 'Programa Urd / Eng')) {
+            abort(403, 'No tiene permiso para liberar.');
+        }
         try {
             $request->validate([
                 'id'       => ['nullable', 'integer'],
@@ -529,9 +542,4 @@ class ReservarProgramarController extends Controller
         return !empty($partes) ? $msg . ': ' . implode(', ', $partes) : $msg . ' (no se encontraron registros para actualizar)';
     }
 
-    private function resolveEsSupervisor(): bool
-    {
-        $puesto = strtolower(trim((string) data_get(Auth::user(), 'puesto', '')));
-        return $puesto === 'supervisor';
-    }
 }

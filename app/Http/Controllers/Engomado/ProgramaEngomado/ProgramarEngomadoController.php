@@ -11,39 +11,22 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
-use App\Models\Sistema\SYSRoles;
-use App\Models\Sistema\SYSUsuariosRoles;
 
 class ProgramarEngomadoController extends Controller
 {
-    private const MODULO_PROGRAMA_ENGOMADO = 'Programa Engomado';
-
     /**
-     * Verifica si el usuario puede editar (mismo criterio que el botón Editar del navbar:
-     * permiso "modificar" y acceso activo al módulo "Programa Engomado").
+     * Verifica si el usuario puede editar: solo usuarios del área Supervisores.
      */
     private function usuarioPuedeEditar(): bool
     {
-        if (!Auth::id()) {
+        $usuario = Auth::user();
+        if (!$usuario) {
             return false;
         }
 
-        if (!function_exists('userCan')) {
-            return false;
-        }
+        $area = trim($usuario->area ?? '');
 
-        $rol = SYSRoles::where('modulo', self::MODULO_PROGRAMA_ENGOMADO)->first();
-        if (!$rol) {
-            return false;
-        }
-
-        $tienePermisoModificar = userCan('modificar', self::MODULO_PROGRAMA_ENGOMADO);
-        $permission = SYSUsuariosRoles::where('idusuario', Auth::id())
-            ->where('idrol', $rol->idrol)
-            ->first();
-        $tieneAcceso = $permission && isset($permission->acceso) && (int) $permission->acceso === 1;
-
-        return $tienePermisoModificar && $tieneAcceso;
+        return strcasecmp($area, 'Supervisores') === 0;
     }
 
     /**
@@ -51,7 +34,9 @@ class ProgramarEngomadoController extends Controller
      */
     public function index()
     {
-        return view('modulos.engomado.programar-engomado');
+        return view('modulos.engomado.programar-engomado', [
+            'canEdit' => $this->usuarioPuedeEditar(),
+        ]);
     }
 
     /**

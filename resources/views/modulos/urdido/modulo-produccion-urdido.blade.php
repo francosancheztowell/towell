@@ -9,6 +9,7 @@
 @section('page-title', 'Producción de Urdido')
 
 @section('navbar-right')
+    @if($canEdit ?? false)
     <div class="flex items-center gap-2">
         <x-navbar.button-create
             onclick="finalizar()"
@@ -20,6 +21,7 @@
             bg="bg-blue-500"
         />
     </div>
+    @endif
 @endsection
 
 @php

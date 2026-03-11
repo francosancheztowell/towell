@@ -43,6 +43,7 @@ class EngProduccionFormulacionModel extends Model
         'OkTiempo',
         'OkViscosidad',
         'OkSolidos',
+        'AX',
     ];
 
     protected $casts = [
@@ -57,6 +58,7 @@ class EngProduccionFormulacionModel extends Model
         'OkTiempo'      => 'boolean',
         'OkViscosidad'  => 'boolean',
         'OkSolidos'     => 'boolean',
+        'AX'            => 'integer',
     ];
 
     /** Relación: encabezado → líneas por Id (nueva relación mejorada) */

@@ -4,6 +4,7 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
+    @if($canModificar ?? false)
     <a href="{{ route('programa.urd.eng.karl.mayer') }}"
        id="btnKarlMayer"
        class="px-3 py-2 rounded-lg transition flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium"
@@ -11,7 +12,8 @@
         <i class="fa-solid fa-robot text-base"></i>
         <span>Karl Mayer</span>
     </a>
-    <x-navbar.button-create
+    @endif
+    <x-navbar.button-edit
         id="btnReservar"
         type="button"
         title="Reservar"
@@ -20,29 +22,31 @@
         hoverBg="hover:bg-gray-600"
         bg="bg-gray-500"
         text="Reservar"
-        disabled
+        module="Programa Urd / Eng"
+        :disabled="true"
         />
 
-    <x-navbar.button-create
+    <x-navbar.button-delete
         id="btnLiberarTelar"
-        type="button"
         title="Liberar"
         icon="fa-unlock"
         iconColor="text-white"
         hoverBg="hover:bg-red-600"
         bg="bg-red-500"
         text="Liberar"
+        module="Programa Urd / Eng"
+        :disabled="false"
         />
 
     <x-navbar.button-create
         id="btnProgramar"
-        type="button"
         title="Programar"
         icon="fa-calendar-check"
         iconColor="text-white"
         hoverBg="hover:bg-purple-600"
         bg="bg-purple-500"
         text="Programar"
+        module="Programa Urd / Eng"
         />
 
 </div>
@@ -50,9 +54,6 @@
 
 @section('content')
 
-@php
-    $esSupervisor = (bool)($esSupervisor ?? false);
-@endphp
 
 <div class="w-full">
 
@@ -98,9 +99,11 @@
                                             </button>
                                         </th>
                                     @endforeach
+                                    @if($canCrear ?? false)
                                     <th class="px-3 py-2 text-center text-xs font-medium tracking-wider whitespace-nowrap">
                                         Seleccionar
                                     </th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-100">
@@ -224,7 +227,7 @@
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             @php $tipoAtado = $t['tipo_atado'] ?? 'Normal'; @endphp
-                                            @if($esSupervisor)
+                                            @if($canModificar ?? false)
                                                 <select
                                                     class="tipo-atado-select w-full bg-white px-2 py-1 text-xs border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500"
                                                     data-telar="{{ $t['no_telar'] ?? '' }}"
@@ -242,6 +245,7 @@
                                                 {{ $salon }}
                                             </span>
                                         </td>
+                                        @if($canCrear ?? false)
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             <input type="checkbox"
                                                 class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 {{ $checkboxCursor }}"
@@ -250,6 +254,7 @@
                                                 {{ $checkboxDisabled }}
                                                 title="{{ $checkboxTitle }}">
                                         </td>
+                                        @endif
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -400,7 +405,9 @@ const API = {
 /* Columnas para filtros (telares / inventario), enviadas con la vista para no hacer peticiÃ³n extra */
 const COLUMN_OPTIONS = @json($columnOptions ?? ['telares' => [], 'inventario' => []]);
 
-const ES_SUPERVISOR = @json($esSupervisor);
+const CAN_MODIFICAR = @json($canModificar ?? false);
+const CAN_CREAR = @json($canCrear ?? false);
+const CAN_ELIMINAR = @json($canEliminar ?? false);
 function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
@@ -743,7 +750,7 @@ const render = {
             }
 
             const tipoAtado = r.tipo_atado || 'Normal';
-            const tipoAtadoCell = ES_SUPERVISOR
+            const tipoAtadoCell = CAN_MODIFICAR
                 ? `<select
                         class="tipo-atado-select w-full bg-white px-2 py-1 text-xs border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500"
                         data-telar="${telarNo}"
@@ -759,6 +766,16 @@ const render = {
             const checkboxCursor   = (reservado || programado || tieneNoOrd)
                 ? 'cursor-not-allowed opacity-50'
                 : 'cursor-pointer';
+
+            const checkboxCell = CAN_CREAR
+                ? `<td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
+                    <input type="checkbox"
+                           class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 ${checkboxCursor}"
+                           data-telar="${telarNo}"
+                           data-tipo="${tipoUpper}"
+                           ${checkboxDisabled}${checkboxChecked}>
+                </td>`
+                : '';
 
             tr.innerHTML = `
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-bold">
@@ -818,13 +835,7 @@ const render = {
                         ${r.salon || 'Jacquard'}
                     </span>
                 </td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    <input type="checkbox"
-                           class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 ${checkboxCursor}"
-                           data-telar="${telarNo}"
-                           data-tipo="${tipoUpper}"
-                           ${checkboxDisabled}${checkboxChecked}>
-                </td>
+                ${checkboxCell}
             `;
 
             frag.appendChild(tr);
@@ -1604,6 +1615,7 @@ const sorting = {
 /* ---------- Acciones ---------- */
 const actions = {
     async programar() {
+        if (!CAN_CREAR) { toast('warning', 'No tiene permiso para programar'); return; }
         const multiple = Array.isArray(state.selectedTelares) && state.selectedTelares.length > 0;
         const tel      = state.selectedTelar;
 
@@ -1690,6 +1702,7 @@ const actions = {
     },
 
     async liberarTelar() {
+        if (!CAN_ELIMINAR) { toast('warning', 'No tiene permiso para liberar'); return; }
         const tel = state.selectedTelar;
 
         if (!tel?.no_telar) {
@@ -1752,6 +1765,7 @@ const actions = {
     },
 
     async reservar() {
+        if (!CAN_MODIFICAR) { toast('warning', 'No tiene permiso para reservar'); return; }
         const tel = state.selectedTelar;
 
         if (!tel?.no_telar) {
@@ -2140,7 +2154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('#telaresTable tbody')?.addEventListener('change', e => {
         const target = e.target;
         if (target.classList.contains('tipo-atado-select')) {
-            if (!ES_SUPERVISOR) return;
+            if (!CAN_MODIFICAR) return;
             const row = target.closest('.selectable-row');
             const telar = row?.dataset.telar || '';
             const tipo  = row?.dataset.tipo || '';

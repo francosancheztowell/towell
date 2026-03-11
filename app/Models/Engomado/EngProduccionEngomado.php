@@ -48,6 +48,7 @@ class EngProduccionEngomado extends Model
         'Solidos',
         'Finalizar',
         'AX',
+        'Impresion',
     ];
 
     protected $casts = [
@@ -76,6 +77,7 @@ class EngProduccionEngomado extends Model
         'Solidos' => 'float',
         'Finalizar' => 'integer',
         'AX' => 'integer',
+        'Impresion' => 'boolean',
     ];
 }
 

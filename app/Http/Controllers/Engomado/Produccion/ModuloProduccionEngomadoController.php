@@ -40,6 +40,32 @@ class ModuloProduccionEngomadoController extends Controller
         return true;
     }
 
+    protected function getModuleNameForPermissions(): string
+    {
+        return 'Producción Engomado';
+    }
+
+    /**
+     * Verifica si el usuario puede editar según permisos del módulo (no área).
+     */
+    private function usuarioPuedeEditar(): bool
+    {
+        return function_exists('userCan') && userCan('modificar', $this->getModuleNameForPermissions());
+    }
+
+    /**
+     * Al desmarcar Finalizar en Engomado, resetear Impresion a NULL
+     * para que el registro vuelva a ser elegible para impresión parcial.
+     */
+    protected function onRegistroDesmarcado($registro): void
+    {
+        try {
+            $registro->Impresion = null;
+        } catch (\Throwable $e) {
+            // Columna puede no existir aún
+        }
+    }
+
     // ─── index ───────────────────────────────────────────────────────
 
     public function index(Request $request)
@@ -83,6 +109,8 @@ class ModuloProduccionEngomadoController extends Controller
                 'totalRegistros' => 0,
                 'registrosProduccion' => collect([]),
                 'foliosPrograma' => $foliosPrograma,
+                'tieneRegistrosParciales' => false,
+                'canEdit' => $this->usuarioPuedeEditar(),
             ]);
         }
 
@@ -173,6 +201,16 @@ class ModuloProduccionEngomadoController extends Controller
         $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
         $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)->orderBy('Id')->get();
 
+        // Habilitar botón solo cuando hay registros con Finalizar=1 e Impresion=NULL/0 (listos pero no impresos)
+        try {
+            $tieneRegistrosParciales = EngProduccionEngomado::where('Folio', $orden->Folio)
+                ->where('Finalizar', 1)
+                ->whereRaw('(Impresion IS NULL OR Impresion = 0)')
+                ->exists();
+        } catch (\Throwable $e) {
+            $tieneRegistrosParciales = false;
+        }
+
         $user = Auth::user();
         $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
             ->orderBy('Folio', 'desc')
@@ -206,6 +244,8 @@ class ModuloProduccionEngomadoController extends Controller
             'usuarioArea' => $user ? ($user->area ?? null) : null,
             'ubicaciones' => CatUbicaciones::orderBy('Codigo')->get(),
             'foliosPrograma' => $foliosPrograma,
+            'tieneRegistrosParciales' => $tieneRegistrosParciales,
+            'canEdit' => $this->usuarioPuedeEditar(),
         ]);
     }
 
@@ -234,6 +274,7 @@ class ModuloProduccionEngomadoController extends Controller
 
     public function actualizarCamposProduccion(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -375,6 +416,7 @@ class ModuloProduccionEngomadoController extends Controller
 
     public function finalizar(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'orden_id' => 'required|integer|exists:EngProgramaEngomado,Id',

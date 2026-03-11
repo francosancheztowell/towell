@@ -23,6 +23,9 @@ class ReservaInventarioController extends Controller
     /** POST reservar pieza (idempotente por índice único). */
     public function reservar(Request $request): JsonResponse
     {
+        if (!function_exists('userCan') || !userCan('modificar', 'Programa Urd / Eng')) {
+            abort(403, 'No tiene permiso para reservar.');
+        }
         try {
             $data = $request->validate([
                 'NoTelarId'        => ['required', 'string', 'max:10'],

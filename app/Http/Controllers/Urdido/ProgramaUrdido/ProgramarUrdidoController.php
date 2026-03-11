@@ -12,46 +12,32 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Sistema\SYSRoles;
-use App\Models\Sistema\SYSUsuariosRoles;
 
 class ProgramarUrdidoController extends Controller
 {
-    private const MODULO_PROGRAMA_URDIDO = 'Programa Urdido';
-
     /**
-     * Verifica si el usuario puede editar (mismo criterio que el botón Editar del navbar:
-     * permiso "modificar" y acceso activo al módulo "Programa Urdido").
+     * Verifica si el usuario puede editar: solo usuarios del área Supervisores.
      */
     private function usuarioPuedeEditar(): bool
     {
-        if (!Auth::id()) {
+        $usuario = Auth::user();
+        if (!$usuario) {
             return false;
         }
 
-        if (!function_exists('userCan')) {
-            return false;
-        }
+        $area = trim($usuario->area ?? '');
 
-        $rol = SYSRoles::where('modulo', self::MODULO_PROGRAMA_URDIDO)->first();
-        if (!$rol) {
-            return false;
-        }
-
-        $tienePermisoModificar = userCan('modificar', self::MODULO_PROGRAMA_URDIDO);
-        $permission = SYSUsuariosRoles::where('idusuario', Auth::id())
-            ->where('idrol', $rol->idrol)
-            ->first();
-        $tieneAcceso = $permission && isset($permission->acceso) && (int) $permission->acceso === 1;
-
-        return $tienePermisoModificar && $tieneAcceso;
+        return strcasecmp($area, 'Supervisores') === 0;
     }
+
     /**
      * Mostrar la vista de programar urdido
      */
     public function index()
     {
-        return view('modulos.urdido.programar-urdido');
+        return view('modulos.urdido.programar-urdido', [
+            'canEdit' => $this->usuarioPuedeEditar(),
+        ]);
     }
 
     /**
@@ -592,13 +578,7 @@ class ProgramarUrdidoController extends Controller
     public function intercambiarPrioridad(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 200);
-            }
-
+            // Habilitado para todos los usuarios con acceso al módulo
             $request->validate([
                 'source_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'target_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
@@ -995,13 +975,7 @@ class ProgramarUrdidoController extends Controller
     public function actualizarPrioridades(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 200);
-            }
-
+            // Habilitado para todos los usuarios con acceso al módulo
             $request->validate([
                 'prioridades' => 'required|array',
                 'prioridades.*.id' => 'required|integer|exists:UrdProgramaUrdido,Id',

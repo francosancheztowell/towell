@@ -272,14 +272,6 @@ class EngProduccionFormulacionController extends Controller
                 ];
             });
 
-            // Log para verificar que solo trae los componentes del ID específico
-            Log::info('Obteniendo formulación por ID para editar', [
-                'formulacion_id' => $idFormulacion,
-                'folio' => $formulacion->Folio,
-                'componentes_encontrados' => $componentes->count(),
-                'componentes_ids' => $componentes->pluck('Id')->toArray(),
-                'sql_query' => 'SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = ' . $idFormulacion
-            ]);
 
             return response()->json([
                 'success' => true,
@@ -465,15 +457,31 @@ class EngProduccionFormulacionController extends Controller
             'Viscocidad.min' => 'La viscosidad debe ser mayor a cero.',
         ]);
 
+        $idFromRequest = $request->input('formulacion_id');
+        $item = !empty($idFromRequest)
+            ? EngProduccionFormulacionModel::find($idFromRequest)
+            : EngProduccionFormulacionModel::where('Folio', $folio)->first();
+
+        if (!$item) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Formulación no encontrada.'], 404);
+            }
+            return redirect()->back()->with('error', 'Formulación no encontrada.');
+        }
+
+        if ($item->AX == 1) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'No se puede editar una formulación con AX = 1.'], 403);
+            }
+            return redirect()->back()->with('error', 'No se puede editar una formulación con AX = 1.');
+        }
+
         try {
             DB::transaction(function () use ($validated, $folio, $request) {
-                // Priorizar Id cuando hay múltiples registros con el mismo Folio
                 $idFromRequest = $request->input('formulacion_id');
-                if (!empty($idFromRequest)) {
-                    $item = EngProduccionFormulacionModel::findOrFail((int) $idFromRequest);
-                } else {
-                    $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
-                }
+                $item = !empty($idFromRequest)
+                    ? EngProduccionFormulacionModel::findOrFail((int) $idFromRequest)
+                    : EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
                 // Solo actualizar campos que vienen en el request (evitar sobrescribir con null campos no enviados por el form)
                 $toUpdate = collect($validated)->except('componentes')->filter(function ($v, $k) use ($request) {
                     return $request->has($k);
