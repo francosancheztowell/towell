@@ -36,10 +36,12 @@
       class="text-sm"
       module="Cortes de Eficiencia"
     />
-    <x-navbar.button-report
+    <x-navbar.button-create
       id="btn-fechas"
       title="Fechas"
       icon="fa-calendar"
+      text=""
+      bg=""
       iconColor="text-indigo-600"
       hoverBg="hover:bg-indigo-100"
       class="text-sm"

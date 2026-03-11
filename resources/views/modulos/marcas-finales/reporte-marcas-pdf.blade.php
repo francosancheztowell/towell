@@ -3,7 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <title>Reporte Marcas Finales - {{ $fecha }}</title>
+    @php
+        $totalTelares = isset($telares) ? $telares->count() : 0;
+
+        // Ajuste dinámico para que la tabla complete quepa en una sola hoja.
+        if ($totalTelares >= 70) {
+            $fontSize = '6.5px';
+            $cellPadding = '1px 2px';
+            $titleSize = '11.5px';
+            $headerSize = '6.5px';
+        } elseif ($totalTelares >= 55) {
+            $fontSize = '7px';
+            $cellPadding = '1px 2px';
+            $titleSize = '12.5px';
+            $headerSize = '7px';
+        } elseif ($totalTelares >= 45) {
+            $fontSize = '7.5px';
+            $cellPadding = '1px 3px';
+            $titleSize = '13px';
+            $headerSize = '7.5px';
+        } else {
+            $fontSize = '8.5px';
+            $cellPadding = '2px 3px';
+            $titleSize = '13.5px';
+            $headerSize = '8px';
+        }
+    @endphp
     <style>
+        @page {
+            size: A4 landscape;
+            margin: 6mm;
+        }
         * {
             margin: 0;
             padding: 0;
@@ -11,55 +41,63 @@
         }
         body {
             font-family: Arial, sans-serif;
-            font-size: 9px;
-            padding: 10px;
+            font-size: {{ $fontSize }};
+            line-height: 1.1;
         }
         h2 {
             text-align: center;
-            margin-bottom: 15px;
-            font-size: 14px;
+            margin-bottom: 6px;
+            font-size: {{ $titleSize }};
             color: #1e40af;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            table-layout: fixed;
+            margin-bottom: 6px;
+            page-break-inside: avoid;
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 4px;
+            padding: {{ $cellPadding }};
             text-align: center;
+            vertical-align: middle;
+            word-wrap: break-word;
+            overflow: hidden;
         }
         thead th {
             background-color: #2563eb;
             color: white;
             font-weight: bold;
-            font-size: 8px;
+            font-size: {{ $headerSize }};
         }
         thead tr:first-child th {
-            font-size: 9px;
+            font-size: {{ $headerSize }};
         }
         tbody tr:nth-child(even) {
             background-color: #f9fafb;
         }
-        tbody tr:hover {
-            background-color: #f3f4f6;
-        }
         .telar-col {
             font-weight: bold;
             background-color: #f3f4f6;
+            width: 6%;
         }
         .turno-separator {
             border-right: 2px solid #2563eb;
         }
+        .page-wrap {
+            page-break-inside: avoid;
+        }
         .footer {
-            margin-top: 10px;
-            font-size: 8px;
+            margin-top: 4px;
+            font-size: {{ $fontSize }};
             color: #6b7280;
+            text-align: center;
         }
     </style>
 </head>
 <body>
+    <div class="page-wrap">
     <h2>Marcas Finales de Turno - {{ $fecha }}</h2>
     
     <table>
@@ -138,6 +176,7 @@
         <span>Folio Turno 1: {{ optional($porTurno->get(1))['folio'] ?? '—' }}</span> | 
         <span>Folio Turno 2: {{ optional($porTurno->get(2))['folio'] ?? '—' }}</span> | 
         <span>Folio Turno 3: {{ optional($porTurno->get(3))['folio'] ?? '—' }}</span>
+    </div>
     </div>
 </body>
 </html>
