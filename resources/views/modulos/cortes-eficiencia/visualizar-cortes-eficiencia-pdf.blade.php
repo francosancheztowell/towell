@@ -8,41 +8,73 @@
 
         // Escalado dinámico para conservar 1 sola hoja.
         if ($totalFilas >= 44) {
-            $bodySize = '5px';
-            $thSize = '5.2px';
-            $tdSize = '5px';
-            $efSize = '6.2px';
-            $commentSize = '4.2px';
-            $cellPadding = '1px 1px';
-            $marginPage = '3mm';
-            $titleSize = '8px';
+            $bodySize = '6.4px';
+            $thSize = '6.6px';
+            $tdSize = '6.4px';
+            $efSize = '8.2px';
+            $commentSize = '5.2px';
+            $telarSize = '7.6px';
+            $rpmSize = '7.6px';
+            $focusCellHeight = '11px';
+            $turnoHdrSize = '7.3px';
+            $horarioHdrSize = '7px';
+            $turnoHdrHeight = '14px';
+            $horarioHdrHeight = '13px';
+            $cellPadding = '0.6px 0.7px';
+            $marginPage = '2.8mm';
+            $titleSize = '9.4px';
+            $fitScale = 0.90;
         } elseif ($totalFilas >= 36) {
-            $bodySize = '5.3px';
-            $thSize = '5.5px';
-            $tdSize = '5.3px';
-            $efSize = '6.8px';
-            $commentSize = '4.4px';
-            $cellPadding = '1px 1.2px';
-            $marginPage = '3mm';
-            $titleSize = '8.4px';
+            $bodySize = '6.7px';
+            $thSize = '6.9px';
+            $tdSize = '6.7px';
+            $efSize = '8.6px';
+            $commentSize = '5.4px';
+            $telarSize = '8px';
+            $rpmSize = '8px';
+            $focusCellHeight = '11.6px';
+            $turnoHdrSize = '7.7px';
+            $horarioHdrSize = '7.4px';
+            $turnoHdrHeight = '14.8px';
+            $horarioHdrHeight = '13.8px';
+            $cellPadding = '0.6px 0.8px';
+            $marginPage = '2.8mm';
+            $titleSize = '9.8px';
+            $fitScale = 0.93;
         } elseif ($totalFilas >= 28) {
-            $bodySize = '5.8px';
-            $thSize = '6px';
-            $tdSize = '5.8px';
-            $efSize = '7.6px';
-            $commentSize = '4.8px';
-            $cellPadding = '1.2px 1.5px';
-            $marginPage = '3.2mm';
-            $titleSize = '8.8px';
+            $bodySize = '7.1px';
+            $thSize = '7.3px';
+            $tdSize = '7.1px';
+            $efSize = '9.2px';
+            $commentSize = '5.8px';
+            $telarSize = '8.4px';
+            $rpmSize = '8.4px';
+            $focusCellHeight = '12.4px';
+            $turnoHdrSize = '8.1px';
+            $horarioHdrSize = '7.8px';
+            $turnoHdrHeight = '15.6px';
+            $horarioHdrHeight = '14.6px';
+            $cellPadding = '0.8px 1px';
+            $marginPage = '3mm';
+            $titleSize = '10.2px';
+            $fitScale = 0.96;
         } else {
-            $bodySize = '6.2px';
-            $thSize = '6.5px';
-            $tdSize = '6.2px';
-            $efSize = '8.4px';
-            $commentSize = '5px';
-            $cellPadding = '1.4px 1.8px';
-            $marginPage = '3.5mm';
-            $titleSize = '9.2px';
+            $bodySize = '7.6px';
+            $thSize = '7.8px';
+            $tdSize = '7.6px';
+            $efSize = '9.8px';
+            $commentSize = '6.2px';
+            $telarSize = '9px';
+            $rpmSize = '9px';
+            $focusCellHeight = '13.2px';
+            $turnoHdrSize = '8.6px';
+            $horarioHdrSize = '8.2px';
+            $turnoHdrHeight = '16.4px';
+            $horarioHdrHeight = '15.2px';
+            $cellPadding = '0.9px 1.2px';
+            $marginPage = '3mm';
+            $titleSize = '10.8px';
+            $fitScale = 1;
         }
     @endphp
     <style>
@@ -61,6 +93,11 @@
             background: #ffffff;
             line-height: 1.03;
         }
+        .page-fit {
+            width: calc(100% / {{ $fitScale }});
+            transform: scale({{ $fitScale }});
+            transform-origin: top left;
+        }
 
         /* ── Título ── */
         .titulo {
@@ -72,7 +109,7 @@
         }
         .subtitle {
             text-align: center;
-            font-size: 6px;
+            font-size: 6.4px;
             color: #6b7280;
             margin-bottom: 3px;
         }
@@ -81,7 +118,7 @@
         .folios {
             display: block;
             text-align: center;
-            font-size: 6px;
+            font-size: 6.4px;
             margin-bottom: 3px;
             color: #374151;
         }
@@ -90,7 +127,7 @@
             border-radius: 8px;
             padding: 1px 4px;
             margin: 0 1px;
-            font-size: 6px;
+            font-size: 6.4px;
             font-weight: bold;
             border: 1px solid;
         }
@@ -132,14 +169,37 @@
         .col-ef    { width: 13px; }
 
         /* ── Cabeceras de Turno (fila 1) ── */
-        .hdr-t1 { background-color: #1e40af; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
-        .hdr-t2 { background-color: #166534; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
-        .hdr-t3 { background-color: #92400e; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
+        .hdr-t1,
+        .hdr-t2,
+        .hdr-t3 {
+            color: #ffffff;
+            font-weight: bold;
+            font-size: {{ $turnoHdrSize }};
+            min-height: {{ $turnoHdrHeight }};
+            height: {{ $turnoHdrHeight }};
+            line-height: 1.08;
+            padding-top: 1px;
+            padding-bottom: 1px;
+        }
+        .hdr-t1 { background-color: #1e40af; }
+        .hdr-t2 { background-color: #166534; }
+        .hdr-t3 { background-color: #92400e; }
 
         /* ── Cabeceras de Horario (fila 2) ── */
-        .hdr-h1 { background-color: #3b82f6; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
-        .hdr-h2 { background-color: #22c55e; color: #ffffff; font-weight: bold; font-size: {{ $thSize }}; }
-        .hdr-h3 { background-color: #eab308; color: #1f2937;  font-weight: bold; font-size: {{ $thSize }}; }
+        .hdr-h1,
+        .hdr-h2,
+        .hdr-h3 {
+            font-weight: bold;
+            font-size: {{ $horarioHdrSize }};
+            min-height: {{ $horarioHdrHeight }};
+            height: {{ $horarioHdrHeight }};
+            line-height: 1.08;
+            padding-top: 1px;
+            padding-bottom: 1px;
+        }
+        .hdr-h1 { background-color: #3b82f6; color: #ffffff; }
+        .hdr-h2 { background-color: #22c55e; color: #ffffff; }
+        .hdr-h3 { background-color: #eab308; color: #1f2937; }
 
         /* ── Cabeceras de columna (fila 3) ── */
         .hdr-c1 { background-color: #93c5fd; color: #1e3a8a; font-weight: bold; }
@@ -150,18 +210,25 @@
         .col-rpm { width: 15px; }
         .col-pef { width: 25px; }
         th.col-rpm { font-size: {{ $thSize }}; }
-        td.col-rpm { font-size: {{ $tdSize }}; font-weight: 700; }
-        .ef-wrap { line-height: 1.02; }
+        td.col-rpm {
+            font-size: {{ $rpmSize }};
+            font-weight: 700;
+            min-height: {{ $focusCellHeight }};
+            height: {{ $focusCellHeight }};
+            line-height: 1.08;
+        }
+        .ef-wrap { line-height: 1; }
         .ef-value { font-size: {{ $efSize }}; font-weight: 700; }
         .ef-comment {
-            margin-top: 1px;
+            margin-top: 0;
             font-size: {{ $commentSize }};
             font-weight: 400;
             text-align: center;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: clip;
-            max-height: 5px;
+            max-height: none;
+            line-height: 1;
         }
 
         /* ── Celdas de datos por horario ── */
@@ -177,7 +244,10 @@
             font-weight: bold;
             background-color: #f3f4f6;
             color: #111827;
-            font-size: {{ $tdSize }};
+            font-size: {{ $telarSize }};
+            min-height: {{ $focusCellHeight }};
+            height: {{ $focusCellHeight }};
+            line-height: 1.08;
         }
 
         /* ── Eficiencia baja ── */
@@ -187,13 +257,14 @@
         /* ── Footer ── */
         .footer {
             margin-top: 3px;
-            font-size: 5.5px;
+            font-size: 5.9px;
             color: #6b7280;
             text-align: center;
         }
     </style>
 </head>
 <body>
+    <div class="page-fit">
 
     {{-- ── Título ── --}}
     <div class="titulo">Cortes de Eficiencia &mdash; {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</div>
@@ -351,6 +422,7 @@
     {{-- ── Footer ── --}}
     <div class="footer">
         Generado el {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}
+    </div>
     </div>
 
 </body>
