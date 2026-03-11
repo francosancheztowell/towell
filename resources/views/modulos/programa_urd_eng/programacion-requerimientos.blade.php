@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.cuenta || ''}" data-field="cuenta" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
             </td>
             <td class="px-2 py-3 w-20">
-                <input type="number" step="0.01" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
+                <input type="number" step="any" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
             </td>
             <td class="px-2 py-3 w-24">
                 <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" data-telar-id="${telar.no_telar || ''}" required>
@@ -1415,7 +1415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     no_telar: telarId,
                     fecha_req: fechaReq,
                     cuenta: cuenta,
-                    calibre: calibre,
+                    calibre: calibre !== '' ? parseFloat(calibre) : null,
                     hilo: hilo,
                     tamano: tamano,
                     urdido: urdido,

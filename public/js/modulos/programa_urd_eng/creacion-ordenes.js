@@ -128,6 +128,7 @@
             tipo: normalizarTipo(t.tipo) || 'Rizo',
             hilo: !isBlank(t.hilo) ? String(t.hilo).trim() : null,
             tamano: !isBlank(t.tamano) ? String(t.tamano).trim() : null,
+            calibre: !isBlank(t.calibre) ? parseFloat(t.calibre) : null,
             metros: toNumber(t.metros, 0),
             kilos : toNumber(t.kilos, 0),
             agrupar: !!t.agrupar
@@ -147,7 +148,7 @@
             const esPie = up === 'PIE';
 
             const cuenta   = String(telar.cuenta || '').trim();
-            const calibre  = !isBlank(telar.calibre) ? parseFloat(telar.calibre).toFixed(2) : '';
+            const calibre  = !isBlank(telar.calibre) ? parseFloat(telar.calibre) : null;
             // Para la clave de agrupación: PIE no usa hilo; RIZO sí.
             const hiloClave = esPie ? '' : (!isBlank(telar.hilo) ? String(telar.hilo).trim() : '');
             // Para el grupo enviado al backend: siempre preservar hilo (obligatorio para ambos tipos)
@@ -157,9 +158,10 @@
             const tipoAtado= String(telar.tipo_atado || 'Normal').trim();
             const destino  = String(telar.destino || '').trim();
 
+            const calibreClave = calibre !== null ? String(calibre) : '';
             const clave = esPie
-                ? `${cuenta}|${calibre}|${up}|${urdido}|${tipoAtado}|${destino}`
-                : `${cuenta}|${hiloClave}|${calibre}|${up}|${urdido}|${tipoAtado}|${destino}`;
+                ? `${cuenta}|${calibreClave}|${up}|${urdido}|${tipoAtado}|${destino}`
+                : `${cuenta}|${hiloClave}|${calibreClave}|${up}|${urdido}|${tipoAtado}|${destino}`;
 
             if (!grupos[clave]) {
                 grupos[clave] = { telares:[], cuenta, calibre, hilo, tamano, tipo:tipoN, urdido, tipoAtado, destino,
@@ -172,8 +174,9 @@
 
         const out = Object.values(grupos).map(g => ({ ...g, telaresStr: g.telares.map(t=>t.no_telar).join(',') }));
         for (const t of singles) {
+            const calSingle = !isBlank(t.calibre) ? parseFloat(t.calibre) : null;
             out.push({
-                telares:[t], telaresStr:t.no_telar, cuenta:t.cuenta || '', calibre:t.calibre || '', hilo:t.hilo || '', tamano:t.tamano || '',
+                telares:[t], telaresStr:t.no_telar, cuenta:t.cuenta || '', calibre: calSingle !== null ? calSingle : '', hilo:t.hilo || '', tamano:t.tamano || '',
                 tipo: normalizarTipo(t.tipo) || 'Rizo', urdido:t.urdido || '', tipoAtado:t.tipo_atado || 'Normal', destino:t.destino || '',
                 fechaReq:t.fecha_req || '', metros:t.metros || 0, kilos:t.kilos || 0, maquinaId: t.urdido || t.maquina_urd || t.maquinaId || ''
             });
@@ -1196,13 +1199,15 @@
                 return;
             }
 
-            // Preparar datos del grupo
+            // Preparar datos del grupo (calibre como número con decimales)
+            const calibreNum = grupo.calibre !== null && grupo.calibre !== '' && grupo.calibre !== undefined
+                ? parseFloat(grupo.calibre) : null;
             const grupoPayload = {
                 telaresStr: grupo.telaresStr || '',
                 noTelarId: grupo.telares?.[0]?.no_telar || grupo.telaresStr || '',
                 tipo: grupo.tipo || '',
                 cuenta: grupo.cuenta || '',
-                calibre: grupo.calibre || '',
+                calibre: calibreNum,
                 fechaReq: grupo.fechaReq || '',
                 fibra: grupo.hilo || '',
                 hilo: grupo.hilo || '',
