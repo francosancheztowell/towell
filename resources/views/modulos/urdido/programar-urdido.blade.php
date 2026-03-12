@@ -63,6 +63,7 @@
                                         <th class="{{ $thBaseClasses }}">@if($i == 4)Barras @else Tipo @endif</th>
                                         <th class="{{ $thBaseClasses }}">Cuenta</th>
                                         <th class="{{ $thBaseClasses }}">Calibre</th>
+                                        <th class="{{ $thBaseClasses }}">Configuración</th>
                                         <th class="{{ $thBaseClasses }}">Metros</th>
                                         <th class="{{ $thBaseClasses }}">Status</th>
                                         <th class="{{ $thBaseClasses }}">Observaciones</th>
@@ -70,7 +71,7 @@
                                 </thead>
                                 <tbody id="mcCoy{{ $i }}TableBody" class="bg-white">
                                     <tr>
-                                        <td colspan="6" class="px-2 py-2 text-center text-gray-500 text-2xl">
+                                        <td colspan="9" class="px-2 py-2 text-center text-gray-500 text-2xl">
                                             <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
                                         </td>
                                     </tr>
@@ -108,6 +109,7 @@
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Tipo</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Cuenta</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Calibre</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Configuración</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Metros</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Máquina</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Status</th>
@@ -115,7 +117,7 @@
                         </thead>
                         <tbody id="modalPrioridadTableBody" class="bg-white">
                             <tr>
-                                <td colspan="8" class="px-3 py-4 text-center text-gray-500">
+                                <td colspan="9" class="px-3 py-4 text-center text-gray-500">
                                     <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
                                 </td>
                             </tr>
@@ -283,7 +285,7 @@
                 if (!ordenes.length) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="8" class="px-2 py-2 text-center text-gray-500 text-xl">
+                            <td colspan="9" class="px-2 py-2 text-center text-gray-500 text-xl">
                                 No hay órdenes pendientes
                             </td>
                         </tr>
@@ -303,6 +305,10 @@
                         : 'hover:bg-gray-50 h-9 transition-all duration-200 select-none';
 
                     const rowCursorClass = canChangePrioridad ? 'cursor-move' : 'cursor-default';
+
+                    const calibre = orden.calibre != null && orden.calibre !== ''
+                        ? parseFloat(orden.calibre).toLocaleString('es-MX', { maximumFractionDigits: 4 })
+                        : '';
 
                     const metros = orden.metros
                         ? Math.round(parseFloat(orden.metros))
@@ -343,7 +349,8 @@
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, isSelected)}</td>
                             <td class="${baseTd}">${orden.cuenta || ''}</td>
-                            <td class="${baseTd}">${orden.calibre || ''}</td>
+                            <td class="${baseTd}">${calibre}</td>
+                            <td class="${baseTd}">${orden.configuracion || ''}</td>
                             <td class="${baseTd}">${metros}</td>
                             <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
                                 ${canEdit ? renderStatusSelect(orden, isSelected) : (orden.status || '')}
@@ -929,7 +936,7 @@
                     if (tbody) {
                         tbody.innerHTML = `
                             <tr>
-                                <td colspan="8" class="px-3 py-4 text-center text-red-500">
+                                <td colspan="9" class="px-3 py-4 text-center text-red-500">
                                     Error al cargar órdenes
                                 </td>
                             </tr>
@@ -947,7 +954,7 @@
                 if (!ordenes.length) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="8" class="px-3 py-4 text-center text-gray-500">
+                            <td colspan="9" class="px-3 py-4 text-center text-gray-500">
                                 No hay órdenes disponibles
                             </td>
                         </tr>
@@ -959,6 +966,9 @@
 
                 const rowsHtml = ordenes.map((orden, index) => {
                     const prioridad = orden.prioridad ?? (index + 1);
+                    const calibreModal = orden.calibre != null && orden.calibre !== ''
+                        ? parseFloat(orden.calibre).toLocaleString('es-MX', { maximumFractionDigits: 4 })
+                        : '';
                     const metros = orden.metros ? Math.round(parseFloat(orden.metros)) : '';
 
                     return `
@@ -974,7 +984,8 @@
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, false)}</td>
                             <td class="${baseTd}">${orden.cuenta || ''}</td>
-                            <td class="${baseTd}">${orden.calibre || ''}</td>
+                            <td class="${baseTd}">${calibreModal}</td>
+                            <td class="${baseTd}">${orden.configuracion || ''}</td>
                             <td class="${baseTd}">${metros}</td>
                             <td class="${baseTd}">${orden.maquina || ''}</td>
                             <td class="${baseTd}">${orden.status || ''}</td>
