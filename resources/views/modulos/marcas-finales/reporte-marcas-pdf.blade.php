@@ -8,25 +8,25 @@
 
         // Ajuste dinámico para que la tabla complete quepa en una sola hoja.
         if ($totalTelares >= 70) {
-            $fontSize = '6.5px';
+            $fontSize = '6.9px';
             $cellPadding = '1px 2px';
-            $titleSize = '11.5px';
-            $headerSize = '6.5px';
+            $titleSize = '12.1px';
+            $headerSize = '6.9px';
         } elseif ($totalTelares >= 55) {
-            $fontSize = '7px';
+            $fontSize = '7.4px';
             $cellPadding = '1px 2px';
-            $titleSize = '12.5px';
-            $headerSize = '7px';
+            $titleSize = '13.1px';
+            $headerSize = '7.4px';
         } elseif ($totalTelares >= 45) {
-            $fontSize = '7.5px';
+            $fontSize = '7.9px';
             $cellPadding = '1px 3px';
-            $titleSize = '13px';
-            $headerSize = '7.5px';
+            $titleSize = '13.6px';
+            $headerSize = '7.9px';
         } else {
-            $fontSize = '8.5px';
+            $fontSize = '8.9px';
             $cellPadding = '2px 3px';
-            $titleSize = '13.5px';
-            $headerSize = '8px';
+            $titleSize = '14.1px';
+            $headerSize = '8.4px';
         }
     @endphp
     <style>
