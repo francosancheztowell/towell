@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual integral corporativo, funcional y tecnico de Towell</title>
+  <style>
+    :root {
+      --ink: #17324d;
+      --muted: #567089;
+      --line: #d7e0e8;
+      --soft: #f4f7fa;
+      --accent: #9a7b4f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      color: #1d2a33;
+      background: #eef3f7;
+      line-height: 1.5;
+    }
+
+    .document {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: #fff;
+      padding: 18mm 16mm 18mm 16mm;
+    }
+
+    .cover {
+      min-height: 255mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid var(--line);
+      padding: 18mm;
+      background: linear-gradient(180deg, #f8fbfd 0%, #ffffff 100%);
+    }
+
+    .brand {
+      color: var(--ink);
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    h1 {
+      color: var(--ink);
+      font-size: 30px;
+      line-height: 1.2;
+      margin: 18px 0 8px;
+    }
+
+    h2 {
+      color: var(--ink);
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 6px;
+      margin-top: 28px;
+      font-size: 22px;
+    }
+
+    h3 {
+      color: var(--ink);
+      font-size: 17px;
+      margin-top: 20px;
+    }
+
+    p, li { font-size: 13.5px; }
+
+    .meta, .summary-box {
+      border: 1px solid var(--line);
+      background: var(--soft);
+      padding: 12px 14px;
+      border-radius: 8px;
+    }
+
+    .meta table, .grid table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .meta td, .grid td, .grid th {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .grid th {
+      background: #eef4f8;
+      color: var(--ink);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #e8f0f7;
+      color: var(--ink);
+      font-size: 12px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .phase {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 16px;
+      background: #fff;
+    }
+
+    .phase-title {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .page-break {
+      page-break-before: always;
+      break-before: page;
+      height: 1px;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .document { width: auto; min-height: auto; margin: 0; padding: 0; }
+      .cover, .phase, .meta, .summary-box { box-shadow: none; }
+      @page { size: A4; margin: 15mm; }
+    }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <section class="cover">
+      <div>
+        <div class="brand">Towell</div>
+        <h1>Manual integral corporativo, funcional y tecnico</h1>
+        <p>Documento institucional para lectura ejecutiva, funcional, operativa y de apoyo tecnico.</p>
+      </div>
+
+      <div class="meta">
+        <table>
+          <tr><td><strong>Codigo</strong></td><td>MAN-TOW-001</td></tr>
+          <tr><td><strong>Version</strong></td><td>2.0</td></tr>
+          <tr><td><strong>Fecha</strong></td><td>2026-03-12</td></tr>
+          <tr><td><strong>Estatus</strong></td><td>Vigente</td></tr>
+          <tr><td><strong>Uso</strong></td><td>Interno</td></tr>
+          <tr><td><strong>Formato</strong></td><td>Version lista para impresion o exportacion a PDF con anexo extendido</td></tr>
+        </table>
+      </div>
+
+      <div class="footer-note">
+        Recomendacion: abrir este archivo en navegador y usar la opcion Imprimir o Guardar como PDF.
+      </div>
+    </section>
+
+    <div class="page-break"></div>
+
+    <section>
+      <h2>Resumen ejecutivo</h2>
+      <div class="summary-box">
+        <p>Towell es una plataforma de coordinacion operativa que une la planeacion, la ejecucion productiva, el seguimiento en piso, la administracion de usuarios y el alertamiento de eventos relevantes en una sola cadena de control.</p>
+        <p>Su valor principal es asegurar que la informacion fluya entre fases y que cada area opere con visibilidad, orden y trazabilidad.</p>
+        <p>Esta version agrega un anexo extendido por fase con detalle de controladores, funciones y responsabilidades principales.</p>
+      </div>
+
+      <h2>Audiencia</h2>
+      <span class="tag">Direccion</span>
+      <span class="tag">Gerencia</span>
+      <span class="tag">Supervision</span>
+      <span class="tag">Analisis funcional</span>
+      <span class="tag">Capacitacion</span>
+      <span class="tag">Auditoria</span>
+
+      <h2>Fases funcionales</h2>
+
+      <div class="phase">
+        <div class="phase-title">Fase 00 - Acceso al sistema</div>
+        <p>Controla el ingreso de usuarios, valida identidad y habilita el acceso inicial al entorno de trabajo.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 01 - Navegacion principal</div>
+        <p>Organiza modulos y submodulos segun el perfil del usuario para mostrar solo funciones autorizadas.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 02 - Planeacion</div>
+        <p>Es el nucleo del sistema: prepara catalogos, programa tejido, permite balancear cargas y sincroniza procesos posteriores.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 03 - Tejido</div>
+        <p>Da visibilidad al estado real de los telares, requerimientos de trama, marcas finales, eficiencia y reportes operativos.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 04 - Tejedores</div>
+        <p>Formaliza BPM, desarrolladores, inventario del area y notificaciones operativas para seguimiento de piso.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 05 - Urdido</div>
+        <p>Administra programacion, produccion, BPM y reportes del proceso de urdido.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 06 - Engomado</div>
+        <p>Controla programacion, formulacion, produccion y BPM de engomado con enfoque en trazabilidad tecnica.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 07 - Atadores</div>
+        <p>Da seguimiento al proceso de atado desde inicio, registro de actividades y autorizacion final.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 08 - Programa Urd/Eng</div>
+        <p>Prepara reservas e inventario para convertir necesidades operativas en ordenes formales de urdido y engomado.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 09 - Configuracion</div>
+        <p>Administra usuarios, permisos, modulos, secuencias, mensajes y cargas funcionales del sistema.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 10 - Mantenimiento</div>
+        <p>Registra paros y fallas, soporta catalogos y genera informacion para seguimiento y mejora.</p>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 11 - Telegram</div>
+        <p>Centraliza alertamiento y comunicacion automatica de eventos relevantes hacia responsables operativos.</p>
+      </div>
+    </section>
+
+    <div class="page-break"></div>
+
+    <section>
+      <h2>Riesgos generales de operacion</h2>
+      <ul>
+        <li>Dependencia alta de datos maestros correctos en Planeacion.</li>
+        <li>Impacto transversal cuando una fase cambia reglas que consumen las siguientes.</li>
+        <li>Necesidad de mantener permisos, secuencias y destinatarios permanentemente actualizados.</li>
+        <li>Convivencia de rutas o flujos historicos que exigen compatibilidad operativa.</li>
+      </ul>
+
+      <h2>Indicadores sugeridos</h2>
+      <div class="grid">
+        <table>
+          <thead>
+            <tr>
+              <th>Dimension</th>
+              <th>Indicadores sugeridos</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Acceso</td>
+              <td>Usuarios activos, intentos fallidos, incidencias de acceso.</td>
+            </tr>
+            <tr>
+              <td>Planeacion</td>
+              <td>Ordenes reprogramadas, cambios de telar, cumplimiento del programa.</td>
+            </tr>
+            <tr>
+              <td>Produccion</td>
+              <td>Ordenes finalizadas, kilos por turno, tiempos de ciclo.</td>
+            </tr>
+            <tr>
+              <td>BPM</td>
+              <td>Folios creados, terminados, autorizados y rechazados.</td>
+            </tr>
+            <tr>
+              <td>Mantenimiento</td>
+              <td>Paros por area, tiempo promedio de atencion, tipos de falla.</td>
+            </tr>
+            <tr>
+              <td>Alertamiento</td>
+              <td>Mensajes enviados, destinatarios activos, fallas de envio.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Recomendaciones institucionales</h2>
+      <ol>
+        <li>Asignar responsables por cada fase funcional del sistema.</li>
+        <li>Revisar periodicamente permisos, catalogos y secuencias.</li>
+        <li>Usar esta version para presentacion ejecutiva, impresion o envio a terceros internos.</li>
+        <li>Usar la documentacion tecnica como respaldo cuando exista una necesidad de mantenimiento o analisis detallado.</li>
+      </ol>
+
+      <p class="footer-note">Referencia complementaria: `docs/documentacion-corporativa/MANUAL-CORPORATIVO-TOWELL.md` y `docs/documentacion-tecnica/MATRIZ-TECNICA-RUTAS.md`.</p>
+    </section>
+
+    <div class="page-break"></div>
+
+    <section>
+      <h2>Anexo extendido por fases</h2>
+      <p>Las siguientes secciones resumen, por fase, los controladores principales y las funciones mas relevantes del sistema. El desarrollo completo y exhaustivo permanece en la version Markdown del manual integral.</p>
+
+      <div class="phase">
+        <div class="phase-title">Fase 00 - Acceso al sistema</div>
+        <ul>
+          <li><strong>AuthController</strong>: `showLoginForm` presenta el acceso; `login` valida credenciales, migra contrasenas legacy e inicia sesion; `logout` cierra sesion.</li>
+          <li><strong>UsuarioController</strong>: `obtenerEmpleados` devuelve empleados por area para consultas de apoyo.</li>
+          <li><strong>SystemController</strong>: `test404` genera una prueba controlada de error.</li>
+          <li><strong>ModulosController</strong>: `index`, `create`, `store`, `edit`, `update`, `destroy` administran modulos y permisos base.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 01 - Navegacion principal</div>
+        <ul>
+          <li><strong>UsuarioController</strong>: `index` arma el menu principal; `showSubModulos` y `showSubModulosNivel3` resuelven la jerarquia; `getSubModulosAPI` y `getModuloPadre` soportan navegacion dinamica.</li>
+          <li><strong>StorageController</strong>: `usuarioFoto` entrega imagenes de usuario.</li>
+          <li><strong>ModuloService</strong>: soporte transversal para resolver y cachear modulos visibles.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 02 - Planeacion</div>
+        <ul>
+          <li><strong>Catalogos</strong>: `CatalagoTelarController`, `CatalagoEficienciaController`, `CatalagoVelocidadController`, `CalendarioController`, `AplicacionesController`, `MatrizHilosController` y `PesosRollosController` administran maestros e importaciones Excel.</li>
+          <li><strong>Codificacion</strong>: `CodificacionController` y `CatCodificacionController` mantienen modelos codificados, ordenes, importaciones, estadisticas y sincronizacion con peso muestra/LMAT.</li>
+          <li><strong>Alineacion</strong>: `AlineacionController` construye una vista consolidada de ordenes en proceso y sus datos enriquecidos.</li>
+          <li><strong>Utileria</strong>: `FinalizarOrdenesController` y `MoverOrdenesController` permiten finalizar, mover, recalcular fechas y sincronizar datos derivados.</li>
+          <li><strong>Programa de tejido</strong>: `ProgramaTejidoController` crea y actualiza registros; `ProgramaTejidoOperacionesController` mueve, duplica, divide y vincula; `ProgramaTejidoBalanceoController` balancea; `ProgramaTejidoCalendariosController` recalcula fechas.</li>
+          <li><strong>Liberacion y salidas</strong>: `LiberarOrdenesController` libera ordenes; `DescargarProgramaController` genera TXT; `RepasoController` crea repasos; `ColumnasProgramaTejidoController` administra visibilidad de columnas.</li>
+          <li><strong>Dependencia critica</strong>: `ReqProgramaTejidoObserver` recalcula formulas y `ReqProgramaTejidoLine`.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 03 - Tejido</div>
+        <ul>
+          <li><strong>TelaresController</strong>: consulta inventario, proceso actual y siguiente orden por telar.</li>
+          <li><strong>NuevoRequerimientoController</strong>: genera y guarda requerimientos de trama; busca articulos, fibras y colores; consulta turno y proceso.</li>
+          <li><strong>ConsultarRequerimientoController</strong>: consulta requerimientos, cambia estatus y genera resumen.</li>
+          <li><strong>MarcasController</strong>: genera folios, captura marcas, actualiza registros, finaliza, reabre y exporta a Excel/PDF.</li>
+          <li><strong>CortesEficienciaController</strong>: captura eficiencias, guarda horarios/tablas, finaliza, consolida, exporta y notifica por Telegram.</li>
+          <li><strong>ProduccionReenconadoCabezuelaController</strong>: registra produccion, genera folio y cambia estatus del proceso.</li>
+          <li><strong>ReporteInvTelasController</strong>: arma y exporta el reporte de inventario de telas.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 04 - Tejedores</div>
+        <ul>
+          <li><strong>TelBpmController</strong> y <strong>TelBpmLineController</strong>: crean, llenan, terminan, autorizan o rechazan BPM del area.</li>
+          <li><strong>TelActividadesBPMController</strong> y <strong>TelTelaresOperadorController</strong>: mantienen catalogos de actividades y asignacion operador-telar.</li>
+          <li><strong>InventarioTelaresController</strong>: guarda inventario, verifica estados, actualiza fecha y valida ocupacion de turnos.</li>
+          <li><strong>TelDesarrolladoresController</strong> y <strong>TelDesarrolladoresMuestrasController</strong>: gestionan el proceso de desarrolladores y muestras, consultando detalle tecnico y guardando el proceso.</li>
+          <li><strong>NotificarMontadoJulioController</strong> y <strong>NotificarMontRollosController</strong>: registran eventos de piso y, cuando aplica, liberan marbetes o notifican.</li>
+          <li><strong>ReportesTejedoresController</strong> y <strong>ReportesDesarrolladoresController</strong>: presentan y exportan reportes del area.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 05 - Urdido</div>
+        <ul>
+          <li><strong>ProgramarUrdidoController</strong>: lista ordenes, verifica proceso, intercambia prioridad, guarda observaciones y actualiza estatus.</li>
+          <li><strong>EditarOrdenesProgramadasController</strong>: recupera ordenes y actualiza datos generales, julios e hilos de produccion.</li>
+          <li><strong>ModuloProduccionUrdidoController</strong>: carga la orden, actualiza campos productivos y finaliza la produccion.</li>
+          <li><strong>UrdBpmController</strong> y <strong>UrdBpmLineController</strong>: crean y gestionan BPM de urdido.</li>
+          <li><strong>CatalogosUrdidoController</strong>: mantiene catalogos de julios y maquinas.</li>
+          <li><strong>ReportesUrdidoController</strong>: genera OEE, Kaizen, roturas y BPM, con exportaciones a Excel.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 06 - Engomado</div>
+        <ul>
+          <li><strong>ProgramarEngomadoController</strong>: organiza la cola, prioridades y estatus del area.</li>
+          <li><strong>EditarOrdenesEngomadoController</strong>: recupera y actualiza ordenes programadas.</li>
+          <li><strong>ModuloProduccionEngomadoController</strong>: controla captura de produccion, actualizacion de campos y cierre.</li>
+          <li><strong>EngProduccionFormulacionController</strong>: valida folios, consulta componentes y guarda formulaciones.</li>
+          <li><strong>EngBpmController</strong>, <strong>EngBpmLineController</strong> y <strong>EngActividadesBpmController</strong>: gestionan BPM y actividades del area.</li>
+          <li><strong>UrdEngNucleosController</strong> y <strong>CatUbicacionesController</strong>: mantienen catalogos tecnicos de apoyo.</li>
+          <li><strong>ReportesEngomadoController</strong>: genera y exporta el BPM del area.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 07 - Atadores</div>
+        <ul>
+          <li><strong>AtadoresController</strong>: concentra el flujo principal: iniciar atado, calificar y guardar acciones del proceso.</li>
+          <li><strong>AtaActividadesController</strong>, <strong>AtaComentariosController</strong> y <strong>AtaMaquinasController</strong>: mantienen catalogos funcionales del area.</li>
+          <li><strong>ReportesAtadoresController</strong>: presenta y exporta el reporte principal.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 08 - Programa Urd/Eng</div>
+        <ul>
+          <li><strong>ReservarProgramarController</strong>: concentra la pantalla principal, requerimientos, programacion y liberacion por telar.</li>
+          <li><strong>InventarioTelaresController</strong> e <strong>InventarioDisponibleController</strong>: consultan inventario base y disponibilidad para reserva.</li>
+          <li><strong>ReservaInventarioController</strong>: reserva o cancela inventario asociado al telar.</li>
+          <li><strong>ResumenSemanasController</strong>: consolida requerimientos por semana.</li>
+          <li><strong>BomMaterialesController</strong>: consulta BOM, materiales, hilos, tamanos, maquinas y otros datos tecnicos.</li>
+          <li><strong>ProgramarUrdEngController</strong> y <strong>CrearOrdenKarlMayerController</strong>: crean ordenes URD/ENG o el flujo especifico Karl Mayer.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 09 - Configuracion</div>
+        <ul>
+          <li><strong>UsuarioController</strong>: alta, edicion, baja, QR y permisos de usuarios.</li>
+          <li><strong>ModulosController</strong>: estructura de modulos, submodulos, permisos base y sincronizacion.</li>
+          <li><strong>ConfiguracionController</strong>: carga completa o incremental de planeacion desde Excel.</li>
+          <li><strong>DepartamentosController</strong>, <strong>SecuenciaFoliosController</strong> y <strong>MensajesController</strong>: catalogos administrativos de apoyo.</li>
+          <li><strong>BaseDeDatosController</strong>: ajuste administrativo del indicador productivo.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 10 - Mantenimiento</div>
+        <ul>
+          <li><strong>MantenimientoParosController</strong>: alta de paro, catalogos auxiliares, consulta y cierre de eventos.</li>
+          <li><strong>CatalogosFallasController</strong>: mantenimiento del catalogo de fallas.</li>
+          <li><strong>ManOperadoresMantenimientoController</strong>: mantenimiento del catalogo de operadores.</li>
+          <li><strong>ReportesMantenimientoController</strong>: consulta y exportacion del reporte de fallas y paros.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title">Fase 11 - Telegram</div>
+        <ul>
+          <li><strong>TelegramController</strong>: `sendMessage` envia mensajes; `getBotInfo` diagnostica el bot; `getChatId` descubre chats disponibles.</li>
+          <li><strong>Dependencia funcional</strong>: soporte transversal para notificaciones en Tejido, Atadores, Mantenimiento y otros procesos.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

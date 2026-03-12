@@ -36,8 +36,8 @@ class AlineacionController extends Controller
         'TipoPlano',
         'MedidaPlano',
         'NoTiras',
-        'CuentaRizo',
-        'CuentaPie',
+        'FibraRizo',
+        'FibraPie',
         'CalibreTrama',
         'PasadasComb1',
         'PasadasComb2',
@@ -218,7 +218,7 @@ class AlineacionController extends Controller
         $prodPromDia = $r->ProdKgDia;
         $diferencia = $r->SaldoPedido;
         $item['DiasPorEjecutar'] = ($prodPromDia !== null && $prodPromDia > 0 && $diferencia !== null)
-            ? ($diferencia / $prodPromDia)
+            ? round($diferencia / $prodPromDia, 2)
             : 'ABIERTO';
         // FechaTejido en Y-m-d para cálculo de Días de prod. en el front (catcodificados)
         $item['FechaTejido'] = $cat?->FechaTejido ? Carbon::parse($cat->FechaTejido)->format('Y-m-d') : '';

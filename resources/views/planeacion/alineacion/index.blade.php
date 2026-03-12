@@ -19,7 +19,7 @@
                 'NoTelarId', 'NoProduccion', 'FechaCambio', 'FechaCompromiso', 'ItemId', 'NombreProducto',
                 'Tolerancia', 'RazSN', 'TipoRizo', 'CalibreRizo',
                 'Ancho', 'LargoCrudo', 'PesoCrudo', 'Luchaje', 'TipoPlano', 'MedidaPlano',                 'NoTiras',
-                'CuentaRizo', 'CuentaPie', 'CalibreTrama',
+                'FibraRizo', 'FibraPie', 'CalibreTrama',
                 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4',
                 'AnchoToalla', 'PesoGRM2', 'PesoMin', 'PesoMax', 'MuestraMin', 'MuestraMax',
                 'TotalPedido', 'ProdAcumMesAnt', 'ProdAcumMes', 'Produccion', 'SaldoPedido',
@@ -33,7 +33,7 @@
                 'Tolerancia' => 'Tolerancia', 'RazSN' => 'Raz. S/N', 'TipoRizo' => 'Tipo Rizo', 'CalibreRizo' => 'Alt Rizo',
                 'Ancho' => 'Crudo Anc.', 'LargoCrudo' => 'Crudo Lar.', 'PesoCrudo' => 'Crudo Peso', 'Luchaje' => 'Luc.', 'TipoPlano' => 'Tipo Plano',
                 'MedidaPlano' => 'Med. plano',                 'NoTiras' => 'Tiras',
-                'CuentaRizo' => 'Hilo Rizo', 'CuentaPie' => 'Hilo Pie', 'CalibreTrama' => 'Hilo Trama',
+                'FibraRizo' => 'Hilo Rizo', 'FibraPie' => 'Hilo Pie', 'CalibreTrama' => 'Hilo Trama',
                 'PasadasComb1' => '1', 'PasadasComb2' => '2', 'PasadasComb3' => '3', 'PasadasComb4' => '4',
                 'AnchoToalla' => 'Med. Cen.', 'PesoGRM2' => 'Peso Muestra',
                 'PesoMin' => 'Peso Min', 'PesoMax' => 'Peso Max',
@@ -51,7 +51,7 @@
                 'ItemId' => '', 'NombreProducto' => '', 'Tolerancia' => '', 'RazSN' => '', 'TipoRizo' => '',
                 'CalibreRizo' => '', 'Ancho' => 'Anc.', 'LargoCrudo' => 'Lar.', 'PesoCrudo' => 'Peso', 'Luchaje' => '',
                 'TipoPlano' => '', 'MedidaPlano' => '',                 'NoTiras' => '',
-                'CuentaRizo' => 'Rizo', 'CuentaPie' => 'Pie', 'CalibreTrama' => 'Trama',
+                'FibraRizo' => 'Rizo', 'FibraPie' => 'Pie', 'CalibreTrama' => 'Trama',
                 'PasadasComb1' => '1', 'PasadasComb2' => '2', 'PasadasComb3' => '3', 'PasadasComb4' => '4',
                 'AnchoToalla' => '', 'PesoGRM2' => '',
                 'PesoMin' => 'Min', 'PesoMax' => 'Max',
@@ -64,7 +64,7 @@
         if (!isset($headerGroups)) {
             $headerGroups = [
                 'Crudo' => ['Ancho', 'LargoCrudo', 'PesoCrudo'],
-                'Hilo' => ['CuentaRizo', 'CuentaPie', 'CalibreTrama'],
+                'Hilo' => ['FibraRizo', 'FibraPie', 'CalibreTrama'],
                 'Cenefa Trama' => ['PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4'],
                 'Peso' => ['PesoMin', 'PesoMax'],
                 'Muestra' => ['MuestraMin', 'MuestraMax'],
@@ -357,6 +357,9 @@
                         let raw = value !== null && value !== '' ? String(value) : '';
                         if ((col === 'AnchoToalla' || col === 'PesoGRM2') && value !== '' && value != null && !isNaN(parseFloat(value))) {
                             raw = parseFloat(value).toFixed(3);
+                        }
+                        if (col === 'DiasPorEjecutar' && value !== '' && value != null && !isNaN(parseFloat(value))) {
+                            raw = parseFloat(value).toFixed(2);
                         }
                         // Días de prod. = fecha actual - FechaTejido (catcodificados, ej. 2020-02-01), calculado en cliente
                         if (col === 'DiasEficiencia') {

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual tecnico detallado de Towell</title>
+  <style>
+    :root {
+      --ink: #12324a;
+      --soft: #f3f7fa;
+      --line: #d7e0e7;
+      --muted: #607487;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background: #eef3f6;
+      color: #1f2f39;
+      line-height: 1.5;
+    }
+    .document {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: #fff;
+      padding: 16mm;
+    }
+    .cover, .section {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+    .cover {
+      min-height: 250mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: linear-gradient(180deg, #f8fbfd 0%, #ffffff 100%);
+    }
+    h1, h2, h3 { color: var(--ink); }
+    h1 { font-size: 30px; margin: 10px 0; }
+    h2 { font-size: 22px; border-bottom: 2px solid var(--line); padding-bottom: 6px; }
+    h3 { font-size: 17px; margin-top: 18px; }
+    p, li, td, th { font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: var(--soft); }
+    .muted { color: var(--muted); }
+    .page-break { break-before: page; page-break-before: always; height: 1px; }
+    .tag { display: inline-block; background: var(--soft); border: 1px solid var(--line); padding: 4px 8px; border-radius: 999px; margin: 4px 6px 0 0; }
+    @media print {
+      body { background: #fff; }
+      .document { width: auto; min-height: auto; margin: 0; padding: 0; }
+      @page { size: A4; margin: 14mm; }
+    }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <section class="cover">
+      <div>
+        <div class="muted">Towell</div>
+        <h1>Manual tecnico detallado</h1>
+        <p>Consolidado tecnico para desarrollo, soporte y analisis funcional-tecnico.</p>
+      </div>
+      <table>
+        <tr><th>Codigo</th><td>MTD-TOW-001</td></tr>
+        <tr><th>Version</th><td>1.0</td></tr>
+        <tr><th>Fecha</th><td>2026-03-12</td></tr>
+        <tr><th>Estatus</th><td>Vigente</td></tr>
+        <tr><th>Uso</th><td>Interno</td></tr>
+      </table>
+      <p class="muted">Referencia completa: `docs/documentacion-tecnica/MANUAL-TECNICO-DETALLADO-TOWELL.md`</p>
+    </section>
+
+    <div class="page-break"></div>
+
+    <section class="section">
+      <h2>Componentes transversales</h2>
+      <table>
+        <tr><th>Componente</th><th>Impacto</th></tr>
+        <tr><td>`ReqProgramaTejidoObserver`</td><td>Recalcula formulas y lineas derivadas; afecta planeacion, muestras y liberacion.</td></tr>
+        <tr><td>`ProduccionTrait`</td><td>Logica compartida entre urdido y engomado.</td></tr>
+        <tr><td>`FolioHelper`</td><td>Consecutivos funcionales de multiples modulos.</td></tr>
+        <tr><td>`TurnoHelper`</td><td>Resolucion de turno actual para capturas operativas.</td></tr>
+        <tr><td>`ModuloService`</td><td>Navegacion y cache de modulos visibles.</td></tr>
+        <tr><td>`SYSMensaje`</td><td>Destinatarios y banderas de notificacion.</td></tr>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Resumen tecnico por fases</h2>
+      <span class="tag">00 Publico</span>
+      <span class="tag">01 Navigation</span>
+      <span class="tag">02 Planeacion</span>
+      <span class="tag">03 Tejido</span>
+      <span class="tag">04 Tejedores</span>
+      <span class="tag">05 Urdido</span>
+      <span class="tag">06 Engomado</span>
+      <span class="tag">07 Atadores</span>
+      <span class="tag">08 Programa Urd Eng</span>
+      <span class="tag">09 Configuracion</span>
+      <span class="tag">10 Mantenimiento</span>
+      <span class="tag">11 Telegram</span>
+    </section>
+
+    <section class="section">
+      <h2>Fase 00 y 01</h2>
+      <table>
+        <tr><th>Fase</th><th>Controladores</th><th>Funciones clave</th></tr>
+        <tr><td>00 Publico</td><td>`AuthController`, `UsuarioController`, `SystemController`, `ModulosController`</td><td>`showLoginForm`, `login`, `logout`, `obtenerEmpleados`, `test404`, `index`, `store`, `update`, `destroy`</td></tr>
+        <tr><td>01 Navigation</td><td>`UsuarioController`, `StorageController`</td><td>`index`, `showSubModulos`, `showSubModulosNivel3`, `getSubModulosAPI`, `getModuloPadre`, `usuarioFoto`</td></tr>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Fase 02 - Planeacion</h2>
+      <table>
+        <tr><th>Subdominio</th><th>Controladores</th><th>Funciones clave</th></tr>
+        <tr><td>Catalogos</td><td>`CatalagoTelarController`, `CatalagoEficienciaController`, `CatalagoVelocidadController`, `CalendarioController`, `AplicacionesController`, `MatrizHilosController`, `PesosRollosController`</td><td>CRUD, importacion Excel, recalculo de programas, lineas y calendarios</td></tr>
+        <tr><td>Codificacion</td><td>`CodificacionController`, `CatCodificacionController`, `OrdenDeCambioFelpaController`, `ReimprimirOrdenesController`</td><td>`getAllFast`, `procesarExcel`, `actualizarPesoMuestraLmat`, `generarExcelDesdeBD`, `reimprimir`</td></tr>
+        <tr><td>Alineacion</td><td>`AlineacionController`</td><td>`index`, `apiData`, `obtenerItemsAlineacion`, `mapearProgramaTejidoAItem`</td></tr>
+        <tr><td>Utileria</td><td>`FinalizarOrdenesController`, `MoverOrdenesController`</td><td>`finalizarOrdenes`, `moverOrdenes`, `recalcularFechasPorTelar`, `sincronizarCatCodificados`</td></tr>
+        <tr><td>Programa</td><td>`ProgramaTejidoController`, `ProgramaTejidoOperacionesController`, `ProgramaTejidoBalanceoController`, `ProgramaTejidoCalendariosController`, `LiberarOrdenesController`, `DescargarProgramaController`, `RepasoController`, `ColumnasProgramaTejidoController`</td><td>`store`, `update`, `moveToPosition`, `cambiarTelar`, `duplicarTelar`, `dividirTelar`, `balancearAutomatico`, `recalcularFechas`, `liberar`, `descargar`, `createrepaso`, `store`</td></tr>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Fases 03 a 06</h2>
+      <table>
+        <tr><th>Fase</th><th>Controladores principales</th><th>Notas tecnicas</th></tr>
+        <tr><td>03 Tejido</td><td>`TelaresController`, `NuevoRequerimientoController`, `ConsultarRequerimientoController`, `MarcasController`, `CortesEficienciaController`, `ProduccionReenconadoCabezuelaController`, `ReporteInvTelasController`</td><td>Conviven rutas nuevas y legacy; marcas y cortes reemplazan lineas con `delete + insert`.</td></tr>
+        <tr><td>04 Tejedores</td><td>`TelBpmController`, `TelBpmLineController`, `InventarioTelaresController`, `TelDesarrolladoresController`, `TelDesarrolladoresMuestrasController`, `NotificarMontadoJulioController`, `NotificarMontRollosController`</td><td>Desarrolladores es un punto de alto impacto por cruces con planeacion y codificacion.</td></tr>
+        <tr><td>05 Urdido</td><td>`ProgramarUrdidoController`, `EditarOrdenesProgramadasController`, `ModuloProduccionUrdidoController`, `UrdBpmController`, `CatalogosUrdidoController`, `ReportesUrdidoController`</td><td>Comparte `ProduccionTrait` y se sincroniza con engomado.</td></tr>
+        <tr><td>06 Engomado</td><td>`ProgramarEngomadoController`, `EditarOrdenesEngomadoController`, `ModuloProduccionEngomadoController`, `EngProduccionFormulacionController`, `EngBpmController`, `UrdEngNucleosController`, `CatUbicacionesController`, `ReportesEngomadoController`</td><td>Exige formulaciones para cierre y comparte `ProduccionTrait` con urdido.</td></tr>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Fases 07 a 11</h2>
+      <table>
+        <tr><th>Fase</th><th>Controladores principales</th><th>Notas tecnicas</th></tr>
+        <tr><td>07 Atadores</td><td>`AtadoresController`, `AtaActividadesController`, `AtaComentariosController`, `AtaMaquinasController`, `ReportesAtadoresController`</td><td>`save` concentra reglas de negocio y autorizacion.</td></tr>
+        <tr><td>08 Programa Urd Eng</td><td>`ReservarProgramarController`, `InventarioTelaresController`, `InventarioDisponibleController`, `ReservaInventarioController`, `ResumenSemanasController`, `BomMaterialesController`, `ProgramarUrdEngController`, `CrearOrdenKarlMayerController`</td><td>Puente entre planeacion, inventario, urdido y engomado.</td></tr>
+        <tr><td>09 Configuracion</td><td>`UsuarioController`, `ModulosController`, `ConfiguracionController`, `DepartamentosController`, `SecuenciaFoliosController`, `MensajesController`, `BaseDeDatosController`</td><td>Contiene operaciones administrativas y cargas potencialmente destructivas.</td></tr>
+        <tr><td>10 Mantenimiento</td><td>`MantenimientoParosController`, `CatalogosFallasController`, `ManOperadoresMantenimientoController`, `ReportesMantenimientoController`</td><td>Consulta orígenes distintos para orden de trabajo y usa Telegram de forma puntual.</td></tr>
+        <tr><td>11 Telegram</td><td>`TelegramController`</td><td>Gateway de mensajeria con destinatarios configurados desde `SYSMensaje`.</td></tr>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Uso recomendado</h2>
+      <ol>
+        <li>Usar este PDF como mapa tecnico resumido.</li>
+        <li>Para detalle completo por fase y funcion, revisar `MANUAL-TECNICO-DETALLADO-TOWELL.md`.</li>
+        <li>Para trazabilidad rapida, complementar con `MATRIZ-TECNICA-RUTAS.md`.</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>
