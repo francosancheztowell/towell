@@ -61,8 +61,7 @@
                                         <th class="{{ $thBaseClasses }}">Prioridad</th>
                                         <th class="{{ $thBaseClasses }}">Folio</th>
                                         <th class="{{ $thBaseClasses }}">@if($i == 4)Barras @else Tipo @endif</th>
-                                        <th class="{{ $thBaseClasses }}">Cuenta</th>
-                                        <th class="{{ $thBaseClasses }}">Calibre</th>
+                                        <th class="{{ $thBaseClasses }}">Cuenta/Calibre</th>
                                         <th class="{{ $thBaseClasses }}">Configuración</th>
                                         <th class="{{ $thBaseClasses }}">Metros</th>
                                         <th class="{{ $thBaseClasses }}">Status</th>
@@ -107,8 +106,7 @@
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Prioridad</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Folio</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Tipo</th>
-                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Cuenta</th>
-                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Calibre</th>
+                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Cuenta/Calibre</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Configuración</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Metros</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Máquina</th>
@@ -306,10 +304,6 @@
 
                     const rowCursorClass = canChangePrioridad ? 'cursor-move' : 'cursor-default';
 
-                    const calibre = orden.calibre != null && orden.calibre !== ''
-                        ? parseFloat(orden.calibre).toLocaleString('es-MX', { maximumFractionDigits: 4 })
-                        : '';
-
                     const metros = orden.metros
                         ? Math.round(parseFloat(orden.metros))
                         : '';
@@ -348,8 +342,7 @@
                             </td>
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, isSelected)}</td>
-                            <td class="${baseTd}">${orden.cuenta || ''}</td>
-                            <td class="${baseTd}">${calibre}</td>
+                            <td class="${baseTd}">${orden.cuenta_calibre || ''}</td>
                             <td class="${baseTd}">${orden.configuracion || ''}</td>
                             <td class="${baseTd}">${metros}</td>
                             <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
@@ -966,9 +959,6 @@
 
                 const rowsHtml = ordenes.map((orden, index) => {
                     const prioridad = orden.prioridad ?? (index + 1);
-                    const calibreModal = orden.calibre != null && orden.calibre !== ''
-                        ? parseFloat(orden.calibre).toLocaleString('es-MX', { maximumFractionDigits: 4 })
-                        : '';
                     const metros = orden.metros ? Math.round(parseFloat(orden.metros)) : '';
 
                     return `
@@ -983,8 +973,7 @@
                             </td>
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, false)}</td>
-                            <td class="${baseTd}">${orden.cuenta || ''}</td>
-                            <td class="${baseTd}">${calibreModal}</td>
+                            <td class="${baseTd}">${orden.cuenta_calibre || ''}</td>
                             <td class="${baseTd}">${orden.configuracion || ''}</td>
                             <td class="${baseTd}">${metros}</td>
                             <td class="${baseTd}">${orden.maquina || ''}</td>

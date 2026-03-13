@@ -57,8 +57,7 @@
                                         <th class="{{ $thBaseClasses }}">Prioridad</th>
                                         <th class="{{ $thBaseClasses }}">Folio</th>
                                         <th class="{{ $thBaseClasses }}">Tipo</th>
-                                        <th class="{{ $thBaseClasses }}">Cuenta</th>
-                                        <th class="{{ $thBaseClasses }}">Calibre</th>
+                                        <th class="{{ $thBaseClasses }}">Cuenta/Calibre</th>
                                         <th class="{{ $thBaseClasses }}">Metros</th>
                                         <th class="{{ $thBaseClasses }}">Formula</th>
                                         <th class="{{ $thBaseClasses }}">Estado</th>
@@ -343,8 +342,7 @@
                             </td>
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, isSelected)}</td>
-                            <td class="${baseTd}">${orden.cuenta || ''}</td>
-                            <td class="${baseTd}">${orden.calibre || ''}</td>
+                            <td class="${baseTd}">${orden.cuenta_calibre || ''}</td>
                             <td class="${baseTd}">${metros}</td>
                             <td class="${baseTd}">${orden.formula || '-'}</td>
                             <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
@@ -921,8 +919,7 @@
                             </td>
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, false)}</td>
-                            <td class="${baseTd}">${orden.cuenta || ''}</td>
-                            <td class="${baseTd}">${orden.calibre || ''}</td>
+                            <td class="${baseTd}">${orden.cuenta_calibre || ''}</td>
                             <td class="${baseTd}">${metros}</td>
                             <td class="${baseTd}">${orden.tabla || ''}</td>
                             <td class="${baseTd}">${orden.status || ''}</td>

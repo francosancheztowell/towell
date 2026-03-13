@@ -186,6 +186,7 @@ class ProgramarUrdidoController extends Controller
                     'Prioridad',
                     'CreatedAt',
                     'Observaciones',
+                    'InventSizeId',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
@@ -207,6 +208,7 @@ class ProgramarUrdidoController extends Controller
                     'FechaProg',
                     'CreatedAt',
                     'Observaciones',
+                    'InventSizeId',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
@@ -293,8 +295,7 @@ class ProgramarUrdidoController extends Controller
                         'id' => $orden->Id,
                         'folio' => $orden->Folio,
                         'tipo' => $orden->tipo,
-                        'cuenta' => $orden->Cuenta,
-                        'calibre' => $orden->Calibre,
+                        'cuenta_calibre' => $orden->InventSizeId ?? '',
                         'configuracion' => $orden->Fibra ?? '',
                         'metros' => $orden->Metros,
                         'mccoy' => $mcCoy,
@@ -869,6 +870,7 @@ class ProgramarUrdidoController extends Controller
                     'Status',
                     'Prioridad',
                     'CreatedAt',
+                    'InventSizeId',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->get();
@@ -887,6 +889,7 @@ class ProgramarUrdidoController extends Controller
                     'MaquinaId',
                     'Status',
                     'CreatedAt',
+                    'InventSizeId',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->get();
@@ -925,6 +928,7 @@ class ProgramarUrdidoController extends Controller
                             'Status',
                             'Prioridad',
                             'CreatedAt',
+                            'InventSizeId',
                         ])
                         ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->get();
@@ -951,8 +955,7 @@ class ProgramarUrdidoController extends Controller
                     'id' => $orden->Id,
                     'folio' => $orden->Folio,
                     'tipo' => $orden->tipo,
-                    'cuenta' => $orden->Cuenta,
-                    'calibre' => $orden->Calibre,
+                    'cuenta_calibre' => $orden->InventSizeId ?? '',
                     'configuracion' => $orden->Fibra ?? '',
                     'metros' => $orden->Metros,
                     'maquina' => $orden->MaquinaId ?? '',

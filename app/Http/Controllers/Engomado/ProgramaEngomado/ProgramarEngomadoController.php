@@ -180,6 +180,7 @@ class ProgramarEngomadoController extends Controller
                     'BomFormula',
                     'Prioridad',
                     'Observaciones',
+                    'InventSizeId',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
@@ -201,6 +202,7 @@ class ProgramarEngomadoController extends Controller
                     'FechaProg',
                     'BomFormula',
                     'Observaciones',
+                    'InventSizeId',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
@@ -250,6 +252,7 @@ class ProgramarEngomadoController extends Controller
                             'BomFormula',
                             'Prioridad',
                             'Observaciones',
+                            'InventSizeId',
                         ])
                         ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->whereNotNull('MaquinaEng')
@@ -291,8 +294,7 @@ class ProgramarEngomadoController extends Controller
                         'id' => $orden->Id,
                         'folio' => $orden->Folio,
                         'tipo' => $orden->tipo,
-                        'cuenta' => $orden->Cuenta,
-                        'calibre' => $orden->Calibre,
+                        'cuenta_calibre' => $orden->InventSizeId ?? '',
                         'metros' => $orden->Metros,
                         'maquina_eng' => $orden->MaquinaEng ?? null,
                         'tabla' => $tabla,
@@ -659,6 +661,7 @@ class ProgramarEngomadoController extends Controller
                     'Status',
                     'Prioridad',
                     'FechaProg',
+                    'InventSizeId',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
@@ -678,6 +681,7 @@ class ProgramarEngomadoController extends Controller
                     'MaquinaEng',
                     'Status',
                     'FechaProg',
+                    'InventSizeId',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
@@ -717,6 +721,7 @@ class ProgramarEngomadoController extends Controller
                             'Status',
                             'Prioridad',
                             'FechaProg',
+                            'InventSizeId',
                         ])
                         ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->whereNotNull('MaquinaEng')
@@ -745,8 +750,7 @@ class ProgramarEngomadoController extends Controller
                     'id' => $orden->Id,
                     'folio' => $orden->Folio,
                     'tipo' => $orden->tipo,
-                    'cuenta' => $orden->Cuenta,
-                    'calibre' => $orden->Calibre,
+                    'cuenta_calibre' => $orden->InventSizeId ?? '',
                     'metros' => $orden->Metros,
                     'tabla' => $orden->MaquinaEng ?? '',
                     'status' => $orden->Status ?? null,
