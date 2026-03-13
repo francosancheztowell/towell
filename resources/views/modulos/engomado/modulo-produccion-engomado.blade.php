@@ -1515,37 +1515,90 @@
                 return repetidas;
             }
 
-            function marcarEstadoDuplicadosOficiales(repetidas = new Map()) {
+            function marcarEstadoDuplicadosOficiales(repetidas = new Map(), turnoRepetidas = new Map()) {
                 const container = document.getElementById('oficiales-existentes');
                 if (!container) return;
 
                 container.querySelectorAll('select.select-oficial-nombre').forEach(select => {
                     const numero = parseInt(select.getAttribute('data-numero'), 10);
                     const claveInput = container.querySelector(`input.input-oficial-clave[data-numero="${numero}"]`);
+                    const turnoSelect = container.querySelector(`select.input-oficial-turno[data-numero="${numero}"]`);
                     const clave = claveInput ? (claveInput.value || '').trim() : '';
-                    const esDuplicado = clave && repetidas.has(clave) && repetidas.get(clave).includes(numero);
+                    const turno = turnoSelect ? (turnoSelect.value || '').trim() : '';
+                    const esDuplicadoClave = clave && repetidas.has(clave) && repetidas.get(clave).includes(numero);
+                    const esDuplicadoTurno = turno && turnoRepetidas.has(turno) && turnoRepetidas.get(turno).includes(numero);
 
                     select.classList.remove('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
                     select.classList.add('border-gray-300', 'focus:ring-blue-500', 'focus:border-blue-500');
+                    turnoSelect.classList.remove('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
+                    turnoSelect.classList.add('border-gray-300', 'focus:ring-blue-500', 'focus:border-blue-500');
 
-                    if (esDuplicado) {
+                    if (esDuplicadoClave) {
                         select.classList.remove('border-gray-300', 'focus:ring-blue-500', 'focus:border-blue-500');
                         select.classList.add('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
+                    }
+
+                    if (esDuplicadoTurno) {
+                        turnoSelect.classList.remove('border-gray-300', 'focus:ring-blue-500', 'focus:border-blue-500');
+                        turnoSelect.classList.add('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
                     }
                 });
             }
 
             function validarNoOperadorDuplicadoEnModal(mostrarAlerta = true) {
                 const repetidas = obtenerClavesRepetidasEnModal();
-                marcarEstadoDuplicadosOficiales(repetidas);
+                const turnoRepetidas = obtenerTurnosRepetidosEnModal();
+                marcarEstadoDuplicadosOficiales(repetidas, turnoRepetidas);
 
-                if (repetidas.size === 0) return true;
+                let tieneError = false;
 
-                if (mostrarAlerta) {
-                    const [clave, oficiales] = repetidas.entries().next().value;
-                    mostrarAlertaErrorModal(`El No. Operador ${clave} está repetido entre oficiales (${oficiales.join(', ')}).`);
+                if (repetidas.size > 0) {
+                    tieneError = true;
+                    if (mostrarAlerta) {
+                        const [clave, oficiales] = repetidas.entries().next().value;
+                        mostrarAlertaErrorModal(`El No. Operador ${clave} está repetido entre oficiales (${oficiales.join(', ')}).`);
+                    }
                 }
-                return false;
+
+                if (turnoRepetidas.size > 0) {
+                    tieneError = true;
+                    if (mostrarAlerta) {
+                        const [turno, oficiales] = turnoRepetidas.entries().next().value;
+                        mostrarAlertaErrorModal(`El Turno ${turno} está repetido entre oficiales (${oficiales.join(', ')}). No puede haber dos oficiales con el mismo turno.`);
+                    }
+                }
+
+                return !tieneError;
+            }
+
+            function obtenerTurnosRepetidosEnModal() {
+                const container = document.getElementById('oficiales-existentes');
+                if (!container) return new Map();
+
+                const turnos = [];
+                for (let i = 1; i <= 3; i++) {
+                    const claveInput = container.querySelector(`input.input-oficial-clave[data-numero="${i}"]`);
+                    const turnoSelect = container.querySelector(`select.input-oficial-turno[data-numero="${i}"]`);
+                    const clave = claveInput ? (claveInput.value || '').trim() : '';
+                    const turno = turnoSelect ? (turnoSelect.value || '').trim() : '';
+                    if (clave && turno) turnos.push({ numero: i, clave, turno });
+                }
+
+                const map = new Map();
+                const repetidas = new Map();
+
+                turnos.forEach(item => {
+                    const key = item.turno;
+                    if (!map.has(key)) {
+                        map.set(key, [item.numero]);
+                    } else {
+                        const nums = map.get(key);
+                        nums.push(item.numero);
+                        repetidas.set(key, nums);
+                    }
+                });
+
+                return repetidas;
             }
 
             function renderizarOficialesExistentes(registroId) {

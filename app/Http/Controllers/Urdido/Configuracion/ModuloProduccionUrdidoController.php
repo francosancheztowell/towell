@@ -434,6 +434,7 @@ class ModuloProduccionUrdidoController extends Controller
             UrdProduccionUrdido::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
 
             $orden->Status = 'Finalizado';
+            $orden->FechaFinaliza = now()->toDateString();
             $orden->save();
 
             return response()->json([
