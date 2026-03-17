@@ -33,6 +33,7 @@ trait UsesSqlsrvSqlite
             $table->string('Cuenta')->nullable();
             $table->float('Calibre')->nullable();
             $table->string('MaquinaEng')->nullable();
+            $table->string('MaquinaUrd')->nullable();
             $table->float('MermaGoma')->nullable();
             $table->float('Merma')->nullable();
             $table->string('Status')->nullable();
@@ -44,6 +45,7 @@ trait UsesSqlsrvSqlite
             $table->string('Folio')->nullable();
             $table->string('Cuenta')->nullable();
             $table->float('Calibre')->nullable();
+            $table->string('MaquinaId')->nullable();
         });
 
         $schema->create('UrdJuliosOrden', function (Blueprint $table) {
@@ -52,6 +54,36 @@ trait UsesSqlsrvSqlite
             $table->integer('Julios')->nullable();
             $table->string('Obs')->nullable();
             $table->integer('Hilos')->nullable();
+        });
+
+        $schema->create('UrdProduccionUrdido', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('Folio')->nullable();
+            $table->string('NoJulio')->nullable();
+            $table->string('CveEmpl1')->nullable();
+            $table->string('NomEmpl1')->nullable();
+            $table->float('Metros1')->nullable();
+            $table->string('CveEmpl2')->nullable();
+            $table->string('NomEmpl2')->nullable();
+            $table->float('Metros2')->nullable();
+            $table->string('CveEmpl3')->nullable();
+            $table->string('NomEmpl3')->nullable();
+            $table->float('Metros3')->nullable();
+        });
+
+        $schema->create('EngProduccionEngomado', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('Folio')->nullable();
+            $table->string('NoJulio')->nullable();
+            $table->string('CveEmpl1')->nullable();
+            $table->string('NomEmpl1')->nullable();
+            $table->float('Metros1')->nullable();
+            $table->string('CveEmpl2')->nullable();
+            $table->string('NomEmpl2')->nullable();
+            $table->float('Metros2')->nullable();
+            $table->string('CveEmpl3')->nullable();
+            $table->string('NomEmpl3')->nullable();
+            $table->float('Metros3')->nullable();
         });
 
         if ($includeAuthTable) {

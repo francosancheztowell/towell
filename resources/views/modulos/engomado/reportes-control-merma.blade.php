@@ -41,12 +41,17 @@
                         <th class="px-2 py-1.5 text-left font-semibold text-xs border border-blue-800">Sin Goma</th>
                         <th class="px-2 py-1.5 text-left font-semibold text-xs border border-blue-800">Con Goma</th>
                         <th class="px-2 py-1.5 text-left font-semibold text-xs border border-blue-800">URD A/B/C</th>
+                        <th class="px-2 py-1.5 text-left font-semibold text-xs border border-blue-800">ENG A/B/C</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse(($filas ?? collect()) as $fila)
                         @php
                             $urdResumen = collect($fila['urd_slots'] ?? [])
+                                ->filter(fn ($slot) => !empty($slot['label']))
+                                ->map(fn ($slot) => trim(($slot['label'] ?? '') . ' ' . ($slot['count'] ?? '')))
+                                ->implode(' | ');
+                            $engResumen = collect($fila['eng_slots'] ?? [])
                                 ->filter(fn ($slot) => !empty($slot['label']))
                                 ->map(fn ($slot) => trim(($slot['label'] ?? '') . ' ' . ($slot['count'] ?? '')))
                                 ->implode(' | ');
@@ -66,10 +71,11 @@
                                 {{ isset($fila['merma_con_goma']) ? number_format((float) $fila['merma_con_goma'], 2) : '' }}
                             </td>
                             <td class="px-2 py-1 border border-gray-300">{{ $urdResumen !== '' ? $urdResumen : '-' }}</td>
+                            <td class="px-2 py-1 border border-gray-300">{{ $engResumen !== '' ? $engResumen : '-' }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
+                            <td colspan="9" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
                         </tr>
                     @endforelse
                 </tbody>

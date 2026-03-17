@@ -2,8 +2,9 @@
 
 namespace App\Services\Engomado;
 
+use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Urdido\UrdProduccionUrdido;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -24,11 +25,7 @@ class ControlMermaReportService
         $programas = EngProgramaEngomado::query()
             ->with([
                 'programaUrdido' => function ($query) {
-                    $query->select(['Id', 'Folio', 'Cuenta', 'Calibre']);
-                },
-                'programaUrdido.julios' => function ($query) {
-                    $query->select(['Id', 'Folio', 'Julios', 'Obs'])
-                        ->orderBy('Id');
+                    $query->select(['Id', 'Folio', 'Cuenta', 'Calibre', 'MaquinaId']);
                 },
             ])
             ->where('Status', 'Finalizado')
@@ -36,12 +33,22 @@ class ControlMermaReportService
             ->whereBetween($dateColumn, [$fechaIni, $fechaFin])
             ->get();
 
-        return $this->mapProgramas($programas, $dateColumn);
+        [$urdProductionByFolio, $engProductionByFolio] = $this->loadProductionGroupedByFolio($programas);
+
+        return $this->mapProgramas($programas, $dateColumn, $urdProductionByFolio, $engProductionByFolio);
     }
 
-    public function mapProgramas(Collection $programas, ?string $dateColumn = null): Collection
-    {
+    public function mapProgramas(
+        Collection $programas,
+        ?string $dateColumn = null,
+        ?Collection $urdProductionByFolio = null,
+        ?Collection $engProductionByFolio = null
+    ): Collection {
         $dateColumn ??= $this->resolveDateColumn();
+
+        if ($urdProductionByFolio === null || $engProductionByFolio === null) {
+            [$urdProductionByFolio, $engProductionByFolio] = $this->loadProductionGroupedByFolio($programas);
+        }
 
         $sorted = $programas
             ->sort(fn (EngProgramaEngomado $left, EngProgramaEngomado $right) => $this->compareProgramas($left, $right, $dateColumn))
@@ -49,32 +56,94 @@ class ControlMermaReportService
 
         $machineCounters = [];
 
-        return $sorted->map(function (EngProgramaEngomado $programa) use (&$machineCounters, $dateColumn) {
+        return $sorted->map(function (EngProgramaEngomado $programa) use (&$machineCounters, $dateColumn, $urdProductionByFolio, $engProductionByFolio) {
+            $programaUrdido = $programa->programaUrdido;
+            $folio = $this->normalizeText($programa->Folio);
             $maquinaLabel = $this->extractEngomadoWP($programa->MaquinaEng);
+            $maquinaUrdidoLabel = $this->extractUrdidoMachineLabel(
+                $programaUrdido?->MaquinaId,
+                $programa->MaquinaUrd ?? null
+            );
+
             $machineCounters[$maquinaLabel] = ($machineCounters[$maquinaLabel] ?? 0) + 1;
             $maquinaSeq = $machineCounters[$maquinaLabel];
 
-            $programaUrdido = $programa->programaUrdido;
-            $julios = $programaUrdido?->julios instanceof Collection
-                ? $programaUrdido->julios
-                : collect();
+            $maquinaFullLabel = $maquinaUrdidoLabel !== 'OTRO'
+                ? sprintf('%s / %s', $maquinaLabel, $maquinaUrdidoLabel)
+                : $maquinaLabel;
 
             return [
                 'fecha' => $this->normalizeDate($programa->getAttribute($dateColumn)),
                 'maquina_label' => $maquinaLabel,
+                'maquina_urdido_label' => $maquinaUrdidoLabel,
+                'maquina_full_label' => $maquinaFullLabel,
                 'maquina_seq' => $maquinaSeq,
-                'maquina_display' => $maquinaSeq === 1
-                    ? sprintf('%s  %d', $maquinaLabel, $maquinaSeq)
-                    : (string) $maquinaSeq,
-                'folio' => trim((string) ($programa->Folio ?? '')),
+                'maquina_display' => sprintf('%s  %d', $maquinaFullLabel, $maquinaSeq),
+                'folio' => $folio,
                 'cuenta' => $this->firstFilledValue($programa->Cuenta, $programaUrdido?->Cuenta),
                 'hilo' => $this->firstFilledValue($programa->Calibre, $programaUrdido?->Calibre),
                 'merma_sin_goma' => $this->normalizeNumeric($programa->Merma),
                 'merma_con_goma' => $this->normalizeNumeric($programa->MermaGoma),
-                'urd_slots' => $this->buildUrdSlots($julios),
-                'eng_slots' => $this->buildEmptySlots(),
+                'urd_slots' => $this->buildOfficialSlots($urdProductionByFolio->get($folio, collect()), 'urd'),
+                'eng_slots' => $this->buildOfficialSlots($engProductionByFolio->get($folio, collect()), 'eng'),
             ];
         });
+    }
+
+    private function loadProductionGroupedByFolio(Collection $programas): array
+    {
+        $folios = $programas
+            ->pluck('Folio')
+            ->map(fn (mixed $folio) => $this->normalizeText($folio))
+            ->filter(fn (string $folio) => $folio !== '')
+            ->unique()
+            ->values();
+
+        if ($folios->isEmpty()) {
+            return [collect(), collect()];
+        }
+
+        $urdProduction = UrdProduccionUrdido::query()
+            ->select([
+                'Id',
+                'Folio',
+                'NoJulio',
+                'CveEmpl1',
+                'NomEmpl1',
+                'Metros1',
+                'CveEmpl2',
+                'NomEmpl2',
+                'Metros2',
+                'CveEmpl3',
+                'NomEmpl3',
+                'Metros3',
+            ])
+            ->whereIn('Folio', $folios)
+            ->orderBy('Id')
+            ->get()
+            ->groupBy(fn (UrdProduccionUrdido $registro) => $this->normalizeText($registro->Folio));
+
+        $engProduction = EngProduccionEngomado::query()
+            ->select([
+                'Id',
+                'Folio',
+                'NoJulio',
+                'CveEmpl1',
+                'NomEmpl1',
+                'Metros1',
+                'CveEmpl2',
+                'NomEmpl2',
+                'Metros2',
+                'CveEmpl3',
+                'NomEmpl3',
+                'Metros3',
+            ])
+            ->whereIn('Folio', $folios)
+            ->orderBy('Id')
+            ->get()
+            ->groupBy(fn (EngProduccionEngomado $registro) => $this->normalizeText($registro->Folio));
+
+        return [$urdProduction, $engProduction];
     }
 
     private function compareProgramas(EngProgramaEngomado $left, EngProgramaEngomado $right, string $dateColumn): int
@@ -96,33 +165,50 @@ class ControlMermaReportService
         return strcmp((string) ($left->Folio ?? ''), (string) ($right->Folio ?? ''));
     }
 
-    private function buildUrdSlots(Collection $julios): array
+    private function buildOfficialSlots(Collection $records, string $source): array
     {
-        $grouped = [];
-        $groupOrder = [];
+        $buckets = [];
+        $sequence = 0;
+        $seenItemsByLabel = [];
 
-        foreach ($julios as $julio) {
-            if (!$julio instanceof UrdJuliosOrden) {
+        foreach ($records as $record) {
+            $label = $this->extractResponsibleOfficial($record);
+            if ($label === null) {
                 continue;
             }
 
-            $label = $this->normalizeObsLabel($julio->Obs ?? null);
-
-            if (!array_key_exists($label, $grouped)) {
-                $grouped[$label] = 0;
-                $groupOrder[] = $label;
+            $itemKey = $this->resolveProductionItemKey($record, $source);
+            if (isset($seenItemsByLabel[$label][$itemKey])) {
+                continue;
             }
 
-            $grouped[$label] += (int) ($julio->Julios ?? 0);
+            $seenItemsByLabel[$label][$itemKey] = true;
+
+            if (!isset($buckets[$label])) {
+                $buckets[$label] = [
+                    'label' => $label,
+                    'count' => 0,
+                    'sequence' => $sequence++,
+                ];
+            }
+
+            $buckets[$label]['count']++;
         }
 
-        $slots = [];
-        foreach ($groupOrder as $label) {
-            $slots[] = [
-                'label' => $label,
-                'count' => $grouped[$label],
-            ];
-        }
+        $slots = array_values($buckets);
+        usort($slots, function (array $left, array $right): int {
+            $countComparison = ($right['count'] ?? 0) <=> ($left['count'] ?? 0);
+            if ($countComparison !== 0) {
+                return $countComparison;
+            }
+
+            $sequenceComparison = ($left['sequence'] ?? 0) <=> ($right['sequence'] ?? 0);
+            if ($sequenceComparison !== 0) {
+                return $sequenceComparison;
+            }
+
+            return strcmp((string) ($left['label'] ?? ''), (string) ($right['label'] ?? ''));
+        });
 
         if (count($slots) > 3) {
             $overflowTotal = collect(array_slice($slots, 2))
@@ -145,23 +231,79 @@ class ControlMermaReportService
             ];
         }
 
-        return $slots;
+        return array_map(fn (array $slot) => [
+            'label' => $slot['label'] ?? null,
+            'count' => $slot['count'] ?? null,
+        ], $slots);
     }
 
-    private function buildEmptySlots(): array
+    private function extractResponsibleOfficial(object $record): ?string
     {
-        return [
-            ['label' => null, 'count' => null],
-            ['label' => null, 'count' => null],
-            ['label' => null, 'count' => null],
-        ];
+        $candidates = [];
+
+        foreach ([1, 2, 3] as $slot) {
+            $label = $this->normalizeOperatorLabel(
+                $record->{"NomEmpl{$slot}"} ?? null,
+                $record->{"CveEmpl{$slot}"} ?? null
+            );
+
+            if ($label === null) {
+                continue;
+            }
+
+            $candidates[] = [
+                'slot' => $slot,
+                'label' => $label,
+                'meters' => $this->normalizeNumeric($record->{"Metros{$slot}"} ?? null) ?? 0.0,
+            ];
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        usort($candidates, function (array $left, array $right): int {
+            $metersComparison = ($right['meters'] ?? 0.0) <=> ($left['meters'] ?? 0.0);
+            if ($metersComparison !== 0) {
+                return $metersComparison;
+            }
+
+            return ($left['slot'] ?? 0) <=> ($right['slot'] ?? 0);
+        });
+
+        return $candidates[0]['label'] ?? null;
     }
 
-    private function normalizeObsLabel(?string $value): string
+    private function resolveProductionItemKey(object $record, string $source): string
     {
-        $normalized = preg_replace('/\s+/', ' ', trim((string) $value));
+        if ($source === 'urd') {
+            $noJulio = $this->normalizeText($record->NoJulio ?? null);
+            if ($noJulio !== '') {
+                return 'julio:' . $noJulio;
+            }
+        }
 
-        return $normalized !== '' ? $normalized : 'SIN OBS';
+        $id = $this->normalizeText($record->Id ?? null);
+        if ($id !== '') {
+            return 'row:' . $id;
+        }
+
+        return 'row:' . spl_object_id($record);
+    }
+
+    private function normalizeOperatorLabel(mixed $name, mixed $code): ?string
+    {
+        $normalizedName = $this->normalizeText($name);
+        if ($normalizedName !== '') {
+            return $normalizedName;
+        }
+
+        $normalizedCode = $this->normalizeText($code);
+        if ($normalizedCode !== '') {
+            return $normalizedCode;
+        }
+
+        return null;
     }
 
     private function extractEngomadoWP(?string $maquinaEng): string
@@ -190,6 +332,29 @@ class ControlMermaReportService
             'WP3' => 2,
             default => 9,
         };
+    }
+
+    private function extractUrdidoMachineLabel(?string $maquinaId, mixed $fallback = null): string
+    {
+        $maquina = $this->normalizeText($this->firstFilledValue($maquinaId, $fallback));
+
+        if ($maquina === '') {
+            return 'OTRO';
+        }
+
+        if (preg_match('/karl\s*mayer/i', $maquina)) {
+            return 'KARL MAYER';
+        }
+
+        if (preg_match('/mc\s*coy\s*(\d+)/i', $maquina, $matches)) {
+            return 'MC' . $matches[1];
+        }
+
+        if (preg_match('/\bmc\s*(\d+)/i', $maquina, $matches)) {
+            return 'MC' . $matches[1];
+        }
+
+        return 'OTRO';
     }
 
     private function normalizeDate(mixed $value): ?Carbon
@@ -234,6 +399,13 @@ class ControlMermaReportService
         }
 
         return (float) $value;
+    }
+
+    private function normalizeText(mixed $value): string
+    {
+        $normalized = preg_replace('/\s+/', ' ', trim((string) $value));
+
+        return $normalized ?? '';
     }
 
     private function resolveDateColumn(): string

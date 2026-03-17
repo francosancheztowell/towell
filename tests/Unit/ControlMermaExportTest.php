@@ -18,11 +18,16 @@ class ControlMermaExportTest extends TestCase
         $book = $this->loadWorkbook(collect([
             $this->makeRow(
                 folio: '00129',
-                maquinaDisplay: 'WP2  1',
+                maquinaDisplay: 'WP2 / MC1  1',
                 urdSlots: [
                     ['label' => 'RB', 'count' => 5],
                     ['label' => 'MS', 'count' => 2],
                     ['label' => 'PC', 'count' => 1],
+                ],
+                engSlots: [
+                    ['label' => 'JR', 'count' => 2],
+                    ['label' => null, 'count' => null],
+                    ['label' => null, 'count' => null],
                 ],
             ),
         ]));
@@ -31,7 +36,7 @@ class ControlMermaExportTest extends TestCase
 
         $this->assertSame('Control Merma', $sheet->getTitle());
         $this->assertSame('d-mmm', $sheet->getStyle('A6')->getNumberFormat()->getFormatCode());
-        $this->assertSame('WP2  1', $sheet->getCell('B6')->getValue());
+        $this->assertSame('WP2 / MC1  1', $sheet->getCell('B6')->getValue());
         $this->assertSame('00129', $sheet->getCell('F6')->getValue());
         $this->assertSame('RB', $sheet->getCell('I6')->getValue());
         $this->assertSame(5, $sheet->getCell('J6')->getValue());
@@ -39,7 +44,8 @@ class ControlMermaExportTest extends TestCase
         $this->assertSame(2, $sheet->getCell('M6')->getValue());
         $this->assertSame('PC', $sheet->getCell('O6')->getValue());
         $this->assertSame(1, $sheet->getCell('P6')->getValue());
-        $this->assertNull($sheet->getCell('S6')->getValue());
+        $this->assertSame('JR', $sheet->getCell('S6')->getValue());
+        $this->assertSame(2, $sheet->getCell('T6')->getValue());
         $this->assertSame('=IF(COUNTA(D6:E6)=0,"",SUM(D6:E6))', $sheet->getCell('C6')->getValue());
         $this->assertStringContainsString('IFERROR', $sheet->getCell('K6')->getValue());
         $this->assertStringContainsString('AB6', $sheet->getCell('U6')->getValue());
@@ -53,7 +59,7 @@ class ControlMermaExportTest extends TestCase
         for ($index = 1; $index <= 16; $index++) {
             $rows->push($this->makeRow(
                 folio: str_pad((string) $index, 5, '0', STR_PAD_LEFT),
-                maquinaDisplay: $index === 1 ? 'WP2  1' : (string) $index
+                maquinaDisplay: sprintf('WP2 / MC1  %d', $index)
             ));
         }
 
@@ -87,11 +93,18 @@ class ControlMermaExportTest extends TestCase
             ['label' => 'RB', 'count' => 5],
             ['label' => null, 'count' => null],
             ['label' => null, 'count' => null],
+        ],
+        array $engSlots = [
+            ['label' => null, 'count' => null],
+            ['label' => null, 'count' => null],
+            ['label' => null, 'count' => null],
         ]
     ): array {
         return [
             'fecha' => Carbon::parse('2026-03-10'),
             'maquina_label' => 'WP2',
+            'maquina_urdido_label' => 'MC1',
+            'maquina_full_label' => 'WP2 / MC1',
             'maquina_seq' => 1,
             'maquina_display' => $maquinaDisplay,
             'folio' => $folio,
@@ -100,11 +113,7 @@ class ControlMermaExportTest extends TestCase
             'merma_sin_goma' => 8.0,
             'merma_con_goma' => 2.0,
             'urd_slots' => $urdSlots,
-            'eng_slots' => [
-                ['label' => null, 'count' => null],
-                ['label' => null, 'count' => null],
-                ['label' => null, 'count' => null],
-            ],
+            'eng_slots' => $engSlots,
         ];
     }
 }

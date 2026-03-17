@@ -2,8 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Engomado\ControlMermaReportService;
 use Tests\Concerns\UsesSqlsrvSqlite;
@@ -24,14 +25,11 @@ class ControlMermaReportServiceTest extends TestCase
         $this->service = app(ControlMermaReportService::class);
     }
 
-    public function test_build_maps_core_fields_and_sequences_per_machine(): void
+    public function test_build_maps_core_fields_and_sequences_per_machine_using_real_officials(): void
     {
-        UrdProgramaUrdido::create(['Folio' => '00011', 'Cuenta' => '3776', 'Calibre' => 12]);
-        UrdProgramaUrdido::create(['Folio' => '00012', 'Cuenta' => '4000', 'Calibre' => 14]);
-        UrdProgramaUrdido::create(['Folio' => '00013', 'Cuenta' => '5000', 'Calibre' => 16]);
-
-        UrdJuliosOrden::create(['Folio' => '00011', 'Julios' => 5, 'Obs' => 'RB']);
-        UrdJuliosOrden::create(['Folio' => '00011', 'Julios' => 2, 'Obs' => 'MS']);
+        UrdProgramaUrdido::create(['Folio' => '00011', 'Cuenta' => '3776', 'Calibre' => 12, 'MaquinaId' => 'Mc Coy 1']);
+        UrdProgramaUrdido::create(['Folio' => '00012', 'Cuenta' => '4000', 'Calibre' => 14, 'MaquinaId' => 'Mc Coy 2']);
+        UrdProgramaUrdido::create(['Folio' => '00013', 'Cuenta' => '5000', 'Calibre' => 16, 'MaquinaId' => 'Karl Mayer']);
 
         EngProgramaEngomado::create([
             'Folio' => '00011',
@@ -66,13 +64,45 @@ class ControlMermaReportServiceTest extends TestCase
             'FechaFinaliza' => '2026-03-11',
         ]);
 
+        foreach (['J-01', 'J-02', 'J-03', 'J-04', 'J-05'] as $julio) {
+            UrdProduccionUrdido::create([
+                'Folio' => '00011',
+                'NoJulio' => $julio,
+                'NomEmpl1' => 'RB',
+                'Metros1' => 100,
+            ]);
+        }
+
+        foreach (['J-06', 'J-07'] as $julio) {
+            UrdProduccionUrdido::create([
+                'Folio' => '00011',
+                'NoJulio' => $julio,
+                'NomEmpl1' => 'MS',
+                'Metros1' => 100,
+            ]);
+        }
+
+        EngProduccionEngomado::create([
+            'Folio' => '00011',
+            'NomEmpl1' => 'JR',
+            'Metros1' => 100,
+        ]);
+
+        EngProduccionEngomado::create([
+            'Folio' => '00011',
+            'NomEmpl1' => 'JR',
+            'Metros1' => 100,
+        ]);
+
         $rows = $this->service->build('2026-03-01', '2026-03-31');
 
         $this->assertCount(3, $rows);
         $this->assertSame('00011', $rows[0]['folio']);
         $this->assertSame('WP2', $rows[0]['maquina_label']);
+        $this->assertSame('MC1', $rows[0]['maquina_urdido_label']);
+        $this->assertSame('WP2 / MC1', $rows[0]['maquina_full_label']);
         $this->assertSame(1, $rows[0]['maquina_seq']);
-        $this->assertSame('WP2  1', $rows[0]['maquina_display']);
+        $this->assertSame('WP2 / MC1  1', $rows[0]['maquina_display']);
         $this->assertSame('3776', $rows[0]['cuenta']);
         $this->assertSame(12.0, $rows[0]['hilo']);
         $this->assertSame(8.0, $rows[0]['merma_sin_goma']);
@@ -81,18 +111,16 @@ class ControlMermaReportServiceTest extends TestCase
         $this->assertSame(5, $rows[0]['urd_slots'][0]['count']);
         $this->assertSame('MS', $rows[0]['urd_slots'][1]['label']);
         $this->assertSame(2, $rows[0]['urd_slots'][1]['count']);
+        $this->assertSame('JR', $rows[0]['eng_slots'][0]['label']);
+        $this->assertSame(2, $rows[0]['eng_slots'][0]['count']);
         $this->assertSame(2, $rows[1]['maquina_seq']);
-        $this->assertSame('WP3  1', $rows[2]['maquina_display']);
+        $this->assertSame('KARL MAYER', $rows[2]['maquina_urdido_label']);
+        $this->assertSame('WP3 / KARL MAYER  1', $rows[2]['maquina_display']);
     }
 
-    public function test_build_groups_urd_slots_and_collapses_overflow_into_otros(): void
+    public function test_build_groups_official_slots_and_collapses_overflow_into_otros(): void
     {
-        UrdProgramaUrdido::create(['Folio' => '00021', 'Cuenta' => '3776', 'Calibre' => 12]);
-
-        UrdJuliosOrden::create(['Folio' => '00021', 'Julios' => 5, 'Obs' => 'RB']);
-        UrdJuliosOrden::create(['Folio' => '00021', 'Julios' => 2, 'Obs' => 'MS']);
-        UrdJuliosOrden::create(['Folio' => '00021', 'Julios' => 1, 'Obs' => null]);
-        UrdJuliosOrden::create(['Folio' => '00021', 'Julios' => 4, 'Obs' => 'DP']);
+        UrdProgramaUrdido::create(['Folio' => '00021', 'Cuenta' => '3776', 'Calibre' => 12, 'MaquinaId' => 'Mc Coy 3']);
 
         EngProgramaEngomado::create([
             'Folio' => '00021',
@@ -105,6 +133,38 @@ class ControlMermaReportServiceTest extends TestCase
             'FechaFinaliza' => '2026-03-10',
         ]);
 
+        foreach (['J-01', 'J-02', 'J-03', 'J-04', 'J-05'] as $julio) {
+            UrdProduccionUrdido::create([
+                'Folio' => '00021',
+                'NoJulio' => $julio,
+                'NomEmpl1' => 'RB',
+                'Metros1' => 100,
+            ]);
+        }
+
+        foreach (['J-06', 'J-07'] as $julio) {
+            UrdProduccionUrdido::create([
+                'Folio' => '00021',
+                'NoJulio' => $julio,
+                'NomEmpl1' => 'MS',
+                'Metros1' => 100,
+            ]);
+        }
+
+        UrdProduccionUrdido::create([
+            'Folio' => '00021',
+            'NoJulio' => 'J-08',
+            'NomEmpl1' => 'PC',
+            'Metros1' => 100,
+        ]);
+
+        UrdProduccionUrdido::create([
+            'Folio' => '00021',
+            'NoJulio' => 'J-09',
+            'NomEmpl1' => 'DP',
+            'Metros1' => 100,
+        ]);
+
         $rows = $this->service->build('2026-03-01', '2026-03-31');
 
         $this->assertCount(1, $rows);
@@ -113,6 +173,6 @@ class ControlMermaReportServiceTest extends TestCase
         $this->assertSame('MS', $rows[0]['urd_slots'][1]['label']);
         $this->assertSame(2, $rows[0]['urd_slots'][1]['count']);
         $this->assertSame('OTROS', $rows[0]['urd_slots'][2]['label']);
-        $this->assertSame(5, $rows[0]['urd_slots'][2]['count']);
+        $this->assertSame(2, $rows[0]['urd_slots'][2]['count']);
     }
 }
