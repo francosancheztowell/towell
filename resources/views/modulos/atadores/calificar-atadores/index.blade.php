@@ -177,7 +177,7 @@
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha Hora</span>
-                        <span id="valFechaSupervisor" class="text-sm font-semibold text-gray-800">
+                        <span id="valFechaHoraSupervisor" class="text-sm font-semibold text-gray-800">
                             {{ '-' }}
                         </span>
                     </div>
@@ -347,9 +347,9 @@ const currentUser = {!! auth()->check() ? json_encode(['numero_empleado' => auth
 
 // Datos del registro actual para identificar correctamente en las peticiones
 @if($montadoTelas->isNotEmpty())
-    const currentNoJulio = '{{ $montadoTelas->first()->NoJulio }}';
-    const currentNoOrden = '{{ $montadoTelas->first()->NoProduccion }}';
-    const esSoloLectura = '{{ $montadoTelas->first()->Estatus }}' === 'Autorizado';
+    const currentNoJulio = {!! json_encode($montadoTelas->first()->NoJulio ?? null) !!};
+    const currentNoOrden = {!! json_encode($montadoTelas->first()->NoProduccion ?? null) !!};
+    const esSoloLectura = {!! json_encode($montadoTelas->first()->Estatus === 'Autorizado') !!};
 @else
     const currentNoJulio = null;
     const currentNoOrden = null;

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngBpmModel;
 use App\Models\Engomado\EngActividadesBpmModel;
 use App\Models\Engomado\EngBpmLineModel;
+use App\Models\Sistema\SYSUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -52,7 +53,9 @@ class EngBpmLineController extends Controller
         $lineas = EngBpmLineModel::where('Folio', $folio)
             ->pluck('Valor', 'Actividad');
 
-        return view('modulos.engomado.Engomado-BPM-Line.index', compact('header', 'actividades', 'lineas', 'nombreMaquina'));
+        $esSupervisor = $this->currentUserIsSupervisor();
+
+        return view('modulos.engomado.Engomado-BPM-Line.index', compact('header', 'actividades', 'lineas', 'nombreMaquina', 'esSupervisor'));
     }
 
     public function toggleActividad(Request $request, string $folio)
@@ -86,7 +89,23 @@ class EngBpmLineController extends Controller
             return redirect()->back()->with('error', 'Solo se puede terminar un registro en estado Creado');
         }
 
-        $header->update(['Status' => 'Terminado']);
+        if ($this->currentUserIsSupervisor()) {
+            [$code, $name] = $this->getSupervisorInfo('terminar y autorizar');
+
+            $header->update([
+                'Status' => 'Autorizado',
+                'CveEmplAutoriza' => $code !== null ? (string) $code : '',
+                'NomEmplAutoriza' => $name !== null ? (string) $name : '',
+            ]);
+
+            return redirect()->route('eng-bpm.index')->with('success', 'Registro terminado y autorizado exitosamente');
+        }
+
+        $header->update([
+            'Status' => 'Terminado',
+            'CveEmplAutoriza' => null,
+            'NomEmplAutoriza' => null,
+        ]);
 
         return redirect()->route('eng-bpm.index')->with('success', 'Registro marcado como Terminado');
     }
@@ -99,14 +118,16 @@ class EngBpmLineController extends Controller
             return redirect()->back()->with('error', 'Solo se puede autorizar un registro Terminado');
         }
 
-        // Obtener información del usuario actual que autoriza
-        $usuario = Auth::user();
-        $usuarioDb = \App\Models\Sistema\SYSUsuario::where('idusuario', $usuario->idusuario)->first();
+        try {
+            [$code, $name] = $this->getSupervisorInfo('autorizar');
+        } catch (\RuntimeException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
 
         $header->update([
             'Status' => 'Autorizado',
-            'CveEmplAutoriza' => $usuarioDb->numero_empleado ?? null,
-            'NomEmplAutoriza' => $usuarioDb->nombre ?? null
+            'CveEmplAutoriza' => $code !== null ? (string) $code : '',
+            'NomEmplAutoriza' => $name !== null ? (string) $name : '',
         ]);
 
         return redirect()->back()->with('success', 'Registro Autorizado exitosamente');
@@ -120,8 +141,76 @@ class EngBpmLineController extends Controller
             return redirect()->back()->with('error', 'Solo se puede rechazar un registro Terminado');
         }
 
-        $header->update(['Status' => 'Creado']);
+        try {
+            $this->getSupervisorInfo('rechazar');
+        } catch (\RuntimeException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
+        $header->update([
+            'Status' => 'Creado',
+            'CveEmplAutoriza' => null,
+            'NomEmplAutoriza' => null,
+        ]);
 
         return redirect()->back()->with('success', 'Registro rechazado, regresado a estado Creado');
+    }
+
+    private function currentUserIsSupervisor(): bool
+    {
+        try {
+            $this->getSupervisorInfo('validar permisos');
+
+            return true;
+        } catch (\RuntimeException $e) {
+            return false;
+        }
+    }
+
+    private function getSupervisorInfo(string $accion): array
+    {
+        $user = Auth::user();
+        if (!$user) {
+            throw new \RuntimeException('Usuario no autenticado.');
+        }
+
+        $numeroEmpleado = $user->numero_empleado ?? $user->cve ?? null;
+        $sysUsuario = null;
+
+        if ($numeroEmpleado) {
+            $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+        }
+
+        if (!$sysUsuario && isset($user->idusuario)) {
+            $sysUsuario = SYSUsuario::where('idusuario', $user->idusuario)->first();
+        }
+
+        if (!$sysUsuario) {
+            throw new \RuntimeException("No se pudo identificar el usuario para validar permisos de {$accion}.");
+        }
+
+        $puesto = mb_strtolower(trim((string) ($sysUsuario->puesto ?? '')));
+        $area = mb_strtolower(trim((string) ($sysUsuario->area ?? '')));
+
+        $esSupervisor = str_contains($puesto, 'supervisor') || str_contains($area, 'supervisor');
+
+        if (!$esSupervisor) {
+            throw new \RuntimeException("No tienes permisos para {$accion}. Solo los supervisores pueden realizar esta acción.");
+        }
+
+        $code = $sysUsuario->numero_empleado
+            ?? $user->numero_empleado
+            ?? $user->cve
+            ?? $user->idusuario
+            ?? $user->id
+            ?? null;
+
+        $name = $sysUsuario->nombre
+            ?? $user->nombre
+            ?? $user->name
+            ?? $user->Nombre
+            ?? null;
+
+        return [$code, $name];
     }
 }
