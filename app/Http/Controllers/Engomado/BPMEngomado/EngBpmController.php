@@ -9,6 +9,7 @@ use App\Models\Urdido\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class EngBpmController extends Controller
@@ -32,7 +33,9 @@ class EngBpmController extends Controller
             Log::error('Error al cargar BPM Engomado: ' . $e->getMessage());
         }
 
-        return view("modulos.engomado.BPM-Engomado.index", compact("items", "usuarios", "maquinas", "folioSugerido"));
+        $esSupervisorBpm = $this->currentUserIsSupervisor();
+
+        return view("modulos.engomado.BPM-Engomado.index", compact("items", "usuarios", "maquinas", "folioSugerido", "esSupervisorBpm"));
     }
 
     public function store(Request $request)
@@ -122,5 +125,33 @@ class EngBpmController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error al eliminar el registro: ' . $e->getMessage());
         }
+    }
+
+    private function currentUserIsSupervisor(): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+
+        $numeroEmpleado = $user->numero_empleado ?? $user->cve ?? null;
+        $sysUsuario = null;
+
+        if ($numeroEmpleado) {
+            $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+        }
+
+        if (!$sysUsuario && isset($user->idusuario)) {
+            $sysUsuario = SYSUsuario::where('idusuario', $user->idusuario)->first();
+        }
+
+        if (!$sysUsuario) {
+            return false;
+        }
+
+        $puesto = mb_strtolower(trim((string) ($sysUsuario->puesto ?? '')));
+        $area = mb_strtolower(trim((string) ($sysUsuario->area ?? '')));
+
+        return str_contains($puesto, 'supervisor') || str_contains($area, 'supervisor');
     }
 }

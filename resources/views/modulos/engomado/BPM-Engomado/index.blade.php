@@ -55,6 +55,12 @@
         </script>
     @endif
 
+    <!-- @if(!empty($esSupervisorBpm))
+        <div class="mx-4 mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            Cuando termines un checklist de BPM Line con un usuario supervisor, el folio se autoriza automáticamente.
+        </div>
+    @endif -->
+
     <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-4 mx-4" style="max-height: 70vh;">
         <table id="bpmTable" class="min-w-full text-sm">
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
@@ -362,6 +368,7 @@
     <script>
         // ======== FILTROS (igual a tejedores) ========
         (function () {
+            const esSupervisorBpm = @json(!empty($esSupervisorBpm));
             const qs = (s) => document.querySelector(s);
             const qsa = (s) => [...document.querySelectorAll(s)];
 
@@ -389,8 +396,8 @@
             const btnFilterAll = qs('#btn-filter-all');
 
             let filterState = {
-                showFinished: false,
-                myFolios: true, // default
+                showFinished: esSupervisorBpm,
+                myFolios: !esSupervisorBpm,
                 showAll: false,
                 turno: '',
             };
@@ -408,6 +415,10 @@
                     const turnoRec = row.dataset.turnorec || '';
 
                     let show = true;
+
+                    if (esSupervisorBpm && !filterState.showAll && status === 'Autorizado') {
+                        show = false;
+                    }
 
                     if (!filterState.showFinished && !filterState.showAll && status === 'Terminado') {
                         show = false;
@@ -530,8 +541,8 @@
 
             btnClearFilters?.addEventListener('click', () => {
                 filterState = {
-                    showFinished: false,
-                    myFolios: true,
+                    showFinished: esSupervisorBpm,
+                    myFolios: !esSupervisorBpm,
                     showAll: false,
                     turno: '',
                 };

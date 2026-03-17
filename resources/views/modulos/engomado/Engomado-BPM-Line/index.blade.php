@@ -11,10 +11,11 @@
                 @method('PATCH')
                 <x-navbar.button-report 
                     onclick="validarYTerminar()" 
-                    title="Terminado"
+                    :checkPermission="false"
+                    title="{{ !empty($esSupervisor) ? 'Terminar y Autorizar' : 'Terminado' }}"
                     icon="fa-check"
                     iconColor="text-white"
-                    text="Terminado"
+                    text="{{ !empty($esSupervisor) ? 'Terminar y Autorizar' : 'Terminado' }}"
                     bg="bg-green-600"
                     hoverBg="hover:bg-green-700"
                 />
@@ -77,6 +78,14 @@
                 });
             });
         </script>
+    @endif
+
+    @if(!empty($esSupervisor) && $header->Status === 'Creado')
+        <div class="max-w-6xl mx-auto mt-3 mb-2 px-4">
+            <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                Al terminar este checklist como supervisor, el folio se autoriza automáticamente.
+            </div>
+        </div>
     @endif
 
     <!-- Información del Header -->
