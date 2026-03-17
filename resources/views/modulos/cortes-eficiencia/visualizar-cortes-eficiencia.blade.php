@@ -87,8 +87,8 @@
                 <i class="fa fa-file-pdf mr-2"></i> Descargar PDF
             </button>
                         <button onclick="notificarTelegram('{{ $fecha }}')" id="btn-telegram"
-                    class="inline-flex items-center px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-md transition-colors">
-                <i class="fa-brands fa-telegram mr-2"></i> Notificar Telegram
+                    class="inline-flex items-center px-4 py-2 bg-white hover:bg-gray-100 text-sky-600 text-sm font-medium rounded-md transition-colors border border-sky-200">
+                <i class="fa-brands fa-telegram mr-2 text-blue-600 text-lg"></i> Notificar Telegram
             </button>
         </div>
     </div>

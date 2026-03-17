@@ -42,7 +42,7 @@
                 Descargar PDF
             </button>
             <button onclick="notificarTelegram()" id="btn-telegram" class="inline-flex items-center px-4 py-2 bg-white hover:bg-gray-100 text-sky-600 text-sm font-medium rounded-md transition-colors border border-sky-200">
-                <i class="fa-brands fa-telegram mr-2"></i> Notificar Telegram
+                <i class="fa-brands fa-telegram mr-2 text-blue-600 text-lg"></i> Notificar Telegram
             </button>
         </div>
     </div>
