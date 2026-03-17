@@ -120,9 +120,12 @@
             </thead>
             <tbody id="formulaTableBody">
                 @forelse($items as $item)
+                    @php
+                        $folioOrden = trim((string) ($item->folio_resuelto ?? $item->Folio ?? $item->ProdId ?? ''));
+                    @endphp
                     <tr class="formula-row  border-gray-100 cursor-pointer transition-all duration-150 hover:bg-blue-50/80 even:bg-gray-50/50"
-                        onclick="selectRow(this, '{{ $item->Folio }}', {{ $item->Id ?? 'null' }})"
-                        data-folio="{{ $item->Folio }}"
+                        onclick="selectRow(this, '{{ $folioOrden }}', {{ $item->Id ?? 'null' }})"
+                        data-folio="{{ $folioOrden }}"
                         data-id="{{ $item->Id ?? '' }}"
                         data-fecha="{{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('Y-m-d') : '' }}"
                         data-hora="{{ $item->Hora ? substr($item->Hora, 0, 5) : '' }}"
@@ -161,7 +164,7 @@
                                 hoverBg="hover:bg-blue-50"
                                 module="Captura de Formula"
                                 class="obs-calidad-btn"
-                                data-folio="{{ $item->Folio }}"
+                                data-folio="{{ $folioOrden }}"
                                 data-id="{{ $item->Id ?? '' }}"
                                 data-formula="{{ $item->Formula ?? '' }}"
                                 data-litros="{{ $item->Litros ?? '' }}"
@@ -176,7 +179,7 @@
                         </td>
                         @endif
                         <td class="px-4 py-3 whitespace-nowrap font-semibold text-blue-700">{{ $item->Id }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $folioOrden !== '' ? $folioOrden : '-' }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             {{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('d/m/Y') : '' }}
                         </td>
@@ -815,6 +818,46 @@
             select.classList.toggle('hidden', mostrarTextoPlano);
         }
 
+        function setCreateFolioValue(folio) {
+            const select = document.getElementById('create_folio_prog');
+            const display = document.getElementById('create_folio_prog_display');
+            const normalizedFolio = (folio || '').toString().trim();
+
+            if (!select) {
+                if (display) {
+                    display.value = normalizedFolio;
+                }
+                return;
+            }
+
+            const tempOption = select.querySelector('option[data-temp-folio="1"]');
+            if (tempOption) {
+                tempOption.remove();
+            }
+
+            if (normalizedFolio === '') {
+                select.value = '';
+                if (display) {
+                    display.value = '';
+                }
+                return;
+            }
+
+            const existingOption = Array.from(select.options).find(option => option.value === normalizedFolio);
+            if (existingOption) {
+                select.value = normalizedFolio;
+            } else {
+                const injectedOption = new Option(normalizedFolio, normalizedFolio, true, true);
+                injectedOption.setAttribute('data-temp-folio', '1');
+                select.add(injectedOption);
+                select.value = normalizedFolio;
+            }
+
+            if (display) {
+                display.value = normalizedFolio;
+            }
+        }
+
         function actualizarDisponibilidadRegistroPorStatusPrograma(mostrarAlerta = false) {
             const method = document.getElementById('create_method')?.value;
             if (method !== 'POST') return true;
@@ -1069,9 +1112,9 @@
             // Configurar modal para EDITAR
             document.getElementById('create_modal_title').textContent = 'Editar Formulación';
             document.getElementById('create_method').value = 'PUT';
-            const form = document.getElementById('createForm');
-            if (form) {
-                form.action = `/eng-formulacion/${selectedFolio}`;
+            const formElement = document.getElementById('createForm');
+            if (formElement) {
+                formElement.action = `/eng-formulacion/${selectedFolio}`;
             }
 
             // Actualizar botón submit (deshabilitado hasta que haya cambios)
@@ -1135,8 +1178,8 @@
                             const originalOnchange = select.getAttribute('onchange');
                             select.removeAttribute('onchange');
 
-                            // Establecer el valor sin disparar eventos
-                            select.value = form.Folio;
+                            // Establecer el folio real aunque ya no exista en la lista filtrada
+                            setCreateFolioValue(form.Folio);
 
                             // Restaurar el evento onchange
                             if (originalOnchange) {
@@ -1153,6 +1196,10 @@
                             document.getElementById('create_formula').value = form.Formula || '';
                             formulaCreateActual = form.Formula || '';
                             actualizarPresentacionFolioCreate(true);
+                        }
+
+                        if (form.Folio && formElement) {
+                            formElement.action = `/eng-formulacion/${encodeURIComponent(form.Folio)}`;
                         }
 
                         document.getElementById('create_olla').value = form.Olla || '';
@@ -1330,7 +1377,7 @@
                         if (select) {
                             const originalOnchange = select.getAttribute('onchange');
                             select.removeAttribute('onchange');
-                            select.value = form.Folio;
+                            setCreateFolioValue(form.Folio);
                             if (originalOnchange) select.setAttribute('onchange', originalOnchange);
                             document.getElementById('create_cuenta').value = form.Cuenta || '';
                             document.getElementById('create_calibre').value = form.Calibre || '';

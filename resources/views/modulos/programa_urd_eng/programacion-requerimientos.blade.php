@@ -16,6 +16,56 @@
 
 
 <div class="w-full">
+    <style>
+        #tablaRequerimientos thead th {
+            position: relative;
+        }
+        .req-header-shell {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            width: 100%;
+        }
+        .req-header-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .req-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.4rem;
+            height: 1.4rem;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+        }
+        .req-filter-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.44);
+            transform: translateY(-1px);
+        }
+        .req-filter-btn.active {
+            background: #ffffff;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+        .req-filter-indicator {
+            display: inline-block;
+            width: 0.45rem;
+            height: 0.45rem;
+            border-radius: 9999px;
+            background: #facc15;
+            box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.18);
+        }
+        .req-filter-indicator.hidden {
+            display: none;
+        }
+    </style>
 
     {{-- =================== Tabla de requerimientos =================== --}}
     <div class="bg-white overflow-hidden mb-4">
@@ -23,19 +73,19 @@
             <table id="tablaRequerimientos" class="w-full">
                 <thead>
                     <tr class="bg-blue-500">
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Telar</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Fecha</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Cuenta</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Calibre</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Hilo</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Tamaño</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Urdido</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Tipo</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Destino</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Tipo Atado</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Metros</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Kilos</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Agrupar</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="telar" data-column-label="Telar">Telar</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="fecha_req" data-column-label="Fecha">Fecha</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="tamano" data-column-label="Tamaño">Tamaño</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="cuenta" data-column-label="Cuenta">Cuenta</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="calibre" data-column-label="Calibre">Calibre</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="hilo" data-column-label="Hilo">Hilo</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="urdido" data-column-label="Urdido">Urdido</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="tipo" data-column-label="Tipo">Tipo</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="destino" data-column-label="Destino">Destino</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="tipo_atado" data-column-label="Tipo Atado">Tipo Atado</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="metros" data-column-label="Metros">Metros</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="kilos" data-column-label="Kilos">Kilos</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="agrupar" data-column-label="Agrupar">Agrupar</th>
                     </tr>
                 </thead>
                 <tbody id="tbodyRequerimientos" class="bg-white">
@@ -100,6 +150,24 @@ document.addEventListener('DOMContentLoaded', () => {
         hilos: [], // Se cargará dinámicamente desde TI_PRO
         tamanos: [] // Se cargará dinámicamente desde TI_PRO
     };
+    const REQUERIMIENTOS_COLUMN_META = [
+        { field: 'telar', label: 'Telar' },
+        { field: 'fecha_req', label: 'Fecha' },
+        { field: 'tamano', label: 'Tamaño' },
+        { field: 'cuenta', label: 'Cuenta' },
+        { field: 'calibre', label: 'Calibre' },
+        { field: 'hilo', label: 'Hilo' },
+        { field: 'urdido', label: 'Urdido' },
+        { field: 'tipo', label: 'Tipo' },
+        { field: 'destino', label: 'Destino' },
+        { field: 'tipo_atado', label: 'Tipo Atado' },
+        { field: 'metros', label: 'Metros' },
+        { field: 'kilos', label: 'Kilos' },
+        { field: 'agrupar', label: 'Agrupar' }
+    ];
+    const REQUERIMIENTOS_COLUMN_ORDER = REQUERIMIENTOS_COLUMN_META.map(col => col.field);
+    const REQUERIMIENTOS_COLUMN_LABELS = Object.fromEntries(REQUERIMIENTOS_COLUMN_META.map(col => [col.field, col.label]));
+    const requerimientosColumnFilters = {};
 
     // Función para mapear salón a destino (ITEMA y SMITH ambos usan SMIT) — fallback si no hay grupo en ReqTelares
     function mapearSalonADestino(salon) {
@@ -172,6 +240,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function todayISO() {
         const d = new Date(); const m = (d.getMonth()+1+'').padStart(2,'0'); const day = (d.getDate()+'').padStart(2,'0');
         return `${d.getFullYear()}-${m}-${day}`;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     // Normalizar tipo a formato estándar: "Rizo" o "Pie" (primera letra mayúscula, resto minúsculas)
@@ -328,29 +405,29 @@ document.addEventListener('DOMContentLoaded', () => {
             : `<option value="">Seleccione...</option>${opcionesTamano}`;
 
         tr.innerHTML = `
-            <td class="px-2 py-3 w-20">
+            <td class="px-2 py-3 w-20" data-column-field="telar">
                 <input type="text" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${telar.no_telar || ''}" data-field="telar" disabled>
             </td>
-            <td class="px-2 py-3 w-28">
+            <td class="px-2 py-3 w-28" data-column-field="fecha_req">
                 <input type="date" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${fechaISO}" data-field="fecha_req" disabled>
             </td>
-            <td class="px-2 py-3 w-20">
-                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.cuenta || ''}" data-field="cuenta" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
-            </td>
-            <td class="px-2 py-3 w-20">
-                <input type="number" step="any" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
-            </td>
-            <td class="px-2 py-3 w-24">
-                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" data-telar-id="${telar.no_telar || ''}" required>
-                    ${selectHiloHTML}
-                </select>
-            </td>
-            <td class="px-2 py-3 w-24">
+            <td class="px-2 py-3 w-24" data-column-field="tamano">
                 <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tamano" data-telar-id="${telar.no_telar || ''}" required>
                     ${selectTamanoHTML}
                 </select>
             </td>
-            <td class="px-2 py-3 w-28">
+            <td class="px-2 py-3 w-20" data-column-field="cuenta">
+                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.cuenta || ''}" data-field="cuenta" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
+            </td>
+            <td class="px-2 py-3 w-20" data-column-field="calibre">
+                <input type="number" step="any" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
+            </td>
+            <td class="px-2 py-3 w-24" data-column-field="hilo">
+                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" data-telar-id="${telar.no_telar || ''}" required>
+                    ${selectHiloHTML}
+                </select>
+            </td>
+            <td class="px-2 py-3 w-28" data-column-field="urdido">
                 <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido" required>
                     ${opciones.urdido.map((x, idx) => {
                         const isSelected = telar.urdido === x || (!telar.urdido && idx === 0);
@@ -358,13 +435,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).join('')}
                 </select>
             </td>
-            <td class="px-2 py-3 w-20">
+            <td class="px-2 py-3 w-20" data-column-field="tipo">
                 <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo" data-telar-id="${telar.no_telar || ''}" required style="${(tipoNormalizado === 'Rizo' || !tipoNormalizado) ? 'background-color: #fee2e2; color: #be123c;' : 'background-color: #ccfbf1; color: #0f766e;'}">
                     <option value="Rizo" ${tipoNormalizado === 'Rizo' || !tipoNormalizado ? 'selected' : ''}>Rizo</option>
                     <option value="Pie" ${tipoNormalizado === 'Pie' ? 'selected' : ''}>Pie</option>
                 </select>
             </td>
-            <td class="px-2 py-3 w-28">
+            <td class="px-2 py-3 w-28" data-column-field="destino">
                 <select class="w-full px-2 py-1.5 text-md bg-transparent border-0 cursor-default appearance-none" data-field="destino" data-telar-id="${telar.no_telar || ''}" disabled>
                     ${(() => {
                         const destinoInicial = telar.grupo || (telar.destino ? mapearSalonADestino(telar.destino) : mapearSalonADestino(telar.salon));
@@ -375,22 +452,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     })()}
                 </select>
             </td>
-            <td class="px-2 py-3 w-28">
+            <td class="px-2 py-3 w-28" data-column-field="tipo_atado">
                 <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo_atado" required>
                     ${opciones.tipoAtado.map(x => `<option value="${x}" ${(telar.tipo_atado||'Normal')===x?'selected':''}>${x}</option>`).join('')}
                 </select>
             </td>
-            <td class="px-2 py-3 w-24">
+            <td class="px-2 py-3 w-24" data-column-field="metros">
                 <input type="text" placeholder="Metros (requerido)"
                        class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
                        value="${telar.metros ? formatNumberInput(telar.metros) : ''}" data-field="metros" required>
             </td>
-            <td class="px-2 py-3 w-24">
+            <td class="px-2 py-3 w-24" data-column-field="kilos">
                 <input type="text" placeholder="Kilos (requerido)"
                        class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                        value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos" required>
             </td>
-            <td class="px-2 py-3 w-24 text-center">
+            <td class="px-2 py-3 w-24 text-center" data-column-field="agrupar">
                 <input type="checkbox" class="w-4 h-4" ${telar.agrupar ? 'checked' : ''} data-field="agrupar">
             </td>
         `;
@@ -404,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!telaresData.length) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" class="px-4 py-8 text-center text-gray-500">
+                    <td colspan="13" class="px-4 py-8 text-center text-gray-500">
                         <i class="fa-solid fa-circle-info text-gray-400 mb-2"></i>
                         <p>No hay telares seleccionados.</p>
                     </td>
@@ -417,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!v.valido) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" class="px-4 py-8 text-center text-red-500">
+                    <td colspan="13" class="px-4 py-8 text-center text-red-500">
                         <i class="fa-solid fa-triangle-exclamation text-red-400 mb-2"></i>
                         <p class="font-semibold">Error de validación</p>
                         <p class="text-sm mt-2">${v.mensaje}</p>
@@ -461,6 +538,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Agregar event listeners para campos editables (cuenta, calibre, hilo, tipo)
         reordenarColumnasTablaRequerimientos();
         agregarEventListenersCamposEditables();
+        inicializarFiltrosColumnasRequerimientos();
+        applyRequerimientosColumnFilters();
 
         // Autocompletar tamaño inicialmente si las filas ya tienen cuenta y calibre
         const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
@@ -604,28 +683,229 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Función para autocompletar tamaño basándose en cuenta y calibre
     function reordenarColumnasTablaRequerimientos() {
         const headerRow = document.querySelector('#tablaRequerimientos thead tr');
         if (headerRow) {
-            const headerCells = Array.from(headerRow.children);
-            if (headerCells.length >= 6) {
-                headerCells[2].textContent = 'Tamaño';
-                headerCells[2].textContent = 'Tamaño';
-                headerCells[3].textContent = 'Cuenta';
-                const tamanoHeader = { set textContent(_) {} };
-                headerCells[4].textContent = 'Calibre';
-                tamanoHeader.textContent = 'Tamaño';
-                headerCells[5].textContent = 'Hilo';
-            }
+            const headersByField = new Map(
+                Array.from(headerRow.children)
+                    .filter(cell => cell.dataset.columnField)
+                    .map(cell => [cell.dataset.columnField, cell])
+            );
+
+            REQUERIMIENTOS_COLUMN_ORDER.forEach(field => {
+                const cell = headersByField.get(field);
+                if (cell) {
+                    headerRow.appendChild(cell);
+                }
+            });
         }
 
         const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
         filas.forEach((fila) => {
-            const tamanoCell = Array.from(fila.children).find((cell) => cell.querySelector('select[data-field="tamano"]'));
-            const cuentaCell = Array.from(fila.children).find((cell) => cell.querySelector('input[data-field="cuenta"]'));
-            if (tamanoCell && cuentaCell) {
-                fila.insertBefore(tamanoCell, cuentaCell);
+            const cellsByField = new Map(
+                Array.from(fila.children)
+                    .filter(cell => cell.dataset.columnField)
+                    .map(cell => [cell.dataset.columnField, cell])
+            );
+
+            REQUERIMIENTOS_COLUMN_ORDER.forEach(field => {
+                const cell = cellsByField.get(field);
+                if (cell) {
+                    fila.appendChild(cell);
+                }
+            });
+        });
+    }
+
+    function getRequerimientosDataRows() {
+        return Array.from(document.querySelectorAll('#tablaRequerimientos tbody tr'))
+            .filter(row => row.querySelector('[data-field="telar"]'));
+    }
+
+    function getRequerimientosCellValue(row, field) {
+        const cell = row.querySelector(`[data-column-field="${field}"]`);
+        if (!cell) return '';
+
+        const fieldEl = cell.querySelector('[data-field]');
+        if (!fieldEl) {
+            return cell.textContent.trim();
+        }
+
+        if (fieldEl.type === 'checkbox') {
+            return fieldEl.checked ? 'Sí' : 'No';
+        }
+
+        if (fieldEl.tagName === 'SELECT') {
+            const selectedOption = fieldEl.options[fieldEl.selectedIndex];
+            return (selectedOption?.textContent || fieldEl.value || '').trim();
+        }
+
+        return (fieldEl.value || '').trim();
+    }
+
+    function rowMatchesRequerimientosFilters(row, excludeField = null) {
+        return Object.entries(requerimientosColumnFilters).every(([field, allowedValues]) => {
+            if (field === excludeField) return true;
+            if (!Array.isArray(allowedValues) || allowedValues.length === 0) return true;
+            return allowedValues.includes(getRequerimientosCellValue(row, field));
+        });
+    }
+
+    function getAvailableValuesForRequerimientosColumn(field) {
+        return Array.from(new Set(
+            getRequerimientosDataRows()
+                .filter(row => rowMatchesRequerimientosFilters(row, field))
+                .map(row => getRequerimientosCellValue(row, field))
+                .filter(value => value !== '')
+        )).sort((a, b) => a.localeCompare(b, 'es', { numeric: true, sensitivity: 'base' }));
+    }
+
+    function updateRequerimientosFilterIndicators() {
+        const headers = document.querySelectorAll('#tablaRequerimientos thead th[data-column-field]');
+        headers.forEach(th => {
+            const field = th.dataset.columnField;
+            const hasFilter = Array.isArray(requerimientosColumnFilters[field]) && requerimientosColumnFilters[field].length > 0;
+            th.querySelector('.req-filter-btn')?.classList.toggle('active', hasFilter);
+            th.querySelector('.req-filter-indicator')?.classList.toggle('hidden', !hasFilter);
+        });
+    }
+
+    function inicializarFiltrosColumnasRequerimientos() {
+        const headers = document.querySelectorAll('#tablaRequerimientos thead th[data-column-field]');
+        headers.forEach(th => {
+            const field = th.dataset.columnField;
+            const label = th.dataset.columnLabel || REQUERIMIENTOS_COLUMN_LABELS[field] || th.textContent.trim();
+
+            th.innerHTML = `
+                <div class="req-header-shell">
+                    <span class="req-header-label">${escapeHtml(label)}</span>
+                    <span class="flex items-center gap-1">
+                        <span class="req-filter-indicator hidden" aria-hidden="true"></span>
+                        <button type="button" class="req-filter-btn" data-filter-field="${escapeHtml(field)}" title="Filtrar ${escapeHtml(label)}" aria-label="Filtrar ${escapeHtml(label)}">
+                            <i class="fa-solid fa-filter text-[10px]"></i>
+                        </button>
+                    </span>
+                </div>
+            `;
+
+            const btn = th.querySelector('.req-filter-btn');
+            if (btn) {
+                btn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openRequerimientosColumnFilter(field);
+                });
+            }
+        });
+
+        updateRequerimientosFilterIndicators();
+    }
+
+    function applyRequerimientosColumnFilters() {
+        getRequerimientosDataRows().forEach(row => {
+            row.hidden = !rowMatchesRequerimientosFilters(row);
+        });
+        updateRequerimientosFilterIndicators();
+    }
+
+    function openRequerimientosColumnFilter(field) {
+        if (typeof Swal === 'undefined') return;
+
+        const label = REQUERIMIENTOS_COLUMN_LABELS[field] || field;
+        const availableValues = getAvailableValuesForRequerimientosColumn(field);
+
+        if (availableValues.length === 0) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Sin valores',
+                text: `No hay valores disponibles para filtrar en la columna ${label}.`,
+                confirmButtonColor: '#2563eb'
+            });
+            return;
+        }
+
+        const activeValues = Array.isArray(requerimientosColumnFilters[field]) && requerimientosColumnFilters[field].length > 0
+            ? new Set(requerimientosColumnFilters[field])
+            : new Set(availableValues);
+
+        const checkboxesHtml = availableValues.map(value => `
+            <label class="req-filter-option-row flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50">
+                <input type="checkbox" class="req-filter-option h-4 w-4" value="${escapeHtml(value)}" ${activeValues.has(value) ? 'checked' : ''}>
+                <span class="text-sm text-slate-700 break-all">${escapeHtml(value)}</span>
+            </label>
+        `).join('');
+
+        Swal.fire({
+            title: `Filtrar ${label}`,
+            width: 520,
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Aplicar',
+            denyButtonText: 'Limpiar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#2563eb',
+            denyButtonColor: '#64748b',
+            html: `
+                <div class="text-left">
+                    <input id="req-filter-search" type="text" class="swal2-input !mt-0 !mb-3 !w-full" placeholder="Buscar valor...">
+                    <label class="flex items-center gap-2 px-1 py-2 border-b border-slate-200 mb-2">
+                        <input id="req-filter-select-all" type="checkbox" class="h-4 w-4" ${activeValues.size === availableValues.length ? 'checked' : ''}>
+                        <span class="text-sm font-medium text-slate-700">Seleccionar todo</span>
+                    </label>
+                    <div id="req-filter-options" class="max-h-72 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
+                        ${checkboxesHtml}
+                    </div>
+                </div>
+            `,
+            didOpen: () => {
+                const popup = Swal.getPopup();
+                const searchInput = popup?.querySelector('#req-filter-search');
+                const selectAll = popup?.querySelector('#req-filter-select-all');
+                const optionInputs = () => Array.from(popup?.querySelectorAll('.req-filter-option') || []);
+
+                searchInput?.addEventListener('input', function () {
+                    const term = String(this.value || '').toLowerCase().trim();
+                    popup?.querySelectorAll('.req-filter-option-row').forEach(row => {
+                        const text = row.textContent.toLowerCase();
+                        row.style.display = text.includes(term) ? '' : 'none';
+                    });
+                });
+
+                selectAll?.addEventListener('change', function () {
+                    optionInputs().forEach(input => {
+                        input.checked = this.checked;
+                    });
+                });
+
+                optionInputs().forEach(input => {
+                    input.addEventListener('change', () => {
+                        if (!selectAll) return;
+                        selectAll.checked = optionInputs().every(option => option.checked);
+                    });
+                });
+            },
+            preConfirm: () => {
+                const selected = Array.from(document.querySelectorAll('.req-filter-option:checked'))
+                    .map(input => input.value);
+
+                if (selected.length === 0) {
+                    Swal.showValidationMessage('Selecciona al menos un valor o usa "Limpiar".');
+                    return false;
+                }
+
+                return selected;
+            }
+        }).then(result => {
+            if (result.isConfirmed && Array.isArray(result.value)) {
+                if (result.value.length === availableValues.length) {
+                    delete requerimientosColumnFilters[field];
+                } else {
+                    requerimientosColumnFilters[field] = result.value;
+                }
+                applyRequerimientosColumnFilters();
+            } else if (result.isDenied) {
+                delete requerimientosColumnFilters[field];
+                applyRequerimientosColumnFilters();
             }
         });
     }

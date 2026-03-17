@@ -24,9 +24,18 @@ class EngProduccionFormulacionController extends Controller
             // Si hay múltiples registros con el mismo Folio, se distinguen por ID
             $itemsQuery = EngProduccionFormulacionModel::orderBy('Id', 'desc');
             if (!empty($folioFiltro)) {
-                $itemsQuery->where('Folio', $folioFiltro);
+                $itemsQuery->where(function ($query) use ($folioFiltro) {
+                    $query->where('Folio', $folioFiltro)
+                        ->orWhere(function ($fallbackQuery) use ($folioFiltro) {
+                            $fallbackQuery->whereRaw("(Folio IS NULL OR LTRIM(RTRIM(Folio)) = '')")
+                                ->where('ProdId', $folioFiltro);
+                        });
+                });
             }
-            $items = $itemsQuery->get();
+            $items = $itemsQuery->get()->map(function ($item) use ($folioFiltro) {
+                $item->folio_resuelto = $this->resolveFormulacionFolio($item, $folioFiltro);
+                return $item;
+            });
             $usuarios = SYSUsuario::orderBy('nombre', 'asc')->get();
             $maquinas = URDCatalogoMaquina::where('Departamento', 'Engomado')
                 ->orderBy('Nombre', 'asc')
@@ -277,7 +286,7 @@ class EngProduccionFormulacionController extends Controller
                 'success' => true,
                 'formulacion' => [
                     'Id' => $formulacion->Id,
-                    'Folio' => $formulacion->Folio,
+                    'Folio' => $this->resolveFormulacionFolio($formulacion),
                     'fecha' => $formulacion->fecha ? $formulacion->fecha->format('Y-m-d') : null,
                     'Hora' => $formulacion->Hora,
                     'MaquinaId' => $formulacion->MaquinaId,
@@ -310,6 +319,28 @@ class EngProduccionFormulacionController extends Controller
                 'trace' => $e->getTraceAsString()
             ], 500);
         }
+    }
+
+    private function resolveFormulacionFolio(EngProduccionFormulacionModel $formulacion, ?string $folioContext = null): string
+    {
+        $candidatos = [
+            $this->normalizePotentialFolio($formulacion->Folio ?? null),
+            $this->normalizePotentialFolio($folioContext),
+            $this->normalizePotentialFolio($formulacion->ProdId ?? null),
+        ];
+
+        foreach ($candidatos as $candidato) {
+            if ($candidato !== '') {
+                return $candidato;
+            }
+        }
+
+        return '';
+    }
+
+    private function normalizePotentialFolio($value): string
+    {
+        return trim((string) ($value ?? ''));
     }
 
     /**

@@ -53,6 +53,24 @@ class ModuloProduccionEngomadoController extends Controller
         return function_exists('userCan') && userCan('modificar', $this->getModuleNameForPermissions());
     }
 
+    private function resolveFechaFinalizaFromProduccion(string $folio): string
+    {
+        $ultimaFechaProduccion = EngProduccionEngomado::query()
+            ->where('Folio', $folio)
+            ->orderByDesc('Id')
+            ->value('Fecha');
+
+        if ($ultimaFechaProduccion instanceof \DateTimeInterface) {
+            return $ultimaFechaProduccion->format('Y-m-d');
+        }
+
+        if (is_string($ultimaFechaProduccion) && trim($ultimaFechaProduccion) !== '') {
+            return substr($ultimaFechaProduccion, 0, 10);
+        }
+
+        return now()->toDateString();
+    }
+
     /**
      * Al desmarcar Finalizar en Engomado, resetear Impresion a NULL
      * para que el registro vuelva a ser elegible para impresión parcial.
@@ -459,7 +477,7 @@ class ModuloProduccionEngomadoController extends Controller
             EngProduccionEngomado::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
 
             $orden->Status = 'Finalizado';
-            $orden->FechaFinaliza = now()->toDateString();
+            $orden->FechaFinaliza = $this->resolveFechaFinalizaFromProduccion($orden->Folio);
             $orden->save();
 
             EngProduccionFormulacionModel::where('Folio', $orden->Folio)->update(['Status' => 'Finalizado']);
