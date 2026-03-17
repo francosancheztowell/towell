@@ -41,6 +41,9 @@
                 </svg>
                 Descargar PDF
             </button>
+            <button onclick="notificarTelegram()" id="btn-telegram" class="inline-flex items-center px-4 py-2 bg-white hover:bg-gray-100 text-sky-600 text-sm font-medium rounded-md transition-colors border border-sky-200">
+                <i class="fa-brands fa-telegram mr-2"></i> Notificar Telegram
+            </button>
         </div>
     </div>
 
@@ -176,6 +179,44 @@ async function descargarPDF() {
     } catch (e) {
         console.error('Excepción al descargar PDF:', e);
         alert('Ocurrió un error al intentar descargar el PDF.');
+    }
+}
+async function notificarTelegram() {
+    const btn = document.getElementById('btn-telegram');
+    const originalHtml = btn.innerHTML;
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Enviando...';
+
+        const fecha = '{{ $fecha }}';
+        const url = '{{ route("marcas.reporte.telegram") }}';
+        const token = '{{ csrf_token() }}';
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json'
+            },
+            body: new URLSearchParams({ fecha })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            console.error('Error al notificar por Telegram:', data);
+            alert(data.message || 'No se pudo enviar la notificación por Telegram.');
+            return;
+        }
+
+        alert('Reporte enviado por Telegram exitosamente.');
+    } catch (error) {
+        console.error('Excepción al notificar por Telegram:', error);
+        alert('Ocurrió un error al intentar enviar la notificación por Telegram.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
     }
 }
 </script>

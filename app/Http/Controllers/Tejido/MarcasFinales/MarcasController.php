@@ -751,19 +751,84 @@ class MarcasController extends Controller
 
             $pdfSizeKB = strlen($pdfContent) / 1024;
 
-            // Enviar el PDF a Telegram (no bloquea la descarga si falla)
-            // Hacer esto en background para no afectar la descarga del usuario
-            try {
-                $this->enviarReporteMarcasPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
-            } catch (\Throwable $e) {
-                // No lanzamos la excepción para que el usuario pueda descargar el PDF
-            }
-
             return response($pdfContent, 200)
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al generar PDF: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Generar PDF y enviarlo por Telegram (sin descarga al navegador).
+     */
+    public function notificarTelegram(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha');
+            if (!$fecha) {
+                return response()->json(['success' => false, 'message' => 'Fecha requerida'], 400);
+            }
+
+            // Normalizar fecha (acepta yyyy-mm-dd o formatos parseables por strtotime)
+            $fechaNorm = date('Y-m-d', strtotime(str_replace('/', '-', $fecha)));
+            $tablas = $this->obtenerDatosReporte($fechaNorm);
+
+            // Indexar por turno para acceso directo
+            $porTurno = collect($tablas)->keyBy('turno');
+
+            // Unificar lista de telares
+            $telares = collect([]);
+            foreach ($tablas as $t) {
+                $telares = $telares->merge($t['telares']);
+            }
+            $telares = $telares->unique()->sort()->values();
+
+            $html = view('modulos.marcas-finales.reporte-marcas-pdf', [
+                'fecha'   => $fechaNorm,
+                'tablas'  => $tablas,
+                'telares' => $telares,
+                'porTurno'=> $porTurno,
+            ])->render();
+
+            $options = new Options();
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('isRemoteEnabled', true);
+            $options->set('defaultFont', 'Arial');
+            $options->set('isPhpEnabled', false);
+            $options->set('chroot', public_path());
+            $options->set('tempDir', sys_get_temp_dir());
+
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('a4', 'landscape');
+            $dompdf->render();
+
+            $filename = 'marcas_finales_' . $fechaNorm . '.pdf';
+
+            $pdfContent = $dompdf->output();
+
+            // Validar que el PDF se generó correctamente
+            if (empty($pdfContent)) {
+                return response()->json(['success' => false, 'message' => 'Error: PDF generado está vacío'], 500);
+            }
+
+            // Enviar por Telegram
+            $this->enviarReporteMarcasPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reporte enviado por Telegram exitosamente',
+            ]);
+        } catch (\Throwable $th) {
+            Log::error('Error al notificar por Telegram marcas finales', [
+                'mensaje' => $th->getMessage(),
+                'trace' => $th->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar por Telegram: ' . $th->getMessage(),
+            ], 500);
         }
     }
 

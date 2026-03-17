@@ -151,6 +151,7 @@ Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visua
 Route::get('/modulo-marcas/reporte', [MarcasController::class, 'reporte'])->name('marcas.reporte');
 Route::post('/modulo-marcas/reporte/exportar-excel', [MarcasController::class, 'exportarExcel'])->name('marcas.reporte.excel');
 Route::post('/modulo-marcas/reporte/descargar-pdf', [MarcasController::class, 'descargarPDF'])->name('marcas.reporte.pdf');
+Route::post('/modulo-marcas/reporte/notificar-telegram', [MarcasController::class, 'notificarTelegram'])->name('marcas.reporte.telegram');
 Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
     ->where('folio', '^(?!reporte$).+')
     ->name('marcas.show');
