@@ -982,15 +982,6 @@ class CortesEficienciaController extends Controller
                 return response()->json(['error' => 'Error: PDF generado está vacío'], 500);
             }
 
-            try {
-                $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
-            } catch (\Throwable $e) {
-                Log::error('Error al enviar PDF de cortes a Telegram (continuando con descarga)', [
-                    'error' => $e->getMessage(),
-                    'fecha' => $fechaNorm,
-                ]);
-            }
-
             return response($pdfContent, 200)
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');

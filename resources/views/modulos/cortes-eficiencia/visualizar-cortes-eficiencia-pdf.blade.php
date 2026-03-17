@@ -8,72 +8,72 @@
 
         // Escalado dinámico para conservar 1 sola hoja.
         if ($totalFilas >= 44) {
-            $bodySize = '6.8px';
-            $thSize = '7px';
-            $tdSize = '6.8px';
-            $efSize = '8.6px';
-            $commentSize = '5.6px';
-            $telarSize = '8px';
-            $rpmSize = '8px';
+            $bodySize = '7.1px';
+            $thSize = '7.3px';
+            $tdSize = '7.1px';
+            $efSize = '8.9px';
+            $commentSize = '6px';
+            $telarSize = '8.3px';
+            $rpmSize = '8.3px';
             $focusCellHeight = '11px';
-            $turnoHdrSize = '7.7px';
-            $horarioHdrSize = '7.4px';
+            $turnoHdrSize = '8px';
+            $horarioHdrSize = '7.7px';
             $turnoHdrHeight = '14px';
             $horarioHdrHeight = '13px';
             $cellPadding = '0.6px 0.7px';
             $marginPage = '2.8mm';
-            $titleSize = '9.8px';
+            $titleSize = '10.1px';
             $fitScale = 0.90;
         } elseif ($totalFilas >= 36) {
-            $bodySize = '7.1px';
-            $thSize = '7.3px';
-            $tdSize = '7.1px';
-            $efSize = '9px';
-            $commentSize = '5.8px';
-            $telarSize = '8.4px';
-            $rpmSize = '8.4px';
+            $bodySize = '7.4px';
+            $thSize = '7.6px';
+            $tdSize = '7.4px';
+            $efSize = '9.3px';
+            $commentSize = '6.2px';
+            $telarSize = '8.7px';
+            $rpmSize = '8.7px';
             $focusCellHeight = '11.6px';
-            $turnoHdrSize = '8.1px';
-            $horarioHdrSize = '7.8px';
+            $turnoHdrSize = '8.4px';
+            $horarioHdrSize = '8.1px';
             $turnoHdrHeight = '14.8px';
             $horarioHdrHeight = '13.8px';
             $cellPadding = '0.6px 0.8px';
             $marginPage = '2.8mm';
-            $titleSize = '10.2px';
+            $titleSize = '10.5px';
             $fitScale = 0.93;
         } elseif ($totalFilas >= 28) {
-            $bodySize = '7.5px';
-            $thSize = '7.7px';
-            $tdSize = '7.5px';
-            $efSize = '9.6px';
-            $commentSize = '6.2px';
-            $telarSize = '8.8px';
-            $rpmSize = '8.8px';
+            $bodySize = '7.8px';
+            $thSize = '8px';
+            $tdSize = '7.8px';
+            $efSize = '9.9px';
+            $commentSize = '6.5px';
+            $telarSize = '9.1px';
+            $rpmSize = '9.1px';
             $focusCellHeight = '12.4px';
-            $turnoHdrSize = '8.5px';
-            $horarioHdrSize = '8.2px';
+            $turnoHdrSize = '8.8px';
+            $horarioHdrSize = '8.5px';
             $turnoHdrHeight = '15.6px';
             $horarioHdrHeight = '14.6px';
             $cellPadding = '0.8px 1px';
             $marginPage = '3mm';
-            $titleSize = '10.6px';
+            $titleSize = '10.9px';
             $fitScale = 0.96;
         } else {
-            $bodySize = '8px';
-            $thSize = '8.2px';
-            $tdSize = '8px';
-            $efSize = '10.2px';
-            $commentSize = '6.6px';
-            $telarSize = '9.4px';
-            $rpmSize = '9.4px';
+            $bodySize = '8.3px';
+            $thSize = '8.5px';
+            $tdSize = '8.3px';
+            $efSize = '10.5px';
+            $commentSize = '6.9px';
+            $telarSize = '9.7px';
+            $rpmSize = '9.7px';
             $focusCellHeight = '13.2px';
-            $turnoHdrSize = '9px';
-            $horarioHdrSize = '8.6px';
+            $turnoHdrSize = '9.3px';
+            $horarioHdrSize = '8.9px';
             $turnoHdrHeight = '16.4px';
             $horarioHdrHeight = '15.2px';
             $cellPadding = '0.9px 1.2px';
             $marginPage = '3mm';
-            $titleSize = '11.2px';
+            $titleSize = '11.5px';
             $fitScale = 1;
         }
     @endphp
@@ -109,7 +109,7 @@
         }
         .subtitle {
             text-align: center;
-            font-size: 6.8px;
+            font-size: 7.1px;
             color: #6b7280;
             margin-bottom: 3px;
         }
@@ -118,7 +118,7 @@
         .folios {
             display: block;
             text-align: center;
-            font-size: 6.8px;
+            font-size: 7.1px;
             margin-bottom: 3px;
             color: #374151;
         }
@@ -127,7 +127,7 @@
             border-radius: 8px;
             padding: 1px 4px;
             margin: 0 1px;
-            font-size: 6.8px;
+            font-size: 7.1px;
             font-weight: bold;
             border: 1px solid;
         }
@@ -257,7 +257,7 @@
         /* ── Footer ── */
         .footer {
             margin-top: 3px;
-            font-size: 6.3px;
+            font-size: 6.6px;
             color: #6b7280;
             text-align: center;
         }

@@ -11,8 +11,9 @@
                 <x-navbar.button-report
                     type="button"
                     onclick="validarYTerminar()"
-                    title="Terminado"
-                    text="Terminado"
+                    :checkPermission="false"
+                    title="{{ !empty($esSupervisor) ? 'Terminar y Autorizar' : 'Terminado' }}"
+                    text="{{ !empty($esSupervisor) ? 'Terminar y Autorizar' : 'Terminado' }}"
                     icon="fa-check"
                     bg="bg-green-600"
                     module="BPM (Buenas Practicas Manufactura) Urd"
@@ -80,6 +81,14 @@
                 });
             });
         </script>
+    @endif
+
+    @if(!empty($esSupervisor) && $header->Status === 'Creado')
+        <div class="max-w-6xl mx-auto mt-3 mb-2 px-4">
+            <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                Al terminar este checklist como supervisor, el folio se autoriza automáticamente.
+            </div>
+        </div>
     @endif
 
     <!-- Información del Header (una sola línea) -->

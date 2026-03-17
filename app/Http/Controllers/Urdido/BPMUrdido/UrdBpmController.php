@@ -8,6 +8,7 @@ use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class UrdBpmController extends Controller
@@ -29,7 +30,9 @@ class UrdBpmController extends Controller
             Log::error('Error al cargar BPM Urdido: ' . $e->getMessage());
         }
 
-        return view("modulos.urdido.BPM-Urdido.index", compact("items", "usuarios", "maquinas", "folioSugerido"));
+        $esSupervisorBpm = $this->currentUserIsSupervisor();
+
+        return view("modulos.urdido.BPM-Urdido.index", compact("items", "usuarios", "maquinas", "folioSugerido", "esSupervisorBpm"));
     }
 
     public function store(Request $request)
@@ -109,5 +112,37 @@ class UrdBpmController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error al eliminar el registro: ' . $e->getMessage());
         }
+    }
+
+    private function currentUserIsSupervisor(): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+
+        $numeroEmpleado = $user->numero_empleado ?? $user->cve ?? null;
+        $sysUsuario = null;
+
+        if ($numeroEmpleado) {
+            $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
+        }
+
+        if (!$sysUsuario && isset($user->idusuario)) {
+            $sysUsuario = SYSUsuario::where('idusuario', $user->idusuario)->first();
+        }
+
+        if (!$sysUsuario) {
+            return false;
+        }
+
+        $puesto = mb_strtolower(trim((string) ($sysUsuario->puesto ?? '')));
+        $area = mb_strtolower(trim((string) ($sysUsuario->area ?? '')));
+
+        if (str_contains($puesto, 'supervisor') || str_contains($area, 'supervisor')) {
+            return true;
+        }
+
+        return false;
     }
 }
