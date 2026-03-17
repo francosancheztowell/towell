@@ -246,6 +246,7 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <input type="text" id="create_folio_prog_display" readonly tabindex="-1" class="hidden w-full px-0 py-2 text-sm text-gray-900 bg-transparent border-0 rounded-lg focus:outline-none focus:ring-0">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
@@ -726,6 +727,47 @@
             background: #94a3b8;
             border-radius: 3px;
         }
+        #createModal.view-only-presentation input:not([type="hidden"]),
+        #createModal.view-only-presentation select,
+        #createModal.view-only-presentation textarea {
+            border-color: transparent !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            color: #111827 !important;
+            cursor: default !important;
+        }
+        #createModal.view-only-presentation select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: none !important;
+        }
+        #createModal.view-only-presentation input:disabled,
+        #createModal.view-only-presentation select:disabled,
+        #createModal.view-only-presentation textarea:disabled,
+        #createModal.view-only-presentation input[readonly],
+        #createModal.view-only-presentation textarea[readonly] {
+            opacity: 1 !important;
+            -webkit-text-fill-color: #111827 !important;
+        }
+        #createModal.view-only-presentation .cursor-not-allowed,
+        #createModal.view-only-presentation .pointer-events-none {
+            cursor: default !important;
+        }
+        #createModal.view-only-presentation .focus\:ring-2,
+        #createModal.view-only-presentation .focus\:ring-1,
+        #createModal.view-only-presentation .focus\:border-transparent,
+        #createModal.view-only-presentation .focus\:border-blue-500,
+        #createModal.view-only-presentation .focus\:border-purple-500 {
+            --tw-ring-shadow: 0 0 #0000 !important;
+        }
+        #create_folio_prog_display[readonly] {
+            color: #111827;
+            -webkit-text-fill-color: #111827;
+            opacity: 1;
+        }
     </style>
 
     <script>
@@ -761,6 +803,16 @@
             const select = document.getElementById('create_folio_prog');
             const option = select?.options?.[select.selectedIndex];
             return option?.getAttribute('data-status') || '';
+        }
+
+        function actualizarPresentacionFolioCreate(mostrarTextoPlano = false) {
+            const select = document.getElementById('create_folio_prog');
+            const display = document.getElementById('create_folio_prog_display');
+            if (!select || !display) return;
+
+            display.value = select.value || '';
+            display.classList.toggle('hidden', !mostrarTextoPlano);
+            select.classList.toggle('hidden', mostrarTextoPlano);
         }
 
         function actualizarDisponibilidadRegistroPorStatusPrograma(mostrarAlerta = false) {
@@ -923,6 +975,8 @@
                 cargarDatosPrograma(select, false);
             }
 
+            actualizarPresentacionFolioCreate(readOnly);
+
             actualizarDisponibilidadRegistroPorStatusPrograma(false);
 
             setCreateModalReadOnly(readOnly);
@@ -1010,6 +1064,7 @@
             if (modal) {
                 modal.classList.remove('hidden');
             }
+            actualizarPresentacionFolioCreate(true);
 
             // Configurar modal para EDITAR
             document.getElementById('create_modal_title').textContent = 'Editar Formulación';
@@ -1097,6 +1152,7 @@
                             document.getElementById('create_tipo').value = form.Tipo || '';
                             document.getElementById('create_formula').value = form.Formula || '';
                             formulaCreateActual = form.Formula || '';
+                            actualizarPresentacionFolioCreate(true);
                         }
 
                         document.getElementById('create_olla').value = form.Olla || '';
@@ -1225,6 +1281,7 @@
             if (modal) {
                 modal.classList.remove('hidden');
             }
+            actualizarPresentacionFolioCreate(true);
 
             // Configurar modal para VER
             document.getElementById('create_modal_title').textContent = 'Visualización de Fórmula';
@@ -1280,6 +1337,7 @@
                             document.getElementById('create_tipo').value = form.Tipo || '';
                             document.getElementById('create_formula').value = form.Formula || '';
                             formulaCreateActual = form.Formula || '';
+                            actualizarPresentacionFolioCreate(true);
                         }
 
                         document.getElementById('create_olla').value = form.Olla || '';
@@ -1355,9 +1413,11 @@
             const submitBtn = document.getElementById('btn-edit-submit');
             const btnVerComponentes = document.getElementById('btn-ver-componentes');
             const viewComponentesContainer = document.getElementById('view_componentes_container');
+            modal.classList.toggle('view-only-presentation', isReadOnly);
             const fields = modal ? modal.querySelectorAll('input, select, textarea') : [];
 
             fields.forEach(field => {
+                if (field.type === 'hidden') return;
                 if (isReadOnly) {
                     field.setAttribute('disabled', 'disabled');
                 } else {
@@ -1383,8 +1443,16 @@
             const modal = document.getElementById('createModal');
             if (!modal) return;
 
+            modal.classList.toggle('view-only-presentation', isReadOnly);
             const fields = modal.querySelectorAll('input, select, textarea');
             fields.forEach(field => {
+                if (field.type === 'hidden') return;
+                if (field.id === 'create_folio_prog_display') {
+                    field.setAttribute('readonly', 'readonly');
+                    field.removeAttribute('disabled');
+                    field.classList.remove('bg-gray-50', 'text-gray-700', 'cursor-not-allowed', 'pointer-events-none');
+                    return;
+                }
                 // NUNCA desbloquear: Folio, Fecha, Hora, No Empleado, Operador, Fórmula
                 if (field.classList.contains('campo-siempre-bloqueado')) {
                     field.setAttribute('readonly', 'readonly');
@@ -1655,18 +1723,66 @@
         let kilosCreateFormula = 0;
         let litrosCreateFormula = 0;
 
-        /** Consumo Total: no-agua máx 100; agua máx = valor del input Litros (formulación engomado). */
+        /** Consumo Total: AE-021 máx 10; no-agua máx 100; agua máx = valor del input Litros. */
         const CONSUMO_TOTAL_MAX_NO_AGUA = 100;
+        const CONSUMO_TOTAL_MAX_AE_021 = 10;
+
+        function esComponenteAe021(comp) {
+            return (comp.ItemId || '').toString().trim().toUpperCase() === 'AE-021';
+        }
+
         function esComponenteAgua(comp) {
             const id = (comp.ItemId || '').toLowerCase();
             const name = (comp.ItemName || '').toLowerCase();
             return id.includes('agua') || name.includes('agua');
         }
-        /** Aplica tope: agua <= litrosMax (input Litros), resto <= 100. litrosMax opcional (usa litrosCreateFormula). */
-        function aplicarMaxConsumoTotal(comp, valor, litrosMax) {
+
+        function obtenerLimiteConsumoInfo(comp, litrosMax) {
             const litros = typeof litrosMax === 'number' && !isNaN(litrosMax) ? litrosMax : litrosCreateFormula;
-            if (esComponenteAgua(comp)) return Math.min(valor, Math.max(0, litros));
-            return Math.min(valor, CONSUMO_TOTAL_MAX_NO_AGUA);
+
+            if (esComponenteAgua(comp)) {
+                return {
+                    max: Math.max(0, litros),
+                    title: `Máximo igual a Litros (${Math.max(0, litros)})`,
+                    alertTitle: 'Consumo Total agua',
+                    alertText: `En el componente agua, Consumo Total no puede ser mayor a Litros (${Math.max(0, litros)}).`
+                };
+            }
+
+            if (esComponenteAe021(comp)) {
+                return {
+                    max: CONSUMO_TOTAL_MAX_AE_021,
+                    title: 'Máximo 10 para AE-021',
+                    alertTitle: 'Consumo Total máximo 10',
+                    alertText: 'El artículo AE-021 no puede tener un Consumo Total mayor a 10.'
+                };
+            }
+
+            return {
+                max: CONSUMO_TOTAL_MAX_NO_AGUA,
+                title: 'Máximo 100 (excepto agua)',
+                alertTitle: 'Consumo Total máximo 100',
+                alertText: 'En componentes que no son agua, Consumo Total no puede ser mayor a 100.'
+            };
+        }
+
+        function mostrarAlertaLimiteConsumo(comp, litrosMax) {
+            const info = obtenerLimiteConsumoInfo(comp, litrosMax);
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'warning',
+                title: info.alertTitle,
+                text: `${info.alertText} Revisa: ${comp.ItemId || comp.ItemName || 'componente'}`,
+                showConfirmButton: true,
+                timer: 0
+            });
+        }
+
+        /** Aplica tope: agua <= litrosMax; AE-021 <= 10; resto <= 100. */
+        function aplicarMaxConsumoTotal(comp, valor, litrosMax) {
+            const info = obtenerLimiteConsumoInfo(comp, litrosMax);
+            return Math.min(valor, info.max);
         }
 
         function abrirModalComponentes(kilos = 0) {
@@ -2332,17 +2448,16 @@
                 const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
                 let consumoTotal = consumoUnitario * litrosCreateFormula;
                 consumoTotal = aplicarMaxConsumoTotal(comp, consumoTotal);
-                const esAgua = esComponenteAgua(comp);
-                const maxLitros = typeof litrosCreateFormula === 'number' && !isNaN(litrosCreateFormula) ? litrosCreateFormula : 0;
-                const maxAttr = esAgua ? ` max="${maxLitros}"` : ` max="${CONSUMO_TOTAL_MAX_NO_AGUA}"`;
+                const limiteConsumo = obtenerLimiteConsumoInfo(comp, litrosCreateFormula);
+                const maxAttr = ` max="${limiteConsumo.max}"`;
                 const disabledAttr = viewOnlyMode ? 'disabled' : '';
                 const disabledClass = viewOnlyMode ? 'bg-gray-100 cursor-not-allowed' : '';
                 const sinCalibre = !(comp.ItemId || '').trim();
-                const titleConsumo = sinCalibre ? 'Seleccione Artículo (calibre) primero' : (esAgua ? 'Máximo igual a Litros' : 'Máximo 100 (excepto agua)');
+                const titleConsumo = sinCalibre ? 'Seleccione Artículo (calibre) primero' : limiteConsumo.title;
                 const consumoTotalDisabled = sinCalibre ? 'disabled' : disabledAttr;
 
                 // Filas nuevas: select Articulo, Nombre bloqueado, ConfigId texto plano (no select)
-                if (desdeProduccion && comp.esNuevo) {
+                if (comp.esNuevo) {
                     row.innerHTML = `
                         <td class="px-4 py-2 text-sm">
                             <select data-index="${index}" data-field="ItemId"
@@ -2394,7 +2509,7 @@
                 tbody.appendChild(row);
 
                 // Inicializar solo select Articulo (ConfigId es input texto) para filas nuevas
-                if (desdeProduccion && comp.esNuevo) {
+                if (comp.esNuevo) {
                     initComponenteCalibreForNewRow(row, comp);
                 }
 
@@ -2420,11 +2535,22 @@
                     consumoTotalInput.parentNode.replaceChild(nuevoInput, consumoTotalInput);
 
                     nuevoInput.addEventListener('input', function() {
-                        let nuevoConsumoTotal = parseFloat(this.value) || 0;
+                        const valorCapturado = parseFloat(this.value) || 0;
+                        let nuevoConsumoTotal = valorCapturado;
                         const compData = componentesCreateData[index];
                         if (compData) {
+                            const limiteInfo = obtenerLimiteConsumoInfo(compData, litrosCreateFormula);
                             nuevoConsumoTotal = aplicarMaxConsumoTotal(compData, nuevoConsumoTotal);
                             nuevoConsumoTotal = Math.round(nuevoConsumoTotal * 100) / 100;
+                            if (valorCapturado > limiteInfo.max) {
+                                const alertKey = `${compData.ItemId || ''}-${limiteInfo.max}`;
+                                if (this.dataset.limitAlertKey !== alertKey) {
+                                    this.dataset.limitAlertKey = alertKey;
+                                    mostrarAlertaLimiteConsumo(compData, litrosCreateFormula);
+                                }
+                            } else {
+                                delete this.dataset.limitAlertKey;
+                            }
                             if (parseFloat(this.value) !== nuevoConsumoTotal) this.value = nuevoConsumoTotal.toFixed(2);
                         }
                         const nuevoConsumoUnitario = litrosCreateFormula > 0
@@ -2876,32 +3002,14 @@
                         return;
                     }
                     const componentes = obtenerComponentesCreateDesdeTabla();
-                    const invalidoAgua = componentes.find(c => (c.ItemId || '').trim() && esComponenteAgua(c) && (parseFloat(c.ConsumoTotal) || 0) > litrosVal);
-                    if (invalidoAgua) {
-                        e.preventDefault();
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'warning',
-                            title: 'Consumo Total agua',
-                            text: 'En el componente agua, Consumo Total no puede ser mayor a Litros (' + litrosVal + '). Revisa: ' + (invalidoAgua.ItemId || invalidoAgua.ItemName || 'agua'),
-                            showConfirmButton: true,
-                            timer: 0
-                        });
-                        return;
-                    }
-                    const invalidoConsumo = componentes.find(c => (c.ItemId || '').trim() && !esComponenteAgua(c) && (parseFloat(c.ConsumoTotal) || 0) > CONSUMO_TOTAL_MAX_NO_AGUA);
+                    const invalidoConsumo = componentes.find(c => {
+                        if (!(c.ItemId || '').trim()) return false;
+                        const limiteInfo = obtenerLimiteConsumoInfo(c, litrosVal);
+                        return (parseFloat(c.ConsumoTotal) || 0) > limiteInfo.max;
+                    });
                     if (invalidoConsumo) {
                         e.preventDefault();
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'warning',
-                            title: 'Consumo Total máximo 100',
-                            text: 'En componentes que no son agua, Consumo Total no puede ser mayor a 100. Revisa: ' + (invalidoConsumo.ItemId || invalidoConsumo.ItemName || 'componente'),
-                            showConfirmButton: true,
-                            timer: 0
-                        });
+                        mostrarAlertaLimiteConsumo(invalidoConsumo, litrosVal);
                         return;
                     }
                     const conCalibre = componentes.filter(c =>

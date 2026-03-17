@@ -72,9 +72,9 @@
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-0.5">Tamaño</label>
-                <input type="text" required id="input-tamano" name="tamano" placeholder=""
-                    class="{{ $inputBaseClass }}" list="input-tamano-options" autocomplete="off">
-                <datalist id="input-tamano-options"></datalist>
+                <select required id="input-tamano" name="tamano" class="{{ $inputBaseClass }}">
+                    <option value="">Seleccionar...</option>
+                </select>
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-0.5">Cuenta</label>
@@ -269,7 +269,6 @@
         inputCalibre: document.getElementById('input-calibre'),
         inputTamano: document.getElementById('input-tamano'),
         inputFibra: document.getElementById('input-fibra'),
-        datalistTamano: document.getElementById('input-tamano-options'),
         datalistLmat: document.getElementById('input-lmat-options'),
         tbodyResumen: document.getElementById('tabla-resumen-lmat-body'),
         tbodyDetalle: document.getElementById('tabla-detalle-lmat-body'),
@@ -602,28 +601,15 @@
                 const opts = hilos.map((h) => `<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join('');
                 elements.inputFibra.innerHTML = '<option value="">Seleccionar...</option>' + opts;
             }
-            if (elements.datalistTamano) {
-                elements.datalistTamano.innerHTML = '';
+            if (elements.inputTamano) {
+                const opts = opcionesTamanos
+                    .map((tamano) => `<option value="${escapeHtml(tamano)}">${escapeHtml(tamano)}</option>`)
+                    .join('');
+                elements.inputTamano.innerHTML = '<option value="">Seleccionar...</option>' + opts;
             }
         } catch (error) {
             console.error('Error al cargar hilos/tamaños:', error);
         }
-    };
-
-    const actualizarOpcionesTamano = () => {
-        const val = String(elements.inputTamano?.value ?? '').trim().toLowerCase();
-        if (!elements.datalistTamano) return;
-        if (val.length < 2) {
-            elements.datalistTamano.innerHTML = '';
-            return;
-        }
-        const filtrados = opcionesTamanos.filter((t) =>
-            String(t).toLowerCase().includes(val)
-        );
-        elements.datalistTamano.innerHTML = filtrados
-            .slice(0, 5)
-            .map((t) => `<option value="${escapeHtml(t)}">`)
-            .join('');
     };
 
     /** Al elegir Fibra y Tamaño, rellena Cuenta y Calibre desde Tamaño (ej: 2960-12/1 → Cuenta=2960, Calibre=12) */
@@ -780,7 +766,6 @@
 
     const bindEvents = () => {
         const cargarDebounced = debounce(cargarMaterialesLmat, 350);
-        const rellenarTamanoDebounced = debounce(rellenarCuentaYCalibreDesdeTamano, 200);
 
         elements.inputLmat?.addEventListener('change', cargarMaterialesLmat);
         elements.inputLmat?.addEventListener('blur', (event) => {
@@ -796,10 +781,6 @@
         });
 
         elements.inputTamano?.addEventListener('change', rellenarCuentaYCalibreDesdeTamano);
-        elements.inputTamano?.addEventListener('input', () => {
-            actualizarOpcionesTamano();
-            rellenarTamanoDebounced();
-        });
         elements.inputFibra?.addEventListener('change', rellenarCuentaYCalibreDesdeTamano);
 
         form?.addEventListener('input', actualizarEstadoBotonCrear);

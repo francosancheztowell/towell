@@ -459,12 +459,13 @@ document.addEventListener('DOMContentLoaded', () => {
         agregarValidacionAgrupacion();
 
         // Agregar event listeners para campos editables (cuenta, calibre, hilo, tipo)
+        reordenarColumnasTablaRequerimientos();
         agregarEventListenersCamposEditables();
 
         // Autocompletar tamaño inicialmente si las filas ya tienen cuenta y calibre
         const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
         filas.forEach(fila => {
-            autocompletarTamano(fila);
+            rellenarCuentaYCalibreDesdeTamano(fila, { guardar: false });
         });
 
         // Mantener dataset filtrado para el resumen
@@ -604,7 +605,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Función para autocompletar tamaño basándose en cuenta y calibre
-    function autocompletarTamano(fila) {
+    function reordenarColumnasTablaRequerimientos() {
+        const headerRow = document.querySelector('#tablaRequerimientos thead tr');
+        if (headerRow) {
+            const headerCells = Array.from(headerRow.children);
+            if (headerCells.length >= 6) {
+                headerCells[2].textContent = 'Tamaño';
+                headerCells[2].textContent = 'Tamaño';
+                headerCells[3].textContent = 'Cuenta';
+                const tamanoHeader = { set textContent(_) {} };
+                headerCells[4].textContent = 'Calibre';
+                tamanoHeader.textContent = 'Tamaño';
+                headerCells[5].textContent = 'Hilo';
+            }
+        }
+
+        const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
+        filas.forEach((fila) => {
+            const tamanoCell = Array.from(fila.children).find((cell) => cell.querySelector('select[data-field="tamano"]'));
+            const cuentaCell = Array.from(fila.children).find((cell) => cell.querySelector('input[data-field="cuenta"]'));
+            if (tamanoCell && cuentaCell) {
+                fila.insertBefore(tamanoCell, cuentaCell);
+            }
+        });
+    }
+
+    async function rellenarCuentaYCalibreDesdeTamano(fila, { guardar = true } = {}) {
         if (!fila) return;
 
         const cuentaInput = fila.querySelector('input[data-field="cuenta"]');
@@ -613,7 +639,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!cuentaInput || !calibreInput || !tamanoSelect) return;
 
-        const cuenta = cuentaInput.value.trim();
+        const tamanoSeleccionado = tamanoSelect.value.trim();
+        const telarId = tamanoSelect.dataset.telarId || '';
+        const tipo = fila.querySelector('select[data-field="tipo"]')?.value || '';
+
+        let nuevaCuenta = '';
+        let nuevoCalibre = '';
+
+        if (tamanoSeleccionado) {
+            const match = tamanoSeleccionado.match(/^([^-]+)-([^/]+)\/1$/);
+            if (!match) return;
+            nuevaCuenta = match[1].trim();
+            nuevoCalibre = match[2].trim();
+        }
+
+        const cambios = [];
+
+        if (cuentaInput.value.trim() !== nuevaCuenta) {
+            cuentaInput.value = nuevaCuenta;
+            cambios.push(['cuenta', nuevaCuenta]);
+        }
+
+        if (calibreInput.value.trim() !== nuevoCalibre) {
+            calibreInput.value = nuevoCalibre;
+            cambios.push(['calibre', nuevoCalibre]);
+        }
+
+        if (!guardar || !telarId || cambios.length === 0) return;
+
+        for (const [campo, valor] of cambios) {
+            await guardarCampoTelar(campo, valor, telarId, tipo, fila, { silent: true });
+        }
+
+        return;
+
+        const tamano = tamanoSelect.value.trim();
         let calibre = calibreInput.value.trim();
 
         // Si ambos campos tienen valores, construir el tamaño esperado
@@ -690,13 +750,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.addEventListener('blur', async function() {
                     const valor = this.value.trim();
                     await guardarCampoTelar(campo, valor, telarId, tipo, fila);
-                    autocompletarTamano(fila);
                 });
 
                 input.addEventListener('input', function() {
                     const valor = this.value.trim();
                     debounceGuardar(campo, valor, telarId, tipo, fila);
-                    autocompletarTamano(fila);
                 });
             });
         });
@@ -726,6 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
             select.addEventListener('change', async function() {
                 const valor = this.value.trim();
                 await guardarCampoTelar('tamano', valor, telarId, tipo, fila);
+                await rellenarCuentaYCalibreDesdeTamano(fila);
             });
         });
 
@@ -758,12 +817,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Función para guardar un campo del telar en el servidor (usa id para identificar registro único)
-    async function guardarCampoTelar(campo, valor, telarId, tipo, fila) {
+    async function guardarCampoTelar(campo, valor, telarId, tipo, fila, options = {}) {
         if (!telarId) {
             console.warn('No se puede guardar: telarId no disponible');
             return;
         }
 
+        const { silent = false } = options;
         const inventarioId = fila?.dataset?.inventarioId || '';
         const fechaFila = fila?.dataset?.fecha || '';
         const turnoFila = fila?.dataset?.turno || '';
@@ -829,7 +889,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Mostrar notificación de éxito (opcional, con SweetAlert si está disponible)
-                if (typeof Swal !== 'undefined') {
+                if (!silent && typeof Swal !== 'undefined') {
                     const Toast = Swal.mixin({
                         toast: true,
                         position: 'top-end',
@@ -841,7 +901,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         icon: 'success',
                         title: mensajeDetalle
                     });
-                } else {
+                } else if (!silent) {
                     console.log('Actualizado:', result.message || mensajeDetalle);
                 }
             } else {
