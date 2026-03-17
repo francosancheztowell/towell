@@ -234,7 +234,7 @@
             return false;
         };
 
-        window.imprimirOrdenSeleccionada = function() {
+        window.imprimirOrdenSeleccionada = async function() {
             if (!ordenSeleccionada || !ordenSeleccionada.id) {
                 alert('Seleccione una orden para imprimir');
                 return;
@@ -243,8 +243,53 @@
                 alert('Solo se pueden imprimir órdenes con status Finalizado');
                 return;
             }
+
             const url = '{{ route('engomado.modulo.produccion.engomado.pdf') }}?orden_id=' + encodeURIComponent(ordenSeleccionada.id) + '&tipo=engomado&reimpresion=1';
-            window.open(url, 'imprimir-engomado', 'width=720,height=560,scrollbars=yes,resizable=yes');
+            const popup = window.open('', 'imprimir-engomado', 'width=720,height=560,scrollbars=yes,resizable=yes');
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    const payload = await response.json().catch(() => ({ error: 'No se pudo generar el archivo.' }));
+                    if (popup && !popup.closed) {
+                        popup.close();
+                    }
+                    alert(payload.error || 'No se pudo generar el archivo.');
+                    return;
+                }
+
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const contentDisposition = response.headers.get('Content-Disposition') || '';
+                const filenameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+                const filename = filenameMatch?.[1] || `ORDEN_ENGOMADO_${ordenSeleccionada.id}.pdf`;
+
+                if (popup && !popup.closed) {
+                    popup.location.href = blobUrl;
+                } else {
+                    window.open(blobUrl, '_blank');
+                }
+
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+            } catch (error) {
+                if (popup && !popup.closed) {
+                    popup.close();
+                }
+                console.error('Error al abrir reimpresión de engomado:', error);
+                alert('No se pudo abrir el archivo PDF.');
+            }
         };
 
         function ordenarTabla(columna, orden) {
