@@ -459,6 +459,7 @@ class ModuloProduccionEngomadoController extends Controller
             EngProduccionEngomado::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
 
             $orden->Status = 'Finalizado';
+            $orden->FechaFinaliza = now()->toDateString();
             $orden->save();
 
             EngProduccionFormulacionModel::where('Folio', $orden->Folio)->update(['Status' => 'Finalizado']);

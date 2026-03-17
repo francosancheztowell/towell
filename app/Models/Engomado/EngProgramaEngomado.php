@@ -49,6 +49,7 @@ class EngProgramaEngomado extends Model
         'Observaciones',
         'MermaGoma',
         'Merma',
+        'FechaFinaliza',
     ];
 
     protected $casts = [
@@ -66,6 +67,7 @@ class EngProgramaEngomado extends Model
         'Observaciones' => 'string',
         'MermaGoma' => 'float',
         'Merma' => 'float',
+        'FechaFinaliza' => 'date',
     ];
 
     /**

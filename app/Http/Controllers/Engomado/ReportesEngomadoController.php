@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Engomado;
 
 use App\Exports\BpmEngomadoExport;
+use App\Exports\ControlMermaExport;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngBpmModel;
+use App\Services\Engomado\ControlMermaReportService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Facades\Excel;
@@ -35,9 +38,56 @@ class ReportesEngomadoController extends Controller
                 'url' => route('engomado.reportes.bpm'),
                 'disponible' => true,
             ],
+            [
+                'nombre' => 'Control Merma',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('engomado.reportes.control-merma'),
+                'disponible' => true,
+            ],
         ];
 
         return view('modulos.engomado.reportes-engomado-index', ['reportes' => $reportes]);
+    }
+
+    public function reporteControlMerma(Request $request, ControlMermaReportService $service)
+    {
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+
+        if (!$fechaIni || !$fechaFin) {
+            return view('modulos.engomado.reportes-control-merma', [
+                'filas' => collect(),
+                'fechaIni' => $fechaIni ?? '',
+                'fechaFin' => $fechaFin ?? '',
+            ]);
+        }
+
+        $filas = $service->build($fechaIni, $fechaFin);
+
+        return view('modulos.engomado.reportes-control-merma', [
+            'filas' => $filas,
+            'fechaIni' => $fechaIni,
+            'fechaFin' => $fechaFin,
+        ]);
+    }
+
+    public function exportarControlMermaExcel(Request $request, ControlMermaReportService $service)
+    {
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+
+        if (!$fechaIni || !$fechaFin) {
+            return redirect()->route('engomado.reportes.control-merma')
+                ->with('error', 'Seleccione un rango de fechas para exportar.');
+        }
+
+        $filas = $service->build($fechaIni, $fechaFin);
+
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fileName = 'control-merma-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+
+        return Excel::download(new ControlMermaExport($filas), $fileName);
     }
 
     public function reporteBpm(Request $request)
@@ -199,5 +249,23 @@ class ReportesEngomadoController extends Controller
 
             return $fila;
         });
+    }
+
+    private function parseReportDate(string $value): Carbon
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return Carbon::now();
+        }
+
+        foreach (['Y-m-d', 'd/m/Y'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value)->startOfDay();
+            } catch (\Throwable $e) {
+                // Intentar con el siguiente formato.
+            }
+        }
+
+        return Carbon::parse($value)->startOfDay();
     }
 }
