@@ -120,9 +120,12 @@
             </thead>
             <tbody id="formulaTableBody">
                 @forelse($items as $item)
+                    @php
+                        $folioOrden = trim((string) ($item->folio_resuelto ?? $item->Folio ?? $item->ProdId ?? ''));
+                    @endphp
                     <tr class="formula-row  border-gray-100 cursor-pointer transition-all duration-150 hover:bg-blue-50/80 even:bg-gray-50/50"
-                        onclick="selectRow(this, '{{ $item->Folio }}', {{ $item->Id ?? 'null' }})"
-                        data-folio="{{ $item->Folio }}"
+                        onclick="selectRow(this, '{{ $folioOrden }}', {{ $item->Id ?? 'null' }})"
+                        data-folio="{{ $folioOrden }}"
                         data-id="{{ $item->Id ?? '' }}"
                         data-fecha="{{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('Y-m-d') : '' }}"
                         data-hora="{{ $item->Hora ? substr($item->Hora, 0, 5) : '' }}"
@@ -161,7 +164,7 @@
                                 hoverBg="hover:bg-blue-50"
                                 module="Captura de Formula"
                                 class="obs-calidad-btn"
-                                data-folio="{{ $item->Folio }}"
+                                data-folio="{{ $folioOrden }}"
                                 data-id="{{ $item->Id ?? '' }}"
                                 data-formula="{{ $item->Formula ?? '' }}"
                                 data-litros="{{ $item->Litros ?? '' }}"
@@ -176,7 +179,7 @@
                         </td>
                         @endif
                         <td class="px-4 py-3 whitespace-nowrap font-semibold text-blue-700">{{ $item->Id }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $folioOrden !== '' ? $folioOrden : '-' }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             {{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('d/m/Y') : '' }}
                         </td>
