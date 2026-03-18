@@ -699,17 +699,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ── Cargas AJAX ───────────────────────────────────────────────────────
     function cargarProducciones(telarId) {
+        console.log('cargarProducciones called, telarId:', telarId);
+        console.log('tablaProducciones element:', els.tablaProducciones);
         const soloConOrden = els.filtroSoloConOrden?.checked ? '1' : '';
         const url = `/desarrolladores/telar/${telarId}/producciones${soloConOrden ? '?solo_con_orden=1' : ''}`;
         if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
         els.bodyProducciones.innerHTML = spinnerHtml(7, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
+        console.log('tablaProducciones hidden removed, classList:', els.tablaProducciones.className);
         els.filtroOrdenContainer?.classList.remove('hidden');
         els.noDataMessage.classList.add('hidden');
 
         fetch(url)
             .then(r => r.json())
             .then(data => {
+                console.log('producciones response:', data);
                 if (data.success && data.producciones.length > 0) {
                     els.bodyProducciones.innerHTML = '';
                     data.producciones.forEach((p) => {

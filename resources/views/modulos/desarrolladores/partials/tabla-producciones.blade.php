@@ -31,7 +31,7 @@
     </div>
 
     <div id="tablaProducciones" class="hidden">
-        <div class="rounded-lg border border-gray-200">
+        <div class="rounded-lg border border-gray-200 overflow-x-auto">
             <table class="w-full divide-y divide-red-200">
                 <thead class="bg-blue-500">
                     <tr>
