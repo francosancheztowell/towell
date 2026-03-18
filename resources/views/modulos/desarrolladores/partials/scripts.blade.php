@@ -58,6 +58,9 @@ document.addEventListener('DOMContentLoaded', function () {
         ordenEnProcesoNum:   document.getElementById('ordenEnProcesoNum'),
         ordenEnProcesoFecha: document.getElementById('ordenEnProcesoFecha'),
         ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
+        btnFinalizarOrden:   document.getElementById('btnFinalizarOrden'),
+        btnRepSiguiente:    document.getElementById('btnRepSiguiente'),
+        btnRepFinal:        document.getElementById('btnRepFinal'),
     };
 
     // ── Estado ─────────────────────────────────────────────────────────────
@@ -74,49 +77,50 @@ document.addEventListener('DOMContentLoaded', function () {
         omitirConfirmacionPasadas: false,
     };
 
-    // ── Modal Reprogramar ──────────────────────────────────────────────────
-    let reprogramarCheckboxActual = null;
+    els.btnFinalizarOrden?.addEventListener('click', function () {
+        if (!state.ordenEnProceso) return;
+        if (confirm(`¿Finalizar la orden "${state.ordenEnProceso}"?`)) {
+            alert(`Orden "${state.ordenEnProceso}" finalizada.`);
+        }
+    });
 
-    function mostrarModalReprogramar(checkbox) {
-        reprogramarCheckboxActual = checkbox;
-        const orden = state.ordenEnProceso || 'N/A';
-        const nombre = state.ordenEnProcesoNombre || '';
+    els.btnRepSiguiente?.addEventListener('click', function () {
+        if (!state.ordenEnProceso) return;
         if (els.modalReprogramarOrden) {
-            els.modalReprogramarOrden.textContent = `Orden: ${orden}${nombre ? ' — ' + nombre : ''}`;
+            els.modalReprogramarOrden.textContent = `Orden: ${state.ordenEnProceso}${state.ordenEnProcesoNombre ? ' — ' + state.ordenEnProcesoNombre : ''}`;
         }
         if (els.modalReprogramarMensaje) {
-            els.modalReprogramarMensaje.textContent = 'Al siguiente: Se moverá a la siguiente posición. Al último: Se enviará al final de la cola.';
+            els.modalReprogramarMensaje.textContent = 'Esta orden se moverá a la siguiente posición en la cola.';
         }
         els.modalReprogramar?.classList.remove('hidden');
-    }
+    });
 
-    function cerrarModalReprogramar() {
-        if (reprogramarCheckboxActual) {
-            reprogramarCheckboxActual.checked = false;
-            reprogramarCheckboxActual = null;
+    els.btnRepFinal?.addEventListener('click', function () {
+        if (!state.ordenEnProceso) return;
+        if (els.modalReprogramarOrden) {
+            els.modalReprogramarOrden.textContent = `Orden: ${state.ordenEnProceso}${state.ordenEnProcesoNombre ? ' — ' + state.ordenEnProcesoNombre : ''}`;
         }
-        els.modalReprogramar?.classList.add('hidden');
-    }
+        if (els.modalReprogramarMensaje) {
+            els.modalReprogramarMensaje.textContent = 'Esta orden se moverá al final de la cola.';
+        }
+        els.modalReprogramar?.classList.remove('hidden');
+    });
 
     els.btnReprogramarSiguiente?.addEventListener('click', function () {
         state.reprogramarAccion = 'siguiente';
         els.modalReprogramar?.classList.add('hidden');
-        if (reprogramarCheckboxActual) {
-            reprogramarCheckboxActual.dataset.accion = 'siguiente';
-        }
         alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al siguiente.`);
     });
 
     els.btnReprogramarUltimo?.addEventListener('click', function () {
         state.reprogramarAccion = 'ultimo';
         els.modalReprogramar?.classList.add('hidden');
-        if (reprogramarCheckboxActual) {
-            reprogramarCheckboxActual.dataset.accion = 'ultimo';
-        }
         alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al último.`);
     });
 
-    document.getElementById('modalReprogramarCancelar')?.addEventListener('click', cerrarModalReprogramar);
+    document.getElementById('modalReprogramarCancelar')?.addEventListener('click', function () {
+        els.modalReprogramar?.classList.add('hidden');
+    });
 
     // ── Utilidades ────────────────────────────────────────────────────────
     function spinnerHtml(colspan, mensaje) {
@@ -700,7 +704,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const soloConOrden = els.filtroSoloConOrden?.checked ? '1' : '';
         const url = `/desarrolladores/telar/${telarId}/producciones${soloConOrden ? '?solo_con_orden=1' : ''}`;
         if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
-        els.bodyProducciones.innerHTML = spinnerHtml(7, 'Cargando producciones...');
+        els.bodyProducciones.innerHTML = spinnerHtml(6, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
         els.filtroOrdenContainer?.classList.remove('hidden');
         els.noDataMessage.classList.add('hidden');
@@ -729,9 +733,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <input type="checkbox" class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                                        data-telar="${telarId}" data-salon="${p.SalonTejidoId ?? ''}" data-tamano="${p.TamanoClave ?? ''}"
                                        data-produccion="${p.NoProduccion}" data-modelo="${p.NombreProducto || ''}" onchange="seleccionarProduccion(this)">
-                            </td>
-                            <td class="px-3 py-3 whitespace-nowrap text-center bg-blue-50">
-                                <input type="checkbox" class="reprogramar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer">
                             </td>`;
                         els.bodyProducciones.appendChild(row);
                     });
@@ -770,7 +771,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     .catch(err => console.error('Error fetching orden-en-proceso:', err));
             })
             .catch(() => {
-                els.bodyProducciones.innerHTML = `<tr><td colspan="7" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
+                els.bodyProducciones.innerHTML = `<tr><td colspan="6" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
                 els.filtroOrdenContainer?.classList.add('hidden');
             });
     }
@@ -1067,17 +1068,6 @@ document.addEventListener('DOMContentLoaded', function () {
     els.bodyProducciones?.addEventListener('input', function (e) {
         if (e.target.classList.contains('orden-input')) {
             validarOrden(e.target);
-        }
-    });
-
-    // ── Reprogramar Checkbox ───────────────────────────────────────────────
-    els.bodyProducciones?.addEventListener('change', function (e) {
-        if (e.target.classList.contains('reprogramar-checkbox')) {
-            if (e.target.checked) {
-                mostrarModalReprogramar(e.target);
-            } else {
-                e.target.dataset.accion = '';
-            }
         }
     });
 });
