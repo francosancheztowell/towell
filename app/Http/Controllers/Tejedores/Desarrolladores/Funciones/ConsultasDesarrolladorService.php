@@ -74,16 +74,43 @@ class ConsultasDesarrolladorService
     /**
      * @return Collection<int, AtaMontadoTelasModel>
      */
-    private function obtenerJuliosPorTipo(string $tipo): Collection
+    private function obtenerJuliosPorTipo(string $tipo, ?string $telarId = null): Collection
     {
-        return AtaMontadoTelasModel::query()
+        $query = AtaMontadoTelasModel::query()
             ->whereNotNull('NoJulio')
             ->where('NoJulio', '!=', '')
             ->where('Tipo', $tipo)
-            ->orderByDesc('Fecha')
-            ->get(['NoJulio', 'InventSizeId', 'Fecha'])
+            ->orderByDesc('Fecha');
+
+        if ($telarId !== null && trim($telarId) !== '') {
+            $query->where('NoTelarId', trim($telarId));
+        }
+
+        return $query->get(['NoJulio', 'InventSizeId', 'Fecha'])
             ->unique('NoJulio')
             ->values();
+    }
+
+    /**
+     * Obtiene julios de rizo y pie filtrados por telar.
+     *
+     * @param string $telarId
+     * @return array
+     */
+    public function obtenerJuliosPorTelar(string $telarId): array
+    {
+        try {
+            return [
+                'success' => true,
+                'juliosRizo' => $this->obtenerJuliosPorTipo('Rizo', $telarId),
+                'juliosPie' => $this->obtenerJuliosPorTipo('Pie', $telarId),
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error al obtener los julios: ' . $e->getMessage(),
+            ];
+        }
     }
 
     /**

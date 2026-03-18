@@ -90,6 +90,26 @@ document.addEventListener('DOMContentLoaded', function () {
         option.selected = true;
     }
 
+    function resetJulioSelect(select, placeholder = 'Selecciona un Julio') {
+        if (!select) return;
+        select.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = placeholder;
+        option.disabled = true;
+        option.selected = true;
+        select.appendChild(option);
+    }
+
+    function populateJulioSelect(select, items, placeholder = 'Selecciona un Julio') {
+        resetJulioSelect(select, placeholder);
+        (items || []).forEach(item => {
+            const noJulio = String(item?.NoJulio ?? '').trim();
+            if (!noJulio) return;
+            select.appendChild(new Option(noJulio, noJulio));
+        });
+    }
+
     function checkFormValidity() {
         if (!els.form || !els.btnGuardar) return;
         
@@ -591,6 +611,23 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function cargarJuliosPorTelar(telarId) {
+        resetJulioSelect(els.selectJulioRizo, 'Cargando julios...');
+        resetJulioSelect(els.selectJulioPie, 'Cargando julios...');
+
+        fetch(`/desarrolladores/telar/${encodeURIComponent(telarId)}/julios`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) throw new Error('Error al cargar julios');
+                populateJulioSelect(els.selectJulioRizo, data.juliosRizo);
+                populateJulioSelect(els.selectJulioPie, data.juliosPie);
+            })
+            .catch(() => {
+                resetJulioSelect(els.selectJulioRizo, 'Sin julios disponibles');
+                resetJulioSelect(els.selectJulioPie, 'Sin julios disponibles');
+            });
+    }
+
     function cargarDetallesOrden(noProduccion) {
         els.bodyDetallesOrden.innerHTML = spinnerHtml(6, 'Cargando detalles...');
 
@@ -738,6 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!this.value) return;
         Codificacion.updateSuffix(this.value);
         Codificacion.updateHiddenValue();
+        cargarJuliosPorTelar(this.value);
         cargarProducciones(this.value);
     });
 

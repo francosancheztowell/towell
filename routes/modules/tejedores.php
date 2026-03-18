@@ -121,6 +121,7 @@ Route::controller(InventarioTelaresController::class)
 
 Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
 Route::get('/desarrolladores/telar/{telarId}/producciones', [TelDesarrolladoresController::class, 'obtenerProducciones'])->name('desarrolladores.obtener-producciones');
+Route::get('/desarrolladores/telar/{telarId}/julios', [TelDesarrolladoresController::class, 'obtenerJuliosPorTelar'])->name('desarrolladores.obtener-julios');
 Route::get('/desarrolladores/telar/{telarId}/produccion/{noProduccion}', [TelDesarrolladoresController::class, 'formularioDesarrollador'])->name('desarrolladores.formulario');
 Route::get('/desarrolladores/orden/{noProduccion}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrden'])->name('desarrolladores.obtener-detalles-orden');
 Route::get('/desarrolladores/modelo-codificado/{salonTejidoId}/{tamanoClave}', [TelDesarrolladoresController::class, 'obtenerCodigoDibujo'])->name('desarrolladores.obtener-codigo-dibujo');

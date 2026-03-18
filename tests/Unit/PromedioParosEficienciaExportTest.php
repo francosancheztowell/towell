@@ -58,24 +58,27 @@ class PromedioParosEficienciaExportTest extends TestCase
         $this->assertSame('Promedio Paros y Eficiencia', $sheet->getTitle());
         $this->assertSame('MA 1T', $sheet->getCell('A8')->getValue());
         $this->assertSame('2026-03-03', ExcelDate::excelToDateTimeObject($sheet->getCell('A2')->getValue())->format('Y-m-d'));
-        $this->assertSame(96, $sheet->getCell('C2')->getValue());
+        $this->assertStringContainsString('IFERROR', $sheet->getCell('C2')->getValue());
+        $this->assertStringContainsString('C11', $sheet->getCell('C2')->getValue());
+        $this->assertStringContainsString('C12', $sheet->getCell('C2')->getValue());
         $this->assertSame(12, $sheet->getCell('C3')->getValue());
         $this->assertSame(3, $sheet->getCell('C5')->getValue());
         $this->assertSame(4, $sheet->getCell('C7')->getValue());
         $this->assertSame(7, $sheet->getCell('C9')->getValue());
         $this->assertSame(120, $sheet->getCell('C11')->getValue());
-        $this->assertSame(300, $sheet->getCell('C12')->getValue());
+        $this->assertSame(300.0, $sheet->getCell('C12')->getValue());
         $this->assertSame(5, $sheet->getCell('N3')->getValue());
         $this->assertSame(99, $sheet->getCell('N11')->getValue());
-        $this->assertSame(250, $sheet->getCell('N12')->getValue());
+        $this->assertSame(250.0, $sheet->getCell('N12')->getValue());
         $this->assertStringContainsString('IFERROR', $sheet->getCell('N2')->getValue());
-        $this->assertSame(100, $sheet->getCell('AL2')->getValue());
+        $this->assertStringContainsString('AL10', $sheet->getCell('AL2')->getValue());
+        $this->assertStringContainsString('AL11', $sheet->getCell('AL2')->getValue());
         $this->assertSame(8, $sheet->getCell('AL3')->getValue());
         $this->assertSame(4, $sheet->getCell('AL5')->getValue());
         $this->assertSame(2, $sheet->getCell('AL6')->getValue());
         $this->assertSame(1, $sheet->getCell('AL8')->getValue());
         $this->assertSame(88, $sheet->getCell('AL10')->getValue());
-        $this->assertSame(275, $sheet->getCell('AL11')->getValue());
+        $this->assertSame(275.0, $sheet->getCell('AL11')->getValue());
         $this->assertSame('0', $sheet->getStyle('C2')->getNumberFormat()->getFormatCode());
         $this->assertSame('0.##', $sheet->getStyle('C12')->getNumberFormat()->getFormatCode());
         $this->assertSame('0', $sheet->getStyle('AL2')->getNumberFormat()->getFormatCode());
@@ -124,11 +127,11 @@ class PromedioParosEficienciaExportTest extends TestCase
         $this->assertSame('MI 1T', $sheet->getCell('A280')->getValue());
         $this->assertSame(18, $sheet->getCell('C275')->getValue());
         $this->assertSame(108, $sheet->getCell('C283')->getValue());
-        $this->assertSame(308, $sheet->getCell('C284')->getValue());
+        $this->assertSame(308.0, $sheet->getCell('C284')->getValue());
         $this->assertStringContainsString('IFERROR', $sheet->getCell('C274')->getValue());
         $this->assertStringContainsString('C283', $sheet->getCell('C274')->getValue());
         $this->assertStringContainsString('C284', $sheet->getCell('C274')->getValue());
-        $this->assertNotEmpty($sheet->getConditionalStyles('C274'));
+        $this->assertCount(0, $sheet->getConditionalStyles('C274'));
     }
 
     public function test_export_covers_efficiency_for_the_three_turns_of_same_day(): void
@@ -209,34 +212,34 @@ class PromedioParosEficienciaExportTest extends TestCase
         $this->assertSame('MA 2T', $sheet->getCell('A19')->getValue());
         $this->assertSame('MA 3T', $sheet->getCell('A30')->getValue());
 
-        $this->assertSame(96, $sheet->getCell('C2')->getValue());
-        $this->assertSame(97, $sheet->getCell('C13')->getValue());
-        $this->assertSame(99, $sheet->getCell('C24')->getValue());
+        $this->assertStringContainsString('C11', $sheet->getCell('C2')->getValue());
+        $this->assertStringContainsString('C22', $sheet->getCell('C13')->getValue());
+        $this->assertStringContainsString('C33', $sheet->getCell('C24')->getValue());
 
-        $this->assertSame(102, $sheet->getCell('AL2')->getValue());
-        $this->assertSame(99, $sheet->getCell('AL13')->getValue());
-        $this->assertSame(102, $sheet->getCell('AL24')->getValue());
+        $this->assertStringContainsString('AL10', $sheet->getCell('AL2')->getValue());
+        $this->assertStringContainsString('AL21', $sheet->getCell('AL13')->getValue());
+        $this->assertStringContainsString('AL32', $sheet->getCell('AL24')->getValue());
 
         $this->assertSame(120, $sheet->getCell('C11')->getValue());
-        $this->assertSame(300, $sheet->getCell('C12')->getValue());
+        $this->assertSame(300.0, $sheet->getCell('C12')->getValue());
         $this->assertSame(150, $sheet->getCell('C22')->getValue());
-        $this->assertSame(310, $sheet->getCell('C23')->getValue());
+        $this->assertSame(310.0, $sheet->getCell('C23')->getValue());
         $this->assertSame(180, $sheet->getCell('C33')->getValue());
-        $this->assertSame(320, $sheet->getCell('C34')->getValue());
+        $this->assertSame(320.0, $sheet->getCell('C34')->getValue());
 
         $this->assertSame(88, $sheet->getCell('AL10')->getValue());
-        $this->assertSame(275, $sheet->getCell('AL11')->getValue());
+        $this->assertSame(275.0, $sheet->getCell('AL11')->getValue());
         $this->assertSame(98, $sheet->getCell('AL21')->getValue());
-        $this->assertSame(280, $sheet->getCell('AL22')->getValue());
+        $this->assertSame(280.0, $sheet->getCell('AL22')->getValue());
         $this->assertSame(108, $sheet->getCell('AL32')->getValue());
-        $this->assertSame(290, $sheet->getCell('AL33')->getValue());
+        $this->assertSame(290.0, $sheet->getCell('AL33')->getValue());
 
-        $this->assertCount(4, $sheet->getConditionalStyles('C2'));
-        $this->assertCount(4, $sheet->getConditionalStyles('C13'));
-        $this->assertCount(4, $sheet->getConditionalStyles('C24'));
-        $this->assertCount(4, $sheet->getConditionalStyles('AL2'));
-        $this->assertCount(4, $sheet->getConditionalStyles('AL13'));
-        $this->assertCount(4, $sheet->getConditionalStyles('AL24'));
+        $this->assertCount(0, $sheet->getConditionalStyles('C2'));
+        $this->assertCount(0, $sheet->getConditionalStyles('C13'));
+        $this->assertCount(0, $sheet->getConditionalStyles('C24'));
+        $this->assertCount(0, $sheet->getConditionalStyles('AL2'));
+        $this->assertCount(0, $sheet->getConditionalStyles('AL13'));
+        $this->assertCount(0, $sheet->getConditionalStyles('AL24'));
         $this->assertSame('0', $sheet->getStyle('C24')->getNumberFormat()->getFormatCode());
         $this->assertSame('0', $sheet->getStyle('AL24')->getNumberFormat()->getFormatCode());
     }

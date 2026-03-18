@@ -12,7 +12,6 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Conditional;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
@@ -309,19 +308,6 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
                     continue;
                 }
 
-                $efficiencyCoordinate = Coordinate::stringFromColumnIndex($columnIndex) . $turnStartRow;
-                $efficiency = $values['eficiencia'] ?? null;
-
-                if (
-                    $efficiency !== null
-                    && $this->canWriteDataCoordinate($efficiencyCoordinate, $mergedLookup)
-                ) {
-                    $sheet->setCellValue($efficiencyCoordinate, $this->normalizeWritableInteger($efficiency));
-                    $sheet->getStyle($efficiencyCoordinate)
-                        ->getNumberFormat()
-                        ->setFormatCode(self::INTEGER_FORMAT);
-                }
-
                 foreach ($this->resolveMetricRowOffsets($columnIndex) as $metric => $offset) {
                     $value = $values[$metric] ?? null;
                     if ($value === null) {
@@ -363,11 +349,10 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
                     continue;
                 }
 
-                $sheet->setConditionalStyles($coordinate, $this->buildEfficiencyConditionalStyles($coordinate));
                 $sheet->setCellValue(
                     $coordinate,
                     sprintf(
-                        '=IF(OR(%1$s%2$d="",%1$s%3$d="",%1$s%3$d=0),"",IFERROR(ROUND((%1$s%2$d*100000)/(%1$s%3$d*60*8),0),""))',
+                        '=IF(OR(%1$s%2$d="",%1$s%3$d="",%1$s%3$d=0),"",IFERROR((%1$s%2$d*100000)/(%1$s%3$d*60*8),""))',
                         $column,
                         $marcasRow,
                         $rpmRow
@@ -400,49 +385,6 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
                 $sourceTheme->getMinorFontComplexScript(),
                 $sourceTheme->getMinorFontSubstitutions()
             );
-    }
-
-    private function buildEfficiencyConditionalStyles(string $coordinate): array
-    {
-        $red = $this->makeEfficiencyConditional(
-            $coordinate,
-            'AND(%1$s<>"",%1$s<60)',
-            'FFF8696B'
-        );
-        $orange = $this->makeEfficiencyConditional(
-            $coordinate,
-            'AND(%1$s>=60,%1$s<75)',
-            'FFF4B183'
-        );
-        $yellow = $this->makeEfficiencyConditional(
-            $coordinate,
-            'AND(%1$s>=75,%1$s<88)',
-            'FFFFEB84'
-        );
-        $green = $this->makeEfficiencyConditional(
-            $coordinate,
-            'AND(%1$s>=88)',
-            'FF63BE7B'
-        );
-
-        return [$red, $orange, $yellow, $green];
-    }
-
-    private function makeEfficiencyConditional(
-        string $coordinate,
-        string $expressionTemplate,
-        string $fillColor
-    ): Conditional {
-        $conditional = new Conditional();
-        $conditional->setConditionType(Conditional::CONDITION_EXPRESSION);
-        $conditional->addCondition(sprintf($expressionTemplate, $coordinate));
-        $conditional->getStyle()
-            ->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()
-            ->setARGB($fillColor);
-
-        return $conditional;
     }
 
     private function normalizeLabelBandColors(Worksheet $sheet, array $coordinates): void
@@ -494,9 +436,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
             return $value;
         }
 
-        $numeric = round((float) $value, 2);
-
-        return fmod($numeric, 1.0) === 0.0 ? (int) $numeric : $numeric;
+        return round((float) $value, 2);
     }
 
     private function buildMergedLookup(Worksheet $sheet): array

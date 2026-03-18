@@ -73,6 +73,16 @@ class TelDesarrolladoresController extends Controller
     }
 
     /**
+     * Obtiene vía JSON los julios de rizo y pie filtrados por telar.
+     */
+    public function obtenerJuliosPorTelar($telarId)
+    {
+        $resultado = $this->consultasService->obtenerJuliosPorTelar($telarId);
+        $status = $resultado['success'] ? 200 : 500;
+        return response()->json($resultado, $status);
+    }
+
+    /**
      * Obtiene vía JSON los detalles de la orden para autocompletar el formulario.
      */
     public function obtenerDetallesOrden($noProduccion)
