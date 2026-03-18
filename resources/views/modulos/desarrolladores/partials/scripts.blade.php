@@ -57,7 +57,6 @@ document.addEventListener('DOMContentLoaded', function () {
         ordenEnProcesoBanner: document.getElementById('ordenEnProcesoBanner'),
         ordenEnProcesoNum:   document.getElementById('ordenEnProcesoNum'),
         ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
-        btnCerrarBannerEnProceso: document.getElementById('btnCerrarBannerEnProceso'),
     };
 
     // ── Estado ─────────────────────────────────────────────────────────────
@@ -652,7 +651,6 @@ document.addEventListener('DOMContentLoaded', function () {
         els.modalPasadas?.classList.add('hidden');
         if (els.formJulioRizoInfo) els.formJulioRizoInfo.textContent = '—';
         if (els.formJulioPieInfo) els.formJulioPieInfo.textContent = '—';
-        if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
         actualizarResumen(null);
         prefillDesde(null);
         checkFormValidity();
@@ -938,10 +936,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Event Listeners ───────────────────────────────────────────────────
     els.form?.addEventListener('input', checkFormValidity);
     els.form?.addEventListener('change', checkFormValidity);
-
-    els.btnCerrarBannerEnProceso?.addEventListener('click', function () {
-        els.ordenEnProcesoBanner?.classList.add('hidden');
-    });
 
     els.selectTelar.addEventListener('change', function () {
         if (!this.value) return;
