@@ -80,21 +80,38 @@ document.addEventListener('DOMContentLoaded', function () {
     els.btnAccionOrden?.addEventListener('click', function() {
         if (!state.ordenEnProceso) return;
 
-        var destino = null;
+        // Obtener el telar destino del banner (el que se está mostrando)
+        var telarDestinoActual = els.ordenEnProcesoTelar ? els.ordenEnProcesoTelar.textContent : null;
+        // También verificar si hay selección en la fila
         var selects = document.querySelectorAll('.checkbox-produccion:checked');
         if (selects.length > 0) {
             var row = selects[0].closest('tr');
             var telarDestinoSel = row ? row.querySelector('.telar-destino-select') : null;
             if (telarDestinoSel && telarDestinoSel.value) {
-                destino = telarDestinoSel.value;
+                telarDestinoActual = telarDestinoSel.value;
             }
         }
 
         if (accionEstado === 0) {
-            // Finalizar - proceso nulo
-            if (confirm('¿Finalizar la orden "' + state.ordenEnProceso + '"? Quedara como proceso nulo.')) {
-                alert('Orden "' + state.ordenEnProceso + '" finalizada. Proceso nulo.');
+            // Finalizar - proceso nulo (GET directo sin alerta)
+            var urlFinalizar = '/desarrolladores/finalizar-orden?orden=' + encodeURIComponent(state.ordenEnProceso);
+            if (telarDestinoActual && telarDestinoActual !== '-') {
+                urlFinalizar += '&telar=' + encodeURIComponent(telarDestinoActual);
             }
+            fetch(urlFinalizar)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        // Recargar producciones del telar actual
+                        cargarProducciones(window.__TELAR_ACTUAL__);
+                    } else {
+                        alert(data.message || 'Error al finalizar');
+                    }
+                })
+                .catch(function() {
+                    alert('Error de conexión');
+                });
+            
             // Cambiar a siguiente estado
             accionEstado = 1;
             els.btnAccionOrden.textContent = 'Reprogramar siguiente';
@@ -102,7 +119,8 @@ document.addEventListener('DOMContentLoaded', function () {
             els.btnAccionOrden.classList.add('bg-blue-600', 'hover:bg-blue-700');
         } else if (accionEstado === 1) {
             // Reprogramar siguiente
-            if (!destino) {
+            var destino = telarDestinoActual;
+            if (!destino || destino === '-') {
                 alert('Selecciona un telar destino primero.');
                 return;
             }
@@ -114,7 +132,8 @@ document.addEventListener('DOMContentLoaded', function () {
             els.btnAccionOrden.textContent = 'Reprogramar final';
         } else if (accionEstado === 2) {
             // Reprogramar final
-            if (!destino) {
+            var destino = telarDestinoActual;
+            if (!destino || destino === '-') {
                 alert('Selecciona un telar destino primero.');
                 return;
             }
@@ -133,11 +152,42 @@ document.addEventListener('DOMContentLoaded', function () {
     function setupTelarDestinoListeners() {
         document.querySelectorAll('.telar-destino-select').forEach(function(select) {
             select.addEventListener('change', function() {
+                var telarDestino = this.value;
+                
                 // Resetear estado del boton cuando cambia el destino
                 accionEstado = 0;
                 els.btnAccionOrden.textContent = 'Finalizar';
                 els.btnAccionOrden.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 els.btnAccionOrden.classList.add('bg-green-600', 'hover:bg-green-700');
+                
+                // Si hay telar destino seleccionado, cargar su orden en proceso
+                if (telarDestino) {
+                    fetch('/desarrolladores/telar/' + encodeURIComponent(telarDestino) + '/orden-en-proceso')
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.success && data.orden) {
+                                state.ordenEnProceso = data.orden.noProduccion;
+                                state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
+                                if (els.ordenEnProcesoBanner) {
+                                    els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
+                                    els.ordenEnProcesoFecha.textContent = data.orden.fechaInicio || '-';
+                                    els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre || '-';
+                                    els.ordenEnProcesoTelar.textContent = telarDestino;
+                                    els.ordenEnProcesoBanner.classList.remove('hidden');
+                                }
+                            } else {
+                                // No hay orden en proceso en el telar destino
+                                if (els.ordenEnProcesoBanner) {
+                                    els.ordenEnProcesoNum.textContent = 'Sin orden';
+                                    els.ordenEnProcesoFecha.textContent = '-';
+                                    els.ordenEnProcesoNombre.textContent = '-';
+                                    els.ordenEnProcesoTelar.textContent = telarDestino;
+                                    els.ordenEnProcesoBanner.classList.remove('hidden');
+                                }
+                            }
+                        })
+                        .catch(function() {});
+                }
             });
         });
     }
@@ -717,7 +767,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const soloConOrden = els.filtroSoloConOrden?.checked ? '?solo_con_orden=1' : '';
         const url = `/desarrolladores/telar/${telarId}/producciones-html${soloConOrden}`;
         if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
-        els.bodyProducciones.innerHTML = spinnerHtml(7, 'Cargando producciones...');
+        els.bodyProducciones.innerHTML = spinnerHtml(6, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
         els.filtroOrdenContainer?.classList.remove('hidden');
         els.noDataMessage.classList.add('hidden');
@@ -725,7 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(url)
             .then(r => r.text())
             .then(html => {
-                els.bodyProducciones.innerHTML = html || emptyRowHtml(7, 'No se encontraron producciones');
+                els.bodyProducciones.innerHTML = html || emptyRowHtml(6, 'No se encontraron producciones');
                 if (!html || html.trim() === '') {
                     els.noDataMessage.classList.remove('hidden');
                     els.filtroOrdenContainer?.classList.add('hidden');
@@ -738,7 +788,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             })
             .catch(() => {
-                els.bodyProducciones.innerHTML = `<tr><td colspan="7" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
+                els.bodyProducciones.innerHTML = '<tr><td colspan="6" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>';
                 els.filtroOrdenContainer?.classList.add('hidden');
             });
 

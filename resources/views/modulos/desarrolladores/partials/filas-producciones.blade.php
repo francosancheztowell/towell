@@ -8,7 +8,6 @@
                 : 'N/A';
         @endphp
         <tr class="hover:bg-gray-100 transition-colors">
-            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-blue-50">{{ $p['SalonTejidoId'] ?? 'N/A' }}</td>
             <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white">
                 @if($ordenVacio)
                     <input type="number" min="1" class="orden-input w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Escribe orden" data-original="">
@@ -29,7 +28,7 @@
                     @endforeach
                 </select>
             </td>
-            <td class="px-3 py-3 whitespace-nowrap text-center bg-white">
+            <td class="px-3 py-3 whitespace-nowrap text-center bg-blue-50">
                 <input type="checkbox" class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                        data-telar="{{ $telarId }}"
                        data-salon="{{ $p['SalonTejidoId'] ?? '' }}"

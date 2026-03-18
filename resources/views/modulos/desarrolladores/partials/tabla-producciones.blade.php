@@ -27,7 +27,6 @@
             <table class="w-full divide-y divide-red-200">
                 <thead class="bg-blue-500">
                     <tr>
-                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Salón</th>
                         <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Orden</th>
                         <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Fecha Cambio</th>
                         <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Clave</th>
