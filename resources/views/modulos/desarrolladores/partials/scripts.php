@@ -165,16 +165,7 @@ document.addEventListener('DOMContentLoaded', function () {
         option.selected = true;
     }
 
-    function buildTelarDestinoOptions(telarActual) {
-        const telares = window.__TELARES_LISTA__ || [];
-        let options = "<option value=''>--</option>";
-        telares.forEach(t => {
-            if (t !== telarActual) {
-                options += `<option value="${t}">${t}</option>`;
-            }
-        });
-        return options;
-    }
+    function resetJulioSelect(select, placeholder = 'Selecciona un Julio') {
         if (!select) return;
         select.innerHTML = '';
         const option = document.createElement('option');
@@ -361,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const currentTelar = telarId || getActiveTelar();
             const suffix = getSuffix(currentTelar);
             if (els.codificacionSuffix) {
-                els.codificacionSuffix.textContent = suffix ? `.${suffix}` : '';
+                els.codificacionSuffix.textContent = suffix ? ('.' + suffix) : '';
                 els.codificacionSuffix.classList.toggle('hidden', !suffix);
             }
             return suffix;
@@ -565,38 +556,43 @@ document.addEventListener('DOMContentLoaded', function () {
     })();
 
     // ── Fila de detalle (crear/eliminar/agregar) ──────────────────────────
-    function crearFilaDetalle(index, calibre = '', hilo = '', fibra = '', codColor = '', nombreColor = '', pasadas = '', pasadasKey = null, usarSelects = false) {
-        const key = pasadasKey ?? `nuevo_${state.contadorFilasNuevas++}`;
-        const row = document.createElement('tr');
+    function crearFilaDetalle(index, calibre, hilo, fibra, codColor, nombreColor, pasadas, pasadasKey, usarSelects) {
+        calibre = calibre || '';
+        hilo = hilo || '';
+        fibra = fibra || '';
+        codColor = codColor || '';
+        nombreColor = nombreColor || '';
+        pasadas = pasadas || '';
+        pasadasKey = pasadasKey || ('nuevo_' + (state.contadorFilasNuevas++));
+        usarSelects = Boolean(usarSelects);
+
+        var inp = 'w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm';
+        var svgDel = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+        var selDis = usarSelects ? ' disabled' : '';
+        var selCls = usarSelects ? (inp + ' bg-gray-50 detalle-color') : inp;
+        var selRdonly = usarSelects ? ' readonly' : '';
+        var claveCell = usarSelects
+            ? '<td class="px-4 py-2"><select name="detalle_calibre[]" class="' + inp + '"><option value="">Cargando...</option></select></td>'
+            : '<td class="px-4 py-2"><input type="text" name="detalle_calibre[]" value="' + calibre + '" class="' + inp + '" placeholder="Calibre"></td>';
+        var hiloCell = '<td class="px-4 py-2"><input type="number" name="detalle_hilo[]" value="' + hilo + '" step="0.1" min="0" class="' + inp + '" placeholder="Hilo"></td>';
+        var fibraCell = usarSelects
+            ? '<td class="px-4 py-2"><select name="detalle_fibra[]" class="' + inp + '" disabled><option value="">Selecciona calibre</option></select></td>'
+            : '<td class="px-4 py-2"><input type="text" name="detalle_fibra[]" value="' + fibra + '" class="' + inp + '" placeholder="Fibra"></td>';
+        var codColorCell = usarSelects
+            ? '<td class="px-4 py-2"><select name="detalle_codcolor[]" class="' + inp + '" disabled><option value="">Selecciona calibre</option></select></td>'
+            : '<td class="px-4 py-2"><input type="text" name="detalle_codcolor[]" value="' + codColor + '" class="' + inp + '" placeholder="Cod Color"></td>';
+        var nombreColorCell = '<td class="px-4 py-2"><input type="text" name="detalle_nombrecolor[]" value="' + nombreColor + '" class="' + selCls + '" placeholder="Nombre Color"' + selRdonly + '></td>';
+        var pasadasCell = '<td class="px-4 py-2"><input type="number" name="pasadas[' + pasadasKey + ']" value="' + pasadas + '" min="1" step="1" required class="w-20 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0"></td>';
+        var accionesCell = '<td class="px-4 py-2 text-center"><button type="button" onclick="eliminarFilaDetalle(this)" class="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Eliminar fila">' + svgDel + '</button></td>';
+
+        var row = document.createElement('tr');
         row.className = 'hover:bg-gray-50 transition-colors fila-detalle';
         row.dataset.index = index;
+        row.innerHTML = claveCell + hiloCell + fibraCell + codColorCell + nombreColorCell + pasadasCell + accionesCell;
 
-        const inputField = (name, val, ph) => `<input type="text" name="${name}" value="${val}" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="${ph}">`;
-        const selectField = (name, cls, ph, disabled = false) => `<select name="${name}" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${cls}" ${disabled ? 'disabled' : ''}><option value="">${ph}</option></select>`;
-
-        row.innerHTML = `
-            <td class="px-4 py-2">${usarSelects ? selectField('detalle_calibre[]', 'detalle-calibre', 'Cargando...') : inputField('detalle_calibre[]', calibre, 'Calibre')}</td>
-            <td class="px-4 py-2"><input type="number" name="detalle_hilo[]" value="${hilo}" step="0.1" min="0" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Hilo"></td>
-            <td class="px-4 py-2">${usarSelects ? selectField('detalle_fibra[]', 'detalle-fibra', 'Selecciona calibre', true) : inputField('detalle_fibra[]', fibra, 'Fibra')}</td>
-            <td class="px-4 py-2">${usarSelects ? selectField('detalle_codcolor[]', 'detalle-codcolor', 'Selecciona calibre', true) : inputField('detalle_codcolor[]', codColor, 'Cod Color')}</td>
-            <td class="px-4 py-2">
-                <input type="text" name="detalle_nombrecolor[]" value="${nombreColor}"
-                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${usarSelects ? 'bg-gray-50 detalle-color' : ''}"
-                       placeholder="Nombre Color" ${usarSelects ? 'readonly' : ''}>
-            </td>
-            <td class="px-4 py-2">
-                <input type="number" name="pasadas[${key}]" value="${pasadas}" min="1" step="1" required
-                       class="w-20 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0">
-            </td>
-            <td class="px-4 py-2 text-center">
-                <button type="button" onclick="eliminarFilaDetalle(this)" class="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Eliminar fila">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                </button>
-            </td>`;
-
-        if (usarSelects) void DetalleSelects.initForRow(row, { calibre, fibra, codColor, colorName: nombreColor });
+        if (usarSelects) {
+            void DetalleSelects.initForRow(row, { calibre: calibre, fibra: fibra, codColor: codColor, colorName: nombreColor });
+        }
         return row;
     }
 
@@ -623,13 +619,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (els.inputDesperdicio) els.inputDesperdicio.value = (data && data.DesperdicioTrama !== null) ? data.DesperdicioTrama : 11;
         // Actualizar badges de julios
         function updateJulioBadge(select, badgeEl, tipo) {
-            const selected = select?.selectedOptions[0];
+            const selected = select ? select.selectedOptions[0] : null;
             if (selected && selected.value) {
-                const invSize = selected.dataset.inventsizeid || '—';
-                const cfgId = selected.dataset.configid || '—';
-                if (badgeEl) badgeEl.textContent = `Tamaño ${tipo}: ${invSize} / Configuración ${tipo}: ${cfgId}`;
+                const invSize = selected.dataset.inventsizeid || '-';
+                const cfgId = selected.dataset.configid || '-';
+                if (badgeEl) badgeEl.textContent = 'Tamaño ' + tipo + ': ' + invSize + ' / Configuración ' + tipo + ': ' + cfgId;
             } else {
-                if (badgeEl) badgeEl.textContent = `No se ha seleccionado Julio ${tipo}`;
+                if (badgeEl) badgeEl.textContent = 'No se ha seleccionado Julio ' + tipo;
             }
         }
         updateJulioBadge(els.selectJulioRizo, els.formJulioRizoInfo, 'Rizo');
@@ -699,89 +695,49 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ── Cargas AJAX ───────────────────────────────────────────────────────
     function cargarProducciones(telarId) {
-        console.log('cargarProducciones called, telarId:', telarId);
-        console.log('tablaProducciones element:', els.tablaProducciones);
-        const soloConOrden = els.filtroSoloConOrden?.checked ? '1' : '';
-        const url = `/desarrolladores/telar/${telarId}/producciones${soloConOrden ? '?solo_con_orden=1' : ''}`;
+        const soloConOrden = els.filtroSoloConOrden?.checked ? '?solo_con_orden=1' : '';
+        const url = `/desarrolladores/telar/${telarId}/producciones-html${soloConOrden}`;
         if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
         els.bodyProducciones.innerHTML = spinnerHtml(7, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
-        console.log('tablaProducciones hidden removed, classList:', els.tablaProducciones.className);
         els.filtroOrdenContainer?.classList.remove('hidden');
         els.noDataMessage.classList.add('hidden');
 
         fetch(url)
-            .then(r => r.json())
-            .then(data => {
-                console.log('producciones response:', data);
-                if (data.success && data.producciones.length > 0) {
-                    els.bodyProducciones.innerHTML = '';
-                    data.producciones.forEach((p) => {
-                        const row = document.createElement('tr');
-                        row.className = 'hover:bg-gray-100 transition-colors';
-                        const ordenVacio = !p.NoProduccion || p.NoProduccion.trim() === '';
-                        row.innerHTML = `
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-blue-50">${p.SalonTejidoId ?? "N/A"}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white">
-                                ${ordenVacio
-                                    ? `<input type="number" min="1" class="orden-input w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Escribe orden" data-original="">`
-                                    : `<span class="orden-value">${p.NoProduccion}</span>`
-                                }
-                            </td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-blue-50">${p.FechaInicio ? new Date(p.FechaInicio).toLocaleDateString("es-ES", {day:"2-digit",month:"2-digit",year:"numeric"}) : "N/A"}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-white">${p.TamanoClave ?? "N/A"}</td>
-                            <td class="px-3 py-3 text-sm text-gray-600 break-words bg-blue-50">${p.NombreProducto || "N/A"}</td>
-                            <td class="px-3 py-3 whitespace-nowrap bg-white">
-                                <select class="telar-destino-select w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50 cursor-pointer">
-                                    ${buildTelarDestinoOptions(telarId)}
-                                </select>
-                            </td>
-                            <td class="px-3 py-3 whitespace-nowrap text-center bg-white">
-                                <input type="checkbox" class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                                       data-telar="${telarId}" data-salon="${p.SalonTejidoId ?? ''}" data-tamano="${p.TamanoClave ?? ''}"
-                                       data-produccion="${p.NoProduccion}" data-modelo="${(p.NombreProducto || '')}" onchange="seleccionarProduccion(this)">
-                            </td>`;
-                        els.bodyProducciones.appendChild(row);
-                    });
-                } else {
-                    els.bodyProducciones.innerHTML = '';
+            .then(r => r.text())
+            .then(html => {
+                els.bodyProducciones.innerHTML = html || emptyRowHtml(7, 'No se encontraron producciones');
+                if (!html || html.trim() === '') {
                     els.noDataMessage.classList.remove('hidden');
                     els.filtroOrdenContainer?.classList.add('hidden');
-                    if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
                 }
-
-                // ── Cargar orden en proceso (SIEMPRE, aunque no haya producciones) ──
-                fetch(`/desarrolladores/telar/${telarId}/orden-en-proceso`)
-                    .then(r => r.json())
-                    .then(data => {
-                        console.log('orden-en-proceso response:', data);
-                        if (data.success && data.orden) {
-                            state.ordenEnProceso = data.orden.noProduccion;
-                            state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
-                            if (els.ordenEnProcesoBanner) {
-                                els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
-                                els.ordenEnProcesoFecha.textContent = data.orden.fechaInicio || '-';
-                                els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre || '-';
-                                els.ordenEnProcesoTelar.textContent = telarId;
-                                els.ordenEnProcesoBanner.classList.remove('hidden');
-                                console.log('Banner shown');
-                            } else {
-                                console.warn('Banner element not found in DOM');
-                            }
-                        } else {
-                            state.ordenEnProceso = '';
-                            state.ordenEnProcesoNombre = '';
-                            if (els.ordenEnProcesoBanner) {
-                                els.ordenEnProcesoBanner.classList.add('hidden');
-                            }
-                        }
-                    })
-                    .catch(err => console.error('Error fetching orden-en-proceso:', err));
             })
             .catch(() => {
                 els.bodyProducciones.innerHTML = `<tr><td colspan="7" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
                 els.filtroOrdenContainer?.classList.add('hidden');
             });
+
+        // ── Cargar orden en proceso (SIEMPRE) ──
+        fetch(`/desarrolladores/telar/${telarId}/orden-en-proceso`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.orden) {
+                    state.ordenEnProceso = data.orden.noProduccion;
+                    state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
+                    if (els.ordenEnProcesoBanner) {
+                        els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
+                        els.ordenEnProcesoFecha.textContent = data.orden.fechaInicio || '-';
+                        els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre || '-';
+                        els.ordenEnProcesoTelar.textContent = telarId;
+                        els.ordenEnProcesoBanner.classList.remove('hidden');
+                    }
+                } else {
+                    state.ordenEnProceso = '';
+                    state.ordenEnProcesoNombre = '';
+                    if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
+                }
+            })
+            .catch(() => {});
     }
 
     function cargarJuliosPorTelar(telarId) {
@@ -919,7 +875,6 @@ document.addEventListener('DOMContentLoaded', function () {
     els.selectTelar.addEventListener('change', function () {
         if (!this.value) return;
         window.__TELAR_ACTUAL__ = this.value;
-        console.log('Telar changed to:', this.value);
         Codificacion.updateSuffix(this.value);
         Codificacion.updateHiddenValue();
         cargarJuliosPorTelar(this.value);
@@ -972,9 +927,9 @@ document.addEventListener('DOMContentLoaded', function () {
     els.selectJulioRizo?.addEventListener('change', function () {
         const selected = this.selectedOptions[0];
         if (selected && selected.value) {
-            const invSize = selected.dataset.inventsizeid || '—';
-            const cfgId = selected.dataset.configid || '—';
-            els.formJulioRizoInfo.textContent = `Tamaño Rizo: ${invSize} / Configuración Rizo: ${cfgId}`;
+            const invSize = selected.dataset.inventsizeid || '-';
+            const cfgId = selected.dataset.configid || '-';
+            els.formJulioRizoInfo.textContent = 'Tamaño Rizo: ' + invSize + ' / Configuración Rizo: ' + cfgId;
         } else {
             els.formJulioRizoInfo.textContent = 'No se ha seleccionado Julio Rizo';
         }
@@ -983,9 +938,9 @@ document.addEventListener('DOMContentLoaded', function () {
     els.selectJulioPie?.addEventListener('change', function () {
         const selected = this.selectedOptions[0];
         if (selected && selected.value) {
-            const invSize = selected.dataset.inventsizeid || '—';
-            const cfgId = selected.dataset.configid || '—';
-            els.formJulioPieInfo.textContent = `Tamaño Pie: ${invSize} / Configuración Pie: ${cfgId}`;
+            const invSize = selected.dataset.inventsizeid || '-';
+            const cfgId = selected.dataset.configid || '-';
+            els.formJulioPieInfo.textContent = 'Tamaño Pie: ' + invSize + ' / Configuración Pie: ' + cfgId;
         } else {
             els.formJulioPieInfo.textContent = 'No se ha seleccionado Julio Pie';
         }

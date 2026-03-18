@@ -63,6 +63,36 @@ class TelDesarrolladoresController extends Controller
     }
 
     /**
+     * Obtiene las producciones de un telar como HTML renderizado.
+     */
+    public function obtenerProduccionesHtml(Request $request, $telarId)
+    {
+        $soloConOrden = $request->boolean('solo_con_orden', false);
+        $resultado = $this->consultasService->obtenerProducciones($telarId, $soloConOrden);
+
+        if (!$resultado['success']) {
+            return response('', 500);
+        }
+
+        $telares = \App\Models\Tejedores\TelTelaresOperador::select('NoTelarId')
+            ->whereNotNull('NoTelarId')
+            ->groupBy('NoTelarId')
+            ->orderBy('NoTelarId')
+            ->pluck('NoTelarId')
+            ->toArray();
+
+        $producciones = $resultado['producciones'];
+        $hasData = count($producciones) > 0;
+
+        return view('modulos.desarrolladores.partials.filas-producciones', [
+            'producciones' => $producciones,
+            'telarId' => $telarId,
+            'telares' => $telares,
+            'hasData' => $hasData,
+        ])->render();
+    }
+
+    /**
      * Obtiene vía JSON las producciones pendientes de un telar.
      */
     public function obtenerProducciones(Request $request, $telarId)
