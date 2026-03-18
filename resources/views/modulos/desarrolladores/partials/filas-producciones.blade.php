@@ -28,7 +28,6 @@
                     @if($telarOrigenValue)
                         <option value="{{ $telarOrigenValue }}" data-es-origen="true">{{ $telarId }}</option>
                     @endif
-                    <option value="">--</option>
                     @foreach($telaresDestino as $t)
                         @php
                             $partes = explode('|', $t['value'] ?? '', 2);
