@@ -736,35 +736,40 @@ document.addEventListener('DOMContentLoaded', function () {
                             </td>`;
                         els.bodyProducciones.appendChild(row);
                     });
-
-                    fetch(`/desarrolladores/telar/${telarId}/orden-en-proceso`)
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.success && data.orden) {
-                                state.ordenEnProceso = data.orden.noProduccion;
-                                state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
-                                // Mostrar banner
-                                if (els.ordenEnProcesoBanner) {
-                                    els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
-                                    els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre
-                                        ? ` — ${state.ordenEnProcesoNombre}`
-                                        : '';
-                                    els.ordenEnProcesoBanner.classList.remove('hidden');
-                                }
-                            } else {
-                                state.ordenEnProceso = '';
-                                state.ordenEnProcesoNombre = '';
-                                if (els.ordenEnProcesoBanner) {
-                                    els.ordenEnProcesoBanner.classList.add('hidden');
-                                }
-                            }
-                        });
                 } else {
                     els.bodyProducciones.innerHTML = '';
                     els.noDataMessage.classList.remove('hidden');
                     els.filtroOrdenContainer?.classList.add('hidden');
                     if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
                 }
+
+                // ── Cargar orden en proceso (SIEMPRE, aunque no haya producciones) ──
+                fetch(`/desarrolladores/telar/${telarId}/orden-en-proceso`)
+                    .then(r => r.json())
+                    .then(data => {
+                        console.log('orden-en-proceso response:', data);
+                        if (data.success && data.orden) {
+                            state.ordenEnProceso = data.orden.noProduccion;
+                            state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
+                            if (els.ordenEnProcesoBanner) {
+                                els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
+                                els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre
+                                    ? ` — ${state.ordenEnProcesoNombre}`
+                                    : '';
+                                els.ordenEnProcesoBanner.classList.remove('hidden');
+                                console.log('Banner shown');
+                            } else {
+                                console.warn('Banner element not found in DOM');
+                            }
+                        } else {
+                            state.ordenEnProceso = '';
+                            state.ordenEnProcesoNombre = '';
+                            if (els.ordenEnProcesoBanner) {
+                                els.ordenEnProcesoBanner.classList.add('hidden');
+                            }
+                        }
+                    })
+                    .catch(err => console.error('Error fetching orden-en-proceso:', err));
             })
             .catch(() => {
                 els.bodyProducciones.innerHTML = `<tr><td colspan="7" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
@@ -940,6 +945,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     els.selectTelar.addEventListener('change', function () {
         if (!this.value) return;
+        console.log('Telar changed to:', this.value);
         Codificacion.updateSuffix(this.value);
         Codificacion.updateHiddenValue();
         cargarJuliosPorTelar(this.value);
