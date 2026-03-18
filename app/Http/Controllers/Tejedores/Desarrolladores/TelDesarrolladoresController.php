@@ -152,6 +152,16 @@ class TelDesarrolladoresController extends Controller
     }
 
     /**
+     * Obtiene vía JSON los detalles de un registro sin orden, buscando por Id.
+     */
+    public function obtenerDetallesOrdenPorId($id)
+    {
+        $resultado = $this->consultasService->obtenerDetallesOrdenPorId((int) $id);
+        $status = $resultado['success'] ? 200 : 500;
+        return response()->json($resultado, $status);
+    }
+
+    /**
      * Obtiene vía JSON el código de dibujo asociado.
      */
     public function obtenerCodigoDibujo($salonTejidoId, $tamanoClave)

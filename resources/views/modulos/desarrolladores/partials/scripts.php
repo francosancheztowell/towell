@@ -818,14 +818,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function cargarDetallesOrden(noProduccion) {
-        if (!noProduccion) {
+        const registroId = els.inputRegistroId ? els.inputRegistroId.value : '';
+        if (!noProduccion && !registroId) {
             els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, 'No se encontraron detalles para esta orden');
             Pasadas.reset();
             return;
         }
         els.bodyDetallesOrden.innerHTML = spinnerHtml(6, 'Cargando detalles...');
 
-        fetch(`/desarrolladores/orden/${noProduccion}/detalles`)
+        const url = noProduccion
+            ? `/desarrolladores/orden/${encodeURIComponent(noProduccion)}/detalles`
+            : `/desarrolladores/registro/${encodeURIComponent(registroId)}/detalles`;
+
+        fetch(url)
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.detalles.length > 0) {

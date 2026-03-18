@@ -169,6 +169,23 @@ class ConsultasDesarrolladorService
     }
 
     /**
+     * Obtiene los detalles de un registro sin orden, buscando por Id.
+     */
+    public function obtenerDetallesOrdenPorId(int $id): array
+    {
+        try {
+            $ordenData = ReqProgramaTejido::find($id);
+
+            return $this->buildDetallesFromOrdenData($ordenData);
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Obtiene los detalles de la orden para una producción determinada.
      *
      * @param string $noProduccion
@@ -178,54 +195,7 @@ class ConsultasDesarrolladorService
     {
         try {
             $ordenData = ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
-            $detalles = [];
-
-            $isZeroish = static function ($value): bool {
-                $text = trim((string) ($value ?? ''));
-                if ($text === '') return true;
-                return (bool) preg_match('/^0+(?:\.0+)?$/', $text);
-            };
-
-            $shouldIncludeDetalle = static function (array $fila) use ($isZeroish): bool {
-                $calibre = trim((string) ($fila['Calibre'] ?? ''));
-                if ($calibre === '') return false;
-
-                $keys = ['Calibre', 'Hilo', 'Fibra', 'CodColor', 'NombreColor', 'Pasadas'];
-                foreach ($keys as $key) {
-                    if (!$isZeroish($fila[$key] ?? '')) {
-                        return true;
-                    }
-                }
-                return false;
-            };
-
-            if ($ordenData) {
-                $filaTrama = TelDesarrolladoresHelper::mapDetalleFila(
-                    $ordenData, 'CalibreTrama', 'CalibreTrama2', 'FibraTrama',
-                    'CodColorTrama', 'ColorTrama', 'PasadasTrama'
-                );
-
-                if ($shouldIncludeDetalle($filaTrama)) {
-                    $detalles[] = $filaTrama;
-                }
-
-                for ($i = 1; $i <= 5; $i++) {
-                    $filaComb = TelDesarrolladoresHelper::mapDetalleFila(
-                        $ordenData, "CalibreComb{$i}", "CalibreComb{$i}2", "FibraComb{$i}",
-                        "CodColorComb{$i}", $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}",
-                        "PasadasComb{$i}"
-                    );
-
-                    if ($shouldIncludeDetalle($filaComb)) {
-                        $detalles[] = $filaComb;
-                    }
-                }
-            }
-
-            return [
-                'success' => true,
-                'detalles' => $detalles
-            ];
+            return $this->buildDetallesFromOrdenData($ordenData);
         } catch (Exception $e) {
             return [
                 'success' => false,
@@ -326,5 +296,51 @@ class ConsultasDesarrolladorService
                 'message' => 'Error al obtener la información'
             ];
         }
+    }
+
+    private function buildDetallesFromOrdenData(?ReqProgramaTejido $ordenData): array
+    {
+        $detalles = [];
+
+        $isZeroish = static function ($value): bool {
+            $text = trim((string) ($value ?? ''));
+            if ($text === '') return true;
+            return (bool) preg_match('/^0+(?:\.0+)?$/', $text);
+        };
+
+        $shouldIncludeDetalle = static function (array $fila) use ($isZeroish): bool {
+            $calibre = trim((string) ($fila['Calibre'] ?? ''));
+            if ($calibre === '') return false;
+
+            foreach (['Calibre', 'Hilo', 'Fibra', 'CodColor', 'NombreColor', 'Pasadas'] as $key) {
+                if (!$isZeroish($fila[$key] ?? '')) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if ($ordenData) {
+            $filaTrama = TelDesarrolladoresHelper::mapDetalleFila(
+                $ordenData, 'CalibreTrama', 'CalibreTrama2', 'FibraTrama',
+                'CodColorTrama', 'ColorTrama', 'PasadasTrama'
+            );
+            if ($shouldIncludeDetalle($filaTrama)) {
+                $detalles[] = $filaTrama;
+            }
+
+            for ($i = 1; $i <= 5; $i++) {
+                $filaComb = TelDesarrolladoresHelper::mapDetalleFila(
+                    $ordenData, "CalibreComb{$i}", "CalibreComb{$i}2", "FibraComb{$i}",
+                    "CodColorComb{$i}", $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}",
+                    "PasadasComb{$i}"
+                );
+                if ($shouldIncludeDetalle($filaComb)) {
+                    $detalles[] = $filaComb;
+                }
+            }
+        }
+
+        return ['success' => true, 'detalles' => $detalles];
     }
 }

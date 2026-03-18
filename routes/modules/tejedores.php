@@ -127,6 +127,7 @@ Route::get('/desarrolladores/telar/{telarId}/orden-en-proceso', [TelDesarrollado
 Route::get('/desarrolladores/telar/{telarId}/julios', [TelDesarrolladoresController::class, 'obtenerJuliosPorTelar'])->name('desarrolladores.obtener-julios');
 Route::get('/desarrolladores/telar/{telarId}/produccion/{noProduccion}', [TelDesarrolladoresController::class, 'formularioDesarrollador'])->name('desarrolladores.formulario');
 Route::get('/desarrolladores/orden/{noProduccion}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrden'])->name('desarrolladores.obtener-detalles-orden');
+Route::get('/desarrolladores/registro/{id}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrdenPorId'])->name('desarrolladores.obtener-detalles-orden-por-id');
 Route::get('/desarrolladores/modelo-codificado/{salonTejidoId}/{tamanoClave}', [TelDesarrolladoresController::class, 'obtenerCodigoDibujo'])->name('desarrolladores.obtener-codigo-dibujo');
 Route::get('/desarrolladores/catcodificados/{telarId}/{noProduccion}', [TelDesarrolladoresController::class, 'obtenerRegistroCatCodificado'])->name('desarrolladores.obtener-registro-catcodificado');
 Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
