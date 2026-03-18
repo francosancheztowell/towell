@@ -93,7 +93,7 @@ class TelDesarrolladoresController extends Controller
     {
         $orden = ReqProgramaTejido::where('NoTelarId', $telarId)
             ->where('EnProceso', 1)
-            ->select('NoProduccion', 'NombreProducto')
+            ->select('NoProduccion', 'NombreProducto', 'FechaInicio')
             ->first();
 
         return response()->json([
@@ -101,6 +101,7 @@ class TelDesarrolladoresController extends Controller
             'orden' => $orden ? [
                 'noProduccion' => $orden->NoProduccion,
                 'nombreProducto' => $orden->NombreProducto ?? '',
+                'fechaInicio' => $orden->FechaInicio ? $orden->FechaInicio->format('d/m/Y') : '',
             ] : null
         ]);
     }

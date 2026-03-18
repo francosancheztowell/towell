@@ -8,7 +8,10 @@
             </span>
             <span class="text-sm font-semibold text-amber-800">Orden en Proceso:</span>
             <span id="ordenEnProcesoNum" class="text-sm font-bold text-amber-900">-</span>
-            <span id="ordenEnProcesoNombre" class="text-xs text-amber-600">-</span>
+            <span class="text-xs text-amber-500">|</span>
+            <span id="ordenEnProcesoFecha" class="text-sm text-amber-700">-</span>
+            <span class="text-xs text-amber-500">|</span>
+            <span id="ordenEnProcesoNombre" class="text-sm text-amber-700">-</span>
         </div>
     </div>
 

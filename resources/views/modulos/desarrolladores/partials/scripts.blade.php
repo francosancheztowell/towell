@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
         formJulioPieInfo:  document.getElementById('formJulioPieInfo'),
         ordenEnProcesoBanner: document.getElementById('ordenEnProcesoBanner'),
         ordenEnProcesoNum:   document.getElementById('ordenEnProcesoNum'),
+        ordenEnProcesoFecha: document.getElementById('ordenEnProcesoFecha'),
         ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
     };
 
@@ -751,9 +752,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
                             if (els.ordenEnProcesoBanner) {
                                 els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
-                                els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre
-                                    ? ` — ${state.ordenEnProcesoNombre}`
-                                    : '';
+                                els.ordenEnProcesoFecha.textContent = data.orden.fechaInicio || '-';
+                                els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre || '-';
                                 els.ordenEnProcesoBanner.classList.remove('hidden');
                                 console.log('Banner shown');
                             } else {
