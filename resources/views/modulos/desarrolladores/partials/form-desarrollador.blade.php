@@ -21,6 +21,10 @@
         @csrf
         <input type="hidden" name="NoTelarId" id="inputTelarId" value="">
         <input type="hidden" name="NoProduccion" id="inputNoProduccion" value="">
+        <input type="hidden" name="accion" id="inputAccion" value="finalizar">
+        <input type="hidden" name="registroId" id="inputRegistroId" value="">
+        <input type="hidden" name="CambioTelarActivo" id="inputCambioTelarActivo" value="false">
+        <input type="hidden" name="TelarDestino" id="inputTelarDestino" value="">
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- FILA 1: Julios y Pasadas -->

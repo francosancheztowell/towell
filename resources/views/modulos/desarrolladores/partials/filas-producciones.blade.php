@@ -21,9 +21,13 @@
             <td class="px-3 py-3 whitespace-nowrap bg-white">
                 <select class="telar-destino-select w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50 cursor-pointer">
                     <option value="">--</option>
-                    @foreach($telares as $t)
-                        @if($t !== $telarId)
-                            <option value="{{ $t }}">{{ $t }}</option>
+                    @foreach($telaresDestino as $t)
+                        @php
+                            $partes = explode('|', $t['value'] ?? '', 2);
+                            $telarParte = trim($partes[1] ?? '');
+                        @endphp
+                        @if($telarParte !== (string)$telarId)
+                            <option value="{{ $t['value'] }}">{{ $t['label'] }}</option>
                         @endif
                     @endforeach
                 </select>
@@ -35,6 +39,7 @@
                        data-tamano="{{ $p['TamanoClave'] ?? '' }}"
                        data-produccion="{{ $p['NoProduccion'] ?? '' }}"
                        data-modelo="{{ $p['NombreProducto'] ?? '' }}"
+                       data-id="{{ $p['Id'] ?? '' }}"
                        onchange="seleccionarProduccion(this)">
             </td>
         </tr>

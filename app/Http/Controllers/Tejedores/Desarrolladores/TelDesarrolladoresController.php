@@ -74,12 +74,7 @@ class TelDesarrolladoresController extends Controller
             return response('', 500);
         }
 
-        $telares = \App\Models\Tejedores\TelTelaresOperador::select('NoTelarId')
-            ->whereNotNull('NoTelarId')
-            ->groupBy('NoTelarId')
-            ->orderBy('NoTelarId')
-            ->pluck('NoTelarId')
-            ->toArray();
+        $telaresDestino = $this->consultasService->obtenerTelaresDestino();
 
         $producciones = $resultado['producciones'];
         $hasData = count($producciones) > 0;
@@ -87,7 +82,7 @@ class TelDesarrolladoresController extends Controller
         return view('modulos.desarrolladores.partials.filas-producciones', [
             'producciones' => $producciones,
             'telarId' => $telarId,
-            'telares' => $telares,
+            'telaresDestino' => $telaresDestino,
             'hasData' => $hasData,
         ])->render();
     }

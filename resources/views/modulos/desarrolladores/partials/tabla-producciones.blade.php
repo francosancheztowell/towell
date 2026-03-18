@@ -24,9 +24,11 @@
                     <span id="ordenEnProcesoTelar" class="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">-</span>
                 </span>
             </div>
-            <button type="button" id="btnAccionOrden" class="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors">
-                Finalizar
-            </button>
+            <select id="selectAccion" class="px-2 py-1 text-xs rounded border border-gray-300 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="finalizar">Finalizar</option>
+                <option value="reprogramar_siguiente">Reprogramar siguiente</option>
+                <option value="reprogramar_final">Reprogramar final</option>
+            </select>
         </div>
     </div>
 

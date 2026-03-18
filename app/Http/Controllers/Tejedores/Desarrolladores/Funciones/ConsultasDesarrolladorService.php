@@ -48,7 +48,7 @@ class ConsultasDesarrolladorService
     /**
      * @return Collection<int, array{value: string, label: string}>
      */
-    private function obtenerTelaresDestino(): Collection
+    public function obtenerTelaresDestino(): Collection
     {
         return ReqProgramaTejido::query()
             ->select('SalonTejidoId', 'NoTelarId')
@@ -65,7 +65,7 @@ class ConsultasDesarrolladorService
 
                 return [
                     'value' => $salon . '|' . $telar,
-                    'label' => $telar . ' (' . $salon . ')',
+                    'label' => $telar,
                 ];
             })
             ->values();
@@ -151,7 +151,7 @@ class ConsultasDesarrolladorService
                       ->where('NoProduccion', '!=', '');
             }
 
-            $producciones = $query->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
+            $producciones = $query->select('Id', 'SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()
                 ->orderBy('FechaInicio', 'asc')
                 ->get();
