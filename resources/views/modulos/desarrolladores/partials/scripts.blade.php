@@ -54,6 +54,10 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         formJulioRizoInfo: document.getElementById('formJulioRizoInfo'),
         formJulioPieInfo:  document.getElementById('formJulioPieInfo'),
+        ordenEnProcesoBanner: document.getElementById('ordenEnProcesoBanner'),
+        ordenEnProcesoNum:   document.getElementById('ordenEnProcesoNum'),
+        ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
+        btnCerrarBannerEnProceso: document.getElementById('btnCerrarBannerEnProceso'),
     };
 
     // ── Estado ─────────────────────────────────────────────────────────────
@@ -648,6 +652,7 @@ document.addEventListener('DOMContentLoaded', function () {
         els.modalPasadas?.classList.add('hidden');
         if (els.formJulioRizoInfo) els.formJulioRizoInfo.textContent = '—';
         if (els.formJulioPieInfo) els.formJulioPieInfo.textContent = '—';
+        if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
         actualizarResumen(null);
         prefillDesde(null);
         checkFormValidity();
@@ -695,6 +700,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function cargarProducciones(telarId) {
         const soloConOrden = els.filtroSoloConOrden?.checked ? '1' : '';
         const url = `/desarrolladores/telar/${telarId}/producciones${soloConOrden ? '?solo_con_orden=1' : ''}`;
+        if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
         els.bodyProducciones.innerHTML = spinnerHtml(7, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
         els.filtroOrdenContainer?.classList.remove('hidden');
@@ -737,12 +743,27 @@ document.addEventListener('DOMContentLoaded', function () {
                             if (data.success && data.orden) {
                                 state.ordenEnProceso = data.orden.noProduccion;
                                 state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
+                                // Mostrar banner
+                                if (els.ordenEnProcesoBanner) {
+                                    els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
+                                    els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre
+                                        ? ` — ${state.ordenEnProcesoNombre}`
+                                        : '';
+                                    els.ordenEnProcesoBanner.classList.remove('hidden');
+                                }
+                            } else {
+                                state.ordenEnProceso = '';
+                                state.ordenEnProcesoNombre = '';
+                                if (els.ordenEnProcesoBanner) {
+                                    els.ordenEnProcesoBanner.classList.add('hidden');
+                                }
                             }
                         });
                 } else {
                     els.bodyProducciones.innerHTML = '';
                     els.noDataMessage.classList.remove('hidden');
                     els.filtroOrdenContainer?.classList.add('hidden');
+                    if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
                 }
             })
             .catch(() => {
@@ -912,6 +933,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Event Listeners ───────────────────────────────────────────────────
     els.form?.addEventListener('input', checkFormValidity);
     els.form?.addEventListener('change', checkFormValidity);
+
+    els.btnCerrarBannerEnProceso?.addEventListener('click', function () {
+        els.ordenEnProcesoBanner?.classList.add('hidden');
+    });
 
     els.selectTelar.addEventListener('change', function () {
         if (!this.value) return;

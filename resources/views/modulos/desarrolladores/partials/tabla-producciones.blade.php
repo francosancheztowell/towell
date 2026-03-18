@@ -1,4 +1,24 @@
 <div class="md:col-span-2">
+    {{-- Orden En Proceso (se llena via JS) --}}
+    <div id="ordenEnProcesoBanner" class="hidden mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-amber-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                </span>
+                <span class="text-sm font-semibold text-amber-800">Orden en Proceso:</span>
+                <span id="ordenEnProcesoNum" class="text-sm font-bold text-amber-900">-</span>
+                <span id="ordenEnProcesoNombre" class="text-xs text-amber-600">-</span>
+            </div>
+            <button type="button" id="btnCerrarBannerEnProceso" class="text-amber-400 hover:text-amber-600 transition-colors" title="Cerrar">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
     <div id="tablaProducciones" class="hidden">
         <div class="rounded-lg border border-gray-200">
             <table class="w-full divide-y divide-red-200">
