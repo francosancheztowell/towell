@@ -1,10 +1,20 @@
 <div id="formContainer" class="hidden mt-8 border-t pt-6 scroll-mt-4 transition-opacity duration-300">
     <div class="mb-4">
         <h3 class="text-xl font-bold text-gray-800">Datos del Desarrollador</h3>
-        <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-700">
+        <div class="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-700">
             <span>Telar: <strong id="formTelarId" class="text-blue-600">-</strong></span>
             <span>No. Orden: <strong id="formNoProduccion" class="text-blue-600">-</strong></span>
             <span>Modelo: <strong id="formNombreProducto">-</strong></span>
+            <span class="inline-flex items-center gap-1">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                    <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
+                    <span id="formJulioRizoInfo">No se ha seleccionado Julio Rizo</span>
+                </span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+                    <span id="formJulioPieInfo">No se ha seleccionado Julio Pie</span>
+                </span>
+            </span>
         </div>
     </div>
     <form id="formDesarrollador" method="POST" action="{{ route('desarrolladores.store') }}">
@@ -13,47 +23,63 @@
         <input type="hidden" name="NoProduccion" id="inputNoProduccion" value="">
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- FILA 1: Julios y Pasadas -->
             <div>
-                <label for="NumeroJulioRizo" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Rizo <span class="text-red-500">*</span></label>
-                <select id="NumeroJulioRizo" name="NumeroJulioRizo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <label for="NumeroJulioRizo" class="block text-xs font-medium text-gray-700 mb-1">
+                    <span class="flex items-center gap-1">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+                        Julio Rizo
+                    </span>
+                </label>
+                <select id="NumeroJulioRizo" name="NumeroJulioRizo" required class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                     <option value="" disabled selected>Selecciona un Julio</option>
                     @foreach ($juliosRizo ?? [] as $julio)
                         @if($julio)
                             @php
                                 $noJulio = data_get($julio, 'NoJulio') ?? '';
+                                $invSize = data_get($julio, 'InventSizeId') ?? '';
+                                $cfgId = data_get($julio, 'ConfigId') ?? '';
                             @endphp
-                            <option value="{{ $noJulio }}">{{ $noJulio }}</option>
+                            <option value="{{ $noJulio }}" data-inventsizeid="{{ $invSize }}" data-configid="{{ $cfgId }}">{{ $noJulio }}</option>
                         @endif
                     @endforeach
                 </select>
             </div>
 
             <div>
-                <label for="NumeroJulioPie" class="block text-sm font-medium text-gray-700 mb-1">Número de Julio Pie <span class="text-red-500">*</span></label>
-                <select id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <label for="NumeroJulioPie" class="block text-xs font-medium text-gray-700 mb-1">
+                    <span class="flex items-center gap-1">
+                        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+                        Julio Pie
+                    </span>
+                </label>
+                <select id="NumeroJulioPie" name="NumeroJulioPie" required class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm bg-white">
                     <option value="" disabled selected>Selecciona un Julio</option>
                     @foreach ($juliosPie ?? [] as $julio)
                         @if($julio)
                             @php
                                 $noJulio = data_get($julio, 'NoJulio') ?? '';
+                                $invSize = data_get($julio, 'InventSizeId') ?? '';
+                                $cfgId = data_get($julio, 'ConfigId') ?? '';
                             @endphp
-                            <option value="{{ $noJulio }}">{{ $noJulio }}</option>
+                            <option value="{{ $noJulio }}" data-inventsizeid="{{ $invSize }}" data-configid="{{ $cfgId }}">{{ $noJulio }}</option>
                         @endif
                     @endforeach
                 </select>
             </div>
 
             <div>
-                <label for="TotalPasadasDibujo" class="block text-sm font-medium text-gray-700 mb-1">Total Pasadas del Dibujo <span class="text-red-500">*</span></label>
-                <input type="number" id="TotalPasadasDibujo" name="TotalPasadasDibujo" min="1" step="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ingrese total de pasadas">
+                <label for="TotalPasadasDibujo" class="block text-xs font-medium text-gray-700 mb-1">Total Pasadas <span class="text-red-500">*</span></label>
+                <input type="number" id="TotalPasadasDibujo" name="TotalPasadasDibujo" min="1" step="1" required class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0">
             </div>
 
+            <!-- FILA 2: Eficiencias y Horas -->
             <div>
-                <label for="EficienciaInicio" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
+                <label for="EficienciaInicio" class="block text-xs font-medium text-gray-700 mb-1">Eficiencia de Inicio <span class="text-red-500">*</span></label>
                 <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
                     <input type="number" id="EficienciaInicio" name="EficienciaInicio" min="0" step="1" required class="hidden">
-                    <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
-                        <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
+                    <button type="button" class="number-selector-btn w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
+                        <span class="number-selector-value text-gray-400 font-semibold text-sm">Selecciona</span>
                         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
                     <div class="number-selector-options hidden absolute left-0 right-0 mt-2 z-20">
@@ -63,21 +89,11 @@
             </div>
 
             <div>
-                <label for="HoraInicio" class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio <span class="text-red-500">*</span></label>
-                <input type="time" id="HoraInicio" name="HoraInicio" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-            </div>
-
-            <div>
-                <label for="HoraFinal" class="block text-sm font-medium text-gray-700 mb-1">Hora Final <span class="text-red-500">*</span></label>
-                <input type="time" id="HoraFinal" name="HoraFinal" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-            </div>
-
-            <div>
-                <label for="EficienciaFinal" class="block text-sm font-medium text-gray-700 mb-1">Eficiencia Final <span class="text-red-500">*</span></label>
+                <label for="EficienciaFinal" class="block text-xs font-medium text-gray-700 mb-1">Eficiencia Final <span class="text-red-500">*</span></label>
                 <div class="relative" data-number-selector data-min="0" data-max="100" data-step="1" data-suggested="80">
                     <input type="number" id="EficienciaFinal" name="EficienciaFinal" min="0" step="1" required class="hidden">
-                    <button type="button" class="number-selector-btn w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
-                        <span class="number-selector-value text-gray-400 font-semibold">Selecciona</span>
+                    <button type="button" class="number-selector-btn w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm flex items-center justify-between bg-white">
+                        <span class="number-selector-value text-gray-400 font-semibold text-sm">Selecciona</span>
                         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
                     <div class="number-selector-options hidden absolute left-0 right-0 mt-2 z-20">
@@ -87,8 +103,8 @@
             </div>
 
             <div>
-                <label for="Desarrollador" class="block text-sm font-medium text-gray-700 mb-1">Desarrollador <span class="text-red-500">*</span></label>
-                <select id="Desarrollador" name="Desarrollador" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <label for="Desarrollador" class="block text-xs font-medium text-gray-700 mb-1">Desarrollador <span class="text-red-500">*</span></label>
+                <select id="Desarrollador" name="Desarrollador" required class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                     <option value="" disabled {{ !old('Desarrollador', $desarrolladorActual ?? '') ? 'selected' : '' }}>Selecciona un Desarrollador</option>
                     @foreach ($desarrolladores ?? [] as $desarrollador)
                         @if($desarrollador)
@@ -100,28 +116,32 @@
                     @endforeach
                 </select>
             </div>
+        </div>
 
+        <!-- FILA 3: separate, 4 columnas -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div>
-                <label for="TramaAnchoPeine" class="block text-sm font-medium text-gray-700 mb-1">Trama Ancho de Peine</label>
-                <input type="number" id="TramaAnchoPeine" name="TramaAnchoPeine" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                <label for="HoraInicio" class="block text-xs font-medium text-gray-700 mb-1">Hora Inicio <span class="text-red-500">*</span></label>
+                <input type="time" id="HoraInicio" name="HoraInicio" required class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
             </div>
 
             <div>
-                <label for="DesperdicioTrama" class="block text-sm font-medium text-gray-700 mb-1">Desperdicio Trama</label>
-                <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" step="0.01" min="0" min="0" value="11" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                <label for="HoraFinal" class="block text-xs font-medium text-gray-700 mb-1">Hora Final <span class="text-red-500">*</span></label>
+                <input type="time" id="HoraFinal" name="HoraFinal" required class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
             </div>
 
             <div>
-                <label for="LongitudLuchaTot" class="block text-sm font-medium text-gray-700 mb-1">Long. De Lucha Tot.</label>
-                <input type="number" id="LongitudLuchaTot" name="LongitudLuchaTot" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
+                <label for="DesperdicioTrama" class="block text-xs font-medium text-gray-700 mb-1">Desp. Trama</label>
+                <input type="number" id="DesperdicioTrama" name="DesperdicioTrama" step="0.01" min="0" value="11" class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0.00">
             </div>
 
             <div>
-                <label for="CambioTelarActivo" class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 mb-2 cursor-pointer">
-                    <input type="checkbox" id="CambioTelarActivo" name="CambioTelarActivo" value="1" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    Cambio de telar
-                </label>
-                <select id="TelarDestino" name="TelarDestino" disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-200 disabled:text-gray-500 disabled:border-gray-300 disabled:cursor-not-allowed transition-colors">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Cambio de Telar</label>
+                <div class="flex items-center gap-1.5 mb-1.5">
+                    <input type="checkbox" id="CambioTelarActivo" name="CambioTelarActivo" value="1" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer">
+                    <span class="text-xs text-gray-500">Activar</span>
+                </div>
+                <select id="TelarDestino" name="TelarDestino" disabled class="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed">
                     <option value="">Telar destino</option>
                     @foreach(($telaresDestino ?? []) as $destino)
                         @php

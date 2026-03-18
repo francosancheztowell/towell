@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const els = {
         selectTelar:        document.getElementById('telarOperador'),
         tablaProducciones:  document.getElementById('tablaProducciones'),
+        filtroSoloConOrden:  document.getElementById('filtroSoloConOrden'),
+        filtroOrdenContainer: document.getElementById('filtroOrdenContainer'),
+        msgValidacionOrden:   document.getElementById('msgValidacionOrden'),
         bodyProducciones:   document.getElementById('bodyProducciones'),
         bodyDetallesOrden:  document.getElementById('bodyDetallesOrden'),
         noDataMessage:      document.getElementById('noDataMessage'),
@@ -27,11 +30,14 @@ document.addEventListener('DOMContentLoaded', function () {
         selectJulioRizo:    document.getElementById('NumeroJulioRizo'),
         selectJulioPie:     document.getElementById('NumeroJulioPie'),
         inputDesperdicio:   document.getElementById('DesperdicioTrama'),
-        inputTramaAncho:    document.getElementById('TramaAnchoPeine'),
-        inputLongLucha:     document.getElementById('LongitudLuchaTot'),
         checkboxCambio:     document.getElementById('CambioTelarActivo'),
         selectDestino:      document.getElementById('TelarDestino'),
         modalPasadas:       document.getElementById('modalPasadas'),
+        modalReprogramar:       document.getElementById('modalReprogramar'),
+        modalReprogramarOrden:  document.getElementById('modalReprogramarOrden'),
+        modalReprogramarMensaje: document.getElementById('modalReprogramarMensaje'),
+        btnReprogramarSiguiente: document.getElementById('btnReprogramarSiguiente'),
+        btnReprogramarUltimo:   document.getElementById('btnReprogramarUltimo'),
         btnModalAceptar:    document.getElementById('modalPasadasAceptar'),
         btnModalCancelar:   document.getElementById('modalPasadasCancelar'),
         btnAgregarFila:     document.getElementById('btnAgregarFilaDetalle'),
@@ -46,16 +52,67 @@ document.addEventListener('DOMContentLoaded', function () {
             EfiFinal:        document.getElementById('resumenEfiFinal'),
             DesperdicioTrama:document.getElementById('resumenDesperdicioTrama'),
         },
+        formJulioRizoInfo: document.getElementById('formJulioRizoInfo'),
+        formJulioPieInfo:  document.getElementById('formJulioPieInfo'),
     };
 
     // ── Estado ─────────────────────────────────────────────────────────────
     const state = {
         salonTejido: '',
         tamanoClave: '',
-        codificacionFetchAttempted: false,
+        noProduccionActual: '',
+        nombreProductoActual: '',
+        ordenEnProceso: '',
+        ordenEnProcesoNombre: '',
+        reprogramarOrden: null,
+        reprogramarAccion: null,
+        contadorFilasNuevas: 0,
         omitirConfirmacionPasadas: false,
-        contadorFilasNuevas: 1000,
     };
+
+    // ── Modal Reprogramar ──────────────────────────────────────────────────
+    let reprogramarCheckboxActual = null;
+
+    function mostrarModalReprogramar(checkbox) {
+        reprogramarCheckboxActual = checkbox;
+        const orden = state.ordenEnProceso || 'N/A';
+        const nombre = state.ordenEnProcesoNombre || '';
+        if (els.modalReprogramarOrden) {
+            els.modalReprogramarOrden.textContent = `Orden: ${orden}${nombre ? ' — ' + nombre : ''}`;
+        }
+        if (els.modalReprogramarMensaje) {
+            els.modalReprogramarMensaje.textContent = 'Al siguiente: Se moverá a la siguiente posición. Al último: Se enviará al final de la cola.';
+        }
+        els.modalReprogramar?.classList.remove('hidden');
+    }
+
+    function cerrarModalReprogramar() {
+        if (reprogramarCheckboxActual) {
+            reprogramarCheckboxActual.checked = false;
+            reprogramarCheckboxActual = null;
+        }
+        els.modalReprogramar?.classList.add('hidden');
+    }
+
+    els.btnReprogramarSiguiente?.addEventListener('click', function () {
+        state.reprogramarAccion = 'siguiente';
+        els.modalReprogramar?.classList.add('hidden');
+        if (reprogramarCheckboxActual) {
+            reprogramarCheckboxActual.dataset.accion = 'siguiente';
+        }
+        alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al siguiente.`);
+    });
+
+    els.btnReprogramarUltimo?.addEventListener('click', function () {
+        state.reprogramarAccion = 'ultimo';
+        els.modalReprogramar?.classList.add('hidden');
+        if (reprogramarCheckboxActual) {
+            reprogramarCheckboxActual.dataset.accion = 'ultimo';
+        }
+        alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al último.`);
+    });
+
+    document.getElementById('modalReprogramarCancelar')?.addEventListener('click', cerrarModalReprogramar);
 
     // ── Utilidades ────────────────────────────────────────────────────────
     function spinnerHtml(colspan, mensaje) {
@@ -106,7 +163,10 @@ document.addEventListener('DOMContentLoaded', function () {
         (items || []).forEach(item => {
             const noJulio = String(item?.NoJulio ?? '').trim();
             if (!noJulio) return;
-            select.appendChild(new Option(noJulio, noJulio));
+            const option = new Option(noJulio, noJulio);
+            option.dataset.inventsizeid = item?.InventSizeId ?? '';
+            option.dataset.configid = item?.ConfigId ?? '';
+            select.appendChild(option);
         });
     }
 
@@ -489,7 +549,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         row.innerHTML = `
             <td class="px-4 py-2">${usarSelects ? selectField('detalle_calibre[]', 'detalle-calibre', 'Cargando...') : inputField('detalle_calibre[]', calibre, 'Calibre')}</td>
-            <td class="px-4 py-2">${inputField('detalle_hilo[]', hilo, 'Hilo')}</td>
+            <td class="px-4 py-2"><input type="number" name="detalle_hilo[]" value="${hilo}" step="0.1" min="0" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Hilo"></td>
             <td class="px-4 py-2">${usarSelects ? selectField('detalle_fibra[]', 'detalle-fibra', 'Selecciona calibre', true) : inputField('detalle_fibra[]', fibra, 'Fibra')}</td>
             <td class="px-4 py-2">${usarSelects ? selectField('detalle_codcolor[]', 'detalle-codcolor', 'Selecciona calibre', true) : inputField('detalle_codcolor[]', codColor, 'Cod Color')}</td>
             <td class="px-4 py-2">
@@ -552,6 +612,19 @@ document.addEventListener('DOMContentLoaded', function () {
         NumberSelectorManager.setById('EficienciaInicio', data ? data.EfiInicial : '');
         NumberSelectorManager.setById('EficienciaFinal', data ? data.EfiFinal : '');
         if (els.inputDesperdicio) els.inputDesperdicio.value = (data && data.DesperdicioTrama !== null) ? data.DesperdicioTrama : 11;
+        // Actualizar badges de julios
+        function updateJulioBadge(select, badgeEl, tipo) {
+            const selected = select?.selectedOptions[0];
+            if (selected && selected.value) {
+                const invSize = selected.dataset.inventsizeid || '—';
+                const cfgId = selected.dataset.configid || '—';
+                if (badgeEl) badgeEl.textContent = `Tamaño ${tipo}: ${invSize} / Configuración ${tipo}: ${cfgId}`;
+            } else {
+                if (badgeEl) badgeEl.textContent = `No se ha seleccionado Julio ${tipo}`;
+            }
+        }
+        updateJulioBadge(els.selectJulioRizo, els.formJulioRizoInfo, 'Rizo');
+        updateJulioBadge(els.selectJulioPie, els.formJulioPieInfo, 'Pie');
     }
 
     // ── Reset completo (usado en cancelar y después de guardar) ───────────
@@ -560,6 +633,10 @@ document.addEventListener('DOMContentLoaded', function () {
         NumberSelectorManager.resetAll();
         state.salonTejido = '';
         state.tamanoClave = '';
+        state.noProduccionActual = '';
+        state.nombreProductoActual = '';
+        state.ordenEnProceso = '';
+        state.ordenEnProcesoNombre = '';
         if (els.checkboxCambio) els.checkboxCambio.checked = false;
         if (els.selectDestino) els.selectDestino.value = '';
         actualizarEstadoCambioTelar();
@@ -569,18 +646,61 @@ document.addEventListener('DOMContentLoaded', function () {
         els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, DETALLE_EMPTY_MSG);
         Pasadas.reset();
         els.modalPasadas?.classList.add('hidden');
+        if (els.formJulioRizoInfo) els.formJulioRizoInfo.textContent = '—';
+        if (els.formJulioPieInfo) els.formJulioPieInfo.textContent = '—';
         actualizarResumen(null);
         prefillDesde(null);
         checkFormValidity();
     }
 
+    // ── Filtro Solo con Orden ─────────────────────────────────────────────
+    els.filtroSoloConOrden?.addEventListener('change', function () {
+        filtrarFilasConOrden();
+    });
+
+    function filtrarFilasConOrden() {
+        const soloConOrden = els.filtroSoloConOrden?.checked;
+
+        if (soloConOrden) {
+            // Verificar si hay filas sin orden seleccionadas
+            const filasSinOrden = els.bodyProducciones?.querySelectorAll('tr') || [];
+            let tieneSeleccionSinOrden = false;
+            filasSinOrden.forEach(row => {
+                const checkbox = row.querySelector('.checkbox-produccion');
+                const ordenSpan = row.querySelector('.orden-value');
+                const ordenInput = row.querySelector('.orden-input');
+                const tieneOrden = ordenSpan?.textContent?.trim() || ordenInput?.value?.trim();
+                if (!tieneOrden && checkbox?.checked) {
+                    tieneSeleccionSinOrden = true;
+                }
+            });
+
+            if (tieneSeleccionSinOrden) {
+                alert('Deselecciona primero las filas que no tienen orden antes de filtrar.');
+                els.filtroSoloConOrden.checked = false;
+                return;
+            }
+        }
+
+        const filas = els.bodyProducciones?.querySelectorAll('tr') || [];
+        filas.forEach(row => {
+            const ordenSpan = row.querySelector('.orden-value');
+            const ordenInput = row.querySelector('.orden-input');
+            const tieneOrden = ordenSpan?.textContent?.trim() || ordenInput?.value?.trim();
+            row.style.display = (soloConOrden && !tieneOrden) ? 'none' : '';
+        });
+    }
+
     // ── Cargas AJAX ───────────────────────────────────────────────────────
     function cargarProducciones(telarId) {
-        els.bodyProducciones.innerHTML = spinnerHtml(6, 'Cargando producciones...');
+        const soloConOrden = els.filtroSoloConOrden?.checked ? '1' : '';
+        const url = `/desarrolladores/telar/${telarId}/producciones${soloConOrden ? '?solo_con_orden=1' : ''}`;
+        els.bodyProducciones.innerHTML = spinnerHtml(7, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
+        els.filtroOrdenContainer?.classList.remove('hidden');
         els.noDataMessage.classList.add('hidden');
 
-        fetch(`/desarrolladores/telar/${telarId}/producciones`)
+        fetch(url)
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.producciones.length > 0) {
@@ -588,9 +708,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     data.producciones.forEach((p) => {
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-gray-100 transition-colors';
+                        const ordenVacio = !p.NoProduccion || p.NoProduccion.trim() === '';
                         row.innerHTML = `
                             <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-blue-50">${p.SalonTejidoId ?? 'N/A'}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white">${p.NoProduccion}</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white">
+                                ${ordenVacio
+                                    ? `<input type="number" min="1" class="orden-input w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Escribe orden" data-original="">`
+                                    : `<span class="orden-value">${p.NoProduccion}</span>`
+                                }
+                            </td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-blue-50">${p.FechaInicio ? new Date(p.FechaInicio).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : 'N/A'}</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-white">${p.TamanoClave ?? 'N/A'}</td>
                             <td class="px-3 py-3 text-sm text-gray-600 break-words bg-blue-50">${p.NombreProducto || 'N/A'}</td>
@@ -598,16 +724,30 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <input type="checkbox" class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                                        data-telar="${telarId}" data-salon="${p.SalonTejidoId ?? ''}" data-tamano="${p.TamanoClave ?? ''}"
                                        data-produccion="${p.NoProduccion}" data-modelo="${p.NombreProducto || ''}" onchange="seleccionarProduccion(this)">
+                            </td>
+                            <td class="px-3 py-3 whitespace-nowrap text-center bg-blue-50">
+                                <input type="checkbox" class="reprogramar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer">
                             </td>`;
                         els.bodyProducciones.appendChild(row);
                     });
+
+                    fetch(`/desarrolladores/telar/${telarId}/orden-en-proceso`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success && data.orden) {
+                                state.ordenEnProceso = data.orden.noProduccion;
+                                state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
+                            }
+                        });
                 } else {
                     els.bodyProducciones.innerHTML = '';
                     els.noDataMessage.classList.remove('hidden');
+                    els.filtroOrdenContainer?.classList.add('hidden');
                 }
             })
             .catch(() => {
-                els.bodyProducciones.innerHTML = `<tr><td colspan="6" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
+                els.bodyProducciones.innerHTML = `<tr><td colspan="7" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
+                els.filtroOrdenContainer?.classList.add('hidden');
             });
     }
 
@@ -695,6 +835,8 @@ document.addEventListener('DOMContentLoaded', function () {
         els.formNombreProducto.textContent = modelo || '-';
         state.salonTejido = salon;
         state.tamanoClave = tamano;
+        state.noProduccionActual = produccion;
+        state.nombreProductoActual = modelo;
         if (els.checkboxCambio) els.checkboxCambio.checked = false;
         if (els.selectDestino) els.selectDestino.value = '';
         actualizarEstadoCambioTelar();
@@ -834,17 +976,84 @@ document.addEventListener('DOMContentLoaded', function () {
         els.form.dispatchEvent(new Event('submit'));
     });
 
-    // Longitud Lucha Total = Trama Ancho Peine + Desperdicio Trama
-    function calcularLongitudLucha() {
-        const total = (parseFloat(els.inputTramaAncho?.value) || 0) + (parseFloat(els.inputDesperdicio?.value) || 0);
-        if (els.inputLongLucha) els.inputLongLucha.value = total > 0 ? total.toFixed(2) : '';
-    }
-    els.inputTramaAncho?.addEventListener('input', calcularLongitudLucha);
-    els.inputDesperdicio?.addEventListener('input', calcularLongitudLucha);
 
-    // ── Inicialización ────────────────────────────────────────────────────
+    els.selectJulioRizo?.addEventListener('change', function () {
+        const selected = this.selectedOptions[0];
+        if (selected && selected.value) {
+            const invSize = selected.dataset.inventsizeid || '—';
+            const cfgId = selected.dataset.configid || '—';
+            els.formJulioRizoInfo.textContent = `Tamaño Rizo: ${invSize} / Configuración Rizo: ${cfgId}`;
+        } else {
+            els.formJulioRizoInfo.textContent = 'No se ha seleccionado Julio Rizo';
+        }
+    });
+
+    els.selectJulioPie?.addEventListener('change', function () {
+        const selected = this.selectedOptions[0];
+        if (selected && selected.value) {
+            const invSize = selected.dataset.inventsizeid || '—';
+            const cfgId = selected.dataset.configid || '—';
+            els.formJulioPieInfo.textContent = `Tamaño Pie: ${invSize} / Configuración Pie: ${cfgId}`;
+        } else {
+            els.formJulioPieInfo.textContent = 'No se ha seleccionado Julio Pie';
+        }
+    });
+
+
     Codificacion.initListeners();
     NumberSelectorManager.init();
     actualizarEstadoCambioTelar();
+
+    // ── Validación de Orden ─────────────────────────────────────────────
+    let ordenValidacionTimer = null;
+
+    function validarOrden(input) {
+        clearTimeout(ordenValidacionTimer);
+        const valor = input.value.trim();
+        if (!valor || valor.length < 4) {
+            input.classList.remove('border-red-500', 'border-green-500');
+            input.classList.add('border-gray-300');
+            input.dataset.valido = 'false';
+            if (els.msgValidacionOrden) els.msgValidacionOrden.classList.add('hidden');
+            return;
+        }
+        ordenValidacionTimer = setTimeout(() => {
+            fetch(`/desarrolladores/verificar-orden?noProduccion=${encodeURIComponent(valor)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.exists) {
+                        input.classList.remove('border-gray-300', 'border-green-500');
+                        input.classList.add('border-red-500');
+                        input.dataset.valido = 'false';
+                        if (els.msgValidacionOrden) {
+                            els.msgValidacionOrden.classList.remove('hidden');
+                            els.msgValidacionOrden.querySelector('span').textContent = `La orden "${valor}" ya existe`;
+                        }
+                    } else {
+                        input.classList.remove('border-gray-300', 'border-red-500');
+                        input.classList.add('border-green-500');
+                        input.dataset.valido = 'true';
+                        if (els.msgValidacionOrden) els.msgValidacionOrden.classList.add('hidden');
+                    }
+                });
+        }, 400);
+    }
+
+    els.bodyProducciones?.addEventListener('input', function (e) {
+        if (e.target.classList.contains('orden-input')) {
+            validarOrden(e.target);
+        }
+    });
+
+    // ── Reprogramar Checkbox ───────────────────────────────────────────────
+    els.bodyProducciones?.addEventListener('change', function (e) {
+        if (e.target.classList.contains('reprogramar-checkbox')) {
+            if (e.target.checked) {
+                mostrarModalReprogramar(e.target);
+            } else {
+                e.target.dataset.accion = '';
+            }
+        }
+    });
 });
 </script>

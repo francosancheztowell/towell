@@ -121,6 +121,8 @@ Route::controller(InventarioTelaresController::class)
 
 Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
 Route::get('/desarrolladores/telar/{telarId}/producciones', [TelDesarrolladoresController::class, 'obtenerProducciones'])->name('desarrolladores.obtener-producciones');
+Route::get('/desarrolladores/verificar-orden', [TelDesarrolladoresController::class, 'verificarOrden'])->name('desarrolladores.verificar-orden');
+Route::get('/desarrolladores/telar/{telarId}/orden-en-proceso', [TelDesarrolladoresController::class, 'obtenerOrdenEnProceso'])->name('desarrolladores.orden-en-proceso');
 Route::get('/desarrolladores/telar/{telarId}/julios', [TelDesarrolladoresController::class, 'obtenerJuliosPorTelar'])->name('desarrolladores.obtener-julios');
 Route::get('/desarrolladores/telar/{telarId}/produccion/{noProduccion}', [TelDesarrolladoresController::class, 'formularioDesarrollador'])->name('desarrolladores.formulario');
 Route::get('/desarrolladores/orden/{noProduccion}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrden'])->name('desarrolladores.obtener-detalles-orden');

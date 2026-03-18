@@ -86,7 +86,7 @@ class ConsultasDesarrolladorService
             $query->where('NoTelarId', trim($telarId));
         }
 
-        return $query->get(['NoJulio', 'InventSizeId', 'Fecha'])
+        return $query->get(['NoJulio', 'InventSizeId', 'ConfigId', 'Fecha'])
             ->unique('NoJulio')
             ->values();
     }
@@ -140,16 +140,18 @@ class ConsultasDesarrolladorService
      * @param string $telarId
      * @return array
      */
-    public function obtenerProducciones($telarId): array
+    public function obtenerProducciones($telarId, bool $soloConOrden = false): array
     {
         try {
-            $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
-                ->where(function ($query) {
-                    $query->where('EnProceso', 0);
-                })
-                ->whereNotNull('NoProduccion')
-                ->where('NoProduccion', '!=', '')
-                ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
+            $query = ReqProgramaTejido::where('NoTelarId', $telarId)
+                ->where('EnProceso', 0);
+
+            if ($soloConOrden) {
+                $query->whereNotNull('NoProduccion')
+                      ->where('NoProduccion', '!=', '');
+            }
+
+            $producciones = $query->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()
                 ->orderBy('FechaInicio', 'asc')
                 ->get();

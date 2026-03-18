@@ -1,10 +1,25 @@
-<div id="modalPasadas" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-30 hidden">
+<div id="modalPasadas" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
     <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
         <h4 class="text-lg font-semibold text-gray-800 mb-2">Validación de Pasadas</h4>
         <p class="text-sm text-gray-600 mb-6">Total de pasadas no cuadra con el detalle de la orden.</p>
         <div class="flex justify-end gap-3">
             <button type="button" id="modalPasadasCancelar" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
             <button type="button" id="modalPasadasAceptar" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Aceptar</button>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Reprogramar --}}
+<div id="modalReprogramar" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+        <h4 class="text-lg font-semibold text-gray-800 mb-1">Reprogramar Orden</h4>
+        <p class="text-sm text-gray-600 mb-1">La orden en proceso se moverá a:</p>
+        <p id="modalReprogramarOrden" class="text-sm font-medium text-blue-600 mb-1"></p>
+        <p id="modalReprogramarMensaje" class="text-xs text-gray-500 mb-6"></p>
+        <div class="flex justify-end gap-3">
+            <button type="button" id="modalReprogramarCancelar" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+            <button type="button" id="btnReprogramarSiguiente" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Al siguiente</button>
+            <button type="button" id="btnReprogramarUltimo" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">Al último</button>
         </div>
     </div>
 </div>
