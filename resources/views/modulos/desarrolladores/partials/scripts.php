@@ -705,8 +705,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ── Cargas AJAX ───────────────────────────────────────────────────────
     function cargarProducciones(telarId) {
-        // Resetear estado del boton
+        // Resetear estado
         accionEstado = 0;
+        rowSeleccionadaAnterior = null;
         if (els.btnAccionOrden) {
             els.btnAccionOrden.textContent = 'Finalizar';
             els.btnAccionOrden.classList.remove('bg-blue-600', 'hover:bg-blue-700');
@@ -851,11 +852,24 @@ document.addEventListener('DOMContentLoaded', function () {
         state.noProduccionActual = produccion;
         state.nombreProductoActual = modelo;
 
-        // Habilitar telar-destino selects
-        document.querySelectorAll('.telar-destino-select').forEach(function(sel) {
-            sel.disabled = false;
-        });
-        // Resetear estado del boton
+        // Limpiar telar-destino de la fila anterior
+        if (rowSeleccionadaAnterior) {
+            var telarDestinoAnterior = rowSeleccionadaAnterior.querySelector('.telar-destino-select');
+            if (telarDestinoAnterior) {
+                telarDestinoAnterior.value = '';
+                telarDestinoAnterior.disabled = true;
+            }
+        }
+        rowSeleccionadaAnterior = checkbox.closest('tr');
+
+        // Habilitar telar-destino de la fila actual
+        var rowActual = checkbox.closest('tr');
+        var telarDestinoActual = rowActual ? rowActual.querySelector('.telar-destino-select') : null;
+        if (telarDestinoActual) {
+            telarDestinoActual.disabled = false;
+        }
+
+        // Resetear estado del boton (sin auto-ciclar)
         accionEstado = 0;
         if (els.btnAccionOrden) {
             els.btnAccionOrden.textContent = 'Finalizar';
