@@ -1,5 +1,5 @@
 <div class="md:col-span-2">
-    {{-- Orden En Proceso + Reprogramar (se llena via JS) --}}
+    {{-- Orden En Proceso + Accion (se llena via JS) --}}
     <div id="ordenEnProcesoBanner" class="hidden mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
         <div class="flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-2 flex-wrap">
@@ -16,17 +16,9 @@
                 <span class="text-xs text-amber-500">|</span>
                 <span id="ordenEnProcesoTelar" class="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">-</span>
             </div>
-            <div class="flex items-center gap-2">
-                <button type="button" id="btnFinalizarOrden" class="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors">
-                    Finalizar
-                </button>
-                <button type="button" id="btnRepSiguiente" class="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors hidden">
-                    Reprogramar siguiente
-                </button>
-                <button type="button" id="btnRepFinal" class="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors hidden">
-                    Reprogramar final
-                </button>
-            </div>
+            <button type="button" id="btnAccionOrden" class="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors">
+                Finalizar
+            </button>
         </div>
     </div>
 

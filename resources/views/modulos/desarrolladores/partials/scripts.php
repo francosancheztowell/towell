@@ -57,10 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ordenEnProcesoFecha: document.getElementById('ordenEnProcesoFecha'),
         ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
         ordenEnProcesoTelar: document.getElementById('ordenEnProcesoTelar'),
-        modalReprogramarLoading: document.getElementById('modalReprogramarLoading'),
-        btnFinalizarOrden:   document.getElementById('btnFinalizarOrden'),
-        btnRepSiguiente:    document.getElementById('btnRepSiguiente'),
-        btnRepFinal:        document.getElementById('btnRepFinal'),
+        btnAccionOrden:      document.getElementById('btnAccionOrden'),
     };
 
     // ── Estado ─────────────────────────────────────────────────────────────
@@ -78,41 +75,72 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ── Handlers de botones del banner ───────────────────────────────────────
-    els.btnFinalizarOrden?.addEventListener('click', function () {
+    var accionEstado = 0; // 0=Finalizar, 1=RepSiguiente, 2=RepFinal
+
+    els.btnAccionOrden?.addEventListener('click', function() {
         if (!state.ordenEnProceso) return;
-        if (confirm('¿Finalizar la orden "' + state.ordenEnProceso + '"? Quedara como proceso nulo.')) {
-            alert('Orden "' + state.ordenEnProceso + '" finalizada. Proceso nulo.');
-            // TODO: Call endpoint to finalize
+
+        var destino = null;
+        var selects = document.querySelectorAll('.checkbox-produccion:checked');
+        if (selects.length > 0) {
+            var row = selects[0].closest('tr');
+            var telarDestinoSel = row ? row.querySelector('.telar-destino-select') : null;
+            if (telarDestinoSel && telarDestinoSel.value) {
+                destino = telarDestinoSel.value;
+            }
         }
-    });
 
-    els.btnRepSiguiente?.addEventListener('click', function () {
-        if (!state.ordenEnProceso) return;
-        alert('La orden "' + state.ordenEnProceso + '" se movera al siguiente.');
-        // TODO: Call endpoint to reprogramar siguiente
-    });
-
-    els.btnRepFinal?.addEventListener('click', function () {
-        if (!state.ordenEnProceso) return;
-        alert('La orden "' + state.ordenEnProceso + '" se movera al final.');
-        // TODO: Call endpoint to reprogramar final
+        if (accionEstado === 0) {
+            // Finalizar - proceso nulo
+            if (confirm('¿Finalizar la orden "' + state.ordenEnProceso + '"? Quedara como proceso nulo.')) {
+                alert('Orden "' + state.ordenEnProceso + '" finalizada. Proceso nulo.');
+            }
+            // Cambiar a siguiente estado
+            accionEstado = 1;
+            els.btnAccionOrden.textContent = 'Reprogramar siguiente';
+            els.btnAccionOrden.classList.remove('bg-green-600', 'hover:bg-green-700');
+            els.btnAccionOrden.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        } else if (accionEstado === 1) {
+            // Reprogramar siguiente
+            if (!destino) {
+                alert('Selecciona un telar destino primero.');
+                return;
+            }
+            if (confirm('¿Reprogramar la orden "' + state.ordenEnProceso + '" al siguiente en el telar ' + destino + '?')) {
+                alert('Orden "' + state.ordenEnProceso + '" reprogramada al siguiente.');
+            }
+            // Cambiar a siguiente estado
+            accionEstado = 2;
+            els.btnAccionOrden.textContent = 'Reprogramar final';
+        } else if (accionEstado === 2) {
+            // Reprogramar final
+            if (!destino) {
+                alert('Selecciona un telar destino primero.');
+                return;
+            }
+            if (confirm('¿Reprogramar la orden "' + state.ordenEnProceso + '" al final en el telar ' + destino + '?')) {
+                alert('Orden "' + state.ordenEnProceso + '" reprogramada al final.');
+            }
+            // Regresar a estado inicial
+            accionEstado = 0;
+            els.btnAccionOrden.textContent = 'Finalizar';
+            els.btnAccionOrden.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            els.btnAccionOrden.classList.add('bg-green-600', 'hover:bg-green-700');
+        }
     });
 
     // ── Listener para telar-destino selects ─────────────────────────────────
     function setupTelarDestinoListeners() {
         document.querySelectorAll('.telar-destino-select').forEach(function(select) {
             select.addEventListener('change', function() {
-                const hasDestino = this.value && this.value !== '';
-                // Mostrar botones de reprogramar si hay destino seleccionado
-                if (els.btnRepSiguiente) els.btnRepSiguiente.classList.toggle('hidden', !hasDestino);
-                if (els.btnRepFinal) els.btnRepFinal.classList.toggle('hidden', !hasDestino);
+                // Resetear estado del boton cuando cambia el destino
+                accionEstado = 0;
+                els.btnAccionOrden.textContent = 'Finalizar';
+                els.btnAccionOrden.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                els.btnAccionOrden.classList.add('bg-green-600', 'hover:bg-green-700');
             });
         });
     }
-
-    document.getElementById('modalReprogramarCancelar')?.addEventListener('click', function () {
-        els.modalReprogramar?.classList.add('hidden');
-    });
 
     // ── Utilidades ────────────────────────────────────────────────────────
     function spinnerHtml(colspan, mensaje) {
@@ -677,6 +705,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ── Cargas AJAX ───────────────────────────────────────────────────────
     function cargarProducciones(telarId) {
+        // Resetear estado del boton
+        accionEstado = 0;
+        if (els.btnAccionOrden) {
+            els.btnAccionOrden.textContent = 'Finalizar';
+            els.btnAccionOrden.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            els.btnAccionOrden.classList.add('bg-green-600', 'hover:bg-green-700');
+        }
+
         const soloConOrden = els.filtroSoloConOrden?.checked ? '?solo_con_orden=1' : '';
         const url = `/desarrolladores/telar/${telarId}/producciones-html${soloConOrden}`;
         if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
@@ -819,9 +855,13 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.telar-destino-select').forEach(function(sel) {
             sel.disabled = false;
         });
-        // Ocultar botones reprogramar
-        if (els.btnRepSiguiente) els.btnRepSiguiente.classList.add('hidden');
-        if (els.btnRepFinal) els.btnRepFinal.classList.add('hidden');
+        // Resetear estado del boton
+        accionEstado = 0;
+        if (els.btnAccionOrden) {
+            els.btnAccionOrden.textContent = 'Finalizar';
+            els.btnAccionOrden.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            els.btnAccionOrden.classList.add('bg-green-600', 'hover:bg-green-700');
+        }
 
         buscarYActualizarCodigoDibujo(salon, telar, tamano);
 
