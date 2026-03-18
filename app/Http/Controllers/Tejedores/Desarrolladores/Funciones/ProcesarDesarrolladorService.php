@@ -86,7 +86,8 @@ class ProcesarDesarrolladorService
                     $codigoDibujo,
                     $minutosCambio,
                     $longitudLuchaTot,
-                    $modeloDestino
+                    $modeloDestino,
+                    $ordenData
                 );
 
                 $claveModelo = $registroCodificado
@@ -351,7 +352,8 @@ class ProcesarDesarrolladorService
         string $codigoDibujo,
         ?int $minutosCambio,
         ?int $longitudLuchaTot,
-        ?ReqModelosCodificados $modeloDestino
+        ?ReqModelosCodificados $modeloDestino,
+        ?ReqProgramaTejido $ordenData = null
     ): ?CatCodificados {
         $modeloCat = new CatCodificados();
         $columns = Schema::getColumnListing($modeloCat->getTable());
@@ -396,11 +398,66 @@ class ProcesarDesarrolladorService
             $registro = (clone $queryBase)->first();
         }
 
+        $esNuevo = false;
         if (!$registro) {
-            return null;
+            $registro = new CatCodificados();
+            $esNuevo = true;
         }
 
-        $payload = array_merge([
+        // Cuando es un registro nuevo, usar los datos de ReqProgramaTejido como base
+        $programaPayload = [];
+        if ($esNuevo && $ordenData) {
+            $programaPayload = [
+                'Nombre'          => $ordenData->NombreProducto,
+                'ClaveModelo'     => $ordenData->TamanoClave,
+                'ItemId'          => $ordenData->ItemId,
+                'InventSizeId'    => $ordenData->InventSizeId,
+                'FlogsId'         => $ordenData->FlogsId,
+                'NombreProyecto'  => $ordenData->NombreProyecto,
+                'CustName'        => $ordenData->CustName,
+                'Peine'           => $ordenData->Peine,
+                'Ancho'           => $ordenData->Ancho,
+                'Luchaje'         => $ordenData->Luchaje,
+                'P_crudo'         => $ordenData->PesoCrudo,
+                'DobladilloId'    => $ordenData->DobladilloId,
+                'MedidaPlano'     => $ordenData->MedidaPlano,
+                'CalibreRizo'     => $ordenData->CalibreRizo,
+                'CalibreRizo2'    => $ordenData->CalibreRizo2,
+                'CuentaRizo'      => $ordenData->CuentaRizo,
+                'FibraRizo'       => $ordenData->FibraRizo,
+                'CalibrePie'      => $ordenData->CalibrePie,
+                'CalibrePie2'     => $ordenData->CalibrePie2,
+                'CuentaPie'       => $ordenData->CuentaPie,
+                'FibraPie'        => $ordenData->FibraPie,
+                'VelocidadSTD'    => $ordenData->VelocidadSTD,
+                'EficienciaSTD'   => $ordenData->EficienciaSTD,
+                'NoTiras'         => $ordenData->NoTiras,
+                'Repeticiones'    => $ordenData->Repeticiones,
+                'Prioridad'       => $ordenData->Prioridad,
+                'MtsRollo'        => $ordenData->MtsRollo,
+                'PzasRollo'       => $ordenData->PzasRollo,
+                'TotalRollos'     => $ordenData->TotalRollos,
+                'TotalPzas'       => $ordenData->TotalPzas,
+                'CombinaTram'     => $ordenData->CombinaTram,
+                'BomId'           => $ordenData->BomId,
+                'BomName'         => $ordenData->BomName,
+                'CreaProd'        => $ordenData->CreaProd,
+                'Densidad'        => $ordenData->Densidad,
+                'HiloAX'          => $ordenData->HiloAX,
+                'ActualizaLmat'   => $ordenData->ActualizaLmat,
+                'PesoMuestra'     => $ordenData->PesoMuestra,
+                'OrdCompartida'   => $ordenData->OrdCompartida,
+                'OrdCompartidaLider' => $ordenData->OrdCompartidaLider,
+                'CategoriaCalidad' => $ordenData->CategoriaCalidad,
+                'FechaTejido'     => $ordenData->FechaInicio?->format('Y-m-d'),
+                'OrdPrincipal'    => $ordenData->OrdPrincipal,
+                'FechaArranque'   => $ordenData->FechaArranque,
+                'FechaFinaliza'   => $ordenData->FechaFinaliza,
+                'Cantidad'        => $ordenData->TotalPedido,
+            ];
+        }
+
+        $payload = array_merge($programaPayload, [
             'TelarId' => $contextoDestino['telarDestino'],
             'NoTelarId' => $contextoDestino['telarDestino'],
             'Departamento' => $contextoDestino['salonDestino'],
