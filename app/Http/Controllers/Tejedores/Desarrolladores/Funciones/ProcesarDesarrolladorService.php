@@ -148,7 +148,8 @@ class ProcesarDesarrolladorService
 
                 $programaFinal = $this->ejecutarMovimientoYPonerEnProceso(
                     $programaObjetivo,
-                    $contextoDestino
+                    $contextoDestino,
+                    $validated['accion'] ?? 'finalizar'
                 );
 
                 return [
@@ -212,6 +213,7 @@ class ProcesarDesarrolladorService
             'NoTelarId' => 'required|string',
             'NoProduccion' => 'required|string|max:80',
             'registroId' => 'nullable|integer',
+            'accion' => 'nullable|string|in:finalizar,reprogramar_siguiente,reprogramar_final',
             'NumeroJulioRizo' => 'required|string|max:50',
             'NumeroJulioPie' => 'nullable|string|max:50',
             'TotalPasadasDibujo' => 'required|integer|min:1',
@@ -759,14 +761,38 @@ class ProcesarDesarrolladorService
 
     private function ejecutarMovimientoYPonerEnProceso(
         ReqProgramaTejido $programaObjetivo,
-        array $contextoDestino
+        array $contextoDestino,
+        string $accion = 'finalizar'
     ): ?ReqProgramaTejido {
+        $reprogramarValor = match ($accion) {
+            'reprogramar_siguiente' => '1',
+            'reprogramar_final'     => '2',
+            default                 => null,
+        };
+
         if ($contextoDestino['esCambioTelar']) {
             return $this->movimientoService->moverRegistroConCambioTelarEnProceso(
                 $programaObjetivo,
                 $contextoDestino['salonDestino'],
-                $contextoDestino['telarDestino']
+                $contextoDestino['telarDestino'],
+                $reprogramarValor
             );
+        }
+
+        if ($reprogramarValor !== null) {
+            // La actual en proceso se debe MOVER (no eliminar), por eso se le setea Reprogramar.
+            // El seleccionado ($programaObjetivo) es el que quedará en proceso.
+            $actualEnProceso = ReqProgramaTejido::query()
+                ->where('SalonTejidoId', $programaObjetivo->SalonTejidoId)
+                ->where('NoTelarId', $programaObjetivo->NoTelarId)
+                ->where('EnProceso', 1)
+                ->where('Id', '!=', $programaObjetivo->Id)
+                ->first();
+
+            if ($actualEnProceso) {
+                $actualEnProceso->Reprogramar = $reprogramarValor;
+                $actualEnProceso->saveQuietly();
+            }
         }
 
         $this->movimientoService->moverRegistroEnProceso($programaObjetivo, true);
