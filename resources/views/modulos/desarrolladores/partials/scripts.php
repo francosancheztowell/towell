@@ -999,7 +999,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!data.success) throw new Error(data.message || 'Error al guardar los datos');
                 Swal.fire({ icon: 'success', title: '¡Guardado exitosamente!', text: data.message || 'Los datos se han guardado correctamente', confirmButtonColor: '#2563eb', confirmButtonText: 'Aceptar' })
                     .then(() => {
-                        window.location.href = "{{ route('produccion.index') }}";
+                        window.location.href = "<?= route('produccion.index') ?>";
                     });
             })
             .catch(error => {

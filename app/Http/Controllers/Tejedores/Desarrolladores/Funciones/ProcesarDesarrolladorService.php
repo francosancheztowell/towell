@@ -487,8 +487,18 @@ class ProcesarDesarrolladorService
         ], $detallePayload, $pasadasPayload);
 
         if ($modeloDestino) {
-            $payload['CuentaRizo'] = $modeloDestino->CuentaRizo ?? null;
-            $payload['CuentaPie'] = $modeloDestino->CuentaPie ?? null;
+            $payload['CuentaRizo']  = $modeloDestino->CuentaRizo  ?? null;
+            $payload['CuentaPie']   = $modeloDestino->CuentaPie   ?? null;
+            $payload['TipoRizo']    = $modeloDestino->TipoRizo    ?? null;
+            $payload['Tolerancia']  = $modeloDestino->Tolerancia  ?? null;
+            $payload['Clave']       = $modeloDestino->Clave       ?? null;
+            $payload['Vendedor']    = $modeloDestino->Vendedor    ?? null;
+            $payload['FlogsId']     = $modeloDestino->FlogsId     ?? ($ordenData->FlogsId ?? null);
+        }
+
+        // Rasurado viene de ReqProgramaTejido
+        if ($ordenData && $ordenData->Rasurado !== null) {
+            $payload['Razurada'] = $ordenData->Rasurado;
         }
 
         foreach ($payload as $column => $value) {
