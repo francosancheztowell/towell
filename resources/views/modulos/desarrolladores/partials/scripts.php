@@ -77,56 +77,38 @@ document.addEventListener('DOMContentLoaded', function () {
         omitirConfirmacionPasadas: false,
     };
 
+    // ── Handlers de botones del banner ───────────────────────────────────────
     els.btnFinalizarOrden?.addEventListener('click', function () {
         if (!state.ordenEnProceso) return;
-        if (confirm(`¿Finalizar la orden "${state.ordenEnProceso}"?`)) {
-            if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.remove('hidden');
-            setTimeout(() => {
-                if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.add('hidden');
-                alert(`Orden "${state.ordenEnProceso}" finalizada.`);
-            }, 300);
+        if (confirm('¿Finalizar la orden "' + state.ordenEnProceso + '"? Quedara como proceso nulo.')) {
+            alert('Orden "' + state.ordenEnProceso + '" finalizada. Proceso nulo.');
+            // TODO: Call endpoint to finalize
         }
     });
 
     els.btnRepSiguiente?.addEventListener('click', function () {
         if (!state.ordenEnProceso) return;
-        if (els.modalReprogramarOrden) {
-            els.modalReprogramarOrden.textContent = `Orden: ${state.ordenEnProceso}${state.ordenEnProcesoNombre ? ' — ' + state.ordenEnProcesoNombre : ''}`;
-        }
-        if (els.modalReprogramarMensaje) {
-            els.modalReprogramarMensaje.textContent = 'Esta orden se moverá a la siguiente posición en la cola.';
-        }
-        els.modalReprogramar?.classList.remove('hidden');
+        alert('La orden "' + state.ordenEnProceso + '" se movera al siguiente.');
+        // TODO: Call endpoint to reprogramar siguiente
     });
 
     els.btnRepFinal?.addEventListener('click', function () {
         if (!state.ordenEnProceso) return;
-        if (els.modalReprogramarOrden) {
-            els.modalReprogramarOrden.textContent = `Orden: ${state.ordenEnProceso}${state.ordenEnProcesoNombre ? ' — ' + state.ordenEnProcesoNombre : ''}`;
-        }
-        if (els.modalReprogramarMensaje) {
-            els.modalReprogramarMensaje.textContent = 'Esta orden se moverá al final de la cola.';
-        }
-        els.modalReprogramar?.classList.remove('hidden');
+        alert('La orden "' + state.ordenEnProceso + '" se movera al final.');
+        // TODO: Call endpoint to reprogramar final
     });
 
-    els.btnReprogramarSiguiente?.addEventListener('click', function () {
-        if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.remove('hidden');
-        setTimeout(() => {
-            if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.add('hidden');
-            els.modalReprogramar?.classList.add('hidden');
-            alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al siguiente.`);
-        }, 300);
-    });
-
-    els.btnReprogramarUltimo?.addEventListener('click', function () {
-        if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.remove('hidden');
-        setTimeout(() => {
-            if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.add('hidden');
-            els.modalReprogramar?.classList.add('hidden');
-            alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al último.`);
-        }, 300);
-    });
+    // ── Listener para telar-destino selects ─────────────────────────────────
+    function setupTelarDestinoListeners() {
+        document.querySelectorAll('.telar-destino-select').forEach(function(select) {
+            select.addEventListener('change', function() {
+                const hasDestino = this.value && this.value !== '';
+                // Mostrar botones de reprogramar si hay destino seleccionado
+                if (els.btnRepSiguiente) els.btnRepSiguiente.classList.toggle('hidden', !hasDestino);
+                if (els.btnRepFinal) els.btnRepFinal.classList.toggle('hidden', !hasDestino);
+            });
+        });
+    }
 
     document.getElementById('modalReprogramarCancelar')?.addEventListener('click', function () {
         els.modalReprogramar?.classList.add('hidden');
@@ -711,6 +693,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     els.noDataMessage.classList.remove('hidden');
                     els.filtroOrdenContainer?.classList.add('hidden');
                 }
+                // Configurar listeners para telar-destino
+                setupTelarDestinoListeners();
+                // Deshabilitar todos los selects de telar-destino inicialmente
+                document.querySelectorAll('.telar-destino-select').forEach(function(sel) {
+                    sel.disabled = true;
+                });
             })
             .catch(() => {
                 els.bodyProducciones.innerHTML = `<tr><td colspan="7" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
@@ -826,6 +814,14 @@ document.addEventListener('DOMContentLoaded', function () {
         state.tamanoClave = tamano;
         state.noProduccionActual = produccion;
         state.nombreProductoActual = modelo;
+
+        // Habilitar telar-destino selects
+        document.querySelectorAll('.telar-destino-select').forEach(function(sel) {
+            sel.disabled = false;
+        });
+        // Ocultar botones reprogramar
+        if (els.btnRepSiguiente) els.btnRepSiguiente.classList.add('hidden');
+        if (els.btnRepFinal) els.btnRepFinal.classList.add('hidden');
 
         buscarYActualizarCodigoDibujo(salon, telar, tamano);
 
