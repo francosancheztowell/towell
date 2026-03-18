@@ -210,6 +210,7 @@ class ProcesarDesarrolladorService
         $validated = $request->validate([
             'NoTelarId' => 'required|string',
             'NoProduccion' => 'required|string|max:80',
+            'registroId' => 'nullable|integer',
             'NumeroJulioRizo' => 'required|string|max:50',
             'NumeroJulioPie' => 'nullable|string|max:50',
             'TotalPasadasDibujo' => 'required|integer|min:1',
@@ -246,6 +247,23 @@ class ProcesarDesarrolladorService
             ->where('NoTelarId', $validated['NoTelarId'])
             ->lockForUpdate()
             ->first();
+
+        // Fila sin orden: buscar por registroId y asignar la orden nueva
+        if (!$programa && !empty($validated['registroId'])) {
+            $programa = ReqProgramaTejido::query()
+                ->where('Id', $validated['registroId'])
+                ->where('NoTelarId', $validated['NoTelarId'])
+                ->where(function ($q) {
+                    $q->whereNull('NoProduccion')->orWhere('NoProduccion', '');
+                })
+                ->lockForUpdate()
+                ->first();
+
+            if ($programa) {
+                $programa->NoProduccion = $validated['NoProduccion'];
+                $programa->save();
+            }
+        }
 
         if (!$programa) {
             throw ValidationException::withMessages([

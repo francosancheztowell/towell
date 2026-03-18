@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
             select.addEventListener('change', function() {
                 var rawValue = this.value; // 'salon|telar' or ''
                 var telarId = '';
+                var esOrigen = this.selectedOptions[0]?.dataset.esOrigen === 'true';
                 if (rawValue && rawValue.includes('|')) {
                     telarId = rawValue.split('|')[1] || '';
                 }
@@ -103,8 +104,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (els.selectAccion) els.selectAccion.value = 'finalizar';
                 if (els.inputAccion) els.inputAccion.value = 'finalizar';
 
-                // Update hidden fields
-                if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = rawValue ? 'true' : 'false';
+                // Update hidden fields — si es el telar origen no es un cambio de telar
+                if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = (rawValue && !esOrigen) ? 'true' : 'false';
                 if (els.inputTelarDestino) els.inputTelarDestino.value = rawValue || '';
 
                 // Clear previous row's destino hidden fields when another row's select changes
@@ -114,7 +115,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 });
 
-                if (!rawValue || !telarId) {
+                if (!rawValue || !telarId || esOrigen) {
+                    // Restaurar julios del telar origen
+                    if (state.originalTelarId) cargarJuliosPorTelar(state.originalTelarId);
                     // Restore original telar's en-proceso
                     if (state.originalTelarEnProceso) {
                         if (els.ordenEnProcesoNum) els.ordenEnProcesoNum.textContent = state.originalTelarEnProceso;
@@ -127,6 +130,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     return;
                 }
+
+                // Cargar julios del telar destino (solo si es un telar diferente al origen)
+                cargarJuliosPorTelar(telarId);
 
                 // Show loading, fetch orden en proceso of the destination telar
                 if (els.bannerLoading) els.bannerLoading.classList.remove('hidden');
@@ -651,7 +657,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (selected && selected.value) {
                 const invSize = selected.dataset.inventsizeid || '-';
                 const cfgId = selected.dataset.configid || '-';
-                if (badgeEl) badgeEl.textContent = 'Tamaño ' + tipo + ': ' + invSize + ' / Configuración ' + tipo + ': ' + cfgId;
+                if (badgeEl) badgeEl.textContent = 'Configuración ' + tipo + ': ' + cfgId + ' / Tamaño ' + tipo + ': ' + invSize;
             } else {
                 if (badgeEl) badgeEl.textContent = 'No se ha seleccionado Julio ' + tipo;
             }
@@ -812,6 +818,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function cargarDetallesOrden(noProduccion) {
+        if (!noProduccion) {
+            els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, 'No se encontraron detalles para esta orden');
+            Pasadas.reset();
+            return;
+        }
         els.bodyDetallesOrden.innerHTML = spinnerHtml(6, 'Cargando detalles...');
 
         fetch(`/desarrolladores/orden/${noProduccion}/detalles`)
@@ -914,14 +925,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const { telar, produccion, modelo = '', salon = '', tamano = '' } = checkbox.dataset;
 
+        // Para filas sin orden, usar el valor escrito en el input
+        const noProduccionFinal = produccion || (ordenInputCheck ? ordenInputCheck.value.trim() : '');
+
         els.inputTelarId.value = telar;
-        els.inputNoProduccion.value = produccion;
+        els.inputNoProduccion.value = noProduccionFinal;
         els.formTelarId.textContent = telar;
-        els.formNoProduccion.textContent = produccion;
+        els.formNoProduccion.textContent = noProduccionFinal || '-';
         els.formNombreProducto.textContent = modelo || '-';
         state.salonTejido = salon;
         state.tamanoClave = tamano;
-        state.noProduccionActual = produccion;
+        state.noProduccionActual = noProduccionFinal;
         state.nombreProductoActual = modelo;
 
         // Store the record ID for empty-NoProduccion handling
@@ -940,12 +954,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         rowSeleccionadaAnterior = checkbox.closest('tr');
 
-        // Habilitar telar-destino de la fila actual
+        // Habilitar telar-destino de la fila actual y poner por defecto el telar origen
         var rowActual = checkbox.closest('tr');
         var telarDestinoActual = rowActual ? rowActual.querySelector('.telar-destino-select') : null;
         if (telarDestinoActual) {
             telarDestinoActual.disabled = false;
+            var origenOpt = telarDestinoActual.querySelector('option[data-es-origen="true"]');
+            if (origenOpt) telarDestinoActual.value = origenOpt.value;
         }
+        // Telar destino por defecto = telar origen (sin activar cambio de telar)
+        if (els.inputTelarDestino) els.inputTelarDestino.value = salon + '|' + telar;
 
         // Resetear select de acción
         if (els.selectAccion) els.selectAccion.value = 'finalizar';
@@ -1046,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selected && selected.value) {
             const invSize = selected.dataset.inventsizeid || '-';
             const cfgId = selected.dataset.configid || '-';
-            els.formJulioRizoInfo.textContent = 'Tamaño Rizo: ' + invSize + ' / Configuración Rizo: ' + cfgId;
+            els.formJulioRizoInfo.textContent = 'Configuración Rizo: ' + cfgId + ' / Tamaño Rizo: ' + invSize;
         } else {
             els.formJulioRizoInfo.textContent = 'No se ha seleccionado Julio Rizo';
         }
@@ -1057,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selected && selected.value) {
             const invSize = selected.dataset.inventsizeid || '-';
             const cfgId = selected.dataset.configid || '-';
-            els.formJulioPieInfo.textContent = 'Tamaño Pie: ' + invSize + ' / Configuración Pie: ' + cfgId;
+            els.formJulioPieInfo.textContent = 'Configuración Pie: ' + cfgId + ' / Tamaño Pie: ' + invSize;
         } else {
             els.formJulioPieInfo.textContent = 'No se ha seleccionado Julio Pie';
         }
@@ -1105,6 +1123,14 @@ document.addEventListener('DOMContentLoaded', function () {
     els.bodyProducciones?.addEventListener('input', function (e) {
         if (e.target.classList.contains('orden-input')) {
             validarOrden(e.target);
+            // Si esta fila ya está seleccionada, sincronizar el valor al campo oculto
+            var row = e.target.closest('tr');
+            var cb = row ? row.querySelector('.checkbox-produccion') : null;
+            if (cb && cb.checked) {
+                var val = e.target.value.trim();
+                els.inputNoProduccion.value = val;
+                if (els.formNoProduccion) els.formNoProduccion.textContent = val || '-';
+            }
         }
     });
 });
