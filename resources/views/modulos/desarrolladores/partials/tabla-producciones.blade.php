@@ -21,7 +21,7 @@
                 <button type="button" id="btnRepSiguiente" class="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
                     Reprogramar siguiente
                 </button>
-                <button type="button" id="btnRepFinal" class="px-3 py-1 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-md transition-colors">
+                <button type="button" id="btnRepFinal" class="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
                     Reprogramar final
                 </button>
             </div>
