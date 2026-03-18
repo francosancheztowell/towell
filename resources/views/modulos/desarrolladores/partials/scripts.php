@@ -57,6 +57,8 @@ document.addEventListener('DOMContentLoaded', function () {
         ordenEnProcesoFecha: document.getElementById('ordenEnProcesoFecha'),
         ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
         ordenEnProcesoTelar: document.getElementById('ordenEnProcesoTelar'),
+        bannerLoading:       document.getElementById('bannerLoading'),
+        bannerContent:       document.getElementById('bannerContent'),
         btnAccionOrden:      document.getElementById('btnAccionOrden'),
     };
 
@@ -162,6 +164,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 // Si hay telar destino seleccionado, cargar su orden en proceso
                 if (telarDestino) {
+                    // Mostrar loading
+                    if (els.bannerLoading) els.bannerLoading.classList.remove('hidden');
+                    if (els.bannerContent) els.bannerContent.classList.add('hidden');
+                    
                     fetch('/desarrolladores/telar/' + encodeURIComponent(telarDestino) + '/orden-en-proceso')
                         .then(function(r) { return r.json(); })
                         .then(function(data) {
@@ -186,7 +192,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
                             }
                         })
-                        .catch(function() {});
+                        .catch(function() {})
+                        .then(function() {
+                            // Ocultar loading
+                            if (els.bannerLoading) els.bannerLoading.classList.add('hidden');
+                            if (els.bannerContent) els.bannerContent.classList.remove('hidden');
+                        });
                 }
             });
         });
@@ -937,14 +948,8 @@ document.addEventListener('DOMContentLoaded', function () {
         cargarResumenCatCodificados(telar, produccion);
 
         els.formContainer.classList.remove('hidden');
-        requestAnimationFrame(() => {
-            const ajusteSuperior = 70;
-            els.formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            setTimeout(() => {
-                window.scrollBy({ top: -ajusteSuperior, behavior: 'smooth' });
-                checkFormValidity();
-            }, 180);
-        });
+        // Sin scroll automático al seleccionar
+        checkFormValidity();
     };
 
     // ── Validar y enviar formulario ───────────────────────────────────────
