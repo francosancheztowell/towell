@@ -30,8 +30,6 @@ document.addEventListener('DOMContentLoaded', function () {
         selectJulioRizo:    document.getElementById('NumeroJulioRizo'),
         selectJulioPie:     document.getElementById('NumeroJulioPie'),
         inputDesperdicio:   document.getElementById('DesperdicioTrama'),
-        checkboxCambio:     document.getElementById('CambioTelarActivo'),
-        selectDestino:      document.getElementById('TelarDestino'),
         modalPasadas:       document.getElementById('modalPasadas'),
         modalReprogramar:       document.getElementById('modalReprogramar'),
         modalReprogramarOrden:  document.getElementById('modalReprogramarOrden'),
@@ -58,6 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ordenEnProcesoNum:   document.getElementById('ordenEnProcesoNum'),
         ordenEnProcesoFecha: document.getElementById('ordenEnProcesoFecha'),
         ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
+        ordenEnProcesoTelar: document.getElementById('ordenEnProcesoTelar'),
         modalReprogramarLoading: document.getElementById('modalReprogramarLoading'),
         btnFinalizarOrden:   document.getElementById('btnFinalizarOrden'),
         btnRepSiguiente:    document.getElementById('btnRepSiguiente'),
@@ -166,7 +165,16 @@ document.addEventListener('DOMContentLoaded', function () {
         option.selected = true;
     }
 
-    function resetJulioSelect(select, placeholder = 'Selecciona un Julio') {
+    function buildTelarDestinoOptions(telarActual) {
+        const telares = window.__TELARES_LISTA__ || [];
+        let options = '<option value="">--</option>';
+        telares.forEach(t => {
+            if (t !== telarActual) {
+                options += `<option value="${t}">${t}</option>`;
+            }
+        });
+        return options;
+    }
         if (!select) return;
         select.innerHTML = '';
         const option = document.createElement('option');
@@ -600,24 +608,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
-    // ── Cambio de telar ───────────────────────────────────────────────────
-    function actualizarEstadoCambioTelar() {
-        if (!els.checkboxCambio || !els.selectDestino) return;
-        const activo = els.checkboxCambio.checked;
-        els.selectDestino.disabled = !activo;
-        els.selectDestino.required = activo;
-        if (!activo) { 
-            els.selectDestino.value = ''; 
-            // Restaurar el código de dibujo del telar original si se desactiva el cambio
-            if (state.salonTejido && state.tamanoClave && els.inputTelarId?.value) {
-                buscarYActualizarCodigoDibujo(state.salonTejido, els.inputTelarId.value, state.tamanoClave);
-            }
-            return; 
-        }
-        const destino = parseDestinoValue(els.selectDestino.value);
-        if (destino.salon === state.salonTejido && destino.telar === (els.inputTelarId?.value || '')) els.selectDestino.value = '';
-    }
-
     // ── Resumen CatCodificados ────────────────────────────────────────────
     function actualizarResumen(data) {
         Object.entries(els.resumen).forEach(([key, el]) => {
@@ -656,9 +646,6 @@ document.addEventListener('DOMContentLoaded', function () {
         state.nombreProductoActual = '';
         state.ordenEnProceso = '';
         state.ordenEnProcesoNombre = '';
-        if (els.checkboxCambio) els.checkboxCambio.checked = false;
-        if (els.selectDestino) els.selectDestino.value = '';
-        actualizarEstadoCambioTelar();
         Codificacion.clear();
         els.formContainer.classList.add('hidden');
         document.querySelectorAll('.checkbox-produccion').forEach(cb => { cb.checked = false; });
@@ -715,7 +702,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const soloConOrden = els.filtroSoloConOrden?.checked ? '1' : '';
         const url = `/desarrolladores/telar/${telarId}/producciones${soloConOrden ? '?solo_con_orden=1' : ''}`;
         if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
-        els.bodyProducciones.innerHTML = spinnerHtml(6, 'Cargando producciones...');
+        els.bodyProducciones.innerHTML = spinnerHtml(7, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
         els.filtroOrdenContainer?.classList.remove('hidden');
         els.noDataMessage.classList.add('hidden');
@@ -740,6 +727,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-blue-50">${p.FechaInicio ? new Date(p.FechaInicio).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : 'N/A'}</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-white">${p.TamanoClave ?? 'N/A'}</td>
                             <td class="px-3 py-3 text-sm text-gray-600 break-words bg-blue-50">${p.NombreProducto || 'N/A'}</td>
+                            <td class="px-3 py-3 whitespace-nowrap bg-white">
+                                <select class="telar-destino-select w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-green-50 cursor-pointer">
+                                    ${buildTelarDestinoOptions(telarId)}
+                                </select>
+                            </td>
                             <td class="px-3 py-3 whitespace-nowrap text-center bg-white">
                                 <input type="checkbox" class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                                        data-telar="${telarId}" data-salon="${p.SalonTejidoId ?? ''}" data-tamano="${p.TamanoClave ?? ''}"
@@ -766,6 +758,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
                                 els.ordenEnProcesoFecha.textContent = data.orden.fechaInicio || '-';
                                 els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre || '-';
+                                els.ordenEnProcesoTelar.textContent = telarId;
                                 els.ordenEnProcesoBanner.classList.remove('hidden');
                                 console.log('Banner shown');
                             } else {
@@ -782,7 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     .catch(err => console.error('Error fetching orden-en-proceso:', err));
             })
             .catch(() => {
-                els.bodyProducciones.innerHTML = `<tr><td colspan="6" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
+                els.bodyProducciones.innerHTML = `<tr><td colspan="7" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
                 els.filtroOrdenContainer?.classList.add('hidden');
             });
     }
@@ -873,9 +866,6 @@ document.addEventListener('DOMContentLoaded', function () {
         state.tamanoClave = tamano;
         state.noProduccionActual = produccion;
         state.nombreProductoActual = modelo;
-        if (els.checkboxCambio) els.checkboxCambio.checked = false;
-        if (els.selectDestino) els.selectDestino.value = '';
-        actualizarEstadoCambioTelar();
 
         buscarYActualizarCodigoDibujo(salon, telar, tamano);
 
@@ -898,37 +888,10 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ── Validar y enviar formulario ───────────────────────────────────────
-    function validarCambioTelar() {
-        const activo = Boolean(els.checkboxCambio?.checked);
-        if (!activo) return true;
-
-        const rawDestino = (els.selectDestino?.value || '').trim();
-        if (!rawDestino) {
-            Swal.fire({ icon: 'warning', title: 'Cambio de telar', text: 'Selecciona un telar destino para continuar.', confirmButtonColor: '#2563eb' });
-            return false;
-        }
-        const destino = parseDestinoValue(rawDestino);
-        if (!destino.salon || !destino.telar) {
-            Swal.fire({ icon: 'warning', title: 'Cambio de telar', text: 'El telar destino tiene un formato invalido.', confirmButtonColor: '#2563eb' });
-            return false;
-        }
-        if (destino.salon === state.salonTejido && destino.telar === (els.inputTelarId?.value || '')) {
-            Swal.fire({ icon: 'warning', title: 'Cambio de telar', text: 'El telar destino debe ser diferente al telar origen.', confirmButtonColor: '#2563eb' });
-            return false;
-        }
-        return true;
-    }
-
     function enviarFormulario() {
-        if (!validarCambioTelar()) return;
-
         Swal.fire({ title: 'Guardando...', text: 'Por favor espera', allowOutsideClick: false, allowEscapeKey: false, didOpen: () => Swal.showLoading() });
 
         const formData = new FormData(els.form);
-        const cambioActivo = Boolean(els.checkboxCambio?.checked);
-        formData.set('CambioTelarActivo', cambioActivo ? '1' : '0');
-        if (cambioActivo) formData.set('TelarDestino', (els.selectDestino?.value || '').trim());
-        else formData.delete('TelarDestino');
 
         fetch(els.form.action, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
             .then(r => r.json())
@@ -951,24 +914,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     els.selectTelar.addEventListener('change', function () {
         if (!this.value) return;
+        window.__TELAR_ACTUAL__ = this.value;
         console.log('Telar changed to:', this.value);
         Codificacion.updateSuffix(this.value);
         Codificacion.updateHiddenValue();
         cargarJuliosPorTelar(this.value);
         cargarProducciones(this.value);
-    });
-
-    els.checkboxCambio?.addEventListener('change', actualizarEstadoCambioTelar);
-    els.selectDestino?.addEventListener('change', function () {
-        if (!this.value) return;
-        const d = parseDestinoValue(this.value);
-        if (d.salon === state.salonTejido && d.telar === (els.inputTelarId?.value || '')) {
-            this.value = '';
-            Swal.fire({ icon: 'warning', title: 'Destino invalido', text: 'El telar destino debe ser diferente al telar origen.', confirmButtonColor: '#2563eb' });
-        } else {
-            // Actualizar código de dibujo con el nuevo telar destino
-            buscarYActualizarCodigoDibujo(d.salon, d.telar, state.tamanoClave);
-        }
     });
 
     els.btnCancelar.addEventListener('click', resetFormularioCompleto);
@@ -1039,7 +990,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     Codificacion.initListeners();
     NumberSelectorManager.init();
-    actualizarEstadoCambioTelar();
 
     // ── Validación de Orden ─────────────────────────────────────────────
     let ordenValidacionTimer = null;

@@ -24,5 +24,9 @@
 @endsection
 
 @push('scripts')
+    <script>
+        window.__TELARES_LISTA__ = @json($telares->pluck('NoTelarId')->values());
+        window.__TELAR_ACTUAL__ = null;
+    </script>
     @include('modulos.desarrolladores.partials.scripts')
 @endpush
