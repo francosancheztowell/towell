@@ -11,12 +11,19 @@
 
 {{-- Modal Reprogramar --}}
 <div id="modalReprogramar" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6 relative">
+        {{-- Loading overlay --}}
+        <div id="modalReprogramarLoading" class="hidden absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center z-10">
+            <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
         <h4 class="text-lg font-semibold text-gray-800 mb-1">Reprogramar Orden</h4>
         <p class="text-sm text-gray-600 mb-1">La orden en proceso se moverá a:</p>
         <p id="modalReprogramarOrden" class="text-sm font-medium text-blue-600 mb-1"></p>
         <p id="modalReprogramarMensaje" class="text-xs text-gray-500 mb-6"></p>
-        <div class="flex justify-end gap-3">
+        <div id="modalReprogramarActions" class="flex justify-end gap-3">
             <button type="button" id="modalReprogramarCancelar" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
             <button type="button" id="btnReprogramarSiguiente" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Al siguiente</button>
             <button type="button" id="btnReprogramarUltimo" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">Al último</button>

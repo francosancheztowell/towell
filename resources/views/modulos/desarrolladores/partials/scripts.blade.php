@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ordenEnProcesoNum:   document.getElementById('ordenEnProcesoNum'),
         ordenEnProcesoFecha: document.getElementById('ordenEnProcesoFecha'),
         ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
+        modalReprogramarLoading: document.getElementById('modalReprogramarLoading'),
         btnFinalizarOrden:   document.getElementById('btnFinalizarOrden'),
         btnRepSiguiente:    document.getElementById('btnRepSiguiente'),
         btnRepFinal:        document.getElementById('btnRepFinal'),
@@ -80,7 +81,11 @@ document.addEventListener('DOMContentLoaded', function () {
     els.btnFinalizarOrden?.addEventListener('click', function () {
         if (!state.ordenEnProceso) return;
         if (confirm(`¿Finalizar la orden "${state.ordenEnProceso}"?`)) {
-            alert(`Orden "${state.ordenEnProceso}" finalizada.`);
+            if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.remove('hidden');
+            setTimeout(() => {
+                if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.add('hidden');
+                alert(`Orden "${state.ordenEnProceso}" finalizada.`);
+            }, 300);
         }
     });
 
@@ -107,15 +112,21 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     els.btnReprogramarSiguiente?.addEventListener('click', function () {
-        state.reprogramarAccion = 'siguiente';
-        els.modalReprogramar?.classList.add('hidden');
-        alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al siguiente.`);
+        if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.remove('hidden');
+        setTimeout(() => {
+            if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.add('hidden');
+            els.modalReprogramar?.classList.add('hidden');
+            alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al siguiente.`);
+        }, 300);
     });
 
     els.btnReprogramarUltimo?.addEventListener('click', function () {
-        state.reprogramarAccion = 'ultimo';
-        els.modalReprogramar?.classList.add('hidden');
-        alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al último.`);
+        if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.remove('hidden');
+        setTimeout(() => {
+            if (els.modalReprogramarLoading) els.modalReprogramarLoading.classList.add('hidden');
+            els.modalReprogramar?.classList.add('hidden');
+            alert(`La orden "${state.ordenEnProceso || 'N/A'}" se moverá al último.`);
+        }, 300);
     });
 
     document.getElementById('modalReprogramarCancelar')?.addEventListener('click', function () {
