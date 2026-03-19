@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Modelo para dbo.SYSMensajes
  * Campos: Id, DepartamentoId, Telefono, Token, Activo, FechaRegistro, Nombre,
- * Desarrolladores, NotificarAtadoJulio, CorteSEF, MarcasFinales, ReporteElectrico,
+ * Desarrolladores, DesarrolladoresPrue, NotificarAtadoJulio, CorteSEF, MarcasFinales, ReporteElectrico,
  * ReporteMecanico, ReporteTiempoMuerto, Atadores
  */
 class SYSMensaje extends Model
@@ -31,6 +31,7 @@ class SYSMensaje extends Model
         'Activo',
         'Nombre',
         'Desarrolladores',
+        'DesarrolladoresPrue',
         'NotificarAtadoJulio',
         'CorteSEF',
         'MarcasFinales',
@@ -50,6 +51,7 @@ class SYSMensaje extends Model
         'FechaRegistro' => 'datetime',
         'Nombre' => 'string',
         'Desarrolladores' => 'boolean',
+        'DesarrolladoresPrue' => 'boolean',
         'NotificarAtadoJulio' => 'boolean',
         'CorteSEF' => 'boolean',
         'MarcasFinales' => 'boolean',
@@ -73,6 +75,7 @@ class SYSMensaje extends Model
         return [
             'InvTrama',
             'Desarrolladores',
+            'DesarrolladoresPrue',
             'NotificarAtadoJulio',
             'CorteSEF',
             'MarcasFinales',

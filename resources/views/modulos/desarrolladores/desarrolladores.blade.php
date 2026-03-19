@@ -24,5 +24,9 @@
 @endsection
 
 @push('scripts')
-    @include('modulos.desarrolladores.partials.scripts')
+    <script>
+        window.__TELARES_LISTA__ = @json($telares->pluck('NoTelarId')->values());
+        window.__TELAR_ACTUAL__ = null;
+    </script>
+    @php include resource_path('views/modulos/desarrolladores/partials/scripts.php'); @endphp
 @endpush

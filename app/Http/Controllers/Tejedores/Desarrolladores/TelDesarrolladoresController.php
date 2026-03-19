@@ -63,11 +63,80 @@ class TelDesarrolladoresController extends Controller
     }
 
     /**
+     * Obtiene las producciones de un telar como HTML renderizado.
+     */
+    public function obtenerProduccionesHtml(Request $request, $telarId)
+    {
+        $soloConOrden = $request->boolean('solo_con_orden', false);
+        $resultado = $this->consultasService->obtenerProducciones($telarId, $soloConOrden);
+
+        if (!$resultado['success']) {
+            return response('', 500);
+        }
+
+        $telaresDestino = $this->consultasService->obtenerTelaresDestino();
+
+        $producciones = $resultado['producciones'];
+        $hasData = count($producciones) > 0;
+
+        return view('modulos.desarrolladores.partials.filas-producciones', [
+            'producciones' => $producciones,
+            'telarId' => $telarId,
+            'telaresDestino' => $telaresDestino,
+            'hasData' => $hasData,
+        ])->render();
+    }
+
+    /**
      * Obtiene vía JSON las producciones pendientes de un telar.
      */
-    public function obtenerProducciones($telarId)
+    public function obtenerProducciones(Request $request, $telarId)
     {
-        $resultado = $this->consultasService->obtenerProducciones($telarId);
+        $soloConOrden = $request->boolean('solo_con_orden', false);
+        $resultado = $this->consultasService->obtenerProducciones($telarId, $soloConOrden);
+        $status = $resultado['success'] ? 200 : 500;
+        return response()->json($resultado, $status);
+    }
+
+    /**
+     * Verifica si una orden ya existe en ReqProgramaTejido.
+     */
+    public function verificarOrden(Request $request)
+    {
+        $noProduccion = $request->input('noProduccion', '');
+        if (empty($noProduccion)) {
+            return response()->json(['exists' => false]);
+        }
+        $exists = ReqProgramaTejido::where('NoProduccion', $noProduccion)->exists();
+        return response()->json(['exists' => $exists]);
+    }
+
+    /**
+     * Obtiene la orden que está en proceso para un telar.
+     */
+    public function obtenerOrdenEnProceso($telarId)
+    {
+        $orden = ReqProgramaTejido::where('NoTelarId', $telarId)
+            ->where('EnProceso', 1)
+            ->select('NoProduccion', 'NombreProducto', 'FechaInicio')
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'orden' => $orden ? [
+                'noProduccion' => $orden->NoProduccion,
+                'nombreProducto' => $orden->NombreProducto ?? '',
+                'fechaInicio' => $orden->FechaInicio ? $orden->FechaInicio->format('d/m/Y') : '',
+            ] : null
+        ]);
+    }
+
+    /**
+     * Obtiene vía JSON los julios de rizo y pie filtrados por telar.
+     */
+    public function obtenerJuliosPorTelar($telarId)
+    {
+        $resultado = $this->consultasService->obtenerJuliosPorTelar($telarId);
         $status = $resultado['success'] ? 200 : 500;
         return response()->json($resultado, $status);
     }
@@ -78,6 +147,16 @@ class TelDesarrolladoresController extends Controller
     public function obtenerDetallesOrden($noProduccion)
     {
         $resultado = $this->consultasService->obtenerDetallesOrden($noProduccion);
+        $status = $resultado['success'] ? 200 : 500;
+        return response()->json($resultado, $status);
+    }
+
+    /**
+     * Obtiene vía JSON los detalles de un registro sin orden, buscando por Id.
+     */
+    public function obtenerDetallesOrdenPorId($id)
+    {
+        $resultado = $this->consultasService->obtenerDetallesOrdenPorId((int) $id);
         $status = $resultado['success'] ? 200 : 500;
         return response()->json($resultado, $status);
     }

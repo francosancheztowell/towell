@@ -491,6 +491,7 @@
                 apiUrl: {!! json_encode($apiUrl ?? '/planeacion/codificacion/api/all-fast') !!},
                 totalRegistros: {{ isset($totalRegistros) ? (int) $totalRegistros : 0 }},
                 dateColumns: ['FechaTejido', 'FechaCumplimiento', 'FechaCompromiso', 'FechaCreacion', 'FechaModificacion'],
+                dateTimeColumns: ['FechaArranque', 'FechaFinaliza'],
             };
 
             const state = {
@@ -517,17 +518,37 @@
 
             function formatDateOnly(val, columnName) {
                 if (val == null || val === '') return '';
-                if (!CONFIG.dateColumns || !CONFIG.dateColumns.includes(columnName)) return String(val);
                 const s = String(val).trim();
                 if (!s) return '';
+
+                if (CONFIG.dateTimeColumns && CONFIG.dateTimeColumns.includes(columnName)) {
+                    const normalized = s.replace(' ', 'T');
+                    const d = new Date(normalized);
+                    if (!isNaN(d.getTime())) {
+                        const da = String(d.getDate()).padStart(2, '0');
+                        const mo = String(d.getMonth() + 1).padStart(2, '0');
+                        const y = d.getFullYear();
+                        const h = String(d.getHours()).padStart(2, '0');
+                        const mi = String(d.getMinutes()).padStart(2, '0');
+                        return da + '/' + mo + '/' + y + ' ' + h + ':' + mi;
+                    }
+
+                    const mDateTime = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+                    if (mDateTime) {
+                        return mDateTime[3] + '/' + mDateTime[2] + '/' + mDateTime[1] + ' ' + mDateTime[4] + ':' + mDateTime[5];
+                    }
+                }
+
+                if (!CONFIG.dateColumns || !CONFIG.dateColumns.includes(columnName)) return s;
+
                 const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                if (m) return m[1] + '-' + m[2] + '-' + m[3];
+                if (m) return m[3] + '/' + m[2] + '/' + m[1];
                 const d = new Date(s);
                 if (!isNaN(d.getTime())) {
-                    const y = d.getFullYear();
-                    const mo = String(d.getMonth() + 1).padStart(2, '0');
                     const da = String(d.getDate()).padStart(2, '0');
-                    return y + '-' + mo + '-' + da;
+                    const mo = String(d.getMonth() + 1).padStart(2, '0');
+                    const y = d.getFullYear();
+                    return da + '/' + mo + '/' + y;
                 }
                 return s;
             }

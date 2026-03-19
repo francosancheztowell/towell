@@ -23,6 +23,7 @@
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Teléfono</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Token</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Nombre</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Desarrolladores prue</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Desarrolladores</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Notif. atado julio</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Corte SEF</th>
@@ -49,6 +50,7 @@
                             data-activo="{{ $activo ? '1' : '0' }}"
                             data-nombre="{{ e($m->Nombre ?? '') }}"
                             data-desarrolladores="{{ ($m->Desarrolladores ?? false) ? '1' : '0' }}"
+                            data-desarrolladores-prue="{{ ($m->DesarrolladoresPrue ?? false) ? '1' : '0' }}"
                             data-notificar-atado-julio="{{ ($m->NotificarAtadoJulio ?? false) ? '1' : '0' }}"
                             data-corte-sef="{{ ($m->CorteSEF ?? false) ? '1' : '0' }}"
                             data-marcas-finales="{{ ($m->MarcasFinales ?? false) ? '1' : '0' }}"
@@ -62,6 +64,7 @@
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Telefono }}</td>
                             <td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="{{ $m->Token }}">{{ $m->Token }}</td>
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Nombre ?? '' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->DesarrolladoresPrue ?? false) ? 'Si' : 'No' }}</td>
                             <td class="px-4 py-3 text-center text-base">{{ ($m->Desarrolladores ?? false) ? 'Sí' : 'No' }}</td>
                             <td class="px-4 py-3 text-center text-base">{{ ($m->NotificarAtadoJulio ?? false) ? 'Sí' : 'No' }}</td>
                             <td class="px-4 py-3 text-center text-base">{{ ($m->CorteSEF ?? false) ? 'Sí' : 'No' }}</td>
@@ -74,7 +77,7 @@
                         </tr>
                     @empty
                         <tr id="tr-empty">
-                            <td colspan="14" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>
+                            <td colspan="15" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -121,6 +124,7 @@
                     <label for="Activo" class="text-sm font-medium text-gray-700">Activo</label>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-sm">
+                    <label class="flex items-center gap-2"><input type="hidden" name="DesarrolladoresPrue" value="0"><input type="checkbox" name="DesarrolladoresPrue" id="DesarrolladoresPrue" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Desarrolladores prue</label>
                     <label class="flex items-center gap-2"><input type="hidden" name="Desarrolladores" value="0"><input type="checkbox" name="Desarrolladores" id="Desarrolladores" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Desarrolladores</label>
                     <label class="flex items-center gap-2"><input type="hidden" name="NotificarAtadoJulio" value="0"><input type="checkbox" name="NotificarAtadoJulio" id="NotificarAtadoJulio" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Notif. atado julio</label>
                     <label class="flex items-center gap-2"><input type="hidden" name="CorteSEF" value="0"><input type="checkbox" name="CorteSEF" id="CorteSEF" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Corte SEF</label>
@@ -242,6 +246,7 @@
         document.getElementById('Token').value = token;
         document.getElementById('Activo').checked = activo;
         document.getElementById('Nombre').value = nombre;
+        document.getElementById('DesarrolladoresPrue').checked = selectedRow.dataset.desarrolladoresPrue === '1';
         document.getElementById('Desarrolladores').checked = selectedRow.dataset.desarrolladores === '1';
         document.getElementById('NotificarAtadoJulio').checked = selectedRow.dataset.notificarAtadoJulio === '1';
         document.getElementById('CorteSEF').checked = selectedRow.dataset.corteSef === '1';
@@ -387,7 +392,7 @@
         const body = new FormData(form);
         if (isPut) body.append('_method', 'PUT');
         if (!document.getElementById('Activo').checked) body.set('Activo', '0'); else body.set('Activo', '1');
-        ['Desarrolladores','NotificarAtadoJulio','CorteSEF','MarcasFinales','ReporteElectrico','ReporteMecanico','ReporteTiempoMuerto','Atadores','InvTrama'].forEach(function(name){
+        ['DesarrolladoresPrue','Desarrolladores','NotificarAtadoJulio','CorteSEF','MarcasFinales','ReporteElectrico','ReporteMecanico','ReporteTiempoMuerto','Atadores','InvTrama'].forEach(function(name){
             var el = document.getElementById(name);
             body.set(name, el && el.checked ? '1' : '0');
         });
@@ -417,6 +422,7 @@
                     selectedRow.dataset.token = item.Token || '';
                     selectedRow.dataset.activo = item.Activo ? '1' : '0';
                     selectedRow.dataset.nombre = item.Nombre || '';
+                    selectedRow.dataset.desarrolladoresPrue = item.DesarrolladoresPrue ? '1' : '0';
                     selectedRow.dataset.desarrolladores = item.Desarrolladores ? '1' : '0';
                     selectedRow.dataset.notificarAtadoJulio = item.NotificarAtadoJulio ? '1' : '0';
                     selectedRow.dataset.corteSef = item.CorteSEF ? '1' : '0';
@@ -432,15 +438,16 @@
                     selectedRow.cells[3].textContent = item.Token || '';
                     selectedRow.cells[3].title = item.Token || '';
                     selectedRow.cells[4].textContent = item.Nombre || '';
-                    selectedRow.cells[5].textContent = siNo(item.Desarrolladores);
-                    selectedRow.cells[6].textContent = siNo(item.NotificarAtadoJulio);
-                    selectedRow.cells[7].textContent = siNo(item.CorteSEF);
-                    selectedRow.cells[8].textContent = siNo(item.MarcasFinales);
-                    selectedRow.cells[9].textContent = siNo(item.ReporteElectrico);
-                    selectedRow.cells[10].textContent = siNo(item.ReporteMecanico);
-                    selectedRow.cells[11].textContent = siNo(item.ReporteTiempoMuerto);
-                    selectedRow.cells[12].textContent = siNo(item.Atadores);
-                    selectedRow.cells[13].textContent = siNo(item.InvTrama);
+                    selectedRow.cells[5].textContent = siNo(item.DesarrolladoresPrue);
+                    selectedRow.cells[6].textContent = siNo(item.Desarrolladores);
+                    selectedRow.cells[7].textContent = siNo(item.NotificarAtadoJulio);
+                    selectedRow.cells[8].textContent = siNo(item.CorteSEF);
+                    selectedRow.cells[9].textContent = siNo(item.MarcasFinales);
+                    selectedRow.cells[10].textContent = siNo(item.ReporteElectrico);
+                    selectedRow.cells[11].textContent = siNo(item.ReporteMecanico);
+                    selectedRow.cells[12].textContent = siNo(item.ReporteTiempoMuerto);
+                    selectedRow.cells[13].textContent = siNo(item.Atadores);
+                    selectedRow.cells[14].textContent = siNo(item.InvTrama);
                 } else {
                     if (trEmpty) trEmpty.remove();
                     const even = tbody.querySelectorAll('tr.msg-row').length % 2 === 0;
@@ -452,6 +459,7 @@
                     tr.dataset.token = item.Token || '';
                     tr.dataset.activo = item.Activo ? '1' : '0';
                     tr.dataset.nombre = item.Nombre || '';
+                    tr.dataset.desarrolladoresPrue = item.DesarrolladoresPrue ? '1' : '0';
                     tr.dataset.desarrolladores = item.Desarrolladores ? '1' : '0';
                     tr.dataset.notificarAtadoJulio = item.NotificarAtadoJulio ? '1' : '0';
                     tr.dataset.corteSef = item.CorteSEF ? '1' : '0';
@@ -461,7 +469,7 @@
                     tr.dataset.reporteTiempoMuerto = item.ReporteTiempoMuerto ? '1' : '0';
                     tr.dataset.atadores = item.Atadores ? '1' : '0';
                     tr.dataset.invTrama = item.InvTrama ? '1' : '0';
-                    tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.DepartamentoNombre || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Telefono || '') + '</td><td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="' + (item.Token || '') + '">' + (item.Token || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Nombre || '') + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Desarrolladores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.NotificarAtadoJulio) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.CorteSEF) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.MarcasFinales) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteElectrico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteMecanico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteTiempoMuerto) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Atadores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.InvTrama) + '</td>';
+                    tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.DepartamentoNombre || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Telefono || '') + '</td><td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="' + (item.Token || '') + '">' + (item.Token || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Nombre || '') + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.DesarrolladoresPrue) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Desarrolladores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.NotificarAtadoJulio) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.CorteSEF) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.MarcasFinales) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteElectrico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteMecanico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteTiempoMuerto) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Atadores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.InvTrama) + '</td>';
                     tbody.appendChild(tr);
                 }
                 Swal.fire({ icon: 'success', title: data.message || 'Guardado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });

@@ -10,6 +10,7 @@ use App\Http\Controllers\Tejido\InventarioTrama\ConsultarRequerimientoController
 use App\Http\Controllers\Tejido\InventarioTrama\NuevoRequerimientoController;
 use App\Http\Controllers\Tejido\MarcasFinales\MarcasController;
 use App\Http\Controllers\Tejido\ProduccionReenconado\ProduccionReenconadoCabezuelaController;
+use App\Http\Controllers\Tejido\Reportes\PromedioParosEficienciaController;
 use App\Http\Controllers\Tejido\Reportes\ReporteInvTelasController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,12 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
                 'url' => route('tejido.reportes.inv-telas'),
                 'disponible' => true,
             ],
+            [
+                'nombre' => 'Promedio Paros y Eficiencia',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('tejido.reportes.promedio-paros-eficiencia'),
+                'disponible' => true,
+            ],
         ];
         return view('modulos.tejido.reportes.index', ['reportes' => $reportes]);
     })->name('reportes.index');
@@ -35,6 +42,8 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::get('/reportes/inv-telas', [ReporteInvTelasController::class, 'index'])->name('reportes.inv-telas');
     Route::get('/reportes/inv-telas/excel', [ReporteInvTelasController::class, 'exportarExcel'])->name('reportes.inv-telas.excel');
     Route::get('/reportes/inv-telas/pdf', [ReporteInvTelasController::class, 'exportarPdf'])->name('reportes.inv-telas.pdf');
+    Route::get('/reportes/promedio-paros-eficiencia', [PromedioParosEficienciaController::class, 'index'])->name('reportes.promedio-paros-eficiencia');
+    Route::get('/reportes/promedio-paros-eficiencia/excel', [PromedioParosEficienciaController::class, 'exportarExcel'])->name('reportes.promedio-paros-eficiencia.excel');
 
     Route::get('/configurar/{serie?}', [UsuarioController::class, 'showSubModulosConfiguracion'])
         ->defaults('serie', '205')

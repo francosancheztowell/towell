@@ -90,6 +90,7 @@ class MensajesController extends Controller
             'Activo'         => ['nullable', 'boolean'],
             'Nombre'         => ['nullable', 'string', 'max:150'],
             'Desarrolladores'         => ['nullable', 'boolean'],
+            'DesarrolladoresPrue'    => ['nullable', 'boolean'],
             'NotificarAtadoJulio'     => ['nullable', 'boolean'],
             'CorteSEF'                => ['nullable', 'boolean'],
             'MarcasFinales'           => ['nullable', 'boolean'],
@@ -103,6 +104,7 @@ class MensajesController extends Controller
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
         $validated['Nombre'] = $request->input('Nombre');
         $validated['Desarrolladores'] = (bool) ($request->boolean('Desarrolladores') ?? false);
+        $validated['DesarrolladoresPrue'] = (bool) ($request->boolean('DesarrolladoresPrue') ?? false);
         $validated['NotificarAtadoJulio'] = (bool) ($request->boolean('NotificarAtadoJulio') ?? false);
         $validated['CorteSEF'] = (bool) ($request->boolean('CorteSEF') ?? false);
         $validated['MarcasFinales'] = (bool) ($request->boolean('MarcasFinales') ?? false);
@@ -147,6 +149,7 @@ class MensajesController extends Controller
             'Activo'         => ['nullable', 'boolean'],
             'Nombre'         => ['nullable', 'string', 'max:150'],
             'Desarrolladores'         => ['nullable', 'boolean'],
+            'DesarrolladoresPrue'    => ['nullable', 'boolean'],
             'NotificarAtadoJulio'     => ['nullable', 'boolean'],
             'CorteSEF'                => ['nullable', 'boolean'],
             'MarcasFinales'           => ['nullable', 'boolean'],
@@ -160,6 +163,7 @@ class MensajesController extends Controller
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
         $validated['Nombre'] = $request->input('Nombre');
         $validated['Desarrolladores'] = (bool) ($request->boolean('Desarrolladores') ?? false);
+        $validated['DesarrolladoresPrue'] = (bool) ($request->boolean('DesarrolladoresPrue') ?? false);
         $validated['NotificarAtadoJulio'] = (bool) ($request->boolean('NotificarAtadoJulio') ?? false);
         $validated['CorteSEF'] = (bool) ($request->boolean('CorteSEF') ?? false);
         $validated['MarcasFinales'] = (bool) ($request->boolean('MarcasFinales') ?? false);
@@ -251,6 +255,7 @@ class MensajesController extends Controller
             'FechaRegistro' => $mensaje->FechaRegistro?->format('d/m/Y H:i'),
             'Nombre' => $mensaje->Nombre ?? '',
             'Desarrolladores' => (bool) $mensaje->Desarrolladores,
+            'DesarrolladoresPrue' => (bool) $mensaje->DesarrolladoresPrue,
             'NotificarAtadoJulio' => (bool) $mensaje->NotificarAtadoJulio,
             'CorteSEF' => (bool) $mensaje->CorteSEF,
             'MarcasFinales' => (bool) $mensaje->MarcasFinales,

@@ -48,7 +48,7 @@ class ConsultasDesarrolladorService
     /**
      * @return Collection<int, array{value: string, label: string}>
      */
-    private function obtenerTelaresDestino(): Collection
+    public function obtenerTelaresDestino(): Collection
     {
         return ReqProgramaTejido::query()
             ->select('SalonTejidoId', 'NoTelarId')
@@ -65,7 +65,7 @@ class ConsultasDesarrolladorService
 
                 return [
                     'value' => $salon . '|' . $telar,
-                    'label' => $telar . ' (' . $salon . ')',
+                    'label' => $telar,
                 ];
             })
             ->values();
@@ -74,16 +74,43 @@ class ConsultasDesarrolladorService
     /**
      * @return Collection<int, AtaMontadoTelasModel>
      */
-    private function obtenerJuliosPorTipo(string $tipo): Collection
+    private function obtenerJuliosPorTipo(string $tipo, ?string $telarId = null): Collection
     {
-        return AtaMontadoTelasModel::query()
+        $query = AtaMontadoTelasModel::query()
             ->whereNotNull('NoJulio')
             ->where('NoJulio', '!=', '')
             ->where('Tipo', $tipo)
-            ->orderByDesc('Fecha')
-            ->get(['NoJulio', 'InventSizeId', 'Fecha'])
+            ->orderByDesc('Fecha');
+
+        if ($telarId !== null && trim($telarId) !== '') {
+            $query->where('NoTelarId', trim($telarId));
+        }
+
+        return $query->get(['NoJulio', 'InventSizeId', 'ConfigId', 'Fecha'])
             ->unique('NoJulio')
             ->values();
+    }
+
+    /**
+     * Obtiene julios de rizo y pie filtrados por telar.
+     *
+     * @param string $telarId
+     * @return array
+     */
+    public function obtenerJuliosPorTelar(string $telarId): array
+    {
+        try {
+            return [
+                'success' => true,
+                'juliosRizo' => $this->obtenerJuliosPorTipo('Rizo', $telarId),
+                'juliosPie' => $this->obtenerJuliosPorTipo('Pie', $telarId),
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error al obtener los julios: ' . $e->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -113,16 +140,18 @@ class ConsultasDesarrolladorService
      * @param string $telarId
      * @return array
      */
-    public function obtenerProducciones($telarId): array
+    public function obtenerProducciones($telarId, bool $soloConOrden = false): array
     {
         try {
-            $producciones = ReqProgramaTejido::where('NoTelarId', $telarId)
-                ->where(function ($query) {
-                    $query->where('EnProceso', 0);
-                })
-                ->whereNotNull('NoProduccion')
-                ->where('NoProduccion', '!=', '')
-                ->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
+            $query = ReqProgramaTejido::where('NoTelarId', $telarId)
+                ->where('EnProceso', 0);
+
+            if ($soloConOrden) {
+                $query->whereNotNull('NoProduccion')
+                      ->where('NoProduccion', '!=', '');
+            }
+
+            $producciones = $query->select('Id', 'SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()
                 ->orderBy('FechaInicio', 'asc')
                 ->get();
@@ -140,6 +169,23 @@ class ConsultasDesarrolladorService
     }
 
     /**
+     * Obtiene los detalles de un registro sin orden, buscando por Id.
+     */
+    public function obtenerDetallesOrdenPorId(int $id): array
+    {
+        try {
+            $ordenData = ReqProgramaTejido::find($id);
+
+            return $this->buildDetallesFromOrdenData($ordenData);
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Obtiene los detalles de la orden para una producción determinada.
      *
      * @param string $noProduccion
@@ -149,54 +195,7 @@ class ConsultasDesarrolladorService
     {
         try {
             $ordenData = ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
-            $detalles = [];
-
-            $isZeroish = static function ($value): bool {
-                $text = trim((string) ($value ?? ''));
-                if ($text === '') return true;
-                return (bool) preg_match('/^0+(?:\.0+)?$/', $text);
-            };
-
-            $shouldIncludeDetalle = static function (array $fila) use ($isZeroish): bool {
-                $calibre = trim((string) ($fila['Calibre'] ?? ''));
-                if ($calibre === '') return false;
-
-                $keys = ['Calibre', 'Hilo', 'Fibra', 'CodColor', 'NombreColor', 'Pasadas'];
-                foreach ($keys as $key) {
-                    if (!$isZeroish($fila[$key] ?? '')) {
-                        return true;
-                    }
-                }
-                return false;
-            };
-
-            if ($ordenData) {
-                $filaTrama = TelDesarrolladoresHelper::mapDetalleFila(
-                    $ordenData, 'CalibreTrama', 'CalibreTrama2', 'FibraTrama',
-                    'CodColorTrama', 'ColorTrama', 'PasadasTrama'
-                );
-
-                if ($shouldIncludeDetalle($filaTrama)) {
-                    $detalles[] = $filaTrama;
-                }
-
-                for ($i = 1; $i <= 5; $i++) {
-                    $filaComb = TelDesarrolladoresHelper::mapDetalleFila(
-                        $ordenData, "CalibreComb{$i}", "CalibreComb{$i}2", "FibraComb{$i}",
-                        "CodColorComb{$i}", $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}",
-                        "PasadasComb{$i}"
-                    );
-
-                    if ($shouldIncludeDetalle($filaComb)) {
-                        $detalles[] = $filaComb;
-                    }
-                }
-            }
-
-            return [
-                'success' => true,
-                'detalles' => $detalles
-            ];
+            return $this->buildDetallesFromOrdenData($ordenData);
         } catch (Exception $e) {
             return [
                 'success' => false,
@@ -297,5 +296,51 @@ class ConsultasDesarrolladorService
                 'message' => 'Error al obtener la información'
             ];
         }
+    }
+
+    private function buildDetallesFromOrdenData(?ReqProgramaTejido $ordenData): array
+    {
+        $detalles = [];
+
+        $isZeroish = static function ($value): bool {
+            $text = trim((string) ($value ?? ''));
+            if ($text === '') return true;
+            return (bool) preg_match('/^0+(?:\.0+)?$/', $text);
+        };
+
+        $shouldIncludeDetalle = static function (array $fila) use ($isZeroish): bool {
+            $calibre = trim((string) ($fila['Calibre'] ?? ''));
+            if ($calibre === '') return false;
+
+            foreach (['Calibre', 'Hilo', 'Fibra', 'CodColor', 'NombreColor', 'Pasadas'] as $key) {
+                if (!$isZeroish($fila[$key] ?? '')) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if ($ordenData) {
+            $filaTrama = TelDesarrolladoresHelper::mapDetalleFila(
+                $ordenData, 'CalibreTrama', 'CalibreTrama2', 'FibraTrama',
+                'CodColorTrama', 'ColorTrama', 'PasadasTrama'
+            );
+            if ($shouldIncludeDetalle($filaTrama)) {
+                $detalles[] = $filaTrama;
+            }
+
+            for ($i = 1; $i <= 5; $i++) {
+                $filaComb = TelDesarrolladoresHelper::mapDetalleFila(
+                    $ordenData, "CalibreComb{$i}", "CalibreComb{$i}2", "FibraComb{$i}",
+                    "CodColorComb{$i}", $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}",
+                    "PasadasComb{$i}"
+                );
+                if ($shouldIncludeDetalle($filaComb)) {
+                    $detalles[] = $filaComb;
+                }
+            }
+        }
+
+        return ['success' => true, 'detalles' => $detalles];
     }
 }

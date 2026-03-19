@@ -591,6 +591,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function cargarDetallesOrden(noProduccion) {
+        if (!noProduccion) {
+            els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, 'No se encontraron detalles para esta orden');
+            Pasadas.reset();
+            return;
+        }
         els.bodyDetallesOrden.innerHTML = spinnerHtml(6, 'Cargando detalles...');
 
         fetch(`/desarrolladores-muestras/orden/${noProduccion}/detalles`)

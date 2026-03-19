@@ -86,7 +86,8 @@ class ProcesarDesarrolladorService
                     $codigoDibujo,
                     $minutosCambio,
                     $longitudLuchaTot,
-                    $modeloDestino
+                    $modeloDestino,
+                    $ordenData
                 );
 
                 $claveModelo = $registroCodificado
@@ -147,7 +148,8 @@ class ProcesarDesarrolladorService
 
                 $programaFinal = $this->ejecutarMovimientoYPonerEnProceso(
                     $programaObjetivo,
-                    $contextoDestino
+                    $contextoDestino,
+                    $validated['accion'] ?? 'finalizar'
                 );
 
                 return [
@@ -210,6 +212,8 @@ class ProcesarDesarrolladorService
         $validated = $request->validate([
             'NoTelarId' => 'required|string',
             'NoProduccion' => 'required|string|max:80',
+            'registroId' => 'nullable|integer',
+            'accion' => 'nullable|string|in:finalizar,reprogramar_siguiente,reprogramar_final',
             'NumeroJulioRizo' => 'required|string|max:50',
             'NumeroJulioPie' => 'nullable|string|max:50',
             'TotalPasadasDibujo' => 'required|integer|min:1',
@@ -246,6 +250,23 @@ class ProcesarDesarrolladorService
             ->where('NoTelarId', $validated['NoTelarId'])
             ->lockForUpdate()
             ->first();
+
+        // Fila sin orden: buscar por registroId y asignar la orden nueva
+        if (!$programa && !empty($validated['registroId'])) {
+            $programa = ReqProgramaTejido::query()
+                ->where('Id', $validated['registroId'])
+                ->where('NoTelarId', $validated['NoTelarId'])
+                ->where(function ($q) {
+                    $q->whereNull('NoProduccion')->orWhere('NoProduccion', '');
+                })
+                ->lockForUpdate()
+                ->first();
+
+            if ($programa) {
+                $programa->NoProduccion = $validated['NoProduccion'];
+                $programa->save();
+            }
+        }
 
         if (!$programa) {
             throw ValidationException::withMessages([
@@ -333,11 +354,11 @@ class ProcesarDesarrolladorService
         string $codigoDibujo,
         ?int $minutosCambio,
         ?int $longitudLuchaTot,
-        ?ReqModelosCodificados $modeloDestino
+        ?ReqModelosCodificados $modeloDestino,
+        ?ReqProgramaTejido $ordenData = null
     ): ?CatCodificados {
         $modeloCat = new CatCodificados();
         $columns = Schema::getColumnListing($modeloCat->getTable());
-
         $queryBase = CatCodificados::query();
         $hasOrderFilter = false;
         if (in_array('OrdenTejido', $columns, true)) {
@@ -378,11 +399,66 @@ class ProcesarDesarrolladorService
             $registro = (clone $queryBase)->first();
         }
 
+        $esNuevo = false;
         if (!$registro) {
-            return null;
+            $registro = new CatCodificados();
+            $esNuevo = true;
         }
 
-        $payload = array_merge([
+        // Cuando es un registro nuevo, usar los datos de ReqProgramaTejido como base
+        $programaPayload = [];
+        if ($esNuevo && $ordenData) {
+            $programaPayload = [
+                'Nombre'          => $ordenData->NombreProducto,
+                'ClaveModelo'     => $ordenData->TamanoClave,
+                'ItemId'          => $ordenData->ItemId,
+                'InventSizeId'    => $ordenData->InventSizeId,
+                'FlogsId'         => $ordenData->FlogsId,
+                'NombreProyecto'  => $ordenData->NombreProyecto,
+                'CustName'        => $ordenData->CustName,
+                'Peine'           => $ordenData->Peine,
+                'Ancho'           => $ordenData->Ancho,
+                'Luchaje'         => $ordenData->Luchaje,
+                'P_crudo'         => $ordenData->PesoCrudo,
+                'DobladilloId'    => $ordenData->DobladilloId,
+                'MedidaPlano'     => $ordenData->MedidaPlano,
+                'CalibreRizo'     => $ordenData->CalibreRizo,
+                'CalibreRizo2'    => $ordenData->CalibreRizo2,
+                'CuentaRizo'      => $ordenData->CuentaRizo,
+                'FibraRizo'       => $ordenData->FibraRizo,
+                'CalibrePie'      => $ordenData->CalibrePie,
+                'CalibrePie2'     => $ordenData->CalibrePie2,
+                'CuentaPie'       => $ordenData->CuentaPie,
+                'FibraPie'        => $ordenData->FibraPie,
+                'VelocidadSTD'    => $ordenData->VelocidadSTD,
+                'EficienciaSTD'   => $ordenData->EficienciaSTD,
+                'NoTiras'         => $ordenData->NoTiras,
+                'Repeticiones'    => $ordenData->Repeticiones,
+                'Prioridad'       => $ordenData->Prioridad,
+                'MtsRollo'        => $ordenData->MtsRollo,
+                'PzasRollo'       => $ordenData->PzasRollo,
+                'TotalRollos'     => $ordenData->TotalRollos,
+                'TotalPzas'       => $ordenData->TotalPzas,
+                'CombinaTram'     => $ordenData->CombinaTram,
+                'BomId'           => $ordenData->BomId,
+                'BomName'         => $ordenData->BomName,
+                'CreaProd'        => $ordenData->CreaProd,
+                'Densidad'        => $ordenData->Densidad,
+                'HiloAX'          => $ordenData->HiloAX,
+                'ActualizaLmat'   => $ordenData->ActualizaLmat,
+                'PesoMuestra'     => $ordenData->PesoMuestra,
+                'OrdCompartida'   => $ordenData->OrdCompartida,
+                'OrdCompartidaLider' => $ordenData->OrdCompartidaLider,
+                'CategoriaCalidad' => $ordenData->CategoriaCalidad,
+                'FechaTejido'     => $ordenData->FechaInicio?->format('Y-m-d'),
+                'OrdPrincipal'    => $ordenData->OrdPrincipal,
+                'FechaArranque'   => $ordenData->FechaArranque,
+                'FechaFinaliza'   => null,
+                'Cantidad'        => $ordenData->TotalPedido,
+            ];
+        }
+
+        $payload = array_merge($programaPayload, [
             'TelarId' => $contextoDestino['telarDestino'],
             'NoTelarId' => $contextoDestino['telarDestino'],
             'Departamento' => $contextoDestino['salonDestino'],
@@ -412,8 +488,18 @@ class ProcesarDesarrolladorService
         ], $detallePayload, $pasadasPayload);
 
         if ($modeloDestino) {
-            $payload['CuentaRizo'] = $modeloDestino->CuentaRizo ?? null;
-            $payload['CuentaPie'] = $modeloDestino->CuentaPie ?? null;
+            $payload['CuentaRizo']  = $modeloDestino->CuentaRizo  ?? null;
+            $payload['CuentaPie']   = $modeloDestino->CuentaPie   ?? null;
+            $payload['TipoRizo']    = $modeloDestino->TipoRizo    ?? null;
+            $payload['Tolerancia']  = $modeloDestino->Tolerancia  ?? null;
+            $payload['Clave']       = $modeloDestino->Clave       ?? null;
+            $payload['Vendedor']    = $modeloDestino->Vendedor    ?? null;
+            $payload['FlogsId']     = $modeloDestino->FlogsId     ?? ($ordenData->FlogsId ?? null);
+        }
+
+        // Rasurado viene de ReqProgramaTejido
+        if ($ordenData && $ordenData->Rasurado !== null) {
+            $payload['Razurada'] = $ordenData->Rasurado;
         }
 
         foreach ($payload as $column => $value) {
@@ -674,14 +760,38 @@ class ProcesarDesarrolladorService
 
     private function ejecutarMovimientoYPonerEnProceso(
         ReqProgramaTejido $programaObjetivo,
-        array $contextoDestino
+        array $contextoDestino,
+        string $accion = 'finalizar'
     ): ?ReqProgramaTejido {
+        $reprogramarValor = match ($accion) {
+            'reprogramar_siguiente' => '1',
+            'reprogramar_final'     => '2',
+            default                 => null,
+        };
+
         if ($contextoDestino['esCambioTelar']) {
             return $this->movimientoService->moverRegistroConCambioTelarEnProceso(
                 $programaObjetivo,
                 $contextoDestino['salonDestino'],
-                $contextoDestino['telarDestino']
+                $contextoDestino['telarDestino'],
+                $reprogramarValor
             );
+        }
+
+        if ($reprogramarValor !== null) {
+            // La actual en proceso se debe MOVER (no eliminar), por eso se le setea Reprogramar.
+            // El seleccionado ($programaObjetivo) es el que quedará en proceso.
+            $actualEnProceso = ReqProgramaTejido::query()
+                ->where('SalonTejidoId', $programaObjetivo->SalonTejidoId)
+                ->where('NoTelarId', $programaObjetivo->NoTelarId)
+                ->where('EnProceso', 1)
+                ->where('Id', '!=', $programaObjetivo->Id)
+                ->first();
+
+            if ($actualEnProceso) {
+                $actualEnProceso->Reprogramar = $reprogramarValor;
+                $actualEnProceso->saveQuietly();
+            }
         }
 
         $this->movimientoService->moverRegistroEnProceso($programaObjetivo, true);

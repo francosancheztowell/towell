@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const els = {
         selectTelar:        document.getElementById('telarOperador'),
         tablaProducciones:  document.getElementById('tablaProducciones'),
+        filtroSoloConOrden:  document.getElementById('filtroSoloConOrden'),
+        filtroOrdenContainer: document.getElementById('filtroOrdenContainer'),
+        msgValidacionOrden:   document.getElementById('msgValidacionOrden'),
         bodyProducciones:   document.getElementById('bodyProducciones'),
         bodyDetallesOrden:  document.getElementById('bodyDetallesOrden'),
         noDataMessage:      document.getElementById('noDataMessage'),
@@ -27,11 +30,12 @@ document.addEventListener('DOMContentLoaded', function () {
         selectJulioRizo:    document.getElementById('NumeroJulioRizo'),
         selectJulioPie:     document.getElementById('NumeroJulioPie'),
         inputDesperdicio:   document.getElementById('DesperdicioTrama'),
-        inputTramaAncho:    document.getElementById('TramaAnchoPeine'),
-        inputLongLucha:     document.getElementById('LongitudLuchaTot'),
-        checkboxCambio:     document.getElementById('CambioTelarActivo'),
-        selectDestino:      document.getElementById('TelarDestino'),
         modalPasadas:       document.getElementById('modalPasadas'),
+        modalReprogramar:       document.getElementById('modalReprogramar'),
+        modalReprogramarOrden:  document.getElementById('modalReprogramarOrden'),
+        modalReprogramarMensaje: document.getElementById('modalReprogramarMensaje'),
+        btnReprogramarSiguiente: document.getElementById('btnReprogramarSiguiente'),
+        btnReprogramarUltimo:   document.getElementById('btnReprogramarUltimo'),
         btnModalAceptar:    document.getElementById('modalPasadasAceptar'),
         btnModalCancelar:   document.getElementById('modalPasadasCancelar'),
         btnAgregarFila:     document.getElementById('btnAgregarFilaDetalle'),
@@ -46,16 +50,121 @@ document.addEventListener('DOMContentLoaded', function () {
             EfiFinal:        document.getElementById('resumenEfiFinal'),
             DesperdicioTrama:document.getElementById('resumenDesperdicioTrama'),
         },
+        formJulioRizoInfo: document.getElementById('formJulioRizoInfo'),
+        formJulioPieInfo:  document.getElementById('formJulioPieInfo'),
+        ordenEnProcesoBanner: document.getElementById('ordenEnProcesoBanner'),
+        ordenEnProcesoNum:   document.getElementById('ordenEnProcesoNum'),
+        ordenEnProcesoFecha: document.getElementById('ordenEnProcesoFecha'),
+        ordenEnProcesoNombre: document.getElementById('ordenEnProcesoNombre'),
+        ordenEnProcesoTelar: document.getElementById('ordenEnProcesoTelar'),
+        bannerLoading:       document.getElementById('bannerLoading'),
+        bannerContent:       document.getElementById('bannerContent'),
+        selectAccion:        document.getElementById('selectAccion'),
+        inputAccion:         document.getElementById('inputAccion'),
+        inputRegistroId:     document.getElementById('inputRegistroId'),
+        inputCambioTelarActivo: document.getElementById('inputCambioTelarActivo'),
+        inputTelarDestino:   document.getElementById('inputTelarDestino'),
     };
 
     // ── Estado ─────────────────────────────────────────────────────────────
     const state = {
         salonTejido: '',
         tamanoClave: '',
-        codificacionFetchAttempted: false,
+        noProduccionActual: '',
+        nombreProductoActual: '',
+        ordenEnProceso: '',
+        ordenEnProcesoNombre: '',
+        reprogramarOrden: null,
+        reprogramarAccion: null,
+        contadorFilasNuevas: 0,
         omitirConfirmacionPasadas: false,
-        contadorFilasNuevas: 1000,
+        originalTelarEnProceso: '',
+        originalTelarEnProcesoNombre: '',
+        originalTelarEnProcesoFecha: '',
+        originalTelarId: '',
     };
+
+    // ── Listener del select de acción ──────────────────────────────────────
+    els.selectAccion?.addEventListener('change', function() {
+        if (els.inputAccion) els.inputAccion.value = this.value;
+    });
+
+    // ── Listener para telar-destino selects ─────────────────────────────────
+    function setupTelarDestinoListeners() {
+        document.querySelectorAll('.telar-destino-select').forEach(function(select) {
+            select.addEventListener('change', function() {
+                var rawValue = this.value; // 'salon|telar' or ''
+                var telarId = '';
+                var esOrigen = this.selectedOptions[0]?.dataset.esOrigen === 'true';
+                if (rawValue && rawValue.includes('|')) {
+                    telarId = rawValue.split('|')[1] || '';
+                }
+
+                // Reset action select to Finalizar
+                if (els.selectAccion) els.selectAccion.value = 'finalizar';
+                if (els.inputAccion) els.inputAccion.value = 'finalizar';
+
+                // Update hidden fields — si es el telar origen no es un cambio de telar
+                if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = (rawValue && !esOrigen) ? 'true' : 'false';
+                if (els.inputTelarDestino) els.inputTelarDestino.value = rawValue || '';
+
+                // Clear previous row's destino hidden fields when another row's select changes
+                document.querySelectorAll('.telar-destino-select').forEach(function(otherSel) {
+                    if (otherSel !== select) {
+                        otherSel.value = '';
+                    }
+                });
+
+                if (!rawValue || !telarId || esOrigen) {
+                    // Restaurar julios del telar origen
+                    if (state.originalTelarId) cargarJuliosPorTelar(state.originalTelarId);
+                    // Restore original telar's en-proceso
+                    if (state.originalTelarEnProceso) {
+                        if (els.ordenEnProcesoNum) els.ordenEnProcesoNum.textContent = state.originalTelarEnProceso;
+                        if (els.ordenEnProcesoFecha) els.ordenEnProcesoFecha.textContent = state.originalTelarEnProcesoFecha || '-';
+                        if (els.ordenEnProcesoNombre) els.ordenEnProcesoNombre.textContent = state.originalTelarEnProcesoNombre || '-';
+                        if (els.ordenEnProcesoTelar) els.ordenEnProcesoTelar.textContent = state.originalTelarId;
+                        if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.remove('hidden');
+                    } else {
+                        if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
+                    }
+                    return;
+                }
+
+                // Cargar julios del telar destino (solo si es un telar diferente al origen)
+                cargarJuliosPorTelar(telarId);
+
+                // Show loading, fetch orden en proceso of the destination telar
+                if (els.bannerLoading) els.bannerLoading.classList.remove('hidden');
+                if (els.bannerContent) els.bannerContent.classList.add('hidden');
+                if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.remove('hidden');
+
+                fetch('/desarrolladores/telar/' + encodeURIComponent(telarId) + '/orden-en-proceso')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success && data.orden) {
+                            state.ordenEnProceso = data.orden.noProduccion;
+                            state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
+                            els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
+                            els.ordenEnProcesoFecha.textContent = data.orden.fechaInicio || '-';
+                            els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre || '-';
+                            els.ordenEnProcesoTelar.textContent = telarId;
+                        } else {
+                            state.ordenEnProceso = '';
+                            els.ordenEnProcesoNum.textContent = 'Sin orden';
+                            els.ordenEnProcesoFecha.textContent = '-';
+                            els.ordenEnProcesoNombre.textContent = '-';
+                            els.ordenEnProcesoTelar.textContent = telarId;
+                        }
+                    })
+                    .catch(function() {})
+                    .finally(function() {
+                        if (els.bannerLoading) els.bannerLoading.classList.add('hidden');
+                        if (els.bannerContent) els.bannerContent.classList.remove('hidden');
+                    });
+            });
+        });
+    }
 
     // ── Utilidades ────────────────────────────────────────────────────────
     function spinnerHtml(colspan, mensaje) {
@@ -88,6 +197,29 @@ document.addEventListener('DOMContentLoaded', function () {
         let option = Array.from(select.options).find(o => o.value === val);
         if (!option) { option = new Option(val, val); select.add(option); }
         option.selected = true;
+    }
+
+    function resetJulioSelect(select, placeholder = 'Selecciona un Julio') {
+        if (!select) return;
+        select.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = placeholder;
+        option.disabled = true;
+        option.selected = true;
+        select.appendChild(option);
+    }
+
+    function populateJulioSelect(select, items, placeholder = 'Selecciona un Julio') {
+        resetJulioSelect(select, placeholder);
+        (items || []).forEach(item => {
+            const noJulio = String(item?.NoJulio ?? '').trim();
+            if (!noJulio) return;
+            const option = new Option(noJulio, noJulio);
+            option.dataset.inventsizeid = item?.InventSizeId ?? '';
+            option.dataset.configid = item?.ConfigId ?? '';
+            select.appendChild(option);
+        });
     }
 
     function checkFormValidity() {
@@ -254,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const currentTelar = telarId || getActiveTelar();
             const suffix = getSuffix(currentTelar);
             if (els.codificacionSuffix) {
-                els.codificacionSuffix.textContent = suffix ? `.${suffix}` : '';
+                els.codificacionSuffix.textContent = suffix ? ('.' + suffix) : '';
                 els.codificacionSuffix.classList.toggle('hidden', !suffix);
             }
             return suffix;
@@ -458,38 +590,43 @@ document.addEventListener('DOMContentLoaded', function () {
     })();
 
     // ── Fila de detalle (crear/eliminar/agregar) ──────────────────────────
-    function crearFilaDetalle(index, calibre = '', hilo = '', fibra = '', codColor = '', nombreColor = '', pasadas = '', pasadasKey = null, usarSelects = false) {
-        const key = pasadasKey ?? `nuevo_${state.contadorFilasNuevas++}`;
-        const row = document.createElement('tr');
+    function crearFilaDetalle(index, calibre, hilo, fibra, codColor, nombreColor, pasadas, pasadasKey, usarSelects) {
+        calibre = calibre || '';
+        hilo = hilo || '';
+        fibra = fibra || '';
+        codColor = codColor || '';
+        nombreColor = nombreColor || '';
+        pasadas = pasadas || '';
+        pasadasKey = pasadasKey || ('nuevo_' + (state.contadorFilasNuevas++));
+        usarSelects = Boolean(usarSelects);
+
+        var inp = 'w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm';
+        var svgDel = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+        var selDis = usarSelects ? ' disabled' : '';
+        var selCls = usarSelects ? (inp + ' bg-gray-50 detalle-color') : inp;
+        var selRdonly = usarSelects ? ' readonly' : '';
+        var claveCell = usarSelects
+            ? '<td class="px-4 py-2"><select name="detalle_calibre[]" class="' + inp + '"><option value="">Cargando...</option></select></td>'
+            : '<td class="px-4 py-2"><input type="text" name="detalle_calibre[]" value="' + calibre + '" class="' + inp + '" placeholder="Calibre"></td>';
+        var hiloCell = '<td class="px-4 py-2"><input type="number" name="detalle_hilo[]" value="' + hilo + '" step="0.1" min="0" class="' + inp + '" placeholder="Hilo"></td>';
+        var fibraCell = usarSelects
+            ? '<td class="px-4 py-2"><select name="detalle_fibra[]" class="' + inp + '" disabled><option value="">Selecciona calibre</option></select></td>'
+            : '<td class="px-4 py-2"><input type="text" name="detalle_fibra[]" value="' + fibra + '" class="' + inp + '" placeholder="Fibra"></td>';
+        var codColorCell = usarSelects
+            ? '<td class="px-4 py-2"><select name="detalle_codcolor[]" class="' + inp + '" disabled><option value="">Selecciona calibre</option></select></td>'
+            : '<td class="px-4 py-2"><input type="text" name="detalle_codcolor[]" value="' + codColor + '" class="' + inp + '" placeholder="Cod Color"></td>';
+        var nombreColorCell = '<td class="px-4 py-2"><input type="text" name="detalle_nombrecolor[]" value="' + nombreColor + '" class="' + selCls + '" placeholder="Nombre Color"' + selRdonly + '></td>';
+        var pasadasCell = '<td class="px-4 py-2"><input type="number" name="pasadas[' + pasadasKey + ']" value="' + pasadas + '" min="1" step="1" required class="w-20 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0"></td>';
+        var accionesCell = '<td class="px-4 py-2 text-center"><button type="button" onclick="eliminarFilaDetalle(this)" class="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Eliminar fila">' + svgDel + '</button></td>';
+
+        var row = document.createElement('tr');
         row.className = 'hover:bg-gray-50 transition-colors fila-detalle';
         row.dataset.index = index;
+        row.innerHTML = claveCell + hiloCell + fibraCell + codColorCell + nombreColorCell + pasadasCell + accionesCell;
 
-        const inputField = (name, val, ph) => `<input type="text" name="${name}" value="${val}" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="${ph}">`;
-        const selectField = (name, cls, ph, disabled = false) => `<select name="${name}" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${cls}" ${disabled ? 'disabled' : ''}><option value="">${ph}</option></select>`;
-
-        row.innerHTML = `
-            <td class="px-4 py-2">${usarSelects ? selectField('detalle_calibre[]', 'detalle-calibre', 'Cargando...') : inputField('detalle_calibre[]', calibre, 'Calibre')}</td>
-            <td class="px-4 py-2">${inputField('detalle_hilo[]', hilo, 'Hilo')}</td>
-            <td class="px-4 py-2">${usarSelects ? selectField('detalle_fibra[]', 'detalle-fibra', 'Selecciona calibre', true) : inputField('detalle_fibra[]', fibra, 'Fibra')}</td>
-            <td class="px-4 py-2">${usarSelects ? selectField('detalle_codcolor[]', 'detalle-codcolor', 'Selecciona calibre', true) : inputField('detalle_codcolor[]', codColor, 'Cod Color')}</td>
-            <td class="px-4 py-2">
-                <input type="text" name="detalle_nombrecolor[]" value="${nombreColor}"
-                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${usarSelects ? 'bg-gray-50 detalle-color' : ''}"
-                       placeholder="Nombre Color" ${usarSelects ? 'readonly' : ''}>
-            </td>
-            <td class="px-4 py-2">
-                <input type="number" name="pasadas[${key}]" value="${pasadas}" min="1" step="1" required
-                       class="w-20 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0">
-            </td>
-            <td class="px-4 py-2 text-center">
-                <button type="button" onclick="eliminarFilaDetalle(this)" class="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Eliminar fila">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                </button>
-            </td>`;
-
-        if (usarSelects) void DetalleSelects.initForRow(row, { calibre, fibra, codColor, colorName: nombreColor });
+        if (usarSelects) {
+            void DetalleSelects.initForRow(row, { calibre: calibre, fibra: fibra, codColor: codColor, colorName: nombreColor });
+        }
         return row;
     }
 
@@ -500,24 +637,6 @@ document.addEventListener('DOMContentLoaded', function () {
             els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, 'No hay detalles. Usa el botón "Agregar Fila" para añadir.');
         }
     };
-
-    // ── Cambio de telar ───────────────────────────────────────────────────
-    function actualizarEstadoCambioTelar() {
-        if (!els.checkboxCambio || !els.selectDestino) return;
-        const activo = els.checkboxCambio.checked;
-        els.selectDestino.disabled = !activo;
-        els.selectDestino.required = activo;
-        if (!activo) { 
-            els.selectDestino.value = ''; 
-            // Restaurar el código de dibujo del telar original si se desactiva el cambio
-            if (state.salonTejido && state.tamanoClave && els.inputTelarId?.value) {
-                buscarYActualizarCodigoDibujo(state.salonTejido, els.inputTelarId.value, state.tamanoClave);
-            }
-            return; 
-        }
-        const destino = parseDestinoValue(els.selectDestino.value);
-        if (destino.salon === state.salonTejido && destino.telar === (els.inputTelarId?.value || '')) els.selectDestino.value = '';
-    }
 
     // ── Resumen CatCodificados ────────────────────────────────────────────
     function actualizarResumen(data) {
@@ -532,6 +651,19 @@ document.addEventListener('DOMContentLoaded', function () {
         NumberSelectorManager.setById('EficienciaInicio', data ? data.EfiInicial : '');
         NumberSelectorManager.setById('EficienciaFinal', data ? data.EfiFinal : '');
         if (els.inputDesperdicio) els.inputDesperdicio.value = (data && data.DesperdicioTrama !== null) ? data.DesperdicioTrama : 11;
+        // Actualizar badges de julios
+        function updateJulioBadge(select, badgeEl, tipo) {
+            const selected = select ? select.selectedOptions[0] : null;
+            if (selected && selected.value) {
+                const invSize = selected.dataset.inventsizeid || '-';
+                const cfgId = selected.dataset.configid || '-';
+                if (badgeEl) badgeEl.textContent = 'Configuración ' + tipo + ': ' + cfgId + ' / Tamaño ' + tipo + ': ' + invSize;
+            } else {
+                if (badgeEl) badgeEl.textContent = 'No se ha seleccionado Julio ' + tipo;
+            }
+        }
+        updateJulioBadge(els.selectJulioRizo, els.formJulioRizoInfo, 'Rizo');
+        updateJulioBadge(els.selectJulioPie, els.formJulioPieInfo, 'Pie');
     }
 
     // ── Reset completo (usado en cancelar y después de guardar) ───────────
@@ -540,61 +672,165 @@ document.addEventListener('DOMContentLoaded', function () {
         NumberSelectorManager.resetAll();
         state.salonTejido = '';
         state.tamanoClave = '';
-        if (els.checkboxCambio) els.checkboxCambio.checked = false;
-        if (els.selectDestino) els.selectDestino.value = '';
-        actualizarEstadoCambioTelar();
+        state.noProduccionActual = '';
+        state.nombreProductoActual = '';
+        state.ordenEnProceso = '';
+        state.ordenEnProcesoNombre = '';
         Codificacion.clear();
         els.formContainer.classList.add('hidden');
         document.querySelectorAll('.checkbox-produccion').forEach(cb => { cb.checked = false; });
         els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, DETALLE_EMPTY_MSG);
         Pasadas.reset();
         els.modalPasadas?.classList.add('hidden');
+        if (els.formJulioRizoInfo) els.formJulioRizoInfo.textContent = '—';
+        if (els.formJulioPieInfo) els.formJulioPieInfo.textContent = '—';
         actualizarResumen(null);
         prefillDesde(null);
+        if (els.inputAccion) els.inputAccion.value = 'finalizar';
+        if (els.selectAccion) els.selectAccion.value = 'finalizar';
+        if (els.inputRegistroId) els.inputRegistroId.value = '';
+        if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = 'false';
+        if (els.inputTelarDestino) els.inputTelarDestino.value = '';
         checkFormValidity();
+    }
+
+    // ── Filtro Solo con Orden ─────────────────────────────────────────────
+    els.filtroSoloConOrden?.addEventListener('change', function () {
+        filtrarFilasConOrden();
+    });
+
+    function filtrarFilasConOrden() {
+        const soloConOrden = els.filtroSoloConOrden?.checked;
+
+        if (soloConOrden) {
+            // Verificar si hay filas sin orden seleccionadas
+            const filasSinOrden = els.bodyProducciones?.querySelectorAll('tr') || [];
+            let tieneSeleccionSinOrden = false;
+            filasSinOrden.forEach(row => {
+                const checkbox = row.querySelector('.checkbox-produccion');
+                const ordenSpan = row.querySelector('.orden-value');
+                const ordenInput = row.querySelector('.orden-input');
+                const tieneOrden = ordenSpan?.textContent?.trim() || ordenInput?.value?.trim();
+                if (!tieneOrden && checkbox?.checked) {
+                    tieneSeleccionSinOrden = true;
+                }
+            });
+
+            if (tieneSeleccionSinOrden) {
+                alert('Deselecciona primero las filas que no tienen orden antes de filtrar.');
+                els.filtroSoloConOrden.checked = false;
+                return;
+            }
+        }
+
+        const filas = els.bodyProducciones?.querySelectorAll('tr') || [];
+        filas.forEach(row => {
+            const ordenSpan = row.querySelector('.orden-value');
+            const ordenInput = row.querySelector('.orden-input');
+            const tieneOrden = ordenSpan?.textContent?.trim() || ordenInput?.value?.trim();
+            row.style.display = (soloConOrden && !tieneOrden) ? 'none' : '';
+        });
     }
 
     // ── Cargas AJAX ───────────────────────────────────────────────────────
     function cargarProducciones(telarId) {
+        // Resetear estado
+        rowSeleccionadaAnterior = null;
+        if (els.selectAccion) els.selectAccion.value = 'finalizar';
+        if (els.inputAccion) els.inputAccion.value = 'finalizar';
+        if (els.inputTelarDestino) els.inputTelarDestino.value = '';
+        if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = 'false';
+
+        const soloConOrden = els.filtroSoloConOrden?.checked ? '?solo_con_orden=1' : '';
+        const url = `/desarrolladores/telar/${telarId}/producciones-html${soloConOrden}`;
+        if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
         els.bodyProducciones.innerHTML = spinnerHtml(6, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
+        els.filtroOrdenContainer?.classList.remove('hidden');
         els.noDataMessage.classList.add('hidden');
 
-        fetch(`/desarrolladores/telar/${telarId}/producciones`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.success && data.producciones.length > 0) {
-                    els.bodyProducciones.innerHTML = '';
-                    data.producciones.forEach((p) => {
-                        const row = document.createElement('tr');
-                        row.className = 'hover:bg-gray-100 transition-colors';
-                        row.innerHTML = `
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-blue-50">${p.SalonTejidoId ?? 'N/A'}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white">${p.NoProduccion}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-blue-50">${p.FechaInicio ? new Date(p.FechaInicio).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : 'N/A'}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-white">${p.TamanoClave ?? 'N/A'}</td>
-                            <td class="px-3 py-3 text-sm text-gray-600 break-words bg-blue-50">${p.NombreProducto || 'N/A'}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-center bg-white">
-                                <input type="checkbox" class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                                       data-telar="${telarId}" data-salon="${p.SalonTejidoId ?? ''}" data-tamano="${p.TamanoClave ?? ''}"
-                                       data-produccion="${p.NoProduccion}" data-modelo="${p.NombreProducto || ''}" onchange="seleccionarProduccion(this)">
-                            </td>`;
-                        els.bodyProducciones.appendChild(row);
-                    });
-                } else {
-                    els.bodyProducciones.innerHTML = '';
+        fetch(url)
+            .then(r => r.text())
+            .then(html => {
+                els.bodyProducciones.innerHTML = html || emptyRowHtml(6, 'No se encontraron producciones');
+                if (!html || html.trim() === '') {
                     els.noDataMessage.classList.remove('hidden');
+                    els.filtroOrdenContainer?.classList.add('hidden');
                 }
+                // Configurar listeners para telar-destino
+                setupTelarDestinoListeners();
+                // Deshabilitar todos los selects de telar-destino inicialmente
+                document.querySelectorAll('.telar-destino-select').forEach(function(sel) {
+                    sel.disabled = true;
+                });
             })
             .catch(() => {
-                els.bodyProducciones.innerHTML = `<tr><td colspan="6" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>`;
+                els.bodyProducciones.innerHTML = '<tr><td colspan="6" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>';
+                els.filtroOrdenContainer?.classList.add('hidden');
+            });
+
+        // ── Cargar orden en proceso (SIEMPRE) ──
+        fetch(`/desarrolladores/telar/${telarId}/orden-en-proceso`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.orden) {
+                    state.ordenEnProceso = data.orden.noProduccion;
+                    state.ordenEnProcesoNombre = data.orden.nombreProducto || '';
+                    state.originalTelarEnProceso = data.orden.noProduccion;
+                    state.originalTelarEnProcesoNombre = data.orden.nombreProducto || '';
+                    state.originalTelarEnProcesoFecha = data.orden.fechaInicio || '';
+                    state.originalTelarId = telarId;
+                    if (els.ordenEnProcesoBanner) {
+                        els.ordenEnProcesoNum.textContent = state.ordenEnProceso;
+                        els.ordenEnProcesoFecha.textContent = data.orden.fechaInicio || '-';
+                        els.ordenEnProcesoNombre.textContent = state.ordenEnProcesoNombre || '-';
+                        els.ordenEnProcesoTelar.textContent = telarId;
+                        els.ordenEnProcesoBanner.classList.remove('hidden');
+                    }
+                } else {
+                    state.ordenEnProceso = '';
+                    state.ordenEnProcesoNombre = '';
+                    state.originalTelarEnProceso = '';
+                    state.originalTelarEnProcesoNombre = '';
+                    state.originalTelarEnProcesoFecha = '';
+                    state.originalTelarId = telarId;
+                    if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
+                }
+            })
+            .catch(() => {});
+    }
+
+    function cargarJuliosPorTelar(telarId) {
+        resetJulioSelect(els.selectJulioRizo, 'Cargando julios...');
+        resetJulioSelect(els.selectJulioPie, 'Cargando julios...');
+
+        fetch(`/desarrolladores/telar/${encodeURIComponent(telarId)}/julios`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) throw new Error('Error al cargar julios');
+                populateJulioSelect(els.selectJulioRizo, data.juliosRizo);
+                populateJulioSelect(els.selectJulioPie, data.juliosPie);
+            })
+            .catch(() => {
+                resetJulioSelect(els.selectJulioRizo, 'Sin julios disponibles');
+                resetJulioSelect(els.selectJulioPie, 'Sin julios disponibles');
             });
     }
 
     function cargarDetallesOrden(noProduccion) {
+        const registroId = els.inputRegistroId ? els.inputRegistroId.value : '';
+        if (!noProduccion && !registroId) {
+            els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, 'No se encontraron detalles para esta orden');
+            Pasadas.reset();
+            return;
+        }
         els.bodyDetallesOrden.innerHTML = spinnerHtml(6, 'Cargando detalles...');
 
-        fetch(`/desarrolladores/orden/${noProduccion}/detalles`)
+        const url = noProduccion
+            ? `/desarrolladores/orden/${encodeURIComponent(noProduccion)}/detalles`
+            : `/desarrolladores/registro/${encodeURIComponent(registroId)}/detalles`;
+
+        fetch(url)
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.detalles.length > 0) {
@@ -646,21 +882,96 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ── Seleccionar producción ────────────────────────────────────────────
     window.seleccionarProduccion = function (checkbox) {
-        if (!checkbox.checked) return;
-        document.querySelectorAll('.checkbox-produccion').forEach(cb => { if (cb !== checkbox) cb.checked = false; });
+        if (!checkbox.checked) {
+            // Deselect: disable telar-destino, hide form, restore original banner
+            var rowActual = checkbox.closest('tr');
+            var telarDestinoActual = rowActual ? rowActual.querySelector('.telar-destino-select') : null;
+            if (telarDestinoActual) {
+                telarDestinoActual.value = '';
+                telarDestinoActual.disabled = true;
+            }
+            var ordenInputDeselect = rowActual ? rowActual.querySelector('.orden-input') : null;
+            if (ordenInputDeselect) ordenInputDeselect.value = '';
+            rowSeleccionadaAnterior = null;
+            els.formContainer.classList.add('hidden');
+            if (els.inputTelarDestino) els.inputTelarDestino.value = '';
+            if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = 'false';
+            if (els.selectAccion) els.selectAccion.value = 'finalizar';
+            if (els.inputAccion) els.inputAccion.value = 'finalizar';
+            if (state.originalTelarEnProceso) {
+                if (els.ordenEnProcesoNum) els.ordenEnProcesoNum.textContent = state.originalTelarEnProceso;
+                if (els.ordenEnProcesoFecha) els.ordenEnProcesoFecha.textContent = state.originalTelarEnProcesoFecha || '-';
+                if (els.ordenEnProcesoNombre) els.ordenEnProcesoNombre.textContent = state.originalTelarEnProcesoNombre || '-';
+                if (els.ordenEnProcesoTelar) els.ordenEnProcesoTelar.textContent = state.originalTelarId;
+                if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.remove('hidden');
+            } else {
+                if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
+            }
+            return;
+        }
+        // Si la fila no tiene orden, verificar que se haya escrito antes de seleccionar
+        var rowActualCheck = checkbox.closest('tr');
+        var ordenInputCheck = rowActualCheck ? rowActualCheck.querySelector('.orden-input') : null;
+        if (ordenInputCheck !== null && ordenInputCheck.value.trim() === '') {
+            checkbox.checked = false;
+            Swal.fire({ icon: 'info', title: 'Escribe el número de orden', text: 'Esta fila no tiene orden asignada. Escribe el número de orden antes de seleccionar.', confirmButtonColor: '#2563eb' });
+            return;
+        }
+
+        // Desmarcar otras filas y limpiar sus orden-input vacíos
+        document.querySelectorAll('.checkbox-produccion').forEach(cb => {
+            if (cb !== checkbox) {
+                cb.checked = false;
+                var otherRow = cb.closest('tr');
+                var otherOrdenInput = otherRow ? otherRow.querySelector('.orden-input') : null;
+                if (otherOrdenInput) otherOrdenInput.value = '';
+            }
+        });
 
         const { telar, produccion, modelo = '', salon = '', tamano = '' } = checkbox.dataset;
 
+        // Para filas sin orden, usar el valor escrito en el input
+        const noProduccionFinal = produccion || (ordenInputCheck ? ordenInputCheck.value.trim() : '');
+
         els.inputTelarId.value = telar;
-        els.inputNoProduccion.value = produccion;
+        els.inputNoProduccion.value = noProduccionFinal;
         els.formTelarId.textContent = telar;
-        els.formNoProduccion.textContent = produccion;
+        els.formNoProduccion.textContent = noProduccionFinal || '-';
         els.formNombreProducto.textContent = modelo || '-';
         state.salonTejido = salon;
         state.tamanoClave = tamano;
-        if (els.checkboxCambio) els.checkboxCambio.checked = false;
-        if (els.selectDestino) els.selectDestino.value = '';
-        actualizarEstadoCambioTelar();
+        state.noProduccionActual = noProduccionFinal;
+        state.nombreProductoActual = modelo;
+
+        // Store the record ID for empty-NoProduccion handling
+        if (els.inputRegistroId) els.inputRegistroId.value = checkbox.dataset.id || '';
+        // Reset cambio de telar fields when selecting a new row
+        if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = 'false';
+        if (els.inputTelarDestino) els.inputTelarDestino.value = '';
+
+        // Limpiar telar-destino de la fila anterior
+        if (rowSeleccionadaAnterior) {
+            var telarDestinoAnterior = rowSeleccionadaAnterior.querySelector('.telar-destino-select');
+            if (telarDestinoAnterior) {
+                telarDestinoAnterior.value = '';
+                telarDestinoAnterior.disabled = true;
+            }
+        }
+        rowSeleccionadaAnterior = checkbox.closest('tr');
+
+        // Habilitar telar-destino de la fila actual y poner por defecto el telar origen
+        var rowActual = checkbox.closest('tr');
+        var telarDestinoActual = rowActual ? rowActual.querySelector('.telar-destino-select') : null;
+        if (telarDestinoActual) {
+            telarDestinoActual.disabled = false;
+            var origenOpt = telarDestinoActual.querySelector('option[data-es-origen="true"]');
+            if (origenOpt) telarDestinoActual.value = origenOpt.value;
+        }
+        // Telar destino por defecto = telar origen (sin activar cambio de telar)
+        if (els.inputTelarDestino) els.inputTelarDestino.value = salon + '|' + telar;
+
+        // Resetear select de acción
+        if (els.selectAccion) els.selectAccion.value = 'finalizar';
 
         buscarYActualizarCodigoDibujo(salon, telar, tamano);
 
@@ -672,48 +983,15 @@ document.addEventListener('DOMContentLoaded', function () {
         cargarResumenCatCodificados(telar, produccion);
 
         els.formContainer.classList.remove('hidden');
-        requestAnimationFrame(() => {
-            const ajusteSuperior = 70;
-            els.formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            setTimeout(() => {
-                window.scrollBy({ top: -ajusteSuperior, behavior: 'smooth' });
-                checkFormValidity();
-            }, 180);
-        });
+        // Sin scroll automático al seleccionar
+        checkFormValidity();
     };
 
     // ── Validar y enviar formulario ───────────────────────────────────────
-    function validarCambioTelar() {
-        const activo = Boolean(els.checkboxCambio?.checked);
-        if (!activo) return true;
-
-        const rawDestino = (els.selectDestino?.value || '').trim();
-        if (!rawDestino) {
-            Swal.fire({ icon: 'warning', title: 'Cambio de telar', text: 'Selecciona un telar destino para continuar.', confirmButtonColor: '#2563eb' });
-            return false;
-        }
-        const destino = parseDestinoValue(rawDestino);
-        if (!destino.salon || !destino.telar) {
-            Swal.fire({ icon: 'warning', title: 'Cambio de telar', text: 'El telar destino tiene un formato invalido.', confirmButtonColor: '#2563eb' });
-            return false;
-        }
-        if (destino.salon === state.salonTejido && destino.telar === (els.inputTelarId?.value || '')) {
-            Swal.fire({ icon: 'warning', title: 'Cambio de telar', text: 'El telar destino debe ser diferente al telar origen.', confirmButtonColor: '#2563eb' });
-            return false;
-        }
-        return true;
-    }
-
     function enviarFormulario() {
-        if (!validarCambioTelar()) return;
-
         Swal.fire({ title: 'Guardando...', text: 'Por favor espera', allowOutsideClick: false, allowEscapeKey: false, didOpen: () => Swal.showLoading() });
 
         const formData = new FormData(els.form);
-        const cambioActivo = Boolean(els.checkboxCambio?.checked);
-        formData.set('CambioTelarActivo', cambioActivo ? '1' : '0');
-        if (cambioActivo) formData.set('TelarDestino', (els.selectDestino?.value || '').trim());
-        else formData.delete('TelarDestino');
 
         fetch(els.form.action, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
             .then(r => r.json())
@@ -721,7 +999,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!data.success) throw new Error(data.message || 'Error al guardar los datos');
                 Swal.fire({ icon: 'success', title: '¡Guardado exitosamente!', text: data.message || 'Los datos se han guardado correctamente', confirmButtonColor: '#2563eb', confirmButtonText: 'Aceptar' })
                     .then(() => {
-                        window.location.href = "{{ route('produccion.index') }}";
+                        window.location.href = "<?= route('produccion.index') ?>";
                     });
             })
             .catch(error => {
@@ -736,22 +1014,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     els.selectTelar.addEventListener('change', function () {
         if (!this.value) return;
+        window.__TELAR_ACTUAL__ = this.value;
         Codificacion.updateSuffix(this.value);
         Codificacion.updateHiddenValue();
+        cargarJuliosPorTelar(this.value);
         cargarProducciones(this.value);
-    });
-
-    els.checkboxCambio?.addEventListener('change', actualizarEstadoCambioTelar);
-    els.selectDestino?.addEventListener('change', function () {
-        if (!this.value) return;
-        const d = parseDestinoValue(this.value);
-        if (d.salon === state.salonTejido && d.telar === (els.inputTelarId?.value || '')) {
-            this.value = '';
-            Swal.fire({ icon: 'warning', title: 'Destino invalido', text: 'El telar destino debe ser diferente al telar origen.', confirmButtonColor: '#2563eb' });
-        } else {
-            // Actualizar código de dibujo con el nuevo telar destino
-            buscarYActualizarCodigoDibujo(d.salon, d.telar, state.tamanoClave);
-        }
     });
 
     els.btnCancelar.addEventListener('click', resetFormularioCompleto);
@@ -796,17 +1063,80 @@ document.addEventListener('DOMContentLoaded', function () {
         els.form.dispatchEvent(new Event('submit'));
     });
 
-    // Longitud Lucha Total = Trama Ancho Peine + Desperdicio Trama
-    function calcularLongitudLucha() {
-        const total = (parseFloat(els.inputTramaAncho?.value) || 0) + (parseFloat(els.inputDesperdicio?.value) || 0);
-        if (els.inputLongLucha) els.inputLongLucha.value = total > 0 ? total.toFixed(2) : '';
-    }
-    els.inputTramaAncho?.addEventListener('input', calcularLongitudLucha);
-    els.inputDesperdicio?.addEventListener('input', calcularLongitudLucha);
 
-    // ── Inicialización ────────────────────────────────────────────────────
+    els.selectJulioRizo?.addEventListener('change', function () {
+        const selected = this.selectedOptions[0];
+        if (selected && selected.value) {
+            const invSize = selected.dataset.inventsizeid || '-';
+            const cfgId = selected.dataset.configid || '-';
+            els.formJulioRizoInfo.textContent = 'Configuración Rizo: ' + cfgId + ' / Tamaño Rizo: ' + invSize;
+        } else {
+            els.formJulioRizoInfo.textContent = 'No se ha seleccionado Julio Rizo';
+        }
+    });
+
+    els.selectJulioPie?.addEventListener('change', function () {
+        const selected = this.selectedOptions[0];
+        if (selected && selected.value) {
+            const invSize = selected.dataset.inventsizeid || '-';
+            const cfgId = selected.dataset.configid || '-';
+            els.formJulioPieInfo.textContent = 'Configuración Pie: ' + cfgId + ' / Tamaño Pie: ' + invSize;
+        } else {
+            els.formJulioPieInfo.textContent = 'No se ha seleccionado Julio Pie';
+        }
+    });
+
+
     Codificacion.initListeners();
     NumberSelectorManager.init();
-    actualizarEstadoCambioTelar();
+
+    // ── Validación de Orden ─────────────────────────────────────────────
+    let ordenValidacionTimer = null;
+
+    function validarOrden(input) {
+        clearTimeout(ordenValidacionTimer);
+        const valor = input.value.trim();
+        if (!valor || valor.length < 4) {
+            input.classList.remove('border-red-500', 'border-green-500');
+            input.classList.add('border-gray-300');
+            input.dataset.valido = 'false';
+            if (els.msgValidacionOrden) els.msgValidacionOrden.classList.add('hidden');
+            return;
+        }
+        ordenValidacionTimer = setTimeout(() => {
+            fetch(`/desarrolladores/verificar-orden?noProduccion=${encodeURIComponent(valor)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.exists) {
+                        input.classList.remove('border-gray-300', 'border-green-500');
+                        input.classList.add('border-red-500');
+                        input.dataset.valido = 'false';
+                        if (els.msgValidacionOrden) {
+                            els.msgValidacionOrden.classList.remove('hidden');
+                            els.msgValidacionOrden.querySelector('span').textContent = `La orden "${valor}" ya existe`;
+                        }
+                    } else {
+                        input.classList.remove('border-gray-300', 'border-red-500');
+                        input.classList.add('border-green-500');
+                        input.dataset.valido = 'true';
+                        if (els.msgValidacionOrden) els.msgValidacionOrden.classList.add('hidden');
+                    }
+                });
+        }, 400);
+    }
+
+    els.bodyProducciones?.addEventListener('input', function (e) {
+        if (e.target.classList.contains('orden-input')) {
+            validarOrden(e.target);
+            // Si esta fila ya está seleccionada, sincronizar el valor al campo oculto
+            var row = e.target.closest('tr');
+            var cb = row ? row.querySelector('.checkbox-produccion') : null;
+            if (cb && cb.checked) {
+                var val = e.target.value.trim();
+                els.inputNoProduccion.value = val;
+                if (els.formNoProduccion) els.formNoProduccion.textContent = val || '-';
+            }
+        }
+    });
 });
 </script>

@@ -87,21 +87,104 @@ trait UsesSqlsrvSqlite
         });
 
         if ($includeAuthTable) {
-            $schema->create('SYSUsuario', function (Blueprint $table) {
-                $table->increments('idusuario');
-                $table->string('nombre', 150);
-                $table->string('contrasenia', 255);
-                $table->string('numero_empleado', 30)->nullable();
-                $table->string('area', 50)->nullable();
-                $table->string('foto', 300)->nullable();
-                $table->string('puesto', 50)->nullable();
-                $table->string('correo', 100)->nullable();
-                $table->string('remember_token', 100)->nullable();
-                $table->string('telefono', 12)->nullable();
-                $table->string('turno', 50)->nullable();
-                $table->timestamps();
-            });
+            $this->createAuthTable();
         }
+    }
+
+    protected function createTejidoPromedioParosTables(bool $includeAuthTable = false): void
+    {
+        $schema = Schema::connection('sqlsrv');
+
+        $schema->create('TejMarcas', function (Blueprint $table) {
+            $table->string('Folio')->primary();
+            $table->date('Date')->nullable();
+            $table->integer('Turno')->nullable();
+            $table->string('Status')->nullable();
+            $table->string('numero_empleado')->nullable();
+            $table->string('nombreEmpl')->nullable();
+            $table->timestamps();
+        });
+
+        $schema->create('TejMarcasLine', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('Folio')->nullable();
+            $table->date('Date')->nullable();
+            $table->integer('Turno')->nullable();
+            $table->string('SalonTejidoId')->nullable();
+            $table->string('NoTelarId')->nullable();
+            $table->float('Eficiencia')->nullable();
+            $table->float('Marcas')->nullable();
+            $table->float('Trama')->nullable();
+            $table->float('Pie')->nullable();
+            $table->float('Rizo')->nullable();
+            $table->float('Otros')->nullable();
+            $table->timestamps();
+        });
+
+        $schema->create('TejEficiencia', function (Blueprint $table) {
+            $table->string('Folio')->primary();
+            $table->date('Date')->nullable();
+            $table->integer('Turno')->nullable();
+            $table->string('Status')->nullable();
+            $table->string('numero_empleado')->nullable();
+            $table->string('nombreEmpl')->nullable();
+            $table->string('Horario1')->nullable();
+            $table->string('Horario2')->nullable();
+            $table->string('Horario3')->nullable();
+            $table->timestamps();
+        });
+
+        $schema->create('TejEficienciaLine', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('Folio')->nullable();
+            $table->date('Date')->nullable();
+            $table->integer('Turno')->nullable();
+            $table->string('NoTelarId')->nullable();
+            $table->string('SalonTejidoId')->nullable();
+            $table->float('RpmStd')->nullable();
+            $table->float('EficienciaSTD')->nullable();
+            $table->float('RpmR1')->nullable();
+            $table->float('EficienciaR1')->nullable();
+            $table->float('RpmR2')->nullable();
+            $table->float('EficienciaR2')->nullable();
+            $table->float('RpmR3')->nullable();
+            $table->float('EficienciaR3')->nullable();
+            $table->string('ObsR1')->nullable();
+            $table->string('ObsR2')->nullable();
+            $table->string('ObsR3')->nullable();
+            $table->string('StatusOB1')->nullable();
+            $table->string('StatusOB2')->nullable();
+            $table->string('StatusOB3')->nullable();
+            $table->timestamps();
+        });
+
+        if ($includeAuthTable) {
+            $this->createAuthTable();
+        }
+    }
+
+    protected function createAuthTable(): void
+    {
+        $schema = Schema::connection('sqlsrv');
+
+        if ($schema->hasTable('SYSUsuario')) {
+            return;
+        }
+
+        $schema->create('SYSUsuario', function (Blueprint $table) {
+            $table->increments('idusuario');
+            $table->string('nombre', 150);
+            $table->string('contrasenia', 255);
+            $table->string('numero_empleado', 30)->nullable();
+            $table->string('area', 50)->nullable();
+            $table->string('foto', 300)->nullable();
+            $table->string('puesto', 50)->nullable();
+            $table->string('correo', 100)->nullable();
+            $table->string('remember_token', 100)->nullable();
+            $table->string('telefono', 12)->nullable();
+            $table->string('turno', 50)->nullable();
+            $table->timestamps();
+        });
     }
 
     protected function createUsuario(array $attributes = []): User

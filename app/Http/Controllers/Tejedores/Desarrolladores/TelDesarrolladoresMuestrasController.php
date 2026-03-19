@@ -26,9 +26,10 @@ class TelDesarrolladoresMuestrasController extends Controller
         return view('modulos.desarrolladores.desarrolladores-muestras', $datos);
     }
 
-    public function obtenerProducciones($telarId)
+    public function obtenerProducciones(Request $request, $telarId)
     {
-        $resultado = $this->consultasService->obtenerProducciones($telarId);
+        $soloConOrden = $request->boolean('solo_con_orden', false);
+        $resultado = $this->consultasService->obtenerProducciones($telarId, $soloConOrden);
         $status = $resultado['success'] ? 200 : 500;
         return response()->json($resultado, $status);
     }

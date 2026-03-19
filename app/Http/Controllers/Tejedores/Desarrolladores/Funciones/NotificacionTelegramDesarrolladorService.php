@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
+use App\Models\Sistema\SYSMensaje;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Exception;
@@ -20,19 +21,21 @@ class NotificacionTelegramDesarrolladorService
     ): void {
         try {
             $botToken = config('services.telegram.bot_token');
-            $chatId = config('services.telegram.chat_id');
+            $chatIds = SYSMensaje::getChatIdsPorModulo('Desarrolladores');
 
-            if (empty($botToken) || empty($chatId)) {
+            if (empty($botToken) || empty($chatIds)) {
                 return;
             }
 
             $mensaje = $this->construirMensajeProcesoCompletado($validated, $programa, $codigoDibujo);
 
-            Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                'chat_id' => $chatId,
-                'text' => $mensaje,
-                'parse_mode' => 'Markdown',
-            ]);
+            foreach ($chatIds as $chatId) {
+                Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                    'chat_id' => $chatId,
+                    'text' => $mensaje,
+                    'parse_mode' => 'Markdown',
+                ]);
+            }
         } catch (Exception $e) {
             Log::error('Error al enviar notificacion de desarrollador a Telegram', [
                 'telar' => $validated['NoTelarId'] ?? null,
@@ -116,4 +119,3 @@ class NotificacionTelegramDesarrolladorService
         return $mensaje;
     }
 }
-

@@ -1,20 +1,48 @@
 <div class="md:col-span-2">
-    <div id="tablaProducciones" class="hidden">
-        <div class="flex justify-center">
-            <h3 class="text-lg font-semibold text-gray-800">Producciones Disponibles</h3>
+    {{-- Orden En Proceso + Accion (se llena via JS) --}}
+    <div id="ordenEnProcesoBanner" class="hidden mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span id="bannerLoading" class="hidden">
+                    <svg class="animate-spin h-4 w-4 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </span>
+                <span id="bannerContent" class="flex items-center gap-2">
+                    <span class="flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-amber-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                    </span>
+                    <span class="text-sm font-semibold text-amber-800">En Proceso:</span>
+                    <span id="ordenEnProcesoNum" class="text-sm font-bold text-amber-900">-</span>
+                    <span class="text-xs text-amber-500">|</span>
+                    <span id="ordenEnProcesoFecha" class="text-sm text-amber-700">-</span>
+                    <span class="text-xs text-amber-500">|</span>
+                    <span id="ordenEnProcesoNombre" class="text-sm text-amber-700">-</span>
+                    <span class="text-xs text-amber-500">|</span>
+                    <span id="ordenEnProcesoTelar" class="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">-</span>
+                </span>
+            </div>
+            <select id="selectAccion" class="px-2 py-1 text-xs rounded border border-gray-300 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="finalizar">Finalizar</option>
+                <option value="reprogramar_siguiente">Reprogramar siguiente</option>
+                <option value="reprogramar_final">Reprogramar final</option>
+            </select>
         </div>
+    </div>
 
-        <!-- Contenedor con scroll: horizontal para columnas y vertical limitado -->
-        <div class="overflow-y-auto max-h-96 rounded-lg border border-gray-200">
-            <table class="w-full table-fixed divide-y divide-red-200">
-                <thead class="bg-blue-500 ">
+    <div id="tablaProducciones" class="hidden">
+        <div class="rounded-lg border border-gray-200 overflow-x-auto">
+            <table class="w-full divide-y divide-red-200">
+                <thead class="bg-blue-500">
                     <tr>
-                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white uppercase tracking-wider">Salon de Tejido</th>
-                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white uppercase tracking-wider">No. Orden</th>
-                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white uppercase tracking-wider">Fecha Cambio</th>
-                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white uppercase tracking-wider">Tamaño Clave</th>
-                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white uppercase tracking-wider">Modelo</th>
-                        <th scope="col" class="px-3 py-2 text-center text-sm font-medium text-white uppercase tracking-wider">Seleccionar</th>
+                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Orden</th>
+                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Fecha Cambio</th>
+                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Clave</th>
+                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Modelo</th>
+                        <th scope="col" class="px-3 py-2 text-left text-sm font-medium text-white">Telar Destino</th>
+                        <th scope="col" class="px-3 py-2 text-center text-sm font-medium text-white">Seleccionar</th>
                     </tr>
                 </thead>
                 <tbody id="bodyProducciones" class="bg-white divide-y divide-gray-200">
@@ -24,11 +52,11 @@
         </div>
 
         <!-- Mensaje cuando no hay datos -->
-        <div id="noDataMessage" class="hidden text-center py-8 text-gray-500">
-            <svg class="mx-auto h-12 w-12 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div id="noDataMessage" class="hidden bg-white rounded-b-lg border-x border-b border-gray-200 py-10 text-center">
+            <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
-            <p class="mt-2 text-sm">No se encontraron producciones para este telar</p>
+            <p class="mt-2 text-sm text-gray-600">No se encontraron producciones para este telar</p>
         </div>
     </div>
 </div>
