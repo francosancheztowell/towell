@@ -116,8 +116,8 @@ class CatCodificadosDesarrolladorServiceTest extends TestCase
         $this->assertSame(101, (int) $guardado->TelarId);
         $this->assertSame('JAC', $guardado->Departamento);
         $this->assertSame('COD-700.JC5', $guardado->CodigoDibujo);
-        $this->assertNull($guardado->FechaArranque);
-        $this->assertNull($guardado->FechaFinaliza);
+        $this->assertSame('2026-03-19 06:00:00', optional($guardado->FechaArranque)->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-03-19 06:40:00', optional($guardado->FechaFinaliza)->format('Y-m-d H:i:s'));
     }
 
     public function test_actualizar_cat_codificados_actualiza_registro_mas_reciente_y_no_crea_otro(): void
@@ -166,7 +166,38 @@ class CatCodificadosDesarrolladorServiceTest extends TestCase
         $this->assertSame('COD-800', $guardado->CodigoDibujo);
         $this->assertSame('JR-9', $guardado->JulioRizo);
         $this->assertSame(180, $guardado->Total);
+        $this->assertSame('2026-03-19 06:20:00', optional($guardado->FechaArranque)->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-03-19 07:00:00', optional($guardado->FechaFinaliza)->format('Y-m-d H:i:s'));
         $this->assertSame('OLD-1', $sinTocar->CodigoDibujo);
+    }
+
+    public function test_actualizar_cat_codificados_ajusta_fecha_finaliza_al_siguiente_dia_si_la_hora_final_es_menor(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-19 23:50:00'));
+
+        $registro = $this->invokeActualizarCatCodificados([
+            'NoProduccion' => 'ORD-900',
+            'NumeroJulioRizo' => 'JR-3',
+            'NumeroJulioPie' => 'JP-3',
+            'TotalPasadasDibujo' => 90,
+            'Desarrollador' => 'FER',
+            'HoraInicio' => '23:30',
+            'HoraFinal' => '01:10',
+            'TramaAnchoPeine' => 58,
+            'EficienciaInicio' => 72,
+            'EficienciaFinal' => 77,
+            'DesperdicioTrama' => 1.2,
+        ], [
+            'salonDestino' => 'JAC',
+            'telarDestino' => '111',
+        ], 'COD-900.JC5', 100, 180);
+
+        $this->assertNotNull($registro);
+
+        $guardado = CatCodificados::query()->where('OrdenTejido', 'ORD-900')->firstOrFail();
+
+        $this->assertSame('2026-03-19 23:30:00', optional($guardado->FechaArranque)->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-03-20 01:10:00', optional($guardado->FechaFinaliza)->format('Y-m-d H:i:s'));
     }
 
     private function invokeActualizarCatCodificados(
