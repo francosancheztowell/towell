@@ -239,18 +239,16 @@ class MovimientoDesarrolladorServiceTest extends TestCase
         $this->assertSame(2, CatCodificados::query()->where('OrdenTejido', 'ORD-A')->count());
         $this->assertSame(2, CatCodificados::query()->where('OrdenTejido', 'ORD-B')->count());
 
-        $catActual = CatCodificados::query()->whereKey($catActualCanonico->Id)->firstOrFail();
-        $catNuevo = CatCodificados::query()->whereKey($catNuevoCanonico->Id)->firstOrFail();
-        $catActualSinTocar = CatCodificados::query()->whereKey($catActualAnterior->Id)->firstOrFail();
-        $catNuevoSinTocar = CatCodificados::query()->whereKey($catNuevoAnterior->Id)->firstOrFail();
+        $catActualTelar = CatCodificados::query()->whereKey($catActualAnterior->Id)->firstOrFail();
+        $catNuevoTelar = CatCodificados::query()->whereKey($catNuevoAnterior->Id)->firstOrFail();
+        $catActualCanonicoSinTocar = CatCodificados::query()->whereKey($catActualCanonico->Id)->firstOrFail();
+        $catNuevoCanonicoSinTocar = CatCodificados::query()->whereKey($catNuevoCanonico->Id)->firstOrFail();
 
-        $this->assertSame($catActualCanonico->Id, $catActual->Id);
-        $this->assertSame($catNuevoCanonico->Id, $catNuevo->Id);
-        $this->assertSame('2026-03-18 21:00:00', optional($catActual->FechaFinaliza)->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-03-18 21:00:00', optional($catNuevo->FechaArranque)->format('Y-m-d H:i:s'));
-        $this->assertNull($catNuevo->FechaFinaliza);
-        $this->assertNull($catActualSinTocar->FechaFinaliza);
-        $this->assertNull($catNuevoSinTocar->FechaArranque);
+        $this->assertSame('2026-03-18 21:00:00', optional($catActualTelar->FechaFinaliza)->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-03-18 21:00:00', optional($catNuevoTelar->FechaArranque)->format('Y-m-d H:i:s'));
+        $this->assertNull($catNuevoTelar->FechaFinaliza);
+        $this->assertNull($catActualCanonicoSinTocar->FechaFinaliza);
+        $this->assertNull($catNuevoCanonicoSinTocar->FechaArranque);
     }
 
     public function test_mover_registro_en_proceso_reprogramar_final_envia_la_orden_actual_al_final(): void
@@ -340,7 +338,8 @@ class MovimientoDesarrolladorServiceTest extends TestCase
         ]);
 
         CatCodificados::query()->create(['OrdenTejido' => 'ORD-MOVE', 'TelarId' => '101']);
-        CatCodificados::query()->create(['OrdenTejido' => 'ORD-DEST-ACT', 'TelarId' => '202']);
+        $catDestinoTelar = CatCodificados::query()->create(['OrdenTejido' => 'ORD-DEST-ACT', 'TelarId' => '202']);
+        $catDestinoCanonico = CatCodificados::query()->create(['OrdenTejido' => 'ORD-DEST-ACT', 'TelarId' => '999']);
 
         $resultado = $this->service->moverRegistroConCambioTelarEnProceso($movido, 'JAC', '202', '2');
 
@@ -359,6 +358,11 @@ class MovimientoDesarrolladorServiceTest extends TestCase
         $this->assertFalse((bool) $actualDestino->EnProceso);
         $this->assertSame(3, (int) $actualDestino->Posicion);
         $this->assertSame('2026-03-18 22:00:00', optional($actualDestino->FechaFinaliza)->format('Y-m-d H:i:s'));
+
+        $catDestinoTelar->refresh();
+        $catDestinoCanonico->refresh();
+        $this->assertSame('2026-03-18 22:00:00', optional($catDestinoTelar->FechaFinaliza)->format('Y-m-d H:i:s'));
+        $this->assertNull($catDestinoCanonico->FechaFinaliza);
 
         $this->assertSame(2, (int) $colaDestino->Posicion);
     }

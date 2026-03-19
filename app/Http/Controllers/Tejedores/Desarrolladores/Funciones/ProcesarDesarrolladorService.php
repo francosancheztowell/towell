@@ -203,6 +203,8 @@ class ProcesarDesarrolladorService
                 $request->input('CambioTelarActivo', false),
                 FILTER_VALIDATE_BOOLEAN
             ),
+            'EficienciaInicio' => $this->normalizarEntero($request->input('EficienciaInicio')),
+            'EficienciaFinal' => $this->normalizarEntero($request->input('EficienciaFinal')),
         ]);
 
         $validated = $request->validate([
@@ -237,6 +239,23 @@ class ProcesarDesarrolladorService
         }
 
         return $validated;
+    }
+
+    private function normalizarEntero($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = str_replace(',', '', trim($value));
+        }
+
+        if (!is_numeric($value)) {
+            return $value;
+        }
+
+        return (int) round((float) $value);
     }
 
     private function resolverContextoOrigen(array $validated): array
@@ -356,6 +375,10 @@ class ProcesarDesarrolladorService
         $modeloCat = new CatCodificados();
         $columns = Schema::getColumnListing($modeloCat->getTable());
         $registro = $this->catCodificadosService->resolveCanonical((string) $validated['NoProduccion']);
+        $fechasArranqueFinaliza = $this->buildFechasArranqueFinalizaPayload(
+            $validated['HoraInicio'] ?? null,
+            $validated['HoraFinal'] ?? null
+        );
 
         $esNuevo = false;
         if (!$registro) {
@@ -443,7 +466,7 @@ class ProcesarDesarrolladorService
             'EfiFinal' => $validated['EficienciaFinal'] ?? null,
             'DesperdicioTrama' => $validated['DesperdicioTrama'] ?? null,
             'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
-        ], $detallePayload, $pasadasPayload);
+        ], $fechasArranqueFinaliza, $detallePayload, $pasadasPayload);
 
         if ($modeloDestino) {
             $payload['CuentaRizo']  = $modeloDestino->CuentaRizo  ?? null;
@@ -469,6 +492,52 @@ class ProcesarDesarrolladorService
 
         $registro->save();
         return $registro;
+    }
+
+    private function buildFechasArranqueFinalizaPayload(?string $horaInicio, ?string $horaFinal): array
+    {
+        $fechaBase = Carbon::today();
+        $fechaArranque = $this->combinarFechaYHora($horaInicio, $fechaBase);
+        $fechaFinalizaBase = $fechaBase;
+
+        if ($fechaArranque && $horaFinal) {
+            try {
+                $horaFinalCarbon = Carbon::createFromFormat('H:i', $horaFinal);
+                $fechaFinalizaBase = $fechaArranque->copy();
+
+                if ($horaFinalCarbon->format('H:i') < $fechaArranque->format('H:i')) {
+                    $fechaFinalizaBase->addDay();
+                }
+            } catch (Exception $e) {
+                $fechaFinalizaBase = $fechaBase;
+            }
+        }
+
+        $fechaFinaliza = $this->combinarFechaYHora($horaFinal, $fechaFinalizaBase);
+
+        return [
+            'FechaArranque' => $fechaArranque?->format('Y-m-d H:i:s'),
+            'FechaFinaliza' => $fechaFinaliza?->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    private function combinarFechaYHora(?string $hora, Carbon $fechaBase): ?Carbon
+    {
+        if (empty($hora)) {
+            return null;
+        }
+
+        try {
+            $horaCarbon = Carbon::createFromFormat('H:i', $hora);
+
+            return $fechaBase->copy()->setTime(
+                (int) $horaCarbon->format('H'),
+                (int) $horaCarbon->format('i'),
+                0
+            );
+        } catch (Exception $e) {
+            return null;
+        }
     }
 
     private function resolverModeloDestinoYCopiaSiAplica(

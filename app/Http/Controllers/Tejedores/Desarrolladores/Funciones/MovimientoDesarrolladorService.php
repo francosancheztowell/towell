@@ -551,7 +551,7 @@ class MovimientoDesarrolladorService
             return $programaActualizado;
         }
 
-        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion);
+        $registroCodificado = $this->catCodificadosService->resolveForRead($noProduccion, $noTelarId);
         if (!$registroCodificado) {
             return $programaActualizado;
         }
