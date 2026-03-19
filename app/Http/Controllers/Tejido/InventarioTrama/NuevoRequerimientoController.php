@@ -302,7 +302,7 @@ class NuevoRequerimientoController extends Controller
         }
     }
 
-    /** API: Obtener fibras por ItemId (igual que reconocado) */
+    /** API: Obtener fibras por ItemId usando inventSum e inventDim */
     public function getFibras(Request $request)
     {
         $itemId = $request->query('itemId');
@@ -312,12 +312,17 @@ class NuevoRequerimientoController extends Controller
 
         try {
             $fibras = DB::connection('sqlsrv_ti')
-                ->table('ConfigTable')
-                ->select('ConfigId')
-                ->where('ItemId', $itemId)
-                ->where('DATAAREAID', 'PRO')
-                ->orderBy('ConfigId')
-                ->distinct()
+                ->table('InventSum')
+                ->join('InventDim', 'InventDim.InventDimId', '=', 'InventSum.InventDimId')
+                ->select('InventDim.ConfigId')
+                ->where('InventSum.ItemId', $itemId)
+                ->where('InventSum.PhysicalInvent', '>', 0)
+                ->where('InventSum.DATAAREAID', 'PRO')
+                ->where('InventDim.DATAAREAID', 'PRO')
+                ->whereNotNull('InventDim.ConfigId')
+                ->where('InventDim.ConfigId', '!=', '')
+                ->groupBy('InventDim.ConfigId')
+                ->orderBy('InventDim.ConfigId')
                 ->get();
 
             return response()->json(['success' => true, 'data' => $fibras]);
@@ -327,7 +332,7 @@ class NuevoRequerimientoController extends Controller
         }
     }
 
-    /** API: Obtener colores por ItemId (igual que reconocado) */
+    /** API: Obtener colores por ItemId usando inventSum, inventDim e inventColor */
     public function getColores(Request $request)
     {
         $itemId = $request->query('itemId');
@@ -337,11 +342,22 @@ class NuevoRequerimientoController extends Controller
 
         try {
             $colores = DB::connection('sqlsrv_ti')
-                ->table('InventColor')
-                ->select('InventColorId', 'Name')
-                ->where('ItemId', $itemId)
-                ->where('DATAAREAID', 'PRO')
-                ->orderBy('InventColorId')
+                ->table('InventSum')
+                ->join('InventDim', 'InventDim.InventDimId', '=', 'InventSum.InventDimId')
+                ->join('InventColor', function($join) use ($itemId) {
+                    $join->on('InventColor.InventColorId', '=', 'InventDim.InventColorId')
+                         ->where('InventColor.ItemId', '=', $itemId);
+                })
+                ->select('InventColor.InventColorId', 'InventColor.Name')
+                ->where('InventSum.ItemId', $itemId)
+                ->where('InventSum.PhysicalInvent', '>', 0)
+                ->where('InventSum.DATAAREAID', 'PRO')
+                ->where('InventDim.DATAAREAID', 'PRO')
+                ->where('InventColor.DATAAREAID', 'PRO')
+                ->whereNotNull('InventColor.InventColorId')
+                ->where('InventColor.InventColorId', '!=', '')
+                ->groupBy('InventColor.InventColorId', 'InventColor.Name')
+                ->orderBy('InventColor.InventColorId')
                 ->get();
 
             return response()->json(['success' => true, 'data' => $colores]);

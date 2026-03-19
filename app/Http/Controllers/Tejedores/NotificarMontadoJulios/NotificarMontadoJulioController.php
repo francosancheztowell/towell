@@ -34,7 +34,8 @@ class NotificarMontadoJulioController extends Controller
 
             // Si se solicita detalle de un telar específico con tipo
             if ($request->has('no_telar') && $request->has('tipo')) {
-                // 1) Buscar registro completo (con no_julio y no_orden, sin notificar)
+                // 1) Buscar registro completo (con no_julio y no_orden)
+                // Quitamos el filtro de horaParo para que el operador pueda volver a ver los datos si ya notificó
                 $detalles = TejInventarioTelares::where('no_telar', $request->no_telar)
                     ->where('tipo', $request->tipo)
                     ->whereIn('no_telar', $telaresOperador)
@@ -42,10 +43,6 @@ class NotificarMontadoJulioController extends Controller
                     ->whereNotNull('no_orden')
                     ->where('no_julio', '<>', '')
                     ->where('no_orden', '<>', '')
-                    ->where(function ($query) {
-                        $query->whereNull('horaParo')
-                            ->orWhere('horaParo', '=', '');
-                    })
                     ->select('id', 'no_telar', 'cuenta', 'calibre', 'tipo', 'tipo_atado', 'no_orden', 'no_julio', 'metros', 'horaParo')
                     ->orderByDesc('fecha')
                     ->orderByDesc('turno')
@@ -61,10 +58,6 @@ class NotificarMontadoJulioController extends Controller
                 $parcial = TejInventarioTelares::where('no_telar', $request->no_telar)
                     ->where('tipo', $request->tipo)
                     ->whereIn('no_telar', $telaresOperador)
-                    ->where(function ($query) {
-                        $query->whereNull('horaParo')
-                            ->orWhere('horaParo', '=', '');
-                    })
                     ->select('id', 'no_telar', 'tipo', 'tipo_atado', 'metros')
                     ->orderByDesc('fecha')
                     ->orderByDesc('turno')
@@ -173,6 +166,13 @@ class NotificarMontadoJulioController extends Controller
                     ]);
                 }
             } else {
+                // Si existe un registro parcial en el inventario, actualizar su horaParo
+                // para que deje de aparecer como pendiente en el modal del tejedor.
+                if ($registro) {
+                    $registro->horaParo = $horaActual;
+                    $registro->save();
+                }
+
                 // Registro incompleto o sin registro: evitar duplicados (actualizar fecha/hora si existe pendiente).
                 $this->registrarNotificacionTejedor([
                     'telar'       => $noTelar,
@@ -221,55 +221,56 @@ class NotificarMontadoJulioController extends Controller
 
     /**
      * Registra notificación en TejNotificaTejedor evitando duplicados:
-     * - Completo: busca por telar+tipo+no_julio+no_orden.
-     * - Incompleto: busca pendiente por telar+tipo con Reserva=0/null y sin no_julio/no_orden.
+     * - Busca el registro más reciente de hoy para ese telar y tipo.
+     * - Si existe, lo actualiza protegiendo los datos de julio/orden ya asignados.
      */
     private function registrarNotificacionTejedor(array $payload, bool $esCompleto): void
     {
         $telar = trim((string) ($payload['telar'] ?? ''));
         $tipo  = strtolower(trim((string) ($payload['tipo'] ?? '')));
+        $fecha = $payload['Fecha'] ?? Carbon::now()->toDateString();
 
         $query = TejNotificaTejedorModel::query()
             ->whereRaw('LTRIM(RTRIM(telar)) = ?', [$telar])
-            ->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [$tipo]);
+            ->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [$tipo])
+            ->whereDate('Fecha', $fecha);
 
         if ($esCompleto) {
             $noJulio = trim((string) ($payload['no_julio'] ?? ''));
             $noOrden = trim((string) ($payload['no_orden'] ?? ''));
 
-            $query->whereRaw('LTRIM(RTRIM(no_julio)) = ?', [$noJulio])
-                ->whereRaw('LTRIM(RTRIM(no_orden)) = ?', [$noOrden]);
-        } else {
-            $query->where(function ($q) {
-                $q->whereNull('Reserva')
-                    ->orWhere('Reserva', 0)
-                    ->orWhere('Reserva', false);
-            })
-                ->where(function ($q) {
-                    $q->whereNull('no_julio')
-                        ->orWhere('no_julio', '')
-                        ->orWhere('no_julio', '0')
-                        ->orWhere('no_julio', 0);
-                })
-                ->where(function ($q) {
-                    $q->whereNull('no_orden')
-                        ->orWhere('no_orden', '')
-                        ->orWhere('no_orden', '0')
-                        ->orWhere('no_orden', 0);
-                });
+            $query->where(function($q) use ($noJulio, $noOrden) {
+                $q->whereRaw('LTRIM(RTRIM(no_julio)) = ?', [$noJulio])
+                  ->whereRaw('LTRIM(RTRIM(no_orden)) = ?', [$noOrden])
+                  ->orWhere(function($sq) {
+                      $sq->whereNull('no_julio')->orWhere('no_julio', '0')->orWhere('no_julio', '');
+                  });
+            });
         }
 
-        $existente = $query->orderByDesc('Fecha')->orderByDesc('id')->first();
+        $existente = $query->orderByDesc('id')->first();
         if ($existente) {
-            $existente->update([
+            // Actualización inteligente: No sobreescribir datos buenos con vacíos/0
+            $updateData = [
                 'hora'        => $payload['hora'] ?? $existente->hora,
-                'Fecha'       => $payload['Fecha'] ?? $existente->Fecha,
                 'NomEmpleado' => $payload['NomEmpleado'] ?? $existente->NomEmpleado,
                 'NoEmpleado'  => $payload['NoEmpleado'] ?? $existente->NoEmpleado,
-                'Reserva'     => $payload['Reserva'] ?? $existente->Reserva,
-                'no_julio'    => $payload['no_julio'] ?? $existente->no_julio,
-                'no_orden'    => $payload['no_orden'] ?? $existente->no_orden,
-            ]);
+            ];
+
+            // Solo actualizar Reserva si el nuevo es 1 o el actual es 0
+            if (isset($payload['Reserva'])) {
+                $updateData['Reserva'] = $payload['Reserva'] ?: $existente->Reserva;
+            }
+
+            // Solo actualizar julio/orden si el nuevo no es vacío/0
+            if (!empty($payload['no_julio']) && $payload['no_julio'] !== '0') {
+                $updateData['no_julio'] = $payload['no_julio'];
+            }
+            if (!empty($payload['no_orden']) && $payload['no_orden'] !== '0') {
+                $updateData['no_orden'] = $payload['no_orden'];
+            }
+
+            $existente->update($updateData);
             return;
         }
 
