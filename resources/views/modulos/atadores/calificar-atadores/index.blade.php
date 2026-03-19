@@ -96,6 +96,17 @@
                 <!-- Columna 2 -->
                 <div class="space-y-4">
                     <div class="flex justify-between items-center gap-4">
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha y Hora de Inicio</span>
+                        <div class="flex gap-2 items-center">
+                            <input type="date" id="fechaInicio" value="{{ $item->FechaInicio ? \Carbon\Carbon::parse($item->FechaInicio)->format('Y-m-d') : now('America/Mexico_City')->format('Y-m-d') }}"
+                                   class="w-36 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                                   @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif />
+                            <input type="time" id="hrInicio" value="{{ $item->HrInicio ? \Carbon\Carbon::parse($item->HrInicio)->format('H:i') : '' }}"
+                                   class="w-24 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                                   @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif />
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Paro</span>
                         <span class="text-sm font-semibold text-gray-800">
                             {{ $item->HoraParo ? \Carbon\Carbon::parse($item->HoraParo)->format('H:i') : '-' }}
@@ -103,9 +114,9 @@
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Hora de Arranque</span>
-                        <span class="text-sm font-semibold text-gray-800">
-                            {{ $item->HoraArranque ? \Carbon\Carbon::parse($item->HoraArranque)->format('H:i') : '-' }}
-                        </span>
+                        <input type="time" id="horaArranque" value="{{ $item->HoraArranque ? \Carbon\Carbon::parse($item->HoraArranque)->format('H:i') : '' }}"
+                               class="w-24 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                               @if(in_array($item->Estatus, ['Terminado', 'Calificado', 'Autorizado'])) disabled @endif />
                     </div>
                     <div class="flex justify-between items-center gap-4">
                         <span class="text-xs text-gray-500 uppercase tracking-wide">Lote Provee</span>
@@ -176,7 +187,7 @@
                         </div>
                     </div>
                     <div class="flex justify-between items-center gap-4">
-                        <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha Hora</span>
+                        <span class="text-xs text-gray-500 uppercase tracking-wide">Fecha Supervisor</span>
                         <span id="valFechaHoraSupervisor" class="text-sm font-semibold text-gray-800">
                             {{ '-' }}
                         </span>
