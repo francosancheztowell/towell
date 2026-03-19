@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
         originalTelarEnProcesoFecha: '',
         originalTelarId: '',
     };
+    let rowSeleccionadaAnterior = null;
 
     // ── Listener del select de acción ──────────────────────────────────────
     els.selectAccion?.addEventListener('change', function() {
@@ -184,6 +185,74 @@ document.addEventListener('DOMContentLoaded', function () {
     function parseDestinoValue(value) {
         const [salon = '', telar = ''] = String(value || '').split('|');
         return { salon: salon.trim(), telar: telar.trim() };
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function flattenValidationMessages(errors) {
+        return Object.values(errors || {})
+            .flatMap(value => Array.isArray(value) ? value : [value])
+            .map(value => String(value || '').trim())
+            .filter(Boolean);
+    }
+
+    function showValidationAlert(title, messages) {
+        const items = (messages || []).filter(Boolean);
+        const html = items.length > 0
+            ? `<ul class="text-left list-disc pl-5 space-y-1">${items.map(message => `<li>${escapeHtml(message)}</li>`).join('')}</ul>`
+            : '<p class="text-left">Revisa los datos e intenta nuevamente.</p>';
+
+        return Swal.fire({
+            icon: 'error',
+            title,
+            html,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Aceptar',
+        });
+    }
+
+    function validarAntesDeEnviar() {
+        if (!els.form) return false;
+
+        const errores = [];
+
+        if (!String(els.inputTelarId?.value || '').trim()) {
+            errores.push('Selecciona una produccion antes de guardar.');
+        }
+        if (!String(els.inputNoProduccion?.value || '').trim()) {
+            errores.push('Captura o selecciona un numero de orden valido.');
+        }
+        if (!String(els.selectJulioRizo?.value || '').trim()) {
+            errores.push('Selecciona el Julio Rizo.');
+        }
+        if (!String(els.totalPasadasDibujo?.value || '').trim()) {
+            errores.push('Captura el total de pasadas.');
+        }
+        if (!String(els.codificacionHidden?.value || '').trim()) {
+            errores.push('Completa la codificacion del modelo.');
+        }
+        if (String(els.inputCambioTelarActivo?.value || '').trim() === 'true'
+            && !String(els.inputTelarDestino?.value || '').trim()) {
+            errores.push('Selecciona un telar destino valido.');
+        }
+
+        if (errores.length > 0) {
+            showValidationAlert('Faltan datos requeridos', errores);
+            return false;
+        }
+
+        if (typeof els.form.reportValidity === 'function' && !els.form.reportValidity()) {
+            return false;
+        }
+
+        return true;
     }
 
     function setSelectValue(select, value) {
@@ -988,7 +1057,60 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ── Validar y enviar formulario ───────────────────────────────────────
-    function enviarFormulario() {
+    async function enviarFormularioDetallado() {
+        Swal.fire({ title: 'Guardando...', text: 'Por favor espera', allowOutsideClick: false, allowEscapeKey: false, didOpen: () => Swal.showLoading() });
+
+        const formData = new FormData(els.form);
+        const headers = { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' };
+
+        try {
+            const response = await fetch(els.form.action, { method: 'POST', body: formData, headers });
+            const contentType = response.headers.get('content-type') || '';
+            const data = contentType.includes('application/json')
+                ? await response.json()
+                : { success: false, message: 'El servidor devolvio una respuesta invalida.' };
+
+            if (!response.ok || !data.success) {
+                const validationMessages = flattenValidationMessages(data?.errors);
+                const message = validationMessages[0]
+                    || data?.message
+                    || `Error al guardar los datos (${response.status})`;
+
+                const error = new Error(message);
+                error.validationMessages = validationMessages;
+                throw error;
+            }
+
+            await Swal.fire({
+                icon: 'success',
+                title: 'Guardado exitosamente',
+                text: data.message || 'Los datos se han guardado correctamente',
+                confirmButtonColor: '#2563eb',
+                confirmButtonText: 'Aceptar'
+            });
+
+            window.location.href = "<?= route('produccion.index') ?>";
+        } catch (error) {
+            console.error('Error:', error);
+            const validationMessages = Array.isArray(error?.validationMessages) ? error.validationMessages : [];
+
+            if (validationMessages.length > 0) {
+                await showValidationAlert('Error de validacion', validationMessages);
+                return;
+            }
+
+            await Swal.fire({
+                icon: 'error',
+                title: 'Error al guardar',
+                text: error?.message || 'Ocurrio un error. Intenta nuevamente.',
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Aceptar'
+            });
+        }
+    }
+
+    async function enviarFormulario() {
+        return enviarFormularioDetallado();
         Swal.fire({ title: 'Guardando...', text: 'Por favor espera', allowOutsideClick: false, allowEscapeKey: false, didOpen: () => Swal.showLoading() });
 
         const formData = new FormData(els.form);
@@ -1043,6 +1165,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     els.form.addEventListener('submit', function (e) {
         e.preventDefault();
+        if (!validarAntesDeEnviar()) {
+            return;
+        }
         if (state.omitirConfirmacionPasadas) {
             state.omitirConfirmacionPasadas = false;
         } else {
@@ -1053,7 +1178,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
         }
-        enviarFormulario();
+        enviarFormularioDetallado();
     });
 
     els.btnModalCancelar?.addEventListener('click', () => els.modalPasadas?.classList.add('hidden'));

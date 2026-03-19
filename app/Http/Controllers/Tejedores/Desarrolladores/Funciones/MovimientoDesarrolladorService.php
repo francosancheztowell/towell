@@ -14,6 +14,13 @@ use Exception;
 
 class MovimientoDesarrolladorService
 {
+    protected CatCodificadosDesarrolladorService $catCodificadosService;
+
+    public function __construct(?CatCodificadosDesarrolladorService $catCodificadosService = null)
+    {
+        $this->catCodificadosService = $catCodificadosService ?? app(CatCodificadosDesarrolladorService::class);
+    }
+
     /**
      * Mueve un registro a estado EnProceso=1 y procesa los registros anteriores.
      */
@@ -42,6 +49,9 @@ class MovimientoDesarrolladorService
                     $reprogramar = $registroEnProceso->Reprogramar;
 
                     if (!empty($reprogramar) && ($reprogramar == '1' || $reprogramar == '2')) {
+                        $this->actualizarFechasArranqueFinaliza($registroEnProceso, null, 'now');
+                        $this->actualizarReqModelosDesdePrograma($registroEnProceso);
+
                         $todosLosRegistros = ReqProgramaTejido::query()
                             ->where('SalonTejidoId', $salonTejido)
                             ->where('NoTelarId', $noTelarId)
@@ -228,7 +238,6 @@ class MovimientoDesarrolladorService
         }
 
         $idsOrigenAfectados = [];
-        $idsDestinoAfectados = [];
 
         DB::transaction(function () use (
             $registroActualizado,
@@ -237,8 +246,7 @@ class MovimientoDesarrolladorService
             $salonDestino,
             $telarDestino,
             $reprogramarValor,
-            &$idsOrigenAfectados,
-            &$idsDestinoAfectados
+            &$idsOrigenAfectados
         ) {
             $registroBloqueado = ReqProgramaTejido::query()
                 ->where('Id', $registroActualizado->Id)
@@ -260,7 +268,7 @@ class MovimientoDesarrolladorService
                     'SalonTejidoId' => $salonDestino,
                     'NoTelarId' => $telarDestino,
                     'EnProceso' => 0,
-                    'Posicion' => DB::raw('ISNULL(Posicion, 0) + 1000000'),
+                    'Posicion' => DB::raw('COALESCE(Posicion, 0) + 1000000'),
                 ]);
 
             $this->recalcularSecuenciaTelar($salonOrigen, $telarOrigen, $idsOrigenAfectados);
@@ -277,28 +285,24 @@ class MovimientoDesarrolladorService
             }
 
             if ($reprogramarValor !== null) {
-                // Reprogramar: encolar en destino sin desplazar al orden activo.
-                $this->encolarEnDestino($registroMovido, $salonDestino, $telarDestino, $reprogramarValor, $idsDestinoAfectados);
-            } else {
-                // Finalizar: el registro movido se convierte en EnProceso=1 en destino.
-                // Los registros EnProceso=1 del destino se bajan a 0 (no se eliminan).
-                ReqProgramaTejido::query()
+                $actualEnProcesoDestino = ReqProgramaTejido::query()
                     ->where('SalonTejidoId', $salonDestino)
                     ->where('NoTelarId', $telarDestino)
                     ->where('EnProceso', 1)
                     ->where('Id', '!=', $registroMovido->Id)
-                    ->update(['EnProceso' => 0]);
+                    ->first();
 
-                $this->moverRegistroEnProceso($registroMovido, true);
+                if ($actualEnProcesoDestino) {
+                    $actualEnProcesoDestino->Reprogramar = $reprogramarValor;
+                    $actualEnProcesoDestino->saveQuietly();
+                }
             }
+
+            $this->moverRegistroEnProceso($registroMovido, true);
         });
 
         if (!empty($idsOrigenAfectados)) {
             $this->dispararObserverPorIds($idsOrigenAfectados);
-        }
-
-        if (!empty($idsDestinoAfectados)) {
-            $this->dispararObserverPorIds($idsDestinoAfectados);
         }
 
         return ReqProgramaTejido::query()->where('Id', $registroActualizado->Id)->first();
@@ -365,7 +369,7 @@ class MovimientoDesarrolladorService
             ->whereIn('Id', $idsActualizar)
             ->where('SalonTejidoId', $salonDestino)
             ->where('NoTelarId', $telarDestino)
-            ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
+            ->update(['Posicion' => DB::raw('COALESCE(Posicion, 0) + 10000')]);
 
         foreach ($updates as $idU => $dataU) {
             if (isset($dataU['Posicion'])) {
@@ -413,7 +417,7 @@ class MovimientoDesarrolladorService
             ->whereIn('Id', $idsActualizar)
             ->where('SalonTejidoId', $salonTejido)
             ->where('NoTelarId', $noTelarId)
-            ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
+            ->update(['Posicion' => DB::raw('COALESCE(Posicion, 0) + 10000')]);
 
         foreach ($updates as $idU => $dataU) {
             if (isset($dataU['Posicion'])) {
@@ -547,43 +551,20 @@ class MovimientoDesarrolladorService
             return $programaActualizado;
         }
 
-        $queryBase = CatCodificados::query();
-        $hasKeyFilter = false;
-
-        if (in_array('OrdenTejido', $columns, true)) { $queryBase->where('OrdenTejido', $noProduccion); $hasKeyFilter = true; }
-        elseif (in_array('NumOrden', $columns, true)) { $queryBase->where('NumOrden', $noProduccion); $hasKeyFilter = true; }
-
-        if (!$hasKeyFilter) {
-            $queryBase->where('NoProduccion', $noProduccion);
-        }
-
-        $registrosCodificados = collect();
-        if (in_array('TelarId', $columns, true)) {
-            $registrosCodificados = (clone $queryBase)->where('TelarId', $noTelarId)->get();
-        } elseif (in_array('NoTelarId', $columns, true)) {
-            $registrosCodificados = (clone $queryBase)->where('NoTelarId', $noTelarId)->get();
-        }
-
-        if ($registrosCodificados->isEmpty()) {
-            $registrosCodificados = (clone $queryBase)->get();
-        }
-
-        if ($registrosCodificados->isEmpty()) {
+        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion);
+        if (!$registroCodificado) {
             return $programaActualizado;
         }
 
-        $catActualizado = false;
-        foreach ($registrosCodificados as $registroCodificado) {
-            $registroCodificado->FechaArranque = $fechaArranque;
-            $registroCodificado->FechaFinaliza = $fechaFinaliza;
+        $registroCodificado->FechaArranque = $fechaArranque;
+        $registroCodificado->FechaFinaliza = $fechaFinaliza;
 
-            if ($registroCodificado->isDirty(['FechaArranque', 'FechaFinaliza'])) {
-                $registroCodificado->save();
-                $catActualizado = true;
-            }
+        if ($registroCodificado->isDirty(['FechaArranque', 'FechaFinaliza'])) {
+            $registroCodificado->save();
+            return true;
         }
 
-        return $programaActualizado || $catActualizado;
+        return $programaActualizado;
     }
 
     public function actualizarReqModelosDesdePrograma(ReqProgramaTejido $programa): void
@@ -594,21 +575,8 @@ class MovimientoDesarrolladorService
         if ($noProduccion === '' || $noTelarId === '') return;
 
         $modelo = new CatCodificados();
-        $table = $modelo->getTable();
-        $columns = Schema::getColumnListing($table);
-
-        $query = CatCodificados::query();
-        $hasKeyFilter = false;
-
-        if (in_array('OrdenTejido', $columns, true)) { $query->where('OrdenTejido', $noProduccion); $hasKeyFilter = true; } 
-        elseif (in_array('NumOrden', $columns, true)) { $query->where('NumOrden', $noProduccion); $hasKeyFilter = true; }
-
-        if (in_array('TelarId', $columns, true)) { $query->where('TelarId', $noTelarId); } 
-        elseif (in_array('NoTelarId', $columns, true)) { $query->where('NoTelarId', $noTelarId); }
-
-        if (!$hasKeyFilter) $query->where('NoProduccion', $noProduccion);
-
-        $registroCodificado = $query->first();
+        $columns = Schema::getColumnListing($modelo->getTable());
+        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion);
 
         if (!$registroCodificado) return;
 
