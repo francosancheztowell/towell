@@ -24,11 +24,20 @@
                     <span id="ordenEnProcesoTelar" class="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">-</span>
                 </span>
             </div>
-            <select id="selectAccion" class="px-2 py-1 text-xs rounded border border-gray-300 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <option value="finalizar">Finalizar</option>
-                <option value="reprogramar_siguiente">Reprogramar siguiente</option>
-                <option value="reprogramar_final">Reprogramar final</option>
-            </select>
+            <div id="selectAccionWrapper" class="relative inline-block">
+                <select id="selectAccion" disabled class="px-2 py-1 text-xs rounded border border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-100 disabled:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    <option value="finalizar">Finalizar</option>
+                    <option value="reprogramar_siguiente">Reprogramar siguiente</option>
+                    <option value="reprogramar_final">Reprogramar final</option>
+                </select>
+                <button
+                    type="button"
+                    id="selectAccionGuard"
+                    class="absolute inset-0 z-10 rounded"
+                    aria-label="Selecciona primero un registro"
+                    title="Selecciona primero un registro"
+                ></button>
+            </div>
         </div>
     </div>
 

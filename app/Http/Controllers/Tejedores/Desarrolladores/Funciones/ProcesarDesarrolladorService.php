@@ -203,6 +203,8 @@ class ProcesarDesarrolladorService
                 $request->input('CambioTelarActivo', false),
                 FILTER_VALIDATE_BOOLEAN
             ),
+            'EficienciaInicio' => $this->normalizarEntero($request->input('EficienciaInicio')),
+            'EficienciaFinal' => $this->normalizarEntero($request->input('EficienciaFinal')),
         ]);
 
         $validated = $request->validate([
@@ -237,6 +239,23 @@ class ProcesarDesarrolladorService
         }
 
         return $validated;
+    }
+
+    private function normalizarEntero($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = str_replace(',', '', trim($value));
+        }
+
+        if (!is_numeric($value)) {
+            return $value;
+        }
+
+        return (int) round((float) $value);
     }
 
     private function resolverContextoOrigen(array $validated): array

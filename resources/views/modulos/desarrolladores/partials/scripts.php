@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
         bannerLoading:       document.getElementById('bannerLoading'),
         bannerContent:       document.getElementById('bannerContent'),
         selectAccion:        document.getElementById('selectAccion'),
+        selectAccionGuard:   document.getElementById('selectAccionGuard'),
         inputAccion:         document.getElementById('inputAccion'),
         inputRegistroId:     document.getElementById('inputRegistroId'),
         inputCambioTelarActivo: document.getElementById('inputCambioTelarActivo'),
@@ -85,10 +86,37 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     let rowSeleccionadaAnterior = null;
 
+    function showSelectionRequiredMessage() {
+        return Swal.fire({
+            icon: 'info',
+            title: 'Selecciona un registro',
+            text: 'Primero selecciona un registro para elegir la accion.',
+            confirmButtonColor: '#2563eb',
+        });
+    }
+
+    function setActionSelectLocked(isLocked) {
+        if (!els.selectAccion) return;
+
+        els.selectAccion.disabled = isLocked;
+        els.selectAccion.classList.toggle('bg-gray-100', isLocked);
+        els.selectAccion.classList.toggle('text-gray-400', isLocked);
+        els.selectAccion.classList.toggle('cursor-not-allowed', isLocked);
+        els.selectAccion.classList.toggle('bg-white', !isLocked);
+        els.selectAccion.classList.toggle('text-gray-700', !isLocked);
+        els.selectAccion.classList.toggle('cursor-pointer', !isLocked);
+
+        if (els.selectAccionGuard) {
+            els.selectAccionGuard.classList.toggle('hidden', !isLocked);
+        }
+    }
+
     // ── Listener del select de acción ──────────────────────────────────────
     els.selectAccion?.addEventListener('change', function() {
         if (els.inputAccion) els.inputAccion.value = this.value;
     });
+    els.selectAccionGuard?.addEventListener('click', showSelectionRequiredMessage);
+    setActionSelectLocked(true);
 
     // ── Listener para telar-destino selects ─────────────────────────────────
     function setupTelarDestinoListeners() {
@@ -185,6 +213,63 @@ document.addEventListener('DOMContentLoaded', function () {
     function parseDestinoValue(value) {
         const [salon = '', telar = ''] = String(value || '').split('|');
         return { salon: salon.trim(), telar: telar.trim() };
+    }
+
+    function formatHiloValue(value) {
+        if (value === null || value === undefined) return '';
+        const raw = String(value).trim();
+        if (raw === '') return '';
+
+        const numeric = Number.parseFloat(raw.replace(/,/g, ''));
+        return Number.isFinite(numeric) ? numeric.toFixed(1) : raw;
+    }
+
+    function normalizeHiloInputValue(value) {
+        if (value === null || value === undefined) return '';
+
+        let raw = String(value)
+            .replace(/,/g, '.')
+            .replace(/[^\d.]/g, '');
+
+        const firstDotIndex = raw.indexOf('.');
+        if (firstDotIndex !== -1) {
+            raw = raw.slice(0, firstDotIndex + 1) + raw.slice(firstDotIndex + 1).replace(/\./g, '');
+        }
+
+        if (raw === '' || raw === '.') return '';
+
+        const numeric = Number.parseFloat(raw);
+        if (!Number.isFinite(numeric)) return '';
+
+        const decimals = raw.includes('.') ? raw.split('.')[1] : '';
+        return decimals.length > 1 ? numeric.toFixed(1) : raw;
+    }
+
+    function attachHiloInputListener(input) {
+        if (!input || input.dataset.hiloValidated === 'true') return;
+
+        input.addEventListener('input', function () {
+            const normalized = normalizeHiloInputValue(this.value);
+            if (this.value !== normalized) {
+                this.value = normalized;
+            }
+        });
+
+        input.addEventListener('blur', function () {
+            if (String(this.value || '').trim() === '') return;
+            this.value = formatHiloValue(this.value);
+        });
+
+        input.dataset.hiloValidated = 'true';
+    }
+
+    function normalizeIntegerValue(value) {
+        if (value === null || value === undefined) return '';
+        const raw = String(value).trim();
+        if (raw === '') return '';
+
+        const numeric = Number.parseFloat(raw.replace(/,/g, ''));
+        return Number.isFinite(numeric) ? String(Math.round(numeric)) : raw;
     }
 
     function escapeHtml(value) {
@@ -358,11 +443,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 build(track, min, max, step);
 
                 const setValue = (value) => {
-                    hiddenInput.value = value;
-                    valueSpan.textContent = value;
+                    const normalizedValue = normalizeIntegerValue(value);
+                    hiddenInput.value = normalizedValue;
+                    valueSpan.textContent = normalizedValue;
                     valueSpan.classList.replace('text-gray-400', 'text-blue-600');
                     track.querySelectorAll('.number-option').forEach(opt => {
-                        const isActive = opt.dataset.value === String(value);
+                        const isActive = opt.dataset.value === String(normalizedValue);
                         opt.classList.toggle('bg-blue-600', isActive);
                         opt.classList.toggle('text-white', isActive);
                         opt.classList.toggle('border-blue-600', isActive);
@@ -424,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function setById(inputId, value) {
             const s = selectors.find(item => item.input?.id === inputId);
-            const v = (value === null || value === undefined || value === '') ? '' : String(value);
+            const v = (value === null || value === undefined || value === '') ? '' : normalizeIntegerValue(value);
             if (!s) { const inp = document.getElementById(inputId); if (inp) inp.value = v; return; }
             v === '' ? s.reset() : s.setValue(v);
         }
@@ -436,6 +522,24 @@ document.addEventListener('DOMContentLoaded', function () {
     const Codificacion = (() => {
         const inputs = els.codificacionInputs;
         const hidden = els.codificacionHidden;
+        const blankClasses = ['border-red-500', 'bg-red-50', 'text-red-700', 'focus:ring-red-500', 'focus:border-red-500'];
+
+        function setBlankState(input, isBlank) {
+            if (!input) return;
+            input.classList.toggle('border-gray-300', !isBlank);
+            blankClasses.forEach(className => input.classList.toggle(className, isBlank));
+        }
+
+        function refreshBlankStates() {
+            const lastFilledIndex = Array.from(inputs).reduce((lastIndex, input, index) => {
+                return String(input.value || '').trim() !== '' ? index : lastIndex;
+            }, -1);
+
+            inputs.forEach((input, index) => {
+                const isBlankGap = String(input.value || '').trim() === '' && index <= lastFilledIndex;
+                setBlankState(input, isBlankGap);
+            });
+        }
 
         function getActiveTelar() {
             if (els.checkboxCambio?.checked && els.selectDestino?.value) {
@@ -465,6 +569,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const fullCode = Array.from(inputs).map(i => i.value).join('');
             const suffix = updateSuffix();
             hidden.value = fullCode ? (suffix ? `${fullCode}.${suffix}` : fullCode) : '';
+            refreshBlankStates();
             updateNoDataMessage();
             checkFormValidity();
         }
@@ -475,9 +580,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         function setFromCodigoDibujo(codigoDibujo) {
-            const normalized = String(codigoDibujo ?? '').toUpperCase().trim()
-                .replace(/\.JC5$/i, '').replace(/\.JCS$/i, '').replace(/\s+/g, '');
-            inputs.forEach((input, i) => { input.value = normalized[i] ?? ''; });
+            const normalized = String(codigoDibujo ?? '')
+                .toUpperCase()
+                .trim()
+                .replace(/\.(?:JC5|JCS)\s*$/i, '');
+
+            inputs.forEach((input, i) => {
+                const char = normalized[i] ?? '';
+                input.value = /\s/.test(char) ? '' : char;
+            });
             updateHiddenValue();
         }
 
@@ -485,6 +596,7 @@ document.addEventListener('DOMContentLoaded', function () {
             inputs.forEach(i => { i.value = ''; });
             hidden.value = '';
             state.codificacionFetchAttempted = false;
+            refreshBlankStates();
             updateNoDataMessage();
             checkFormValidity();
         }
@@ -492,7 +604,7 @@ document.addEventListener('DOMContentLoaded', function () {
         function initListeners() {
             inputs.forEach((input, idx) => {
                 input.addEventListener('input', function () {
-                    this.value = this.value.toUpperCase();
+                    this.value = this.value.replace(/\s+/g, '').toUpperCase();
                     if (this.value.length === 1 && idx < inputs.length - 1) inputs[idx + 1].focus();
                     updateHiddenValue();
                 });
@@ -502,7 +614,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.addEventListener('paste', function (e) {
                     e.preventDefault();
                     const chars = (e.clipboardData || window.clipboardData).getData('text').toUpperCase().split('');
-                    chars.forEach((char, i) => { if (idx + i < inputs.length) inputs[idx + i].value = char; });
+                    chars.forEach((char, i) => {
+                        if (idx + i < inputs.length) inputs[idx + i].value = /\s/.test(char) ? '' : char;
+                    });
                     inputs[Math.min(idx + chars.length, inputs.length - 1)].focus();
                     updateHiddenValue();
                 });
@@ -661,7 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Fila de detalle (crear/eliminar/agregar) ──────────────────────────
     function crearFilaDetalle(index, calibre, hilo, fibra, codColor, nombreColor, pasadas, pasadasKey, usarSelects) {
         calibre = calibre || '';
-        hilo = hilo || '';
+        hilo = formatHiloValue(hilo);
         fibra = fibra || '';
         codColor = codColor || '';
         nombreColor = nombreColor || '';
@@ -693,6 +807,8 @@ document.addEventListener('DOMContentLoaded', function () {
         row.dataset.index = index;
         row.innerHTML = claveCell + hiloCell + fibraCell + codColorCell + nombreColorCell + pasadasCell + accionesCell;
 
+        attachHiloInputListener(row.querySelector('input[name="detalle_hilo[]"]'));
+
         if (usarSelects) {
             void DetalleSelects.initForRow(row, { calibre: calibre, fibra: fibra, codColor: codColor, colorName: nombreColor });
         }
@@ -710,7 +826,18 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Resumen CatCodificados ────────────────────────────────────────────
     function actualizarResumen(data) {
         Object.entries(els.resumen).forEach(([key, el]) => {
-            if (el) el.textContent = (data && data[key] != null && data[key] !== '') ? String(data[key]) : '-';
+            if (!el) return;
+            if (!data || data[key] == null || data[key] === '') {
+                el.textContent = '-';
+                return;
+            }
+
+            if (key === 'EfiInicial' || key === 'EfiFinal') {
+                el.textContent = normalizeIntegerValue(data[key]);
+                return;
+            }
+
+            el.textContent = String(data[key]);
         });
     }
 
@@ -757,6 +884,7 @@ document.addEventListener('DOMContentLoaded', function () {
         prefillDesde(null);
         if (els.inputAccion) els.inputAccion.value = 'finalizar';
         if (els.selectAccion) els.selectAccion.value = 'finalizar';
+        setActionSelectLocked(true);
         if (els.inputRegistroId) els.inputRegistroId.value = '';
         if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = 'false';
         if (els.inputTelarDestino) els.inputTelarDestino.value = '';
@@ -807,6 +935,7 @@ document.addEventListener('DOMContentLoaded', function () {
         rowSeleccionadaAnterior = null;
         if (els.selectAccion) els.selectAccion.value = 'finalizar';
         if (els.inputAccion) els.inputAccion.value = 'finalizar';
+        setActionSelectLocked(true);
         if (els.inputTelarDestino) els.inputTelarDestino.value = '';
         if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = 'false';
 
@@ -967,6 +1096,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = 'false';
             if (els.selectAccion) els.selectAccion.value = 'finalizar';
             if (els.inputAccion) els.inputAccion.value = 'finalizar';
+            setActionSelectLocked(true);
             if (state.originalTelarEnProceso) {
                 if (els.ordenEnProcesoNum) els.ordenEnProcesoNum.textContent = state.originalTelarEnProceso;
                 if (els.ordenEnProcesoFecha) els.ordenEnProcesoFecha.textContent = state.originalTelarEnProcesoFecha || '-';
@@ -1041,6 +1171,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Resetear select de acción
         if (els.selectAccion) els.selectAccion.value = 'finalizar';
+        if (els.inputAccion) els.inputAccion.value = 'finalizar';
+        setActionSelectLocked(false);
 
         buscarYActualizarCodigoDibujo(salon, telar, tamano);
 
