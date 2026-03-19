@@ -20,11 +20,14 @@ use Illuminate\Validation\ValidationException;
 class ProcesarMuestrasDesarrolladorService
 {
     protected NotificacionTelegramMuestrasService $telegramService;
+    protected CatCodificadosDesarrolladorService $catCodificadosService;
 
     public function __construct(
-        NotificacionTelegramMuestrasService $telegramService
+        NotificacionTelegramMuestrasService $telegramService,
+        ?CatCodificadosDesarrolladorService $catCodificadosService = null
     ) {
         $this->telegramService = $telegramService;
+        $this->catCodificadosService = $catCodificadosService ?? app(CatCodificadosDesarrolladorService::class);
     }
 
     public function store(Request $request)
@@ -123,20 +126,10 @@ class ProcesarMuestrasDesarrolladorService
                         ->value('CodigoDibujo');
 
                     if (!$codigoDibujoAnterior) {
-                        $modeloCat = new CatCodificados();
-                        $colCat = Schema::getColumnListing($modeloCat->getTable());
-                        $queryCat = CatCodificados::query();
-                        if (in_array('OrdenTejido', $colCat, true)) {
-                            $queryCat->where('OrdenTejido', $validated['NoProduccion']);
-                        } else {
-                            $queryCat->where('NoProduccion', $validated['NoProduccion']);
-                        }
-                        if (in_array('TelarId', $colCat, true)) {
-                            $queryCat->where('TelarId', $contextoOrigen['telarOrigen']);
-                        } elseif (in_array('NoTelarId', $colCat, true)) {
-                            $queryCat->where('NoTelarId', $contextoOrigen['telarOrigen']);
-                        }
-                        $codigoDibujoAnterior = $queryCat->value('CodigoDibujo');
+                        $codigoDibujoAnterior = $this->catCodificadosService->resolveCodigoDibujo(
+                            (string) $validated['NoProduccion'],
+                            (string) $contextoOrigen['telarOrigen']
+                        );
                     }
 
                     $codigoDibujoAnterior = $this->normalizeCodigoDibujo($codigoDibujoAnterior, $contextoOrigen['telarOrigen']);
@@ -369,46 +362,7 @@ class ProcesarMuestrasDesarrolladorService
     ): ?CatCodificados {
         $modeloCat = new CatCodificados();
         $columns = Schema::getColumnListing($modeloCat->getTable());
-
-        $queryBase = CatCodificados::query();
-        $hasOrderFilter = false;
-        if (in_array('OrdenTejido', $columns, true)) {
-            $queryBase->where('OrdenTejido', $validated['NoProduccion']);
-            $hasOrderFilter = true;
-        } elseif (in_array('NumOrden', $columns, true)) {
-            $queryBase->where('NumOrden', $validated['NoProduccion']);
-            $hasOrderFilter = true;
-        }
-
-        if (!$hasOrderFilter) {
-            $queryBase->where('NoProduccion', $validated['NoProduccion']);
-        }
-
-        $telarColumn = null;
-        if (in_array('TelarId', $columns, true)) {
-            $telarColumn = 'TelarId';
-        } elseif (in_array('NoTelarId', $columns, true)) {
-            $telarColumn = 'NoTelarId';
-        }
-
-        $registro = null;
-        if ($telarColumn) {
-            $telaresPreferidos = array_values(array_unique(array_filter([
-                $contextoDestino['telarOrigen'] ?? null,
-                $contextoDestino['telarDestino'] ?? null,
-            ])));
-
-            foreach ($telaresPreferidos as $telar) {
-                $registro = (clone $queryBase)->where($telarColumn, $telar)->first();
-                if ($registro) {
-                    break;
-                }
-            }
-        }
-
-        if (!$registro) {
-            $registro = (clone $queryBase)->first();
-        }
+        $registro = $this->catCodificadosService->resolveCanonical((string) $validated['NoProduccion']);
 
         if (!$registro) {
             return null;

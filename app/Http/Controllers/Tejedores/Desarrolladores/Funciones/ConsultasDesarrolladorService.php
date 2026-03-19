@@ -6,9 +6,7 @@ use App\Models\Sistema\Usuario;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
-use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Helpers\TelDesarrolladoresHelper;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 use Exception;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -16,6 +14,13 @@ use Illuminate\Support\Collection;
 
 class ConsultasDesarrolladorService
 {
+    protected CatCodificadosDesarrolladorService $catCodificadosService;
+
+    public function __construct(?CatCodificadosDesarrolladorService $catCodificadosService = null)
+    {
+        $this->catCodificadosService = $catCodificadosService ?? app(CatCodificadosDesarrolladorService::class);
+    }
+
     /**
      * Obtiene los datos necesarios para cargar la vista principal de desarrolladores.
      *
@@ -250,34 +255,14 @@ class ConsultasDesarrolladorService
     public function obtenerRegistroCatCodificado($telarId, $noProduccion): array
     {
         try {
-            $modelo = new CatCodificados();
-            $table = $modelo->getTable();
-            $columns = Schema::getColumnListing($table);
+            $registro = $this->catCodificadosService
+                ->resolveForRead((string) $noProduccion, (string) $telarId);
 
-            $query = CatCodificados::query();
-            $hasOrderFilter = false;
-
-            if (in_array('OrdenTejido', $columns, true)) {
-                $query->where('OrdenTejido', $noProduccion);
-                $hasOrderFilter = true;
-            } elseif (in_array('NumOrden', $columns, true)) {
-                $query->where('NumOrden', $noProduccion);
-                $hasOrderFilter = true;
-            }
-
-            if (in_array('TelarId', $columns, true)) {
-                $query->where('TelarId', $telarId);
-            } elseif (in_array('NoTelarId', $columns, true)) {
-                $query->where('NoTelarId', $telarId);
-            }
-
-            if (!$hasOrderFilter) {
-                $query->where('NoProduccion', $noProduccion);
-            }
-
-            $registro = $query->select([
+            if ($registro) {
+                $registro = $registro->only([
                 'JulioRizo', 'JulioPie', 'EfiInicial', 'EfiFinal', 'DesperdicioTrama',
-            ])->first();
+                ]);
+            }
 
             if (!$registro) {
                 return [
