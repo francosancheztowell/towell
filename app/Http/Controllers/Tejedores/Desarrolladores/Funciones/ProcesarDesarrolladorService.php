@@ -359,7 +359,6 @@ class ProcesarDesarrolladorService
     ): ?CatCodificados {
         $modeloCat = new CatCodificados();
         $columns = Schema::getColumnListing($modeloCat->getTable());
-
         $queryBase = CatCodificados::query();
         $hasOrderFilter = false;
         if (in_array('OrdenTejido', $columns, true)) {
@@ -454,7 +453,7 @@ class ProcesarDesarrolladorService
                 'FechaTejido'     => $ordenData->FechaInicio?->format('Y-m-d'),
                 'OrdPrincipal'    => $ordenData->OrdPrincipal,
                 'FechaArranque'   => $ordenData->FechaArranque,
-                'FechaFinaliza'   => $ordenData->FechaFinaliza,
+                'FechaFinaliza'   => null,
                 'Cantidad'        => $ordenData->TotalPedido,
             ];
         }

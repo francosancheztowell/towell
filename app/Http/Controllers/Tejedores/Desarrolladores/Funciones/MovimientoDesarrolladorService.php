@@ -26,10 +26,9 @@ class MovimientoDesarrolladorService
 
         $dispatcher = ReqProgramaTejido::getEventDispatcher();
         $idsAfectados = [];
-        $fechaFinalizaAnterior = null; 
 
         try {
-            DB::transaction(function () use ($registroActualizado, $salonTejido, $noTelarId, &$idsAfectados, &$fechaFinalizaAnterior) {
+            DB::transaction(function () use ($registroActualizado, $salonTejido, $noTelarId, &$idsAfectados) {
                 $registrosEnProceso = ReqProgramaTejido::query()
                     ->where('SalonTejidoId', $salonTejido)
                     ->where('NoTelarId', $noTelarId)
@@ -85,7 +84,6 @@ class MovimientoDesarrolladorService
                             }
                         }
 
-                        $fechaFinalizaAnterior = now()->format('Y-m-d H:i:s');
                         $this->actualizarFechasArranqueFinaliza($registroEnProceso, null, 'now');
                         $this->actualizarReqModelosDesdePrograma($registroEnProceso);
                         $registroEnProceso->delete();
@@ -199,7 +197,7 @@ class MovimientoDesarrolladorService
         $registroParaModelo = ReqProgramaTejido::query()->where('Id', $registroActualizado->Id)->first();
         if ($registroParaModelo) {
             $this->actualizarReqModelosDesdePrograma($registroParaModelo);
-            $this->actualizarFechasArranqueFinaliza($registroParaModelo, $fechaFinalizaAnterior, null);
+            $this->actualizarFechasArranqueFinaliza($registroParaModelo, 'now', null);
         }
     }
 
@@ -513,6 +511,8 @@ class MovimientoDesarrolladorService
 
         if ($fechaArranque === null) {
             $fechaArranque = !empty($programa->FechaInicio) ? Carbon::parse($programa->FechaInicio)->format('Y-m-d H:i:s') : null;
+        } elseif ($fechaArranque === 'now' || $fechaArranque === true) {
+            $fechaArranque = now()->format('Y-m-d H:i:s');
         } elseif ($fechaArranque instanceof \DateTime || $fechaArranque instanceof Carbon) {
             $fechaArranque = $fechaArranque->format('Y-m-d H:i:s');
         } elseif (is_string($fechaArranque)) {
@@ -547,30 +547,43 @@ class MovimientoDesarrolladorService
             return $programaActualizado;
         }
 
-        $query = CatCodificados::query();
+        $queryBase = CatCodificados::query();
         $hasKeyFilter = false;
 
-        if (in_array('OrdenTejido', $columns, true)) { $query->where('OrdenTejido', $noProduccion); $hasKeyFilter = true; } 
-        elseif (in_array('NumOrden', $columns, true)) { $query->where('NumOrden', $noProduccion); $hasKeyFilter = true; }
+        if (in_array('OrdenTejido', $columns, true)) { $queryBase->where('OrdenTejido', $noProduccion); $hasKeyFilter = true; }
+        elseif (in_array('NumOrden', $columns, true)) { $queryBase->where('NumOrden', $noProduccion); $hasKeyFilter = true; }
 
-        if (in_array('TelarId', $columns, true)) { $query->where('TelarId', $noTelarId); } 
-        elseif (in_array('NoTelarId', $columns, true)) { $query->where('NoTelarId', $noTelarId); }
-
-        if (!$hasKeyFilter) $query->where('NoProduccion', $noProduccion);
-
-        $registroCodificado = $query->first();
-
-        if (!$registroCodificado) return $programaActualizado;
-
-        $registroCodificado->FechaArranque = $fechaArranque;
-        $registroCodificado->FechaFinaliza = $fechaFinaliza;
-
-        if ($registroCodificado->isDirty(['FechaArranque', 'FechaFinaliza'])) {
-            $registroCodificado->save();
-            return true;
+        if (!$hasKeyFilter) {
+            $queryBase->where('NoProduccion', $noProduccion);
         }
 
-        return $programaActualizado;
+        $registrosCodificados = collect();
+        if (in_array('TelarId', $columns, true)) {
+            $registrosCodificados = (clone $queryBase)->where('TelarId', $noTelarId)->get();
+        } elseif (in_array('NoTelarId', $columns, true)) {
+            $registrosCodificados = (clone $queryBase)->where('NoTelarId', $noTelarId)->get();
+        }
+
+        if ($registrosCodificados->isEmpty()) {
+            $registrosCodificados = (clone $queryBase)->get();
+        }
+
+        if ($registrosCodificados->isEmpty()) {
+            return $programaActualizado;
+        }
+
+        $catActualizado = false;
+        foreach ($registrosCodificados as $registroCodificado) {
+            $registroCodificado->FechaArranque = $fechaArranque;
+            $registroCodificado->FechaFinaliza = $fechaFinaliza;
+
+            if ($registroCodificado->isDirty(['FechaArranque', 'FechaFinaliza'])) {
+                $registroCodificado->save();
+                $catActualizado = true;
+            }
+        }
+
+        return $programaActualizado || $catActualizado;
     }
 
     public function actualizarReqModelosDesdePrograma(ReqProgramaTejido $programa): void
