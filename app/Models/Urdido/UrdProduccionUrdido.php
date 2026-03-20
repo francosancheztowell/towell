@@ -48,6 +48,11 @@ class UrdProduccionUrdido extends Model
         'Diametro',
     ];
 
+    public function programa()
+    {
+        return $this->belongsTo(UrdProgramaUrdido::class, 'Folio', 'Folio');
+    }
+
     protected $casts = [
         'Id' => 'integer',
         'Fecha' => 'date',
