@@ -47,6 +47,30 @@
                         </button>
                     </div>
                 @else
+                    @php
+                        $leyendaColores = $leyendaColores ?? [];
+                        $estilosColor = [
+                            'blue'   => 'background-color:#3b82f6;color:#ffffff;font-weight:600;',
+                            'orange' => 'background-color:#fb923c;color:#ffffff;font-weight:600;',
+                            'yellow' => 'background-color:#fde047;color:#713f12;font-weight:600;',
+                        ];
+                        $swatchEstilos = [
+                            'blue'   => 'background-color:#3b82f6;',
+                            'orange' => 'background-color:#fb923c;',
+                            'yellow' => 'background-color:#fde047;',
+                        ];
+                    @endphp
+                    @if (!empty($leyendaColores))
+                        <div class="mb-4 flex flex-wrap items-center gap-3 text-sm text-gray-700">
+                            <span class="font-semibold text-gray-800">Leyenda:</span>
+                            @foreach ($leyendaColores as $item)
+                                <span class="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1">
+                                    <span class="h-3 w-3 rounded-full" style="{{ $swatchEstilos[$item['color']] ?? 'background-color:#d1d5db;' }}"></span>
+                                    <span>{{ $item['descripcion'] ?? ($item['label'] ?? '') }}</span>
+                                </span>
+                            @endforeach
+                        </div>
+                    @endif
                     <table class="min-w-full border border-gray-300 text-sm">
                         <thead>
                             <tr class="bg-gray-100">
@@ -61,7 +85,7 @@
                         </thead>
                         <tbody>
                             @foreach ($secciones as $seccion)
-                                <tr class="bg-yellow-100 font-semibold">
+                                <tr style="background-color:#fef9c3;font-weight:600;">
                                     <td colspan="{{ 4 + count($dias) }}" class="border border-gray-300 px-3 py-2">
                                         {{ $seccion['nombre'] }}
                                     </td>
@@ -87,8 +111,41 @@
                                             @endif
                                         </td>
                                         @foreach ($dias as $dia)
-                                            <td class="border border-gray-300 px-3 py-2 text-center">
-                                                {{ $fila['por_dia'][$dia['fecha']] ?? '' }}
+                                            @php
+                                                $celdaDia = $fila['por_dia'][$dia['fecha']] ?? ['turnos' => []];
+                                                $turnos = $celdaDia['turnos'] ?? [];
+                                                $turnoAligns = [1 => 'left', 2 => 'center', 3 => 'right'];
+
+                                                // Construir tooltip con desglose por turno
+                                                $tooltipParts = [];
+                                                $hayDatos = false;
+                                                foreach ([1, 2, 3] as $t) {
+                                                    $txt = trim((string) ($turnos[$t]['texto'] ?? ''));
+                                                    if ($txt !== '') {
+                                                        $hayDatos = true;
+                                                        $tooltipParts[] = "T{$t}: {$txt}";
+                                                    }
+                                                }
+                                                $tooltip = implode(' | ', $tooltipParts);
+                                            @endphp
+                                            <td class="border border-gray-300 px-0 py-0" @if($tooltip) title="{{ $tooltip }}" @endif>
+                                                @if ($hayDatos)
+                                                    <div style="display:flex;min-height:28px;">
+                                                        @foreach ([1, 2, 3] as $t)
+                                                            @php
+                                                                $turnoTxt = trim((string) ($turnos[$t]['texto'] ?? ''));
+                                                                $turnoColor = $turnos[$t]['color'] ?? null;
+                                                                $turnoEstilo = $estilosColor[$turnoColor] ?? '';
+                                                                $align = $turnoAligns[$t];
+                                                            @endphp
+                                                            <div style="flex:1;display:flex;align-items:center;justify-content:{{ $align }};padding:2px 3px;text-align:{{ $align }};font-size:0.8rem;{{ $turnoEstilo }}">
+                                                                {{ $turnoTxt }}
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    &nbsp;
+                                                @endif
                                             </td>
                                         @endforeach
                                     </tr>
