@@ -1084,16 +1084,16 @@ class ReportesUrdidoController extends Controller
 
         if (!$fechaIni || !$fechaFin) {
             return view('modulos.urdido.reportes-resumen-urdido', [
-                'porFecha' => [],
+                'datosSemanales' => [],
                 'fechaIni' => $fechaIni ?? '',
                 'fechaFin' => $fechaFin ?? '',
             ]);
         }
 
-        $porFecha = $this->buildReporteResumenData($fechaIni, $fechaFin);
+        $datosSemanales = $this->buildReporteSemanalDataUrdido($fechaIni, $fechaFin);
 
         return view('modulos.urdido.reportes-resumen-urdido', [
-            'porFecha' => $porFecha,
+            'datosSemanales' => $datosSemanales,
             'fechaIni' => $fechaIni,
             'fechaFin' => $fechaFin,
         ]);
