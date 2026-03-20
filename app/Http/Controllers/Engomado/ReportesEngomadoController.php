@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Engomado;
 
 use App\Exports\BpmEngomadoExport;
 use App\Exports\ControlMermaExport;
+use App\Exports\ReporteResumenEngomadoExport;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngBpmModel;
+use App\Models\Engomado\EngProduccionEngomado;
+use App\Models\Engomado\EngProgramaEngomado;
 use App\Services\Engomado\ControlMermaReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -42,6 +45,12 @@ class ReportesEngomadoController extends Controller
                 'nombre' => 'Control Merma',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('engomado.reportes.control-merma'),
+                'disponible' => true,
+            ],
+            [
+                'nombre' => 'Resumen Engomado',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('engomado.reportes.resumen-engomado'),
                 'disponible' => true,
             ],
         ];
@@ -249,6 +258,122 @@ class ReportesEngomadoController extends Controller
 
             return $fila;
         });
+    }
+
+    public function reporteResumenEngomado(Request $request)
+    {
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+
+        if (!$fechaIni || !$fechaFin) {
+            return view('modulos.engomado.reporte-resumen-engomado', [
+                'porFecha' => [],
+                'fechaIni' => $fechaIni ?? '',
+                'fechaFin' => $fechaFin ?? '',
+            ]);
+        }
+
+        $porFecha = $this->buildReporteResumenData($fechaIni, $fechaFin);
+
+        return view('modulos.engomado.reporte-resumen-engomado', [
+            'porFecha' => $porFecha,
+            'fechaIni' => $fechaIni,
+            'fechaFin' => $fechaFin,
+        ]);
+    }
+
+    public function exportarResumenEngomadoExcel(Request $request)
+    {
+        $fechaIni = $request->query('fecha_ini');
+        $fechaFin = $request->query('fecha_fin');
+
+        if (!$fechaIni || !$fechaFin) {
+            return redirect()->route('engomado.reportes.resumen-engomado')
+                ->with('error', 'Seleccione un rango de fechas para exportar.');
+        }
+
+        $porFecha = $this->buildReporteResumenData($fechaIni, $fechaFin);
+
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fileName = 'resumen-engomado-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+
+        return Excel::download(new ReporteResumenEngomadoExport($porFecha), $fileName);
+    }
+
+    private function buildReporteResumenData(string $fechaIni, string $fechaFin): array
+    {
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+
+        $producciones = EngProduccionEngomado::query()
+            ->whereBetween('Fecha', [$fechaIniCarbon, $fechaFinCarbon])
+            ->where('Finalizar', 1)
+            ->orderBy('Fecha')
+            ->orderBy('Folio')
+            ->get();
+
+        $porFecha = [];
+
+        foreach ($producciones as $prod) {
+            $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha->format('Y-m-d') : Carbon::parse($prod->Fecha)->format('Y-m-d');
+
+            if (!isset($porFecha[$fecha])) {
+                $porFecha[$fecha] = [
+                    'totalKg' => 0,
+                    'porMaquina' => [
+                        'WP2' => ['label' => 'WP2', 'filas' => []],
+                        'WP3' => ['label' => 'WP3', 'filas' => []],
+                    ],
+                ];
+            }
+
+            $programa = EngProgramaEngomado::where('Folio', $prod->Folio)->first();
+            $maquina = $programa->MaquinaEng ?? 'WP2';
+
+            if (!in_array($maquina, ['WP2', 'WP3'])) {
+                $maquina = 'WP2';
+            }
+
+            $metros = 0;
+            if ($prod->Metros1) {
+                $metros += (float) $prod->Metros1;
+            }
+            if ($prod->Metros2) {
+                $metros += (float) $prod->Metros2;
+            }
+            if ($prod->Metros3) {
+                $metros += (float) $prod->Metros3;
+            }
+
+            $operadores = [];
+            if ($prod->CveEmpl1) {
+                $operadores[] = (string) $prod->CveEmpl1;
+            }
+            if ($prod->CveEmpl2) {
+                $operadores[] = (string) $prod->CveEmpl2;
+            }
+            if ($prod->CveEmpl3) {
+                $operadores[] = (string) $prod->CveEmpl3;
+            }
+
+            $fila = [
+                'orden' => $programa->Folio ?? $prod->Folio,
+                'julio' => $prod->NoJulio ?? '',
+                'p_neto' => $prod->KgNeto ?? 0,
+                'metros' => $metros,
+                'ope' => implode(', ', $operadores),
+            ];
+
+            $porFecha[$fecha]['porMaquina'][$maquina]['filas'][] = $fila;
+            $porFecha[$fecha]['totalKg'] += (float) ($prod->KgNeto ?? 0);
+        }
+
+        foreach ($porFecha as &$dia) {
+            $dia['porMaquina'] = array_values($dia['porMaquina']);
+        }
+
+        return $porFecha;
     }
 
     private function parseReportDate(string $value): Carbon

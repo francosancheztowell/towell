@@ -69,6 +69,8 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::get('/reportesengomado/bpm-engomado/excel', [ReportesEngomadoController::class, 'exportarBpmExcel'])->name('reportes.bpm.excel');
     Route::get('/reportesengomado/control-merma', [ReportesEngomadoController::class, 'reporteControlMerma'])->name('reportes.control-merma');
     Route::get('/reportesengomado/control-merma/excel', [ReportesEngomadoController::class, 'exportarControlMermaExcel'])->name('reportes.control-merma.excel');
+    Route::get('/reportesengomado/resumen-engomado', [ReportesEngomadoController::class, 'reporteResumenEngomado'])->name('reportes.resumen-engomado');
+    Route::get('/reportesengomado/resumen-engomado/excel', [ReportesEngomadoController::class, 'exportarResumenEngomadoExcel'])->name('reportes.resumen-engomado.excel');
     Route::get('/programar-engomado/ordenes', [ProgramarEngomadoController::class, 'getOrdenes'])->name('programar.engomado.ordenes');
     Route::get('/programar-engomado/verificar-en-proceso', [ProgramarEngomadoController::class, 'verificarOrdenEnProceso'])->name('programar.engomado.verificar.en.proceso');
     Route::post('/programar-engomado/intercambiar-prioridad', [ProgramarEngomadoController::class, 'intercambiarPrioridad'])->name('programar.engomado.intercambiar.prioridad');
