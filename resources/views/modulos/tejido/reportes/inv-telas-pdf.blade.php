@@ -5,14 +5,14 @@
     <title>Reporte Inventario Telas</title>
     <style>
         @page {
-            margin: 6px;
+            margin: 15px;
         }
         * {
             box-sizing: border-box;
         }
         body {
             font-family: Arial, sans-serif;
-            font-size: 7px;
+            font-size: 8px;
             color: #111827;
         }
         .header {
@@ -38,11 +38,11 @@
         }
         .titulo {
             font-weight: bold;
-            font-size: 10px;
+            font-size: 11px;
             margin-bottom: 2px;
         }
         .subtitulo {
-            font-size: 7px;
+            font-size: 8px;
             margin-bottom: 2px;
         }
         .tabla-principal {
@@ -65,12 +65,12 @@
         .row-dias th {
             background: #111827;
             color: #ffffff;
-            font-size: 6.7px;
+            font-size: 7.5px;
         }
         .row-columnas th {
             background: #f3f4f6;
             color: #111827;
-            font-size: 6.7px;
+            font-size: 7.5px;
         }
         .row-columnas th.th-dia-fecha {
             background: #111827;
@@ -130,7 +130,7 @@
             color: #ffffff;
             text-align: center;
             font-weight: bold;
-            font-size: 7px;
+            font-size: 8px;
             padding: 2px;
             border-bottom: 1px solid #1f2937;
         }
@@ -144,7 +144,7 @@
             background: #f3f4f6;
             border-bottom: 1px solid #1f2937;
             font-weight: bold;
-            font-size: 7px;
+            font-size: 8px;
             padding: 2px;
             text-transform: uppercase;
         }
@@ -157,7 +157,7 @@
         .resumen-tabla td {
             border: 1px solid #c7cbd1;
             padding: 1px 2px;
-            font-size: 6.6px;
+            font-size: 7.5px;
             line-height: 1.1;
             word-wrap: break-word;
         }
@@ -174,6 +174,46 @@
             text-align: right;
             color: #6b7280;
             font-size: 6.5px;
+        }
+        .legend {
+            margin: 2px 0 4px;
+            font-size: 6.7px;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .legend-swatch {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 3px;
+            vertical-align: middle;
+            border: 1px solid #9ca3af;
+        }
+        .swatch-blue {
+            background: #3b82f6;
+        }
+        .swatch-orange {
+            background: #fb923c;
+        }
+        .swatch-yellow {
+            background: #fde047;
+        }
+        .cell-blue {
+            background: #3b82f6;
+            color: #ffffff;
+            font-weight: bold;
+        }
+        .cell-orange {
+            background: #fb923c;
+            color: #ffffff;
+            font-weight: bold;
+        }
+        .cell-yellow {
+            background: #fde047;
+            color: #713f12;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -193,6 +233,7 @@
             </td>
         </tr>
     </table>
+
 
     <table class="layout">
         <tr>
@@ -242,8 +283,31 @@
                                     <td class="col-calibre">{{ $calibre !== '' ? $calibre : '-' }}</td>
                                     <td class="col-cuenta">{{ $cuentaRP }}</td>
                                     @foreach ($dias as $dia)
-                                        @php $valorDia = trim((string) ($fila['por_dia'][$dia['fecha']] ?? '')); @endphp
-                                        <td class="col-dia">{{ $valorDia }}</td>
+                                        @php
+                                            $celdaDia = $fila['por_dia'][$dia['fecha']] ?? ['turnos' => []];
+                                            $turnos = $celdaDia['turnos'] ?? [];
+                                            $textos = [];
+                                            $colorFinal = null;
+                                            $prioridadesColor = ['blue' => 3, 'orange' => 2, 'yellow' => 1];
+                                            foreach ([1, 2, 3] as $t) {
+                                                $txt = trim((string) ($turnos[$t]['texto'] ?? ''));
+                                                $col = $turnos[$t]['color'] ?? null;
+                                                if ($txt !== '') {
+                                                    $textos[] = $txt;
+                                                }
+                                                if ($col !== null && (($prioridadesColor[$col] ?? 0) > ($prioridadesColor[$colorFinal] ?? 0))) {
+                                                    $colorFinal = $col;
+                                                }
+                                            }
+                                            $valorDia = implode(' | ', $textos);
+                                            $claseColor = match ($colorFinal) {
+                                                'blue' => 'cell-blue',
+                                                'orange' => 'cell-orange',
+                                                'yellow' => 'cell-yellow',
+                                                default => '',
+                                            };
+                                        @endphp
+                                        <td class="col-dia {{ $claseColor }}">{{ $valorDia !== '' ? $valorDia : ' ' }}</td>
                                     @endforeach
                                 </tr>
                             @endforeach

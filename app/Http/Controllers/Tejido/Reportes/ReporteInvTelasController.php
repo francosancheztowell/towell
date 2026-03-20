@@ -2,19 +2,29 @@
 
 namespace App\Http\Controllers\Tejido\Reportes;
 
+use App\Exports\ReporteInvTelasExport;
 use App\Http\Controllers\Controller;
+use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\ReporteInvTelasExport;
 
 class ReporteInvTelasController extends Controller
 {
     public const MAX_DIAS = 5;
+
+    private const STATUS_ACTIVO = 'Activo';
+    private const COLOR_BLUE = 'blue';
+    private const COLOR_ORANGE = 'orange';
+    private const COLOR_YELLOW = 'yellow';
+    private const SESSION_LIBERAR_DIAS = 'liberar_ordenes_dias';
+    private const DEFAULT_LIBERAR_DIAS = 10.999;
+
     private const ORDEN_SECCIONES = [
         [
             'nombre' => 'JACQUARD SULZER',
@@ -38,8 +48,26 @@ class ReporteInvTelasController extends Controller
         ],
     ];
 
+    private const LEYENDA_COLORES = [
+        [
+            'color' => self::COLOR_BLUE,
+            'label' => 'Azul',
+            'descripcion' => 'Reservado',
+        ],
+        [
+            'color' => self::COLOR_ORANGE,
+            'label' => 'Naranja',
+            'descripcion' => 'Programado',
+        ],
+        [
+            'color' => self::COLOR_YELLOW,
+            'label' => 'Amarillo',
+            'descripcion' => 'Sin reservar / Sin programar',
+        ],
+    ];
+
     /**
-     * Vista del reporte con modal para elegir rango de fechas (máx 5 días)
+     * Vista del reporte con modal para elegir rango de fechas (max 5 dias)
      */
     public function index(Request $request)
     {
@@ -52,6 +80,7 @@ class ReporteInvTelasController extends Controller
                 'fechaFin' => null,
                 'secciones' => [],
                 'dias' => [],
+                'leyendaColores' => $this->obtenerLeyendaColores(),
             ]);
         }
 
@@ -68,7 +97,7 @@ class ReporteInvTelasController extends Controller
         if ($diasDiferencia > self::MAX_DIAS) {
             return redirect()
                 ->route('tejido.reportes.inv-telas')
-                ->with('error', 'El rango debe ser de máximo ' . self::MAX_DIAS . ' días.');
+                ->with('error', 'El rango debe ser de maximo ' . self::MAX_DIAS . ' dias.');
         }
 
         $datos = $this->obtenerDatosReporte($fechaIniFormateada, $fechaFinFormateada);
@@ -78,6 +107,7 @@ class ReporteInvTelasController extends Controller
             'fechaFin' => $fechaFinFormateada,
             'secciones' => $datos['secciones'],
             'dias' => $datos['dias'],
+            'leyendaColores' => $this->obtenerLeyendaColores(),
         ]);
     }
 
@@ -108,7 +138,7 @@ class ReporteInvTelasController extends Controller
         if ($diasDiferencia > self::MAX_DIAS) {
             return redirect()
                 ->route('tejido.reportes.inv-telas')
-                ->with('error', 'El rango debe ser de máximo ' . self::MAX_DIAS . ' días.');
+                ->with('error', 'El rango debe ser de maximo ' . self::MAX_DIAS . ' dias.');
         }
 
         $nombreArchivo = 'reporte_inv_telas_'
@@ -198,18 +228,32 @@ class ReporteInvTelasController extends Controller
         $fechasDia = array_column($dias, 'fecha');
         $noTelaresOrdenados = $this->obtenerNoTelaresOrdenados();
         $fallbackReqPorTelar = $this->obtenerFallbackReqPorTelar($noTelaresOrdenados);
+        $amarilloPorTelarFecha = $this->obtenerAmarilloPorTelarFecha($noTelaresOrdenados, $fechaIni, $fechaFin);
 
-        $registros = TejInventarioTelares::where('status', 'Activo')
+        $registros = TejInventarioTelares::where('status', self::STATUS_ACTIVO)
             ->whereDate('fecha', '>=', $fechaIni)
             ->whereDate('fecha', '<=', $fechaFin)
             ->orderByDesc('fecha')
             ->orderBy('no_telar')
             ->orderBy('tipo')
-            ->get(['no_telar', 'tipo', 'cuenta', 'calibre', 'hilo', 'fecha']);
+            ->get([
+                'id',
+                'no_telar',
+                'tipo',
+                'cuenta',
+                'calibre',
+                'hilo',
+                'fecha',
+                'turno',
+                'no_julio',
+                'no_orden',
+                'Reservado',
+                'Programado',
+            ]);
 
         $agrupadoPorTelar = [];
-        foreach ($registros as $r) {
-            $noTelar = trim((string) ($r->no_telar ?? ''));
+        foreach ($registros as $registro) {
+            $noTelar = trim((string) ($registro->no_telar ?? ''));
             if ($noTelar === '') {
                 continue;
             }
@@ -218,18 +262,18 @@ class ReporteInvTelasController extends Controller
                 $agrupadoPorTelar[$noTelar] = $this->crearFilaTelarBase($noTelar, $fechasDia);
             }
 
-            $fibra = trim((string) ($r->hilo ?? ''));
+            $fibra = trim((string) ($registro->hilo ?? ''));
             if ($agrupadoPorTelar[$noTelar]['fibra'] === '' && $fibra !== '') {
                 $agrupadoPorTelar[$noTelar]['fibra'] = $fibra;
             }
 
-            $calibre = $this->formatearCalibre($r->calibre ?? null);
+            $calibre = $this->formatearCalibre($registro->calibre ?? null);
             if ($agrupadoPorTelar[$noTelar]['calibre'] === '' && $calibre !== '') {
                 $agrupadoPorTelar[$noTelar]['calibre'] = $calibre;
             }
 
-            $tipo = strtoupper(trim((string) ($r->tipo ?? '')));
-            $cuenta = trim((string) ($r->cuenta ?? ''));
+            $tipo = strtoupper(trim((string) ($registro->tipo ?? '')));
+            $cuenta = trim((string) ($registro->cuenta ?? ''));
             if ($tipo === 'RIZO') {
                 if ($cuenta !== '' && !in_array($cuenta, $agrupadoPorTelar[$noTelar]['cuentas_rizo'], true)) {
                     $agrupadoPorTelar[$noTelar]['cuentas_rizo'][] = $cuenta;
@@ -240,31 +284,54 @@ class ReporteInvTelasController extends Controller
                 }
             }
 
-            $fechaStr = $r->fecha ? Carbon::parse($r->fecha)->format('Y-m-d') : null;
+            $fechaStr = $registro->fecha ? Carbon::parse($registro->fecha)->format('Y-m-d') : null;
             if ($fechaStr && isset($agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr])) {
-                if ($tipo === 'RIZO') {
-                    if ($cuenta !== '' && !in_array($cuenta, $agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr]['rizo'], true)) {
-                        $agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr]['rizo'][] = $cuenta;
-                    }
-                } elseif ($tipo === 'PIE') {
-                    if ($cuenta !== '' && !in_array($cuenta, $agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr]['pie'], true)) {
-                        $agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr]['pie'][] = $cuenta;
+                $detalleDia = &$agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr];
+                $turno = (int) ($registro->turno ?? 1);
+                if ($turno < 1 || $turno > 3) {
+                    $turno = 1;
+                }
+
+                $colorRegistro = $this->resolverColorCeldaInventario($registro);
+                $detalleDia['turnos'][$turno]['color'] = $this->priorizarColor(
+                    $detalleDia['turnos'][$turno]['color'] ?? null,
+                    $colorRegistro
+                );
+
+                if ($colorRegistro === self::COLOR_BLUE) {
+                    $noJulio = trim((string) ($registro->no_julio ?? ''));
+                    if ($noJulio !== '' && !in_array($noJulio, $detalleDia['turnos'][$turno]['no_julios'], true)) {
+                        $detalleDia['turnos'][$turno]['no_julios'][] = $noJulio;
                     }
                 }
+
+                if ($colorRegistro === self::COLOR_ORANGE) {
+                    $noOrden = trim((string) ($registro->no_orden ?? ''));
+                    if ($noOrden !== '' && !in_array($noOrden, $detalleDia['turnos'][$turno]['no_ordenes'], true)) {
+                        $detalleDia['turnos'][$turno]['no_ordenes'][] = $noOrden;
+                    }
+                }
+
+                if ($tipo === 'RIZO') {
+                    if ($cuenta !== '' && !in_array($cuenta, $detalleDia['turnos'][$turno]['rizo'], true)) {
+                        $detalleDia['turnos'][$turno]['rizo'][] = $cuenta;
+                    }
+                } elseif ($tipo === 'PIE') {
+                    if ($cuenta !== '' && !in_array($cuenta, $detalleDia['turnos'][$turno]['pie'], true)) {
+                        $detalleDia['turnos'][$turno]['pie'][] = $cuenta;
+                    }
+                }
+                unset($detalleDia);
             }
         }
-        unset($r);
 
         $secciones = [];
         foreach (self::ORDEN_SECCIONES as $defSeccion) {
             $filas = [];
             foreach ($defSeccion['telares'] as $noTelar) {
-                if (isset($agrupadoPorTelar[$noTelar])) {
-                    $fila = $agrupadoPorTelar[$noTelar];
-                } else {
-                    $fila = $this->crearFilaTelarBase($noTelar, $fechasDia);
-                }
+                $fila = $agrupadoPorTelar[$noTelar] ?? $this->crearFilaTelarBase($noTelar, $fechasDia);
                 $fila = $this->aplicarFallbackReqPrograma($fila, $fallbackReqPorTelar[$noTelar] ?? []);
+                $fila = $this->aplicarColorAmarilloPendiente($fila, $amarilloPorTelarFecha[$noTelar] ?? []);
                 $filas[] = $this->finalizarFilaTelar($fila);
             }
             $secciones[] = ['nombre' => $defSeccion['nombre'], 'filas' => $filas];
@@ -297,6 +364,12 @@ class ReporteInvTelasController extends Controller
 
     protected function crearFilaTelarBase(string $noTelar, array $fechasDia): array
     {
+        $turnoBase = [
+            1 => ['rizo' => [], 'pie' => [], 'color' => null, 'no_julios' => [], 'no_ordenes' => []],
+            2 => ['rizo' => [], 'pie' => [], 'color' => null, 'no_julios' => [], 'no_ordenes' => []],
+            3 => ['rizo' => [], 'pie' => [], 'color' => null, 'no_julios' => [], 'no_ordenes' => []],
+        ];
+
         return [
             'no_telar' => $noTelar,
             'cuenta_rizo' => '',
@@ -305,7 +378,7 @@ class ReporteInvTelasController extends Controller
             'cuentas_pie' => [],
             'fibra' => '',
             'calibre' => '',
-            'por_dia' => array_fill_keys($fechasDia, ['rizo' => [], 'pie' => []]),
+            'por_dia' => array_fill_keys($fechasDia, ['turnos' => $turnoBase]),
         ];
     }
 
@@ -320,23 +393,47 @@ class ReporteInvTelasController extends Controller
         $fila['cuenta_pie'] = implode('/', $fila['cuentas_pie'] ?? []);
 
         foreach ($fila['por_dia'] as $fecha => $detalle) {
-            if (!is_array($detalle)) {
-                $fila['por_dia'][$fecha] = '';
+            if (!is_array($detalle) || !isset($detalle['turnos'])) {
+                $fila['por_dia'][$fecha] = ['turnos' => [
+                    1 => ['texto' => '', 'color' => null],
+                    2 => ['texto' => '', 'color' => null],
+                    3 => ['texto' => '', 'color' => null],
+                ]];
                 continue;
             }
 
-            $partes = [];
-            $rizo = $detalle['rizo'] ?? [];
-            $pie = $detalle['pie'] ?? [];
+            $turnosFinal = [];
+            foreach ([1, 2, 3] as $t) {
+                $turnoData = $detalle['turnos'][$t] ?? ['rizo' => [], 'pie' => [], 'color' => null];
+                $partes = [];
+                $rizo = $turnoData['rizo'] ?? [];
+                $pie = $turnoData['pie'] ?? [];
 
-            if (!empty($rizo)) {
-                $partes[] = 'R: ' . implode('/', $rizo);
-            }
-            if (!empty($pie)) {
-                $partes[] = 'P: ' . implode('/', $pie);
+                $tieneAmbos = !empty($rizo) && !empty($pie);
+                if (!empty($rizo)) {
+                    $partes[] = ($tieneAmbos ? 'R: ' : '') . implode('/', $rizo);
+                }
+                if (!empty($pie)) {
+                    $partes[] = ($tieneAmbos ? 'P: ' : '') . implode('/', $pie);
+                }
+
+                $noJulios = $turnoData['no_julios'] ?? [];
+                if (!empty($noJulios) && ($turnoData['color'] ?? null) === self::COLOR_BLUE) {
+                    $partes[] = implode('/', $noJulios);
+                }
+
+                $noOrdenes = $turnoData['no_ordenes'] ?? [];
+                if (!empty($noOrdenes) && ($turnoData['color'] ?? null) === self::COLOR_ORANGE) {
+                    $partes[] = implode('/', $noOrdenes);
+                }
+
+                $turnosFinal[$t] = [
+                    'texto' => implode(' | ', $partes),
+                    'color' => $turnoData['color'] ?? null,
+                ];
             }
 
-            $fila['por_dia'][$fecha] = implode(' | ', $partes);
+            $fila['por_dia'][$fecha] = ['turnos' => $turnosFinal];
         }
 
         unset($fila['cuentas_rizo'], $fila['cuentas_pie']);
@@ -415,6 +512,7 @@ class ReporteInvTelasController extends Controller
                 if ($cmpFibra !== 0) {
                     return $cmpFibra;
                 }
+
                 return strcmp((string) $a['calibre'], (string) $b['calibre']);
             });
 
@@ -540,6 +638,7 @@ class ReporteInvTelasController extends Controller
                 return $texto;
             }
         }
+
         return '';
     }
 
@@ -550,6 +649,7 @@ class ReporteInvTelasController extends Controller
                 return $valor;
             }
         }
+
         return null;
     }
 
@@ -566,5 +666,261 @@ class ReporteInvTelasController extends Controller
         }
 
         return 'data:image/png;base64,' . base64_encode($logoData);
+    }
+
+    protected function obtenerLeyendaColores(): array
+    {
+        return self::LEYENDA_COLORES;
+    }
+
+    protected function resolverColorCeldaInventario(TejInventarioTelares $registro): ?string
+    {
+        // Reservado: si tiene el flag Reservado o tiene julio asignado
+        if ((bool) ($registro->Reservado ?? false) || trim((string) ($registro->no_julio ?? '')) !== '') {
+            return self::COLOR_BLUE;
+        }
+
+        if ((bool) ($registro->Programado ?? false)) {
+            return self::COLOR_ORANGE;
+        }
+
+        return self::COLOR_YELLOW;
+    }
+
+    protected function obtenerEstadosOrdenesActivas(array $noTelares): array
+    {
+        if (empty($noTelares)) {
+            return ['por_folio' => [], 'por_telar_tipo' => []];
+        }
+
+        $objetivo = array_fill_keys($noTelares, true);
+        $porFolio = [];
+        $porTelarTipo = [];
+        $statuses = ['Programado', 'En Proceso', 'Parcial'];
+
+        $procesarOrdenes = function (iterable $rows) use (&$porFolio, &$porTelarTipo, $objetivo): void {
+            foreach ($rows as $row) {
+                $color = $this->obtenerColorEstadoPorStatusOrden($row->Status ?? null);
+                if ($color === null) {
+                    continue;
+                }
+
+                $folio = trim((string) ($row->Folio ?? ''));
+                if ($folio !== '') {
+                    $porFolio[$folio] = $this->priorizarColor($porFolio[$folio] ?? null, $color);
+                }
+
+                $tipo = $this->normalizarTipo($row->RizoPie ?? null);
+                if ($tipo === null) {
+                    continue;
+                }
+
+                foreach ($this->desglosarTelaresOrden($row->NoTelarId ?? null) as $noTelar) {
+                    if (!isset($objetivo[$noTelar])) {
+                        continue;
+                    }
+
+                    $porTelarTipo[$noTelar][$tipo] = $this->priorizarColor(
+                        $porTelarTipo[$noTelar][$tipo] ?? null,
+                        $color
+                    );
+                }
+            }
+        };
+
+        $procesarOrdenes(
+            UrdProgramaUrdido::query()
+                ->whereIn('Status', $statuses)
+                ->get(['Folio', 'NoTelarId', 'RizoPie', 'Status'])
+        );
+
+        $procesarOrdenes(
+            EngProgramaEngomado::query()
+                ->whereIn('Status', $statuses)
+                ->get(['Folio', 'NoTelarId', 'RizoPie', 'Status'])
+        );
+
+        return [
+            'por_folio' => $porFolio,
+            'por_telar_tipo' => $porTelarTipo,
+        ];
+    }
+
+    protected function obtenerColorEstadoPorStatusOrden(?string $status): ?string
+    {
+        $statusNormalizado = trim((string) $status);
+
+        if (in_array($statusNormalizado, ['En Proceso', 'Parcial'], true)) {
+            return self::COLOR_BLUE;
+        }
+
+        if ($statusNormalizado === 'Programado') {
+            return self::COLOR_ORANGE;
+        }
+
+        return null;
+    }
+
+    protected function desglosarTelaresOrden(?string $telaresRaw): array
+    {
+        $telares = preg_split('/\s*,\s*/', trim((string) $telaresRaw)) ?: [];
+        $resultado = [];
+
+        foreach ($telares as $telar) {
+            $valor = trim((string) $telar);
+            if ($valor !== '') {
+                $resultado[] = $valor;
+            }
+        }
+
+        return array_values(array_unique($resultado));
+    }
+
+    protected function obtenerAmarilloPorTelarFecha(array $noTelares, string $fechaIni, string $fechaFin): array
+    {
+        if (empty($noTelares)) {
+            return [];
+        }
+
+        $diasLiberacion = $this->obtenerDiasLiberacion();
+        $hoy = Carbon::now()->startOfDay();
+        $fechaFormula = $hoy->copy()->addDays($diasLiberacion);
+
+        $rows = ReqProgramaTejido::query()
+            ->whereIn('NoTelarId', $noTelares)
+            ->where(function ($query) {
+                $query->whereNull('NoProduccion')
+                    ->orWhere('NoProduccion', '');
+            })
+            ->where(function ($query) {
+                $query->whereNull('NoExisteBase')
+                    ->orWhere('NoExisteBase', '');
+            })
+            ->whereNotNull('FechaInicio')
+            ->whereDate('FechaInicio', '>=', $fechaIni)
+            ->whereDate('FechaInicio', '<=', $fechaFin)
+            ->get(['NoTelarId', 'FechaInicio', 'CuentaRizo', 'CuentaPie']);
+
+        $resultado = [];
+        foreach ($rows as $row) {
+            $noTelar = trim((string) ($row->NoTelarId ?? ''));
+            if ($noTelar === '' || empty($row->FechaInicio)) {
+                continue;
+            }
+
+            $fechaInicio = $row->FechaInicio instanceof Carbon
+                ? $row->FechaInicio->copy()->startOfDay()
+                : Carbon::parse($row->FechaInicio)->startOfDay();
+
+            if (!$fechaInicio->lt($fechaFormula)) {
+                continue;
+            }
+
+            $fechaKey = $fechaInicio->format('Y-m-d');
+            if (!isset($resultado[$noTelar][$fechaKey])) {
+                $resultado[$noTelar][$fechaKey] = [
+                    'aplica' => true,
+                    'cuenta_rizo' => trim((string) ($row->CuentaRizo ?? '')),
+                    'cuenta_pie' => trim((string) ($row->CuentaPie ?? '')),
+                ];
+            }
+        }
+
+        return $resultado;
+    }
+
+    protected function obtenerDiasLiberacion(): float
+    {
+        $dias = (float) session(self::SESSION_LIBERAR_DIAS, self::DEFAULT_LIBERAR_DIAS);
+        if ($dias < 0 || $dias > 999.999) {
+            $dias = self::DEFAULT_LIBERAR_DIAS;
+        }
+
+        return round($dias, 3);
+    }
+
+    protected function aplicarColorAmarilloPendiente(array $fila, array $amarilloPorFecha): array
+    {
+        foreach ($amarilloPorFecha as $fecha => $info) {
+            $aplica = is_array($info) ? ($info['aplica'] ?? false) : $info;
+            if (!$aplica || !isset($fila['por_dia'][$fecha])) {
+                continue;
+            }
+
+            // Verificar si algún turno ya tiene datos
+            $algunTurnoConDatos = false;
+            foreach ([1, 2, 3] as $t) {
+                $turnoData = $fila['por_dia'][$fecha]['turnos'][$t] ?? ['rizo' => [], 'pie' => []];
+                if (!empty($turnoData['rizo']) || !empty($turnoData['pie'])) {
+                    $algunTurnoConDatos = true;
+                    break;
+                }
+            }
+
+            if ($algunTurnoConDatos) {
+                // Aplicar amarillo a turnos que tengan datos pero no tengan color más prioritario
+                foreach ([1, 2, 3] as $t) {
+                    $turnoData = $fila['por_dia'][$fecha]['turnos'][$t] ?? ['rizo' => [], 'pie' => [], 'color' => null];
+                    if (!empty($turnoData['rizo']) || !empty($turnoData['pie'])) {
+                        $fila['por_dia'][$fecha]['turnos'][$t]['color'] = $this->priorizarColor(
+                            $turnoData['color'] ?? null,
+                            self::COLOR_YELLOW
+                        );
+                    }
+                }
+            } else {
+                // Sin datos de inventario: inyectar cuenta del ReqProgramaTejido en turno 1
+                $fila['por_dia'][$fecha]['turnos'][1]['color'] = $this->priorizarColor(
+                    $fila['por_dia'][$fecha]['turnos'][1]['color'] ?? null,
+                    self::COLOR_YELLOW
+                );
+                if (is_array($info)) {
+                    $cuentaRizo = $info['cuenta_rizo'] ?? '';
+                    $cuentaPie = $info['cuenta_pie'] ?? '';
+                    if ($cuentaRizo !== '') {
+                        $fila['por_dia'][$fecha]['turnos'][1]['rizo'][] = $cuentaRizo;
+                    }
+                    if ($cuentaPie !== '') {
+                        $fila['por_dia'][$fecha]['turnos'][1]['pie'][] = $cuentaPie;
+                    }
+                }
+            }
+        }
+
+        return $fila;
+    }
+
+    protected function priorizarColor(?string $actual, ?string $nuevo): ?string
+    {
+        if ($nuevo === null || $nuevo === '') {
+            return $actual;
+        }
+
+        if ($actual === null || $actual === '') {
+            return $nuevo;
+        }
+
+        $prioridades = [
+            self::COLOR_BLUE => 3,
+            self::COLOR_ORANGE => 2,
+            self::COLOR_YELLOW => 1,
+        ];
+
+        return ($prioridades[$nuevo] ?? 0) >= ($prioridades[$actual] ?? 0) ? $nuevo : $actual;
+    }
+
+    protected function normalizarTipo(mixed $tipo): ?string
+    {
+        $valor = mb_strtolower(trim((string) $tipo), 'UTF-8');
+
+        if ($valor === 'rizo') {
+            return 'Rizo';
+        }
+
+        if ($valor === 'pie') {
+            return 'Pie';
+        }
+
+        return null;
     }
 }
