@@ -268,16 +268,16 @@ class ReportesEngomadoController extends Controller
 
         if (!$fechaIni || !$fechaFin) {
             return view('modulos.engomado.reporte-resumen-engomado', [
-                'porFecha' => [],
+                'datosSemanales' => [],
                 'fechaIni' => $fechaIni ?? '',
                 'fechaFin' => $fechaFin ?? '',
             ]);
         }
 
-        $porFecha = $this->buildReporteResumenData($fechaIni, $fechaFin);
+        $datosSemanales = $this->buildReporteSemanalData($fechaIni, $fechaFin);
 
         return view('modulos.engomado.reporte-resumen-engomado', [
-            'porFecha' => $porFecha,
+            'datosSemanales' => $datosSemanales,
             'fechaIni' => $fechaIni,
             'fechaFin' => $fechaFin,
         ]);
