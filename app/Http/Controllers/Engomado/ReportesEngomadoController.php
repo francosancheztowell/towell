@@ -327,7 +327,7 @@ class ReportesEngomadoController extends Controller
                     'total_julios' => 0,
                     'total_kg' => 0,
                     'total_metros' => 0,
-                    'total_cuenta' => 0,
+                    'total_cuenta' => 0, // Ensure this is initialized
                 ];
             }
 

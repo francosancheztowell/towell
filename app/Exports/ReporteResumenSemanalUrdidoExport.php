@@ -7,7 +7,7 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 // Removed WithHeadings
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, ShouldAutoSize
+class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldAutoSize
 {
     protected array $datosSemanales;
 
@@ -55,6 +55,6 @@ class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, Shoul
 
     public function title(): string
     {
-        return 'Resumen Semanal Engomado';
+        return 'Resumen Semanal Urdido';
     }
 }
