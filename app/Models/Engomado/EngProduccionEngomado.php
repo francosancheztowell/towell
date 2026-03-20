@@ -2,7 +2,9 @@
 
 namespace App\Models\Engomado;
 
+use App\Models\Engomado\EngProgramaEngomado;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EngProduccionEngomado extends Model
 {
@@ -79,5 +81,10 @@ class EngProduccionEngomado extends Model
         'AX' => 'integer',
         'Impresion' => 'boolean',
     ];
+
+    public function programa(): HasOne
+    {
+        return $this->hasOne(EngProgramaEngomado::class, 'Folio', 'Folio');
+    }
 }
 
