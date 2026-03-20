@@ -15,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Chart\Legend;
 use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
 use PhpOffice\PhpSpreadsheet\Chart\Title;
 
-class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, ShouldAutoSize, WithColumnFormatting, WithCharts
+class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldAutoSize, WithColumnFormatting, WithCharts
 {
     protected array $datosSemanales;
     private int $rowCount;
@@ -133,6 +133,6 @@ class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, Shoul
 
     public function title(): string
     {
-        return 'Resumen Semanal Engomado';
+        return 'Resumen Semanal Urdido';
     }
 }

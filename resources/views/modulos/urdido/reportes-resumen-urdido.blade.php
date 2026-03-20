@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', 'Resumen Urdido')
+@section('page-title', 'Resumen Semanal Urdido')
 
 @section('navbar-right')
     <button type="button" onclick="mostrarModalConsultarResumenUrdido()"
@@ -18,89 +18,68 @@
 @section('content')
     <div class="w-full p-4" id="reporte-resumen-urdido-container">
         <div class="bg-white rounded-t-lg px-4 py-2 flex flex-wrap items-center gap-4">
-            <span class="font-bold text-gray-800">RESUMEN URDIDO</span>
+            <span class="font-bold text-gray-800">RESUMEN SEMANAL URDIDO</span>
             <span class="text-gray-600 text-sm">
                 {{ $fechaIni ? \Carbon\Carbon::parse($fechaIni)->translatedFormat('d/m/Y') : '—' }}
                 al
                 {{ $fechaFin ? \Carbon\Carbon::parse($fechaFin)->translatedFormat('d/m/Y') : '—' }}
             </span>
-            @if (!empty($porFecha))
-                <span class="text-gray-500 text-sm">{{ count($porFecha) }} días</span>
+            @if (!empty($datosSemanales))
+                <span class="text-gray-500 text-sm">{{ count($datosSemanales) }} semanas</span>
             @endif
         </div>
 
-        <div class="overflow-x-auto bg-white border border-t-0 border-gray-300 rounded-b-lg">
-            @forelse($porFecha as $fecha => $datos)
-                @php
-                    $date = \Carbon\Carbon::parse($fecha);
-                    $diaMap = ['DO', 'LU', 'MA', 'MI', 'JU', 'VI', 'SA'];
-                    $diaSemana = $diaMap[$date->dayOfWeek] ?? '';
-                    $totalKg = $datos['totalKg'] ?? 0;
-                @endphp
-
-                <div class="mb-6 border-b border-gray-300 pb-4">
-                    <div class="bg-blue-100 px-4 py-2 mb-2">
-                        <div class="flex items-center gap-4">
-                            <span class="font-bold text-blue-900">{{ $diaSemana }}</span>
-                            <span class="text-blue-800">{{ ucfirst($date->locale('es')->translatedFormat('l, d \d\e F \d\e Y')) }}</span>
-                            <span class="ml-auto font-semibold text-blue-900">Total: {{ number_format($totalKg, 1) }} Kg</span>
-                        </div>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 bg-white border border-t-0 border-gray-300 rounded-b-lg p-4">
+            <!-- Tabla de Datos -->
+            <div class="overflow-x-auto">
+                @if (!empty($datosSemanales))
+                    <table class="w-full text-sm border-collapse">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="px-2 py-1 text-left font-semibold text-xs border border-gray-300">Semana</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">No. Ordenes</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">No. Julios</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">KG</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Metros</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Prom. Peso</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Prom. Metros</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Prom. Cuenta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($datosSemanales as $semana)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-2 py-0.5 border border-gray-300 font-medium">{{ $semana['semana_label'] ?? '' }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_ordenes'] ?? 0, 0) }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_julios'] ?? 0, 0) }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_kg'] ?? 0, 2) }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_metros'] ?? 0, 2) }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['peso_promedio'] ?? 0, 2) }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['metros_promedio'] ?? 0, 2) }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['cuenta_promedio'] ?? 0, 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <div class="p-8 text-center text-gray-500">
+                        <i class="fas fa-info-circle text-4xl mb-2"></i>
+                        <p>No hay datos para el rango de fechas seleccionado.</p>
+                        <p class="text-sm mt-1">Seleccione un rango de fechas para generar el reporte.</p>
                     </div>
+                @endif
+            </div>
 
-                    @foreach($datos['porMaquina'] ?? [] as $maquina)
-                        @php
-                            $label = $maquina['label'] ?? '';
-                            $filas = $maquina['filas'] ?? [];
-                            $kgMaquina = array_sum(array_column($filas, 'p_neto'));
-                            $metrosMaquina = array_sum(array_column($filas, 'metros'));
-                        @endphp
-
-                        @if(!empty($filas))
-                            <div class="px-4 py-2">
-                                <div class="bg-gray-100 px-3 py-1.5 mb-2 rounded">
-                                    <div class="flex items-center gap-4">
-                                        <span class="font-bold text-gray-800">{{ $label }}</span>
-                                        <span class="text-gray-700">{{ number_format($kgMaquina, 1) }} Kg</span>
-                                        <span class="text-gray-700">{{ number_format($metrosMaquina, 0) }} mts</span>
-                                    </div>
-                                </div>
-
-                                <table class="w-full text-sm border-collapse mb-3">
-                                    <thead class="bg-gray-200">
-                                        <tr>
-                                            <th class="px-2 py-1 text-left font-semibold text-xs border border-gray-300">Orden</th>
-                                            <th class="px-2 py-1 text-left font-semibold text-xs border border-gray-300">Julio</th>
-                                            <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Kg Neto</th>
-                                            <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Metros</th>
-                                            <th class="px-2 py-1 text-left font-semibold text-xs border border-gray-300">Operadores</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($filas as $fila)
-                                            <tr class="hover:bg-gray-50">
-                                                <td class="px-2 py-0.5 border border-gray-300">{{ $fila['orden'] ?? '' }}</td>
-                                                <td class="px-2 py-0.5 border border-gray-300">{{ $fila['julio'] ?? '' }}</td>
-                                                <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($fila['p_neto'] ?? 0, 2) }}</td>
-                                                <td class="px-2 py-0.5 border border-gray-300 text-right">{{ $fila['metros'] ? number_format($fila['metros'], 0) : '' }}</td>
-                                                <td class="px-2 py-0.5 border border-gray-300">{{ $fila['ope'] ?? '' }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @endif
-                    @endforeach
-                </div>
-            @empty
-                <div class="p-8 text-center text-gray-500">
-                    <i class="fas fa-info-circle text-4xl mb-2"></i>
-                    <p>No hay datos para el rango de fechas seleccionado.</p>
-                    <p class="text-sm mt-1">Seleccione un rango de fechas para generar el reporte.</p>
-                </div>
-            @endforelse
+            <!-- Gráfica -->
+            <div class="w-full">
+                @if (!empty($datosSemanales))
+                    <canvas id="resumenChartUrdido"></canvas>
+                @endif
+            </div>
         </div>
     </div>
 
+    {{-- Modal no ha cambiado --}}
     <div id="modalConsultarResumenUrdido" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div class="bg-blue-600 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
@@ -157,5 +136,60 @@
             cerrarModalConsultarResumenUrdido();
         }
     });
+
+    @if (!empty($datosSemanales))
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('resumenChartUrdido').getContext('2d');
+        const datosSemanales = @json($datosSemanales);
+
+        const labels = datosSemanales.map(item => item.semana_label);
+        const pesoPromedioData = datosSemanales.map(item => item.peso_promedio);
+        const metrosPromedioData = datosSemanales.map(item => item.metros_promedio);
+        const cuentaPromedioData = datosSemanales.map(item => item.cuenta_promedio);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Peso Promedio x Julio',
+                    data: pesoPromedioData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Metros Promedio x Julio',
+                    data: metrosPromedioData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Cuenta Promedio x Julio',
+                    data: cuentaPromedioData,
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Promedios por Semana'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+    @endif
 </script>
 @endpush
