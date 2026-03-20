@@ -160,8 +160,8 @@
 
             const calibreClave = calibre !== null ? String(calibre) : '';
             const clave = esPie
-                ? `${cuenta}|${calibreClave}|${up}|${urdido}|${tipoAtado}|${destino}`
-                : `${cuenta}|${hiloClave}|${calibreClave}|${up}|${urdido}|${tipoAtado}|${destino}`;
+                ? `${cuenta}|${calibreClave}|${up}|${urdido}|${tipoAtado}`
+                : `${cuenta}|${hiloClave}|${calibreClave}|${up}|${urdido}|${tipoAtado}`;
 
             if (!grupos[clave]) {
                 grupos[clave] = { telares:[], cuenta, calibre, hilo, tamano, tipo:tipoN, urdido, tipoAtado, destino,
