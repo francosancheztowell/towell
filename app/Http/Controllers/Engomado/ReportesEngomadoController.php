@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Engomado;
 use App\Exports\BpmEngomadoExport;
 use App\Exports\ControlMermaExport;
 use App\Exports\ReporteResumenEngomadoExport;
+use App\Exports\ReporteResumenSemanalEngomadoExport;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngBpmModel;
 use App\Models\Engomado\EngProduccionEngomado;
@@ -292,13 +293,72 @@ class ReportesEngomadoController extends Controller
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
 
-        $porFecha = $this->buildReporteResumenData($fechaIni, $fechaFin);
+        $datosSemanales = $this->buildReporteSemanalData($fechaIni, $fechaFin);
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $fileName = 'resumen-engomado-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $fileName = 'resumen-semanal-engomado-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
 
-        return Excel::download(new ReporteResumenEngomadoExport($porFecha), $fileName);
+        return Excel::download(new ReporteResumenSemanalEngomadoExport($datosSemanales), $fileName);
+    }
+
+    private function buildReporteSemanalData(string $fechaIni, string $fechaFin): array
+    {
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+
+        $producciones = EngProduccionEngomado::query()
+            ->with('programa') // Cargar la relación
+            ->whereBetween('Fecha', [$fechaIniCarbon, $fechaFinCarbon])
+            ->where('Finalizar', 1)
+            ->orderBy('Fecha')
+            ->get();
+
+        $porSemana = [];
+
+        foreach ($producciones as $prod) {
+            $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha : Carbon::parse($prod->Fecha);
+            $weekYear = $fecha->format('W-y'); 
+
+            if (!isset($porSemana[$weekYear])) {
+                $porSemana[$weekYear] = [
+                    'semana_label' => 'SEM-' . $fecha->format('W-y'),
+                    'total_ordenes' => 0,
+                    'total_julios' => 0,
+                    'total_kg' => 0,
+                    'total_metros' => 0,
+                    'total_cuenta' => 0,
+                ];
+            }
+
+            $porSemana[$weekYear]['total_ordenes']++;
+            $porSemana[$weekYear]['total_julios']++;
+            $porSemana[$weekYear]['total_kg'] += (float) ($prod->KgNeto ?? 0);
+
+            if ($prod->programa) {
+                $porSemana[$weekYear]['total_cuenta'] += (float) ($prod->programa->Cuenta ?? 0);
+            }
+
+            $metros = 0;
+            if ($prod->Metros1) {
+                $metros += (float) $prod->Metros1;
+            }
+            if ($prod->Metros2) {
+                $metros += (float) $prod->Metros2;
+            }
+            if ($prod->Metros3) {
+                $metros += (float) $prod->Metros3;
+            }
+            $porSemana[$weekYear]['total_metros'] += $metros;
+        }
+
+        foreach ($porSemana as &$semana) {
+            $semana['peso_promedio'] = ($semana['total_julios'] > 0) ? $semana['total_kg'] / $semana['total_julios'] : 0;
+            $semana['metros_promedio'] = ($semana['total_julios'] > 0) ? $semana['total_metros'] / $semana['total_julios'] : 0;
+            $semana['cuenta_promedio'] = ($semana['total_julios'] > 0) ? $semana['total_cuenta'] / $semana['total_julios'] : 0;
+        }
+
+        return array_values($porSemana);
     }
 
     private function buildReporteResumenData(string $fechaIni, string $fechaFin): array
