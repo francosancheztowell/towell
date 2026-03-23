@@ -305,12 +305,15 @@ class ReportesEngomadoController extends Controller
     private function buildReporteSemanalData(string $fechaIni, string $fechaFin): array
     {
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin)->endOfDay();
 
         $producciones = EngProduccionEngomado::query()
             ->with('programa') // Cargar la relación
             ->whereBetween('Fecha', [$fechaIniCarbon, $fechaFinCarbon])
-            ->where('Finalizar', 1)
+            ->where(function ($query) {
+                $query->where('Finalizar', 1)
+                    ->orWhereNull('Finalizar');
+            })
             ->orderBy('Fecha')
             ->get();
 
@@ -319,16 +322,17 @@ class ReportesEngomadoController extends Controller
 
         foreach ($producciones as $prod) {
             $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha : Carbon::parse($prod->Fecha);
-            $weekYear = $fecha->format('W-y'); 
+            $weekYear = $fecha->format('W-o'); 
 
             if (!isset($porSemana[$weekYear])) {
                 $porSemana[$weekYear] = [
-                    'semana_label' => 'SEM-' . $fecha->format('W-y'),
+                    'semana_label' => 'SEM-' . $fecha->format('W-o'),
                     'total_ordenes' => 0,
                     'total_julios' => 0,
                     'total_kg' => 0,
                     'total_metros' => 0,
                     'total_cuenta' => 0, // Ensure this is initialized
+                    'eficiencia' => 0,
                 ];
                 $foliosPorSemana[$weekYear] = [];
             }
