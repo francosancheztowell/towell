@@ -62,4 +62,6 @@ Route::prefix('atadores/reportes-atadores')->name('atadores.reportes.')->group(f
     Route::get('/', [ReportesAtadoresController::class, 'index'])->name('index');
     Route::get('/programa', [ReportesAtadoresController::class, 'reportePrograma'])->name('programa');
     Route::get('/programa/excel', [ReportesAtadoresController::class, 'exportarExcel'])->name('programa.excel');
+    Route::get('/atadores', [ReportesAtadoresController::class, 'reporteAtadores'])->name('atadores');
+    Route::get('/atadores/excel', [ReportesAtadoresController::class, 'exportarReporteAtadoresExcel'])->name('atadores.excel');
 });
