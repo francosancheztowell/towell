@@ -412,15 +412,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="date" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${fechaISO}" data-field="fecha_req" disabled>
             </td>
             <td class="px-2 py-3 w-24" data-column-field="tamano">
-                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tamano" data-telar-id="${telar.no_telar || ''}" required>
-                    ${selectTamanoHTML}
-                </select>
+                <div class="relative tamano-wrapper">
+                    <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tamano" data-telar-id="${telar.no_telar || ''}" required placeholder="Buscar..." value="${escapeHtml(tamanoActual)}" autocomplete="off">
+                    <div class="tamano-dropdown hidden fixed z-[9999] bg-white border border-gray-300 rounded shadow-lg overflow-y-auto text-sm" style="max-height:200px;"></div>
+                </div>
             </td>
             <td class="px-2 py-3 w-20" data-column-field="cuenta">
-                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.cuenta || ''}" data-field="cuenta" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
+                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-gray-100 focus:outline-none" value="${telar.cuenta || ''}" data-field="cuenta" data-telar-id="${telar.no_telar || ''}" readonly>
             </td>
             <td class="px-2 py-3 w-20" data-column-field="calibre">
-                <input type="number" step="any" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}" required placeholder="Requerido">
+                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-gray-100 focus:outline-none" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}" readonly>
             </td>
             <td class="px-2 py-3 w-24" data-column-field="hilo">
                 <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" data-telar-id="${telar.no_telar || ''}" required>
@@ -915,12 +916,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const cuentaInput = fila.querySelector('input[data-field="cuenta"]');
         const calibreInput = fila.querySelector('input[data-field="calibre"]');
-        const tamanoSelect = fila.querySelector('select[data-field="tamano"]');
+        const tamanoInput = fila.querySelector('input[data-field="tamano"]');
 
-        if (!cuentaInput || !calibreInput || !tamanoSelect) return;
+        if (!cuentaInput || !calibreInput || !tamanoInput) return;
 
-        const tamanoSeleccionado = tamanoSelect.value.trim();
-        const telarId = tamanoSelect.dataset.telarId || '';
+        const tamanoSeleccionado = tamanoInput.value.trim();
+        const telarId = tamanoInput.dataset.telarId || '';
         const tipo = fila.querySelector('select[data-field="tipo"]')?.value || '';
 
         let nuevaCuenta = '';
@@ -1017,27 +1018,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 800); // Esperar 800ms después del último cambio
         };
 
-        // Event listeners para cuenta, calibre
-        const camposTexto = ['cuenta', 'calibre'];
-        camposTexto.forEach(campo => {
-            const inputs = document.querySelectorAll(`input[data-field="${campo}"]`);
-            inputs.forEach(input => {
-                const telarId = input.dataset.telarId || '';
-                const fila = input.closest('tr');
-                const tipoSelect = fila?.querySelector('select[data-field="tipo"]');
-                const tipo = tipoSelect?.value || '';
-
-                input.addEventListener('blur', async function() {
-                    const valor = this.value.trim();
-                    await guardarCampoTelar(campo, valor, telarId, tipo, fila);
-                });
-
-                input.addEventListener('input', function() {
-                    const valor = this.value.trim();
-                    debounceGuardar(campo, valor, telarId, tipo, fila);
-                });
-            });
-        });
+        // cuenta y calibre son readonly — se rellenan desde el dropdown de tamaño, sin listeners de edición
 
         // Event listener para hilo (select)
         const hiloSelects = document.querySelectorAll('select[data-field="hilo"]');
@@ -1053,19 +1034,117 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Event listener para tamaño (select)
-        const tamanoSelects = document.querySelectorAll('select[data-field="tamano"]');
-        tamanoSelects.forEach(select => {
-            const telarId = select.dataset.telarId || '';
-            const fila = select.closest('tr');
-            const tipoSelect = fila?.querySelector('select[data-field="tipo"]');
-            const tipo = tipoSelect?.value || '';
+        // Autocomplete Tamaño (tipeo libre + validación por alerta)
+        const tamanoWrappers = document.querySelectorAll('.tamano-wrapper');
+        tamanoWrappers.forEach(wrapper => {
+            const tamInput  = wrapper.querySelector('input[data-field="tamano"]');
+            const dropdown  = wrapper.querySelector('.tamano-dropdown');
+            if (!tamInput || !dropdown) return;
 
-            select.addEventListener('change', async function() {
-                const valor = this.value.trim();
+            const telarId = tamInput.dataset.telarId || '';
+            const fila    = wrapper.closest('tr');
+
+            const posicionar = () => {
+                const rect = tamInput.getBoundingClientRect();
+                dropdown.style.top   = (rect.bottom + window.scrollY) + 'px';
+                dropdown.style.left  = (rect.left  + window.scrollX) + 'px';
+                dropdown.style.width = rect.width + 'px';
+            };
+
+            const renderOps = (lista) => {
+                if (!lista.length) {
+                    dropdown.innerHTML = '<div class="px-2 py-2 text-gray-400 text-xs text-center">Sin resultados</div>';
+                } else {
+                    dropdown.innerHTML = lista.map(t =>
+                        `<div class="px-2 py-1 cursor-pointer hover:bg-blue-50 border-b border-gray-100 last:border-0 leading-tight" data-value="${t}">${t}</div>`
+                    ).join('');
+                }
+                posicionar();
+                dropdown.classList.remove('hidden');
+            };
+
+            const cerrarDrop = () => dropdown.classList.add('hidden');
+
+            const seleccionar = async (valor) => {
+                tamInput.value = valor;
+                cerrarDrop();
+                const tipo = fila?.querySelector('select[data-field="tipo"]')?.value || '';
                 await guardarCampoTelar('tamano', valor, telarId, tipo, fila);
                 await rellenarCuentaYCalibreDesdeTamano(fila);
+            };
+
+            tamInput.addEventListener('input', (e) => {
+                const term = String(e.target.value ?? '').trim().toLowerCase();
+                const filtrados = term
+                    ? opciones.tamanos.filter(t => t.toLowerCase().includes(term))
+                    : opciones.tamanos;
+                renderOps(filtrados.slice(0, 60));
             });
+
+            tamInput.addEventListener('focus', () => {
+                const term = String(tamInput.value ?? '').trim().toLowerCase();
+                const filtrados = term
+                    ? opciones.tamanos.filter(t => t.toLowerCase().includes(term))
+                    : opciones.tamanos;
+                renderOps(filtrados.slice(0, 60));
+            });
+
+            tamInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') { cerrarDrop(); return; }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const hi = dropdown.querySelector('.bg-blue-100');
+                    if (hi) seleccionar(hi.dataset.value);
+                    else cerrarDrop();
+                    return;
+                }
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const items = Array.from(dropdown.querySelectorAll('[data-value]') ?? []);
+                    if (!items.length) return;
+                    const idx = items.findIndex(el => el.classList.contains('bg-blue-100'));
+                    items.forEach(el => el.classList.remove('bg-blue-100'));
+                    let next = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+                    if (next < 0) next = items.length - 1;
+                    if (next >= items.length) next = 0;
+                    items[next].classList.add('bg-blue-100');
+                    items[next].scrollIntoView({ block: 'nearest' });
+                }
+            });
+
+            tamInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    cerrarDrop();
+                    const val = String(tamInput.value ?? '').trim();
+                    if (val && !opciones.tamanos.includes(val)) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Tamaño no válido',
+                            text: `"${val}" no coincide con ningún tamaño disponible. Seleccione una opción de la lista.`,
+                            confirmButtonColor: '#3b82f6',
+                            confirmButtonText: 'Entendido',
+                        });
+                        tamInput.value = '';
+                        const cuentaInput  = fila?.querySelector('input[data-field="cuenta"]');
+                        const calibreInput = fila?.querySelector('input[data-field="calibre"]');
+                        if (cuentaInput)  cuentaInput.value  = '';
+                        if (calibreInput) calibreInput.value = '';
+                    }
+                }, 180);
+            });
+
+            dropdown.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                const item = e.target.closest('[data-value]');
+                if (item) seleccionar(item.dataset.value);
+            });
+        });
+
+        // Cerrar dropdowns al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.tamano-wrapper')) {
+                document.querySelectorAll('.tamano-dropdown').forEach(d => d.classList.add('hidden'));
+            }
         });
 
         // Event listener para tipo (select)
@@ -1666,7 +1745,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { field: 'cuenta', label: 'Cuenta', selector: 'input[data-field="cuenta"]' },
             { field: 'calibre', label: 'Calibre', selector: 'input[data-field="calibre"]' },
             { field: 'hilo', label: 'Hilo', selector: 'select[data-field="hilo"]' },
-            { field: 'tamano', label: 'Tamaño', selector: 'select[data-field="tamano"]' },
+            { field: 'tamano', label: 'Tamaño', selector: 'input[data-field="tamano"]' },
             { field: 'urdido', label: 'Urdido', selector: 'select[data-field="urdido"]' },
             { field: 'tipo', label: 'Tipo', selector: 'select[data-field="tipo"]' },
             { field: 'tipo_atado', label: 'Tipo Atado', selector: 'select[data-field="tipo_atado"]' },
@@ -1738,7 +1817,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cuenta = fila.querySelector('input[data-field="cuenta"]')?.value || '';
             const calibre = fila.querySelector('input[data-field="calibre"]')?.value || '';
             const hilo = fila.querySelector('select[data-field="hilo"]')?.value || fila.querySelector('input[data-field="hilo"]')?.value || '';
-            const tamano = fila.querySelector('select[data-field="tamano"]')?.value || '';
+            const tamano = fila.querySelector('input[data-field="tamano"]')?.value || '';
             const urdido = fila.querySelector('select[data-field="urdido"]')?.value || '';
             // Obtener tipo desde el select (Rizo/Pie); si queda vacío usar valor del select o 'Rizo'
             const tipoSelect = fila.querySelector('select[data-field="tipo"]');

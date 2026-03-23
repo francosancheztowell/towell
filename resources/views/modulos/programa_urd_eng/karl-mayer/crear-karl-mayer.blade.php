@@ -72,9 +72,15 @@
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-0.5">Tamaño</label>
-                <select required id="input-tamano" name="tamano" class="{{ $inputBaseClass }}">
-                    <option value="">Seleccionar...</option>
-                </select>
+                <div class="relative">
+                    <input type="text" required id="input-tamano" name="tamano"
+                        autocomplete="off" placeholder="Buscar..."
+                        class="{{ $inputBaseClass }}">
+                    <div id="tamano-dropdown"
+                        class="hidden fixed z-[9999] bg-white border border-gray-300 rounded shadow-lg overflow-y-auto text-sm"
+                        style="max-height:200px;">
+                    </div>
+                </div>
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-0.5">Cuenta</label>
@@ -601,12 +607,7 @@
                 const opts = hilos.map((h) => `<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join('');
                 elements.inputFibra.innerHTML = '<option value="">Seleccionar...</option>' + opts;
             }
-            if (elements.inputTamano) {
-                const opts = opcionesTamanos
-                    .map((tamano) => `<option value="${escapeHtml(tamano)}">${escapeHtml(tamano)}</option>`)
-                    .join('');
-                elements.inputTamano.innerHTML = '<option value="">Seleccionar...</option>' + opts;
-            }
+            // opcionesTamanos already populated above; autocomplete dropdown is built on demand
         } catch (error) {
             console.error('Error al cargar hilos/tamaños:', error);
         }
@@ -780,8 +781,111 @@
             if (current.length >= 2) buscarBomUrdido(current);
         });
 
-        elements.inputTamano?.addEventListener('change', rellenarCuentaYCalibreDesdeTamano);
         elements.inputFibra?.addEventListener('change', rellenarCuentaYCalibreDesdeTamano);
+
+        // --- Autocomplete Tamaño (tipeo libre + validación) ---
+        const tamanoDropdown = document.getElementById('tamano-dropdown');
+
+        const posicionarDropdown = () => {
+            if (!tamanoDropdown || !elements.inputTamano) return;
+            const rect = elements.inputTamano.getBoundingClientRect();
+            tamanoDropdown.style.top   = (rect.bottom + window.scrollY) + 'px';
+            tamanoDropdown.style.left  = (rect.left  + window.scrollX) + 'px';
+            tamanoDropdown.style.width = rect.width + 'px';
+        };
+
+        const renderTamanoOpciones = (lista) => {
+            if (!tamanoDropdown) return;
+            if (!lista.length) {
+                tamanoDropdown.innerHTML = '<div class="px-2 py-2 text-gray-400 text-xs text-center">Sin resultados</div>';
+            } else {
+                tamanoDropdown.innerHTML = lista.map((t) =>
+                    `<div class="px-2 py-1 cursor-pointer hover:bg-blue-50 border-b border-gray-100 last:border-0 leading-tight" data-value="${escapeHtml(t)}">${escapeHtml(t)}</div>`
+                ).join('');
+            }
+            posicionarDropdown();
+            tamanoDropdown.classList.remove('hidden');
+        };
+
+        const cerrarTamanoDropdown = () => tamanoDropdown?.classList.add('hidden');
+
+        const seleccionarTamano = (valor) => {
+            if (elements.inputTamano) elements.inputTamano.value = valor;
+            cerrarTamanoDropdown();
+            rellenarCuentaYCalibreDesdeTamano();
+            actualizarEstadoBotonCrear();
+        };
+
+        elements.inputTamano?.addEventListener('input', (e) => {
+            const term = String(e.target.value ?? '').trim().toLowerCase();
+            const filtrados = term
+                ? opcionesTamanos.filter((t) => t.toLowerCase().includes(term))
+                : opcionesTamanos;
+            renderTamanoOpciones(filtrados.slice(0, 60));
+        });
+
+        elements.inputTamano?.addEventListener('focus', () => {
+            const term = String(elements.inputTamano.value ?? '').trim().toLowerCase();
+            const filtrados = term
+                ? opcionesTamanos.filter((t) => t.toLowerCase().includes(term))
+                : opcionesTamanos;
+            renderTamanoOpciones(filtrados.slice(0, 60));
+        });
+
+        elements.inputTamano?.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { cerrarTamanoDropdown(); return; }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const hi = tamanoDropdown?.querySelector('.bg-blue-100');
+                if (hi) seleccionarTamano(hi.dataset.value);
+                else cerrarTamanoDropdown();
+                return;
+            }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                const items = Array.from(tamanoDropdown?.querySelectorAll('[data-value]') ?? []);
+                if (!items.length) return;
+                const idx = items.findIndex((el) => el.classList.contains('bg-blue-100'));
+                items.forEach((el) => el.classList.remove('bg-blue-100'));
+                let next = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+                if (next < 0) next = items.length - 1;
+                if (next >= items.length) next = 0;
+                items[next].classList.add('bg-blue-100');
+                items[next].scrollIntoView({ block: 'nearest' });
+            }
+        });
+
+        elements.inputTamano?.addEventListener('blur', () => {
+            setTimeout(() => {
+                cerrarTamanoDropdown();
+                const val = String(elements.inputTamano?.value ?? '').trim();
+                if (val && !opcionesTamanos.includes(val)) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Tamaño no válido',
+                        text: `"${val}" no coincide con ningún tamaño disponible. Seleccione una opción de la lista.`,
+                        confirmButtonColor: '#3b82f6',
+                        confirmButtonText: 'Entendido',
+                    });
+                    if (elements.inputTamano) elements.inputTamano.value = '';
+                    if (elements.inputCuenta) elements.inputCuenta.value = '';
+                    if (elements.inputCalibre) elements.inputCalibre.value = '';
+                    actualizarEstadoBotonCrear();
+                }
+            }, 180);
+        });
+
+        tamanoDropdown?.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const item = e.target.closest('[data-value]');
+            if (item) seleccionarTamano(item.dataset.value);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#input-tamano') && !e.target.closest('#tamano-dropdown')) {
+                cerrarTamanoDropdown();
+            }
+        });
 
         form?.addEventListener('input', actualizarEstadoBotonCrear);
         form?.addEventListener('change', actualizarEstadoBotonCrear);

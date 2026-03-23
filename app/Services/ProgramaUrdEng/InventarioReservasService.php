@@ -14,7 +14,7 @@ use Throwable;
 
 /**
  * Servicio encargado de gestionar el inventario disponible y sus reservas.
- * Se conecta a la base de datos externa del ERP (TI-PRO) para consultar el inventario físico disponible 
+ * Se conecta a la base de datos externa del ERP (TI-PRO) para consultar el inventario físico disponible
  * y lo fusiona con el estado local de reservas en la base de datos interna.
  */
 class InventarioReservasService
@@ -68,7 +68,7 @@ class InventarioReservasService
         foreach ($raw as $filter) {
             if (is_array($filter) && isset($filter['columna'], $filter['valor'])) {
                 $normalized[] = [
-                    'columna' => (string) $filter['columna'], 
+                    'columna' => (string) $filter['columna'],
                     'valor' => (string) $filter['valor']
                 ];
             }
@@ -148,7 +148,7 @@ class InventarioReservasService
                 $reservadasMap[$key] = $reserva;
             });
 
-        // 3. Consultar a la base de datos externa (TI-PRO). 
+        // 3. Consultar a la base de datos externa (TI-PRO).
         // Esta es nuestra base principal: SI NO ESTÁ EN TI-PRO, NO SE MUESTRA.
         $rowsTi = $this->queryDisponibleFromTiPro($filtrosTi, self::LIMIT_TI);
         $resultados = [];
@@ -163,7 +163,7 @@ class InventarioReservasService
         // 4. Procesar resultados de TI-PRO: cruzar (left join lógico) con reservas locales
         foreach ($rowsTi as $row) {
             $rowKey = $this->dimKey($row);
-            
+
             // Si la pieza de TI-PRO está reservada localmente, le inyectamos los datos de la reserva
             if (isset($reservadasMap[$rowKey])) {
                 $reserva = $reservadasMap[$rowKey];
@@ -180,7 +180,7 @@ class InventarioReservasService
             if ($this->shouldExcludeByTelarFilter($row->NoTelarId, $filtroNoTelarId, $wantOnlyAvailable)) {
                 continue;
             }
-            
+
             $resultados[] = $row;
         }
 
@@ -220,7 +220,7 @@ class InventarioReservasService
             });
     }
 
-    /** 
+    /**
      * Herramienta de diagnóstico: Muestra las reservas más recientes (con su dimKey calculada).
      */
     public function getDiagnosticoReservas(?string $noTelar, int $limit): \Illuminate\Support\Collection
@@ -233,7 +233,7 @@ class InventarioReservasService
     }
 
     /**
-     * Flujo principal para reservar una pieza: 
+     * Flujo principal para reservar una pieza:
      * 1. Genera el registro de la reserva.
      * 2. Consume notificaciones de tejedor si aplican.
      * 3. Actualiza el inventario de telares marcándolo como reservado.
@@ -264,7 +264,7 @@ class InventarioReservasService
         } catch (\Illuminate\Database\QueryException $qe) {
             // Códigos SQL Server 2601 y 2627 indican violación de índice único. Se ignora como "duplicado".
             if (!in_array($qe->getCode(), [2601, 2627], true)) {
-                throw $qe; 
+                throw $qe;
             }
             $msg = 'La pieza ya estaba reservada (se evitó el duplicado).';
         }
@@ -285,7 +285,7 @@ class InventarioReservasService
     {
         try {
             $telar = TejInventarioTelares::where('id', $telarId)->where('status', 'Activo')->first();
-            
+
             if (!$telar) {
                 Log::warning('ReservaInventario: No se encontró telar activo para actualizar', [
                     'tej_inventario_telares_id' => $telarId,
@@ -294,7 +294,7 @@ class InventarioReservasService
             }
 
             $telar->Reservado = true;
-            
+
             if (isset($data['ConfigId'])) {
                 $telar->ConfigId = $this->normalizeDimValue($data['ConfigId']);
             }
@@ -310,7 +310,7 @@ class InventarioReservasService
             if (!empty($data['NoProveedor'])) {
                 $telar->NoProveedor = $this->normalizeDimValue($data['NoProveedor']);
             }
-            
+
             $telar->save();
 
         } catch (Throwable $e) {
@@ -323,7 +323,7 @@ class InventarioReservasService
 
     /**
      * Regla de negocio compleja:
-     * Si el tejedor reportó una falta/paro en este telar/tipo (Rizo o Pie), tomamos la hora de esa 
+     * Si el tejedor reportó una falta/paro en este telar/tipo (Rizo o Pie), tomamos la hora de esa
      * notificación, se la pasamos al telar (`horaParo`) para estadísticas, y cerramos la notificación.
      */
     private function aplicarReglaNotificaTejedorAntesDeReservar(array $data): void
@@ -354,7 +354,7 @@ class InventarioReservasService
 
         // 2. Obtener el telar físico (BD local) en el que recaerá la reserva
         $telar = $this->obtenerTelarObjetivoParaNotificacion($data, $noTelar, $tipo);
-        
+
         if ($telar) {
             // Se le transfiere la hora del reporte al telar (para cálculos de eficiencia)
             $horaPendiente = trim((string) ($pendiente->hora ?? ''));
@@ -455,7 +455,7 @@ class InventarioReservasService
     }
 
     /**
-     * Cancela una o varias reservas. 
+     * Cancela una o varias reservas.
      * Puede cancelar a través del `Id` único, o bien localizándola por sus dimensiones.
      *
      * @param array $input Datos de la reserva a cancelar.
@@ -483,7 +483,7 @@ class InventarioReservasService
 
         $reservasACancelar = $query->get();
         $noTelarId = $reservasACancelar->isNotEmpty() ? $reservasACancelar->first()->NoTelarId : null;
-        
+
         // 2. Cambiar estatus a Cancelado
         $updatedRows = $query->update(['Status' => 'Cancelado']);
 
@@ -529,7 +529,7 @@ class InventarioReservasService
     private function queryDisponibleFromTiPro(array $filtros = [], int $limit = self::LIMIT_TI): array
     {
         $cn = DB::connection(self::TI_CONN);
-        
+
         // Evitar locks en tablas del ERP para no afectar producción
         $cn->statement('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;');
 
@@ -546,7 +546,7 @@ class InventarioReservasService
                         ->where('ser.DATAAREAID', '=', self::DATAAREA);
                 })
                 ->where('s.DATAAREAID', self::DATAAREA)
-                ->where('s.AvailPhysical', '>', 0) // Solo inventario realmente disponible
+                ->where('s.PhysicalInvent', '>', 0) // Solo inventario realmente disponible
                 ->where(function ($q) {
                     // Filtrar que al menos sean productos de la categoría requerida (Rizo o Pie)
                     $q->where('s.ItemId', 'like', self::PATTERN_RIZO)
@@ -577,7 +577,7 @@ class InventarioReservasService
             foreach ($filtros as $f) {
                 $col = $f['columna'] ?? null;
                 $val = trim($f['valor'] ?? '');
-                
+
                 if (!$col || $val === '') {
                     continue;
                 }
