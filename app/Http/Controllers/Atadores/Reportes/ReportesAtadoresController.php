@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Atadores\Reportes;
 
 use App\Exports\ProgramaAtadoresExport;
+use App\Exports\Reporte00EAtadoresRangoExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -20,6 +22,12 @@ class ReportesAtadoresController extends Controller
                 'nombre' => 'Reporte de Programa Atadores',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('atadores.reportes.programa'),
+                'disponible' => true,
+            ],
+            [
+                'nombre' => '00E Atadores',
+                'accion' => 'Seleccionar Rango',
+                'url' => route('atadores.reportes.atadores'),
                 'disponible' => true,
             ],
         ];
@@ -77,5 +85,87 @@ class ReportesAtadoresController extends Controller
             new ProgramaAtadoresExport($fechaInicioFormateada, $fechaFinFormateada),
             $nombreArchivo
         );
+    }
+
+    public function reporteAtadores(Request $request)
+    {
+        [$lunesInicio, $lunesFin] = $this->resolverRangoSemanasDesdeRequest($request);
+        $domingoFin = $lunesFin?->addDays(6);
+
+        return view('modulos.atadores.reportes.atadores', [
+            'semanaIni' => $lunesInicio?->format('o-\WW'),
+            'semanaFin' => $lunesFin?->format('o-\WW'),
+            'lunesIni' => $lunesInicio?->toDateString(),
+            'domingoFin' => $domingoFin?->toDateString(),
+        ]);
+    }
+
+    public function exportarReporteAtadoresExcel(Request $request)
+    {
+        @set_time_limit(300);
+
+        [$lunesInicio, $lunesFin] = $this->resolverRangoSemanasDesdeRequest($request);
+
+        if (!$lunesInicio || !$lunesFin) {
+            return redirect()
+                ->route('atadores.reportes.atadores')
+                ->with('error', 'Debe seleccionar una semana inicial y final válidas para exportar el 00E Atadores.');
+        }
+
+        $domingoFin = $lunesFin->addDays(6);
+        $nombreArchivo = '00E_atadores_' . $lunesInicio->format('d-m-Y') . '_a_' . $domingoFin->format('d-m-Y') . '.xlsx';
+
+        return Excel::download(
+            new Reporte00EAtadoresRangoExport($lunesInicio, $lunesFin),
+            $nombreArchivo
+        );
+    }
+
+    private function resolverRangoSemanasDesdeRequest(Request $request): array
+    {
+        $semana = trim((string) $request->query('semana', $request->input('semana', '')));
+        $semanaIni = trim((string) $request->query('semana_ini', $request->input('semana_ini', '')));
+        $semanaFin = trim((string) $request->query('semana_fin', $request->input('semana_fin', '')));
+
+        if ($semana !== '') {
+            $semanaIni = $semana;
+            $semanaFin = $semana;
+        }
+
+        $lunesInicio = $this->resolverSemanaIso($semanaIni);
+        $lunesFin = $this->resolverSemanaIso($semanaFin);
+
+        if (!$lunesInicio || !$lunesFin) {
+            return [null, null];
+        }
+
+        if ($lunesInicio->greaterThan($lunesFin)) {
+            return [null, null];
+        }
+
+        return [$lunesInicio, $lunesFin];
+    }
+
+    private function resolverSemanaIso(?string $semana): ?CarbonImmutable
+    {
+        $semana = trim((string) ($semana ?? ''));
+        if ($semana === '') {
+            return null;
+        }
+
+        if (!preg_match('/^(\d{4})-W(\d{2})$/', $semana, $matches)) {
+            return null;
+        }
+
+        $year = (int) $matches[1];
+        $week = (int) $matches[2];
+
+        if ($week < 1 || $week > 53) {
+            return null;
+        }
+
+        return CarbonImmutable::now(config('app.timezone'))
+            ->setISODate($year, $week)
+            ->startOfDay();
     }
 }
