@@ -1131,6 +1131,7 @@ class ReportesUrdidoController extends Controller
             ->get();
 
         $porSemana = [];
+        $foliosPorSemana = [];
 
         foreach ($producciones as $prod) {
             $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha : Carbon::parse($prod->Fecha);
@@ -1145,9 +1146,14 @@ class ReportesUrdidoController extends Controller
                     'total_metros' => 0,
                     'total_cuenta' => 0,
                 ];
+                $foliosPorSemana[$weekYear] = [];
             }
 
-            $porSemana[$weekYear]['total_ordenes']++;
+            if (!in_array($prod->Folio, $foliosPorSemana[$weekYear])) {
+                $foliosPorSemana[$weekYear][] = $prod->Folio;
+                $porSemana[$weekYear]['total_ordenes']++;
+            }
+
             $porSemana[$weekYear]['total_julios']++;
             $porSemana[$weekYear]['total_kg'] += (float) ($prod->KgNeto ?? 0);
 
