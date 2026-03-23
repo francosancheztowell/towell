@@ -36,14 +36,16 @@
                     <table class="w-full text-sm border-collapse">
                         <thead class="bg-gray-200">
                             <tr>
-                                <th class="px-2 py-1 text-left font-semibold text-xs border border-gray-300">Semana</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">No. Ordenes</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">No. Julios</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">KG</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Metros</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Prom. Peso</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Prom. Metros</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300">Prom. Cuenta</th>
+                                <th class="px-2 py-1 text-left font-semibold text-xs border border-gray-300 text-red-600">Semana</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">No. de ORDENES</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">No. Julios</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">KG</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Metros</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Cuentas</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Peso promedio por julio</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Metros promedio por julio</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Cuenta promedio por julio</th>
+                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">EFICIENCIA EN %</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -54,9 +56,11 @@
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_julios'] ?? 0, 0) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_kg'] ?? 0, 2) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_metros'] ?? 0, 2) }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_cuenta'] ?? 0, 2) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['peso_promedio'] ?? 0, 2) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['metros_promedio'] ?? 0, 2) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['cuenta_promedio'] ?? 0, 2) }}</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right font-bold">{{ number_format($semana['eficiencia'] ?? 0, 2) }}%</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -71,9 +75,14 @@
             </div>
 
             <!-- Gráfica -->
-            <div class="w-full">
+            <div class="w-full space-y-6">
                 @if (!empty($datosSemanales))
-                    <canvas id="resumenChartUrdido"></canvas>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <canvas id="resumenChartUrdido"></canvas>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <canvas id="eficienciaChartUrdido"></canvas>
+                    </div>
                 @endif
             </div>
         </div>
@@ -185,6 +194,49 @@
                 scales: {
                     y: {
                         beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Gráfica de Eficiencia
+        const ctxEficiencia = document.getElementById('eficienciaChartUrdido').getContext('2d');
+        const eficienciaData = datosSemanales.map(item => item.eficiencia || 0);
+
+        new Chart(ctxEficiencia, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Eficiencia Semanal (%)',
+                    data: eficienciaData,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Eficiencia por Semana'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + "%"
+                            }
+                        }
                     }
                 }
             }

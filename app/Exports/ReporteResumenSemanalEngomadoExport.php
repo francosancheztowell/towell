@@ -15,7 +15,10 @@ use PhpOffice\PhpSpreadsheet\Chart\Legend;
 use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
 use PhpOffice\PhpSpreadsheet\Chart\Title;
 
-class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, ShouldAutoSize, WithColumnFormatting, WithCharts
+use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+
+class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, ShouldAutoSize, WithColumnFormatting, WithCharts, WithStyles
 {
     protected array $datosSemanales;
     private int $rowCount;
@@ -24,6 +27,19 @@ class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, Shoul
     {
         $this->datosSemanales = $datosSemanales;
         $this->rowCount = count($this->datosSemanales) + 1; // +1 for heading row
+    }
+
+    public function styles(Worksheet $sheet)
+    {
+        return [
+            // Style the first row (headings)
+            1 => [
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FF0000'], // Red
+                ],
+            ],
+        ];
     }
 
     public function array(): array
@@ -54,7 +70,7 @@ class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, Shoul
                 $semana['peso_promedio'],
                 $semana['metros_promedio'],
                 $semana['cuenta_promedio'],
-                null, // Eficiencia
+                $semana['eficiencia'] ?? 0,
             ];
         }
 
@@ -72,6 +88,7 @@ class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, Shoul
             'G' => '#,##0.00',
             'H' => '#,##0.00',
             'I' => '#,##0.00',
+            'J' => '#,##0.00"%"',
         ];
     }
 
@@ -83,53 +100,87 @@ class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, Shoul
 
         $sheetName = $this->title();
 
+        // Common labels (Weeks)
         $labels = [
             new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$A\$2:\$A\${$this->rowCount}", null, $this->rowCount - 1),
         ];
 
-        $series = [
+        // CHART 1: Averages (Bar Chart)
+        $series1 = [
             new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$G\$2:\$G\${$this->rowCount}", null, $this->rowCount - 1),
             new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$H\$2:\$H\${$this->rowCount}", null, $this->rowCount - 1),
             new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$I\$2:\$I\${$this->rowCount}", null, $this->rowCount - 1),
         ];
 
-        // Correctly define series titles by pointing to header cells
-        $plotLabels = [
+        $plotLabels1 = [
             new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$G\$1", null, 1),
             new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$H\$1", null, 1),
             new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$I\$1", null, 1),
         ];
 
-        $dataSeries = new DataSeries(
+        $dataSeries1 = new DataSeries(
             DataSeries::TYPE_BARCHART,
             DataSeries::GROUPING_STANDARD,
-            range(0, count($series) - 1),
-            $plotLabels, // Use the corrected plot labels
+            range(0, count($series1) - 1),
+            $plotLabels1,
             $labels,
-            $series
+            $series1
         );
 
-        $plotArea = new PlotArea(new Layout(), [$dataSeries]);
-        $legend = new Legend(Legend::POSITION_TOP, null, false);
-        $title = new Title('Promedios por Semana');
+        $plotArea1 = new PlotArea(new Layout(), [$dataSeries1]);
+        $legend1 = new Legend(Legend::POSITION_TOP, null, false);
+        $title1 = new Title('Promedios por Semana');
 
-        $chart = new Chart(
-            'chart1',
-            $title,
-            $legend,
-            $plotArea,
+        $chart1 = new Chart(
+            'chart_averages',
+            $title1,
+            $legend1,
+            $plotArea1,
             true,
             DataSeries::EMPTY_AS_GAP,
             null,
             null
         );
+        $chart1->setTopLeftPosition('L2');
+        $chart1->setBottomRightPosition('X20');
 
-        $chart->setTopLeftPosition('L2');
-        $chart->setBottomRightPosition('X20');
+        // CHART 2: Efficiency (Line Chart)
+        $series2 = [
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$J\$2:\$J\${$this->rowCount}", null, $this->rowCount - 1),
+        ];
 
-        return $chart;
+        $plotLabels2 = [
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$J\$1", null, 1),
+        ];
+
+        $dataSeries2 = new DataSeries(
+            DataSeries::TYPE_LINECHART,
+            DataSeries::GROUPING_STANDARD,
+            range(0, count($series2) - 1),
+            $plotLabels2,
+            $labels,
+            $series2
+        );
+
+        $plotArea2 = new PlotArea(new Layout(), [$dataSeries2]);
+        $legend2 = new Legend(Legend::POSITION_TOP, null, false);
+        $title2 = new Title('Eficiencia por Semana');
+
+        $chart2 = new Chart(
+            'chart_efficiency',
+            $title2,
+            $legend2,
+            $plotArea2,
+            true,
+            DataSeries::EMPTY_AS_GAP,
+            null,
+            null
+        );
+        $chart2->setTopLeftPosition('L22');
+        $chart2->setBottomRightPosition('X40');
+
+        return [$chart1, $chart2];
     }
-
 
     public function title(): string
     {

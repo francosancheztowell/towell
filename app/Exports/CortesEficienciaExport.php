@@ -19,35 +19,46 @@ use Carbon\Carbon;
 
 class CortesEficienciaExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithEvents, WithColumnFormatting
 {
-    protected Collection $datos;
+    protected $datos;
     protected string $fecha;
+    protected bool $esRango;
 
-    public function __construct(array $info, string $fecha)
+    public function __construct($info, string $fecha, bool $esRango = false)
     {
-        $this->datos = $info['datos'];
+        $this->datos = $esRango ? $info : $info['datos'];
         $this->fecha = $fecha;
+        $this->esRango = $esRango;
     }
 
     public function collection()
     {
         $rows = collect();
 
-        foreach ($this->datos as $row) {
-            $rows->push($this->mapFilaVisualizacion($row));
+        if ($this->esRango) {
+            foreach ($this->datos as $infoDia) {
+                foreach ($infoDia['datos'] as $row) {
+                    $rows->push($this->mapFilaVisualizacion($row, $infoDia['fecha']));
+                }
+            }
+        } else {
+            foreach ($this->datos as $row) {
+                $rows->push($this->mapFilaVisualizacion($row, $this->fecha));
+            }
         }
 
         return $rows;
     }
 
-    protected function mapFilaVisualizacion($row)
+    protected function mapFilaVisualizacion($row, $fechaContexto = null)
     {
         $t1 = $row['t1'] ?? null;
         $t2 = $row['t2'] ?? null;
         $t3 = $row['t3'] ?? null;
         $lineaBase = $t1 ?: ($t2 ?: $t3);
+        $fecha = $fechaContexto ?: $this->fecha;
 
         return [
-            'Fecha' => optional($lineaBase && $lineaBase->Date ? Carbon::parse($lineaBase->Date) : null)->format('Y-m-d') ?? $this->fecha,
+            'Fecha' => optional($lineaBase && $lineaBase->Date ? Carbon::parse($lineaBase->Date) : null)->format('Y-m-d') ?? $fecha,
             'Telar' => $row['telar'],
             'RPM Std' => $lineaBase->RpmStd ?? null,
             '% EF Std' => $lineaBase->EficienciaSTD ?? null,

@@ -918,6 +918,18 @@ class CortesEficienciaController extends Controller
     {
         try {
             $fecha = $request->input('fecha');
+            $fecha_inicio = $request->input('fecha_inicio');
+            $fecha_fin = $request->input('fecha_fin');
+
+            if ($fecha_inicio && $fecha_fin) {
+                $datosRango = $this->obtenerDatosVisualizacionPorRango($fecha_inicio, $fecha_fin);
+                if (empty($datosRango)) {
+                    return response()->json(['error' => 'Sin datos para el rango seleccionado'], 404);
+                }
+                $filename = 'cortes_eficiencia_' . $fecha_inicio . '_a_' . $fecha_fin . '.xlsx';
+                return Excel::download(new CortesEficienciaExport($datosRango, $fecha_inicio, true), $filename);
+            }
+
             if (!$fecha) {
                 return response()->json(['error' => 'Fecha requerida'], 400);
             }
@@ -944,6 +956,42 @@ class CortesEficienciaController extends Controller
     {
         try {
             $fecha = $request->input('fecha');
+            $fecha_inicio = $request->input('fecha_inicio');
+            $fecha_fin = $request->input('fecha_fin');
+
+            if ($fecha_inicio && $fecha_fin) {
+                $datosRango = $this->obtenerDatosVisualizacionPorRango($fecha_inicio, $fecha_fin);
+                if (empty($datosRango)) {
+                    return response()->json(['error' => 'Sin datos para el rango seleccionado'], 404);
+                }
+
+                $html = view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia-rango-pdf', [
+                    'datosRango' => $datosRango,
+                    'fecha_inicio' => $fecha_inicio,
+                    'fecha_fin' => $fecha_fin,
+                ])->render();
+
+                $options = new Options();
+                $options->set('isHtml5ParserEnabled', true);
+                $options->set('isRemoteEnabled', true);
+                $options->set('defaultFont', 'Arial');
+                $options->set('isPhpEnabled', false);
+                $options->set('chroot', public_path());
+                $options->set('tempDir', sys_get_temp_dir());
+
+                $dompdf = new Dompdf($options);
+                $dompdf->loadHtml($html, 'UTF-8');
+                $dompdf->setPaper('a4', 'landscape');
+                $dompdf->render();
+
+                $pdfContent = $dompdf->output();
+                $filename = 'cortes_eficiencia_' . $fecha_inicio . '_a_' . $fecha_fin . '.pdf';
+
+                return response($pdfContent, 200)
+                    ->header('Content-Type', 'application/pdf')
+                    ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            }
+
             if (!$fecha) {
                 return response()->json(['error' => 'Fecha requerida'], 400);
             }
@@ -991,6 +1039,25 @@ class CortesEficienciaController extends Controller
             ]);
             return response()->json(['error' => 'Error al generar PDF: ' . $th->getMessage()], 500);
         }
+    }
+
+    private function obtenerDatosVisualizacionPorRango($inicio, $fin)
+    {
+        $inicio = $this->normalizarFecha($inicio);
+        $fin = $this->normalizarFecha($fin);
+
+        $fechas = DB::table('TejEficiencia')
+            ->whereBetween('Date', [$inicio, $fin])
+            ->distinct()
+            ->orderBy('Date')
+            ->pluck('Date');
+
+        $resultado = [];
+        foreach ($fechas as $fecha) {
+            $resultado[] = $this->obtenerDatosVisualizacionPorFecha($fecha);
+        }
+
+        return $resultado;
     }
 
     private function obtenerDatosVisualizacionPorFecha($fecha)
@@ -1224,7 +1291,10 @@ class CortesEficienciaController extends Controller
 
     private function normalizarFecha($fecha)
     {
-        return date('Y-m-d', strtotime(str_replace('/', '-', $fecha)));
+        if ($fecha instanceof \Carbon\Carbon) {
+            return $fecha->toDateString();
+        }
+        return date('Y-m-d', strtotime(str_replace('/', '-', (string)$fecha)));
     }
 
     /**

@@ -162,25 +162,38 @@
         <div class="absolute inset-0 bg-black/40" data-close="true"></div>
         <div class="relative mx-auto mt-24 w-full max-w-md rounded-lg bg-white shadow-lg">
             <div class="px-4 py-3 border-b flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-gray-800">Selecciona una fecha</h3>
+                <h3 class="text-lg font-semibold text-gray-800">Seleccionar Rango de Fechas</h3>
                 <button id="modal-fechas-close" class="text-gray-500 hover:text-gray-700" aria-label="Cerrar">
                     <i class="fa fa-times"></i>
                 </button>
             </div>
-            <div class="p-4">
-                <label for="input-fecha" class="block text-sm font-medium text-gray-700 mb-1">Fecha de folios</label>
-                <input
-                    id="input-fecha"
-                    type="date"
-                    class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    value="{{ Carbon::now()->format('Y-m-d') }}"
-                    @if($fechasUnicas->isNotEmpty())
-                        min="{{ $fechasUnicas->first() }}"
-                        max="{{ $fechasUnicas->last() }}"
-                    @endif
-                />
+            <div class="p-4 space-y-4">
+                <div>
+                    <label for="input-fecha-inicio" class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+                    <input
+                        id="input-fecha-inicio"
+                        type="date"
+                        class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        value="{{ Carbon::now()->format('Y-m-d') }}"
+                    />
+                </div>
+                <div>
+                    <label for="input-fecha-fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+                    <input
+                        id="input-fecha-fin"
+                        type="date"
+                        class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        value="{{ Carbon::now()->format('Y-m-d') }}"
+                    />
+                </div>
             </div>
             <div class="px-4 py-3 border-t flex justify-end gap-2">
+                <button id="modal-fechas-excel" class="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700">
+                    <i class="fa fa-file-excel mr-1"></i> Excel
+                </button>
+                <button id="modal-fechas-pdf" class="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700">
+                    <i class="fa fa-file-pdf mr-1"></i> PDF
+                </button>
                 <button id="modal-fechas-ok" class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">Visualizar</button>
             </div>
         </div>
@@ -322,7 +335,10 @@
                     fechas: document.getElementById('modal-fechas'),
                     close: document.getElementById('modal-fechas-close'),
                     ok: document.getElementById('modal-fechas-ok'),
-                    fechaInput: document.getElementById('input-fecha')
+                    excel: document.getElementById('modal-fechas-excel'),
+                    pdf: document.getElementById('modal-fechas-pdf'),
+                    fechaInicioInput: document.getElementById('input-fecha-inicio'),
+                    fechaFinInput: document.getElementById('input-fecha-fin')
                 },
                 modalEditar: {
                     container: document.getElementById('modal-editar-registro'),
@@ -371,6 +387,8 @@
             });
             // Confirmar visualización por fecha
             this.dom.modal.ok?.addEventListener('click', () => this.visualizarPorFecha());
+            this.dom.modal.excel?.addEventListener('click', () => this.exportarRango('excel'));
+            this.dom.modal.pdf?.addEventListener('click', () => this.exportarRango('pdf'));
 
             // Modal editar registro (supervisor)
             this.dom.modalEditar.close?.addEventListener('click', () => this.cerrarModalEditar());
@@ -760,14 +778,13 @@
         }
 
         visualizarPorFecha() {
-            const input = this.dom.modal.fechaInput;
-            if (!input || !input.value) {
-                Swal.fire('Fecha requerida', 'Selecciona una fecha para visualizar.', 'warning');
+            const inputInicio = this.dom.modal.fechaInicioInput;
+            if (!inputInicio || !inputInicio.value) {
+                Swal.fire('Fecha requerida', 'Selecciona una fecha de inicio.', 'warning');
                 return;
             }
 
-            // Buscar el primer folio de esa fecha (el reporte incluye turnos 1, 2 y 3)
-            const fecha = input.value; // formato YYYY-MM-DD
+            const fecha = inputInicio.value; // formato YYYY-MM-DD
             const rows = document.querySelectorAll('tbody tr[data-folio]');
 
             for (const row of rows) {
@@ -781,6 +798,28 @@
             }
 
             Swal.fire('Sin folios', 'No se encontraron folios para la fecha seleccionada.', 'info');
+        }
+
+        exportarRango(tipo) {
+            const inicio = this.dom.modal.fechaInicioInput.value;
+            const fin = this.dom.modal.fechaFinInput.value;
+
+            if (!inicio || !fin) {
+                Swal.fire('Fechas requeridas', 'Selecciona ambas fechas para el rango.', 'warning');
+                return;
+            }
+
+            if (new Date(inicio) > new Date(fin)) {
+                Swal.fire('Rango inválido', 'La fecha de inicio no puede ser mayor a la fecha fin.', 'warning');
+                return;
+            }
+
+            if (tipo === 'excel') {
+                exportarExcelRango(inicio, fin);
+            } else {
+                descargarPDFRango(inicio, fin);
+            }
+            this.cerrarModalFechas();
         }
     }
 
@@ -874,6 +913,70 @@ async function confirmarNuevoCorte() {
         await generarFolioConDatos(fecha, turno);
     } catch (error) {
         Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo generar el folio: ' + error.message });
+    }
+}
+
+function exportarExcelRango(inicio, fin) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ route("cortes.eficiencia.visualizar.excel") }}';
+
+    const token = document.createElement('input');
+    token.type = 'hidden';
+    token.name = '_token';
+    token.value = '{{ csrf_token() }}';
+
+    const inicioInput = document.createElement('input');
+    inicioInput.type = 'hidden';
+    inicioInput.name = 'fecha_inicio';
+    inicioInput.value = inicio;
+
+    const finInput = document.createElement('input');
+    finInput.type = 'hidden';
+    finInput.name = 'fecha_fin';
+    finInput.value = fin;
+
+    form.appendChild(token);
+    form.appendChild(inicioInput);
+    form.appendChild(finInput);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+async function descargarPDFRango(inicio, fin) {
+    try {
+        Swal.fire({ title: 'Generando PDF...', didOpen: () => Swal.showLoading() });
+        const response = await fetch('{{ route("cortes.eficiencia.visualizar.pdf") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/pdf'
+            },
+            body: new URLSearchParams({ fecha_inicio: inicio, fecha_fin: fin })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Error al generar PDF:', response.status, text);
+            Swal.fire('Error', 'No se pudo generar el PDF.', 'error');
+            return;
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `cortes_eficiencia_${inicio}_a_${fin}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        Swal.close();
+    } catch (error) {
+        console.error('Error al descargar PDF:', error);
+        Swal.fire('Error', 'Ocurrió un error al generar el PDF.', 'error');
     }
 }
 
