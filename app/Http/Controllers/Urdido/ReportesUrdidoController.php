@@ -1145,6 +1145,7 @@ class ReportesUrdidoController extends Controller
                     'total_kg' => 0,
                     'total_metros' => 0,
                     'total_cuenta' => 0,
+                    'eficiencia' => 0,
                 ];
                 $foliosPorSemana[$weekYear] = [];
             }
