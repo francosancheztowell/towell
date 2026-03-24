@@ -136,18 +136,6 @@
     </div>
 </div>
 
-    @php
-        // Preparar fechas únicas de los folios para el modal
-        $fechasUnicas = (isset($marcas) && $marcas->count() > 0)
-            ? $marcas->pluck('Date')
-                ->filter()
-                ->map(function ($d) { try { return Carbon::parse($d)->format('Y-m-d'); } catch (\Exception $e) { return null; } })
-                ->filter()
-                ->unique()
-                ->sort()
-            : collect();
-    @endphp
-
     <!-- Modal Fechas -->
     <div id="modal-fechas" class="hidden fixed inset-0 z-50 flex items-center justify-center">
         <div class="absolute inset-0 bg-black/40" data-close="true"></div>
@@ -163,14 +151,8 @@
                 <input
                     id="input-fecha"
                     type="date"
-                    autocomplete="off"
                     class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    style="appearance: none; -webkit-appearance: none; -moz-appearance: none;"
                     value="{{ Carbon::now()->format('Y-m-d') }}"
-                    @if($fechasUnicas->isNotEmpty())
-                        min="{{ $fechasUnicas->first() }}"
-                        max="{{ $fechasUnicas->last() }}"
-                    @endif
                 />
             </div>
             <div class="px-4 py-3 border-t flex justify-end gap-2">
@@ -611,15 +593,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Forzar limpieza de cualquier select residual y asegurar input de fecha
-        const modal = document.getElementById('modal-fechas');
-        if (modal) {
-            const selectResidual = modal.querySelector('#select-fechas');
-            if (selectResidual) {
-                selectResidual.remove();
-            }
-        }
-
         window.MarcasManager = new MarcasManager();
 
         // Agregar listener al botón "Nuevo" cuando no hay registros

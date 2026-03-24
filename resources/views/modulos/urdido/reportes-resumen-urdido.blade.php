@@ -102,14 +102,14 @@
                     <div>
                         <label for="fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicial</label>
                         <input type="date" id="fecha_ini" name="fecha_ini" required
-                            value="{{ $fechaIni ?? '' }}"
+                            value="{{ !empty($fechaIni) ? $fechaIni : \Carbon\Carbon::now()->format('Y-m-d') }}"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
 
                     <div>
                         <label for="fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha Final</label>
                         <input type="date" id="fecha_fin" name="fecha_fin" required
-                            value="{{ $fechaFin ?? '' }}"
+                            value="{{ !empty($fechaFin) ? $fechaFin : \Carbon\Carbon::now()->format('Y-m-d') }}"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 </div>

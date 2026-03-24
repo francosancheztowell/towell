@@ -170,12 +170,8 @@
                 </button>
             </div>
             <div class="p-4">
-                <label for="select-fechas" class="block text-sm font-medium text-gray-700 mb-1">Fechas de folios</label>
-                <select id="select-fechas" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500" data-action="reporte-fecha">
-                    @foreach($fechasUnicas as $fecha)
-                        <option value="{{ $fecha }}">{{ Carbon::createFromFormat('Y-m-d', $fecha)->format('d/m/Y') }}</option>
-                    @endforeach
-                </select>
+                <label for="input-fechas" class="block text-sm font-medium text-gray-700 mb-1">Fecha de folios</label>
+                <input type="date" id="input-fechas" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="{{ Carbon::now()->format('Y-m-d') }}">
             </div>
             <div class="px-4 py-3 border-t flex justify-end gap-2">
                 <button id="modal-fechas-ok" class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700" data-action="confirm-fecha">Generar Reporte</button>
@@ -283,7 +279,7 @@
                     fechas: document.getElementById('modal-fechas'),
                     close: document.getElementById('modal-fechas-close'),
                     ok: document.getElementById('modal-fechas-ok'),
-                    select: document.getElementById('select-fechas')
+                    fechaInput: document.getElementById('input-fechas')
                 },
                 modalEditar: {
                     container: document.getElementById('modal-editar-registro'),
@@ -329,8 +325,8 @@
             });
             // Confirmar reporte (redirigir por fecha)
             this.dom.modal.ok?.addEventListener('click', () => this.generarReporteFecha());
-            // Atajo: cambiar select y generar inmediatamente (opcional)
-            this.dom.modal.select?.addEventListener('change', () => {
+            // Atajo: cambiar input y generar inmediatamente (opcional)
+            this.dom.modal.fechaInput?.addEventListener('change', () => {
                 // Puedes quitar este auto-submit si solo quieres botón
                 // this.generarReporteFecha();
             });
@@ -782,13 +778,13 @@
         }
 
         generarReporteFecha() {
-            const sel = this.dom.modal.select;
-            if (!sel || !sel.value) {
+            const input = this.dom.modal.fechaInput;
+            if (!input || !input.value) {
                 Swal.fire('Fecha requerida', 'Selecciona una fecha para generar el reporte.', 'warning');
                 return;
             }
-            // Redirige a ruta de reporte por fecha (controlador debe existir)
-            const fecha = sel.value; // formato YYYY-MM-DD
+            // Redirige a ruta de reporte por fecha
+            const fecha = input.value; // formato YYYY-MM-DD
             this.cerrarModalFechas();
             window.location.href = `/modulo-marcas/reporte?fecha=${encodeURIComponent(fecha)}`;
         }
