@@ -26,17 +26,48 @@ class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldA
     public function __construct(array $datosSemanales)
     {
         $this->datosSemanales = $datosSemanales;
-        $this->rowCount = count($this->datosSemanales) + 1; // +1 for heading row
+        $this->rowCount = count($this->datosSemanales) + 2;
     }
 
     public function styles(Worksheet $sheet)
     {
+        $sheet->mergeCells('A1:I1');
+        $sheet->setCellValue('A1', 'URDIDO');
+        $sheet->getStyle('A1')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 16,
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+            ],
+        ]);
+
         return [
-            // Style the first row (headings)
-            1 => [
+            2 => [
                 'font' => [
                     'bold' => true,
-                    'color' => ['rgb' => 'FF0000'], // Red
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'FF0000'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                ],
+            ],
+            'I2' => [
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => '000000'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'FFFF00'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                 ],
             ],
         ];
@@ -47,17 +78,16 @@ class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldA
         $headings = [
             'Semana',
             'No. de ORDENES',
-            'No. Julios',
+            'No. de julios',
             'KG',
             'Metros',
-            'Cuentas',
             'Peso promedio por julio',
             'Metros promedio por julio',
             'Cuenta promedio por julio',
             'EFICIENCIA EN %',
         ];
 
-        $result = [$headings];
+        $result = [[''], $headings];
 
         foreach ($this->datosSemanales as $semana) {
             $result[] = [
@@ -66,7 +96,6 @@ class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldA
                 $semana['total_julios'],
                 $semana['total_kg'],
                 $semana['total_metros'],
-                $semana['total_cuenta'],
                 $semana['peso_promedio'],
                 $semana['metros_promedio'],
                 $semana['cuenta_promedio'],
@@ -87,8 +116,7 @@ class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldA
             'F' => '#,##0.00',
             'G' => '#,##0.00',
             'H' => '#,##0.00',
-            'I' => '#,##0.00',
-            'J' => '#,##0.00"%"',
+            'I' => '#,##0.00"%"',
         ];
     }
 
@@ -100,22 +128,20 @@ class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldA
 
         $sheetName = $this->title();
 
-        // Common labels (Weeks)
         $labels = [
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$A\$2:\$A\${$this->rowCount}", null, $this->rowCount - 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$A\$3:\$A\${$this->rowCount}", null, $this->rowCount - 2),
         ];
 
-        // CHART 1: Averages (Bar Chart)
         $series1 = [
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$G\$2:\$G\${$this->rowCount}", null, $this->rowCount - 1),
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$H\$2:\$H\${$this->rowCount}", null, $this->rowCount - 1),
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$I\$2:\$I\${$this->rowCount}", null, $this->rowCount - 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$F\$3:\$F\${$this->rowCount}", null, $this->rowCount - 2),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$G\$3:\$G\${$this->rowCount}", null, $this->rowCount - 2),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$H\$3:\$H\${$this->rowCount}", null, $this->rowCount - 2),
         ];
 
         $plotLabels1 = [
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$G\$1", null, 1),
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$H\$1", null, 1),
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$I\$1", null, 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$F\$2", null, 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$G\$2", null, 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$H\$2", null, 1),
         ];
 
         $dataSeries1 = new DataSeries(
@@ -144,13 +170,12 @@ class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldA
         $chart1->setTopLeftPosition('L2');
         $chart1->setBottomRightPosition('X20');
 
-        // CHART 2: Efficiency (Line Chart)
         $series2 = [
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$J\$2:\$J\${$this->rowCount}", null, $this->rowCount - 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'$sheetName'!\$I\$3:\$I\${$this->rowCount}", null, $this->rowCount - 2),
         ];
 
         $plotLabels2 = [
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$J\$1", null, 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'$sheetName'!\$I\$2", null, 1),
         ];
 
         $dataSeries2 = new DataSeries(
@@ -181,7 +206,6 @@ class ReporteResumenSemanalUrdidoExport implements FromArray, WithTitle, ShouldA
 
         return [$chart1, $chart2];
     }
-
 
     public function title(): string
     {
