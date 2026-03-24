@@ -62,6 +62,7 @@ class ProgramarUrdidoController extends Controller
             'MaquinaId',
             'FechaProg',
             'Status',
+            'Fibra',
         ]);
 
         // Filtro por folio

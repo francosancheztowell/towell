@@ -61,6 +61,10 @@
                             Cuenta
                             <i class="fas fa-sort ml-1 text-xs opacity-50"></i>
                         </th>
+                        <th class="px-2 py-2 text-left font-semibold cursor-pointer hover:bg-blue-600 select-none" data-col="configuracion" data-order="">
+                            Configuración
+                            <i class="fas fa-sort ml-1 text-xs opacity-50"></i>
+                        </th>
                         <th class="px-2 py-2 text-left font-semibold cursor-pointer hover:bg-blue-600 select-none" data-col="tipo" data-order="">
                             Tipo
                             <i class="fas fa-sort ml-1 text-xs opacity-50"></i>
@@ -93,6 +97,7 @@
                             <td class="px-2 py-2" data-value="{{ $orden->Folio ?? '' }}">{{ $orden->Folio ?? '-' }}</td>
                             <td class="px-2 py-2" data-value="{{ $orden->FechaProg ? $orden->FechaProg->format('Y-m-d') : '' }}">{{ $orden->FechaProg ? $orden->FechaProg->format('Y-m-d') : '-' }}</td>
                             <td class="px-2 py-2" data-value="{{ $orden->Cuenta ?? '' }}">{{ $orden->Cuenta ?? '-' }}</td>
+                            <td class="px-2 py-2" data-value="{{ $orden->Fibra ?? '' }}">{{ $orden->Fibra ?? '-' }}</td>
                             <td class="px-2 py-2" data-value="{{ $orden->RizoPie ?? '' }}">{{ $orden->RizoPie ?? '-' }}</td>
                             <td class="px-2 py-2" data-value="{{ $orden->MaquinaId ?? '' }}">{{ $orden->MaquinaId ?? '-' }}</td>
                             <td class="px-2 py-2 text-right" data-value="{{ $orden->Metros ?? 0 }}">
