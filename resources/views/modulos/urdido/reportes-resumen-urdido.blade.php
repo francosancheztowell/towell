@@ -33,19 +33,19 @@
             <!-- Tabla de Datos -->
             <div class="overflow-x-auto">
                 @if (!empty($datosSemanales))
+                    <h2 class="text-2xl font-bold text-center mb-4">URDIDO</h2>
                     <table class="w-full text-sm border-collapse">
-                        <thead class="bg-gray-200">
+                        <thead class="bg-red-600">
                             <tr>
-                                <th class="px-2 py-1 text-left font-semibold text-xs border border-gray-300 text-red-600">Semana</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">No. de ORDENES</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">No. Julios</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">KG</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Metros</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Cuentas</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Peso promedio por julio</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Metros promedio por julio</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">Cuenta promedio por julio</th>
-                                <th class="px-2 py-1 text-right font-semibold text-xs border border-gray-300 text-red-600">EFICIENCIA EN %</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">Semana</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">No. de ORDENES</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">No. de julios</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">KG</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">Metros</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">Peso promedio por julio</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">Metros promedio por julio</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">Cuenta promedio por julio</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white bg-yellow-400 text-black">EFICIENCIA EN %</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -56,11 +56,10 @@
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_julios'] ?? 0, 0) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_kg'] ?? 0, 2) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_metros'] ?? 0, 2) }}</td>
-                                    <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['total_cuenta'] ?? 0, 2) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['peso_promedio'] ?? 0, 2) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['metros_promedio'] ?? 0, 2) }}</td>
                                     <td class="px-2 py-0.5 border border-gray-300 text-right">{{ number_format($semana['cuenta_promedio'] ?? 0, 2) }}</td>
-                                    <td class="px-2 py-0.5 border border-gray-300 text-right font-bold">{{ number_format($semana['eficiencia'] ?? 0, 2) }}%</td>
+                                    <td class="px-2 py-0.5 border border-gray-300 text-right font-bold bg-yellow-100">{{ number_format($semana['eficiencia'] ?? 0, 2) }}%</td>
                                 </tr>
                             @endforeach
                         </tbody>
