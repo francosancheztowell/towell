@@ -60,6 +60,7 @@ class ProgramarEngomadoController extends Controller
             'MaquinaEng',
             'FechaProg',
             'Status',
+            'Fibra',
         ]);
 
         if ($folio !== '') {
@@ -181,6 +182,7 @@ class ProgramarEngomadoController extends Controller
                     'Prioridad',
                     'Observaciones',
                     'InventSizeId',
+                    'Fibra',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
@@ -203,6 +205,7 @@ class ProgramarEngomadoController extends Controller
                     'BomFormula',
                     'Observaciones',
                     'InventSizeId',
+                    'Fibra',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
@@ -253,6 +256,7 @@ class ProgramarEngomadoController extends Controller
                             'Prioridad',
                             'Observaciones',
                             'InventSizeId',
+                            'Fibra',
                         ])
                         ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->whereNotNull('MaquinaEng')
@@ -295,6 +299,7 @@ class ProgramarEngomadoController extends Controller
                         'folio' => $orden->Folio,
                         'tipo' => $orden->tipo,
                         'cuenta_calibre' => $orden->InventSizeId ?? '',
+                        'configuracion' => $orden->Fibra ?? '',
                         'metros' => $orden->Metros,
                         'maquina_eng' => $orden->MaquinaEng ?? null,
                         'tabla' => $tabla,
@@ -302,7 +307,7 @@ class ProgramarEngomadoController extends Controller
                         'formula' => $orden->BomFormula ?? null,
                         'observaciones' => $orden->Observaciones ?? '',
                         'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? 999999) : null,
-                        'urdido_finalizado' => $urdidoFinalizado, // Flag para marcar visualmente
+                        'urdido_finalizado' => $urdidoFinalizado,
                     ];
                 }
             }
@@ -662,6 +667,7 @@ class ProgramarEngomadoController extends Controller
                     'Prioridad',
                     'FechaProg',
                     'InventSizeId',
+                    'Fibra',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
@@ -682,6 +688,7 @@ class ProgramarEngomadoController extends Controller
                     'Status',
                     'FechaProg',
                     'InventSizeId',
+                    'Fibra',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaEng')
@@ -722,6 +729,7 @@ class ProgramarEngomadoController extends Controller
                             'Prioridad',
                             'FechaProg',
                             'InventSizeId',
+                            'Fibra',
                         ])
                         ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                         ->whereNotNull('MaquinaEng')
@@ -751,6 +759,7 @@ class ProgramarEngomadoController extends Controller
                     'folio' => $orden->Folio,
                     'tipo' => $orden->tipo,
                     'cuenta_calibre' => $orden->InventSizeId ?? '',
+                    'configuracion' => $orden->Fibra ?? '',
                     'metros' => $orden->Metros,
                     'tabla' => $orden->MaquinaEng ?? '',
                     'status' => $orden->Status ?? null,
