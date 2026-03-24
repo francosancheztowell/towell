@@ -26,7 +26,7 @@ class ReportesAtadoresController extends Controller
             ],
             [
                 'nombre' => '00E Atadores',
-                'accion' => 'Seleccionar Rango',
+                'accion' => 'Seleccionar Fechas',
                 'url' => route('atadores.reportes.atadores'),
                 'disponible' => true,
             ],
@@ -89,12 +89,12 @@ class ReportesAtadoresController extends Controller
 
     public function reporteAtadores(Request $request)
     {
-        [$lunesInicio, $lunesFin] = $this->resolverRangoSemanasDesdeRequest($request);
+        [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin] = $this->resolverRangoFechasAtadoresDesdeRequest($request);
         $domingoFin = $lunesFin?->addDays(6);
 
         return view('modulos.atadores.reportes.atadores', [
-            'semanaIni' => $lunesInicio?->format('o-\WW'),
-            'semanaFin' => $lunesFin?->format('o-\WW'),
+            'fechaIni' => $fechaInicio?->toDateString(),
+            'fechaFin' => $fechaFin?->toDateString(),
             'lunesIni' => $lunesInicio?->toDateString(),
             'domingoFin' => $domingoFin?->toDateString(),
         ]);
@@ -104,21 +104,52 @@ class ReportesAtadoresController extends Controller
     {
         @set_time_limit(300);
 
-        [$lunesInicio, $lunesFin] = $this->resolverRangoSemanasDesdeRequest($request);
+        [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin] = $this->resolverRangoFechasAtadoresDesdeRequest($request);
 
-        if (!$lunesInicio || !$lunesFin) {
+        if (!$fechaInicio || !$fechaFin || !$lunesInicio || !$lunesFin) {
             return redirect()
                 ->route('atadores.reportes.atadores')
-                ->with('error', 'Debe seleccionar una semana inicial y final válidas para exportar el 00E Atadores.');
+                ->with('error', 'Debe seleccionar una fecha inicial y final validas para exportar el 00E Atadores.');
         }
 
-        $domingoFin = $lunesFin->addDays(6);
-        $nombreArchivo = '00E_atadores_' . $lunesInicio->format('d-m-Y') . '_a_' . $domingoFin->format('d-m-Y') . '.xlsx';
+        $nombreArchivo = '00E_atadores_' . $fechaInicio->format('d-m-Y') . '_a_' . $fechaFin->format('d-m-Y') . '.xlsx';
 
         return Excel::download(
             new Reporte00EAtadoresRangoExport($lunesInicio, $lunesFin),
             $nombreArchivo
         );
+    }
+
+    private function resolverRangoFechasAtadoresDesdeRequest(Request $request): array
+    {
+        $fechaIni = trim((string) $request->query('fecha_ini', $request->input('fecha_ini', '')));
+        $fechaFin = trim((string) $request->query('fecha_fin', $request->input('fecha_fin', '')));
+
+        if ($fechaIni === '' && $fechaFin === '') {
+            [$lunesInicio, $lunesFin] = $this->resolverRangoSemanasDesdeRequest($request);
+
+            if (!$lunesInicio || !$lunesFin) {
+                return [null, null, null, null];
+            }
+
+            return [$lunesInicio, $lunesFin->addDays(6), $lunesInicio, $lunesFin];
+        }
+
+        $fechaInicio = $this->resolverFecha($fechaIni);
+        $fechaFin = $this->resolverFecha($fechaFin);
+
+        if (!$fechaInicio || !$fechaFin) {
+            return [null, null, null, null];
+        }
+
+        if ($fechaInicio->greaterThan($fechaFin)) {
+            return [null, null, null, null];
+        }
+
+        $lunesInicio = $fechaInicio->startOfWeek(Carbon::MONDAY);
+        $lunesFin = $fechaFin->startOfWeek(Carbon::MONDAY);
+
+        return [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin];
     }
 
     private function resolverRangoSemanasDesdeRequest(Request $request): array
@@ -144,6 +175,20 @@ class ReportesAtadoresController extends Controller
         }
 
         return [$lunesInicio, $lunesFin];
+    }
+
+    private function resolverFecha(?string $fecha): ?CarbonImmutable
+    {
+        $fecha = trim((string) ($fecha ?? ''));
+        if ($fecha === '') {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::parse($fecha)->startOfDay();
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     private function resolverSemanaIso(?string $semana): ?CarbonImmutable
