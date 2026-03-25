@@ -34,6 +34,16 @@
             bg="bg-green-500"
             module="Programa Urdido"
         />
+        <x-navbar.button-report
+            onclick="abrirModalCalidad()"
+            title="Evaluación de Calidad"
+            icon="fa-clipboard-check"
+            text="Calidad"
+            bg="bg-amber-500"
+            iconColor="text-white"
+            hoverBg="hover:bg-amber-600"
+            module="Programa Urdido"
+        />
     </div>
 @endsection
 
