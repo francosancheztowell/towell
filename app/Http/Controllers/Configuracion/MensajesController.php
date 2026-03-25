@@ -100,6 +100,7 @@ class MensajesController extends Controller
             'Atadores'                => ['nullable', 'boolean'],
             'InvTrama'                => ['nullable', 'boolean'],
             'UrdidoCalidad'           => ['nullable', 'boolean'],
+            'Calidad'                 => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
@@ -115,6 +116,7 @@ class MensajesController extends Controller
         $validated['Atadores'] = (bool) ($request->boolean('Atadores') ?? false);
         $validated['InvTrama'] = (bool) ($request->boolean('InvTrama') ?? false);
         $validated['UrdidoCalidad'] = (bool) ($request->boolean('UrdidoCalidad') ?? false);
+        $validated['Calidad'] = (bool) ($request->boolean('Calidad') ?? false);
 
         $mensaje = SYSMensaje::create($validated);
 
@@ -161,6 +163,7 @@ class MensajesController extends Controller
             'Atadores'                => ['nullable', 'boolean'],
             'InvTrama'                => ['nullable', 'boolean'],
             'UrdidoCalidad'           => ['nullable', 'boolean'],
+            'Calidad'                 => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
@@ -176,6 +179,7 @@ class MensajesController extends Controller
         $validated['Atadores'] = (bool) ($request->boolean('Atadores') ?? false);
         $validated['InvTrama'] = (bool) ($request->boolean('InvTrama') ?? false);
         $validated['UrdidoCalidad'] = (bool) ($request->boolean('UrdidoCalidad') ?? false);
+        $validated['Calidad'] = (bool) ($request->boolean('Calidad') ?? false);
 
         $mensaje->update($validated);
 
