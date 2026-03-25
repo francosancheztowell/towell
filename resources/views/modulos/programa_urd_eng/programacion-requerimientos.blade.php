@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const opciones = {
         urdido: @json($opcionesUrdido ?? []),
         tipoAtado: ['Normal', 'Especial'],
-        destino: ['JACQUARD', 'SMIT', 'SULZER', 'SMITH'],
+        destino: ['Itema Nuevo', 'Itema Viejo', 'Jacquard Sulzer', 'Jacquard Smit', 'Smit'],
         hilos: [], // Se cargará dinámicamente desde TI_PRO
         tamanos: [] // Se cargará dinámicamente desde TI_PRO
     };
@@ -170,14 +170,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const requerimientosColumnFilters = {};
 
     // Función para mapear salón a destino (ITEMA y SMITH ambos usan SMIT) — fallback si no hay grupo en ReqTelares
+    function normalizarDestino(destino) {
+        const value = String(destino || '').trim();
+        if (!value) return '';
+
+        const normalized = value.toUpperCase().replace(/\s+/g, ' ');
+
+        if (normalized === 'ITEMA NUEVO') return 'Itema Nuevo';
+        if (normalized === 'ITEMA VIEJO') return 'Itema Viejo';
+        if (normalized === 'JACQUARD SULZER' || normalized === 'SULZER') return 'Jacquard Sulzer';
+        if (normalized === 'JACQUARD SMIT' || normalized === 'JACQUARD' || normalized === 'JAC') return 'Jacquard Smit';
+        if (normalized === 'SMIT' || normalized === 'SMITH') return 'Smit';
+
+        return '';
+    }
+
     function mapearSalonADestino(salon) {
-        if (!salon) return 'JACQUARD';
+        if (!salon) return '';
         const s = String(salon).toUpperCase().trim();
-        if (s === 'ITEMA' || s === 'SMITH') return 'SMIT';
-        if (s === 'JACQUARD' || s === 'JAC') return 'JACQUARD';
-        if (s === 'SMIT') return 'SMIT';
-        if (s === 'SULZER') return 'SULZER';
-        return 'JACQUARD'; // Default
+        if (s === 'SMITH' || s === 'SMIT') return 'Smit';
+        if (s === 'SULZER') return 'Jacquard Sulzer';
+        if (s === 'JACQUARD' || s === 'JAC') return 'Jacquard Smit';
+        return '';
     }
 
     // Establecer valor de Destino (grupo) en una fila y actualizar telaresData
@@ -185,13 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!row || grupo == null || grupo === '') return;
         const select = row.querySelector('select[data-field="destino"]');
         if (!select) return;
-        const grupoStr = String(grupo).trim();
-        if (!opciones.destino.includes(grupoStr)) {
-            const opt = document.createElement('option');
-            opt.value = grupoStr;
-            opt.textContent = grupoStr;
-            select.appendChild(opt);
-        }
+        const grupoStr = normalizarDestino(grupo);
+        if (!grupoStr) return;
         select.value = grupoStr;
         const index = parseInt(row.dataset.index, 10);
         if (!isNaN(index) && telaresData[index]) telaresData[index].destino = grupoStr;
@@ -282,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(value).replace(/,/g, '');
     }
 
-    // Valida que todos compartan Tipo (obligatorio) y, si están presentes, mismo calibre/hilo/salón
+    // Valida que todos compartan Tipo (obligatorio) y, si están presentes, mismo calibre/hilo.
     // NOTA: Para PIE, no se valida hilo
     function validarGrupo(telares) {
         if (!telares.length) return { valido:false, mensaje:'No hay telares seleccionados' };
@@ -291,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const tipoBase = String(base.tipo || '').toUpperCase().trim();
         const calBase  = base.calibre != null && base.calibre !== '' ? parseFloat(base.calibre) : null;
         const hiloBase = base.hilo && String(base.hilo).trim() !== '' ? String(base.hilo).trim() : null;
-        const salonBase= String(base.salon || '').trim();
         const esPie = tipoBase === 'PIE';
 
         if (!tipoBase) return { valido:false, mensaje:'El telar debe tener un tipo definido' };
@@ -313,15 +321,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} hilo "${hilo}" ≠ "${hiloBase}".` };
             }
 
-            const salon = String(t.salon || '').trim();
-            if (salonBase && salon && salon !== salonBase)
-                return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} salón "${salon}" ≠ "${salonBase}".` };
         }
 
         // Para PIE, establecer hilo como null para que no se use en consultas
         // Normalizar el tipo antes de retornarlo
         const tipoNormalizado = normalizarTipo(base.tipo);
-        return { valido:true, tipo:tipoNormalizado, calibre:calBase, hilo:esPie ? null : hiloBase, salon:salonBase };
+        return { valido:true, tipo:tipoNormalizado, calibre:calBase, hilo:esPie ? null : hiloBase };
     }
 
     /* =================== Cargar hilos desde TI_PRO =================== */
@@ -445,7 +450,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <td class="px-2 py-3 w-28" data-column-field="destino">
                 <select class="w-full px-2 py-1.5 text-md bg-transparent border-0 cursor-default appearance-none" data-field="destino" data-telar-id="${telar.no_telar || ''}" disabled>
                     ${(() => {
-                        const destinoInicial = telar.grupo || (telar.destino ? mapearSalonADestino(telar.destino) : mapearSalonADestino(telar.salon));
+                        const destinoInicial = normalizarDestino(telar.grupo)
+                            || normalizarDestino(telar.destino)
+                            || mapearSalonADestino(telar.salon);
                         const opcionesUnicas = [...new Set([...opciones.destino, destinoInicial].filter(Boolean))];
                         return opcionesUnicas.map(x => {
                             return `<option value="${x}" ${destinoInicial === x ? 'selected' : ''}>${x}</option>`;
@@ -499,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <i class="fa-solid fa-triangle-exclamation text-red-400 mb-2"></i>
                         <p class="font-semibold">Error de validación</p>
                         <p class="text-sm mt-2">${v.mensaje}</p>
-                        <p class="text-md mt-2 text-gray-500">Todos los telares deben tener el mismo tipo, y si existen, mismo calibre/hilo/salón.</p>
+                        <p class="text-md mt-2 text-gray-500">Todos los telares deben tener el mismo tipo, y si existen, mismo calibre/hilo.</p>
                     </td>
                 </tr>`;
             renderResumenMensaje('No se puede cargar el resumen por error de validación.');
@@ -521,9 +528,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const hilo = t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null;
                 if (v.hilo && hilo && v.hilo !== hilo) return false;
             }
-
-            const salon = String(t.salon || '').trim();
-            if (v.salon && salon && v.salon !== salon) return false;
 
             return true;
         });

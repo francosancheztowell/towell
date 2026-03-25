@@ -49,8 +49,6 @@ class ResumenSemanasService
         $calibreEsperado = $v['calibre'];
         $calibreEsVacio  = $v['calibre_vacio'];
         $hiloEsperado    = $v['hilo'];
-        $salonEsperado   = $v['salon'];
-
         $noTelares = collect($telares)->pluck('no_telar')->filter()->unique()->values()->toArray();
         if (empty($noTelares)) {
             return [
@@ -78,7 +76,7 @@ class ResumenSemanasService
 
         if ($tipoEsperado === 'RIZO') {
             $programasFiltrados = $this->filtrarProgramasRizo(
-                $programas, $salonEsperado, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $hiloPorTelar
+                $programas, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $hiloPorTelar
             );
 
             $resumenRizo = $this->procesarResumenPorTipo(
@@ -96,9 +94,8 @@ class ResumenSemanasService
         }
 
         // PIE
-        $programasFiltrados = $programas->filter(function ($p) use ($salonEsperado, $calibreEsperado, $calibreEsVacio) {
-            return $this->matchSalon($salonEsperado, (string)($p->SalonTejidoId ?? ''))
-                && !empty($p->CuentaPie)
+        $programasFiltrados = $programas->filter(function ($p) use ($calibreEsperado, $calibreEsVacio) {
+            return !empty($p->CuentaPie)
                 && $this->matchCalibre($calibreEsperado, $calibreEsVacio, $p->CalibrePie ?? null);
         })->values();
 
@@ -152,10 +149,9 @@ class ResumenSemanasService
             ->get();
     }
 
-    private function filtrarProgramasRizo($programas, string $salonEsperado, ?string $hiloEsperado, $calibreEsperado, bool $calibreEsVacio, array $hiloPorTelar)
+    private function filtrarProgramasRizo($programas, ?string $hiloEsperado, $calibreEsperado, bool $calibreEsVacio, array $hiloPorTelar)
     {
-        return $programas->filter(function ($p) use ($salonEsperado, $hiloEsperado, $calibreEsperado, $calibreEsVacio, $hiloPorTelar) {
-            if (!$this->matchSalon($salonEsperado, (string)($p->SalonTejidoId ?? ''))) return false;
+        return $programas->filter(function ($p) use ($hiloEsperado, $calibreEsperado, $calibreEsVacio, $hiloPorTelar) {
             if (empty($p->CuentaRizo)) return false;
 
             $hiloPrograma = trim((string)($p->FibraRizo ?? ''));
@@ -377,7 +373,6 @@ class ResumenSemanasService
         $calibreVacio = $calibreOriginal === '';
         $calibreRef = $calibreVacio ? null : $calibreOriginal;
         $hiloRef = (string)($t0['hilo'] ?? '');
-        $salonRef = strtoupper(trim((string)($t0['salon'] ?? '')));
         $esPie = $tipo === 'PIE';
 
         foreach ($telares as $t) {
@@ -396,16 +391,12 @@ class ResumenSemanasService
                 }
             }
 
-            $salAct = strtoupper(trim((string)($t['salon'] ?? '')));
-            if ($salonRef !== '' && $salAct !== '' && $salAct !== $salonRef) {
-                return ['error' => true, 'mensaje' => "Todos los telares deben tener el mismo salon. {$salAct} ≠ {$salonRef}"];
-            }
         }
 
         return [
             'error' => false, 'tipo' => $tipo, 'calibre' => $calibreRef,
             'calibre_vacio' => $calibreVacio, 'calibre_original' => $calibreOriginal,
-            'hilo' => $esPie ? '' : $hiloRef, 'salon' => $salonRef,
+            'hilo' => $esPie ? '' : $hiloRef,
         ];
     }
 
@@ -425,15 +416,4 @@ class ResumenSemanasService
         return abs((is_numeric($actual) ? (float)$actual : 0) - (float)$esperado) <= 0.11;
     }
 
-    private function matchSalon(string $esperado, string $actual): bool
-    {
-        if ($esperado === '') return true;
-        $esp = strtoupper(trim($esperado));
-        $act = strtoupper(trim($actual));
-        if ($act === $esp) return true;
-        if ($esp === 'ITEMA' && $act === 'SMIT') return true;
-        if ($esp === 'SMITH' && $act === 'SMIT') return true;
-        if ($esp === 'SMIT' && ($act === 'ITEMA' || $act === 'SMITH')) return true;
-        return false;
-    }
 }

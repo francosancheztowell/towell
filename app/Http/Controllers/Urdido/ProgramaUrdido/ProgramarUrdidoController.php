@@ -697,16 +697,16 @@ class ProgramarUrdidoController extends Controller
             };
 
             $mensaje = "🏭 *CALIDAD URDIDO*\n\n";
-            $mensaje .= "✅ Autorizó: {$orden->AutorizaCalidad}\n";
-            $mensaje .= "📅 Fecha: {$orden->FechaCalidad->format('d/m/Y H:i')}\n";
             $mensaje .= "📋 Folio: {$orden->Folio}\n";
-            $mensaje .= "📏 Metros: " . round($orden->Metros ?? 0) . "\n";
-            $mensaje .= "⚙️ Configuración: {$orden->Fibra}\n";
-            $mensaje .= "🧶 Fibra: {$orden->Fibra}\n";
+            $mensaje .= "📅 Fecha: {$orden->FechaCalidad->format('d/m/Y H:i')}\n";
+            $mensaje .= "👷‍♂️ Realizó: {$orden->AutorizaCalidad}\n";
+            $mensaje .= "🏭 Maquina: {$orden->MaquinaId}\n";
+            $mensaje .= "🏭 Lote Prov: {$orden->LoteProveedor}\n";
+            $mensaje .= "⚙️ Fibra: {$orden->Fibra}\n";
             $mensaje .= "📐 Cuenta: {$orden->InventSizeId}\n\n";
-            $mensaje .= "{$estadoTexto}\n";
+            $mensaje .= "Status: {$estadoTexto}\n";
             if ($request->calidadcomentario) {
-                $mensaje .= "💬 Comentario: {$request->calidadcomentario}";
+                $mensaje .= "💬 Obs: {$request->calidadcomentario}";
             }
 
             $botToken = config('services.telegram.bot_token');

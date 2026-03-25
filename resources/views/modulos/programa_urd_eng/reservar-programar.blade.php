@@ -1117,24 +1117,24 @@ const selection = {
                 const ref = state.selectedTelares[0];
 
                 if (isReservado(ref) || isProgramado(ref)) {
-                    toast('info', 'Telar no disponible en selecciÃ³n',
-                          'No se puede agregar mÃ¡s telares a una selecciÃ³n con telares reservados o programados',
+                    toast('info', 'Telar no disponible en seleccion',
+                          'No se puede agregar mas telares a una seleccion con telares reservados o programados',
                           3000);
                     if (cb) cb.checked = false;
                     return;
                 }
 
                 if (hasNoOrden(ref)) {
-                    toast('info', 'Telar con orden en selecciÃ³n',
-                          'No se puede agregar mÃ¡s telares a una selecciÃ³n que contiene telares con orden',
+                    toast('info', 'Telar con orden en seleccion',
+                          'No se puede agregar mas telares a una seleccion que contiene telares con orden',
                           3000);
                     if (cb) cb.checked = false;
                     return;
                 }
 
                 if (!sameGroup(item, ref)) {
-                    toast('warning', 'SelecciÃ³n incompatible',
-                          'SÃ³lo puedes seleccionar telares con el mismo Tipo, Calibre, Hilo y SalÃ³n. La cuenta puede variar.',
+                    toast('warning', 'Seleccion incompatible',
+                          'Solo puedes seleccionar telares con el mismo Tipo, Calibre, Hilo y Salon. La cuenta puede variar.',
                           3000);
                     if (cb) cb.checked = false;
                     return;

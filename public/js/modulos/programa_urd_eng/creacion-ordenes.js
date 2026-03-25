@@ -8,6 +8,7 @@
 
     const isNil   = v => v === null || v === undefined;
     const isBlank = v => isNil(v) || String(v).trim() === '';
+    const DEFAULT_DESTINO_OPTIONS = ['Itema Nuevo', 'Itema Viejo', 'Jacquard Sulzer', 'Jacquard Smit', 'Smit'];
 
 
     const toNumber = (v, def=0) => {
@@ -93,6 +94,55 @@
     let config = {}; // Configuración con rutas y datos
     let sortState = { column: null, direction: null }; // Estado de ordenamiento: { column: 'itemId', direction: 'asc'|'desc' }
 
+    function getDestinoOptions() {
+        return Array.isArray(config.destinoOptions) && config.destinoOptions.length
+            ? config.destinoOptions
+            : DEFAULT_DESTINO_OPTIONS;
+    }
+
+    function normalizeDestinoValue(destino) {
+        const value = String(destino || '').trim();
+        if (!value) return '';
+
+        const normalized = value.toUpperCase().replace(/\s+/g, ' ');
+
+        if (normalized === 'ITEMA NUEVO') return 'Itema Nuevo';
+        if (normalized === 'ITEMA VIEJO') return 'Itema Viejo';
+        if (normalized === 'JACQUARD SULZER' || normalized === 'SULZER') return 'Jacquard Sulzer';
+        if (normalized === 'JACQUARD SMIT' || normalized === 'JACQUARD' || normalized === 'JAC') return 'Jacquard Smit';
+        if (normalized === 'SMIT' || normalized === 'SMITH') return 'Smit';
+
+        return '';
+    }
+
+    function grupoRequiereDestinoManual(grupo) {
+        return Array.isArray(grupo?.telares) && grupo.telares.length > 1;
+    }
+
+    function getInitialDestino(grupo) {
+        return grupoRequiereDestinoManual(grupo) ? '' : normalizeDestinoValue(grupo?.destino);
+    }
+
+    function buildDestinoOptionsHtml(selectedDestino='') {
+        const normalized = normalizeDestinoValue(selectedDestino);
+        const options = ['', ...getDestinoOptions()];
+
+        return options.map(option => {
+            if (option === '') {
+                return `<option value="" ${normalized === '' ? 'selected' : ''}>Seleccione...</option>`;
+            }
+
+            return `<option value="${option}" ${normalized === option ? 'selected' : ''}>${option}</option>`;
+        }).join('');
+    }
+
+    function syncDestinoSelectState(selectEl) {
+        if (!selectEl) return;
+        const hasValue = !isBlank(selectEl.value);
+        selectEl.classList.toggle('border-amber-400', !hasValue);
+        selectEl.classList.toggle('bg-amber-50', !hasValue);
+    }
+
     /* =================== LS helpers específicos =================== */
     const LS = {
         getMateriales(bomId) {
@@ -172,7 +222,11 @@
             grupos[clave].kilos  += telar.kilos  || 0;
         }
 
-        const out = Object.values(grupos).map(g => ({ ...g, telaresStr: g.telares.map(t=>t.no_telar).join(',') }));
+        const out = Object.values(grupos).map(g => ({
+            ...g,
+            destino: g.telares.length > 1 ? '' : g.destino,
+            telaresStr: g.telares.map(t=>t.no_telar).join(',')
+        }));
         for (const t of singles) {
             const calSingle = !isBlank(t.calibre) ? parseFloat(t.calibre) : null;
             out.push({
@@ -200,9 +254,18 @@
             const tipoUp = String(g.tipo||'').toUpperCase();
             const tipoCls = tipoUp==='RIZO' ? 'bg-rose-100 text-rose-700'
                            : tipoUp==='PIE' ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700';
+            const destinoInicial = getInitialDestino(g);
+            const requiereDestinoManual = grupoRequiereDestinoManual(g);
 
             const filaId = `fila-${idx}-${g.telaresStr}`;
-            gruposData[filaId] = { grupo:g, bomId:'', kilos:g.kilos||0, materialesUrdido:null };
+            gruposData[filaId] = {
+                grupo:g,
+                bomId:'',
+                kilos:g.kilos||0,
+                materialesUrdido:null,
+                destinoSeleccionado: destinoInicial,
+                requiereDestinoManual
+            };
 
             const tr = document.createElement('tr');
             tr.id = filaId;
@@ -218,7 +281,13 @@
                 <td class="px-2 py-3 text-sm text-center">${g.tamano || '-'}</td>
                 <td class="px-2 py-3 text-sm text-center">${g.urdido || '-'}</td>
                 <td class="px-2 py-3 text-center"><span class="px-2 py-1 inline-block text-sm font-medium rounded-md ${tipoCls}">${g.tipo || 'Rizo'}</span></td>
-                <td class="px-2 py-3 text-sm text-center">${g.destino || '-'}</td>
+                <td class="px-2 py-3 text-sm text-center">
+                    <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            data-destino-select="true"
+                            data-fila-id="${filaId}">
+                        ${buildDestinoOptionsHtml(destinoInicial)}
+                    </select>
+                </td>
                 <td class="px-2 py-3 text-sm text-center">${fmtNumber(g.metros)}</td>
                 <td class="px-2 py-3 text-sm text-center">${fmtNumber(g.kilos)}</td>
                 <td class="px-2 py-3 text-center">
@@ -229,11 +298,21 @@
             `;
 
             tr.addEventListener('click', (e) => {
-                if (e.target.tagName === 'INPUT') return;
+                if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
                 seleccionarFila(filaId);
             });
 
             tbody.appendChild(tr);
+
+            const destinoSelect = tr.querySelector('[data-destino-select="true"]');
+            if (destinoSelect) {
+                syncDestinoSelectState(destinoSelect);
+                destinoSelect.addEventListener('click', (e) => e.stopPropagation());
+                destinoSelect.addEventListener('change', (e) => {
+                    gruposData[filaId].destinoSeleccionado = normalizeDestinoValue(e.target.value);
+                    syncDestinoSelectState(e.target);
+                });
+            }
 
             // restaurar valor bom si existe
             queueMicrotask(() => {
@@ -962,6 +1041,9 @@
             const grupoData = gruposData[filaSeleccionadaId];
             const grupo = grupoData.grupo;
             const bomId = grupoData.bomId;
+            const filaSeleccionada = document.getElementById(filaSeleccionadaId);
+            const destinoSelect = filaSeleccionada?.querySelector('[data-destino-select="true"]');
+            const destinoSeleccionado = normalizeDestinoValue(grupoData.destinoSeleccionado || destinoSelect?.value);
 
             // Validar que tenga BOM ID
             if (isBlank(bomId)) {
@@ -973,6 +1055,22 @@
                 });
                 return;
             }
+
+            if (isBlank(destinoSeleccionado)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Destino requerido',
+                    text: grupoData.requiereDestinoManual
+                        ? 'Seleccione el destino del grupo antes de crear la orden.'
+                        : 'Seleccione un destino válido antes de crear la orden.',
+                    confirmButtonColor: '#2563eb'
+                });
+                destinoSelect?.focus();
+                syncDestinoSelectState(destinoSelect);
+                return;
+            }
+
+            grupoData.destinoSeleccionado = destinoSeleccionado;
 
             // Validar que tenga fibra/hilo (obligatorio para Rizo y Pie)
             const fibraHilo = (grupo.fibra || grupo.hilo || '').trim();
@@ -1216,8 +1314,8 @@
                 metros: grupo.metros || 0,
                 kilos: grupo.kilos || 0,
                 noProduccion: grupo.noProduccion || '',
-                salonTejidoId: grupo.destino || '',
-                destino: grupo.destino || '',
+                salonTejidoId: destinoSeleccionado,
+                destino: destinoSeleccionado,
                 maquinaId: grupo.maquinaId || grupo.urdido || '',
                 bomId: bomId,
                 tipoAtado: grupo.tipoAtado || 'Normal',
