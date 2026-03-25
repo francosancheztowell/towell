@@ -35,6 +35,7 @@
             module="Programa Urdido"
         />
         <x-navbar.button-report
+            id="btnCalidad"
             onclick="abrirModalCalidad()"
             title="Evaluación de Calidad"
             icon="fa-clipboard-check"
@@ -276,8 +277,10 @@
 
             const setButtonsEnabled = (enabled) => {
                 const btnProduccion = document.getElementById('btnIrProduccion');
+                const btnCalidad = document.getElementById('btnCalidad');
 
                 if (btnProduccion) btnProduccion.disabled = !enabled;
+                if (btnCalidad) btnCalidad.disabled = !enabled;
             };
 
             // Badge de tipo (Rizo / Pie / Otro)
