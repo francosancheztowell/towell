@@ -415,6 +415,11 @@
                         )
                         : '<span class="text-gray-300 text-lg">—</span>';
 
+                    const calidadTitle = orden.calidad
+                        ? (orden.calidad === 'A' ? '✓ Aprobado' : orden.calidad === 'R' ? '✗ Rechazado' : '! Observaciones') +
+                          (orden.calidadcomentario ? ': ' + orden.calidadcomentario : '')
+                        : '';
+
                     return `
                         <tr
                             class="${rowClasses} ${rowCursorClass}"
@@ -422,6 +427,7 @@
                             data-mccoy="${mccoy}"
                             data-index="${index}"
                             draggable="${canChangePrioridad ? 'true' : 'false'}"
+                            ${calidadTitle ? `title="${calidadTitle}"` : ''}
                         >
                             <td class="${baseTd} text-center font-semibold">
                                 ${dragIcon}${prioridad}
