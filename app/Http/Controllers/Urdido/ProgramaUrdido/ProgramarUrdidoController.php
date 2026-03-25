@@ -184,8 +184,8 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                     'InventSizeId',
-                    'calidad',
-                    'calidadcomentario',
+                    'Calidad',
+                    'CalidadComentario',
                 ])
                     ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                     ->whereNotNull('MaquinaId')
@@ -208,8 +208,8 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                     'InventSizeId',
-                    'calidad',
-                    'calidadcomentario',
+                    'Calidad',
+                    'CalidadComentario',
                 ])
                     ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                     ->whereNotNull('MaquinaId')
@@ -305,8 +305,8 @@ class ProgramarUrdidoController extends Controller
                         'observaciones' => $orden->Observaciones ?? '',
                         'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? 999999) : $indexEnGrupo,
                         'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
-                        'calidad' => $orden->calidad ?? null,
-                        'calidadcomentario' => $orden->calidadcomentario ?? null,
+                        'calidad' => $orden->Calidad ?? null,
+                        'calidadcomentario' => $orden->CalidadComentario ?? null,
                     ];
                 }
             }
@@ -677,15 +677,15 @@ class ProgramarUrdidoController extends Controller
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->id);
-            $orden->calidad = $request->calidad;
-            $orden->calidadcomentario = $request->calidadcomentario;
+            $orden->Calidad = $request->calidad;
+            $orden->CalidadComentario = $request->calidadcomentario;
             $orden->save();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Calidad actualizada correctamente',
-                'calidad' => $orden->calidad,
-                'calidadcomentario' => $orden->calidadcomentario,
+                'calidad' => $orden->Calidad,
+                'calidadcomentario' => $orden->CalidadComentario,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([

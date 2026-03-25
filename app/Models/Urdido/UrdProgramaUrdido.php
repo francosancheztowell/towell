@@ -45,8 +45,8 @@ class UrdProgramaUrdido extends Model
         'Prioridad',
         'CreatedAt',
         'FechaFinaliza',
-        'calidad',
-        'calidadcomentario',
+        'Calidad',
+        'CalidadComentario',
     ];
 
     protected $casts = [
@@ -60,7 +60,7 @@ class UrdProgramaUrdido extends Model
         'CreatedAt' => 'datetime',
         'Observaciones' => 'string',
         'FechaFinaliza' => 'date',
-        'calidad' => 'string',
+        'Calidad' => 'string',
     ];
 
     /**
