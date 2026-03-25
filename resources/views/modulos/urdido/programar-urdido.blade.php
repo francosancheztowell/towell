@@ -1212,6 +1212,9 @@
             window.abrirModalEditarPrioridad = abrirModalEditarPrioridad;
             window.cerrarModalEditarPrioridad = cerrarModalEditarPrioridad;
             window.guardarPrioridades = guardarPrioridades;
+            window.abrirModalCalidad = abrirModalCalidad;
+            window.cerrarModalCalidad = cerrarModalCalidad;
+            window.guardarCalidad = guardarCalidad;
 
             let ordenCalidadId = null;
 
