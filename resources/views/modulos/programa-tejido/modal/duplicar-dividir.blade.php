@@ -642,12 +642,23 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 		btnAdd.disabled = esDuplicar ? !firstComplete : false;
 
+		// Verificar que todas las filas con clave modelo tengan clave válida en codificados
+		// Solo se permite si claveValida === 'true' (validada explícitamente)
+		let todasClavesValidas = true;
+		filas.forEach(fila => {
+			const claveInput = fila.querySelector('.clave-modelo-cell input');
+			const claveVal = claveInput ? (claveInput.value || '').trim() : '';
+			if (claveVal !== '' && fila.dataset.claveValida !== 'true') {
+				todasClavesValidas = false;
+			}
+		});
+
 		if (esDuplicar) {
-			confirmButton.disabled = !hasAnyFilled;
+			confirmButton.disabled = !hasAnyFilled || !todasClavesValidas;
 		} else {
 			const tieneDestinos = telarInputs.length > 1;
 			const origenTieneCantidad = pedidoInputs[0]?.value?.trim() !== '';
-			confirmButton.disabled = !tieneDestinos || !allDestinationsValid || !origenTieneCantidad;
+			confirmButton.disabled = !tieneDestinos || !allDestinationsValid || !origenTieneCantidad || !todasClavesValidas;
 		}
 	}
 
@@ -2072,6 +2083,10 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				if (data && data.datos) {
 					const datos = data.datos;
 
+					// Marcar la fila como clave válida (existe en ReqModelosCodificados)
+					row.dataset.claveValida = 'true';
+					if (typeof recomputeState === 'function') recomputeState();
+
 					// Guardar todos los datos del modelo codificado en atributos data de la fila
 					// Estos datos se usarán cuando se guarde el formulario
 					if (datos.CuentaRizo !== undefined && datos.CuentaRizo !== null) row.dataset.cuentaRizo = String(datos.CuentaRizo);
@@ -2285,6 +2300,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			})
 			.catch((error) => {
 				console.error('[cargarDatosRelacionadosRow] Error al cargar datos relacionados:', error);
+				row.dataset.claveValida = 'false';
+				if (typeof recomputeState === 'function') recomputeState();
 			});
 	}
 
@@ -2460,8 +2477,10 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		const existeEnSalon = await existeClaveEnSalon(salon, claveModelo);
 		if (existeEnSalon) {
 			ocultarAlertaClaveModelo();
-			// Cargar datos relacionados solo para la fila principal
 			const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
+			if (filaPrincipal) filaPrincipal.dataset.claveValida = 'true';
+			recomputeState();
+			// Cargar datos relacionados solo para la fila principal
 			if (filaPrincipal && typeof cargarDatosRelacionadosRow === 'function') {
 				cargarDatosRelacionadosRow(filaPrincipal, claveModelo);
 			} else {
@@ -2483,6 +2502,9 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		inputClaveModelo.value = '';
 		inputCodArticulo.value = '';
 		inputProducto.value = '';
+		const filaPrincipal = document.getElementById('fila-principal');
+		if (filaPrincipal) filaPrincipal.dataset.claveValida = 'false';
+		recomputeState();
 	}
 
 	// Event listeners
@@ -3079,6 +3101,17 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 // Valida y captura los datos del modal para enviar al backend
 function validarYCapturarDatosDuplicar() {
+	// Verificar que todas las claves modelo existan en codificados
+	const filasValidacion = document.querySelectorAll('#telar-pedido-body tr');
+	for (const fila of filasValidacion) {
+		const claveInput = fila.querySelector('.clave-modelo-cell input');
+		const claveVal = claveInput ? (claveInput.value || '').trim() : '';
+		if (claveVal !== '' && fila.dataset.claveValida === 'false') {
+			Swal.showValidationMessage('Primero verifique en Modelos si la clave existe');
+			return false;
+		}
+	}
+
 	const codArticulo = document.getElementById('swal-codArticulo').value;
 	const claveModelo = document.getElementById('swal-claveModelo').value;
 	const producto = document.getElementById('swal-producto').value;
