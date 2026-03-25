@@ -57,6 +57,7 @@ class UrdProgramaUrdido extends Model
         'CreatedAt' => 'datetime',
         'Observaciones' => 'string',
         'FechaFinaliza' => 'date',
+        'calidad' => 'string',
     ];
 
     /**
