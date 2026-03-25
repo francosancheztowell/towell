@@ -147,7 +147,76 @@
         </div>
     </div>
 
+    <!-- Modal Evaluación de Calidad -->
+    <div id="modalCalidad" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
+        <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 my-8">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">Evaluación de Calidad</h2>
+                <button type="button" onclick="cerrarModalCalidad()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
 
+            <!-- Body -->
+            <div class="p-6">
+                <p class="mb-4 text-sm text-gray-600">Folio: <strong id="modalCalidadFolio"></strong></p>
+
+                <!-- Opciones de calidad -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
+                    <div class="flex gap-4">
+                        <!-- Aprobado -->
+                        <label class="flex flex-col items-center cursor-pointer">
+                            <input type="radio" name="calidad" value="A" class="sr-only peer">
+                            <div class="w-14 h-14 border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl peer-checked:border-green-500 peer-checked:bg-green-50 hover:border-green-400 transition">
+                                <span class="text-green-600">✓</span>
+                            </div>
+                            <span class="mt-1 text-xs text-green-600 font-medium">Aprobado</span>
+                        </label>
+                        <!-- Rechazado -->
+                        <label class="flex flex-col items-center cursor-pointer">
+                            <input type="radio" name="calidad" value="R" class="sr-only peer">
+                            <div class="w-14 h-14 border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl peer-checked:border-red-500 peer-checked:bg-red-50 hover:border-red-400 transition">
+                                <span class="text-red-600">✗</span>
+                            </div>
+                            <span class="mt-1 text-xs text-red-600 font-medium">Rechazado</span>
+                        </label>
+                        <!-- Observaciones -->
+                        <label class="flex flex-col items-center cursor-pointer">
+                            <input type="radio" name="calidad" value="O" class="sr-only peer">
+                            <div class="w-14 h-14 border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl peer-checked:border-yellow-500 peer-checked:bg-yellow-50 hover:border-yellow-400 transition">
+                                <span class="text-yellow-500">!</span>
+                            </div>
+                            <span class="mt-1 text-xs text-yellow-500 font-medium">Obs.</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Observaciones textarea -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
+                    <textarea id="calidadcomentario" rows="3" maxlength="60"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="Ingrese observaciones (máx. 60 caracteres)"></textarea>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
+                <button type="button" onclick="cerrarModalCalidad()"
+                    class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
+                    Cancelar
+                </button>
+                <button type="button" onclick="guardarCalidad()"
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         (() => {
