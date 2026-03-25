@@ -709,13 +709,22 @@ class ProgramarUrdidoController extends Controller
                 $mensaje .= "💬 Comentario: {$request->calidadcomentario}";
             }
 
-            try {
-                Http::post('http://localhost/telegram/send-message', [
-                    'mensaje' => $mensaje,
-                    'modulo' => 'UrdidoCalidad',
-                ]);
-            } catch (\Throwable $e) {
-                Log::warning('Error al enviar telegram de calidad urdido: ' . $e->getMessage());
+            $botToken = config('services.telegram.bot_token');
+            $chatIds = \App\Models\Sistema\SYSMensaje::getChatIdsPorModulo('UrdidoCalidad');
+
+            if (! empty($botToken) && ! empty($chatIds)) {
+                $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+                foreach ($chatIds as $chatId) {
+                    try {
+                        Http::timeout(10)->post($url, [
+                            'chat_id' => $chatId,
+                            'text' => $mensaje,
+                            'parse_mode' => 'Markdown',
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning('Error al enviar telegram calidad urdido: ' . $e->getMessage());
+                    }
+                }
             }
 
             return response()->json([
