@@ -152,7 +152,7 @@ class ReqModelosCodificadosImport implements
             'Tolerancia'        => 12,
             'CodigoDibujo'      => 13,
             'FechaCompromiso'   => 14,
-            'FlogsId'           => 15,
+            'FlogsId'           => 40,
             'NombreProyecto'    => 16,
             'Clave'             => 17,
             'Pedido'            => 18,

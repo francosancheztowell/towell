@@ -126,7 +126,7 @@ const inlineEditableFields = {
 	Rasurado: { type: 'text', maxLength: 2 },
 	TotalPedido: { type: 'number', step: '0.01', min: 0 },
 	ProgramarProd: createDateFieldConfig(),
-	FlogsId: { type: 'text', maxLength: 20 },
+	FlogsId: { type: 'text', maxLength: 40 },
 	NombreProyecto: { type: 'text', maxLength: 150 },
 	AplicacionId: { type: 'select', catalog: 'aplicaciones' }, // Select con catÃ¡logo de aplicaciones
 	NoTiras: { type: 'number', step: '1', min: 0 },

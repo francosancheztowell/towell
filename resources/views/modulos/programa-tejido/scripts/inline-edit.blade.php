@@ -102,7 +102,7 @@ const uiInlineEditableFields = {
   },
   FlogsId: {
     type: 'text',
-    maxLength: 20
+    maxLength: 40
   },
   NombreProyecto: {
     type: 'text',

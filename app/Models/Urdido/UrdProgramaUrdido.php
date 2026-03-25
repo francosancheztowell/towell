@@ -42,6 +42,8 @@ class UrdProgramaUrdido extends Model
         'Prioridad',
         'CreatedAt',
         'FechaFinaliza',
+        'calidad',
+        'calidadcomentario',
     ];
 
     protected $casts = [
