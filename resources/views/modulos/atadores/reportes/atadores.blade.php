@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-title', '00E Atadores')
+@section('page-title', 'OEE Atadores')
 
 @section('navbar-right')
     <button type="button" onclick="mostrarModalRangoFechasAtadores()"

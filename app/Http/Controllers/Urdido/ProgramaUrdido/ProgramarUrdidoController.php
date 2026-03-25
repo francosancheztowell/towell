@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\Urdido\UrdProgramaUrdido;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
+use App\Models\Urdido\UrdProgramaUrdido;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Auth;
 
 class ProgramarUrdidoController extends Controller
 {
@@ -21,7 +21,7 @@ class ProgramarUrdidoController extends Controller
     private function usuarioPuedeEditar(): bool
     {
         $usuario = Auth::user();
-        if (!$usuario) {
+        if (! $usuario) {
             return false;
         }
 
@@ -111,7 +111,7 @@ class ProgramarUrdidoController extends Controller
     public function reimpresionVentanaImprimir(Request $request)
     {
         $ordenId = $request->query('orden_id');
-        if (!$ordenId) {
+        if (! $ordenId) {
             return response('<script>alert("Falta orden_id"); window.close();</script>', 400)
                 ->header('Content-Type', 'text/html; charset=UTF-8');
         }
@@ -131,9 +131,6 @@ class ProgramarUrdidoController extends Controller
     /**
      * Extraer número de tarjeta (1-4) del campo MaquinaId.
      * Mc Coy 1 -> 1, Mc Coy 2 -> 2, Mc Coy 3 -> 3, Karl Mayer -> 4.
-     *
-     * @param string|null $maquinaId
-     * @return int|null
      */
     private function extractMcCoyNumber(?string $maquinaId): ?int
     {
@@ -151,6 +148,7 @@ class ProgramarUrdidoController extends Controller
         // Buscar patrón "Mc Coy X" (case insensitive, permite espacios variables)
         if (preg_match('/mc\s*coy\s*(\d+)/i', $m, $matches)) {
             $num = (int) $matches[1];
+
             return ($num >= 1 && $num <= 3) ? $num : null;
         }
 
@@ -162,8 +160,6 @@ class ProgramarUrdidoController extends Controller
      * Extrae el MC Coy del campo MaquinaId (ej: "Mc Coy 1" -> 1)
      * Solo incluye órdenes con status "Programado" o "En Proceso" (excluye canceladas)
      * Ordena por Prioridad si existe, sino por CreatedAt ascendente
-     *
-     * @return JsonResponse
      */
     public function getOrdenes(): JsonResponse
     {
@@ -188,10 +184,12 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                     'InventSizeId',
+                    'Calidad',
+                    'CalidadComentario',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                ->whereNotNull('MaquinaId')
-                ->get();
+                    ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                    ->whereNotNull('MaquinaId')
+                    ->get();
 
                 $tienePrioridad = true;
             } catch (\Exception $e) {
@@ -210,10 +208,12 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                     'InventSizeId',
+                    'Calidad',
+                    'CalidadComentario',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                ->whereNotNull('MaquinaId')
-                ->get();
+                    ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                    ->whereNotNull('MaquinaId')
+                    ->get();
             }
 
             // Si existe el campo Prioridad, ordenar por él y verificar si necesita inicialización
@@ -256,9 +256,9 @@ class ProgramarUrdidoController extends Controller
                             'CreatedAt',
                             'Observaciones',
                         ])
-                        ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                        ->whereNotNull('MaquinaId')
-                        ->get();
+                            ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                            ->whereNotNull('MaquinaId')
+                            ->get();
                     } catch (\Exception $e) {
                         // Si falla al actualizar Prioridad, continuar sin inicialización
                         $tienePrioridad = false;
@@ -267,7 +267,7 @@ class ProgramarUrdidoController extends Controller
 
                 // Ordenar todas las órdenes por Prioridad (global)
                 $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                    return isset($orden->Prioridad) && !empty($orden->Prioridad) ? $orden->Prioridad : 999999;
+                    return isset($orden->Prioridad) && ! empty($orden->Prioridad) ? $orden->Prioridad : 999999;
                 })->values();
             } else {
                 // Si no existe Prioridad, ordenar por CreatedAt
@@ -305,6 +305,8 @@ class ProgramarUrdidoController extends Controller
                         'observaciones' => $orden->Observaciones ?? '',
                         'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? 999999) : $indexEnGrupo,
                         'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
+                        'calidad' => $orden->Calidad ?? null,
+                        'calidadcomentario' => $orden->CalidadComentario ?? null,
                     ];
                 }
             }
@@ -316,7 +318,7 @@ class ProgramarUrdidoController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error al obtener órdenes: ' . $e->getMessage(),
+                'error' => 'Error al obtener órdenes: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -325,9 +327,6 @@ class ProgramarUrdidoController extends Controller
      * Subir prioridad de una orden
      * Intercambia CreatedAt con la orden inmediatamente anterior en el mismo MC Coy
      * (la orden con CreatedAt más reciente se mueve antes)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function subirPrioridad(Request $request): JsonResponse
     {
@@ -372,7 +371,7 @@ class ProgramarUrdidoController extends Controller
             // Obtener la orden anterior
             $ordenAnterior = $ordenesMcCoy->get($posicionActual - 1);
 
-            if (!$ordenAnterior) {
+            if (! $ordenAnterior) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No se encontró la orden anterior',
@@ -398,13 +397,14 @@ class ProgramarUrdidoController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error de validación: ' . $e->getMessage(),
+                'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error al subir prioridad: ' . $e->getMessage(),
+                'error' => 'Error al subir prioridad: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -413,9 +413,6 @@ class ProgramarUrdidoController extends Controller
      * Verificar si hay órdenes con status "En Proceso" por máquina (MC Coy)
      * Retorna true si hay al menos una orden con status "En Proceso" en la misma máquina
      * (excluyendo la orden actual si se proporciona)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function verificarOrdenEnProceso(Request $request): JsonResponse
     {
@@ -456,6 +453,7 @@ class ProgramarUrdidoController extends Controller
                     if ($ordenIdExcluir && $orden->Id == $ordenIdExcluir) {
                         return false;
                     }
+
                     return $ordenMcCoy === $mcCoy;
                 });
 
@@ -481,7 +479,7 @@ class ProgramarUrdidoController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error al verificar órdenes en proceso: ' . $e->getMessage(),
+                'error' => 'Error al verificar órdenes en proceso: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -490,9 +488,6 @@ class ProgramarUrdidoController extends Controller
      * Bajar prioridad de una orden
      * Intercambia CreatedAt con la orden inmediatamente posterior en el mismo MC Coy
      * (la orden con CreatedAt más antiguo se mueve después)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function bajarPrioridad(Request $request): JsonResponse
     {
@@ -537,7 +532,7 @@ class ProgramarUrdidoController extends Controller
             // Obtener la orden posterior
             $ordenPosterior = $ordenesMcCoy->get($posicionActual + 1);
 
-            if (!$ordenPosterior) {
+            if (! $ordenPosterior) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No se encontró la orden posterior',
@@ -563,13 +558,14 @@ class ProgramarUrdidoController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error de validación: ' . $e->getMessage(),
+                'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error al bajar prioridad: ' . $e->getMessage(),
+                'error' => 'Error al bajar prioridad: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -577,9 +573,6 @@ class ProgramarUrdidoController extends Controller
     /**
      * Intercambiar prioridad entre dos órdenes mediante drag and drop
      * Intercambia el campo Prioridad (único globalmente, sin importar MC Coy)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function intercambiarPrioridad(Request $request): JsonResponse
     {
@@ -623,27 +616,25 @@ class ProgramarUrdidoController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error de validación: ' . $e->getMessage(),
+                'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error al intercambiar prioridad: ' . $e->getMessage(),
+                'error' => 'Error al intercambiar prioridad: '.$e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Guardar observaciones de una orden
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function guardarObservaciones(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
+            if (! $this->usuarioPuedeEditar()) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No autorizado',
@@ -666,12 +657,45 @@ class ProgramarUrdidoController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error de validación: ' . $e->getMessage(),
+                'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error al guardar observaciones: ' . $e->getMessage(),
+                'error' => 'Error al guardar observaciones: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function actualizarCalidad(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+                'calidad' => ['required', 'string', Rule::in(['A', 'R', 'O'])],
+                'calidadcomentario' => 'nullable|string|max:60',
+            ]);
+
+            $orden = UrdProgramaUrdido::findOrFail($request->id);
+            $orden->Calidad = $request->calidad;
+            $orden->CalidadComentario = $request->calidadcomentario;
+            $orden->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Calidad actualizada correctamente',
+                'calidad' => $orden->Calidad,
+                'calidadcomentario' => $orden->CalidadComentario,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación: '.$e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al actualizar calidad: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -690,8 +714,9 @@ class ProgramarUrdidoController extends Controller
 
             // Ordenar: primero por prioridad (las que tienen), luego por CreatedAt
             $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                $prioridad = isset($orden->Prioridad) && !empty($orden->Prioridad) ? $orden->Prioridad : 999999;
+                $prioridad = isset($orden->Prioridad) && ! empty($orden->Prioridad) ? $orden->Prioridad : 999999;
                 $fecha = $orden->CreatedAt ? $orden->CreatedAt->timestamp : 999999999;
+
                 return [$prioridad, $fecha];
             })->values();
 
@@ -709,21 +734,18 @@ class ProgramarUrdidoController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error al recalcular prioridades: ' . $e->getMessage());
+            Log::error('Error al recalcular prioridades: '.$e->getMessage());
         }
     }
 
     /**
      * Actualizar el status de una orden
      * Si se cancela, se elimina la prioridad y se recalculan todas las demás
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function actualizarStatus(Request $request): JsonResponse
     {
         try {
-            if (!$this->usuarioPuedeEditar()) {
+            if (! $this->usuarioPuedeEditar()) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No autorizado',
@@ -791,7 +813,7 @@ class ProgramarUrdidoController extends Controller
                 // También cancelar la orden correspondiente en engomado si existe
                 try {
                     $ordenEngomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
-                    if ($ordenEngomado && !in_array($ordenEngomado->Status, ['Cancelado', 'Finalizado'])) {
+                    if ($ordenEngomado && ! in_array($ordenEngomado->Status, ['Cancelado', 'Finalizado'])) {
                         $ordenEngomado->Status = 'Cancelado';
                         $ordenEngomado->Prioridad = null;
                         $ordenEngomado->save();
@@ -833,15 +855,17 @@ class ProgramarUrdidoController extends Controller
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error de validación: ' . $e->getMessage(),
+                'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error al actualizar status: ' . $e->getMessage(),
+                'error' => 'Error al actualizar status: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -850,8 +874,6 @@ class ProgramarUrdidoController extends Controller
      * Obtener todas las órdenes sin agrupar por MC Coy
      * Solo órdenes con status "En Proceso" o "Programado"
      * Si no tienen prioridad, se asignan automáticamente
-     *
-     * @return JsonResponse
      */
     public function getTodasOrdenes(): JsonResponse
     {
@@ -873,8 +895,8 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'InventSizeId',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                ->get();
+                    ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                    ->get();
 
                 $tienePrioridad = true;
             } catch (\Exception $e) {
@@ -892,8 +914,8 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'InventSizeId',
                 ])
-                ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                ->get();
+                    ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                    ->get();
             }
 
             // Inicializar prioridades si no existen
@@ -931,8 +953,8 @@ class ProgramarUrdidoController extends Controller
                             'CreatedAt',
                             'InventSizeId',
                         ])
-                        ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                        ->get();
+                            ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                            ->get();
                     } catch (\Exception $e) {
                         $tienePrioridad = false;
                     }
@@ -942,7 +964,7 @@ class ProgramarUrdidoController extends Controller
             // Ordenar por Prioridad si existe, sino por CreatedAt
             if ($tienePrioridad) {
                 $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                    return isset($orden->Prioridad) && !empty($orden->Prioridad) ? $orden->Prioridad : 999999;
+                    return isset($orden->Prioridad) && ! empty($orden->Prioridad) ? $orden->Prioridad : 999999;
                 })->values();
             } else {
                 $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
@@ -973,16 +995,13 @@ class ProgramarUrdidoController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error al obtener órdenes: ' . $e->getMessage(),
+                'error' => 'Error al obtener órdenes: '.$e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Actualizar prioridades en lote
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function actualizarPrioridades(Request $request): JsonResponse
     {
@@ -1010,15 +1029,17 @@ class ProgramarUrdidoController extends Controller
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error de validación: ' . $e->getMessage(),
+                'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error al actualizar prioridades: ' . $e->getMessage(),
+                'error' => 'Error al actualizar prioridades: '.$e->getMessage(),
             ], 500);
         }
     }

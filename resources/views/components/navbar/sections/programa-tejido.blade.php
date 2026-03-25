@@ -88,13 +88,18 @@
         </a>
 
         <!-- Recalcular fechas -->
-        <button type="button"
-                id="btn-recalcular-fechas"
-                class="w-9 h-9 flex items-center justify-center rounded-full bg-amber-500 text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
-                title="Recalcular fechas de producción"
-                aria-label="Recalcular fechas">
-            <i class="fa-solid fa-rotate text-sm"></i>
-        </button>
+        <x-navbar.button-edit
+            type="button"
+            id="btn-recalcular-fechas"
+            :disabled="false"
+            module="{{ $modulePermission ?? 'Programa Tejido' }}"
+            title="Recalcular fechas de producción"
+            icon="fa-rotate"
+            text=""
+            bg="bg-amber-500"
+            iconColor="text-white"
+            hoverBg="hover:bg-amber-600"
+        />
 
         <!-- Botón Actualizar con Dropdown -->
         <div class="relative">

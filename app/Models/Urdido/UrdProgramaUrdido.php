@@ -8,10 +8,13 @@ use Illuminate\Database\Eloquent\Model;
 class UrdProgramaUrdido extends Model
 {
     protected $connection = 'sqlsrv';
+
     protected $table = 'UrdProgramaUrdido';
 
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     public $timestamps = false;
@@ -42,6 +45,8 @@ class UrdProgramaUrdido extends Model
         'Prioridad',
         'CreatedAt',
         'FechaFinaliza',
+        'Calidad',
+        'CalidadComentario',
     ];
 
     protected $casts = [
@@ -55,13 +60,12 @@ class UrdProgramaUrdido extends Model
         'CreatedAt' => 'datetime',
         'Observaciones' => 'string',
         'FechaFinaliza' => 'date',
+        'Calidad' => 'string',
     ];
 
     /**
      * Extraer el número de MC Coy del campo MaquinaId
      * Ejemplos: "Mc Coy 1" -> 1, "Mc Coy 2" -> 2
-     *
-     * @return int|null
      */
     public function getMcCoyNumberAttribute(): ?int
     {
@@ -109,4 +113,3 @@ class UrdProgramaUrdido extends Model
         return $this->hasMany(UrdConsumoHilo::class, 'Folio', 'Folio')->registrados();
     }
 }
-

@@ -48,13 +48,10 @@ class MoverOrdenesController extends Controller
     public function getTelares(): JsonResponse
     {
         try {
-            $telares = ReqProgramaTejido::query()
+            $telares = \App\Models\Planeacion\ReqTelares::query()
                 ->select('SalonTejidoId', 'NoTelarId')
-                ->whereNotNull('NoProduccion')
-                ->where('NoProduccion', '!=', '')
                 ->whereNotNull('NoTelarId')
                 ->where('NoTelarId', '!=', '')
-                ->distinct()
                 ->orderBy('SalonTejidoId')
                 ->orderBy('NoTelarId')
                 ->get()

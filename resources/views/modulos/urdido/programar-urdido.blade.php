@@ -34,6 +34,17 @@
             bg="bg-green-500"
             module="Programa Urdido"
         />
+        <x-navbar.button-report
+            id="btnCalidad"
+            onclick="abrirModalCalidad()"
+            title="Evaluación de Calidad"
+            icon="fa-clipboard-check"
+            text="Calidad"
+            bg="bg-amber-500"
+            iconColor="text-white"
+            hoverBg="hover:bg-amber-600"
+            module="Programa Urdido"
+        />
     </div>
 @endsection
 
@@ -66,11 +77,12 @@
                                         <th class="{{ $thBaseClasses }}">Metros</th>
                                         <th class="{{ $thBaseClasses }}">Status</th>
                                         <th class="{{ $thBaseClasses }}">Observaciones</th>
+                                        <th class="{{ $thBaseClasses }}">Calidad</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mcCoy{{ $i }}TableBody" class="bg-white">
                                     <tr>
-                                        <td colspan="9" class="px-2 py-2 text-center text-gray-500 text-2xl">
+                                        <td colspan="10" class="px-2 py-2 text-center text-gray-500 text-2xl">
                                             <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
                                         </td>
                                     </tr>
@@ -136,7 +148,61 @@
         </div>
     </div>
 
+    <!-- Modal Evaluación de Calidad -->
+    <div id="modalCalidad" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
+        <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 my-8">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">Evaluación de Calidad</h2>
+                <button type="button" onclick="cerrarModalCalidad()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
 
+            <!-- Body -->
+            <div class="p-6">
+                <p class="mb-4 text-sm text-gray-600">Folio: <strong id="modalCalidadFolio"></strong></p>
+
+                <!-- Opción de calidad - Switch único -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
+                    <div class="flex items-center gap-4">
+                        <button type="button" id="btnCalidadSwitch" onclick="cyclicCalidad()"
+                            class="w-16 h-16 border-2 border-gray-300 rounded-xl flex items-center justify-center text-3xl transition-all duration-200 hover:scale-105">
+                            <span id="calidadIcono">—</span>
+                        </button>
+                        <div class="flex flex-col">
+                            <span id="calidadTexto" class="text-sm font-medium text-gray-500">Sin evaluar</span>
+                            <span class="text-xs text-gray-400">Clic para cambiar</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones textarea -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
+                    <textarea id="calidadcomentario" rows="3" maxlength="60"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="Ingrese observaciones (máx. 60 caracteres)"></textarea>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
+                <button type="button" onclick="cerrarModalCalidad()"
+                    class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
+                    Cancelar
+                </button>
+                <button type="button" onclick="guardarCalidad()"
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         (() => {
@@ -203,8 +269,10 @@
 
             const setButtonsEnabled = (enabled) => {
                 const btnProduccion = document.getElementById('btnIrProduccion');
+                const btnCalidad = document.getElementById('btnCalidad');
 
                 if (btnProduccion) btnProduccion.disabled = !enabled;
+                if (btnCalidad) btnCalidad.disabled = !enabled;
             };
 
             // Badge de tipo (Rizo / Pie / Otro)
@@ -283,7 +351,7 @@
                 if (!ordenes.length) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="9" class="px-2 py-2 text-center text-gray-500 text-xl">
+                            <td colspan="10" class="px-2 py-2 text-center text-gray-500 text-xl">
                                 No hay órdenes pendientes
                             </td>
                         </tr>
@@ -329,6 +397,21 @@
                         `
                         : `<span class="px-2 text-gray-700">${orden.observaciones || ''}</span>`;
 
+                    const calidadCell = orden.calidad
+                        ? (
+                            orden.calidad === 'A'
+                                ? '<span class="text-green-600 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">✓</span>'
+                                : orden.calidad === 'R'
+                                    ? '<span class="text-red-600 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">✗</span>'
+                                    : '<span class="text-yellow-500 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">!</span>'
+                        )
+                        : '<span class="text-gray-300 text-lg">—</span>';
+
+                    const calidadTitle = orden.calidad
+                        ? (orden.calidad === 'A' ? '✓ Aprobado' : orden.calidad === 'R' ? '✗ Rechazado' : '! Observaciones') +
+                          (orden.calidadcomentario ? ': ' + orden.calidadcomentario : '')
+                        : '';
+
                     return `
                         <tr
                             class="${rowClasses} ${rowCursorClass}"
@@ -336,6 +419,7 @@
                             data-mccoy="${mccoy}"
                             data-index="${index}"
                             draggable="${canChangePrioridad ? 'true' : 'false'}"
+                            ${calidadTitle ? `title="${calidadTitle}"` : ''}
                         >
                             <td class="${baseTd} text-center font-semibold">
                                 ${dragIcon}${prioridad}
@@ -350,6 +434,9 @@
                             </td>
                             <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
                                 ${observacionesCell}
+                            </td>
+                            <td class="${baseTd} text-center">
+                                ${calidadCell}
                             </td>
                         </tr>
                     `;
@@ -1119,6 +1206,123 @@
             window.abrirModalEditarPrioridad = abrirModalEditarPrioridad;
             window.cerrarModalEditarPrioridad = cerrarModalEditarPrioridad;
             window.guardarPrioridades = guardarPrioridades;
+            window.abrirModalCalidad = abrirModalCalidad;
+            window.cerrarModalCalidad = cerrarModalCalidad;
+            window.guardarCalidad = guardarCalidad;
+            window.cyclicCalidad = cyclicCalidad;
+
+            let ordenCalidadId = null;
+
+            const estadosCalidad = [null, 'A', 'R', 'O'];
+            const estadoActualIdx = { value: 0 };
+
+            function abrirModalCalidad() {
+                const orden = state.ordenSeleccionada;
+                if (!orden) {
+                    alert('Seleccione un registro');
+                    return;
+                }
+                ordenCalidadId = orden.id;
+                document.getElementById('modalCalidadFolio').textContent = orden.folio || '';
+                document.getElementById('calidadcomentario').value = orden.calidadcomentario || '';
+
+                const calidadActual = orden.calidad || null;
+                estadoActualIdx.value = estadosCalidad.indexOf(calidadActual);
+                if (estadoActualIdx.value === -1) estadoActualIdx.value = 0;
+
+                actualizarDisplayCalidad();
+
+                document.getElementById('modalCalidad').style.display = 'flex';
+            }
+
+            function cyclicCalidad() {
+                estadoActualIdx.value = (estadoActualIdx.value + 1) % estadosCalidad.length;
+                actualizarDisplayCalidad();
+            }
+
+            function actualizarDisplayCalidad() {
+                const calidad = estadosCalidad[estadoActualIdx.value];
+                const btn = document.getElementById('btnCalidadSwitch');
+                const icono = document.getElementById('calidadIcono');
+                const texto = document.getElementById('calidadTexto');
+
+                btn.className = 'w-16 h-16 border-2 rounded-xl flex items-center justify-center text-3xl transition-all duration-200 hover:scale-105';
+
+                if (calidad === 'A') {
+                    icono.textContent = '✓';
+                    icono.className = 'text-green-600';
+                    btn.classList.add('border-green-500', 'bg-green-50');
+                    texto.textContent = 'Aprobado';
+                    texto.className = 'text-sm font-medium text-green-600';
+                } else if (calidad === 'R') {
+                    icono.textContent = '✗';
+                    icono.className = 'text-red-600';
+                    btn.classList.add('border-red-500', 'bg-red-50');
+                    texto.textContent = 'Rechazado';
+                    texto.className = 'text-sm font-medium text-red-600';
+                } else if (calidad === 'O') {
+                    icono.textContent = '!';
+                    icono.className = 'text-yellow-500';
+                    btn.classList.add('border-yellow-500', 'bg-yellow-50');
+                    texto.textContent = 'Con Observaciones';
+                    texto.className = 'text-sm font-medium text-yellow-500';
+                } else {
+                    icono.textContent = '—';
+                    icono.className = 'text-gray-400';
+                    btn.classList.add('border-gray-300');
+                    texto.textContent = 'Sin evaluar';
+                    texto.className = 'text-sm font-medium text-gray-500';
+                }
+            }
+
+            function cerrarModalCalidad() {
+                document.getElementById('modalCalidad').style.display = 'none';
+                ordenCalidadId = null;
+            }
+
+            function guardarCalidad() {
+                const calidad = estadosCalidad[estadoActualIdx.value];
+                const calidadcomentario = document.getElementById('calidadcomentario').value;
+
+                if (!calidad) {
+                    Swal.fire({ icon: 'warning', title: 'Seleccione un estado', timer: 1500, showConfirmButton: false });
+                    return;
+                }
+
+                fetch('/urdido/programar-urdido/actualizar-calidad', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ id: ordenCalidadId, calidad, calidadcomentario })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        for (let mccoy = 1; mccoy <= 4; mccoy++) {
+                            const ordenIdx = (state.ordenes[mccoy] || []).findIndex(o => o.id === ordenCalidadId);
+                            if (ordenIdx !== -1) {
+                                state.ordenes[mccoy][ordenIdx].calidad = data.calidad;
+                                state.ordenes[mccoy][ordenIdx].calidadcomentario = data.calidadcomentario;
+                                break;
+                            }
+                        }
+                        cerrarModalCalidad();
+                        renderAllTables();
+                        const calidadTexto = calidad === 'A' ? 'Aprobado' : calidad === 'R' ? 'Rechazado' : 'Con observaciones';
+                        const msg = data.calidadcomentario
+                            ? `${calidadTexto}: ${data.calidadcomentario}`
+                            : calidadTexto;
+                        Swal.fire({ icon: 'success', title: '¡Guardado!', text: msg, timer: 2000, showConfirmButton: false });
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error', timer: 2000, showConfirmButton: false });
+                    }
+                })
+                .catch(err => {
+                    Swal.fire({ icon: 'error', title: 'Error de conexión', text: err.message, timer: 2000, showConfirmButton: false });
+                });
+            }
 
             // ==========================
             // Init
