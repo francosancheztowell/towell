@@ -670,13 +670,6 @@ class ProgramarUrdidoController extends Controller
     public function actualizarCalidad(Request $request): JsonResponse
     {
         try {
-            if (! $this->usuarioPuedeEditar()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No autorizado',
-                ], 403);
-            }
-
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'calidad' => ['required', 'string', Rule::in(['A', 'R', 'O'])],
