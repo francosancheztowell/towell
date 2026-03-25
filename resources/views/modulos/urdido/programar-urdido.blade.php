@@ -1208,6 +1208,7 @@
             window.abrirModalCalidad = abrirModalCalidad;
             window.cerrarModalCalidad = cerrarModalCalidad;
             window.guardarCalidad = guardarCalidad;
+            window.cyclicCalidad = cyclicCalidad;
 
             let ordenCalidadId = null;
 
