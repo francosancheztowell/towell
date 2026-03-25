@@ -685,7 +685,7 @@ class ProgramarUrdidoController extends Controller
             $orden = UrdProgramaUrdido::findOrFail($request->id);
             $orden->Calidad = $request->calidad;
             $orden->CalidadComentario = $request->calidadcomentario;
-            $orden->AutorizaCalidad = Auth::user()->name;
+            $orden->AutorizaCalidad = Auth::user()->nombre;
             $orden->FechaCalidad = now();
             $orden->save();
 
