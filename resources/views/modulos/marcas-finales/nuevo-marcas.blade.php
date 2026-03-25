@@ -60,8 +60,8 @@
         </div>
         <div class="p-4 space-y-3">
             <div>
-                <label for="select-fecha-folio" class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                <select id="select-fecha-folio" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"></select>
+                <label for="input-fecha-folio" class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                <input type="date" id="input-fecha-folio" class="w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="{{ Carbon\Carbon::now()->format('Y-m-d') }}">
             </div>
             <div>
                 <label for="select-turno-folio" class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
@@ -520,29 +520,12 @@ function abrirModalFechaTurno() {
         const btnClose = q('#modal-fecha-turno-close');
         const btnCancel = q('#modal-fecha-turno-cancel');
         const btnOk = q('#modal-fecha-turno-ok');
-        const selectFecha = q('#select-fecha-folio');
+        const inputFecha = q('#input-fecha-folio');
         const selectTurno = q('#select-turno-folio');
 
-        if (!modal || !selectFecha || !selectTurno) {
+        if (!modal || !inputFecha || !selectTurno) {
             reject();
             return;
-        }
-
-        // Cargar fechas (últimos 7 días incluyendo hoy)
-        selectFecha.innerHTML = '';
-        const hoy = new Date();
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(hoy);
-            d.setDate(hoy.getDate() - i);
-            const yyyy = d.getFullYear();
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            const value = `${yyyy}-${mm}-${dd}`;
-            const label = d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const opt = document.createElement('option');
-            opt.value = value;
-            opt.textContent = label;
-            selectFecha.appendChild(opt);
         }
 
         selectTurno.value = String(TURNO_ACTUAL || 1);
@@ -557,7 +540,7 @@ function abrirModalFechaTurno() {
         };
 
         const onOk = () => {
-            const fecha = selectFecha.value;
+            const fecha = inputFecha.value;
             const turno = selectTurno.value;
             if (!fecha || !turno) {
                 Swal.fire('Aviso', 'Selecciona fecha y turno.', 'warning');
