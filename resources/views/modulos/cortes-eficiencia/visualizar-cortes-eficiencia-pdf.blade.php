@@ -8,13 +8,13 @@
 
         // Escalado dinámico para conservar 1 sola hoja.
         if ($totalFilas >= 44) {
-            $bodySize = '7.1px';
-            $thSize = '7.3px';
-            $tdSize = '7.1px';
-            $efSize = '8.9px';
-            $commentSize = '6px';
-            $telarSize = '8.3px';
-            $rpmSize = '8.3px';
+            $bodySize = '9.2px';
+            $thSize = '9.4px';
+            $tdSize = '9.2px';
+            $efSize = '12.9px';
+            $commentSize = '9px';
+            $telarSize = '11.2px';
+            $rpmSize = '11.8px';
             $focusCellHeight = '11px';
             $turnoHdrSize = '8px';
             $horarioHdrSize = '7.7px';
@@ -25,13 +25,13 @@
             $titleSize = '10.1px';
             $fitScale = 0.90;
         } elseif ($totalFilas >= 36) {
-            $bodySize = '7.4px';
-            $thSize = '7.6px';
-            $tdSize = '7.4px';
-            $efSize = '9.3px';
-            $commentSize = '6.2px';
-            $telarSize = '8.7px';
-            $rpmSize = '8.7px';
+            $bodySize = '9.5px';
+            $thSize = '9.7px';
+            $tdSize = '9.5px';
+            $efSize = '13.4px';
+            $commentSize = '9.3px';
+            $telarSize = '11.9px';
+            $rpmSize = '11.9px';
             $focusCellHeight = '11.6px';
             $turnoHdrSize = '8.4px';
             $horarioHdrSize = '8.1px';
@@ -42,13 +42,13 @@
             $titleSize = '10.5px';
             $fitScale = 0.93;
         } elseif ($totalFilas >= 28) {
-            $bodySize = '7.8px';
-            $thSize = '8px';
-            $tdSize = '7.8px';
-            $efSize = '9.9px';
-            $commentSize = '6.5px';
-            $telarSize = '9.1px';
-            $rpmSize = '9.1px';
+            $bodySize = '9.9px';
+            $thSize = '10.1px';
+            $tdSize = '9.9px';
+            $efSize = '14.2px';
+            $commentSize = '9.9px';
+            $telarSize = '12.6px';
+            $rpmSize = '12.6px';
             $focusCellHeight = '12.4px';
             $turnoHdrSize = '8.8px';
             $horarioHdrSize = '8.5px';
@@ -59,13 +59,13 @@
             $titleSize = '10.9px';
             $fitScale = 0.96;
         } else {
-            $bodySize = '8.3px';
-            $thSize = '8.5px';
-            $tdSize = '8.3px';
-            $efSize = '10.5px';
-            $commentSize = '6.9px';
-            $telarSize = '9.7px';
-            $rpmSize = '9.7px';
+            $bodySize = '10.4px';
+            $thSize = '10.6px';
+            $tdSize = '10.4px';
+            $efSize = '15.4px';
+            $commentSize = '10.6px';
+            $telarSize = '13.8px';
+            $rpmSize = '13.8px';
             $focusCellHeight = '13.2px';
             $turnoHdrSize = '9.3px';
             $horarioHdrSize = '8.9px';
@@ -82,7 +82,7 @@
 
         @page {
             size: A4 landscape;
-            margin: {{ $marginPage }};
+            margin: {{ $marginPage }} {{ $marginPage }} 0mm {{ $marginPage }};
         }
 
         body {
@@ -256,10 +256,7 @@
 
         /* ── Footer ── */
         .footer {
-            margin-top: 3px;
-            font-size: 6.6px;
-            color: #6b7280;
-            text-align: center;
+            display: none;
         }
     </style>
 </head>
@@ -419,10 +416,7 @@
         </tbody>
     </table>
 
-    {{-- ── Footer ── --}}
-    <div class="footer">
-        Generado el {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}
-    </div>
+    {{-- ── Footer (oculto para ganar espacio) ── --}}
     </div>
 
 </body>

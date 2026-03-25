@@ -45,7 +45,7 @@
                                 <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">Peso promedio por julio</th>
                                 <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">Metros promedio por julio</th>
                                 <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white">Cuenta promedio por julio</th>
-                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white bg-yellow-400 text-black">EFICIENCIA EN %</th>
+                                <th class="px-2 py-1 text-center font-semibold text-xs border border-gray-300 text-white bg-yellow-400">EFICIENCIA EN %</th>
                             </tr>
                         </thead>
                         <tbody>

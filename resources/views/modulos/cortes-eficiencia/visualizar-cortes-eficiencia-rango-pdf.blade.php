@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{{-- <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -159,4 +159,4 @@
         </div>
     @endforeach
 </body>
-</html>
+</html> --}}
