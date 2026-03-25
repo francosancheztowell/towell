@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
@@ -688,6 +689,34 @@ class ProgramarUrdidoController extends Controller
             $orden->AutorizaCalidad = Auth::user()->nombre;
             $orden->FechaCalidad = now();
             $orden->save();
+
+            $estadoTexto = match ($request->calidad) {
+                'A' => '✅ Aprobado',
+                'R' => '❌ Rechazado',
+                'O' => '⚠️ Con observaciones',
+            };
+
+            $mensaje = "🏭 *CALIDAD URDIDO*\n\n";
+            $mensaje .= "✅ Autorizó: {$orden->AutorizaCalidad}\n";
+            $mensaje .= "📅 Fecha: {$orden->FechaCalidad->format('d/m/Y H:i')}\n";
+            $mensaje .= "📋 Folio: {$orden->Folio}\n";
+            $mensaje .= "📏 Metros: " . round($orden->Metros ?? 0) . "\n";
+            $mensaje .= "⚙️ Configuración: {$orden->Fibra}\n";
+            $mensaje .= "🧶 Fibra: {$orden->Fibra}\n";
+            $mensaje .= "📐 Cuenta: {$orden->InventSizeId}\n\n";
+            $mensaje .= "{$estadoTexto}\n";
+            if ($request->calidadcomentario) {
+                $mensaje .= "💬 Comentario: {$request->calidadcomentario}";
+            }
+
+            try {
+                Http::post('http://localhost/telegram/send-message', [
+                    'mensaje' => $mensaje,
+                    'modulo' => 'UrdidoCalidad',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Error al enviar telegram de calidad urdido: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
