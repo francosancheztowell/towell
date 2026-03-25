@@ -164,38 +164,31 @@
             <div class="p-6">
                 <p class="mb-4 text-sm text-gray-600">Folio: <strong id="modalCalidadFolio"></strong></p>
 
-                <!-- Opciones de calidad -->
+                <!-- Opción de calidad - Switch único -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
-                    <div class="flex gap-4">
-                        <!-- Aprobado -->
-                        <label class="flex flex-col items-center cursor-pointer">
-                            <input type="radio" name="calidad" value="A" class="sr-only peer">
-                            <div class="w-14 h-14 border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl peer-checked:border-green-500 peer-checked:bg-green-50 hover:border-green-400 transition">
-                                <span class="text-green-600">✓</span>
-                            </div>
-                            <span class="mt-1 text-xs text-green-600 font-medium">Aprobado</span>
-                        </label>
-                        <!-- Rechazado -->
-                        <label class="flex flex-col items-center cursor-pointer">
-                            <input type="radio" name="calidad" value="R" class="sr-only peer">
-                            <div class="w-14 h-14 border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl peer-checked:border-red-500 peer-checked:bg-red-50 hover:border-red-400 transition">
-                                <span class="text-red-600">✗</span>
-                            </div>
-                            <span class="mt-1 text-xs text-red-600 font-medium">Rechazado</span>
-                        </label>
-                        <!-- Observaciones -->
-                        <label class="flex flex-col items-center cursor-pointer">
-                            <input type="radio" name="calidad" value="O" class="sr-only peer">
-                            <div class="w-14 h-14 border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl peer-checked:border-yellow-500 peer-checked:bg-yellow-50 hover:border-yellow-400 transition">
-                                <span class="text-yellow-500">!</span>
-                            </div>
-                            <span class="mt-1 text-xs text-yellow-500 font-medium">Obs.</span>
-                        </label>
+                    <div class="flex items-center gap-4">
+                        <button type="button" id="btnCalidadSwitch" onclick="cyclicCalidad()"
+                            class="w-16 h-16 border-2 border-gray-300 rounded-xl flex items-center justify-center text-3xl transition-all duration-200 hover:scale-105">
+                            <span id="calidadIcono">—</span>
+                        </button>
+                        <div class="flex flex-col">
+                            <span id="calidadTexto" class="text-sm font-medium text-gray-500">Sin evaluar</span>
+                            <span class="text-xs text-gray-400">Clic para cambiar</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Observaciones textarea -->
+                <!-- Observaciones textarea (solo visible si calidad es O) -->
+                <div id="observacionesContainer" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
+                    <textarea id="calidadcomentario" rows="3" maxlength="60"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        placeholder="Ingrese observaciones (máx. 60 caracteres)"></textarea>
+                </div>
+
+                <!-- Hidden input para guardar el valor de calidad -->
+                <input type="hidden" id="calidadValor" value="">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
                     <textarea id="calidadcomentario" rows="3" maxlength="60"
@@ -1218,6 +1211,9 @@
 
             let ordenCalidadId = null;
 
+            const estadosCalidad = [null, 'A', 'R', 'O'];
+            const estadoActualIdx = { value: 0 };
+
             function abrirModalCalidad() {
                 const orden = state.ordenSeleccionada;
                 if (!orden) {
@@ -1226,11 +1222,62 @@
                 }
                 ordenCalidadId = orden.id;
                 document.getElementById('modalCalidadFolio').textContent = orden.folio || '';
-                document.querySelectorAll('input[name="calidad"]').forEach(r => {
-                    r.checked = r.value === orden.calidad;
-                });
                 document.getElementById('calidadcomentario').value = orden.calidadcomentario || '';
+
+                const calidadActual = orden.calidad || null;
+                estadoActualIdx.value = estadosCalidad.indexOf(calidadActual);
+                if (estadoActualIdx.value === -1) estadoActualIdx.value = 0;
+
+                actualizarDisplayCalidad();
+
+                const obsContainer = document.getElementById('observacionesContainer');
+                obsContainer.classList.toggle('hidden', calidadActual !== 'O');
+
                 document.getElementById('modalCalidad').style.display = 'flex';
+            }
+
+            function cyclicCalidad() {
+                estadoActualIdx.value = (estadoActualIdx.value + 1) % estadosCalidad.length;
+                actualizarDisplayCalidad();
+
+                const calidadActual = estadosCalidad[estadoActualIdx.value];
+                const obsContainer = document.getElementById('observacionesContainer');
+                obsContainer.classList.toggle('hidden', calidadActual !== 'O');
+            }
+
+            function actualizarDisplayCalidad() {
+                const calidad = estadosCalidad[estadoActualIdx.value];
+                const btn = document.getElementById('btnCalidadSwitch');
+                const icono = document.getElementById('calidadIcono');
+                const texto = document.getElementById('calidadTexto');
+
+                btn.className = 'w-16 h-16 border-2 rounded-xl flex items-center justify-center text-3xl transition-all duration-200 hover:scale-105';
+
+                if (calidad === 'A') {
+                    icono.textContent = '✓';
+                    icono.className = 'text-green-600';
+                    btn.classList.add('border-green-500', 'bg-green-50');
+                    texto.textContent = 'Aprobado';
+                    texto.className = 'text-sm font-medium text-green-600';
+                } else if (calidad === 'R') {
+                    icono.textContent = '✗';
+                    icono.className = 'text-red-600';
+                    btn.classList.add('border-red-500', 'bg-red-50');
+                    texto.textContent = 'Rechazado';
+                    texto.className = 'text-sm font-medium text-red-600';
+                } else if (calidad === 'O') {
+                    icono.textContent = '!';
+                    icono.className = 'text-yellow-500';
+                    btn.classList.add('border-yellow-500', 'bg-yellow-50');
+                    texto.textContent = 'Con Observaciones';
+                    texto.className = 'text-sm font-medium text-yellow-500';
+                } else {
+                    icono.textContent = '—';
+                    icono.className = 'text-gray-400';
+                    btn.classList.add('border-gray-300');
+                    texto.textContent = 'Sin evaluar';
+                    texto.className = 'text-sm font-medium text-gray-500';
+                }
             }
 
             function cerrarModalCalidad() {
@@ -1239,12 +1286,14 @@
             }
 
             function guardarCalidad() {
-                const calidad = document.querySelector('input[name="calidad"]:checked')?.value;
+                const calidad = estadosCalidad[estadoActualIdx.value];
                 const calidadcomentario = document.getElementById('calidadcomentario').value;
+
                 if (!calidad) {
                     alert('Seleccione un estado de calidad');
                     return;
                 }
+
                 fetch('/urdido/programar-urdido/actualizar-calidad', {
                     method: 'POST',
                     headers: {
