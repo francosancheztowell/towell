@@ -59,6 +59,7 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::post('/programar-urdido/intercambiar-prioridad', [ProgramarUrdidoController::class, 'intercambiarPrioridad'])->name('programar.urdido.intercambiar.prioridad');
     Route::post('/programar-urdido/actualizar-prioridades', [ProgramarUrdidoController::class, 'actualizarPrioridades'])->name('programar.urdido.actualizar.prioridades');
     Route::post('/programar-urdido/guardar-observaciones', [ProgramarUrdidoController::class, 'guardarObservaciones'])->name('programar.urdido.guardar.observaciones');
+    Route::post('/programar-urdido/actualizar-calidad', [ProgramarUrdidoController::class, 'actualizarCalidad'])->name('programar.urdido.actualizar.calidad');
     Route::post('/programar-urdido/actualizar-status', [ProgramarUrdidoController::class, 'actualizarStatus'])->name('programar.urdido.actualizar.status');
     Route::get('/reimpresion-urdido', [ProgramarUrdidoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
     Route::get('/reimpresion-urdido/ventana-imprimir', [ProgramarUrdidoController::class, 'reimpresionVentanaImprimir'])->name('reimpresion.urdido.ventana.imprimir');
