@@ -188,6 +188,8 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                     'InventSizeId',
+                    'calidad',
+                    'calidadcomentario',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
@@ -210,6 +212,8 @@ class ProgramarUrdidoController extends Controller
                     'CreatedAt',
                     'Observaciones',
                     'InventSizeId',
+                    'calidad',
+                    'calidadcomentario',
                 ])
                 ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                 ->whereNotNull('MaquinaId')
@@ -305,6 +309,8 @@ class ProgramarUrdidoController extends Controller
                         'observaciones' => $orden->Observaciones ?? '',
                         'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? 999999) : $indexEnGrupo,
                         'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
+                        'calidad' => $orden->calidad ?? null,
+                        'calidadcomentario' => $orden->calidadcomentario ?? null,
                     ];
                 }
             }
