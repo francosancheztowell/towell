@@ -196,9 +196,9 @@
                     class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                     Cancelar
                 </button>
-                <button type="button" onclick="guardarCalidad()"
-                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
-                    Guardar
+                <button type="button" id="btnGuardarCalidad" onclick="guardarCalidad()"
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="btnGuardarCalidadText">Guardar</span>
                 </button>
             </div>
         </div>
@@ -1281,6 +1281,8 @@
             }
 
             function guardarCalidad() {
+                const btn = document.getElementById('btnGuardarCalidad');
+                const btnText = document.getElementById('btnGuardarCalidadText');
                 const calidad = estadosCalidad[estadoActualIdx.value];
                 const calidadcomentario = document.getElementById('calidadcomentario').value;
 
@@ -1288,6 +1290,9 @@
                     Swal.fire({ icon: 'warning', title: 'Seleccione un estado', timer: 1500, showConfirmButton: false });
                     return;
                 }
+
+                btn.disabled = true;
+                btnText.textContent = 'Guardando...';
 
                 fetch('/urdido/programar-urdido/actualizar-calidad', {
                     method: 'POST',
@@ -1317,10 +1322,14 @@
                         Swal.fire({ icon: 'success', title: '¡Guardado!', text: msg, timer: 2000, showConfirmButton: false });
                     } else {
                         Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error', timer: 2000, showConfirmButton: false });
+                        btn.disabled = false;
+                        btnText.textContent = 'Guardar';
                     }
                 })
                 .catch(err => {
                     Swal.fire({ icon: 'error', title: 'Error de conexión', text: err.message, timer: 2000, showConfirmButton: false });
+                    btn.disabled = false;
+                    btnText.textContent = 'Guardar';
                 });
             }
 
