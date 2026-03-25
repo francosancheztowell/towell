@@ -47,6 +47,8 @@ class UrdProgramaUrdido extends Model
         'FechaFinaliza',
         'Calidad',
         'CalidadComentario',
+        'AutorizaCalidad',
+        'FechaCalidad',
     ];
 
     protected $casts = [
@@ -61,6 +63,7 @@ class UrdProgramaUrdido extends Model
         'Observaciones' => 'string',
         'FechaFinaliza' => 'date',
         'Calidad' => 'string',
+        'FechaCalidad' => 'datetime',
     ];
 
     /**

@@ -186,6 +186,8 @@ class ProgramarUrdidoController extends Controller
                     'InventSizeId',
                     'Calidad',
                     'CalidadComentario',
+                    'AutorizaCalidad',
+                    'FechaCalidad',
                 ])
                     ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                     ->whereNotNull('MaquinaId')
@@ -210,6 +212,8 @@ class ProgramarUrdidoController extends Controller
                     'InventSizeId',
                     'Calidad',
                     'CalidadComentario',
+                    'AutorizaCalidad',
+                    'FechaCalidad',
                 ])
                     ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                     ->whereNotNull('MaquinaId')
@@ -307,6 +311,8 @@ class ProgramarUrdidoController extends Controller
                         'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
                         'calidad' => $orden->Calidad ?? null,
                         'calidadcomentario' => $orden->CalidadComentario ?? null,
+                        'autoriza_calidad' => $orden->AutorizaCalidad ?? null,
+                        'fecha_calidad' => $orden->FechaCalidad ? $orden->FechaCalidad->format('Y-m-d H:i:s') : null,
                     ];
                 }
             }
@@ -679,6 +685,8 @@ class ProgramarUrdidoController extends Controller
             $orden = UrdProgramaUrdido::findOrFail($request->id);
             $orden->Calidad = $request->calidad;
             $orden->CalidadComentario = $request->calidadcomentario;
+            $orden->AutorizaCalidad = Auth::user()->name;
+            $orden->FechaCalidad = now();
             $orden->save();
 
             return response()->json([
@@ -686,6 +694,8 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Calidad actualizada correctamente',
                 'calidad' => $orden->Calidad,
                 'calidadcomentario' => $orden->CalidadComentario,
+                'autoriza_calidad' => $orden->AutorizaCalidad,
+                'fecha_calidad' => $orden->FechaCalidad,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
