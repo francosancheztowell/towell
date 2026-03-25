@@ -66,11 +66,12 @@
                                         <th class="{{ $thBaseClasses }}">Metros</th>
                                         <th class="{{ $thBaseClasses }}">Status</th>
                                         <th class="{{ $thBaseClasses }}">Observaciones</th>
+                                        <th class="{{ $thBaseClasses }}">Calidad</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mcCoy{{ $i }}TableBody" class="bg-white">
                                     <tr>
-                                        <td colspan="9" class="px-2 py-2 text-center text-gray-500 text-2xl">
+                                        <td colspan="10" class="px-2 py-2 text-center text-gray-500 text-2xl">
                                             <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
                                         </td>
                                     </tr>
@@ -283,7 +284,7 @@
                 if (!ordenes.length) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="9" class="px-2 py-2 text-center text-gray-500 text-xl">
+                            <td colspan="10" class="px-2 py-2 text-center text-gray-500 text-xl">
                                 No hay órdenes pendientes
                             </td>
                         </tr>
@@ -329,6 +330,16 @@
                         `
                         : `<span class="px-2 text-gray-700">${orden.observaciones || ''}</span>`;
 
+                    const calidadCell = orden.calidad
+                        ? (
+                            orden.calidad === 'A'
+                                ? '<span class="text-green-600 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">✓</span>'
+                                : orden.calidad === 'R'
+                                    ? '<span class="text-red-600 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">✗</span>'
+                                    : '<span class="text-yellow-500 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">!</span>'
+                        )
+                        : '<span class="text-gray-300 text-lg">—</span>';
+
                     return `
                         <tr
                             class="${rowClasses} ${rowCursorClass}"
@@ -350,6 +361,9 @@
                             </td>
                             <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
                                 ${observacionesCell}
+                            </td>
+                            <td class="${baseTd} text-center">
+                                ${calidadCell}
                             </td>
                         </tr>
                     `;
