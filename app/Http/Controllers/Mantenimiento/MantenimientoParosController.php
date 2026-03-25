@@ -227,8 +227,10 @@ class MantenimientoParosController extends Controller
     /**
      * Fallas por departamento desde CatParosFallas.
      *
-     * Nota: Para Jacquard, Itema, Karl Mayer y Smith, se usa "Tejido" como departamento
-     * en CatParosFallas para obtener las fallas.
+     * Nota:
+     * - Los departamentos de tejido reutilizan el catálogo "Tejido".
+     * - Para Calidad se consulta primero "Calidad" y también "Tejido"
+     *   para conservar compatibilidad con catálogos anteriores.
      *
      * Si se proporciona tipoFallaId, se filtran las fallas por ese tipo.
      */
@@ -237,21 +239,33 @@ class MantenimientoParosController extends Controller
         try {
             $depUpper = strtoupper(trim($departamento));
 
-            // Mapear departamentos de tejido a "Tejido" en CatParosFallas.
-            $departamentoParaConsulta = $departamento;
-            if (in_array($depUpper, ['JACQUARD', 'ITEMA', 'KARL MAYER', 'KARLMAYER', 'SMITH', 'TEJEDORES', 'TRMA', 'CALIDAD', 'DESARROLLADORES', 'SUPERVISORES'], true)) {
-                $departamentoParaConsulta = 'Tejido';
+            $departamentosConsulta = [$departamento];
+
+            // Los departamentos de tejido consumen el catálogo base de Tejido.
+            if (in_array($depUpper, ['JACQUARD', 'ITEMA', 'KARL MAYER', 'KARLMAYER', 'SMITH', 'TEJEDORES', 'TRMA', 'TRAMA', 'DESARROLLADORES', 'SUPERVISORES'], true)) {
+                $departamentosConsulta = ['Tejido'];
+            } elseif ($depUpper === 'CALIDAD') {
+                // Calidad puede tener catálogo propio; si no, sigue viendo el catálogo heredado de Tejido.
+                $departamentosConsulta = ['Calidad', 'Tejido'];
             }
 
             $query = CatParosFallas::query()
-                ->where('Departamento', $departamentoParaConsulta);
+                ->whereIn('Departamento', $departamentosConsulta);
 
             if (! empty($tipoFallaId)) {
                 $query->where('TipoFallaId', $tipoFallaId);
             }
 
-            $items = $query->orderBy('Falla')
-                ->get(['Falla', 'Descripcion', 'Abreviado', 'Seccion', 'TipoFallaId']);
+            $items = $query
+                ->orderByRaw("CASE WHEN Departamento = ? THEN 0 ELSE 1 END", ['Calidad'])
+                ->orderBy('Falla')
+                ->get(['Falla', 'Descripcion', 'Abreviado', 'Seccion', 'TipoFallaId', 'Departamento'])
+                ->unique(function ($item) {
+                    return mb_strtoupper(trim((string) $item->Falla))
+                        . '|'
+                        . mb_strtoupper(trim((string) ($item->Descripcion ?? '')));
+                })
+                ->values();
 
             return response()->json([
                 'success' => true,
@@ -468,13 +482,17 @@ class MantenimientoParosController extends Controller
             return 'ReporteTiempoMuerto';
         }
 
+        if (str_contains($n, 'CALIDAD')) {
+            return 'Calidad';
+        }
+
         return null;
     }
 
     /**
      * Enviar notificación a Telegram con los detalles del paro reportado.
      * Destinatarios: SYSMensajes con la columna según tipo de falla
-     * (ReporteElectrico, ReporteMecanico, ReporteTiempoMuerto) y Activo=1.
+     * (ReporteElectrico, ReporteMecanico, ReporteTiempoMuerto, Calidad) y Activo=1.
      */
     private function enviarNotificacionTelegram($paro, $usuario): void
     {

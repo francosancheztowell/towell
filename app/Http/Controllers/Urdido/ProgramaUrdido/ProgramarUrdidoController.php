@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
@@ -186,6 +187,8 @@ class ProgramarUrdidoController extends Controller
                     'InventSizeId',
                     'Calidad',
                     'CalidadComentario',
+                    'AutorizaCalidad',
+                    'FechaCalidad',
                 ])
                     ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                     ->whereNotNull('MaquinaId')
@@ -210,6 +213,8 @@ class ProgramarUrdidoController extends Controller
                     'InventSizeId',
                     'Calidad',
                     'CalidadComentario',
+                    'AutorizaCalidad',
+                    'FechaCalidad',
                 ])
                     ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
                     ->whereNotNull('MaquinaId')
@@ -307,6 +312,8 @@ class ProgramarUrdidoController extends Controller
                         'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
                         'calidad' => $orden->Calidad ?? null,
                         'calidadcomentario' => $orden->CalidadComentario ?? null,
+                        'autoriza_calidad' => $orden->AutorizaCalidad ?? null,
+                        'fecha_calidad' => $orden->FechaCalidad ? $orden->FechaCalidad->format('Y-m-d H:i:s') : null,
                     ];
                 }
             }
@@ -679,13 +686,54 @@ class ProgramarUrdidoController extends Controller
             $orden = UrdProgramaUrdido::findOrFail($request->id);
             $orden->Calidad = $request->calidad;
             $orden->CalidadComentario = $request->calidadcomentario;
+            $orden->AutorizaCalidad = Auth::user()->nombre;
+            $orden->FechaCalidad = now();
             $orden->save();
+
+            $estadoTexto = match ($request->calidad) {
+                'A' => '✅ Aprobado',
+                'R' => '❌ Rechazado',
+                'O' => '⚠️ Con observaciones',
+            };
+
+            $mensaje = "🏭 *CALIDAD URDIDO*\n\n";
+            $mensaje .= "📋 Folio: {$orden->Folio}\n";
+            $mensaje .= "📅 Fecha: {$orden->FechaCalidad->format('d/m/Y H:i')}\n";
+            $mensaje .= "👷‍♂️ Realizó: {$orden->AutorizaCalidad}\n";
+            $mensaje .= "🏭 Maquina: {$orden->MaquinaId}\n";
+            $mensaje .= "🏭 Lote Prov: {$orden->LoteProveedor}\n";
+            $mensaje .= "⚙️ Fibra: {$orden->Fibra}\n";
+            $mensaje .= "📐 Cuenta: {$orden->InventSizeId}\n\n";
+            $mensaje .= "Status: {$estadoTexto}\n";
+            if ($request->calidadcomentario) {
+                $mensaje .= "💬 Obs: {$request->calidadcomentario}";
+            }
+
+            $botToken = config('services.telegram.bot_token');
+            $chatIds = \App\Models\Sistema\SYSMensaje::getChatIdsPorModulo('UrdidoCalidad');
+
+            if (! empty($botToken) && ! empty($chatIds)) {
+                $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+                foreach ($chatIds as $chatId) {
+                    try {
+                        Http::timeout(10)->post($url, [
+                            'chat_id' => $chatId,
+                            'text' => $mensaje,
+                            'parse_mode' => 'Markdown',
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning('Error al enviar telegram calidad urdido: ' . $e->getMessage());
+                    }
+                }
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Calidad actualizada correctamente',
                 'calidad' => $orden->Calidad,
                 'calidadcomentario' => $orden->CalidadComentario,
+                'autoriza_calidad' => $orden->AutorizaCalidad,
+                'fecha_calidad' => $orden->FechaCalidad,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([

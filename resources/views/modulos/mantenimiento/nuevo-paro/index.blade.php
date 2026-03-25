@@ -291,19 +291,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        let url = '';
+
         try {
-            // Para Jacquard, Itema, Karl Mayer, Smith, Tejedores, TRMA, Calidad, Desarrolladores y Supervisores, usar "Tejido" en la consulta
-            const depUpper = departamento.toUpperCase().trim();
-            let departamentoParaConsulta = departamento;
-
-            if (depUpper === 'JACQUARD' || depUpper === 'ITEMA' ||
-                depUpper === 'KARL MAYER' || depUpper === 'KARLMAYER' || depUpper === 'SMITH' ||
-                depUpper === 'TEJEDORES' || depUpper === 'TRAMA' || depUpper === 'CALIDAD' || depUpper === 'DESARROLLADORES' || depUpper === 'SUPERVISORES') {
-                departamentoParaConsulta = 'Tejido';
-            }
-
-            // Construir URL con tipo de falla si está seleccionado
-            let url = `{{ url('/api/mantenimiento/fallas') }}/${encodeURIComponent(departamentoParaConsulta)}`;
+            // El backend resuelve cuándo un departamento comparte catálogo con Tejido.
+            url = `{{ url('/api/mantenimiento/fallas') }}/${encodeURIComponent(departamento)}`;
             if (tipoFallaId) {
                 url += `/${encodeURIComponent(tipoFallaId)}`;
             }
@@ -706,4 +698,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endsection
-

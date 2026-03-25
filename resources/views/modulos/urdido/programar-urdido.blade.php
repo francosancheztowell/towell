@@ -148,7 +148,7 @@
         </div>
     </div>
 
-    <!-- Modal Evaluación de Calidad -->
+    <!-- Modal Detalle de Calidad (EDICIÓN) -->
     <div id="modalCalidad" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
         <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 my-8">
             <!-- Header -->
@@ -196,9 +196,70 @@
                     class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                     Cancelar
                 </button>
-                <button type="button" onclick="guardarCalidad()"
-                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
-                    Guardar
+                <button type="button" id="btnGuardarCalidad" onclick="guardarCalidad()"
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="btnGuardarCalidadText">Guardar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ver Calidad (SOLO LECTURA) -->
+    <div id="modalVerCalidad" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
+        <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 my-8">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">Detalle de Calidad</h2>
+                <button type="button" onclick="cerrarModalVerCalidad()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6">
+                <p class="mb-4 text-sm text-gray-600">Folio: <strong id="modalVerCalidadFolio"></strong></p>
+
+                <!-- Estado (solo lectura) -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
+                    <div class="flex items-center gap-4">
+                        <div id="modalVerCalidadIconoContainer"
+                            class="w-16 h-16 border-2 border-gray-300 rounded-xl flex items-center justify-center text-3xl bg-gray-50">
+                            <span id="modalVerCalidadIcono">—</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span id="modalVerCalidadTexto" class="text-sm font-medium text-gray-500">Sin evaluar</span>
+                            <span class="text-xs text-gray-400">Solo visualización</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones (solo lectura) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
+                    <textarea id="modalVerCalidadComentario" rows="3" maxlength="60" readonly
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700 resize-none"></textarea>
+                </div>
+
+                <div class="mt-4 grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Autorizó:</label>
+                        <div id="modalVerCalidadAutoriza" class="min-h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">—</div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha:</label>
+                        <div id="modalVerCalidadFecha" class="min-h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
+                <button type="button" onclick="cerrarModalVerCalidad()"
+                    class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
+                    Cerrar
                 </button>
             </div>
         </div>
@@ -400,17 +461,12 @@
                     const calidadCell = orden.calidad
                         ? (
                             orden.calidad === 'A'
-                                ? '<span class="text-green-600 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">✓</span>'
+                                ? '<span class="text-green-600 font-bold text-lg">✓</span>'
                                 : orden.calidad === 'R'
-                                    ? '<span class="text-red-600 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">✗</span>'
-                                    : '<span class="text-yellow-500 font-bold text-lg" title="' + (orden.calidadcomentario || '') + '">!</span>'
+                                    ? '<span class="text-red-600 font-bold text-lg">✗</span>'
+                                    : '<span class="text-yellow-500 font-bold text-lg">!</span>'
                         )
                         : '<span class="text-gray-300 text-lg">—</span>';
-
-                    const calidadTitle = orden.calidad
-                        ? (orden.calidad === 'A' ? '✓ Aprobado' : orden.calidad === 'R' ? '✗ Rechazado' : '! Observaciones') +
-                          (orden.calidadcomentario ? ': ' + orden.calidadcomentario : '')
-                        : '';
 
                     return `
                         <tr
@@ -419,7 +475,6 @@
                             data-mccoy="${mccoy}"
                             data-index="${index}"
                             draggable="${canChangePrioridad ? 'true' : 'false'}"
-                            ${calidadTitle ? `title="${calidadTitle}"` : ''}
                         >
                             <td class="${baseTd} text-center font-semibold">
                                 ${dragIcon}${prioridad}
@@ -435,8 +490,15 @@
                             <td class="${baseTd} ${canEdit ? 'p-0' : ''}">
                                 ${observacionesCell}
                             </td>
-                            <td class="${baseTd} text-center">
-                                ${calidadCell}
+                            <td class="${baseTd} text-center p-0">
+                                <button
+                                    type="button"
+                                    class="w-full h-9 flex items-center justify-center cursor-pointer"
+                                    onclick="abrirModalCalidadPorOrden(${orden.id}, ${mccoy}); event.stopPropagation();"
+                                    onmousedown="event.stopPropagation()"
+                                >
+                                    ${calidadCell}
+                                </button>
                             </td>
                         </tr>
                     `;
@@ -1206,22 +1268,27 @@
             window.abrirModalEditarPrioridad = abrirModalEditarPrioridad;
             window.cerrarModalEditarPrioridad = cerrarModalEditarPrioridad;
             window.guardarPrioridades = guardarPrioridades;
-            window.abrirModalCalidad = abrirModalCalidad;
-            window.cerrarModalCalidad = cerrarModalCalidad;
-            window.guardarCalidad = guardarCalidad;
-            window.cyclicCalidad = cyclicCalidad;
 
             let ordenCalidadId = null;
 
             const estadosCalidad = [null, 'A', 'R', 'O'];
             const estadoActualIdx = { value: 0 };
 
-            function abrirModalCalidad() {
-                const orden = state.ordenSeleccionada;
+            function obtenerOrdenCalidadVisual(ordenId = null, mccoy = null) {
+                if (ordenId !== null && mccoy !== null) {
+                    return (state.ordenes[mccoy] || []).find(o => o.id === Number(ordenId)) || null;
+                }
+
+                return state.ordenSeleccionada || null;
+            }
+
+            function abrirModalCalidad(ordenId = null, mccoy = null) {
+                const orden = obtenerOrdenCalidadVisual(ordenId, mccoy);
                 if (!orden) {
                     alert('Seleccione un registro');
                     return;
                 }
+
                 ordenCalidadId = orden.id;
                 document.getElementById('modalCalidadFolio').textContent = orden.folio || '';
                 document.getElementById('calidadcomentario').value = orden.calidadcomentario || '';
@@ -1233,6 +1300,61 @@
                 actualizarDisplayCalidad();
 
                 document.getElementById('modalCalidad').style.display = 'flex';
+            }
+
+            function abrirModalCalidadPorOrden(ordenId, mccoy) {
+                abrirModalVerCalidad(ordenId, mccoy);
+            }
+
+            function abrirModalVerCalidad(ordenId, mccoy) {
+                const orden = (state.ordenes[mccoy] || []).find(o => o.id === Number(ordenId)) || null;
+                if (!orden) {
+                    return;
+                }
+
+                document.getElementById('modalVerCalidadFolio').textContent = orden.folio || '';
+                document.getElementById('modalVerCalidadComentario').value = orden.calidadcomentario || '';
+                document.getElementById('modalVerCalidadAutoriza').textContent = orden.autoriza_calidad || '—';
+                document.getElementById('modalVerCalidadFecha').textContent = orden.fecha_calidad || '—';
+
+                const calidad = orden.calidad;
+                const iconoContainer = document.getElementById('modalVerCalidadIconoContainer');
+                const icono = document.getElementById('modalVerCalidadIcono');
+                const texto = document.getElementById('modalVerCalidadTexto');
+
+                iconoContainer.className = 'w-16 h-16 border-2 border-gray-300 rounded-xl flex items-center justify-center text-3xl bg-gray-50';
+
+                if (calidad === 'A') {
+                    icono.textContent = '✓';
+                    icono.className = 'text-green-600';
+                    iconoContainer.classList.add('border-green-500', 'bg-green-50');
+                    texto.textContent = 'Aprobado';
+                    texto.className = 'text-sm font-medium text-green-600';
+                } else if (calidad === 'R') {
+                    icono.textContent = '✗';
+                    icono.className = 'text-red-600';
+                    iconoContainer.classList.add('border-red-500', 'bg-red-50');
+                    texto.textContent = 'Rechazado';
+                    texto.className = 'text-sm font-medium text-red-600';
+                } else if (calidad === 'O') {
+                    icono.textContent = '!';
+                    icono.className = 'text-yellow-500';
+                    iconoContainer.classList.add('border-yellow-500', 'bg-yellow-50');
+                    texto.textContent = 'Con Observaciones';
+                    texto.className = 'text-sm font-medium text-yellow-500';
+                } else {
+                    icono.textContent = '—';
+                    icono.className = 'text-gray-400';
+                    iconoContainer.classList.add('border-gray-300');
+                    texto.textContent = 'Sin evaluar';
+                    texto.className = 'text-sm font-medium text-gray-500';
+                }
+
+                document.getElementById('modalVerCalidad').style.display = 'flex';
+            }
+
+            function cerrarModalVerCalidad() {
+                document.getElementById('modalVerCalidad').style.display = 'none';
             }
 
             function cyclicCalidad() {
@@ -1281,6 +1403,8 @@
             }
 
             function guardarCalidad() {
+                const btn = document.getElementById('btnGuardarCalidad');
+                const btnText = document.getElementById('btnGuardarCalidadText');
                 const calidad = estadosCalidad[estadoActualIdx.value];
                 const calidadcomentario = document.getElementById('calidadcomentario').value;
 
@@ -1288,6 +1412,9 @@
                     Swal.fire({ icon: 'warning', title: 'Seleccione un estado', timer: 1500, showConfirmButton: false });
                     return;
                 }
+
+                btn.disabled = true;
+                btnText.textContent = 'Guardando...';
 
                 fetch('/urdido/programar-urdido/actualizar-calidad', {
                     method: 'POST',
@@ -1317,12 +1444,24 @@
                         Swal.fire({ icon: 'success', title: '¡Guardado!', text: msg, timer: 2000, showConfirmButton: false });
                     } else {
                         Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error', timer: 2000, showConfirmButton: false });
+                        btn.disabled = false;
+                        btnText.textContent = 'Guardar';
                     }
                 })
                 .catch(err => {
                     Swal.fire({ icon: 'error', title: 'Error de conexión', text: err.message, timer: 2000, showConfirmButton: false });
+                    btn.disabled = false;
+                    btnText.textContent = 'Guardar';
                 });
             }
+
+            window.abrirModalCalidad = abrirModalCalidad;
+            window.abrirModalCalidadPorOrden = abrirModalCalidadPorOrden;
+            window.cerrarModalCalidad = cerrarModalCalidad;
+            window.guardarCalidad = guardarCalidad;
+            window.cyclicCalidad = cyclicCalidad;
+            window.abrirModalVerCalidad = abrirModalVerCalidad;
+            window.cerrarModalVerCalidad = cerrarModalVerCalidad;
 
             // ==========================
             // Init

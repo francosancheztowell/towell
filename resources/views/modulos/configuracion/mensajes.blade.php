@@ -33,6 +33,8 @@
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Rep. tiempo muerto</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Atadores</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Inv. trama</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Urdido calidad</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Calidad</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-mensajes">
@@ -58,7 +60,9 @@
                             data-reporte-mecanico="{{ ($m->ReporteMecanico ?? false) ? '1' : '0' }}"
                             data-reporte-tiempo-muerto="{{ ($m->ReporteTiempoMuerto ?? false) ? '1' : '0' }}"
                             data-atadores="{{ ($m->Atadores ?? false) ? '1' : '0' }}"
-                            data-inv-trama="{{ ($m->InvTrama ?? false) ? '1' : '0' }}">
+                            data-inv-trama="{{ ($m->InvTrama ?? false) ? '1' : '0' }}"
+                            data-urdido-calidad="{{ ($m->UrdidoCalidad ?? false) ? '1' : '0' }}"
+                            data-calidad="{{ ($m->Calidad ?? false) ? '1' : '0' }}">
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Id }}</td>
                             <td class="px-4 py-3 font-medium text-gray-900 text-base">{{ $deptoNombre }}</td>
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Telefono }}</td>
@@ -74,6 +78,8 @@
                             <td class="px-4 py-3 text-center text-base">{{ ($m->ReporteTiempoMuerto ?? false) ? 'Sí' : 'No' }}</td>
                             <td class="px-4 py-3 text-center text-base">{{ ($m->Atadores ?? false) ? 'Sí' : 'No' }}</td>
                             <td class="px-4 py-3 text-center text-base">{{ ($m->InvTrama ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->UrdidoCalidad ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->Calidad ?? false) ? 'Sí' : 'No' }}</td>
                         </tr>
                     @empty
                         <tr id="tr-empty">
@@ -134,6 +140,8 @@
                     <label class="flex items-center gap-2"><input type="hidden" name="ReporteTiempoMuerto" value="0"><input type="checkbox" name="ReporteTiempoMuerto" id="ReporteTiempoMuerto" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Rep. tiempo muerto</label>
                     <label class="flex items-center gap-2"><input type="hidden" name="Atadores" value="0"><input type="checkbox" name="Atadores" id="Atadores" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Atadores</label>
                     <label class="flex items-center gap-2"><input type="hidden" name="InvTrama" value="0"><input type="checkbox" name="InvTrama" id="InvTrama" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Inv. trama</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="UrdidoCalidad" value="0"><input type="checkbox" name="UrdidoCalidad" id="UrdidoCalidad" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Urdido calidad</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="Calidad" value="0"><input type="checkbox" name="Calidad" id="Calidad" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Calidad</label>
                 </div>
             </div>
             <div class="mt-6 flex gap-2 justify-end">
@@ -227,6 +235,8 @@
         form.reset();
         document.getElementById('Activo').checked = true;
         document.querySelectorAll('#modal-form input[type="hidden"][name]').forEach(function(h){ if(h.name!=='_token'&&h.name!=='_method') h.value = '0'; });
+        document.getElementById('UrdidoCalidad').checked = false;
+        document.getElementById('Calidad').checked = false;
         openModal();
     });
 
@@ -256,6 +266,8 @@
         document.getElementById('ReporteTiempoMuerto').checked = selectedRow.dataset.reporteTiempoMuerto === '1';
         document.getElementById('Atadores').checked = selectedRow.dataset.atadores === '1';
         document.getElementById('InvTrama').checked = selectedRow.dataset.invTrama === '1';
+        document.getElementById('UrdidoCalidad').checked = selectedRow.dataset.urdidoCalidad === '1';
+        document.getElementById('Calidad').checked = selectedRow.dataset.calidad === '1';
         document.querySelector('input[name="Activo"][type="hidden"]').value = activo ? '0' : '0';
         openModal();
     });

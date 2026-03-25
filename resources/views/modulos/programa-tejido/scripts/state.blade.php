@@ -100,15 +100,15 @@ const createDateTimeFieldConfig = () => ({
 });
 
 // Campos editables permitidos segÃºn especificaciÃ³n:
-// - Hilo (FibraRizo) - SELECT con catÃ¡logo
-// - Jornada (CalendarioId) - SELECT con catÃ¡logo
+// - Hilo (FibraRizo) - SELECT con catalogo
+// - Jornada (CalendarioId) - SELECT con catalogo
 // - Clave Modelo (TamanoClave)
 // - Rasurado
 // - Pedido (TotalPedido)
 // - Dia Scheduling (ProgramarProd)
 // - Id Flog (FlogsId)
 // - DescripciÃ³n (NombreProyecto)
-// - Aplicaciones (AplicacionId) - SELECT con catÃ¡logo
+// - Aplicaciones (AplicacionId) - SELECT con catalogo
 // - Tiras (NoTiras)
 // - Pei (Peine)
 // - Lcr (LargoCrudo)

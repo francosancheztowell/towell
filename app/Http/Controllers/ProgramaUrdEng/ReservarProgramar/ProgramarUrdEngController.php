@@ -31,12 +31,21 @@ class ProgramarUrdEngController extends Controller
     {
         $request->validate([
             'grupo' => 'required|array',
+            'grupo.salonTejidoId' => 'nullable|string',
             'materialesEngomado' => 'required|array',
             'construccionUrdido' => 'required|array',
             'datosEngomado' => 'required|array',
         ]);
 
         $grupo = $request->input('grupo');
+        $destinoSeleccionado = trim((string) ($grupo['salonTejidoId'] ?? ''));
+
+        if ($destinoSeleccionado === '') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Debe seleccionar un destino antes de crear la orden.',
+            ], 422);
+        }
 
         // Validar que fibra/hilo no sea vacío (obligatorio para Rizo y Pie)
         $fibra = trim((string) ($grupo['fibra'] ?? $grupo['hilo'] ?? ''));
@@ -81,7 +90,7 @@ class ProgramarUrdEngController extends Controller
                 'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null,
                 'Metros' => isset($grupo['metros']) ? (float) $grupo['metros'] : null,
                 'Kilos' => isset($grupo['kilos']) ? (float) $grupo['kilos'] : null,
-                'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,
+                'SalonTejidoId' => $destinoSeleccionado,
                 'MaquinaId' => $grupo['maquinaId'] ?? null,
                 'BomId' => $bomUrdId,
                 'FechaProg' => now()->format('Y-m-d'),
@@ -140,7 +149,7 @@ class ProgramarUrdEngController extends Controller
                 'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null,
                 'Metros' => isset($grupo['metros']) ? (float) $grupo['metros'] : null,
                 'Kilos' => isset($grupo['kilos']) ? (float) $grupo['kilos'] : null,
-                'SalonTejidoId' => $grupo['salonTejidoId'] ?? $grupo['destino'] ?? null,
+                'SalonTejidoId' => $destinoSeleccionado,
                 'MaquinaUrd' => $grupo['maquinaId'] ?? null,
                 'BomUrd' => $grupo['bomId'] ?? null,
                 'FechaProg' => now()->format('Y-m-d'),

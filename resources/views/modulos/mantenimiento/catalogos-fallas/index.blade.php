@@ -172,9 +172,20 @@ Catálogo de Fallas
     const destroyUrl = '{{ route("mantenimiento.catalogos-fallas.destroy", ["catalogosFalla" => "PLACEHOLDER"]) }}';
     const storeUrl = '{{ route("mantenimiento.catalogos-fallas.store") }}';
 
-    // Opciones fijas para los selects
-    const departamentos = ['ENGOMADO', 'Tejido', 'Atadores', 'URDIDO'];
-    const tiposFalla = ['Electrico', 'Mecanico', 'Tiempo Muerto'];
+    // Opciones para los selects
+    const departamentos = @json(
+        collect(['ENGOMADO', 'Tejido', 'Calidad', 'Atadores', 'URDIDO'])
+            ->merge($departamentos ?? collect())
+            ->filter()
+            ->unique()
+            ->values()
+    );
+    const tiposFalla = @json(
+        collect($tiposFalla ?? collect())
+            ->filter()
+            ->unique()
+            ->values()
+    );
 
     let selectedRow = null;
     let selectedKey = null;

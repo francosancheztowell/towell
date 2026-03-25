@@ -52,7 +52,11 @@ function agruparTelares(telares) {
         grupos[clave].kilos  += telar.kilos  || 0;
     }
 
-    const out = Object.values(grupos).map(g => ({ ...g, telaresStr: g.telares.map(t=>t.no_telar).join(',') }));
+    const out = Object.values(grupos).map(g => ({
+        ...g,
+        destino: g.telares.length > 1 ? '' : g.destino,
+        telaresStr: g.telares.map(t=>t.no_telar).join(',')
+    }));
     for (const t of singles) {
         const calSingle = !isBlank(t.calibre) ? parseFloat(t.calibre) : null;
         out.push({
@@ -96,6 +100,7 @@ test('4 telares con distinto destino se agrupan en 1 solo grupo', () => {
     assert.equal(result.length, 1, `Esperaba 1 grupo, obtuvo ${result.length}`);
     assert.equal(result[0].telares.length, 4, `Esperaba 4 telares en el grupo, obtuvo ${result[0].telares.length}`);
     assert.equal(result[0].telaresStr, '299,300,305,306');
+    assert.equal(result[0].destino, '');
     assert.equal(result[0].metros, 400);
     assert.equal(result[0].kilos, 200);
 });

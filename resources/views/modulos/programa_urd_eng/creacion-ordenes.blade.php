@@ -295,6 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.initCreacionOrdenes === 'function') {
         window.initCreacionOrdenes({
             telaresData: @json($telaresSeleccionados ?? []),
+            destinoOptions: ['Itema Nuevo', 'Itema Viejo', 'Jacquard Sulzer', 'Jacquard Smit', 'Smit'],
             routes: {
                 buscarBomUrdido: '{{ route("programa.urd.eng.buscar.bom.urdido") }}',
                 buscarBomEngomado: '{{ route("programa.urd.eng.buscar.bom.engomado") }}',

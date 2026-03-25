@@ -40,6 +40,8 @@ class SYSMensaje extends Model
         'ReporteTiempoMuerto',
         'Atadores',
         'InvTrama',
+        'UrdidoCalidad',
+        'Calidad',
     ];
 
     protected $casts = [
@@ -60,6 +62,8 @@ class SYSMensaje extends Model
         'ReporteTiempoMuerto' => 'boolean',
         'Atadores' => 'boolean',
         'InvTrama' => 'boolean',
+        'UrdidoCalidad' => 'boolean',
+        'Calidad' => 'boolean',
     ];
 
     public function departamento()
@@ -83,6 +87,8 @@ class SYSMensaje extends Model
             'ReporteMecanico',
             'ReporteTiempoMuerto',
             'Atadores',
+            'UrdidoCalidad',
+            'Calidad',
         ];
     }
 
