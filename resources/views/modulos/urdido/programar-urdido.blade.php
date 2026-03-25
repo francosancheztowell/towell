@@ -1213,6 +1213,65 @@
             window.cerrarModalEditarPrioridad = cerrarModalEditarPrioridad;
             window.guardarPrioridades = guardarPrioridades;
 
+            let ordenCalidadId = null;
+
+            function abrirModalCalidad() {
+                const orden = state.ordenSeleccionada;
+                if (!orden) {
+                    alert('Seleccione un registro');
+                    return;
+                }
+                ordenCalidadId = orden.id;
+                document.getElementById('modalCalidadFolio').textContent = orden.folio || '';
+                document.querySelectorAll('input[name="calidad"]').forEach(r => {
+                    r.checked = r.value === orden.calidad;
+                });
+                document.getElementById('calidadcomentario').value = orden.calidadcomentario || '';
+                document.getElementById('modalCalidad').style.display = 'flex';
+            }
+
+            function cerrarModalCalidad() {
+                document.getElementById('modalCalidad').style.display = 'none';
+                ordenCalidadId = null;
+            }
+
+            function guardarCalidad() {
+                const calidad = document.querySelector('input[name="calidad"]:checked')?.value;
+                const calidadcomentario = document.getElementById('calidadcomentario').value;
+                if (!calidad) {
+                    alert('Seleccione un estado de calidad');
+                    return;
+                }
+                fetch('/urdido/programar-urdido/actualizar-calidad', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ id: ordenCalidadId, calidad, calidadcomentario })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        for (let mccoy = 1; mccoy <= 4; mccoy++) {
+                            const ordenIdx = (state.ordenes[mccoy] || []).findIndex(o => o.id === ordenCalidadId);
+                            if (ordenIdx !== -1) {
+                                state.ordenes[mccoy][ordenIdx].calidad = data.calidad;
+                                state.ordenes[mccoy][ordenIdx].calidadcomentario = data.calidadcomentario;
+                                break;
+                            }
+                        }
+                        cerrarModalCalidad();
+                        renderAllTables();
+                    } else {
+                        alert('Error: ' + (data.error || 'Error'));
+                    }
+                })
+                .catch(err => {
+                    alert('Error de conexión: ' + err.message);
+                });
+            }
+
             // ==========================
             // Init
             // ==========================
