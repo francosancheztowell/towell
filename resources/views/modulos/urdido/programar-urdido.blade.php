@@ -1300,7 +1300,7 @@
                 const calidadcomentario = document.getElementById('calidadcomentario').value;
 
                 if (!calidad) {
-                    alert('Seleccione un estado de calidad');
+                    Swal.fire({ icon: 'warning', title: 'Seleccione un estado', timer: 1500, showConfirmButton: false });
                     return;
                 }
 
@@ -1325,12 +1325,17 @@
                         }
                         cerrarModalCalidad();
                         renderAllTables();
+                        const calidadTexto = calidad === 'A' ? 'Aprobado' : calidad === 'R' ? 'Rechazado' : 'Con observaciones';
+                        const msg = data.calidadcomentario
+                            ? `${calidadTexto}: ${data.calidadcomentario}`
+                            : calidadTexto;
+                        Swal.fire({ icon: 'success', title: '¡Guardado!', text: msg, timer: 2000, showConfirmButton: false });
                     } else {
-                        alert('Error: ' + (data.error || 'Error'));
+                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error', timer: 2000, showConfirmButton: false });
                     }
                 })
                 .catch(err => {
-                    alert('Error de conexión: ' + err.message);
+                    Swal.fire({ icon: 'error', title: 'Error de conexión', text: err.message, timer: 2000, showConfirmButton: false });
                 });
             }
 
