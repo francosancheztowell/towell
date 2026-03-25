@@ -236,37 +236,48 @@ document.addEventListener('DOMContentLoaded', function () {
 {{-- Modal Crear Repaso --}}
 @include('modulos.programa-tejido.modal.repaso')
 
+{{-- Permisos del módulo para menú contextual --}}
+@php
+  $moduloPT = 'Programa Tejido';
+  $canCrear = function_exists('userCan') ? userCan('crear', $moduloPT) : true;
+  $canModificar = function_exists('userCan') ? userCan('modificar', $moduloPT) : true;
+  $canEliminar = function_exists('userCan') ? userCan('eliminar', $moduloPT) : true;
+@endphp
+
 {{-- Menú contextual --}}
 <div id="contextMenu" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg z-50 py-1 min-w-[180px]">
+  @if($canCrear)
   <button id="contextMenuCrear" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
     <i class="fas fa-plus-circle text-blue-500"></i>
     <span>Crear</span>
   </button>
-    {{-- agregar repaso --}}
-    <button id="contextMenuRepaso" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
-        <i class="fas fa-redo text-blue-500"></i>
-        <span>Crear Repaso</span>
-      </button>
+  <button id="contextMenuRepaso" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+    <i class="fas fa-redo text-blue-500"></i>
+    <span>Crear Repaso</span>
+  </button>
+  @endif
+  @if($canModificar)
   <button id="contextMenuEditar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
     <i class="fas fa-pen text-yellow-500"></i>
     <span>Editar fila</span>
-      {{-- Eliminar registro --}}
+  </button>
+  @endif
+  @if($canEliminar)
   <button id="contextMenuEliminar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center gap-2">
     <i class="fas fa-trash text-red-500"></i>
     <span>Eliminar</span>
   </button>
-  {{-- Eliminar el registro que está en proceso --}}
   <button id="contextMenuEliminarEnProceso" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center gap-2">
     <i class="fas fa-stop-circle text-red-700"></i>
     <span>Eliminar en proceso</span>
   </button>
-  {{-- Desvincular registro --}}
+  @endif
+  @if($canModificar)
   <button id="contextMenuDesvincular" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
     <i class="fas fa-unlink text-purple-500"></i>
     <span>Desvincular</span>
   </button>
-
-  </button>
+  @endif
   {{-- redirigir a catalogo de codificacion --}}
   <button id="contextMenuCodificacion" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
     <i class="fas fa-code text-green-500"></i>

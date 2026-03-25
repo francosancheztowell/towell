@@ -98,9 +98,7 @@ class UpdateTejido
                     // Existe en el salón actual, proceder con la actualización
                     // Clave, ID flog, tamaño (InventSizeId), item y producto desde el modelo codificado
                     $registro->TamanoClave = $nuevaClave;
-                    if (isset($datosModelo['FlogsId'])) {
-                        $registro->FlogsId = $datosModelo['FlogsId'] !== null ? mb_substr((string)$datosModelo['FlogsId'], 0, 30) : null;
-                    }
+                    // FlogsId NO se actualiza desde el modelo - se preserva el valor existente
                     if (isset($datosModelo['InventSizeId'])) {
                         $registro->InventSizeId = $datosModelo['InventSizeId'] !== null ? (string)$datosModelo['InventSizeId'] : null;
                     }
@@ -308,19 +306,7 @@ class UpdateTejido
                         $registro->Rasurado = $valor !== null ? mb_substr((string)$valor, 0, 10) : null;
                     }
 
-                    // Actualizar FlogsId y TipoPedido si viene del modelo
-                    if (isset($datosModelo['FlogsId']) && !array_key_exists('idflog', $data)) {
-                        UpdateHelpers::applyFlogYTipoPedido($registro, $datosModelo['FlogsId']);
-                    }
-
-                    // Actualizar NombreProyecto si viene del modelo (truncar a 50 caracteres por límite en BD)
-                    if (isset($datosModelo['NombreProyecto']) && !array_key_exists('descripcion', $data)) {
-                        $nombreProyecto = $datosModelo['NombreProyecto'] ?: null;
-                        if ($nombreProyecto !== null) {
-                            $nombreProyecto = mb_substr($nombreProyecto, 0, 50);
-                        }
-                        $registro->NombreProyecto = $nombreProyecto;
-                    }
+                    // FlogsId y NombreProyecto NO se actualizan desde el modelo - se preservan los valores existentes
 
                     $afectaDuracion = true;
                     $afectaFormulas = true;

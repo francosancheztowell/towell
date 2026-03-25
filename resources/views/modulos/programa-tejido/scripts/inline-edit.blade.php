@@ -570,7 +570,13 @@ const uiInlineEditableFields = {
       } else if (num2Cols.has(backendKey)) {
         display = formatNumber2(raw);
       } else if (cfg && cfg.displayFormatter) {
-        display = cfg.displayFormatter(raw);
+        // Para campos select (catálogos), displayFormatter necesita inputEl que no existe aquí.
+        // Usar valor raw directamente - el backend devuelve el valor listo para mostrar.
+        if (cfg.type === 'select') {
+          display = (raw == null || raw === '') ? '' : String(raw);
+        } else {
+          display = cfg.displayFormatter(raw);
+        }
       } else {
         display = (raw == null || raw === '') ? '' : String(raw);
       }
