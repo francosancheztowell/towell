@@ -676,6 +676,46 @@ class ProgramarUrdidoController extends Controller
         }
     }
 
+    public function actualizarCalidad(Request $request): JsonResponse
+    {
+        try {
+            if (!$this->usuarioPuedeEditar()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No autorizado',
+                ], 403);
+            }
+
+            $request->validate([
+                'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+                'calidad' => ['required', 'string', Rule::in(['A', 'R', 'O'])],
+                'calidadcomentario' => 'nullable|string|max:60',
+            ]);
+
+            $orden = UrdProgramaUrdido::findOrFail($request->id);
+            $orden->calidad = $request->calidad;
+            $orden->calidadcomentario = $request->calidadcomentario;
+            $orden->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Calidad actualizada correctamente',
+                'calidad' => $orden->calidad,
+                'calidadcomentario' => $orden->calidadcomentario,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación: ' . $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al actualizar calidad: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     /**
      * Recalcular prioridades consecutivas para todas las órdenes activas
      * Excluye órdenes canceladas
