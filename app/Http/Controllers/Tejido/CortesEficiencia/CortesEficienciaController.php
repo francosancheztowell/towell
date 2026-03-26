@@ -1260,17 +1260,37 @@ class CortesEficienciaController extends Controller
     public function notificarTelegram(Request $request)
     {
         try {
-            $fecha = $request->input('fecha');
-            if (!$fecha) {
-                return response()->json(['success' => false, 'message' => 'Fecha requerida'], 400);
+            $fecha = null;
+            $maxTurno = null;
+            $folio = trim((string) $request->input('folio', ''));
+
+            if ($folio !== '') {
+                $corte = TejEficiencia::where('Folio', $folio)->first();
+                if (!$corte) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Folio no encontrado',
+                    ], 404);
+                }
+
+                $fecha = $corte->Date;
+                $maxTurno = (int) $corte->Turno;
+            } else {
+                $fecha = $request->input('fecha');
             }
 
-            $success = $this->enviarReporteTelegramInternal($fecha, null, Auth::user());
+            if (!$fecha) {
+                return response()->json(['success' => false, 'message' => 'Fecha o folio requerido'], 400);
+            }
+
+            $success = $this->enviarReporteTelegramInternal($fecha, $maxTurno, Auth::user());
 
             if ($success) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Reporte enviado por Telegram exitosamente',
+                    'message' => $folio !== ''
+                        ? 'Reporte enviado por Telegram exitosamente para el folio ' . $folio
+                        : 'Reporte enviado por Telegram exitosamente',
                 ]);
             } else {
                 return response()->json([

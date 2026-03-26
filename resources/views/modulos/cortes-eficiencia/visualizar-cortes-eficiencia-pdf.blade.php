@@ -5,77 +5,126 @@
     <title>Cortes de Eficiencia - {{ $fecha }}</title>
     @php
         $totalFilas = isset($datos) ? $datos->count() : 0;
+        $turnosActivos = max(1, min(3, (int) ($maxTurno ?? 3)));
+        $rows = $datos ?? collect();
 
-        // Escalado dinámico para conservar 1 sola hoja.
-        if ($totalFilas >= 44) {
-            $bodySize = '9.2px';
-            $thSize = '9.4px';
-            $tdSize = '9.2px';
-            $efSize = '12.9px';
-            $commentSize = '9px';
-            $telarSize = '11.2px';
-            $rpmSize = '11.8px';
-            $focusCellHeight = '11px';
-            $turnoHdrSize = '8px';
-            $horarioHdrSize = '7.7px';
-            $turnoHdrHeight = '14px';
-            $horarioHdrHeight = '13px';
-            $cellPadding = '0.6px 0.7px';
-            $marginPage = '2.8mm';
-            $titleSize = '10.1px';
-            $fitScale = 0.90;
-        } elseif ($totalFilas >= 36) {
-            $bodySize = '9.5px';
-            $thSize = '9.7px';
-            $tdSize = '9.5px';
-            $efSize = '13.4px';
-            $commentSize = '9.3px';
-            $telarSize = '11.9px';
-            $rpmSize = '11.9px';
-            $focusCellHeight = '11.6px';
-            $turnoHdrSize = '8.4px';
-            $horarioHdrSize = '8.1px';
-            $turnoHdrHeight = '14.8px';
-            $horarioHdrHeight = '13.8px';
-            $cellPadding = '0.6px 0.8px';
-            $marginPage = '2.8mm';
-            $titleSize = '10.5px';
-            $fitScale = 0.93;
-        } elseif ($totalFilas >= 28) {
-            $bodySize = '9.9px';
-            $thSize = '10.1px';
-            $tdSize = '9.9px';
-            $efSize = '14.2px';
-            $commentSize = '9.9px';
-            $telarSize = '12.6px';
-            $rpmSize = '12.6px';
-            $focusCellHeight = '12.4px';
-            $turnoHdrSize = '8.8px';
-            $horarioHdrSize = '8.5px';
-            $turnoHdrHeight = '15.6px';
-            $horarioHdrHeight = '14.6px';
-            $cellPadding = '0.8px 1px';
-            $marginPage = '3mm';
-            $titleSize = '10.9px';
-            $fitScale = 0.96;
-        } else {
-            $bodySize = '10.4px';
-            $thSize = '10.6px';
-            $tdSize = '10.4px';
-            $efSize = '15.4px';
-            $commentSize = '10.6px';
-            $telarSize = '13.8px';
-            $rpmSize = '13.8px';
-            $focusCellHeight = '13.2px';
-            $turnoHdrSize = '9.3px';
-            $horarioHdrSize = '8.9px';
-            $turnoHdrHeight = '16.4px';
-            $horarioHdrHeight = '15.2px';
-            $cellPadding = '0.9px 1.2px';
-            $marginPage = '3mm';
-            $titleSize = '11.5px';
-            $fitScale = 1;
+        // Medir presión vertical real considerando comentarios visibles.
+        $rowsConComentario = 0;
+        $celdasConComentario = 0;
+        $longitudComentarioMax = 0;
+
+        foreach ($rows as $row) {
+            $hayComentarioEnFila = false;
+
+            for ($turno = 1; $turno <= $turnosActivos; $turno++) {
+                $linea = $row['t' . $turno] ?? null;
+                if (!$linea) {
+                    continue;
+                }
+
+                foreach ([1, 2, 3] as $slot) {
+                    $statusCampo = 'StatusOB' . $slot;
+                    $obsCampo = 'ObsR' . $slot;
+                    $status = (bool) ($linea->$statusCampo ?? false);
+                    $texto = trim((string) ($linea->$obsCampo ?? ''));
+
+                    if (!$status && $texto === '') {
+                        continue;
+                    }
+
+                    $hayComentarioEnFila = true;
+                    $celdasConComentario++;
+                    $longitud = function_exists('mb_strlen') ? mb_strlen($texto) : strlen($texto);
+                    $longitudComentarioMax = max($longitudComentarioMax, $longitud);
+                }
+            }
+
+            if ($hayComentarioEnFila) {
+                $rowsConComentario++;
+            }
         }
+
+        $densidadComentarios = $totalFilas > 0 ? ($rowsConComentario / $totalFilas) : 0;
+        $celdasComentarioPromedio = $totalFilas > 0 ? ($celdasConComentario / $totalFilas) : 0;
+
+        // Presión total: filas + comentarios + columnas activas (más turnos = menos ancho útil).
+        $presionContenido = $totalFilas
+            + ($rowsConComentario * 0.65)
+            + ($celdasComentarioPromedio * 0.25)
+            + (($turnosActivos - 1) * 2.2)
+            + ($longitudComentarioMax >= 18 ? 0.9 : 0.0);
+
+        $clamp = function (float $value, float $min, float $max): float {
+            return max($min, min($max, $value));
+        };
+
+        // Escala tipográfica principal: maximiza tamaño y reduce cuando la presión crece.
+        $scaleMin = 0.68;
+        $scaleMax = 1.00;
+        $presionMin = 22.0;
+        $presionMax = 55.0;
+
+        if ($presionContenido <= $presionMin) {
+            $typographyScale = $scaleMax;
+        } elseif ($presionContenido >= $presionMax) {
+            $typographyScale = $scaleMin;
+        } else {
+            $progress = ($presionContenido - $presionMin) / ($presionMax - $presionMin);
+            $typographyScale = $scaleMax - (($scaleMax - $scaleMin) * $progress);
+        }
+
+        // Si casi no hay comentarios, dar un pequeño impulso al tamaño.
+        if ($densidadComentarios < 0.18 && $totalFilas > 0) {
+            $typographyScale += 0.015;
+        }
+
+        $typographyScale = $clamp($typographyScale, $scaleMin, $scaleMax);
+
+        // Hard-fit: fuerza una sola hoja cuando hay mucha carga (filas + comentarios).
+        $filasEquivalentes = $totalFilas
+            + ($rowsConComentario * 1.00)
+            + ($celdasComentarioPromedio * 0.45)
+            + (($turnosActivos - 1) * 2.60)
+            + ($longitudComentarioMax >= 18 ? 1.35 : 0.0);
+
+        // Capacidad de una hoja A4 horizontal con este layout (aprox.).
+        $capacidadUnaHoja = 30.0;
+        $hardFitScale = $filasEquivalentes > 0 ? ($capacidadUnaHoja / $filasEquivalentes) : 1.0;
+        $hardFitScale = $clamp($hardFitScale, 0.58, 1.00);
+
+        // Escala final real aplicada a tamaños CSS (esto sí afecta paginación en Dompdf).
+        $sizeScale = $clamp($typographyScale * $hardFitScale, 0.52, 1.00);
+
+        $toPx = function (float $base, float $scale, float $min, float $max) use ($clamp): string {
+            $v = $clamp($base * $scale, $min, $max);
+            return number_format($v, 2, '.', '') . 'px';
+        };
+
+        $toMm = function (float $value): string {
+            return number_format($value, 2, '.', '') . 'mm';
+        };
+
+        $bodySize = $toPx(10.40, $sizeScale, 6.40, 10.90);
+        $thSize = $toPx(10.60, $sizeScale, 6.60, 11.00);
+        $tdSize = $toPx(10.40, $sizeScale, 6.40, 10.90);
+        $efSize = $toPx(15.40, $sizeScale, 9.20, 15.80);
+        $commentSize = $toPx(10.60, $sizeScale, 6.20, 10.70);
+        $telarSize = $toPx(13.80, $sizeScale, 8.60, 14.10);
+        $rpmSize = $toPx(13.80, $sizeScale, 8.60, 14.10);
+        $focusCellHeight = $toPx(13.20, $sizeScale, 8.20, 13.40);
+        $turnoHdrSize = $toPx(9.30, $sizeScale, 6.00, 9.50);
+        $horarioHdrSize = $toPx(8.90, $sizeScale, 5.80, 9.20);
+        $turnoHdrHeight = $toPx(16.40, $sizeScale, 10.00, 16.70);
+        $horarioHdrHeight = $toPx(15.20, $sizeScale, 9.50, 15.50);
+        $titleSize = $toPx(11.50, $sizeScale, 7.10, 11.80);
+
+        $padV = number_format($clamp(0.90 * $sizeScale, 0.35, 0.95), 2, '.', '');
+        $padH = number_format($clamp(1.20 * $sizeScale, 0.45, 1.20), 2, '.', '');
+        $cellPadding = $padV . 'px ' . $padH . 'px';
+
+        $marginBase = $clamp(3.0 - ((1 - $sizeScale) * 2.70), 1.2, 3.0);
+        $marginPage = $toMm($marginBase);
+
     @endphp
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -94,9 +143,7 @@
             line-height: 1.03;
         }
         .page-fit {
-            width: calc(100% / {{ $fitScale }});
-            transform: scale({{ $fitScale }});
-            transform-origin: top left;
+            width: 100%;
         }
 
         /* ── Título ── */
