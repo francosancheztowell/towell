@@ -10,13 +10,37 @@
 
 {{-- Sin botones superiores ni barra de datos --}}
 @section('navbar-right')
-    <!-- Badge del folio actual -->
-    <div id="badge-folio" class="hidden items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 10a3 3 0 11-6 0 3 3 0 016 0z"></path>
-        </svg>
-        <span class="text-sm font-semibold">Folio:</span>
-        <span id="folio-text" class="text-sm font-bold">--</span>
+    <div class="flex items-center gap-2">
+        <x-navbar.button-report
+            id="btn-telegram-folio"
+            title="Notificar por Telegram"
+            icon="fa-paper-plane"
+            iconColor="text-sky-600"
+            hoverBg="hover:bg-sky-100"
+            class="text-sm"
+            module="Cortes de Eficiencia"
+            :disabled="$soloLectura"
+        />
+
+        <x-navbar.button-report
+            id="btn-finalizar-folio"
+            title="Finalizar"
+            icon="fa-check"
+            iconColor="text-orange-600"
+            hoverBg="hover:bg-orange-100"
+            class="text-sm"
+            module="Cortes de Eficiencia"
+            :disabled="$soloLectura"
+        />
+
+        <!-- Badge del folio actual -->
+        <div id="badge-folio" class="hidden items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 10a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span class="text-sm font-semibold">Folio:</span>
+            <span id="folio-text" class="text-sm font-bold">--</span>
+        </div>
     </div>
 @endsection
 
@@ -151,6 +175,7 @@
     const routes = {
         store: @json(route('cortes.eficiencia.store')),
         consultar: @json(route('cortes.eficiencia.consultar')),
+        notificarTelegram: @json(route('cortes.eficiencia.visualizar.telegram')),
         turnoInfo: '/modulo-cortes-de-eficiencia/turno-info',
         datosPrograma: '/modulo-cortes-de-eficiencia/datos-programa-tejido',
         datosTelares: '/modulo-cortes-de-eficiencia/datos-telares',
@@ -158,6 +183,7 @@
         generarFolio: '/modulo-cortes-de-eficiencia/generar-folio',
         getCorte: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}`,
         guardarHora: '/modulo-cortes-de-eficiencia/guardar-hora',
+        finalizar: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}/finalizar`,
     };
 
     /** Utilidades */
@@ -176,6 +202,8 @@
         horaH: (h) => document.getElementById(`hora-horario-${h}`),
         badgeFolio: () => document.getElementById('badge-folio'),
         folioText: () => document.getElementById('folio-text'),
+        btnTelegram: () => document.getElementById('btn-telegram-folio'),
+        btnFinalizar: () => document.getElementById('btn-finalizar-folio'),
     };
 
     const horarioTomado = (h) => {
@@ -218,6 +246,18 @@
             badge.classList.add('hidden');
             badge.classList.remove('flex');
         }
+
+        actualizarEstadoBotonesHeader();
+    }
+
+    function actualizarEstadoBotonesHeader() {
+        const btnTelegram = els.btnTelegram();
+        const btnFinalizar = els.btnFinalizar();
+        const tieneFolio = !!state.folio;
+        const finalizado = state.status === 'Finalizado';
+
+        if (btnTelegram) btnTelegram.disabled = PAGE_MODE.soloLectura || !tieneFolio;
+        if (btnFinalizar) btnFinalizar.disabled = PAGE_MODE.soloLectura || !tieneFolio || finalizado;
     }
 
     /** Init */
@@ -239,6 +279,7 @@
 
         bindEvents();
         if (PAGE_MODE.soloLectura) aplicarModoSoloLectura();
+        actualizarEstadoBotonesHeader();
         try { await Promise.all([cargarTurnoActual(), cargarDatosTelaresStd()]); } catch {}
         const qp = PAGE_MODE.folioInicial || new URLSearchParams(location.search).get('folio');
         try {
@@ -263,6 +304,8 @@
     function bindEvents(){
         // Tomar hora desde headers
         document.querySelectorAll('[data-action="tomar-hora"]').forEach(btn => btn.addEventListener('click', () => actualizarYGuardarHoraHorario(parseInt(btn.dataset.horario,10))));
+        els.btnTelegram()?.addEventListener('click', () => accionNotificarTelegram());
+        els.btnFinalizar()?.addEventListener('click', () => accionFinalizarFolio());
 
         // Delegación en tabla para observaciones
         els.body().addEventListener('click', (e) => {
@@ -339,6 +382,8 @@
             btn.setAttribute('disabled', 'disabled');
             btn.classList.add('opacity-60', 'cursor-not-allowed');
         });
+        if (els.btnTelegram()) els.btnTelegram().disabled = true;
+        if (els.btnFinalizar()) els.btnFinalizar().disabled = true;
         document.querySelectorAll('input[data-field="rpm_std"], input[data-field="eficiencia_std"]').forEach(input => {
             input.readOnly = true;
             input.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
@@ -509,8 +554,7 @@
         } catch (e) { showToast({ icon:'warning', title:'Hora no guardada', html:`<div class='text-center'><div class='text-2xl mb-2'>${emojiHorario(h)}</div><p class='font-mono text-lg'>${hora}</p><p class='text-xs text-red-500 mt-1'>${e.message || 'No guardado en BD'}</p></div>` }); }
     }
 
-    /** Guardado automático */
-    const guardarAutomatico = debounce(async () => {
+    async function guardarEnServidor({ mostrarBadge = true } = {}) {
         if (PAGE_MODE.soloLectura) return;
         if (!state.folio || !state.fecha || !state.turno) return;
         const datos = recopilarDatosTelares(); if (!datos.length) return;
@@ -555,10 +599,16 @@
             }
 
             state.isNewRecord = false;
-            floatingBadge('Guardado automáticamente');
+            if (mostrarBadge) floatingBadge('Guardado automáticamente');
         } catch (e) {
-            floatingBadge(`Error: ${e.message}`, true);
+            if (mostrarBadge) floatingBadge(`Error: ${e.message}`, true);
+            throw e;
         }
+    }
+
+    /** Guardado automático */
+    const guardarAutomatico = debounce(async () => {
+        try { await guardarEnServidor({ mostrarBadge: true }); } catch {}
     }, 900);
 
     function recopilarDatosTelares(){
@@ -595,6 +645,184 @@
             });
         });
         return out;
+    }
+
+    async function accionNotificarTelegram() {
+        if (!state.folio) {
+            Swal.fire('Sin folio', 'Aún no hay un folio activo para notificar.', 'warning');
+            return;
+        }
+
+        const btn = els.btnTelegram();
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-60');
+        }
+
+        try {
+            await guardarEnServidor({ mostrarBadge: false });
+
+            const response = await fetch(routes.notificarTelegram, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRF-TOKEN': csrf(),
+                    'Accept': 'application/json'
+                },
+                body: new URLSearchParams({
+                    folio: state.folio,
+                    fecha: state.fecha || ''
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'No se pudo enviar la notificación por Telegram.');
+            }
+
+            await Swal.fire('Éxito', data.message || 'Reporte enviado por Telegram.', 'success');
+        } catch (err) {
+            Swal.fire('Error', err.message || 'No se pudo notificar por Telegram.', 'error');
+        } finally {
+            if (btn) btn.classList.remove('opacity-60');
+            actualizarEstadoBotonesHeader();
+        }
+    }
+
+    async function accionFinalizarFolio() {
+        if (!state.folio) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Sin folio',
+                text: 'Aún no hay un folio activo para finalizar.'
+            });
+            return;
+        }
+
+        if (state.status === 'Finalizado') {
+            Swal.fire('Ya finalizado', `El folio ${state.folio} ya está finalizado.`, 'info');
+            return;
+        }
+
+        try {
+            await guardarEnServidor({ mostrarBadge: false });
+            const valido = await validarParaFinalizar();
+            if (!valido) return;
+
+            const confirm = await Swal.fire({
+                title: '¿Finalizar Corte de Eficiencia?',
+                text: `El folio ${state.folio} quedará cerrado y no podrá editarse.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ea580c',
+                confirmButtonText: 'Sí, finalizar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (!confirm.isConfirmed) return;
+            await procesarFinalizado();
+        } catch (err) {
+            Swal.fire('Error', err.message || 'No se pudo finalizar el folio.', 'error');
+        }
+    }
+
+    async function validarParaFinalizar() {
+        try {
+            Swal.fire({ title: 'Validando...', didOpen: () => Swal.showLoading() });
+
+            const response = await fetch(routes.getCorte(state.folio), {
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf() }
+            });
+            if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+            const data = await response.json();
+            Swal.close();
+
+            if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
+
+            const lineas = Array.isArray(data.data?.datos_telares) ? data.data.datos_telares : [];
+            if (lineas.length === 0) {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'No hay líneas',
+                    text: 'No puedes finalizar un folio sin líneas capturadas.'
+                });
+                return false;
+            }
+
+            const esVacioOCero = (v) => {
+                if (v === null || v === undefined) return true;
+                if (typeof v === 'string' && v.trim() === '') return true;
+                const n = Number(v);
+                if (Number.isNaN(n)) return true;
+                return n <= 0;
+            };
+
+            const lineasInvalidas = [];
+
+            for (let i = 0; i < lineas.length; i++) {
+                const l = lineas[i];
+                const camposVacios = [];
+
+                if (esVacioOCero(l.RpmR1)) camposVacios.push('RPM H1');
+                if (esVacioOCero(l.EficienciaR1)) camposVacios.push('% Efi H1');
+                if (esVacioOCero(l.RpmR2)) camposVacios.push('RPM H2');
+                if (esVacioOCero(l.EficienciaR2)) camposVacios.push('% Efi H2');
+                if (esVacioOCero(l.RpmR3)) camposVacios.push('RPM H3');
+                if (esVacioOCero(l.EficienciaR3)) camposVacios.push('% Efi H3');
+
+                if (camposVacios.length > 0) {
+                    lineasInvalidas.push({
+                        telar: l.NoTelar || `Línea ${i + 1}`,
+                        campos: camposVacios
+                    });
+                }
+            }
+
+            if (lineasInvalidas.length > 0) {
+                const totalCamposVacios = lineasInvalidas.reduce((acc, item) => acc + (item.campos?.length || 0), 0);
+                const result = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Hay campos sin llenar',
+                    text: `Hay ${totalCamposVacios} campo(s) vacío(s) o en cero en ${lineasInvalidas.length} telar(es). ¿Deseas continuar?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, continuar',
+                    cancelButtonText: 'No, revisar'
+                });
+                return !!result.isConfirmed;
+            }
+
+            return true;
+        } catch (err) {
+            Swal.close();
+            throw err;
+        }
+    }
+
+    async function procesarFinalizado() {
+        Swal.fire({ title: 'Finalizando...', didOpen: () => Swal.showLoading() });
+
+        try {
+            const response = await fetch(routes.finalizar(state.folio), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf(),
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.message || 'No se pudo finalizar el folio.');
+            }
+
+            state.status = 'Finalizado';
+            actualizarEstadoBotonesHeader();
+            await Swal.fire('¡Finalizado!', 'El folio se finalizó correctamente.', 'success');
+        } catch (err) {
+            Swal.fire('Error', err.message || 'No se pudo finalizar el folio.', 'error');
+        }
     }
 
     function syncObsTitle(telarId, horario, text){
