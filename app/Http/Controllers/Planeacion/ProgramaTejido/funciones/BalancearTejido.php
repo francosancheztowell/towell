@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Models\Planeacion\ReqCalendarioLine;
-use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
@@ -242,33 +241,22 @@ class BalancearTejido
                     } else {
                         $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(12) : $inicio->copy()->addDays(30);
                     }
-
                     $r->FechaFinal = $fin->format('Y-m-d H:i:s');
-
                     $formulas = self::calcularFormulasEficiencia($r);
                     foreach ($formulas as $campo => $valor) $r->{$campo} = $valor;
-
                     $r->save();
                     $idsAfectados[] = (int)$r->Id;
                     $cascadaCount++;
-
                     $cursor = $fin->copy();
                 }
-
             }
             DB::commit();
-
-
             // Restaurar dispatcher
             if ($dispatcher) {
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
             }
-
             // Regenerar líneas diarias (observer) manualmente (mismo orden, pero 1 query)
             $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
-
-
-
             if (!empty($idsAfectados)) {
                 $observer = new ReqProgramaTejidoObserver();
                 $regsObs = ReqProgramaTejido::whereIn('Id', $idsAfectados)->get()->keyBy('Id');
@@ -286,8 +274,6 @@ class BalancearTejido
                     }
                 }
             }
-
-
             return response()->json([
                 'success' => true,
                 'message' => 'Balanceo aplicado correctamente',
@@ -297,13 +283,6 @@ class BalancearTejido
 
         } catch (\Throwable $e) {
             DB::rollBack();
-
-            Log::error('BalancearTejido: Error en actualizarPedidos', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
-            ]);
 
             if ($dispatcher) {
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
@@ -787,8 +766,9 @@ class BalancearTejido
                 continue;
             }
 
-            $fechaInicioReg = Carbon::parse($reg->FechaInicio);
-            if (!empty($reg->CalendarioId)) {
+            $esEnProceso = ($reg->EnProceso == 1 || $reg->EnProceso === true);
+            $fechaInicioReg = $esEnProceso ? Carbon::now() : Carbon::parse($reg->FechaInicio);
+            if (!$esEnProceso && !empty($reg->CalendarioId)) {
                 $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
                 if ($snap) $fechaInicioReg = $snap;
             }
@@ -800,11 +780,7 @@ class BalancearTejido
             $horasActual = self::calcularHorasProd($regTemp);
             $fechaFinalActual = null;
             if ($horasActual > 0) {
-                $fechaInicioTemp = $fechaInicioReg->copy();
-                if (!empty($reg->CalendarioId)) {
-                    $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioTemp);
-                    if ($snap) $fechaInicioTemp = $snap;
-                }
+                $fechaInicioTemp = $fechaInicioReg->copy(); // already correct: now() or snapped FechaInicio
 
                 $fechaFinalActual = !empty($reg->CalendarioId)
                     ? (self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $fechaInicioTemp, $horasActual) ?: $fechaInicioTemp->copy()->addSeconds((int)round($horasActual * 3600)))
@@ -822,8 +798,8 @@ class BalancearTejido
                 }
             }
 
-            // Caso especial: si solo hay 2 registros, balancear siempre el primero
-            if ($totalRegistros === 2 && $indice === 1) {
+            // Caso especial: si solo hay 2 registros, proteger el primero — el último absorbe el ajuste
+            if ($totalRegistros === 2 && $indice === 0) {
                 $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
             } elseif ($cumpleObjetivo) {
                 $registrosQueCumplen[] = ['indice' => $indice, 'reg' => $reg, 'pedido' => $pedidoActual];
@@ -847,8 +823,9 @@ class BalancearTejido
             $produccion = (float)($reg->Produccion ?? 0);
             $pedidoActual = (float)($reg->TotalPedido ?? 0);
             $saldoActual = max(0, $pedidoActual - $produccion);
-            $fechaInicioReg = Carbon::parse($reg->FechaInicio);
-            if (!empty($reg->CalendarioId)) {
+            $esEnProceso = ($reg->EnProceso == 1 || $reg->EnProceso === true);
+            $fechaInicioReg = $esEnProceso ? Carbon::now() : Carbon::parse($reg->FechaInicio);
+            if (!$esEnProceso && !empty($reg->CalendarioId)) {
                 $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
                 if ($snap) $fechaInicioReg = $snap;
             }
@@ -871,16 +848,12 @@ class BalancearTejido
             $saldoFinal = max(0, round($saldoCalculado));
             $pedidoFinal = max(1, $produccion + $saldoFinal);
             $fechaFinalCalc = null;
-            if (!empty($reg->FechaInicio)) {
+            if ($esEnProceso || !empty($reg->FechaInicio)) {
                 $regTemp = clone $reg;
                 $regTemp->TotalPedido = $pedidoFinal;
                 $regTemp->SaldoPedido = $saldoFinal;
                 $horasCalc = self::calcularHorasProd($regTemp);
-                $fechaInicioTemp = Carbon::parse($reg->FechaInicio);
-                if (!empty($reg->CalendarioId)) {
-                    $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioTemp);
-                    if ($snap) $fechaInicioTemp = $snap;
-                }
+                $fechaInicioTemp = $fechaInicioReg->copy(); // already correct: now() or snapped FechaInicio
                 if ($horasCalc > 0) {
                     $fechaFinalCalc = !empty($reg->CalendarioId)
                         ? (self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $fechaInicioTemp, $horasCalc) ?: $fechaInicioTemp->copy()->addSeconds((int)round($horasCalc * 3600)))
@@ -894,7 +867,7 @@ class BalancearTejido
             ];
         }
 
-        // Ajuste final: mantener el total original sumando la diferencia al primero (orden FechaInicio/NoTelar)
+        // Ajuste final: mantener el total original sumando la diferencia al último (orden FechaInicio/NoTelar)
         if ($ajustarTotal) {
             $totalNuevo = 0.0;
             foreach ($nuevosPedidos as $item) {
@@ -902,23 +875,23 @@ class BalancearTejido
             }
             $diff = $totalOriginal - $totalNuevo;
 
-            $primeroReg = $registrosArray[0] ?? null;
-            if (abs($diff) >= 1 && $primeroReg) {
-                $primeroId = (int)$primeroReg->Id;
-                $prodPrimero = (float)($primeroReg->Produccion ?? 0);
-                $totalActualPrimero = isset($nuevosPedidos[$primeroId])
-                    ? (float)$nuevosPedidos[$primeroId]['total_pedido']
-                    : (float)($primeroReg->TotalPedido ?? 0);
+            $ultimoReg = $registrosArray[count($registrosArray) - 1] ?? null;
+            if (abs($diff) >= 1 && $ultimoReg) {
+                $ultimoId = (int)$ultimoReg->Id;
+                $prodUltimo = (float)($ultimoReg->Produccion ?? 0);
+                $totalActualUltimo = isset($nuevosPedidos[$ultimoId])
+                    ? (float)$nuevosPedidos[$ultimoId]['total_pedido']
+                    : (float)($ultimoReg->TotalPedido ?? 0);
 
-                $nuevoTotalPrimero = $totalActualPrimero + $diff;
-                $minPrimero = max(1, $prodPrimero);
-                if ($nuevoTotalPrimero < $minPrimero) {
-                    $nuevoTotalPrimero = $minPrimero;
+                $nuevoTotalUltimo = $totalActualUltimo + $diff;
+                $minUltimo = max(1, $prodUltimo);
+                if ($nuevoTotalUltimo < $minUltimo) {
+                    $nuevoTotalUltimo = $minUltimo;
                 }
 
-                $nuevosPedidos[$primeroId] = [
-                    'id' => $primeroId,
-                    'total_pedido' => (int) round($nuevoTotalPrimero),
+                $nuevosPedidos[$ultimoId] = [
+                    'id' => $ultimoId,
+                    'total_pedido' => (int) round($nuevoTotalUltimo),
                     'modo' => 'total'
                 ];
             }
@@ -929,22 +902,22 @@ class BalancearTejido
             }
 
             $rest = $totalOriginal - $totalNuevoFinal;
-            if (abs($rest) >= 1 && $primeroReg) {
-                $primeroId = (int)$primeroReg->Id;
-                $prodPrimero = (float)($primeroReg->Produccion ?? 0);
-                $totalActualPrimero = isset($nuevosPedidos[$primeroId])
-                    ? (float)$nuevosPedidos[$primeroId]['total_pedido']
-                    : (float)($primeroReg->TotalPedido ?? 0);
+            if (abs($rest) >= 1 && $ultimoReg) {
+                $ultimoId = (int)$ultimoReg->Id;
+                $prodUltimo = (float)($ultimoReg->Produccion ?? 0);
+                $totalActualUltimo = isset($nuevosPedidos[$ultimoId])
+                    ? (float)$nuevosPedidos[$ultimoId]['total_pedido']
+                    : (float)($ultimoReg->TotalPedido ?? 0);
 
-                $nuevoTotalPrimero = $totalActualPrimero + $rest;
-                $minPrimero = max(1, $prodPrimero);
-                if ($nuevoTotalPrimero < $minPrimero) {
-                    $nuevoTotalPrimero = $minPrimero;
+                $nuevoTotalUltimo = $totalActualUltimo + $rest;
+                $minUltimo = max(1, $prodUltimo);
+                if ($nuevoTotalUltimo < $minUltimo) {
+                    $nuevoTotalUltimo = $minUltimo;
                 }
 
-                $nuevosPedidos[$primeroId] = [
-                    'id' => $primeroId,
-                    'total_pedido' => (int) round($nuevoTotalPrimero),
+                $nuevosPedidos[$ultimoId] = [
+                    'id' => $ultimoId,
+                    'total_pedido' => (int) round($nuevoTotalUltimo),
                     'modo' => 'total'
                 ];
 

@@ -3,13 +3,16 @@
 @section('page-title', 'Saldos 2026')
 
 @section('navbar-right')
-    <div class="flex items-center gap-2">
-        <a href="{{ route('tejido.reportes.saldos-2026.excel') }}"
-           class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
-            <i class="fas fa-file-excel"></i>
-            <span>Exportar a Excel</span>
-        </a>
-    </div>
+    <button id="saldos-filter-btn" type="button" class="relative flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium transition-colors border border-indigo-200">
+        <i class="fas fa-filter"></i>
+        <span>Filtrar</span>
+        <span id="saldos-filter-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full px-1"></span>
+    </button>
+    <a href="{{ route('tejido.reportes.saldos-2026.excel') }}"
+       class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+        <i class="fas fa-file-excel"></i>
+        <span>Exportar a Excel</span>
+    </a>
 @endsection
 
 @section('content')
@@ -122,7 +125,7 @@
                                 </td>
                                 <td class="saldos-td text-center font-mono text-gray-700">{{ $r->OrdCompartida ?? '—' }}</td>
                                 <td class="saldos-td text-center font-mono {{ $r->OrdCompartidaLider ? 'font-semibold text-amber-700' : 'text-gray-600' }}">
-                                    {{ $r->OrdenLider ?? '—' }}
+                                    {{ $r->OrdenLider ?? ($r->NoProduccion ?? '—') }}
                                     @if ($r->OrdCompartidaLider)
                                         <span title="Es líder" style="margin-left:3px;">&#9733;</span>
                                     @endif
@@ -196,8 +199,8 @@
                                 <td class="saldos-td" style="background:#dcfce7;border-color:#86efac;">{{ $r->FibraRizo ?? '—' }}</td>
                                 {{-- PIE --}}
                                 <td class="saldos-td text-center" style="background:#fef3c7;border-color:#fcd34d;">{{ $r->CuentaPie ?? '—' }}</td>
-                                <td class="saldos-td text-center" style="background:#dcfce7;border-color:#86efac;">{{ $r->CalibrePie2 ?? '—' }}</td>
-                                <td class="saldos-td" style="background:#dcfce7;border-color:#86efac;">{{ $r->FibraPie ?? '—' }}</td>
+                                <td class="saldos-td text-center" style="background:#fef3c7;border-color:#fcd34d;">{{ $r->CalibrePie2 ?? '—' }}</td>
+                                <td class="saldos-td" style="background:#fef3c7;border-color:#fcd34d;">{{ $r->FibraPie ?? '—' }}</td>
                                 <td class="saldos-td text-center text-gray-700">{{ $r->C1 ?? '—' }}</td>{{-- C1 --}}
                                 <td class="saldos-td text-center text-gray-700">{{ $r->ObsC1 ?? '—' }}</td>{{-- OBS C1 --}}
                                 <td class="saldos-td text-center text-gray-700">{{ $r->C2 ?? '—' }}</td>{{-- C2 --}}
@@ -389,6 +392,15 @@
 
 /* Hidden row when filtered out */
 .saldos-hidden { display: none !important; }
+
+/* Selected row */
+.saldos-row-selected td {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+    outline: 1px solid #2563eb;
+    outline-offset: -1px;
+}
+.saldos-row-selected:hover td { background-color: #2563eb !important; }
 
 /* ── Context menu ── */
 #saldos-ctx {
@@ -607,7 +619,67 @@ tbody .saldos-col-frozen { background: #f0f4ff !important; }
         });
         if (counter)   counter.textContent   = shown;
         if (visibleEl) visibleEl.textContent = shown;
+        // Re-evaluate select-all state after filter
+        if (checkAll) {
+            var vis = tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden) .saldos-row-check');
+            var chk = tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden) .saldos-row-check:checked');
+            checkAll.indeterminate = chk.length > 0 && chk.length < vis.length;
+            checkAll.checked = vis.length > 0 && chk.length === vis.length;
+        }
     }
+
+    /* ═══════════════════════════════════════════════════════════
+       3b. Filter toggle button
+    ═══════════════════════════════════════════════════════════ */
+    var filterBtn = document.getElementById('saldos-filter-btn');
+    var filterVisible = false;
+    if (filterBtn) {
+        filterBtn.addEventListener('click', function () {
+            var activeCount = Object.keys(columnFilters).length;
+            if (activeCount > 0) {
+                for (var k in colFilters) delete colFilters[k];
+                Object.values(filterInps).forEach(function(i){ i.value=''; });
+                columnFilters = {};
+                globalQ = '';
+                if (searchInp) searchInp.value = '';
+                filterRow.style.display = 'none';
+                filterVisible = false;
+                applyFilters();
+                updateFilterBadge();
+                return;
+            }
+            filterVisible = !filterVisible;
+            filterRow.style.display = filterVisible ? '' : 'none';
+            filterBtn.classList.toggle('bg-indigo-50', filterVisible);
+            filterBtn.classList.toggle('border-indigo-300', filterVisible);
+            filterBtn.classList.toggle('text-indigo-700', filterVisible);
+            if (filterVisible) {
+                requestAnimationFrame(function(){
+                    var h = 0;
+                    Array.from(thead.rows).forEach(function(r){ if (r !== filterRow) h += r.offsetHeight; });
+                    Array.from(filterRow.cells).forEach(function(th){ th.style.top = h + 'px'; });
+                });
+            }
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       3c. Row selection (single row)
+    ═══════════════════════════════════════════════════════════ */
+    tbody.addEventListener('click', function(e) {
+        if (e.target.closest('a, button, input, select')) return;
+        var row = e.target.closest('tr.saldos-row');
+        if (!row) return;
+
+        if (row.classList.contains('saldos-row-selected')) {
+            row.classList.remove('saldos-row-selected');
+        } else {
+            tbody.querySelectorAll('.saldos-row-selected').forEach(function(r) {
+                r.classList.remove('saldos-row-selected');
+            });
+            row.classList.add('saldos-row-selected');
+        }
+    });
 
     /* ═══════════════════════════════════════════════════════════
        4. State
@@ -691,9 +763,7 @@ tbody .saldos-col-frozen { background: #f0f4ff !important; }
 
             case 'filter':
                 if (ctxColIdx === null) return;
-                filterRow.style.display = '';
-                var inp = filterInps[ctxColIdx];
-                if (inp) { inp.scrollIntoView({block:'nearest'}); inp.focus(); }
+                showColumnFilterModal(ctxColIdx);
                 break;
 
             case 'sort-asc':  sortByCol(ctxColIdx, 'asc');  break;
@@ -702,9 +772,11 @@ tbody .saldos-col-frozen { background: #f0f4ff !important; }
             case 'clear-filters':
                 for (var k in colFilters) delete colFilters[k];
                 Object.values(filterInps).forEach(function(i){ i.value=''; });
+                columnFilters = {};
                 globalQ = '';
                 if (searchInp) searchInp.value = '';
                 applyFilters();
+                updateFilterBadge();
                 break;
 
             case 'show-cols':
@@ -769,7 +841,225 @@ tbody .saldos-col-frozen { background: #f0f4ff !important; }
     }
 
     /* ═══════════════════════════════════════════════════════════
-       9. Sort by column
+       9. Column filter modal (Excel-like)
+    ═══════════════════════════════════════════════════════════ */
+    var columnFilters = {}; // colIdx → Set of allowed values
+
+    function getCellTextForCol(row, colIdx) {
+        var cells = Array.from(row.cells);
+        for (var i = 0; i < cells.length; i++) {
+            if (cellToCol.get(cells[i]) === colIdx)
+                return cells[i].textContent.trim();
+        }
+        return '';
+    }
+
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function showColumnFilterModal(colIdx) {
+        var rows = Array.from(tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden)'));
+        if (rows.length === 0) {
+            rows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
+        }
+
+        var valueCounts = {};
+        rows.forEach(function(row) {
+            var val = getCellTextForCol(row, colIdx);
+            var key = val === '' ? '(vacío)' : val;
+            if (!valueCounts[key]) valueCounts[key] = 0;
+            valueCounts[key]++;
+        });
+
+        var uniqueValues = Object.keys(valueCounts).sort(function(a, b) {
+            if (a === '(vacío)') return -1;
+            if (b === '(vacío)') return 1;
+            return String(a).localeCompare(String(b), 'es', { sensitivity: 'base' });
+        });
+
+        var currentSelected = columnFilters[colIdx];
+        var selectedSet = currentSelected ? new Set(currentSelected) : null;
+
+        var checkboxesHtml = uniqueValues.map(function(val) {
+            var checked = selectedSet === null ? true : selectedSet.has(val);
+            var safeVal = escapeHtml(val);
+            var id = 'saldos-excel-filter-' + colIdx + '-' + safeVal.replace(/\W/g, '_').slice(0, 30);
+            var displayVal = val.length > 40 ? val.slice(0, 40) + '…' : val;
+            return '<label class="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer' + (checked ? ' bg-blue-50' : '') + '">' +
+                '<input type="checkbox" class="saldos-excel-filter-cb w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" data-value="' + safeVal + '" ' + (checked ? 'checked' : '') + ' id="' + id + '">' +
+                '<span class="text-sm text-gray-700 truncate flex-1" title="' + safeVal + '">' + escapeHtml(displayVal) + '</span>' +
+                '<span class="text-xs text-gray-400">(' + valueCounts[val] + ')</span>' +
+                '</label>';
+        }).join('');
+
+        if (uniqueValues.length === 0) {
+            checkboxesHtml = '<p class="p-3 text-sm text-gray-500 text-center">No hay valores en esta columna.</p>';
+        }
+
+        var headerCells = colCells[colIdx] || [];
+        var hdrCell = headerCells.find(function(c){ return c.closest('thead'); });
+        var colLabel = hdrCell ? hdrCell.textContent.trim().substring(0, 40) : ('Columna ' + (colIdx + 1));
+
+        var html = '<div class="w-full" style="max-height:70vh;display:flex;flex-direction:column;">' +
+            '<p class="text-sm text-gray-600 mb-3">Mostrar filas donde <strong>' + escapeHtml(colLabel) + '</strong> sea uno de:</p>' +
+            '<div class="flex gap-2 mb-3">' +
+            '<button type="button" id="saldos-excel-filter-select-all" class="px-3 py-1.5 text-xs font-semibold rounded ' + (selectedSet === null ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-blue-100 text-blue-700 hover:bg-blue-200') + '">' + (selectedSet === null ? 'Todos seleccionados' : 'Seleccionar todo') + '</button>' +
+            '<button type="button" id="saldos-excel-filter-deselect-all" class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Quitar selección</button>' +
+            '</div>' +
+            '<div class="border border-gray-200 rounded-lg overflow-y-auto flex-1" style="max-height:320px;min-height:120px;">' + checkboxesHtml + '</div>' +
+            '<footer class="flex justify-between gap-3 mt-4 pt-3 border-t border-gray-200">' +
+            '<button type="button" id="saldos-excel-filter-clear" class="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors">Limpiar filtro</button>' +
+            '<div class="flex gap-2">' +
+            '<button type="button" id="saldos-excel-filter-cancel" class="px-4 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">Cancelar</button>' +
+            '<button type="button" id="saldos-excel-filter-apply" class="px-5 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors shadow-sm">Aplicar</button>' +
+            '</div></footer></div>';
+
+        Swal.fire({
+            title: '<i class="fas fa-filter mr-2 text-blue-500"></i>Filtrar: ' + escapeHtml(colLabel),
+            html: html,
+            width: '440px',
+            padding: '1.25rem',
+            showConfirmButton: false,
+            showCloseButton: true,
+            customClass: {
+                popup: 'rounded-xl shadow-2xl',
+                htmlContainer: 'text-left',
+                title: 'text-base font-semibold text-gray-800'
+            },
+            didOpen: function() {
+                var container = document.querySelector('.swal2-html-container');
+                if (!container) return;
+
+                container.querySelector('#saldos-excel-filter-select-all')?.addEventListener('click', function() {
+                    container.querySelectorAll('.saldos-excel-filter-cb').forEach(function(cb) { cb.checked = true; });
+                    this.textContent = 'Todos seleccionados';
+                    this.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-green-100 text-green-700 hover:bg-green-200';
+                });
+
+                container.querySelector('#saldos-excel-filter-deselect-all')?.addEventListener('click', function() {
+                    container.querySelectorAll('.saldos-excel-filter-cb').forEach(function(cb) { cb.checked = false; });
+                    var selAllBtn = container.querySelector('#saldos-excel-filter-select-all');
+                    if (selAllBtn) {
+                        selAllBtn.textContent = 'Seleccionar todo';
+                        selAllBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-100 text-blue-700 hover:bg-blue-200';
+                    }
+                });
+
+                container.querySelector('#saldos-excel-filter-apply')?.addEventListener('click', function() {
+                    var selected = Array.from(container.querySelectorAll('.saldos-excel-filter-cb:checked')).map(function(cb) { return cb.dataset.value; });
+                    if (selected.length === uniqueValues.length || selected.length === 0) {
+                        delete columnFilters[colIdx];
+                    } else {
+                        columnFilters[colIdx] = selected;
+                    }
+                    applyFilters();
+                    updateFilterBadge();
+                    Swal.close();
+                });
+
+                container.querySelector('#saldos-excel-filter-clear')?.addEventListener('click', function() {
+                    delete columnFilters[colIdx];
+                    applyFilters();
+                    updateFilterBadge();
+                    Swal.close();
+                });
+
+                container.querySelector('#saldos-excel-filter-cancel')?.addEventListener('click', function() {
+                    Swal.close();
+                });
+
+                container.querySelectorAll('.saldos-excel-filter-cb').forEach(function(cb) {
+                    cb.addEventListener('change', function() {
+                        var allChecked = Array.from(container.querySelectorAll('.saldos-excel-filter-cb')).every(function(c) { return c.checked; });
+                        var noneChecked = Array.from(container.querySelectorAll('.saldos-excel-filter-cb')).every(function(c) { return !c.checked; });
+                        var selAllBtn = container.querySelector('#saldos-excel-filter-select-all');
+                        if (selAllBtn) {
+                            if (allChecked) {
+                                selAllBtn.textContent = 'Todos seleccionados';
+                                selAllBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-green-100 text-green-700 hover:bg-green-200';
+                            } else if (noneChecked) {
+                                selAllBtn.textContent = 'Seleccionar todo';
+                                selAllBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-100 text-blue-700 hover:bg-blue-200';
+                            } else {
+                                selAllBtn.textContent = 'Seleccionar todo';
+                                selAllBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-100 text-blue-700 hover:bg-blue-200';
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    function updateFilterBadge() {
+        var activeCount = Object.keys(columnFilters).length;
+        var badge = document.getElementById('saldos-filter-badge');
+        var btn = document.getElementById('saldos-filter-btn');
+        if (badge) {
+            badge.textContent = activeCount;
+            badge.style.display = activeCount > 0 ? 'inline-flex' : 'none';
+        }
+        if (btn) {
+            if (activeCount > 0) {
+                btn.classList.remove('bg-indigo-50', 'hover:bg-indigo-100', 'text-indigo-700', 'border-indigo-200');
+                btn.classList.add('bg-blue-500', 'hover:bg-blue-600', 'text-white', 'border-blue-600');
+                btn.title = 'Hay ' + activeCount + ' filtro(s) activo(s). Clic para limpiar.';
+            } else {
+                btn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'text-white', 'border-blue-600');
+                btn.classList.add('bg-indigo-50', 'hover:bg-indigo-100', 'text-indigo-700', 'border-indigo-200');
+                btn.title = 'Filtrar por columna';
+            }
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       9b. Modify applyFilters to use columnFilters modal
+    ═══════════════════════════════════════════════════════════ */
+    var originalApplyFilters = applyFilters;
+    function applyFilters() {
+        var rows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
+        var shown = 0;
+        rows.forEach(function(row) {
+            var show = !globalQ || (row.dataset.search || '').includes(globalQ);
+
+            if (show) {
+                for (var idx in colFilters) {
+                    var v = colFilters[idx];
+                    if (v && !getCellText(row, parseInt(idx)).includes(v)) { show = false; break; }
+                }
+            }
+
+            if (show && Object.keys(columnFilters).length > 0) {
+                for (var colIdx in columnFilters) {
+                    var allowed = columnFilters[colIdx];
+                    if (!allowed || allowed.length === 0) continue;
+                    var cellVal = getCellTextForCol(row, parseInt(colIdx));
+                    var key = cellVal === '' ? '(vacío)' : cellVal;
+                    if (!allowed.includes(key)) { show = false; break; }
+                }
+            }
+
+            row.classList.toggle('saldos-hidden', !show);
+            if (show) shown++;
+        });
+        if (counter) counter.textContent = shown;
+        if (visibleEl) visibleEl.textContent = shown;
+
+        if (checkAll) {
+            var vis = tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden) .saldos-row-check');
+            var chk = tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden) .saldos-row-check:checked');
+            checkAll.indeterminate = chk.length > 0 && chk.length < vis.length;
+            checkAll.checked = vis.length > 0 && chk.length === vis.length;
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       10. Sort by column
     ═══════════════════════════════════════════════════════════ */
     function sortByCol(colIdx, dir) {
         if (!tbody || colIdx === null) return;

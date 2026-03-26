@@ -682,25 +682,32 @@
       // Balanceo automático con fecha fin objetivo
       // ==========================
       window.aplicarBalanceoAutomatico = async function (ordCompartida) {
-                const inputs = document.querySelectorAll('.pedido-input');
-        if (inputs.length < 2) {
-                    return; // Silenciosamente, no hacer nada si hay menos de 2 registros
-        }
+        const inputs = document.querySelectorAll('.pedido-input');
+        if (inputs.length < 2) return;
 
-        // Obtener el input de fecha objetivo del modal
         const fechaInput = document.getElementById('fecha-fin-objetivo-balanceo');
-        if (!fechaInput) {
-                    return; // Silenciosamente, no hacer nada si no existe el input
-        }
+        if (!fechaInput) return;
 
         const fechaFinObjetivo = fechaInput.value;
         if (!fechaFinObjetivo) {
-                    fechaInput.focus();
+          fechaInput.focus();
           return;
         }
 
+        const btn = document.getElementById('btn-balancear-auto');
+        const btnIcon  = btn?.querySelector('.btn-balancear-icon');
+        const btnLabel = btn?.querySelector('.btn-balancear-label');
+
+        const setLoading = (loading) => {
+          if (!btn) return;
+          btn.disabled = loading;
+          if (btnIcon)  btnIcon.className  = loading ? 'fa-solid fa-spinner fa-spin text-xs btn-balancear-icon' : 'fa-solid fa-scale-balanced text-xs btn-balancear-icon';
+          if (btnLabel) btnLabel.textContent = loading ? 'Calculando...' : 'Balancear';
+        };
+
+        setLoading(true);
+
         try {
-                    // Llamar al endpoint de balanceo automático
           const response = await fetch('/planeacion/programa-tejido/balancear-automatico', {
             method: 'POST',
             headers: {
@@ -716,13 +723,9 @@
 
           const data = await response.json();
 
-          if (!data.success) {
-                        return;
-          }
+          if (!data.success) return;
 
-                    // Aplicar los cambios calculados a los inputs (silenciosamente, como si fuera cambio manual)
           if (data.cambios && Array.isArray(data.cambios)) {
-            // Aplicar cambios a los inputs
             data.cambios.forEach(cambio => {
               const input = getInputById(cambio.id);
               if (input) {
@@ -730,32 +733,20 @@
                 const nuevoValor = Math.round(Math.max(produccion, cambio.total_pedido));
                 const valorAnterior = Number(input.value) || 0;
 
-                // Solo actualizar si hay cambio
                 if (Math.abs(nuevoValor - valorAnterior) > 0.01) {
-                                    input.value = nuevoValor;
-
-                  // NO actualizar dataset.original aquí - debe mantenerse el valor original
-                  // para que al guardar se detecten los cambios del balanceo
-                  // input.dataset.original solo se actualiza al cargar o después de guardar
-
-                  // Disparar evento input para que se actualicen totales y fechas
-                  // Esto funciona igual que cuando el usuario cambia el input manualmente
+                  input.value = nuevoValor;
                   input.dispatchEvent(new Event('input', { bubbles: true }));
                 }
               }
             });
 
-            // Recalcular totales y fechas inmediatamente (esto actualizará el gantt automáticamente)
-            // El schedulePreview dentro de calcularTotalesYFechas actualizará las fechas finales
             window.calcularTotalesYFechas(null, ordCompartida);
-
-            // Forzar actualización inmediata del preview (sin esperar el debounce)
-            setTimeout(() => {
-                            previewFechasExactas(ordCompartida);
-            }, 100);
+            setTimeout(() => { previewFechasExactas(ordCompartida); }, 100);
           }
         } catch (error) {
           console.error('Error al balancear:', error);
+        } finally {
+          setLoading(false);
         }
       };
 
@@ -1082,10 +1073,11 @@
                   class="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
                 <button type="button"
+                  id="btn-balancear-auto"
                   onclick="aplicarBalanceoAutomatico(${ordCompartida})"
-                  class="inline-flex items-center justify-center gap-1 rounded-md bg-blue-500 px-4 py-1 text-md font-medium text-white shadow-sm hover:bg-blue-600">
-                  <i class="fa-solid fa-scale-balanced text-xs"></i>
-                  <span>Balancear</span>
+                  class="inline-flex items-center justify-center gap-1 rounded-md bg-blue-500 px-4 py-1 text-md font-medium text-white shadow-sm hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed">
+                  <i class="fa-solid fa-scale-balanced text-xs btn-balancear-icon"></i>
+                  <span class="btn-balancear-label">Balancear</span>
                 </button>
               </div>
 

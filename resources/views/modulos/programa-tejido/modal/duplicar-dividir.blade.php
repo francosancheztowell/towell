@@ -379,7 +379,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 						</tr>
 					</thead>
 					<tbody id="telar-pedido-body">
-						<tr class="telar-row" id="fila-principal">
+						<tr class="telar-row" id="fila-principal" data-clave-valida="${claveModelo ? 'true' : ''}">
 							<td class="p-2 border-r border-gray-200 clave-modelo-cell">
 								<input type="text" value="${claveModelo || ''}" ${claveModeloReadonly}
 									class="${claveModeloClass}">
@@ -658,7 +658,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		} else {
 			const tieneDestinos = telarInputs.length > 1;
 			const origenTieneCantidad = pedidoInputs[0]?.value?.trim() !== '';
-			confirmButton.disabled = !tieneDestinos || !allDestinationsValid || !origenTieneCantidad || !todasClavesValidas;
+			confirmButton.disabled = !tieneDestinos || !allDestinationsValid || !origenTieneCantidad;
 		}
 	}
 
@@ -3101,14 +3101,16 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 // Valida y captura los datos del modal para enviar al backend
 function validarYCapturarDatosDuplicar() {
-	// Verificar que todas las claves modelo existan en codificados
-	const filasValidacion = document.querySelectorAll('#telar-pedido-body tr');
-	for (const fila of filasValidacion) {
-		const claveInput = fila.querySelector('.clave-modelo-cell input');
-		const claveVal = claveInput ? (claveInput.value || '').trim() : '';
-		if (claveVal !== '' && fila.dataset.claveValida === 'false') {
-			Swal.showValidationMessage('Primero verifique en Modelos si la clave existe');
-			return false;
+	// Verificar que todas las claves modelo existan en codificados (solo en modo duplicar)
+	if (getModoActual() === 'duplicar') {
+		const filasValidacion = document.querySelectorAll('#telar-pedido-body tr');
+		for (const fila of filasValidacion) {
+			const claveInput = fila.querySelector('.clave-modelo-cell input');
+			const claveVal = claveInput ? (claveInput.value || '').trim() : '';
+			if (claveVal !== '' && fila.dataset.claveValida === 'false') {
+				Swal.showValidationMessage('Primero verifique en Modelos si la clave existe');
+				return false;
+			}
 		}
 	}
 

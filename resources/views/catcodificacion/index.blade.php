@@ -5,9 +5,9 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <button type="button" onclick="mostrarAlertaNavbar()"
-            class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
-            title="Mostrar alerta" aria-label="Mostrar alerta">
-            <i class="fa-solid fa-bell text-sm"></i>
+            class="w-28 h-9 flex items-center justify-center p-4 bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
+            title="Peso Muestra" aria-label="Mostrar alerta">
+            Peso M
         </button>
         <button id="btn-filtrar" onclick="filtrarCodificacion()"
             class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"

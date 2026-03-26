@@ -64,6 +64,8 @@ async function calcularSaldoTotal(row) {
 			if (totalInput) {
 				totalInput.dispatchEvent(new Event('input', { bubbles: true }));
 			}
+			// Habilitar/deshabilitar botón Dividir según estado actual
+			if (typeof recomputeState === 'function') recomputeState();
 		}
 	} catch (error) {
 		// Error silencioso
@@ -897,6 +899,14 @@ function agregarFilaDividir() {
 			if (typeof recomputeState === 'function') {
 				recomputeState();
 			}
+		});
+	}
+
+	// Llamar recomputeState al cambiar el telar destino de la fila nueva
+	const telarSelectNuevo = newRow.querySelector('select[name="telar-destino[]"]');
+	if (telarSelectNuevo) {
+		telarSelectNuevo.addEventListener('change', () => {
+			if (typeof recomputeState === 'function') recomputeState();
 		});
 	}
 
