@@ -628,6 +628,9 @@ class DividirTejido
             }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
+            // Reconectar para garantizar visibilidad de los registros recién commiteados.
+            try { DBFacade::reconnect(); } catch (\Throwable $ignored) {}
+
             // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
             if (!empty($registrosParaObserver)) {
                 $observer = new ReqProgramaTejidoObserver();
@@ -1145,6 +1148,10 @@ class DividirTejido
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
             }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+
+            // Reconectar para garantizar visibilidad de los registros recién commiteados.
+            // pdo_sqlsrv/ODBC 17 a veces no ve registros recién commiteados en la misma conexión.
+            try { DBFacade::reconnect(); } catch (\Throwable $ignored) {}
 
             // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
             if (!empty($registrosParaObserver)) {
