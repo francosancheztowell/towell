@@ -1141,7 +1141,16 @@ class DividirTejido
                 $totalCreados++;
             }
 
+            LogFacade::info('redistribuirGrupoExistente: ANTES commit', [
+                'transaction_level' => DBFacade::transactionLevel(),
+                'nuevos_ids' => array_map(fn($r) => $r->Id ?? 'sin-id', $registrosParaObserver),
+            ]);
+
             DBFacade::commit();
+
+            LogFacade::info('redistribuirGrupoExistente: DESPUES commit', [
+                'transaction_level' => DBFacade::transactionLevel(),
+            ]);
 
             // Restaurar dispatcher y re-habilitar observer (igual que DuplicarTejido)
             if ($dispatcher) {
@@ -1151,7 +1160,12 @@ class DividirTejido
 
             // Reconectar para garantizar visibilidad de los registros recién commiteados.
             // pdo_sqlsrv/ODBC 17 a veces no ve registros recién commiteados en la misma conexión.
-            try { DBFacade::reconnect(); } catch (\Throwable $ignored) {}
+            try {
+                DBFacade::reconnect();
+                LogFacade::info('redistribuirGrupoExistente: reconnect OK');
+            } catch (\Throwable $reconnectErr) {
+                LogFacade::warning('redistribuirGrupoExistente: reconnect FALLO', ['error' => $reconnectErr->getMessage()]);
+            }
 
             // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
             if (!empty($registrosParaObserver)) {
