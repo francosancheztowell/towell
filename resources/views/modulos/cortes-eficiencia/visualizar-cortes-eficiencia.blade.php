@@ -54,6 +54,16 @@
         if ($e === null || $e === '') return '';
         return (string) round((float) $e);
     };
+
+    $efiClass = function ($line, $campo, $turnoNum = null) {
+        if (!$line) return '';
+        $e = $line->$campo ?? null;
+        if ($e === null || $e === '' || !is_numeric($e)) return '';
+        return ((float) $e) < 70
+            ? ($turnoNum == 3 ? 'bg-amber-500 text-white' : 'bg-yellow-300 text-gray-900')
+            : '';
+    };
+
     $obsData = fn($line, $campoStatus, $campoText) => [
         'status' => $line ? (bool) ($line->$campoStatus ?? false) : false,
         'text'   => $line ? trim($line->$campoText ?? '') : '',
@@ -117,7 +127,7 @@
                             Telar
                         </th>
 
-                        @for ($turno = 1; $turno <= 3; $turno++)
+                        @for ($turno = 1; $turno <= ($maxTurno ?? 3); $turno++)
                             <th colspan="4"
                                 class="px-4 py-2 text-center border border-gray-300
                                        sticky top-0 z-30
@@ -130,7 +140,7 @@
 
                     {{-- ── Fila 2: RPM + Horarios (HR reales del folio por turno) ── --}}
                     <tr>
-                        @for ($turno = 1; $turno <= 3; $turno++)
+                        @for ($turno = 1; $turno <= ($maxTurno ?? 3); $turno++)
                             <th rowspan="2"
                                 class="px-2 py-1 text-center border border-gray-300
                                        sticky top-0 z-20
@@ -160,7 +170,7 @@
 
                     {{-- ── Fila 3: nombres de columna (EF x3) ── --}}
                     <tr>
-                        @for ($turno = 1; $turno <= 3; $turno++)
+                        @for ($turno = 1; $turno <= ($maxTurno ?? 3); $turno++)
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
                                        sticky top-0 z-10 {{ $horarioColors[1]['cols'] }} min-w-[56px]">EF</th>
                             <th class="px-2 py-1 text-center border border-gray-300 text-xs font-semibold
@@ -187,7 +197,13 @@
                             </td>
 
                             {{-- ── 3 turnos ── --}}
-                            @foreach ([1 => $t1, 2 => $t2, 3 => $t3] as $tx)
+                            @php
+                                $turnosVisibles = [];
+                                for ($i = 1; $i <= ($maxTurno ?? 3); $i++) {
+                                    $turnosVisibles[$i] = ${"t$i"};
+                                }
+                            @endphp
+                            @foreach ($turnosVisibles as $turnoNum => $tx)
                                 @php
                                     $o1 = $obsData($tx, 'StatusOB1', 'ObsR1');
                                     $o2 = $obsData($tx, 'StatusOB2', 'ObsR2');
@@ -200,7 +216,7 @@
                                 </td>
 
                                 {{-- ── EF por horario (1,2,3) ── --}}
-                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[1]['cell'] }}">
+                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[1]['cell'] }} {{ $efiClass($tx, 'EficienciaR1', $turnoNum) }}">
                                     <div class="flex flex-col items-center justify-center leading-tight text-center">
                                         <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR1') }}</div>
                                         @if ($o1['status'] || $o1['text'] !== '')
@@ -210,7 +226,7 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[2]['cell'] }}">
+                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[2]['cell'] }} {{ $efiClass($tx, 'EficienciaR2', $turnoNum) }}">
                                     <div class="flex flex-col items-center justify-center leading-tight text-center">
                                         <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR2') }}</div>
                                         @if ($o2['status'] || $o2['text'] !== '')
@@ -220,7 +236,7 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[3]['cell'] }}">
+                                <td class="px-2 py-1.5 text-center align-middle border border-gray-300 text-gray-700 font-medium {{ $horarioColors[3]['cell'] }} {{ $efiClass($tx, 'EficienciaR3', $turnoNum) }}">
                                     <div class="flex flex-col items-center justify-center leading-tight text-center">
                                         <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR3') }}</div>
                                         @if ($o3['status'] || $o3['text'] !== '')

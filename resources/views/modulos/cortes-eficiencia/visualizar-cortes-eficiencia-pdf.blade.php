@@ -290,7 +290,7 @@
             $e = $line->$campo ?? null;
             if ($e === null || $e === '' || !is_numeric($e)) return '';
             return ((float) $e) < 70
-                ? ($turno === 3 ? 'efi-low-t3' : 'efi-low')
+                ? ($turno == 3 ? 'efi-low-t3' : 'efi-low')
                 : '';
         };
 
@@ -333,14 +333,14 @@
             {{-- ── Fila 1: Telar + Turno N ── --}}
             <tr>
                 <th rowspan="3" class="hdr-fixed col-telar">Telar</th>
-                @for ($t = 1; $t <= 3; $t++)
+                @for ($t = 1; $t <= ($maxTurno ?? 3); $t++)
                     <th colspan="4" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}</th>
                 @endfor
             </tr>
 
             {{-- ── Fila 2: RPM + Horarios por turno ── --}}
             <tr>
-                @for ($t = 1; $t <= 3; $t++)
+                @for ($t = 1; $t <= ($maxTurno ?? 3); $t++)
                     <th rowspan="2" class="{{ $hdrH[0] }} col-rpm">RPM</th>
                     <th class="{{ $hdrH[0] }}">{{ $horariosTurno[$t][1] }}</th>
                     <th class="{{ $hdrH[1] }}">{{ $horariosTurno[$t][2] }}</th>
@@ -350,7 +350,7 @@
 
             {{-- ── Fila 3: EF x3 (incluye comentario debajo) ── --}}
             <tr>
-                @for ($t = 1; $t <= 3; $t++)
+                @for ($t = 1; $t <= ($maxTurno ?? 3); $t++)
                     <th class="{{ $hdrC[0] }} col-pef">EF</th>
                     <th class="{{ $hdrC[1] }} col-pef">EF</th>
                     <th class="{{ $hdrC[2] }} col-pef">EF</th>
@@ -364,13 +364,16 @@
                     $t1 = $row['t1'];
                     $t2 = $row['t2'];
                     $t3 = $row['t3'];
-                    $turnos = [1 => $t1, 2 => $t2, 3 => $t3];
+                    $turnos = [];
+                    for ($j = 1; $j <= ($maxTurno ?? 3); $j++) {
+                        $turnos[$j] = ${"t$j"};
+                    }
                 @endphp
                 <tr>
                     {{-- Telar --}}
                     <td class="td-telar">{{ $row['telar'] }}</td>
 
-                    {{-- ── 3 Turnos ── --}}
+                    {{-- ── Turnos Visibles ── --}}
                     @foreach ($turnos as $tNum => $tx)
                         @php
                             $h1 = $cellH[0];

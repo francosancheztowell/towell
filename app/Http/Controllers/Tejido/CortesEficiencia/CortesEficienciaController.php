@@ -565,6 +565,27 @@ class CortesEficienciaController extends Controller
             $corte->updated_at = now();
             $corte->save();
 
+            // Notificar por Telegram automáticamente al finalizar
+            try {
+                Log::info('Iniciando notificación automática por Telegram para folio: ' . $corte->Folio, [
+                    'fecha' => $corte->Date,
+                    'turno' => $corte->Turno
+                ]);
+                
+                $success = $this->enviarReporteTelegramInternal($corte->Date, $corte->Turno, Auth::user());
+                
+                if ($success) {
+                    Log::info('Notificación automática enviada exitosamente para folio: ' . $corte->Folio);
+                } else {
+                    Log::warning('No se enviaron datos en la notificación automática (posiblemente sin líneas para la fecha/turno) para folio: ' . $corte->Folio);
+                }
+            } catch (\Exception $e) {
+                Log::error('Error al enviar notificación automática de cortes: ' . $e->getMessage(), [
+                    'folio' => $corte->Folio,
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+
             $pdfUrl = route('cortes.eficiencia.pdf', $corte->Folio);
 
             return response()->json([
@@ -873,7 +894,7 @@ class CortesEficienciaController extends Controller
                     ->with('error', 'Folio no encontrado');
             }
 
-            $info = $this->obtenerDatosVisualizacionPorFecha($corteBase->Date);
+            $info = $this->obtenerDatosVisualizacionPorFecha($corteBase->Date, $corteBase->Turno);
 
             return view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia', [
                 'folio' => $folio,
@@ -881,6 +902,7 @@ class CortesEficienciaController extends Controller
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
                 'horariosPorTurno' => $info['horariosPorTurno'],
+                'maxTurno' => $corteBase->Turno,
             ]);
         } catch (\Exception $e) {
             Log::error('Error al visualizar cortes de eficiencia: ' . $e->getMessage());
@@ -1007,6 +1029,7 @@ class CortesEficienciaController extends Controller
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
                 'horariosPorTurno' => $info['horariosPorTurno'],
+                'maxTurno' => $info['maxTurno'] ?? 3,
             ])->render();
 
             $options = new Options();
@@ -1060,12 +1083,16 @@ class CortesEficienciaController extends Controller
         return $resultado;
     }
 
-    private function obtenerDatosVisualizacionPorFecha($fecha)
+    private function obtenerDatosVisualizacionPorFecha($fecha, $maxTurno = null)
     {
         $fechaNorm = $this->normalizarFecha($fecha);
 
-        $lineasFecha = TejEficienciaLine::whereDate('Date', $fechaNorm)
-            ->orderByDesc('updated_at')
+        $query = TejEficienciaLine::whereDate('Date', $fechaNorm);
+        if ($maxTurno !== null) {
+            $query->where('Turno', '<=', (int)$maxTurno);
+        }
+
+        $lineasFecha = $query->orderByDesc('updated_at')
             ->orderByDesc('created_at')
             ->orderByDesc('Folio')
             ->orderBy('Turno')
@@ -1142,6 +1169,7 @@ class CortesEficienciaController extends Controller
     private function enviarReporteCortesPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): void
     {
         try {
+            Log::info('Iniciando enviarReporteCortesPdfTelegram');
             $botToken = config('services.telegram.bot_token');
             if (empty($botToken)) {
                 Log::warning('No se pudo enviar PDF de cortes: TELEGRAM_BOT_TOKEN no configurado');
@@ -1149,6 +1177,8 @@ class CortesEficienciaController extends Controller
             }
 
             $chatIds = SYSMensaje::getChatIdsPorModulo('CorteSEF');
+            Log::info('Chat IDs obtenidos para CorteSEF', ['chatIds' => $chatIds]);
+
             if (empty($chatIds)) {
                 Log::warning('No hay destinatarios con CorteSEF activo en SYSMensajes');
                 return;
@@ -1235,48 +1265,19 @@ class CortesEficienciaController extends Controller
                 return response()->json(['success' => false, 'message' => 'Fecha requerida'], 400);
             }
 
-            $fechaNorm = $this->normalizarFecha($fecha);
-            $info = $this->obtenerDatosVisualizacionPorFecha($fechaNorm);
+            $success = $this->enviarReporteTelegramInternal($fecha, null, Auth::user());
 
-            if ($info['datos']->isEmpty()) {
-                return response()->json(['success' => false, 'message' => 'Sin datos para la fecha seleccionada'], 404);
+            if ($success) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Reporte enviado por Telegram exitosamente',
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo enviar el reporte por Telegram',
+                ], 500);
             }
-
-            // Generar el PDF
-            $html = view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia-pdf', [
-                'fecha' => $info['fecha'],
-                'datos' => $info['datos'],
-                'foliosPorTurno' => $info['foliosPorTurno'],
-                'horariosPorTurno' => $info['horariosPorTurno'],
-            ])->render();
-
-            $options = new Options();
-            $options->set('isHtml5ParserEnabled', true);
-            $options->set('isRemoteEnabled', true);
-            $options->set('defaultFont', 'Arial');
-            $options->set('isPhpEnabled', false);
-            $options->set('chroot', public_path());
-            $options->set('tempDir', sys_get_temp_dir());
-
-            $dompdf = new Dompdf($options);
-            $dompdf->loadHtml($html, 'UTF-8');
-            $dompdf->setPaper('a4', 'landscape');
-            $dompdf->render();
-
-            $pdfContent = $dompdf->output();
-            $filename = 'cortes_eficiencia_' . $fechaNorm . '.pdf';
-
-            if (empty($pdfContent)) {
-                return response()->json(['success' => false, 'message' => 'Error: PDF generado está vacío'], 500);
-            }
-
-            // Enviar por Telegram
-            $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Reporte enviado por Telegram exitosamente',
-            ]);
         } catch (\Throwable $th) {
             Log::error('Error al notificar por Telegram cortes de eficiencia', [
                 'mensaje' => $th->getMessage(),
@@ -1287,6 +1288,61 @@ class CortesEficienciaController extends Controller
                 'message' => 'Error al enviar por Telegram: ' . $th->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Lógica interna para generar el PDF y enviar a Telegram.
+     */
+    private function enviarReporteTelegramInternal($fecha, $maxTurno = null, $usuario = null): bool
+    {
+        Log::info('Ejecutando enviarReporteTelegramInternal', ['fecha' => $fecha, 'maxTurno' => $maxTurno]);
+
+        $fechaNorm = $this->normalizarFecha($fecha);
+        $info = $this->obtenerDatosVisualizacionPorFecha($fechaNorm, $maxTurno);
+
+        if ($info['datos']->isEmpty()) {
+            Log::warning('No se encontraron datos para la visualización en enviarReporteTelegramInternal', ['fecha' => $fechaNorm, 'maxTurno' => $maxTurno]);
+            return false;
+        }
+
+        Log::info('Datos encontrados para reporte', ['total_datos' => count($info['datos'])]);
+
+        // Generar el PDF
+        $html = view('modulos.cortes-eficiencia.visualizar-cortes-eficiencia-pdf', [
+            'fecha' => $info['fecha'],
+            'datos' => $info['datos'],
+            'foliosPorTurno' => $info['foliosPorTurno'],
+            'horariosPorTurno' => $info['horariosPorTurno'],
+            'maxTurno' => $maxTurno,
+        ])->render();
+
+        $options = new Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+        $options->set('defaultFont', 'Arial');
+        $options->set('isPhpEnabled', false);
+        $options->set('chroot', public_path());
+        $options->set('tempDir', sys_get_temp_dir());
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('a4', 'landscape');
+        $dompdf->render();
+
+        $pdfContent = $dompdf->output();
+        $filename = 'cortes_eficiencia_' . $fechaNorm . '.pdf';
+
+        if (empty($pdfContent)) {
+            Log::error('PDF de cortes de eficiencia generado vacío', ['fecha' => $fechaNorm]);
+            return false;
+        }
+
+        Log::info('PDF generado exitosamente, procediendo a enviar por Telegram', ['filename' => $filename, 'size' => strlen($pdfContent)]);
+
+        // Enviar por Telegram
+        $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, $usuario);
+
+        return true;
     }
 
     private function normalizarFecha($fecha)
