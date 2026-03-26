@@ -125,6 +125,22 @@
         $marginBase = $clamp(3.0 - ((1 - $sizeScale) * 2.70), 1.2, 3.0);
         $marginPage = $toMm($marginBase);
 
+        // Ajuste dinámico de anchos por encabezado/contenido.
+        // Objetivo: celdas más estrechas (tamaño título) y comentarios a 2 renglones.
+        $factorComentariosAncho = $clamp(($longitudComentarioMax - 10) / 20, 0.0, 1.0);
+        $efWeight = 1.22 + ($factorComentariosAncho * 0.38) + ($densidadComentarios * 0.14);
+        $rpmWeight = 1.02;
+        $telarWeight = 1.95;
+        $totalWeight = $telarWeight + ($turnosActivos * ($rpmWeight + (3 * $efWeight)));
+
+        $toPct = function (float $weight) use ($totalWeight): string {
+            return number_format(($weight / $totalWeight) * 100, 3, '.', '') . '%';
+        };
+
+        $telarColWidth = $toPct($telarWeight);
+        $rpmColWidth = $toPct($rpmWeight);
+        $efColWidth = $toPct($efWeight);
+
     @endphp
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -210,7 +226,7 @@
             font-weight: bold;
             font-size: {{ $thSize }};
         }
-        .col-telar { width: 32px; }
+        .col-telar { width: {{ $telarColWidth }}; }
         .col-fecha { width: 18px; }
         .col-std   { width: 13px; }
         .col-ef    { width: 13px; }
@@ -254,8 +270,8 @@
         .hdr-c3 { background-color: #fde047; color: #78350f; font-weight: bold; }
 
         /* ── Anchos de columnas de datos ── */
-        .col-rpm { width: 15px; }
-        .col-pef { width: 25px; }
+        .col-rpm { width: {{ $rpmColWidth }}; }
+        .col-pef { width: {{ $efColWidth }}; }
         th.col-rpm { font-size: {{ $thSize }}; }
         td.col-rpm {
             font-size: {{ $rpmSize }};
@@ -271,11 +287,12 @@
             font-size: {{ $commentSize }};
             font-weight: 400;
             text-align: center;
-            white-space: nowrap;
+            white-space: normal;
+            word-break: break-word;
             overflow: hidden;
             text-overflow: clip;
-            max-height: none;
-            line-height: 1;
+            line-height: 1.05em;
+            max-height: 2.1em;
         }
 
         /* ── Celdas de datos por horario ── */
