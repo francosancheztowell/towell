@@ -242,9 +242,32 @@ class ReqProgramaTejidoObserver
             }
 
             if (!empty($lineasParaInsertar)) {
+                // Verificar que el registro padre existe antes de insertar.
+                // En SQL Server con ODBC puede haber un lag de visibilidad en la misma conexión
+                // para registros recién commiteados — usamos DB::table() como fallback.
+                $connParaInsert = $connection;
+                $parentExists = $connection->table(ReqProgramaTejido::tableName())
+                    ->where('Id', $programa->Id)
+                    ->exists();
+
+                if (!$parentExists) {
+                    // Intentar con la conexión por defecto del facade (puede ser una conexión diferente)
+                    $parentExists = \Illuminate\Support\Facades\DB::table(ReqProgramaTejido::tableName())
+                        ->where('Id', $programa->Id)
+                        ->exists();
+                    if ($parentExists) {
+                        $connParaInsert = \Illuminate\Support\Facades\DB::connection();
+                    } else {
+                        Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias: registro padre no visible, omitiendo líneas', [
+                            'programa_id' => $programa->Id,
+                        ]);
+                        return;
+                    }
+                }
+
                 $chunks = array_chunk($lineasParaInsertar, 500);
                 foreach ($chunks as $chunk) {
-                    $connection->table($tableLine)->insert($chunk);
+                    $connParaInsert->table($tableLine)->insert($chunk);
                 }
             }
 
