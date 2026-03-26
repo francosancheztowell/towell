@@ -80,7 +80,7 @@
     };
 @endphp
 
-<div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
+<div id="cortes-eficiencia-share-canvas" class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
 
     {{-- ── Título y botones ── --}}
     <div class="flex items-center justify-between mb-4">
@@ -96,7 +96,11 @@
                     class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">
                 <i class="fa fa-file-pdf mr-2"></i> Descargar PDF
             </button>
-                        <button onclick="notificarTelegram('{{ $fecha }}')" id="btn-telegram"
+            <button onclick="compartirCortesImagen('{{ $fecha }}')" id="btn-compartir-imagen"
+                    class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors">
+                <i class="fa fa-image mr-2"></i> Compartir Imagen
+            </button>
+            <button onclick="notificarTelegram('{{ $fecha }}')" id="btn-telegram"
                     class="inline-flex items-center px-4 py-2 bg-white hover:bg-gray-100 text-sky-600 text-sm font-medium rounded-md transition-colors border border-sky-200">
                 <i class="fa-brands fa-telegram mr-2 text-blue-600 text-lg"></i> Notificar Telegram
             </button>
@@ -265,6 +269,90 @@
 
 @push('scripts')
 <script>
+    let pdfJsLoader = null;
+
+    function descargarBlob(blob, filename) {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const enlace = document.createElement('a');
+        enlace.href = blobUrl;
+        enlace.download = filename;
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        window.URL.revokeObjectURL(blobUrl);
+    }
+
+    function cargarPdfJs() {
+        if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+        if (pdfJsLoader) return pdfJsLoader;
+
+        pdfJsLoader = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+            script.async = true;
+            script.onload = () => {
+                if (!window.pdfjsLib) {
+                    reject(new Error('No se pudo inicializar pdf.js.'));
+                    return;
+                }
+
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                resolve(window.pdfjsLib);
+            };
+            script.onerror = () => reject(new Error('No se pudo cargar pdf.js.'));
+            document.head.appendChild(script);
+        });
+
+        return pdfJsLoader;
+    }
+
+    async function solicitarPdfReporte(fecha) {
+        const response = await fetch('{{ route("cortes.eficiencia.visualizar.pdf") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/pdf'
+            },
+            body: new URLSearchParams({ fecha })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`No se pudo generar el PDF (${response.status}). ${text?.slice(0, 200) || ''}`.trim());
+        }
+
+        return response.blob();
+    }
+
+    async function generarImagenDesdePdf(fecha) {
+        const pdfBlob = await solicitarPdfReporte(fecha);
+        const pdfBytes = await pdfBlob.arrayBuffer();
+        const pdfjsLib = await cargarPdfJs();
+
+        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes) });
+        const pdfDoc = await loadingTask.promise;
+        const page = await pdfDoc.getPage(1);
+
+        const viewport = page.getViewport({ scale: 2.2 });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+
+        await page.render({
+            canvasContext: ctx,
+            viewport,
+            background: '#ffffff'
+        }).promise;
+
+        const imageBlob = await new Promise((resolve, reject) => {
+            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('No se pudo convertir el PDF a imagen.'))), 'image/jpeg', 0.92);
+        });
+
+        return new File([imageBlob], `cortes_eficiencia_${fecha}.jpg`, { type: 'image/jpeg' });
+    }
+
     function exportarCortesExcel(fecha) {
         const form = document.createElement('form');
         form.method = 'POST';
@@ -289,35 +377,58 @@
 
     async function descargarCortesPDF(fecha) {
         try {
-            const response = await fetch('{{ route("cortes.eficiencia.visualizar.pdf") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/pdf'
-                },
-                body: new URLSearchParams({ fecha })
-            });
-
-            if (!response.ok) {
-                const text = await response.text();
-                console.error('Error al descargar PDF:', response.status, text);
-                alert('No se pudo generar el PDF.');
-                return;
-            }
-
-            const blob    = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const enlace  = document.createElement('a');
-            enlace.href     = blobUrl;
-            enlace.download = `cortes_eficiencia_${fecha}.pdf`;
-            document.body.appendChild(enlace);
-            enlace.click();
-            enlace.remove();
-            window.URL.revokeObjectURL(blobUrl);
+            const blob = await solicitarPdfReporte(fecha);
+            descargarBlob(blob, `cortes_eficiencia_${fecha}.pdf`);
         } catch (error) {
             console.error('Excepción al descargar PDF:', error);
-            alert('Ocurrió un error al intentar descargar el PDF.');
+            alert(error.message || 'Ocurrió un error al intentar descargar el PDF.');
+        }
+    }
+
+    async function compartirCortesImagen(fecha) {
+        const btn = document.getElementById('btn-compartir-imagen');
+        const originalHtml = btn?.innerHTML;
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Generando...';
+            }
+
+            const imagenFile = await generarImagenDesdePdf(fecha);
+            descargarBlob(imagenFile, imagenFile.name);
+
+            if (btn) {
+                btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Enviando Telegram...';
+            }
+
+            const formData = new FormData();
+            formData.append('imagen', imagenFile, imagenFile.name);
+            formData.append('fecha', fecha);
+
+            const response = await fetch('{{ route("cortes.eficiencia.visualizar.telegram.imagen") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'No se pudo enviar la imagen por Telegram.');
+            }
+
+            alert('Imagen descargada y enviada por Telegram exitosamente.');
+        } catch (error) {
+            if (error?.name === 'AbortError') return;
+            console.error('Excepción al compartir imagen:', error);
+            alert(error.message || 'No se pudo generar/enviar la imagen.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         }
     }
 
