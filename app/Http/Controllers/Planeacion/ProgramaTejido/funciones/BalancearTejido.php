@@ -6,7 +6,6 @@ use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -252,7 +251,9 @@ class BalancearTejido
 
             $ordCompartida = (int) $request->input('ord_compartida');
             if ($ordCompartida > 0) {
-                OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartida);
+                // Balancear pedidos/fechas no debe reasignar la orden lider del grupo.
+                // Solo sincronizamos OrdPrincipal usando el lider ya persistido.
+                VincularTejido::actualizarOrdPrincipalPorOrdCompartida($ordCompartida);
             }
 
             DB::commit();

@@ -114,6 +114,7 @@
           return {
             id: Number(reg.Id) || 0,
             noTelarId: reg.NoTelarId || '-',
+            isLeader: reg.OrdCompartidaLider === 1 || reg.OrdCompartidaLider === true || reg.OrdCompartidaLider === '1',
             fechaInicioMs: fechaInicioMs || null,
             fechaInicioKey: fechaInicioMs ? getDateKeyLocal(new Date(fechaInicioMs)) : null,
             fechaCreacionMs: parseDateOnlyTimeToMs(reg.FechaCreacion, reg.HoraCreacion),
@@ -122,6 +123,10 @@
         });
 
         if (!items.length) return null;
+
+        // El balanceo solo ajusta pedido/fechas; no debe cambiar la orden lider ya definida.
+        const persistedLeader = items.find(item => item.isLeader);
+        if (persistedLeader) return persistedLeader;
 
         const todasMismaFechaInicio = new Set(items.map(item => item.fechaInicioKey ?? '__NULL__')).size <= 1;
 

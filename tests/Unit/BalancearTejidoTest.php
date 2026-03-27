@@ -46,6 +46,7 @@ class BalancearTejidoTest extends TestCase
             $table->integer('OrdCompartida')->nullable();
             $table->string('SalonTejidoId')->nullable();
             $table->string('NoTelarId')->nullable();
+            $table->string('ItemId')->nullable();
             $table->float('TotalPedido')->default(0);
             $table->float('SaldoPedido')->default(0);
             $table->float('Produccion')->default(0);
@@ -67,6 +68,15 @@ class BalancearTejidoTest extends TestCase
             $table->float('PesoCrudo')->default(0);
             $table->float('StdToaHra')->default(0);
             $table->float('StdHrsEfect')->default(0);
+            $table->float('DiasEficiencia')->default(0);
+            $table->float('DiasJornada')->default(0);
+            $table->float('ProdKgDia')->default(0);
+            $table->float('ProdKgDia2')->default(0);
+            $table->float('PesoGRM2')->default(0);
+            $table->string('EntregaProduc')->nullable();
+            $table->string('EntregaPT')->nullable();
+            $table->string('EntregaCte')->nullable();
+            $table->float('PTvsCte')->default(0);
         });
     }
 
@@ -132,6 +142,18 @@ class BalancearTejidoTest extends TestCase
             'fecha_fin_objetivo' => $fechaFinObjetivo,
         ]);
         $response = BalancearTejido::balancearAutomatico($request);
+        return json_decode($response->getContent(), true);
+    }
+
+    private function callActualizarPedidos(int $ordCompartida, array $cambios): array
+    {
+        $request = \Illuminate\Http\Request::create('/test', 'POST', [
+            'ord_compartida' => $ordCompartida,
+            'cambios' => $cambios,
+        ]);
+
+        $response = BalancearTejido::actualizarPedidos($request);
+
         return json_decode($response->getContent(), true);
     }
 
@@ -311,6 +333,35 @@ class BalancearTejidoTest extends TestCase
         foreach ($result['cambios'] as $cambio) {
             $this->assertGreaterThanOrEqual(1, (float)$cambio['total_pedido'], 'Cada total_pedido debe ser al menos 1');
         }
+    }
+
+    public function test_actualizar_pedidos_balanceo_conserva_orden_lider_actual(): void
+    {
+        $liderOriginal = $this->makeReg([
+            'OrdCompartida' => 50,
+            'NoTelarId' => '02',
+            'FechaInicio' => now()->subDays(5)->format('Y-m-d H:i:s'),
+            'OrdCompartidaLider' => 1,
+        ]);
+
+        $noLider = $this->makeReg([
+            'OrdCompartida' => 50,
+            'NoTelarId' => '01',
+            'FechaInicio' => now()->subDays(10)->format('Y-m-d H:i:s'),
+            'OrdCompartidaLider' => null,
+        ]);
+
+        $result = $this->callActualizarPedidos(50, [
+            [
+                'id' => (int) $noLider->Id,
+                'total_pedido' => 4200,
+                'modo' => 'total',
+            ],
+        ]);
+
+        $this->assertTrue($result['success'], $result['message'] ?? 'La actualizacion de pedidos fallo');
+        $this->assertFalse((bool) $noLider->fresh()->OrdCompartidaLider);
+        $this->assertTrue((bool) $liderOriginal->fresh()->OrdCompartidaLider);
     }
 
     /**
