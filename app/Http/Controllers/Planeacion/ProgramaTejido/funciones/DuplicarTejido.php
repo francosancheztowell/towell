@@ -132,12 +132,14 @@ class DuplicarTejido
 
             $idsParaObserver = [];
             $totalDuplicados = 0;
-            $registrosCreados = []; // Para almacenar registros y sus fechas inicio para determinar el líder (solo si vincular)
             // Guardar toArray() de cada registro recién creado (antes del commit) para enviar al frontend.
             // Tras el commit, find() a veces no encuentra el registro (p. ej. SQL Server / visibilidad), por eso usamos esto.
             $registrosDatosParaRespuesta = [];
             // Modelos recién creados para pasar al observer; tras commit, whereIn() puede devolver vacío en SQL Server.
             $modelosParaObserver = [];
+            $usuarioActual = Auth::check() && Auth::user()
+                ? (Auth::user()->nombre ?? Auth::user()->numero_empleado ?? 'Sistema')
+                : 'Sistema';
 
             foreach ($destinos as $destino) {
                 $telarDestino = $destino['telar'];
@@ -515,8 +517,16 @@ class DuplicarTejido
                 // Asignar posición consecutiva para este telar
                 $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonDestinoFila, $telarDestino);
 
-                $nuevo->CreatedAt = now();
-                $nuevo->UpdatedAt = now();
+                $fechaActual = now();
+                $fechaCreacionDuplicado = $inicio->copy();
+                $nuevo->CreatedAt = $fechaActual;
+                $nuevo->UpdatedAt = $fechaActual;
+                $nuevo->FechaCreacion = $fechaCreacionDuplicado->copy()->startOfDay();
+                $nuevo->HoraCreacion = $fechaCreacionDuplicado->format('H:i:s');
+                $nuevo->UsuarioCrea = $usuarioActual;
+                $nuevo->FechaModificacion = $fechaActual->copy()->startOfDay();
+                $nuevo->HoraModificacion = $fechaActual->format('H:i:s');
+                $nuevo->UsuarioModifica = $usuarioActual;
                 $nuevo->save();
 
                 // El trigger que inserta en SYSAuditoria hace que el driver devuelva ese Id; obtener el Id real de ReqProgramaTejido.
@@ -536,32 +546,10 @@ class DuplicarTejido
                 $totalDuplicados++;
 
                 // Guardar referencia para determinar el líder después (solo si vincular)
-                if ($vincular) {
-                    $registrosCreados[] = [
-                        'id' => $nuevo->Id,
-                        'fecha_inicio' => Carbon::parse($nuevo->FechaInicio),
-                    ];
-                }
             }
 
-            // ===== ORDCOMPARTIDALIDER: Asignar al registro con fecha inicio más antigua (solo si vincular) =====
-            if ($vincular && !empty($registrosCreados)) {
-                // Ordenar por fecha inicio (más antigua primero)
-                usort($registrosCreados, function($a, $b) {
-                    return $a['fecha_inicio']->lt($b['fecha_inicio']) ? -1 : 1;
-                });
-
-                // El primero es el líder
-                $idLider = $registrosCreados[0]['id'];
-                ReqProgramaTejido::where('Id', $idLider)->update(['OrdCompartidaLider' => 1]);
-
-                // Asegurar que los demás no sean líderes
-                $idsNoLider = array_filter($idsParaObserver, function($id) use ($idLider) {
-                    return $id !== $idLider;
-                });
-                if (!empty($idsNoLider)) {
-                    ReqProgramaTejido::whereIn('Id', $idsNoLider)->update(['OrdCompartidaLider' => null]);
-                }
+            if ($vincular && $ordCompartidaAVincular) {
+                OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida((int) $ordCompartidaAVincular);
             }
 
             // Generar líneas diarias DENTRO de la transacción (antes del commit) para que la FK

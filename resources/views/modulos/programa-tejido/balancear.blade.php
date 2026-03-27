@@ -86,6 +86,88 @@
         return document.querySelector(`.pedido-input[data-id="${id}"]`);
       }
 
+      function parseDateOnlyTimeToMs(dateValue, timeValue = '00:00:00') {
+        if (!dateValue) return null;
+
+        const fecha = String(dateValue).trim().split(' ')[0];
+        const hora = String(timeValue || '00:00:00').trim() || '00:00:00';
+        const parsed = new Date(`${fecha}T${hora}`);
+
+        return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+      }
+
+      function comparePedidoDesc(a, b) {
+        if (a.pedidoActual !== b.pedidoActual) return b.pedidoActual - a.pedidoActual;
+        return a.id - b.id;
+      }
+
+      function resolveBalanceoLeader(registros = currentGanttRegistros, pedidosById = null) {
+        const items = Array.from(registros || []).map(reg => {
+          const input = getInputById(reg.Id);
+          const pedidoActual = pedidosById && Object.prototype.hasOwnProperty.call(pedidosById, reg.Id)
+            ? Math.round(Number(pedidosById[reg.Id]) || 0)
+            : (input ? Math.round(Number(input.value) || 0) : Math.round(Number(reg.TotalPedido || 0)));
+          const fechaInicioMs = input
+            ? (Number(input.dataset.fechaInicio) || parseSQLDateToMs(reg.FechaInicio))
+            : parseSQLDateToMs(reg.FechaInicio);
+
+          return {
+            id: Number(reg.Id) || 0,
+            noTelarId: reg.NoTelarId || '-',
+            fechaInicioMs: fechaInicioMs || null,
+            fechaInicioKey: fechaInicioMs ? getDateKeyLocal(new Date(fechaInicioMs)) : null,
+            fechaCreacionMs: parseDateOnlyTimeToMs(reg.FechaCreacion, reg.HoraCreacion),
+            pedidoActual,
+          };
+        });
+
+        if (!items.length) return null;
+
+        const todasMismaFechaInicio = new Set(items.map(item => item.fechaInicioKey ?? '__NULL__')).size <= 1;
+
+        items.sort((a, b) => {
+          if (!todasMismaFechaInicio) {
+            if (a.fechaInicioMs !== null && b.fechaInicioMs !== null && a.fechaInicioMs !== b.fechaInicioMs) {
+              return a.fechaInicioMs - b.fechaInicioMs;
+            }
+
+            if (a.fechaInicioMs !== null && b.fechaInicioMs === null) return -1;
+            if (a.fechaInicioMs === null && b.fechaInicioMs !== null) return 1;
+
+            return comparePedidoDesc(a, b);
+          }
+
+          if (a.fechaCreacionMs !== null && b.fechaCreacionMs !== null && a.fechaCreacionMs !== b.fechaCreacionMs) {
+            return a.fechaCreacionMs - b.fechaCreacionMs;
+          }
+
+          if (a.fechaCreacionMs !== null && b.fechaCreacionMs === null) return -1;
+          if (a.fechaCreacionMs === null && b.fechaCreacionMs !== null) return 1;
+
+          return comparePedidoDesc(a, b);
+        });
+
+        return items[0] || null;
+      }
+
+      function renderBalanceoLeaderBadge(registros = currentGanttRegistros) {
+        const leader = resolveBalanceoLeader(registros);
+        const leaderId = leader?.id || 0;
+        const badge = document.getElementById('balanceo-no-telar-principal');
+
+        if (badge) {
+          badge.textContent = leader?.noTelarId || '-';
+        }
+
+        document.querySelectorAll('tr[data-registro-id]').forEach(row => {
+          const rowId = Number(row.dataset.registroId || 0);
+          const isLeader = leaderId > 0 && rowId === leaderId;
+          row.className = isLeader
+            ? 'bg-amber-100 border-b border-amber-300'
+            : 'hover:bg-gray-50 border-b border-gray-200';
+        });
+      }
+
       function getLockedTotalBalanceo(inputs = null) {
         if (typeof totalDisponibleBalanceo === 'number' && !Number.isNaN(totalDisponibleBalanceo)) {
           return totalDisponibleBalanceo;
@@ -537,6 +619,7 @@
             });
 
             // Actualizar gantt después de actualizar las fechas
+            renderBalanceoLeaderBadge(currentGanttRegistros);
             updateGanttPreview();
           });
         } catch (e) {
@@ -616,6 +699,7 @@
           totalPedidoInput.value = totalPedido;
         }
         if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
+        renderBalanceoLeaderBadge(currentGanttRegistros);
 
         if (ordCompartida != null) schedulePreview(ordCompartida);
       };
@@ -974,10 +1058,8 @@
         totalDisponibleBalanceo = totalPedido;
 
         // Determinar la orden líder del grupo
-        const ordenLider = registros.reduce((lider, r) => {
-          const v = r.OrdCompartidaLider ?? null;
-          return lider ?? (v ? Number(v) : null);
-        }, null);
+        const leaderInfo = resolveBalanceoLeader(registros, valoresActuales);
+        const noTelarPrincipal = leaderInfo?.noTelarId || null;
 
         const filasHTML = registros.map(reg => {
           const fechaInicio = reg.FechaInicio ? new Date(String(reg.FechaInicio).replace(' ', 'T')).getTime() : 0;
@@ -993,10 +1075,9 @@
           const minPedido = produccion > 0 ? produccion : 0;
 
           return `
-            <tr class="${reg.OrdCompartida == ordenLider ? 'bg-amber-100 border-b border-amber-300' : 'hover:bg-gray-50 border-b border-gray-200'}" data-registro-id="${reg.Id}">
+            <tr class="${leaderInfo?.id === Number(reg.Id) ? 'bg-amber-100 border-b border-amber-300' : 'hover:bg-gray-50 border-b border-gray-200'}" data-registro-id="${reg.Id}">
               <td class="px-3 py-2 text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">
                 ${reg.NoTelarId || '-'}
-                ${reg.OrdCompartida == ordenLider ? '<i class="fa-solid fa-crown ml-1 text-[11px] text-amber-600" title="Orden lider"></i>' : ''}
               </td>
               <td class="px-3 py-2 text-xs sm:text-sm text-gray-600 max-w-[100px] sm:max-w-none truncate" title="${(reg.NombreProducto || '-').replace(/"/g, '&quot;')}">${reg.NombreProducto || '-'}</td>
               <td class="px-3 py-2 text-xs sm:text-sm text-right text-gray-600">${Math.round(stdDia).toLocaleString('es-MX')}</td>
@@ -1048,7 +1129,7 @@
               .balanceo-tabla-wrap table { min-width: 620px; }
               .balanceo-tabla-wrap table th,
               .balanceo-tabla-wrap table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-              .balanceo-tabla-wrap table th:nth-child(1), .balanceo-tabla-wrap table td:nth-child(1) { min-width: 50px; max-width: 58px; }
+              .balanceo-tabla-wrap table th:nth-child(1), .balanceo-tabla-wrap table td:nth-child(1) { min-width: 64px; max-width: 78px; }
               .balanceo-tabla-wrap table th:nth-child(2), .balanceo-tabla-wrap table td:nth-child(2) { min-width: 110px; max-width: 200px; }
               .balanceo-tabla-wrap table th:nth-child(3), .balanceo-tabla-wrap table td:nth-child(3) { min-width: 62px; }
               .balanceo-tabla-wrap table th:nth-child(4), .balanceo-tabla-wrap table td:nth-child(4) { min-width: 70px; }
@@ -1075,6 +1156,9 @@
             </style>
 
             <div class="flex flex-col sm:flex-row sm:justify-end gap-2 items-stretch sm:items-end">
+              <div class="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 border border-amber-200 w-full sm:w-auto sm:mr-auto">
+                <span>No telar principal es <strong id="balanceo-no-telar-principal">${noTelarPrincipal || '-'}</strong></span>
+              </div>
               <div class="flex flex-col sm:flex-row gap-2 items-center w-full sm:w-auto">
                 <label class="text-xs text-gray-700 whitespace-nowrap">Fecha Objetivo:</label>
                 <input
