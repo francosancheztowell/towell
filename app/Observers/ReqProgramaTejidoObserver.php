@@ -250,22 +250,11 @@ class ReqProgramaTejidoObserver
                     ->where('Id', $programa->Id)
                     ->exists();
 
-                Log::info('Observer::generarLineasDiarias parentExists check', [
-                    'programa_id' => $programa->Id,
-                    'conn_check' => $parentExists,
-                    'conn_name' => $connection->getName(),
-                    'db_transaction_level' => \Illuminate\Support\Facades\DB::transactionLevel(),
-                ]);
-
                 if (!$parentExists) {
                     // Intentar con la conexión por defecto del facade (puede ser una conexión diferente)
                     $parentExists = \Illuminate\Support\Facades\DB::table(ReqProgramaTejido::tableName())
                         ->where('Id', $programa->Id)
                         ->exists();
-                    Log::info('Observer::generarLineasDiarias facade fallback', [
-                        'programa_id' => $programa->Id,
-                        'facade_check' => $parentExists,
-                    ]);
                     if ($parentExists) {
                         $connParaInsert = \Illuminate\Support\Facades\DB::connection();
                     } else {

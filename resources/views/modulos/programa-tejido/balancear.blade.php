@@ -49,18 +49,9 @@
 
       function sortRegistrosPorFechaTelar(registros) {
         return [...registros].sort((a, b) => {
-          const aMs = parseSQLDateToMs(a?.FechaInicio);
-          const bMs = parseSQLDateToMs(b?.FechaInicio);
-          if (aMs !== bMs) return aMs - bMs;
-
-          const aTelarNum = Number(a?.NoTelarId);
-          const bTelarNum = Number(b?.NoTelarId);
-          const aTelarNumOk = Number.isFinite(aTelarNum);
-          const bTelarNumOk = Number.isFinite(bTelarNum);
-
-          if (aTelarNumOk && bTelarNumOk && aTelarNum !== bTelarNum) {
-            return aTelarNum - bTelarNum;
-          }
+          const aPosicion = Number(a?.Posicion) || 0;
+          const bPosicion = Number(b?.Posicion) || 0;
+          if (aPosicion !== bPosicion) return aPosicion - bPosicion;
 
           const aTelarStr = String(a?.NoTelarId ?? '');
           const bTelarStr = String(b?.NoTelarId ?? '');
@@ -93,6 +84,31 @@
         }
         // Fallback: buscar en todo el documento
         return document.querySelector(`.pedido-input[data-id="${id}"]`);
+      }
+
+      function getLockedTotalBalanceo(inputs = null) {
+        if (typeof totalDisponibleBalanceo === 'number' && !Number.isNaN(totalDisponibleBalanceo)) {
+          return totalDisponibleBalanceo;
+        }
+
+        const totalDisponibleEl = document.getElementById('total-disponible');
+        if (totalDisponibleEl) {
+          totalDisponibleBalanceo = Math.round(parseNumber(totalDisponibleEl.textContent));
+          return totalDisponibleBalanceo;
+        }
+
+        const list = Array.from(inputs || document.querySelectorAll('.pedido-input'));
+        totalDisponibleBalanceo = list.reduce((sum, input) => sum + (Number(input.dataset.original) || 0), 0);
+        return totalDisponibleBalanceo;
+      }
+
+      function setLockedTotalBalanceo(total) {
+        totalDisponibleBalanceo = Math.round(Number(total) || 0);
+
+        const totalDisponibleEl = document.getElementById('total-disponible');
+        if (totalDisponibleEl) {
+          totalDisponibleEl.textContent = totalDisponibleBalanceo.toLocaleString('es-MX');
+        }
       }
 
       function getCurrentInputsPayload() {
@@ -327,7 +343,7 @@
             const qty = row.map[key] || 0;
             const hasQty = qty && qty !== 0;
             const cls = hasQty ? (idx % 2 === 0 ? 'gantt-bar' : 'gantt-bar-alt') : '';
-            const displayQty = hasQty ? qty.toLocaleString('es-MX', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '';
+            const displayQty = hasQty ? Math.round(qty).toLocaleString('es-MX') : '';
             html += `<div class="gantt-cell ${cls}">${displayQty}</div>`;
           });
         });
@@ -573,34 +589,14 @@
 
         // Ajuste automático para mantener suma de pedidos
         if (!adjustingFromTotal) {
-          const totalDisponibleEl = document.getElementById('total-disponible');
-          const totalDisponible = totalDisponibleEl
-            ? parseNumber(totalDisponibleEl.textContent)
-            : (totalDisponibleBalanceo ?? inputs.reduce((s, i) => s + (Number(i.dataset.original) || 0), 0));
+          const totalDisponible = getLockedTotalBalanceo(inputs);
 
           if (totalDisponible > 0) {
             const diff = totalDisponible - totalPedido;
 
-            // Cuando hay exactamente 2 registros: ajustar el otro registro
-            if (inputs.length === 2 && Math.abs(diff) > 0.0001) {
-              const targets = inputs.filter(inp => inp !== lastEditedInput);
-              const target = targets[0] || inputs[0];
-              const valActual = Number(target.value) || 0;
-              const produccion = Number(target.dataset.produccion || 0) || 0;
-
-              adjustingPedidos = true;
-              target.value = Math.round(Math.max(produccion, valActual + diff));
-              adjustingPedidos = false;
-
-              return window.calcularTotalesYFechas(target, ordCompartida);
-            }
-
-            // Cuando hay 3 o más registros: ajustar el primero (por orden actual).
-            // Si se modifica el primero, entonces ajustar el último.
-            if (inputs.length >= 3 && Math.abs(diff) > 0.0001 && lastEditedInput) {
-              const primeroInput = inputs[0];
-              const ultimoInput = inputs[inputs.length - 1];
-              const target = (lastEditedInput === primeroInput) ? ultimoInput : primeroInput;
+            // Siempre ajustar el último registro
+            if (inputs.length >= 2 && Math.abs(diff) > 0.0001) {
+              const target = inputs[inputs.length - 1];
               const valActualTarget = Number(target.value) || 0;
               const produccion = Number(target.dataset.produccion || 0) || 0;
 
@@ -621,12 +617,6 @@
         }
         if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
 
-        const totalDisponibleEl = document.getElementById('total-disponible');
-        if (totalDisponibleEl) {
-          totalDisponibleEl.textContent = totalPedido;
-          if (totalDisponibleBalanceo !== null) totalDisponibleBalanceo = totalPedido;
-        }
-
         if (ordCompartida != null) schedulePreview(ordCompartida);
       };
 
@@ -638,6 +628,8 @@
         const nuevoTotal = Math.round(Number(totalInput.value) || 0);
         const inputs = Array.from(document.querySelectorAll('.pedido-input'));
         if (inputs.length === 0) return;
+
+        setLockedTotalBalanceo(nuevoTotal);
 
         let totalActual = 0;
         inputs.forEach(input => totalActual += Number(input.value) || 0);
@@ -694,6 +686,9 @@
           return;
         }
 
+        const cambiosActuales = getCurrentInputsPayload();
+        const totalObjetivo = getLockedTotalBalanceo(inputs);
+
         const btn = document.getElementById('btn-balancear-auto');
         const btnIcon  = btn?.querySelector('.btn-balancear-icon');
         const btnLabel = btn?.querySelector('.btn-balancear-label');
@@ -717,7 +712,9 @@
             },
             body: JSON.stringify({
               ord_compartida: ordCompartida,
-              fecha_fin_objetivo: fechaFinObjetivo
+              fecha_fin_objetivo: fechaFinObjetivo,
+              cambios: cambiosActuales,
+              total_objetivo: totalObjetivo
             })
           });
 
@@ -726,19 +723,23 @@
           if (!data.success) return;
 
           if (data.cambios && Array.isArray(data.cambios)) {
+            // Bloquear recálculos intermedios para que cada input no reajuste al último
+            adjustingPedidos = true;
+
             data.cambios.forEach(cambio => {
               const input = getInputById(cambio.id);
               if (input) {
                 const produccion = Number(input.dataset.produccion || 0) || 0;
                 const nuevoValor = Math.round(Math.max(produccion, cambio.total_pedido));
-                const valorAnterior = Number(input.value) || 0;
-
-                if (Math.abs(nuevoValor - valorAnterior) > 0.01) {
-                  input.value = nuevoValor;
-                  input.dispatchEvent(new Event('input', { bubbles: true }));
-                }
+                input.value = nuevoValor;
               }
             });
+
+            // Actualizar el total disponible para que calcularTotalesYFechas
+            // no intente redistribuir fuera del total original del grupo.
+            setLockedTotalBalanceo(totalObjetivo);
+
+            adjustingPedidos = false;
 
             window.calcularTotalesYFechas(null, ordCompartida);
             setTimeout(() => { previewFechasExactas(ordCompartida); }, 100);
@@ -972,22 +973,31 @@
 
         totalDisponibleBalanceo = totalPedido;
 
+        // Determinar la orden líder del grupo
+        const ordenLider = registros.reduce((lider, r) => {
+          const v = r.OrdCompartidaLider ?? null;
+          return lider ?? (v ? Number(v) : null);
+        }, null);
+
         const filasHTML = registros.map(reg => {
           const fechaInicio = reg.FechaInicio ? new Date(String(reg.FechaInicio).replace(' ', 'T')).getTime() : 0;
           const fechaFinal = reg.FechaFinal ? new Date(String(reg.FechaFinal).replace(' ', 'T')).getTime() : 0;
           const duracionOriginalMs = (fechaInicio && fechaFinal) ? (fechaFinal - fechaInicio) : 0;
 
           // Usar el valor actual de la tabla si existe, sino el del backend
-          const pedidoActual = valoresActuales[reg.Id] ?? Number(reg.TotalPedido || 0);
-          const pedidoOriginal = Number(reg.TotalPedido || 0); // Mantener el original para data-original
-          const produccion = Number(reg.Produccion || 0);
+          const pedidoActual = Math.round(valoresActuales[reg.Id] ?? Number(reg.TotalPedido || 0));
+          const pedidoOriginal = Math.round(Number(reg.TotalPedido || 0)); // Mantener el original para data-original
+          const produccion = Math.round(Number(reg.Produccion || 0));
           const saldoActual = Math.max(0, pedidoActual - produccion);
           const stdDia = Number(reg.StdDia || 0);
           const minPedido = produccion > 0 ? produccion : 0;
 
           return `
-            <tr class="hover:bg-gray-50 border-b border-gray-200" data-registro-id="${reg.Id}">
-              <td class="px-3 py-2 text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">${reg.NoTelarId || '-'}</td>
+            <tr class="${reg.OrdCompartida == ordenLider ? 'bg-amber-100 border-b border-amber-300' : 'hover:bg-gray-50 border-b border-gray-200'}" data-registro-id="${reg.Id}">
+              <td class="px-3 py-2 text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">
+                ${reg.NoTelarId || '-'}
+                ${reg.OrdCompartida == ordenLider ? '<i class="fa-solid fa-crown ml-1 text-[11px] text-amber-600" title="Orden lider"></i>' : ''}
+              </td>
               <td class="px-3 py-2 text-xs sm:text-sm text-gray-600 max-w-[100px] sm:max-w-none truncate" title="${(reg.NombreProducto || '-').replace(/"/g, '&quot;')}">${reg.NombreProducto || '-'}</td>
               <td class="px-3 py-2 text-xs sm:text-sm text-right text-gray-600">${Math.round(stdDia).toLocaleString('es-MX')}</td>
               <td class="px-3 py-2 text-right">
@@ -1108,17 +1118,17 @@
                           <input type="number"
                             id="total-pedido-input"
                             class="w-20 sm:w-24 px-2 py-1 text-xs sm:text-sm text-right font-bold text-gray-900 border border-gray-300 rounded"
-                            value="${totalPedido}"
+                            value="${Math.round(totalPedido)}"
                             oninput="actualizarPedidosDesdeTotal(this, ${ordCompartida})">
                         </td>
-                        <td class="px-3 py-2 text-xs sm:text-sm text-right font-bold text-gray-900">${totalProduccion.toLocaleString('es-MX')}</td>
-                        <td class="px-3 py-2 text-xs sm:text-sm text-right font-bold text-green-600" id="total-saldo">${totalSaldo.toLocaleString('es-MX')}</td>
+                        <td class="px-3 py-2 text-xs sm:text-sm text-right font-bold text-gray-900">${Math.round(totalProduccion).toLocaleString('es-MX')}</td>
+                        <td class="px-3 py-2 text-xs sm:text-sm text-right font-bold text-green-600" id="total-saldo">${Math.round(totalSaldo).toLocaleString('es-MX')}</td>
                         <td colspan="2"></td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
-                <div id="total-disponible" class="hidden">${totalPedido}</div>
+                <div id="total-disponible" class="hidden">${Math.round(totalPedido)}</div>
               </div>
 
               <div class="w-full lg:flex-1 min-w-0 flex flex-col rounded-lg border border-gray-200 bg-white p-2">

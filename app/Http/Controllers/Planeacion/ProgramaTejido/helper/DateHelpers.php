@@ -99,8 +99,7 @@ class DateHelpers
             } else {
                 // Saldo >= 0 pero horasNecesarias <= 0: Fallback cuando no se pudieron calcular horas
                 if ($esEnProceso) {
-                    // EnProceso: NO usar diff(FechaInicio, FechaFinal) porque FechaInicio no se actualiza
-                    // y la diferencia crecería en cada recálculo. Usar HorasProd guardado o 30 días.
+                    // EnProceso: usar HorasProd guardado como referencia de duración (no diff FechaInicio-FechaFinal).
                     $horasGuardadas = (float)($r->HorasProd ?? 0);
                     if ($horasGuardadas > 0) {
                         if (!empty($r->CalendarioId)) {
@@ -153,8 +152,8 @@ class DateHelpers
             // Reusar StdToaHra / HorasProdRaw si ya lo calculamos
             $formulas = self::calcularFormulasEficiencia($tmp, $metricas);
 
-            // EnProceso: actualizar FechaFinal (recalculada con now()) pero NO FechaInicio
             $baseUpdate = [
+                'FechaInicio' => $tmp->FechaInicio,
                 'FechaFinal'  => $tmp->FechaFinal,
                 'EnProceso'   => $i === 0 ? 1 : 0,
                 'Ultimo'      => $i === ($n - 1) ? '1' : '0',
@@ -162,9 +161,6 @@ class DateHelpers
                 'Posicion'    => $i + 1,
                 'UpdatedAt'   => $now,
             ];
-            if (!$esEnProceso) {
-                $baseUpdate['FechaInicio'] = $tmp->FechaInicio;
-            }
 
             $updates[(int)$r->Id] = array_merge($baseUpdate, $formulas);
 
@@ -245,7 +241,7 @@ class DateHelpers
                     $horasNecesarias = (float)$row->HorasProd;
                 }
 
-                // fin (en cascade todos son EnProceso=0; saldo negativo => fin = mismo día que inicio)
+                // fin (cascade no toca EnProceso; saldo negativo => fin = mismo día que inicio)
                 $nuevoFin = $nuevoInicio->copy();
                 $saldoRow = self::sanitizeNumber($row->SaldoPedido ?? $row->Produccion ?? $row->TotalPedido ?? 0);
                 if ($saldoRow < 0) {
@@ -295,7 +291,6 @@ class DateHelpers
                 DB::table(ReqProgramaTejido::tableName())->where('Id', $row->Id)->update(array_merge([
                     'FechaInicio' => $tmp->FechaInicio,
                     'FechaFinal'  => $tmp->FechaFinal,
-                    'EnProceso'   => 0,
                     'Ultimo'      => $ultimo,
                     'CambioHilo'  => $cambioHilo,
                     'UpdatedAt'   => now(),
