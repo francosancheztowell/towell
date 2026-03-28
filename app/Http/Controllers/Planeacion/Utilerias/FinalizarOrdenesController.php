@@ -31,6 +31,7 @@ use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarroll
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Support\Planeacion\TelarSalonResolver;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -54,15 +55,21 @@ class FinalizarOrdenesController extends Controller
                 ->where('NoProduccion', '!=', '')
                 ->whereNotNull('NoTelarId')
                 ->where('NoTelarId', '!=', '')
-                ->distinct()
-                ->orderBy('SalonTejidoId')
-                ->orderBy('NoTelarId')
                 ->get()
-                ->map(fn ($t) => [
-                    'salon' => $t->SalonTejidoId,
-                    'telar' => $t->NoTelarId,
-                    'label' => $t->SalonTejidoId . ' - ' . $t->NoTelarId,
-                ]);
+                ->map(function ($t) {
+                    $telar = TelarSalonResolver::normalizeTelar($t->NoTelarId);
+                    $salon = TelarSalonResolver::normalizeSalon($t->SalonTejidoId, $telar);
+
+                    return [
+                        'salon' => $salon,
+                        'telar' => $telar,
+                        'label' => $salon . ' - ' . $telar,
+                    ];
+                })
+                ->filter(fn (array $telar) => $telar['telar'] !== '')
+                ->unique(fn (array $telar) => $telar['salon'] . '|' . $telar['telar'])
+                ->sortBy(fn (array $telar) => $telar['salon'] . '|' . TelarSalonResolver::telarSortKey($telar['telar']))
+                ->values();
 
             return response()->json(['success' => true, 'telares' => $telares]);
         } catch (\Throwable $e) {
@@ -85,22 +92,23 @@ class FinalizarOrdenesController extends Controller
     public function getOrdenesByTelar(Request $request): JsonResponse
     {
         try {
-            $salonId = $request->query('salon');
-            $noTelarId = $request->query('telar');
+            $noTelarId = TelarSalonResolver::normalizeTelar($request->query('telar'));
+            $salonId = TelarSalonResolver::normalizeSalon($request->query('salon'), $noTelarId);
 
             if (!$salonId || !$noTelarId) {
                 return response()->json(['success' => false, 'message' => 'Salón y telar son requeridos'], 422);
             }
 
-            $registros = ReqProgramaTejido::query()
+            $registros = TelarSalonResolver::applyTelarFilter(
+                ReqProgramaTejido::query()
                 ->select('Id', 'NoProduccion', 'TamanoClave', 'NombreProducto', 'SalonTejidoId', 'NoTelarId', 'Posicion', 'EnProceso', 'SaldoPedido', 'Produccion', 'TotalPedido')
-                ->salon($salonId)
-                ->telar($noTelarId)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
                 ->orderBy('Posicion', 'asc')
-                ->orderBy('FechaInicio', 'asc')
-                ->get();
+                ->orderBy('FechaInicio', 'asc'),
+                $salonId,
+                $noTelarId
+            )->get();
 
             // ? Cruzar con CatCodificados para obtener FechaTejido por OrdenTejido
             $ordenes = $registros->pluck('NoProduccion')->filter()->unique()->values()->toArray();
@@ -205,8 +213,8 @@ class FinalizarOrdenesController extends Controller
             // ─── PASO 1: Finalizar cada registro y sincronizar CatCodificados ────────
             /** @var ReqProgramaTejido $registro */
             foreach ($registros as $registro) {
-                $salonTejido = $registro->SalonTejidoId;
-                $noTelarId   = $registro->NoTelarId;
+                $salonTejido = TelarSalonResolver::normalizeSalon($registro->SalonTejidoId, $registro->NoTelarId);
+                $noTelarId   = TelarSalonResolver::normalizeTelar($registro->NoTelarId);
                 $key         = $salonTejido . '|' . $noTelarId;
 
                 // 1a) Manejar OrdCompartida: transferir saldo al líder
@@ -284,18 +292,17 @@ class FinalizarOrdenesController extends Controller
                 $salon = $info['salon'];
                 $telar = $info['telar'];
 
-                $primerRestante = ReqProgramaTejido::query()
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
+                $primerRestante = TelarSalonResolver::applyTelarFilter(
+                    ReqProgramaTejido::query()
                     ->orderBy('Posicion', 'asc')
                     ->orderBy('FechaInicio', 'asc')
-                    ->lockForUpdate()
-                    ->first();
+                    ->lockForUpdate(),
+                    $salon,
+                    $telar
+                )->first();
 
                 if ($primerRestante) {
-                    DB::table($tabla)
-                        ->where('SalonTejidoId', $salon)
-                        ->where('NoTelarId', $telar)
+                    TelarSalonResolver::applyTelarFilter(DB::table($tabla), $salon, $telar)
                         ->update(['EnProceso' => 0]);
 
                     DB::table($tabla)
@@ -311,13 +318,14 @@ class FinalizarOrdenesController extends Controller
                 $salon = $info['salon'];
                 $telar = $info['telar'];
 
-                $registrosTelar = ReqProgramaTejido::query()
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
+                $registrosTelar = TelarSalonResolver::applyTelarFilter(
+                    ReqProgramaTejido::query()
                     ->orderBy('Posicion', 'asc')
                     ->orderBy('FechaInicio', 'asc')
-                    ->lockForUpdate()
-                    ->get();
+                    ->lockForUpdate(),
+                    $salon,
+                    $telar
+                )->get();
 
                 if ($registrosTelar->isEmpty()) {
                     continue;
@@ -349,11 +357,11 @@ class FinalizarOrdenesController extends Controller
                 unset($upd);
 
                 // Collision-avoidance para índice único en Posicion
-                DB::table($tabla)
-                    ->whereIn('Id', array_keys($updates))
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
-                    ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
+                TelarSalonResolver::applyTelarFilter(
+                    DB::table($tabla)->whereIn('Id', array_keys($updates)),
+                    $salon,
+                    $telar
+                )->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
 
                 foreach ($updates as $idU => $dataU) {
                     if (isset($dataU['Posicion'])) {
@@ -361,8 +369,6 @@ class FinalizarOrdenesController extends Controller
                     }
                     DB::table($tabla)
                         ->where('Id', $idU)
-                        ->where('SalonTejidoId', $salon)
-                        ->where('NoTelarId', $telar)
                         ->update($dataU);
 
                     $idsAfectados[] = (int) $idU;

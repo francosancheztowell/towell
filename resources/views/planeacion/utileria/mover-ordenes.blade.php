@@ -278,7 +278,7 @@
                     data.telares.forEach(function (t, i) {
                         var opt = document.createElement('option');
                         opt.value = i;
-                        opt.textContent = t.label;
+                        opt.textContent = t.telar;
                         select.appendChild(opt);
                     });
                 });

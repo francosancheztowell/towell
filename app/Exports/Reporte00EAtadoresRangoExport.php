@@ -17,20 +17,23 @@ use RuntimeException;
 class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 {
     private const TEMPLATE_SECTION_LAST_ROW = 46;
+
     private const MAX_COLUMN_INDEX = 88;
 
     private static ?array $templateSectionCoordinates = null;
+
     private static ?array $templateSectionMergeRanges = null;
+
     private static ?array $columnLabels = null;
 
-    private Collection $records;
+    private ?Collection $records = null;
 
     public function __construct(
         private readonly CarbonImmutable $weekStart,
         private readonly CarbonImmutable $weekEnd,
         ?Collection $records = null
     ) {
-        $this->records = $records ?? $this->loadRecords();
+        $this->records = $records;
     }
 
     public function array(): array
@@ -68,7 +71,7 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
         $isFirstWeek = true;
 
         for ($cursor = $this->weekStart; $cursor->lessThanOrEqualTo($this->weekEnd); $cursor = $cursor->addWeek()) {
-            if (!$isFirstWeek) {
+            if (! $isFirstWeek) {
                 $this->copyTemplateSection($sheet, $templateSource, $sectionTopRow);
             }
 
@@ -152,7 +155,9 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 
     private function groupRecordsByWeek(): Collection
     {
-        return $this->records
+        $records = $this->records ??= $this->loadRecords();
+
+        return $records
             ->groupBy(function ($item): string {
                 $value = is_array($item) ? ($item['FechaArranque'] ?? null) : ($item->FechaArranque ?? null);
 
@@ -180,7 +185,7 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 
         for ($row = 1; $row <= self::TEMPLATE_SECTION_LAST_ROW; $row++) {
             for ($columnIndex = 1; $columnIndex <= self::MAX_COLUMN_INDEX; $columnIndex++) {
-                $coordinate = $columns[$columnIndex] . $row;
+                $coordinate = $columns[$columnIndex].$row;
                 $value = $templateSource->getCell($coordinate)->getValue();
 
                 if ($value !== null && $value !== '') {
@@ -200,7 +205,7 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 
         $ranges = [];
         foreach (array_keys($templateSource->getMergeCells()) as $range) {
-            if (!preg_match('/([A-Z]+)(\d+):([A-Z]+)(\d+)/', $range, $matches)) {
+            if (! preg_match('/([A-Z]+)(\d+):([A-Z]+)(\d+)/', $range, $matches)) {
                 continue;
             }
 
@@ -238,7 +243,7 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
             return $coordinate;
         }
 
-        return $matches[1] . ((int) $matches[2] + $rowOffset);
+        return $matches[1].((int) $matches[2] + $rowOffset);
     }
 
     private function offsetRangeRows(string $range, int $rowOffset): string

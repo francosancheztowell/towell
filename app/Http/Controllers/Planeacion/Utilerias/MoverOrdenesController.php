@@ -31,6 +31,7 @@ use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarroll
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Support\Planeacion\TelarSalonResolver;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -52,14 +53,21 @@ class MoverOrdenesController extends Controller
                 ->select('SalonTejidoId', 'NoTelarId')
                 ->whereNotNull('NoTelarId')
                 ->where('NoTelarId', '!=', '')
-                ->orderBy('SalonTejidoId')
-                ->orderBy('NoTelarId')
                 ->get()
-                ->map(fn ($t) => [
-                    'salon' => $t->SalonTejidoId,
-                    'telar' => $t->NoTelarId,
-                    'label' => $t->NoTelarId,
-                ]);
+                ->map(function ($t) {
+                    $telar = TelarSalonResolver::normalizeTelar($t->NoTelarId);
+                    $salon = TelarSalonResolver::normalizeSalon($t->SalonTejidoId, $telar);
+
+                    return [
+                        'salon' => $salon,
+                        'telar' => $telar,
+                        'label' => $salon . ' - ' . $telar,
+                    ];
+                })
+                ->filter(fn (array $telar) => $telar['telar'] !== '')
+                ->unique(fn (array $telar) => $telar['salon'] . '|' . $telar['telar'])
+                ->sortBy(fn (array $telar) => $telar['salon'] . '|' . TelarSalonResolver::telarSortKey($telar['telar']))
+                ->values();
 
             return response()->json(['success' => true, 'telares' => $telares]);
         } catch (\Throwable $e) {
@@ -80,8 +88,8 @@ class MoverOrdenesController extends Controller
     public function getRegistrosByTelar(Request $request): JsonResponse
     {
         try {
-            $salonId = $request->query('salon');
-            $noTelarId = $request->query('telar');
+            $noTelarId = TelarSalonResolver::normalizeTelar($request->query('telar'));
+            $salonId = TelarSalonResolver::normalizeSalon($request->query('salon'), $noTelarId);
 
             if (!$salonId || !$noTelarId) {
                 return $this->apiClientErrorResponse(
@@ -95,15 +103,16 @@ class MoverOrdenesController extends Controller
                 );
             }
 
-            $registros = ReqProgramaTejido::query()
+            $registros = TelarSalonResolver::applyTelarFilter(
+                ReqProgramaTejido::query()
                 ->select('Id', 'NoProduccion', 'TamanoClave', 'NombreProducto', 'SalonTejidoId', 'NoTelarId', 'Posicion', 'EnProceso', 'Produccion')
-                ->salon($salonId)
-                ->telar($noTelarId)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '')
                 ->orderBy('Posicion', 'asc')
-                ->orderBy('FechaInicio', 'asc')
-                ->get()
+                ->orderBy('FechaInicio', 'asc'),
+                $salonId,
+                $noTelarId
+            )->get()
                 ->map(function (ReqProgramaTejido $r) {
                     $modelo = trim((string) ($r->NombreProducto ?? ''));
                     $esRepaso1 = $modelo !== '' && stripos($modelo, 'repaso1') !== false;
@@ -266,8 +275,8 @@ class MoverOrdenesController extends Controller
      */
     private function registrarInicioBaseTelar(string $salon, string $telar, array &$inicioBasePorTelar): void
     {
-        $salonNorm = trim($salon);
-        $telarNorm = trim($telar);
+        $telarNorm = TelarSalonResolver::normalizeTelar($telar);
+        $salonNorm = TelarSalonResolver::normalizeSalon($salon, $telarNorm);
         if ($salonNorm === '' || $telarNorm === '') {
             return;
         }
@@ -275,14 +284,15 @@ class MoverOrdenesController extends Controller
         if (array_key_exists($telarKey, $inicioBasePorTelar)) {
             return;
         }
-        $fechaBase = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salonNorm)
-            ->where('NoTelarId', $telarNorm)
+        $fechaBase = TelarSalonResolver::applyTelarFilter(
+            ReqProgramaTejido::query()
             ->whereNotNull('FechaInicio')
             ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc')
-            ->lockForUpdate()
-            ->value('FechaInicio');
+            ->lockForUpdate(),
+            $salonNorm,
+            $telarNorm
+        )->value('FechaInicio');
         $inicioBasePorTelar[$telarKey] = $fechaBase ? Carbon::parse($fechaBase) : null;
     }
 
@@ -302,8 +312,8 @@ class MoverOrdenesController extends Controller
             ->get();
 
         foreach ($registrosOriginales as $ro) {
-            $salonOriginal = $this->normalizar($ro->SalonTejidoId);
-            $telarOriginal = $this->normalizar($ro->NoTelarId);
+            $telarOriginal = TelarSalonResolver::normalizeTelar($ro->NoTelarId);
+            $salonOriginal = TelarSalonResolver::normalizeSalon($ro->SalonTejidoId, $telarOriginal);
             $estadoOriginalPorId[(int) $ro->Id] = [
                 'salon'     => $salonOriginal,
                 'telar'     => $telarOriginal,
@@ -332,8 +342,8 @@ class MoverOrdenesController extends Controller
         array &$idsAfectados,
         array &$idsCambioSalon
     ): void {
-        $salon   = $this->normalizar($cfg['salon'] ?? null);
-        $telar   = $this->normalizar($cfg['telar'] ?? null);
+        $telar   = TelarSalonResolver::normalizeTelar($cfg['telar'] ?? null);
+        $salon   = TelarSalonResolver::normalizeSalon($cfg['salon'] ?? null, $telar);
         $ordenes = $cfg['ordenes'] ?? [];
 
         if ($salon === '' || $telar === '' || empty($ordenes)) {
@@ -346,9 +356,7 @@ class MoverOrdenesController extends Controller
         // Bump temporal para evitar violación del índice único (NoTelarId, Posicion).
         // Se hace sobre TODOS los registros del telar para que los que no están en $ordenes
         // tampoco colisionen al reasignar.
-        DB::table($tabla)
-            ->where('SalonTejidoId', $salon)
-            ->where('NoTelarId', $telar)
+        TelarSalonResolver::applyTelarFilter(DB::table($tabla), $salon, $telar)
             ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
 
         foreach ($ordenes as $index => $id) {
@@ -358,8 +366,8 @@ class MoverOrdenesController extends Controller
             }
 
             $original      = $estadoOriginalPorId[(int) $id] ?? null;
-            $salonOriginal = $this->normalizar($original['salon'] ?? $registro->SalonTejidoId ?? '');
-            $telarOriginal = $this->normalizar($original['telar'] ?? $registro->NoTelarId ?? '');
+            $telarOriginal = TelarSalonResolver::normalizeTelar($original['telar'] ?? $registro->NoTelarId ?? '');
+            $salonOriginal = TelarSalonResolver::normalizeSalon($original['salon'] ?? $registro->SalonTejidoId ?? '', $telarOriginal);
 
             $cambiaSalon     = ($salonOriginal !== $salon);
             $cambiaUbicacion = $cambiaSalon || ($telarOriginal !== $telar);
@@ -443,16 +451,17 @@ class MoverOrdenesController extends Controller
         array $inicioBasePorTelar,
         array &$idsAfectados
     ): void {
-        $salon = (string) ($cfg['salon'] ?? '');
-        $telar = (string) ($cfg['telar'] ?? '');
+        $telar = TelarSalonResolver::normalizeTelar((string) ($cfg['telar'] ?? ''));
+        $salon = TelarSalonResolver::normalizeSalon((string) ($cfg['salon'] ?? ''), $telar);
 
-        $registros = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salon)
-            ->where('NoTelarId', $telar)
+        $registros = TelarSalonResolver::applyTelarFilter(
+            ReqProgramaTejido::query()
             ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc')
-            ->lockForUpdate()
-            ->get();
+            ->lockForUpdate(),
+            $salon,
+            $telar
+        )->get();
 
         if ($registros->isEmpty()) {
             return;
@@ -482,11 +491,11 @@ class MoverOrdenesController extends Controller
         unset($upd);
 
         // Bump temporal antes de actualizar fechas (evita colisiones de Posicion).
-        DB::table($tabla)
-            ->whereIn('Id', array_keys($updates))
-            ->where('SalonTejidoId', $salon)
-            ->where('NoTelarId', $telar)
-            ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
+        TelarSalonResolver::applyTelarFilter(
+            DB::table($tabla)->whereIn('Id', array_keys($updates)),
+            $salon,
+            $telar
+        )->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
 
         foreach ($updates as $idU => $dataU) {
             if (isset($dataU['Posicion'])) {
@@ -494,8 +503,6 @@ class MoverOrdenesController extends Controller
             }
             DB::table($tabla)
                 ->where('Id', $idU)
-                ->where('SalonTejidoId', $salon)
-                ->where('NoTelarId', $telar)
                 ->update($dataU);
 
             $idsAfectados[$telarKey][] = (int) $idU;
@@ -509,34 +516,35 @@ class MoverOrdenesController extends Controller
      */
     private function normalizarEnProceso(string $telarKey, array $cfg, string $tabla, array &$idsAfectados): void
     {
-        $salon = (string) ($cfg['salon'] ?? '');
-        $telar = (string) ($cfg['telar'] ?? '');
+        $telar = TelarSalonResolver::normalizeTelar((string) ($cfg['telar'] ?? ''));
+        $salon = TelarSalonResolver::normalizeSalon((string) ($cfg['salon'] ?? ''), $telar);
 
         if ($salon === '' || $telar === '') {
             return;
         }
 
-        $idPosicionUno = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salon)
-            ->where('NoTelarId', $telar)
-            ->orderBy('Posicion', 'asc')
-            ->orderBy('FechaInicio', 'asc')
-            ->value('Id');
+        $idPosicionUno = TelarSalonResolver::applyTelarFilter(
+            ReqProgramaTejido::query()
+                ->orderBy('Posicion', 'asc')
+                ->orderBy('FechaInicio', 'asc'),
+            $salon,
+            $telar
+        )->value('Id');
         $idPosicionUno = $idPosicionUno ? (int) $idPosicionUno : null;
 
-        DB::table($tabla)->where('SalonTejidoId', $salon)->where('NoTelarId', $telar)->update(['EnProceso' => 0]);
+        TelarSalonResolver::applyTelarFilter(DB::table($tabla), $salon, $telar)->update(['EnProceso' => 0]);
 
         if ($idPosicionUno) {
             DB::table($tabla)
                 ->where('Id', $idPosicionUno)
-                ->where('SalonTejidoId', $salon)
-                ->where('NoTelarId', $telar)
                 ->update(['EnProceso' => 1]);
         }
 
-        $idsTelar = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salon)
-            ->where('NoTelarId', $telar)
+        $idsTelar = TelarSalonResolver::applyTelarFilter(
+            ReqProgramaTejido::query(),
+            $salon,
+            $telar
+        )
             ->pluck('Id')
             ->map(fn ($idDb) => (int) $idDb)
             ->all();
@@ -587,4 +595,3 @@ class MoverOrdenesController extends Controller
         }
     }
 }
-

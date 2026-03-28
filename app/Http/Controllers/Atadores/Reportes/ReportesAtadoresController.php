@@ -8,7 +8,10 @@ use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
+use RuntimeException;
 
 class ReportesAtadoresController extends Controller
 {
@@ -43,7 +46,7 @@ class ReportesAtadoresController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.atadores.reportes.programa', [
                 'fechaIni' => null,
                 'fechaFin' => null,
@@ -68,7 +71,7 @@ class ReportesAtadoresController extends Controller
         $fechaInicio = $request->input('fecha_inicio') ?? $request->query('fecha_ini');
         $fechaFin = $request->input('fecha_fin') ?? $request->query('fecha_fin');
 
-        if (!$fechaInicio || !$fechaFin) {
+        if (! $fechaInicio || ! $fechaFin) {
             return redirect()->back()->with('error', 'Debe seleccionar fecha inicio y fecha fin para exportar.');
         }
 
@@ -79,7 +82,7 @@ class ReportesAtadoresController extends Controller
             return redirect()->back()->with('error', 'La fecha inicio no puede ser mayor que la fecha fin.');
         }
 
-        $nombreArchivo = 'atadores_' . Carbon::parse($fechaInicioFormateada)->format('d-m-Y') . '_a_' . Carbon::parse($fechaFinFormateada)->format('d-m-Y') . '.xlsx';
+        $nombreArchivo = 'atadores_'.Carbon::parse($fechaInicioFormateada)->format('d-m-Y').'_a_'.Carbon::parse($fechaFinFormateada)->format('d-m-Y').'.xlsx';
 
         return Excel::download(
             new ProgramaAtadoresExport($fechaInicioFormateada, $fechaFinFormateada),
@@ -106,18 +109,50 @@ class ReportesAtadoresController extends Controller
 
         [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin] = $this->resolverRangoFechasAtadoresDesdeRequest($request);
 
-        if (!$fechaInicio || !$fechaFin || !$lunesInicio || !$lunesFin) {
+        if (! $fechaInicio || ! $fechaFin || ! $lunesInicio || ! $lunesFin) {
             return redirect()
                 ->route('atadores.reportes.atadores')
                 ->with('error', 'Debe seleccionar una fecha inicial y final validas para exportar el 00E Atadores.');
         }
 
-        $nombreArchivo = '00E_atadores_' . $fechaInicio->format('d-m-Y') . '_a_' . $fechaFin->format('d-m-Y') . '.xlsx';
+        if ($fechaInicio->year !== $fechaFin->year) {
+            return redirect()
+                ->route('atadores.reportes.atadores', [
+                    'fecha_ini' => $fechaInicio->toDateString(),
+                    'fecha_fin' => $fechaFin->toDateString(),
+                ])
+                ->with('error', 'Para guardar el archivo anual del 00E Atadores, selecciona un rango dentro del mismo año.');
+        }
 
-        return Excel::download(
-            new Reporte00EAtadoresRangoExport($lunesInicio, $lunesFin),
-            $nombreArchivo
-        );
+        [$inicioAnual, $finAnual, $year] = $this->resolverRangoAnualAtadores($fechaFin);
+        $nombreArchivo = "00E Atadores {$year}.xlsx";
+
+        try {
+            $rutaGuardado = $this->guardarReporteAtadoresEnRuta(
+                new Reporte00EAtadoresRangoExport($inicioAnual, $finAnual),
+                $nombreArchivo
+            );
+        } catch (\Throwable $e) {
+            Log::error('No se pudo guardar el reporte anual 00E Atadores', [
+                'fecha_inicio' => $fechaInicio->toDateString(),
+                'fecha_fin' => $fechaFin->toDateString(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('atadores.reportes.atadores', [
+                    'fecha_ini' => $fechaInicio->toDateString(),
+                    'fecha_fin' => $fechaFin->toDateString(),
+                ])
+                ->with('error', 'No se pudo guardar el archivo anual 00E Atadores. '.$e->getMessage());
+        }
+
+        return redirect()
+            ->route('atadores.reportes.atadores', [
+                'fecha_ini' => $fechaInicio->toDateString(),
+                'fecha_fin' => $fechaFin->toDateString(),
+            ])
+            ->with('success', "Archivo anual actualizado correctamente en {$rutaGuardado}");
     }
 
     private function resolverRangoFechasAtadoresDesdeRequest(Request $request): array
@@ -128,7 +163,7 @@ class ReportesAtadoresController extends Controller
         if ($fechaIni === '' && $fechaFin === '') {
             [$lunesInicio, $lunesFin] = $this->resolverRangoSemanasDesdeRequest($request);
 
-            if (!$lunesInicio || !$lunesFin) {
+            if (! $lunesInicio || ! $lunesFin) {
                 return [null, null, null, null];
             }
 
@@ -138,7 +173,7 @@ class ReportesAtadoresController extends Controller
         $fechaInicio = $this->resolverFecha($fechaIni);
         $fechaFin = $this->resolverFecha($fechaFin);
 
-        if (!$fechaInicio || !$fechaFin) {
+        if (! $fechaInicio || ! $fechaFin) {
             return [null, null, null, null];
         }
 
@@ -166,7 +201,7 @@ class ReportesAtadoresController extends Controller
         $lunesInicio = $this->resolverSemanaIso($semanaIni);
         $lunesFin = $this->resolverSemanaIso($semanaFin);
 
-        if (!$lunesInicio || !$lunesFin) {
+        if (! $lunesInicio || ! $lunesFin) {
             return [null, null];
         }
 
@@ -198,7 +233,7 @@ class ReportesAtadoresController extends Controller
             return null;
         }
 
-        if (!preg_match('/^(\d{4})-W(\d{2})$/', $semana, $matches)) {
+        if (! preg_match('/^(\d{4})-W(\d{2})$/', $semana, $matches)) {
             return null;
         }
 
@@ -212,5 +247,52 @@ class ReportesAtadoresController extends Controller
         return CarbonImmutable::now(config('app.timezone'))
             ->setISODate($year, $week)
             ->startOfDay();
+    }
+
+    private function resolverRangoAnualAtadores(CarbonImmutable $fechaReferencia): array
+    {
+        $year = $fechaReferencia->year;
+        $inicioAnual = $fechaReferencia->startOfYear()->startOfWeek(Carbon::MONDAY);
+        $finAnual = $fechaReferencia->endOfYear()->startOfWeek(Carbon::MONDAY);
+
+        return [$inicioAnual, $finAnual, $year];
+    }
+
+    private function guardarReporteAtadoresEnRuta(Reporte00EAtadoresRangoExport $export, string $nombreArchivo): string
+    {
+        $rutaRed = config('filesystems.disks.reports_atadores.root') ?: '\\\\192.168.2.11\\ti-system';
+        $sep = PHP_OS_FAMILY === 'Windows' ? '\\' : '/';
+        $rutaNormalizada = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep);
+
+        if ($rutaNormalizada === '') {
+            throw new RuntimeException('La ruta configurada para reportes de atadores es invalida.');
+        }
+
+        $rutaArchivo = $rutaNormalizada.$sep.$nombreArchivo;
+        $directorio = dirname($rutaArchivo);
+
+        if (! is_dir($directorio) && ! @mkdir($directorio, 0777, true) && ! is_dir($directorio)) {
+            throw new RuntimeException("No se pudo preparar la ruta destino: {$directorio}");
+        }
+
+        $contenido = Excel::raw($export, ExcelFormat::XLSX);
+        if (! is_string($contenido) || $contenido === '') {
+            throw new RuntimeException('No se pudo generar el contenido del archivo Excel.');
+        }
+
+        $bytes = @file_put_contents($rutaArchivo, $contenido);
+        if ($bytes === false) {
+            $lastError = error_get_last();
+            $message = $lastError['message'] ?? 'Error desconocido al escribir el archivo.';
+            throw new RuntimeException($message);
+        }
+
+        Log::info('Reporte anual 00E Atadores guardado en ruta configurada', [
+            'archivo' => $nombreArchivo,
+            'ruta' => $rutaArchivo,
+            'bytes' => $bytes,
+        ]);
+
+        return $rutaArchivo;
     }
 }

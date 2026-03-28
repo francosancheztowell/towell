@@ -46,6 +46,12 @@ return [
             'throw' => false,
         ],
 
+        'reports_atadores' => [
+            'driver' => 'local',
+            'root' => env('REPORTS_ATADORES_PATH', '\\\\192.168.2.11\\ti-system'),
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

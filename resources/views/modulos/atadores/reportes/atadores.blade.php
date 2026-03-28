@@ -10,7 +10,7 @@
     @if (!empty($fechaIni) && !empty($fechaFin))
         <a href="{{ route('atadores.reportes.atadores.excel', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
             class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
-            <i class="fas fa-file-excel"></i> Descargar Excel
+            <i class="fas fa-floppy-disk"></i> Guardar Excel Anual
         </a>
     @endif
 @endsection
@@ -31,11 +31,23 @@
             </div>
 
             <div class="p-6">
+                @if (session('success'))
+                    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
                 @if (empty($fechaIni) || empty($fechaFin))
                     <div class="text-center py-12">
                         <i class="fas fa-calendar-alt text-6xl text-gray-300 mb-4"></i>
-                        <p class="text-gray-500 text-lg">Seleccione una fecha inicial y final para generar el reporte</p>
-                        <p class="text-gray-400 text-sm mt-2">El sistema arma las semanas de lunes a domingo usando <strong>FechaArranque</strong></p>
+                        <p class="text-gray-500 text-lg">Seleccione una fecha del año que desea actualizar</p>
+                        <p class="text-gray-400 text-sm mt-2">El sistema guardará un solo archivo anual en red y regenerará todas las semanas del año usando <strong>FechaArranque</strong>.</p>
                         <button type="button" onclick="mostrarModalRangoFechasAtadores()"
                             class="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
                             <i class="fas fa-search mr-2"></i> Seleccionar Fechas
@@ -43,14 +55,14 @@
                     </div>
                 @else
                     <div class="text-center py-12">
-                        <i class="fas fa-file-excel text-6xl text-green-500 mb-4"></i>
-                        <p class="text-gray-700 text-lg mb-2">Reporte listo para descargar</p>
+                        <i class="fas fa-floppy-disk text-6xl text-green-500 mb-4"></i>
+                        <p class="text-gray-700 text-lg mb-2">Archivo anual listo para actualizar</p>
                         <p class="text-gray-500 text-sm mb-4">
-                            Se genera una sola hoja, repitiendo el formato completo por cada semana del rango. El corte semanal se obtiene de <strong>FechaArranque</strong> y solo considera registros <strong>Autorizado</strong>.
+                            Se actualizará <strong>00E Atadores {{ \Carbon\Carbon::parse($fechaFin)->format('Y') }}.xlsx</strong> en la ruta de red configurada, regenerando todas las semanas del año. El corte semanal se obtiene de <strong>FechaArranque</strong> y solo considera registros <strong>Autorizado</strong>.
                         </p>
                         <a href="{{ route('atadores.reportes.atadores.excel', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
                             class="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
-                            <i class="fas fa-download"></i> Descargar Excel
+                            <i class="fas fa-floppy-disk"></i> Guardar Excel Anual
                         </a>
                     </div>
                 @endif
@@ -119,10 +131,5 @@
         });
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        @if (empty($fechaIni) || empty($fechaFin))
-        mostrarModalRangoFechasAtadores();
-        @endif
-    });
 </script>
 @endpush
