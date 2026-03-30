@@ -566,7 +566,8 @@ class CortesEficienciaController extends Controller
             $corte->updated_at = now();
             $corte->save();
 
-            // Notificar por Telegram automáticamente al finalizar
+            // Notificar por Telegram automáticamente al finalizar (DESACTIVADO)
+            /*
             try {
                 Log::info('Iniciando notificación automática por Telegram para folio: ' . $corte->Folio, [
                     'fecha' => $corte->Date,
@@ -586,6 +587,7 @@ class CortesEficienciaController extends Controller
                     'trace' => $e->getTraceAsString()
                 ]);
             }
+            */
 
             $pdfUrl = route('cortes.eficiencia.pdf', $corte->Folio);
 
