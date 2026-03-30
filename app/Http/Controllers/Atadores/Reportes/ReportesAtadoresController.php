@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Atadores\Reportes;
 use App\Exports\ProgramaAtadoresExport;
 use App\Exports\Reporte00EAtadoresRangoExport;
 use App\Http\Controllers\Controller;
+use App\Services\OeeAtadores\OeeAtadoresFileService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Excel as ExcelFormat;
@@ -153,6 +155,104 @@ class ReportesAtadoresController extends Controller
                 'fecha_fin' => $fechaFin->toDateString(),
             ])
             ->with('success', "Archivo anual actualizado correctamente en {$rutaGuardado}");
+    }
+
+    /**
+     * GET /atadores/reportes-atadores/oee/verificar
+     * Verifica qué semanas del rango ya tienen datos en OEE_ATADORES.xlsx.
+     */
+    public function verificarOeeAtadores(Request $request): JsonResponse
+    {
+        [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin] = $this->resolverRangoFechasAtadoresDesdeRequest($request);
+
+        if (! $lunesInicio || ! $lunesFin) {
+            return response()->json(['error' => 'Rango de fechas inválido.'], 422);
+        }
+
+        $filePath = env('OEE_ATADORES_FILE_PATH', 'C:\\Users\\fsanchez\\Desktop\\OEE_ATADORES.xlsx');
+
+        try {
+            $service = new OeeAtadoresFileService($filePath);
+            $resultado = $service->verificarSemanasConDatos($lunesInicio, $lunesFin);
+
+            return response()->json($resultado);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /atadores/reportes-atadores/oee/exportar
+     * Actualiza el archivo OEE_ATADORES.xlsx con las semanas del rango.
+     */
+    public function descargarExcelRango(Request $request)
+    {
+        @set_time_limit(300);
+
+        [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin] = $this->resolverRangoFechasAtadoresDesdeRequest($request);
+
+        if (! $fechaInicio || ! $fechaFin || ! $lunesInicio || ! $lunesFin) {
+            return redirect()
+                ->route('atadores.reportes.atadores')
+                ->with('error', 'Debe seleccionar una fecha inicial y final válidas para exportar.');
+        }
+
+        $nombreArchivo = '00E_Atadores_'
+            . $lunesInicio->format('d-m-Y')
+            . '_al_'
+            . $lunesFin->addDays(6)->format('d-m-Y')
+            . '.xlsx';
+
+        return Excel::download(
+            new Reporte00EAtadoresRangoExport($lunesInicio, $lunesFin),
+            $nombreArchivo
+        );
+    }
+
+    public function exportarOeeAtadores(Request $request)
+    {
+        @set_time_limit(600);
+
+        [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin] = $this->resolverRangoFechasAtadoresDesdeRequest($request);
+
+        if (! $lunesInicio || ! $lunesFin) {
+            return redirect()
+                ->route('atadores.reportes.atadores')
+                ->with('error', 'Debe seleccionar una fecha inicial y final válidas para exportar a OEE.');
+        }
+
+        $filePath = env('OEE_ATADORES_FILE_PATH', 'C:\\Users\\fsanchez\\Desktop\\OEE_ATADORES.xlsx');
+
+        try {
+            $service = new OeeAtadoresFileService($filePath);
+            $rutaGuardado = $service->actualizarArchivo($lunesInicio, $lunesFin);
+
+            Log::info('OEE Atadores actualizado', [
+                'ruta' => $rutaGuardado,
+                'desde' => $lunesInicio->toDateString(),
+                'hasta' => $lunesFin->toDateString(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al actualizar OEE Atadores', [
+                'error' => $e->getMessage(),
+                'desde' => $lunesInicio->toDateString(),
+                'hasta' => $lunesFin->toDateString(),
+            ]);
+
+            return redirect()
+                ->route('atadores.reportes.atadores', [
+                    'fecha_ini' => $fechaInicio?->toDateString(),
+                    'fecha_fin' => $fechaFin?->toDateString(),
+                ])
+                ->with('error', 'No se pudo actualizar el archivo OEE: '.$e->getMessage());
+        }
+
+        return redirect()
+            ->route('atadores.reportes.atadores', [
+                'fecha_ini' => $fechaInicio?->toDateString(),
+                'fecha_fin' => $fechaFin?->toDateString(),
+            ])
+            ->with('success', 'Archivo OEE actualizado correctamente.');
     }
 
     private function resolverRangoFechasAtadoresDesdeRequest(Request $request): array

@@ -197,13 +197,18 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         ];
     }
 
-    public function renderIntoSheet(Worksheet $sheet, int $sectionTopRow = 1): int
+    public function getLayout(int $sectionTopRow = 1, bool $limitToBase = false): array
     {
-        $layout = $this->buildLayout($sectionTopRow);
+        return $this->buildLayout($sectionTopRow, $limitToBase);
+    }
+
+    public function renderIntoSheet(Worksheet $sheet, int $sectionTopRow = 1, bool $allowExpand = true): int
+    {
+        $layout = $this->buildLayout($sectionTopRow, ! $allowExpand);
         $extraRows = max(0, $layout['detail_rows'] - self::BASE_DETAIL_ROWS);
         $footerBaseRow = $this->offsetRow(self::FOOTER_BASE_ROW, $sectionTopRow);
 
-        if ($extraRows > 0) {
+        if ($extraRows > 0 && $allowExpand) {
             $sheet->insertNewRowBefore($footerBaseRow, $extraRows);
         }
 
@@ -289,7 +294,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
             ->values();
     }
 
-    private function buildLayout(int $sectionTopRow = 1): array
+    private function buildLayout(int $sectionTopRow = 1, bool $limitToBase = false): array
     {
         $recordsByTurnAndAtador = [];
 
@@ -328,6 +333,14 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
                     'items_by_day' => array_fill(0, 7, []),
                     'height' => self::DEFAULT_BLOCK_HEIGHT,
                 ];
+            }
+
+            if ($limitToBase) {
+                $blocks = array_slice($blocks, 0, self::MIN_BLOCKS_PER_TURN);
+                foreach ($blocks as &$block) {
+                    $block['height'] = self::DEFAULT_BLOCK_HEIGHT;
+                }
+                unset($block);
             }
 
             $turnStartRow = $currentRow;

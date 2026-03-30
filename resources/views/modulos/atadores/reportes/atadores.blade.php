@@ -8,10 +8,14 @@
         <i class="fas fa-calendar-alt"></i> Seleccionar Fechas
     </button>
     @if (!empty($fechaIni) && !empty($fechaFin))
-        <a href="{{ route('atadores.reportes.atadores.excel', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
+        <a href="{{ route('atadores.reportes.atadores.descargar', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
             class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
-            <i class="fas fa-floppy-disk"></i> Guardar Excel Anual
+            <i class="fas fa-download"></i> Exportar Excel
         </a>
+        <button type="button" onclick="exportarAOeeAtadores()"
+            class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <i class="fas fa-file-export"></i> Exportar a OEE
+        </button>
     @endif
 @endsection
 
@@ -46,8 +50,8 @@
                 @if (empty($fechaIni) || empty($fechaFin))
                     <div class="text-center py-12">
                         <i class="fas fa-calendar-alt text-6xl text-gray-300 mb-4"></i>
-                        <p class="text-gray-500 text-lg">Seleccione una fecha del año que desea actualizar</p>
-                        <p class="text-gray-400 text-sm mt-2">El sistema guardará un solo archivo anual en red y regenerará todas las semanas del año usando <strong>FechaArranque</strong>.</p>
+                        <p class="text-gray-500 text-lg">Seleccione un rango de fechas</p>
+                        <p class="text-gray-400 text-sm mt-2">Puede descargar el Excel del rango seleccionado o exportar los datos al archivo <strong>OEE_ATADORES.xlsx</strong>.</p>
                         <button type="button" onclick="mostrarModalRangoFechasAtadores()"
                             class="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
                             <i class="fas fa-search mr-2"></i> Seleccionar Fechas
@@ -55,15 +59,24 @@
                     </div>
                 @else
                     <div class="text-center py-12">
-                        <i class="fas fa-floppy-disk text-6xl text-green-500 mb-4"></i>
-                        <p class="text-gray-700 text-lg mb-2">Archivo anual listo para actualizar</p>
-                        <p class="text-gray-500 text-sm mb-4">
-                            Se actualizará <strong>00E Atadores {{ \Carbon\Carbon::parse($fechaFin)->format('Y') }}.xlsx</strong> en la ruta de red configurada, regenerando todas las semanas del año. El corte semanal se obtiene de <strong>FechaArranque</strong> y solo considera registros <strong>Autorizado</strong>.
+                        <i class="fas fa-table text-6xl text-blue-400 mb-4"></i>
+                        <p class="text-gray-700 text-lg mb-2">Rango seleccionado</p>
+                        <p class="text-gray-500 text-sm mb-6">
+                            {{ \Carbon\Carbon::parse($lunesIni ?? $fechaIni)->format('d/m/Y') }}
+                            al
+                            {{ \Carbon\Carbon::parse($domingoFin ?? $fechaFin)->format('d/m/Y') }}
+                            &mdash; solo registros <strong>Autorizado</strong> por <strong>FechaArranque</strong>.
                         </p>
-                        <a href="{{ route('atadores.reportes.atadores.excel', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
-                            class="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
-                            <i class="fas fa-floppy-disk"></i> Guardar Excel Anual
-                        </a>
+                        <div class="flex items-center justify-center gap-4 flex-wrap">
+                            <a href="{{ route('atadores.reportes.atadores.descargar', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
+                                class="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">
+                                <i class="fas fa-download"></i> Exportar Excel
+                            </a>
+                            <button type="button" onclick="exportarAOeeAtadores()"
+                                class="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors">
+                                <i class="fas fa-file-export"></i> Exportar a OEE
+                            </button>
+                        </div>
                     </div>
                 @endif
             </div>
@@ -82,6 +95,76 @@
 
     function obtenerFechaActualInput() {
         return formatearFechaInput(new Date());
+    }
+
+    async function exportarAOeeAtadores() {
+        const fechaIni = '{{ $fechaIni ?? '' }}';
+        const fechaFin = '{{ $fechaFin ?? '' }}';
+
+        if (!fechaIni || !fechaFin) return;
+
+        // 1. Verificar semanas con datos existentes
+        Swal.fire({ title: 'Verificando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        let verificacion;
+        try {
+            const params = new URLSearchParams({ fecha_ini: fechaIni, fecha_fin: fechaFin });
+            const resp = await fetch('{{ route("atadores.reportes.oee.verificar") }}?' + params.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            verificacion = await resp.json();
+            if (verificacion.error) throw new Error(verificacion.error);
+        } catch (e) {
+            Swal.fire('Error', e.message || 'No se pudo verificar el archivo OEE.', 'error');
+            return;
+        }
+
+        const semanasRango = verificacion.semanas_rango ?? [];
+        const semanasConDatos = verificacion.semanas_con_datos ?? [];
+
+        // 2. Confirmar con el usuario
+        let html = `<p class="text-sm text-gray-600 mb-3">Se actualizarán las semanas <strong>${semanasRango.join(', ')}</strong> en <code>OEE_ATADORES.xlsx</code>.</p>`;
+        if (semanasConDatos.length > 0) {
+            html += `<div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                <i class="fas fa-triangle-exclamation mr-1"></i>
+                Las semanas <strong>${semanasConDatos.join(', ')}</strong> ya tienen datos y serán sobreescritas.
+            </div>`;
+        }
+
+        const confirm = await Swal.fire({
+            title: 'Exportar a OEE',
+            html,
+            icon: semanasConDatos.length > 0 ? 'warning' : 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Exportar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#7c3aed',
+            cancelButtonColor: '#6b7280',
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        // 3. Ejecutar exportación via form POST
+        Swal.fire({ title: 'Exportando...', text: 'Esto puede tardar varios segundos.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("atadores.reportes.oee.exportar") }}';
+
+        const addField = (name, value) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+        };
+
+        addField('_token', '{{ csrf_token() }}');
+        addField('fecha_ini', fechaIni);
+        addField('fecha_fin', fechaFin);
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
     function mostrarModalRangoFechasAtadores() {
