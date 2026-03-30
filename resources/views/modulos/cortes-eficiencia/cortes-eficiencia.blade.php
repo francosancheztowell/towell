@@ -191,6 +191,7 @@
         fallasCe: '/modulo-cortes-de-eficiencia/fallas',
         generarFolio: '/modulo-cortes-de-eficiencia/generar-folio',
         getCorte: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}`,
+        pdf: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}/pdf`,
         guardarHora: '/modulo-cortes-de-eficiencia/guardar-hora',
         finalizar: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}/finalizar`,
     };
@@ -925,79 +926,75 @@
         showToast({ title:'Observación guardada', text:`Telar ${telar} - Horario ${horario}` });
     }
 
-    /** Genera y descarga imagen de la tabla actual */
+    /** Carga pdf.js dinámicamente (singleton) */
+    let _pdfJsLoader = null;
+    function cargarPdfJs() {
+        if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+        if (_pdfJsLoader) return _pdfJsLoader;
+        _pdfJsLoader = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+            s.onload = () => {
+                if (!window.pdfjsLib) { reject(new Error('No se pudo inicializar pdf.js')); return; }
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                resolve(window.pdfjsLib);
+            };
+            s.onerror = () => reject(new Error('No se pudo cargar pdf.js'));
+            document.head.appendChild(s);
+        });
+        return _pdfJsLoader;
+    }
+
+    /** Genera y descarga imagen del corte actual (vía PDF del servidor → pdf.js → JPEG) */
     async function accionCapturarImagen() {
         const btn = document.getElementById('btn-capturar-imagen');
         const originalHtml = btn?.innerHTML;
         try {
+            if (!state.folio) {
+                showToast({ icon: 'warning', title: 'Sin folio activo', text: 'Guarda el corte antes de descargar la imagen.' });
+                return;
+            }
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>'; }
 
-            // Clonar la tabla para convertir inputs en texto visible
-            const tablaOrig = document.getElementById('tabla-cortes');
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;padding:16px;font-family:sans-serif;min-width:900px;';
-
-            // Encabezado con folio/fecha/turno
-            const header = document.createElement('div');
-            header.style.cssText = 'margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
-            header.innerHTML = `
-                <div style="font-size:16px;font-weight:700;color:#1e40af;">Cortes de Eficiencia</div>
-                <div style="display:flex;gap:16px;font-size:12px;color:#374151;">
-                    ${state.folio ? `<span><strong>Folio:</strong> ${state.folio}</span>` : ''}
-                    <span><strong>Fecha:</strong> ${state.fecha || ''}</span>
-                    ${state.turno ? `<span><strong>Turno:</strong> ${state.turno}</span>` : ''}
-                </div>
-            `;
-            wrapper.appendChild(header);
-
-            // Clon de la tabla con inputs reemplazados por spans
-            const tablaClone = tablaOrig.cloneNode(true);
-            // Quitar overflow para que se expanda
-            tablaClone.querySelectorAll('.overflow-y-auto, .overflow-x-auto').forEach(el => {
-                el.style.overflow = 'visible';
-                el.style.maxHeight = 'none';
+            // 1. Pedir el PDF al servidor
+            const pdfResp = await fetch(routes.pdf(state.folio), {
+                headers: { 'Accept': 'application/pdf', 'X-CSRF-TOKEN': csrf() }
             });
-            // Reemplazar inputs con spans con el valor actual
-            tablaClone.querySelectorAll('input').forEach((inp, idx) => {
-                const orig = tablaOrig.querySelectorAll('input')[idx];
-                const span = document.createElement('span');
-                span.textContent = orig ? orig.value : inp.value;
-                span.style.cssText = 'display:block;text-align:center;font-size:12px;padding:2px 4px;min-width:40px;';
-                inp.replaceWith(span);
-            });
-            // Reemplazar checkboxes con iconos de texto
-            tablaClone.querySelectorAll('input[type="checkbox"]').forEach((cb, idx) => {
-                const orig = tablaOrig.querySelectorAll('input[type="checkbox"]')[idx];
-                const span = document.createElement('span');
-                span.textContent = (orig && orig.checked) ? '✓' : '';
-                span.style.cssText = 'display:block;text-align:center;font-size:12px;color:#2563eb;font-weight:bold;';
-                cb.replaceWith(span);
-            });
-            // Quitar botones de horario del thead
-            tablaClone.querySelectorAll('button').forEach(b => b.remove());
-            wrapper.appendChild(tablaClone);
-            document.body.appendChild(wrapper);
+            if (!pdfResp.ok) throw new Error(`No se pudo generar el PDF (${pdfResp.status})`);
+            const pdfBytes = await pdfResp.arrayBuffer();
 
-            // Cargar html2canvas dinámicamente
-            if (!window.html2canvas) {
-                await new Promise((res, rej) => {
-                    const s = document.createElement('script');
-                    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                    s.onload = res; s.onerror = () => rej(new Error('No se pudo cargar html2canvas'));
-                    document.head.appendChild(s);
-                });
+            // 2. Renderizar cada página con pdf.js y unirlas en un canvas vertical
+            const pdfjsLib = await cargarPdfJs();
+            const pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes) }).promise;
+            const scale = 2.5;
+            const pageCanvases = [];
+            let totalHeight = 0, maxWidth = 0;
+
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                const page = await pdfDoc.getPage(i);
+                const vp = page.getViewport({ scale });
+                const c = document.createElement('canvas');
+                c.width = Math.ceil(vp.width);
+                c.height = Math.ceil(vp.height);
+                await page.render({ canvasContext: c.getContext('2d', { alpha: false }), viewport: vp, background: '#ffffff' }).promise;
+                pageCanvases.push(c);
+                totalHeight += c.height;
+                if (c.width > maxWidth) maxWidth = c.width;
             }
 
-            const canvas = await window.html2canvas(wrapper, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                useCORS: true,
-                logging: false
-            });
-            document.body.removeChild(wrapper);
+            // 3. Combinar páginas en un solo canvas
+            const final = document.createElement('canvas');
+            final.width = maxWidth;
+            final.height = totalHeight;
+            const ctx = final.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, final.width, final.height);
+            let y = 0;
+            pageCanvases.forEach(c => { ctx.drawImage(c, 0, y); y += c.height; });
 
-            const filename = `corte_eficiencia${state.folio ? '_' + state.folio : ''}_${state.fecha || 'captura'}.jpg`;
-            canvas.toBlob(blob => {
+            // 4. Descargar como JPEG
+            const filename = `corte_eficiencia_${state.folio}_${state.fecha || 'captura'}.jpg`;
+            final.toBlob(blob => {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url; a.download = filename;
