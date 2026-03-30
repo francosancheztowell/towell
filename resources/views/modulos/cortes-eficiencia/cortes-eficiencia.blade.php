@@ -12,6 +12,15 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-report
+            id="btn-capturar-imagen"
+            title="Descargar Imagen"
+            icon="fa-image"
+            iconColor="text-indigo-600"
+            hoverBg="hover:bg-indigo-100"
+            class="text-sm"
+        />
+
+        <x-navbar.button-report
             id="btn-telegram-folio"
             title="Notificar por Telegram"
             icon="fa-paper-plane"
@@ -182,6 +191,7 @@
         fallasCe: '/modulo-cortes-de-eficiencia/fallas',
         generarFolio: '/modulo-cortes-de-eficiencia/generar-folio',
         getCorte: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}`,
+        pdf: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}/pdf`,
         guardarHora: '/modulo-cortes-de-eficiencia/guardar-hora',
         finalizar: (folio) => `/modulo-cortes-de-eficiencia/${encodeURIComponent(folio)}/finalizar`,
     };
@@ -304,6 +314,7 @@
     function bindEvents(){
         // Tomar hora desde headers
         document.querySelectorAll('[data-action="tomar-hora"]').forEach(btn => btn.addEventListener('click', () => actualizarYGuardarHoraHorario(parseInt(btn.dataset.horario,10))));
+        document.getElementById('btn-capturar-imagen')?.addEventListener('click', () => accionCapturarImagen());
         els.btnTelegram()?.addEventListener('click', () => accionNotificarTelegram());
         els.btnFinalizar()?.addEventListener('click', () => accionFinalizarFolio());
 
@@ -913,6 +924,90 @@
         syncObsTitle(telar, horario, r.value);
         guardarAutomatico();
         showToast({ title:'Observación guardada', text:`Telar ${telar} - Horario ${horario}` });
+    }
+
+    /** Carga pdf.js dinámicamente (singleton) */
+    let _pdfJsLoader = null;
+    function cargarPdfJs() {
+        if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+        if (_pdfJsLoader) return _pdfJsLoader;
+        _pdfJsLoader = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+            s.onload = () => {
+                if (!window.pdfjsLib) { reject(new Error('No se pudo inicializar pdf.js')); return; }
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                resolve(window.pdfjsLib);
+            };
+            s.onerror = () => reject(new Error('No se pudo cargar pdf.js'));
+            document.head.appendChild(s);
+        });
+        return _pdfJsLoader;
+    }
+
+    /** Genera y descarga imagen del corte actual (vía PDF del servidor → pdf.js → JPEG) */
+    async function accionCapturarImagen() {
+        const btn = document.getElementById('btn-capturar-imagen');
+        const originalHtml = btn?.innerHTML;
+        try {
+            if (!state.folio) {
+                showToast({ icon: 'warning', title: 'Sin folio activo', text: 'Guarda el corte antes de descargar la imagen.' });
+                return;
+            }
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>'; }
+
+            // 1. Pedir el PDF al servidor
+            const pdfResp = await fetch(routes.pdf(state.folio), {
+                headers: { 'Accept': 'application/pdf', 'X-CSRF-TOKEN': csrf() }
+            });
+            if (!pdfResp.ok) throw new Error(`No se pudo generar el PDF (${pdfResp.status})`);
+            const pdfBytes = await pdfResp.arrayBuffer();
+
+            // 2. Renderizar cada página con pdf.js y unirlas en un canvas vertical
+            const pdfjsLib = await cargarPdfJs();
+            const pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes) }).promise;
+            const scale = 2.5;
+            const pageCanvases = [];
+            let totalHeight = 0, maxWidth = 0;
+
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                const page = await pdfDoc.getPage(i);
+                const vp = page.getViewport({ scale });
+                const c = document.createElement('canvas');
+                c.width = Math.ceil(vp.width);
+                c.height = Math.ceil(vp.height);
+                await page.render({ canvasContext: c.getContext('2d', { alpha: false }), viewport: vp, background: '#ffffff' }).promise;
+                pageCanvases.push(c);
+                totalHeight += c.height;
+                if (c.width > maxWidth) maxWidth = c.width;
+            }
+
+            // 3. Combinar páginas en un solo canvas
+            const final = document.createElement('canvas');
+            final.width = maxWidth;
+            final.height = totalHeight;
+            const ctx = final.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, final.width, final.height);
+            let y = 0;
+            pageCanvases.forEach(c => { ctx.drawImage(c, 0, y); y += c.height; });
+
+            // 4. Descargar como JPEG
+            const filename = `corte_eficiencia_${state.folio}_${state.fecha || 'captura'}.jpg`;
+            final.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+                showToast({ title: 'Imagen descargada', icon: 'success' });
+            }, 'image/jpeg', 0.93);
+        } catch (e) {
+            console.error('Error al generar imagen:', e);
+            showToast({ icon: 'error', title: 'No se pudo generar la imagen', text: e.message });
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+        }
     }
 
     function floatingBadge(text, isError=false){

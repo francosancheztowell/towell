@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
-// PDF facade (alias configurado en config/app.php)
-use PDF;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use App\Exports\CortesEficienciaExport;
@@ -61,9 +59,12 @@ class CortesEficienciaController extends Controller
             $esSupervisor = ($puesto === 'supervisor');
 
             // Obtener todos los cortes de eficiencia ordenados por fecha descendente
-            $cortes = TejEficiencia::with(['usuario', 'lineas' => function($q){
-                $q->orderBy('NoTelarId');
-            }])
+            $cortes = TejEficiencia::with([
+                'usuario',
+                'lineas' => function ($q) {
+                    $q->orderBy('NoTelarId');
+                }
+            ])
                 ->orderBy('Date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -173,9 +174,9 @@ class CortesEficienciaController extends Controller
                 $lastLine = $recentLines->first();
 
                 $list[] = [
-                    'NoTelarId'     => $noTelar,
+                    'NoTelarId' => $noTelar,
                     // Mantener nombres esperados por el frontend
-                    'VelocidadStd'  => $lastRpm ?? ($lastLine->RpmStd ?? null),
+                    'VelocidadStd' => $lastRpm ?? ($lastLine->RpmStd ?? null),
                     'EficienciaStd' => $lastEficiencia ?? ($lastLine->EficienciaSTD ?? null),
                 ];
             }
@@ -571,9 +572,9 @@ class CortesEficienciaController extends Controller
                     'fecha' => $corte->Date,
                     'turno' => $corte->Turno
                 ]);
-                
+
                 $success = $this->enviarReporteTelegramInternal($corte->Date, $corte->Turno, Auth::user());
-                
+
                 if ($success) {
                     Log::info('Notificación automática enviada exitosamente para folio: ' . $corte->Folio);
                 } else {
@@ -700,13 +701,30 @@ class CortesEficienciaController extends Controller
         // Indexado por telar para acceso rápido
         $lineasPorTelar = $lineas->keyBy('NoTelarId');
 
-        $pdf = PDF::loadView('modulos.cortes-eficiencia.pdf', [
+        $html = view('modulos.cortes-eficiencia.pdf', [
             'corte' => $corte,
             'telares' => $telares,
             'lineasPorTelar' => $lineasPorTelar,
-        ])->setPaper('a4', 'landscape');
+        ])->render();
 
-        return $pdf->download("corte-eficiencia-{$corte->Folio}.pdf");
+        $options = new Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+        $options->set('defaultFont', 'Arial');
+        $options->set('isPhpEnabled', false);
+        $options->set('chroot', public_path());
+        $options->set('tempDir', sys_get_temp_dir());
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('a4', 'landscape');
+        $dompdf->render();
+
+        $pdfContent = $dompdf->output();
+
+        return response($pdfContent, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="corte-eficiencia-' . $corte->Folio . '.pdf"');
     }
 
     /**
@@ -1089,7 +1107,7 @@ class CortesEficienciaController extends Controller
 
         $query = TejEficienciaLine::whereDate('Date', $fechaNorm);
         if ($maxTurno !== null) {
-            $query->where('Turno', '<=', (int)$maxTurno);
+            $query->where('Turno', '<=', (int) $maxTurno);
         }
 
         $lineasFecha = $query->orderByDesc('updated_at')
@@ -1109,7 +1127,7 @@ class CortesEficienciaController extends Controller
 
         foreach ($lineasFecha as $linea) {
             $telar = $linea->NoTelarId;
-            $turno = (string)$linea->Turno;
+            $turno = (string) $linea->Turno;
             if (!isset($porTelarTurno[$telar])) {
                 $porTelarTurno[$telar] = [];
             }
@@ -1514,7 +1532,7 @@ class CortesEficienciaController extends Controller
         if ($fecha instanceof \Carbon\Carbon) {
             return $fecha->toDateString();
         }
-        return date('Y-m-d', strtotime(str_replace('/', '-', (string)$fecha)));
+        return date('Y-m-d', strtotime(str_replace('/', '-', (string) $fecha)));
     }
 
     /**
