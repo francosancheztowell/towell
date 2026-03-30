@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers\Urdido;
 
-use App\Http\Controllers\Controller;
 use App\Exports\BpmUrdidoExport;
 use App\Exports\KaizenExport;
+use App\Exports\ReporteResumenSemanalUrdidoExport;
 use App\Exports\ReportesUrdidoExport;
 use App\Exports\RoturasMillonExport;
+use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Urdido\UrdBpmModel;
 use App\Models\Urdido\UrdProduccionUrdido;
-use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\ReporteResumenSemanalUrdidoExport; // New import
+use Maatwebsite\Excel\Facades\Excel; // New import
 
 class ReportesUrdidoController extends Controller
 {
@@ -41,9 +41,16 @@ class ReportesUrdidoController extends Controller
 
     private function extractMcCoyNumber(?string $maquinaId): ?int
     {
-        if (empty($maquinaId)) return null;
-        if (stripos($maquinaId, 'karl mayer') !== false) return 4;
-        if (preg_match('/mc\s*coy\s*(\d+)/i', $maquinaId, $matches)) return (int) $matches[1];
+        if (empty($maquinaId)) {
+            return null;
+        }
+        if (stripos($maquinaId, 'karl mayer') !== false) {
+            return 4;
+        }
+        if (preg_match('/mc\s*coy\s*(\d+)/i', $maquinaId, $matches)) {
+            return (int) $matches[1];
+        }
+
         return null;
     }
 
@@ -57,10 +64,17 @@ class ReportesUrdidoController extends Controller
      */
     private function extractEngomadoWP(?string $maquinaEng): ?string
     {
-        if (empty(trim((string) $maquinaEng))) return null;
+        if (empty(trim((string) $maquinaEng))) {
+            return null;
+        }
         $m = trim($maquinaEng);
-        if (preg_match('/west\s*point\s*2|westpoint\s*2|tabla\s*1|izquierda/i', $m) || $m === '2') return 'WP2';
-        if (preg_match('/west\s*point\s*3|westpoint\s*3|tabla\s*2|derecha/i', $m) || $m === '3') return 'WP3';
+        if (preg_match('/west\s*point\s*2|westpoint\s*2|tabla\s*1|izquierda/i', $m) || $m === '2') {
+            return 'WP2';
+        }
+        if (preg_match('/west\s*point\s*3|westpoint\s*3|tabla\s*2|derecha/i', $m) || $m === '3') {
+            return 'WP3';
+        }
+
         return null;
     }
 
@@ -115,7 +129,7 @@ class ReportesUrdidoController extends Controller
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
         // Sin rango seleccionado: no consultar (el usuario debe elegir las fechas)
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.urdido.reportes-urdido', [
                 'porMaquina' => [],
                 'totalKg' => 0,
@@ -125,21 +139,11 @@ class ReportesUrdidoController extends Controller
             ]);
         }
 
-        $query = UrdProduccionUrdido::query()
-            ->leftJoin('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
-            ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
-
-        if ($soloFinalizados) {
-            $query->where(function ($q) {
-                $q->where('p.Status', 'Finalizado')
-                    ->orWhereNull('p.Id');
-            });
-        }
-
-        $registros = $query
+        $registros = $this->buildReporte03UrdidoQuery($fechaIni, $fechaFin, $soloFinalizados)
             ->select([
                 'UrdProduccionUrdido.Id',
                 'UrdProduccionUrdido.Folio',
+                'p.FechaFinaliza as FechaReporte',
                 'UrdProduccionUrdido.NoJulio',
                 'UrdProduccionUrdido.KgNeto',
                 'UrdProduccionUrdido.Metros1',
@@ -153,6 +157,7 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.NomEmpl3',
                 'p.MaquinaId',
             ])
+            ->orderBy('p.FechaFinaliza')
             ->orderBy('p.MaquinaId')
             ->orderBy('UrdProduccionUrdido.Folio')
             ->orderBy('UrdProduccionUrdido.NoJulio')
@@ -166,7 +171,7 @@ class ReportesUrdidoController extends Controller
             $mc = $this->extractMcCoyNumber($r->MaquinaId);
             $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
-            if (!isset($porMaquina[$label])) {
+            if (! isset($porMaquina[$label])) {
                 $porMaquina[$label] = [
                     'label' => $label,
                     'filas' => [],
@@ -174,7 +179,7 @@ class ReportesUrdidoController extends Controller
                 ];
             }
 
-            $kg = (float)($r->KgNeto ?? 0);
+            $kg = (float) ($r->KgNeto ?? 0);
             $operadores = $this->extraerOperadoresConMetros($r);
             $primerFila = true;
             foreach ($operadores as $op) {
@@ -188,7 +193,7 @@ class ReportesUrdidoController extends Controller
                 $primerFila = false;
             }
             if (empty($operadores)) {
-                $metros = round((float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0));
+                $metros = round((float) ($r->Metros1 ?? 0) + (float) ($r->Metros2 ?? 0) + (float) ($r->Metros3 ?? 0));
                 if ($metros > 0) {
                     $porMaquina[$label]['filas'][] = [
                         'orden' => $r->Folio,
@@ -205,7 +210,7 @@ class ReportesUrdidoController extends Controller
 
         // Ordenar máquinas: MC1, MC2, MC3, KM, Otros
         $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4, 'Otros' => 5];
-        uksort($porMaquina, fn($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
+        uksort($porMaquina, fn ($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
 
         return view('modulos.urdido.reportes-urdido', [
             'porMaquina' => $porMaquina,
@@ -225,7 +230,7 @@ class ReportesUrdidoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.urdido.reportes-kaizen', [
                 'filasEngomado' => [],
                 'filasUrdido' => [],
@@ -295,16 +300,22 @@ class ReportesUrdidoController extends Controller
         $filasEngomado = [];
         $vistosEng = [];
         foreach ($registrosEng as $r) {
-            if (isset($vistosEng[$r->Id])) continue;
+            if (isset($vistosEng[$r->Id])) {
+                continue;
+            }
             $vistosEng[$r->Id] = true;
 
-            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
-            if ($metros <= 0) continue;
+            $metros = (float) ($r->Metros1 ?? 0) + (float) ($r->Metros2 ?? 0) + (float) ($r->Metros3 ?? 0);
+            if ($metros <= 0) {
+                continue;
+            }
 
             $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : null;
             $carbon = $fecha ? Carbon::parse($fecha) : Carbon::now();
             $wp = $this->extractEngomadoWP($r->MaquinaEng);
-            if ($wp === null) $wp = 'WP2';
+            if ($wp === null) {
+                $wp = 'WP2';
+            }
 
             $calibre = $r->Calibre ?? '';
             $oficialesData = $this->obtenerOficialesKaizen($r);
@@ -312,18 +323,18 @@ class ReportesUrdidoController extends Controller
             $filasEngomado[] = [
                 'fecha_mod' => $carbon->format('d/m/Y'),
                 'anio' => (int) $carbon->format('Y'),
-                'mes' => $meses[(int)$carbon->format('n')] ?? '',
+                'mes' => $meses[(int) $carbon->format('n')] ?? '',
                 'codigo' => 'JU-ENG-RI-C',
                 'localidad' => $wp,
                 'estado' => 'Terminado',
                 'lote' => $r->Folio,
                 'calibre' => $calibre,
-                'cantidad' => round((float)($r->KgNeto ?? 0), 2),
+                'cantidad' => round((float) ($r->KgNeto ?? 0), 2),
                 'configuracion' => $r->Fibra ?? '',
                 'tamano' => $r->Cuenta ?? '',
                 'mts' => (int) round($metros),
-                'merma_goma' => (float)($r->MermaGoma ?? 0),
-                'merma' => (float)($r->Merma ?? 0),
+                'merma_goma' => (float) ($r->MermaGoma ?? 0),
+                'merma' => (float) ($r->Merma ?? 0),
                 'julios' => $r->NoJulio ?? '',
                 'oficiales' => $oficialesData['oficiales'],
                 'no_oficiales' => $oficialesData['no_oficiales'],
@@ -369,11 +380,15 @@ class ReportesUrdidoController extends Controller
         $filasUrdido = [];
         $vistosUrd = [];
         foreach ($registrosUrd as $r) {
-            if (isset($vistosUrd[$r->Id])) continue;
+            if (isset($vistosUrd[$r->Id])) {
+                continue;
+            }
             $vistosUrd[$r->Id] = true;
 
-            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
-            if ($metros <= 0) continue;
+            $metros = (float) ($r->Metros1 ?? 0) + (float) ($r->Metros2 ?? 0) + (float) ($r->Metros3 ?? 0);
+            if ($metros <= 0) {
+                continue;
+            }
 
             $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : null;
             $carbon = $fecha ? Carbon::parse($fecha) : Carbon::now();
@@ -381,7 +396,7 @@ class ReportesUrdidoController extends Controller
             $localidad = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
             $calibre = $r->Calibre ?? $r->Cuenta ?? '';
-            if (is_string($calibre) && $calibre !== '' && !str_contains($calibre, '/')) {
+            if (is_string($calibre) && $calibre !== '' && ! str_contains($calibre, '/')) {
                 $calibre = (string) $calibre;
             }
             $oficialesData = $this->obtenerOficialesKaizen($r);
@@ -389,13 +404,13 @@ class ReportesUrdidoController extends Controller
             $filasUrdido[] = [
                 'fecha_mod' => $carbon->format('d/m/Y'),
                 'anio' => (int) $carbon->format('Y'),
-                'mes' => $meses[(int)$carbon->format('n')] ?? '',
+                'mes' => $meses[(int) $carbon->format('n')] ?? '',
                 'codigo' => 'JULIO-URDIDO',
                 'localidad' => $localidad,
                 'estado' => 'Terminado',
                 'lote' => $r->Folio,
                 'calibre' => $calibre,
-                'cantidad' => round((float)($r->KgNeto ?? 0), 2),
+                'cantidad' => round((float) ($r->KgNeto ?? 0), 2),
                 'configuracion' => $r->Fibra ?? '',
                 'tamano' => $r->Cuenta ?? '',
                 'mts' => (int) round($metros),
@@ -446,7 +461,7 @@ class ReportesUrdidoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()->route('urdido.reportes.urdido.kaizen')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
@@ -455,8 +470,8 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $filenameRed = 'Kaizen urd-eng ' . $fechaFinCarbon->format('Y') . '.xlsx';
-        $filenameDownload = 'kaizen-urd-eng-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $filenameRed = 'Kaizen urd-eng '.$fechaFinCarbon->format('Y').'.xlsx';
+        $filenameDownload = 'kaizen-urd-eng-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         $export = new KaizenExport($filasEngomado, $filasUrdido);
 
@@ -473,7 +488,7 @@ class ReportesUrdidoController extends Controller
         $rutaRed = config('filesystems.disks.reports_urdido.root')
             ?? '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026';
         $sep = (PHP_OS_FAMILY === 'Windows') ? '\\' : '/';
-        $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep) . $sep . $filenameRed;
+        $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep).$sep.$filenameRed;
 
         try {
             Excel::store($export, $filenameRed, 'local');
@@ -520,7 +535,7 @@ class ReportesUrdidoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.urdido.reportes-roturas', [
                 'filas' => [],
                 'fechaIni' => $fechaIni ?? '',
@@ -582,7 +597,7 @@ class ReportesUrdidoController extends Controller
         $porOrden = [];
         foreach ($registros as $r) {
             $folio = $r->Folio;
-            if (!isset($porOrden[$folio])) {
+            if (! isset($porOrden[$folio])) {
                 $mc = $this->extractMcCoyNumber($r->MaquinaId);
                 $maqLabel = $mc !== null ? $this->maquinaLabel($mc) : ($r->MaquinaId ?? 'Otros');
                 $porOrden[$folio] = [
@@ -593,7 +608,7 @@ class ReportesUrdidoController extends Controller
                     'cuenta' => $r->Cuenta ?? '',
                     'calibre' => $r->Calibre ?? '',
                     'tipo' => $r->RizoPie ?? '',
-                    'metros_programa' => (float)($r->MetrosPrograma ?? 0),
+                    'metros_programa' => (float) ($r->MetrosPrograma ?? 0),
                     'total_julios' => 0,
                     'hilos_sum' => 0,
                     'metros_sum' => 0,
@@ -604,14 +619,14 @@ class ReportesUrdidoController extends Controller
                 ];
             }
 
-            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
+            $metros = (float) ($r->Metros1 ?? 0) + (float) ($r->Metros2 ?? 0) + (float) ($r->Metros3 ?? 0);
             $porOrden[$folio]['total_julios']++;
-            $porOrden[$folio]['hilos_sum'] += (int)($r->Hilos ?? 0);
+            $porOrden[$folio]['hilos_sum'] += (int) ($r->Hilos ?? 0);
             $porOrden[$folio]['metros_sum'] += $metros;
-            $porOrden[$folio]['rot_hilatura'] += (int)($r->Hilatura ?? 0);
-            $porOrden[$folio]['rot_maquina'] += (int)($r->Maquina ?? 0);
-            $porOrden[$folio]['rot_operacion'] += (int)($r->Operac ?? 0);
-            $porOrden[$folio]['transferencia'] += (int)($r->Transf ?? 0);
+            $porOrden[$folio]['rot_hilatura'] += (int) ($r->Hilatura ?? 0);
+            $porOrden[$folio]['rot_maquina'] += (int) ($r->Maquina ?? 0);
+            $porOrden[$folio]['rot_operacion'] += (int) ($r->Operac ?? 0);
+            $porOrden[$folio]['transferencia'] += (int) ($r->Transf ?? 0);
         }
 
         $filas = [];
@@ -656,7 +671,7 @@ class ReportesUrdidoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()->route('urdido.reportes.urdido.roturas')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
@@ -665,8 +680,8 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $filenameRed = 'Roturas x Millon ' . $fechaFinCarbon->format('Y') . '.xlsx';
-        $filenameDownload = 'roturas-millon-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $filenameRed = 'Roturas x Millon '.$fechaFinCarbon->format('Y').'.xlsx';
+        $filenameDownload = 'roturas-millon-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         $export = new RoturasMillonExport($filas);
 
@@ -682,7 +697,7 @@ class ReportesUrdidoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.urdido.reportes-bpm-urdido', [
                 'filas' => [],
                 'fechaIni' => $fechaIni ?? '',
@@ -726,6 +741,7 @@ class ReportesUrdidoController extends Controller
                 $row->CveEmplEnt = $this->normalizarClaveNumero($row->CveEmplEnt ?? null);
                 $row->CveEmplRec = $this->normalizarClaveNumero($row->CveEmplRec ?? null);
                 $row->CveEmplAutoriza = $this->normalizarClaveNumero($row->CveEmplAutoriza ?? null);
+
                 return $row;
             });
 
@@ -748,7 +764,7 @@ class ReportesUrdidoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()->route('urdido.reportes.urdido.bpm')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
@@ -787,6 +803,7 @@ class ReportesUrdidoController extends Controller
                 $row->CveEmplEnt = $this->normalizarClaveNumero($row->CveEmplEnt ?? null);
                 $row->CveEmplRec = $this->normalizarClaveNumero($row->CveEmplRec ?? null);
                 $row->CveEmplAutoriza = $this->normalizarClaveNumero($row->CveEmplAutoriza ?? null);
+
                 return $row;
             });
 
@@ -794,8 +811,8 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $filenameRed = 'BPM Urdido ' . $fechaFinCarbon->format('Y') . '.xlsx';
-        $filenameDownload = 'bpm-urdido-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $filenameRed = 'BPM Urdido '.$fechaFinCarbon->format('Y').'.xlsx';
+        $filenameDownload = 'bpm-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         $export = new BpmUrdidoExport($filas);
 
@@ -854,8 +871,13 @@ class ReportesUrdidoController extends Controller
     {
         $nom = trim((string) ($nomEmpl ?? ''));
         $cve = trim((string) ($cveEmpl ?? ''));
-        if ($nom !== '') return $nom;
-        if ($cve !== '') return $cve;
+        if ($nom !== '') {
+            return $nom;
+        }
+        if ($cve !== '') {
+            return $cve;
+        }
+
         return '';
     }
 
@@ -877,11 +899,14 @@ class ReportesUrdidoController extends Controller
         foreach ([1, 2, 3] as $n) {
             $nom = $r->{"NomEmpl{$n}"} ?? null;
             $cve = $r->{"CveEmpl{$n}"} ?? null;
-            $mts = (float)($r->{"Metros{$n}"} ?? 0);
-            if ($mts <= 0) continue;
+            $mts = (float) ($r->{"Metros{$n}"} ?? 0);
+            if ($mts <= 0) {
+                continue;
+            }
             $nombre = $this->obtenerOperadorDisplayCompleto($nom, $cve);
             $ops[] = ['nombre' => $nombre !== '' ? $nombre : "Turno {$n}", 'metros' => round($mts)];
         }
+
         return $ops;
     }
 
@@ -894,27 +919,16 @@ class ReportesUrdidoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()->route('urdido.reportes.urdido')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
 
-        $query = UrdProduccionUrdido::query()
-            ->leftJoin('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
-            ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
-
-        if ($soloFinalizados) {
-            $query->where(function ($q) {
-                $q->where('p.Status', 'Finalizado')
-                    ->orWhereNull('p.Id');
-            });
-        }
-
-        $registros = $query
+        $registros = $this->buildReporte03UrdidoQuery($fechaIni, $fechaFin, $soloFinalizados)
             ->select([
                 'UrdProduccionUrdido.Id',
                 'UrdProduccionUrdido.Folio',
-                'UrdProduccionUrdido.Fecha',
+                'p.FechaFinaliza as FechaReporte',
                 'UrdProduccionUrdido.NoJulio',
                 'UrdProduccionUrdido.KgNeto',
                 'UrdProduccionUrdido.Metros1',
@@ -928,7 +942,7 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.NomEmpl3',
                 'p.MaquinaId',
             ])
-            ->orderBy('UrdProduccionUrdido.Fecha')
+            ->orderBy('p.FechaFinaliza')
             ->orderBy('p.MaquinaId')
             ->orderBy('UrdProduccionUrdido.Folio')
             ->orderBy('UrdProduccionUrdido.NoJulio')
@@ -940,20 +954,13 @@ class ReportesUrdidoController extends Controller
             $mc = $this->extractMcCoyNumber($r->MaquinaId);
             $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
-            $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : '';
-            if (!isset($porFecha[$fecha])) {
-                $porFecha[$fecha] = [
-                    'porMaquina' => [],
-                    'porOperador' => [],
-                    'totalKg' => 0,
-                    'engomado' => ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]],
-                ];
-            }
-            if (!isset($porFecha[$fecha]['porMaquina'][$label])) {
+            $fecha = $this->normalizeReporte03DateKey($r->FechaReporte ?? null);
+            $this->ensureReporte03DateBucket($porFecha, $fecha);
+            if (! isset($porFecha[$fecha]['porMaquina'][$label])) {
                 $porFecha[$fecha]['porMaquina'][$label] = ['label' => $label, 'filas' => []];
             }
 
-            $kg = (float)($r->KgNeto ?? 0);
+            $kg = (float) ($r->KgNeto ?? 0);
             $operadores = $this->extraerOperadoresConMetros($r);
             $primerFila = true;
             foreach ($operadores as $op) {
@@ -965,14 +972,14 @@ class ReportesUrdidoController extends Controller
                     'ope' => $op['nombre'],
                 ];
                 $opeKey = trim($op['nombre']) !== '' ? $op['nombre'] : 'Sin asignar';
-                if (!isset($porFecha[$fecha]['porOperador'][$opeKey])) {
+                if (! isset($porFecha[$fecha]['porOperador'][$opeKey])) {
                     $porFecha[$fecha]['porOperador'][$opeKey] = ['nombre' => $opeKey, 'metros' => 0];
                 }
                 $porFecha[$fecha]['porOperador'][$opeKey]['metros'] += $op['metros'];
                 $primerFila = false;
             }
             if (empty($operadores)) {
-                $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
+                $metros = (float) ($r->Metros1 ?? 0) + (float) ($r->Metros2 ?? 0) + (float) ($r->Metros3 ?? 0);
                 if ($metros > 0) {
                     $ope = $this->obtenerOperadorDisplayCompleto($r->NomEmpl1, $r->CveEmpl1);
                     $opeKey = trim($ope) !== '' ? $ope : 'Sin asignar';
@@ -983,7 +990,7 @@ class ReportesUrdidoController extends Controller
                         'metros' => round($metros),
                         'ope' => $ope,
                     ];
-                    if (!isset($porFecha[$fecha]['porOperador'][$opeKey])) {
+                    if (! isset($porFecha[$fecha]['porOperador'][$opeKey])) {
                         $porFecha[$fecha]['porOperador'][$opeKey] = ['nombre' => $opeKey, 'metros' => 0];
                     }
                     $porFecha[$fecha]['porOperador'][$opeKey]['metros'] += round($metros);
@@ -993,22 +1000,14 @@ class ReportesUrdidoController extends Controller
         }
 
         foreach ($porFecha as $f => $datos) {
-            uksort($porFecha[$f]['porMaquina'], fn($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
+            uksort($porFecha[$f]['porMaquina'], fn ($a, $b) => ($ordenMaquinas[$a] ?? 99) <=> ($ordenMaquinas[$b] ?? 99));
             $porFecha[$f]['porMaquina'] = array_values($porFecha[$f]['porMaquina']);
         }
 
         // Datos de engomado para Hoja 2 (WP2, WP3)
-        $queryEng = EngProduccionEngomado::query()
-            ->join('EngProgramaEngomado as p', 'EngProduccionEngomado.Folio', '=', 'p.Folio')
-            ->whereBetween('EngProduccionEngomado.Fecha', [$fechaIni, $fechaFin]);
-
-        if ($soloFinalizados) {
-            $queryEng->where('p.Status', 'Finalizado');
-        }
-
-        $registrosEng = $queryEng
+        $registrosEng = $this->buildReporte03EngomadoQuery($fechaIni, $fechaFin, $soloFinalizados)
             ->select([
-                'EngProduccionEngomado.Fecha',
+                'p.FechaFinaliza as FechaReporte',
                 'EngProduccionEngomado.Folio',
                 'EngProduccionEngomado.NoJulio',
                 'EngProduccionEngomado.KgNeto',
@@ -1019,7 +1018,7 @@ class ReportesUrdidoController extends Controller
                 'EngProduccionEngomado.NomEmpl1',
                 'p.MaquinaEng',
             ])
-            ->orderBy('EngProduccionEngomado.Fecha')
+            ->orderBy('p.FechaFinaliza')
             ->orderBy('p.MaquinaEng')
             ->orderBy('EngProduccionEngomado.Folio')
             ->orderBy('EngProduccionEngomado.NoJulio')
@@ -1027,26 +1026,20 @@ class ReportesUrdidoController extends Controller
 
         foreach ($registrosEng as $r) {
             $wp = $this->extractEngomadoWP($r->MaquinaEng);
-            if ($wp === null) continue;
-
-            $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : '';
-            if (!isset($porFecha[$fecha])) {
-                $porFecha[$fecha] = [
-                    'porMaquina' => [],
-                    'porOperador' => [],
-                    'totalKg' => 0,
-                    'engomado' => ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]],
-                ];
-            }
-            if (!isset($porFecha[$fecha]['engomado'])) {
-                $porFecha[$fecha]['engomado'] = ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
+            if ($wp === null) {
+                continue;
             }
 
-            $metros = (float)($r->Metros1 ?? 0) + (float)($r->Metros2 ?? 0) + (float)($r->Metros3 ?? 0);
-            if ($metros <= 0) continue;
+            $fecha = $this->normalizeReporte03DateKey($r->FechaReporte ?? null);
+            $this->ensureReporte03DateBucket($porFecha, $fecha);
+
+            $metros = (float) ($r->Metros1 ?? 0) + (float) ($r->Metros2 ?? 0) + (float) ($r->Metros3 ?? 0);
+            if ($metros <= 0) {
+                continue;
+            }
 
             $ope = $this->obtenerOperadorDisplay($r->NomEmpl1, $r->CveEmpl1);
-            $kg = (float)($r->KgNeto ?? 0);
+            $kg = (float) ($r->KgNeto ?? 0);
 
             $porFecha[$fecha]['engomado'][$wp]['filas'][] = [
                 'orden' => $r->Folio,
@@ -1058,7 +1051,7 @@ class ReportesUrdidoController extends Controller
         }
 
         foreach ($porFecha as $f => &$datos) {
-            if (!isset($datos['engomado'])) {
+            if (! isset($datos['engomado'])) {
                 $datos['engomado'] = ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
             }
         }
@@ -1069,12 +1062,71 @@ class ReportesUrdidoController extends Controller
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
 
-        $filenameRed = '03-0EE URD-ENG-' . $fechaFinCarbon->format('Y') . '.xlsx';
-        $filenameDownload = 'reporte-urdido-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $filenameRed = '03-0EE URD-ENG-'.$fechaFinCarbon->format('Y').'.xlsx';
+        $filenameDownload = 'reporte-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         $export = new ReportesUrdidoExport($porFecha);
 
         return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, '03-OEE URD-ENG');
+    }
+
+    private function buildReporte03UrdidoQuery(string $fechaIni, string $fechaFin, bool $soloFinalizados): Builder
+    {
+        $query = UrdProduccionUrdido::query()
+            ->join('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
+            ->whereNotNull('p.FechaFinaliza')
+            ->whereBetween('p.FechaFinaliza', [$fechaIni, $fechaFin]);
+
+        if ($soloFinalizados) {
+            $query->where('p.Status', 'Finalizado');
+        }
+
+        return $query;
+    }
+
+    private function buildReporte03EngomadoQuery(string $fechaIni, string $fechaFin, bool $soloFinalizados): Builder
+    {
+        $query = EngProduccionEngomado::query()
+            ->join('EngProgramaEngomado as p', 'EngProduccionEngomado.Folio', '=', 'p.Folio')
+            ->whereNotNull('p.FechaFinaliza')
+            ->whereBetween('p.FechaFinaliza', [$fechaIni, $fechaFin]);
+
+        if ($soloFinalizados) {
+            $query->where('p.Status', 'Finalizado');
+        }
+
+        return $query;
+    }
+
+    private function normalizeReporte03DateKey(mixed $value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value)->format('Y-m-d');
+        }
+
+        $texto = trim((string) $value);
+
+        if ($texto === '') {
+            return '';
+        }
+
+        return Carbon::parse($texto)->format('Y-m-d');
+    }
+
+    private function ensureReporte03DateBucket(array &$porFecha, string $fecha): void
+    {
+        if (! isset($porFecha[$fecha])) {
+            $porFecha[$fecha] = [
+                'porMaquina' => [],
+                'porOperador' => [],
+                'totalKg' => 0,
+                'engomado' => ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]],
+            ];
+        }
+
+        if (! isset($porFecha[$fecha]['engomado'])) {
+            $porFecha[$fecha]['engomado'] = ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
+        }
     }
 
     public function reporteResumen(Request $request)
@@ -1082,7 +1134,7 @@ class ReportesUrdidoController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.urdido.reportes-resumen-urdido', [
                 'datosSemanales' => [],
                 'fechaIni' => $fechaIni ?? '',
@@ -1104,7 +1156,7 @@ class ReportesUrdidoController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()->route('urdido.reportes.urdido.resumen')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
@@ -1113,7 +1165,7 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $fileName = 'resumen-semanal-urdido-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $fileName = 'resumen-semanal-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new ReporteResumenSemanalUrdidoExport($datosSemanales), $fileName);
     }
@@ -1138,11 +1190,11 @@ class ReportesUrdidoController extends Controller
 
         foreach ($producciones as $prod) {
             $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha : Carbon::parse($prod->Fecha);
-            $weekYear = $fecha->format('W-o'); 
+            $weekYear = $fecha->format('W-o');
 
-            if (!isset($porSemana[$weekYear])) {
+            if (! isset($porSemana[$weekYear])) {
                 $porSemana[$weekYear] = [
-                    'semana_label' => 'SEM-' . $fecha->format('W-o'),
+                    'semana_label' => 'SEM-'.$fecha->format('W-o'),
                     'total_ordenes' => 0,
                     'total_julios' => 0,
                     'total_kg' => 0,
@@ -1153,7 +1205,7 @@ class ReportesUrdidoController extends Controller
                 $foliosPorSemana[$weekYear] = [];
             }
 
-            if (!in_array($prod->Folio, $foliosPorSemana[$weekYear])) {
+            if (! in_array($prod->Folio, $foliosPorSemana[$weekYear])) {
                 $foliosPorSemana[$weekYear][] = $prod->Folio;
                 $porSemana[$weekYear]['total_ordenes']++;
             }
@@ -1205,7 +1257,7 @@ class ReportesUrdidoController extends Controller
         foreach ($producciones as $prod) {
             $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha->format('Y-m-d') : Carbon::parse($prod->Fecha)->format('Y-m-d');
 
-            if (!isset($porFecha[$fecha])) {
+            if (! isset($porFecha[$fecha])) {
                 $porFecha[$fecha] = [
                     'totalKg' => 0,
                     'porMaquina' => [
