@@ -30,3 +30,6 @@ ISSUES.md
 /routes/ai.php
 .gemini/
 gha-creds-*.json
+
+# Claude worktrees
+.claude/
