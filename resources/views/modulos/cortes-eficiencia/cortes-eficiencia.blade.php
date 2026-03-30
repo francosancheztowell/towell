@@ -12,6 +12,15 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-report
+            id="btn-capturar-imagen"
+            title="Descargar Imagen"
+            icon="fa-image"
+            iconColor="text-indigo-600"
+            hoverBg="hover:bg-indigo-100"
+            class="text-sm"
+        />
+
+        <x-navbar.button-report
             id="btn-telegram-folio"
             title="Notificar por Telegram"
             icon="fa-paper-plane"
@@ -304,6 +313,7 @@
     function bindEvents(){
         // Tomar hora desde headers
         document.querySelectorAll('[data-action="tomar-hora"]').forEach(btn => btn.addEventListener('click', () => actualizarYGuardarHoraHorario(parseInt(btn.dataset.horario,10))));
+        document.getElementById('btn-capturar-imagen')?.addEventListener('click', () => accionCapturarImagen());
         els.btnTelegram()?.addEventListener('click', () => accionNotificarTelegram());
         els.btnFinalizar()?.addEventListener('click', () => accionFinalizarFolio());
 
@@ -913,6 +923,94 @@
         syncObsTitle(telar, horario, r.value);
         guardarAutomatico();
         showToast({ title:'Observación guardada', text:`Telar ${telar} - Horario ${horario}` });
+    }
+
+    /** Genera y descarga imagen de la tabla actual */
+    async function accionCapturarImagen() {
+        const btn = document.getElementById('btn-capturar-imagen');
+        const originalHtml = btn?.innerHTML;
+        try {
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>'; }
+
+            // Clonar la tabla para convertir inputs en texto visible
+            const tablaOrig = document.getElementById('tabla-cortes');
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;padding:16px;font-family:sans-serif;min-width:900px;';
+
+            // Encabezado con folio/fecha/turno
+            const header = document.createElement('div');
+            header.style.cssText = 'margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
+            header.innerHTML = `
+                <div style="font-size:16px;font-weight:700;color:#1e40af;">Cortes de Eficiencia</div>
+                <div style="display:flex;gap:16px;font-size:12px;color:#374151;">
+                    ${state.folio ? `<span><strong>Folio:</strong> ${state.folio}</span>` : ''}
+                    <span><strong>Fecha:</strong> ${state.fecha || ''}</span>
+                    ${state.turno ? `<span><strong>Turno:</strong> ${state.turno}</span>` : ''}
+                </div>
+            `;
+            wrapper.appendChild(header);
+
+            // Clon de la tabla con inputs reemplazados por spans
+            const tablaClone = tablaOrig.cloneNode(true);
+            // Quitar overflow para que se expanda
+            tablaClone.querySelectorAll('.overflow-y-auto, .overflow-x-auto').forEach(el => {
+                el.style.overflow = 'visible';
+                el.style.maxHeight = 'none';
+            });
+            // Reemplazar inputs con spans con el valor actual
+            tablaClone.querySelectorAll('input').forEach((inp, idx) => {
+                const orig = tablaOrig.querySelectorAll('input')[idx];
+                const span = document.createElement('span');
+                span.textContent = orig ? orig.value : inp.value;
+                span.style.cssText = 'display:block;text-align:center;font-size:12px;padding:2px 4px;min-width:40px;';
+                inp.replaceWith(span);
+            });
+            // Reemplazar checkboxes con iconos de texto
+            tablaClone.querySelectorAll('input[type="checkbox"]').forEach((cb, idx) => {
+                const orig = tablaOrig.querySelectorAll('input[type="checkbox"]')[idx];
+                const span = document.createElement('span');
+                span.textContent = (orig && orig.checked) ? '✓' : '';
+                span.style.cssText = 'display:block;text-align:center;font-size:12px;color:#2563eb;font-weight:bold;';
+                cb.replaceWith(span);
+            });
+            // Quitar botones de horario del thead
+            tablaClone.querySelectorAll('button').forEach(b => b.remove());
+            wrapper.appendChild(tablaClone);
+            document.body.appendChild(wrapper);
+
+            // Cargar html2canvas dinámicamente
+            if (!window.html2canvas) {
+                await new Promise((res, rej) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                    s.onload = res; s.onerror = () => rej(new Error('No se pudo cargar html2canvas'));
+                    document.head.appendChild(s);
+                });
+            }
+
+            const canvas = await window.html2canvas(wrapper, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                useCORS: true,
+                logging: false
+            });
+            document.body.removeChild(wrapper);
+
+            const filename = `corte_eficiencia${state.folio ? '_' + state.folio : ''}_${state.fecha || 'captura'}.jpg`;
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+                showToast({ title: 'Imagen descargada', icon: 'success' });
+            }, 'image/jpeg', 0.93);
+        } catch (e) {
+            console.error('Error al generar imagen:', e);
+            showToast({ icon: 'error', title: 'No se pudo generar la imagen', text: e.message });
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+        }
     }
 
     function floatingBadge(text, isError=false){
