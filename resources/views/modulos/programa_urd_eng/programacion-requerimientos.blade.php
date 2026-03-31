@@ -16,56 +16,6 @@
 
 
 <div class="w-full">
-    <style>
-        #tablaRequerimientos thead th {
-            position: relative;
-        }
-        .req-header-shell {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-            width: 100%;
-        }
-        .req-header-label {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .req-filter-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 1.4rem;
-            height: 1.4rem;
-            border: 1px solid rgba(255, 255, 255, 0.28);
-            border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.12);
-            color: #ffffff;
-            transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-        }
-        .req-filter-btn:hover {
-            background: rgba(255, 255, 255, 0.22);
-            border-color: rgba(255, 255, 255, 0.44);
-            transform: translateY(-1px);
-        }
-        .req-filter-btn.active {
-            background: #ffffff;
-            color: #1d4ed8;
-            border-color: #bfdbfe;
-        }
-        .req-filter-indicator {
-            display: inline-block;
-            width: 0.45rem;
-            height: 0.45rem;
-            border-radius: 9999px;
-            background: #facc15;
-            box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.18);
-        }
-        .req-filter-indicator.hidden {
-            display: none;
-        }
-    </style>
 
     {{-- =================== Tabla de requerimientos =================== --}}
     <div class="bg-white overflow-hidden mb-4">
@@ -85,7 +35,6 @@
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="tipo_atado" data-column-label="Tipo Atado">Tipo Atado</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="metros" data-column-label="Metros">Metros</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="kilos" data-column-label="Kilos">Kilos</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="agrupar" data-column-label="Agrupar">Agrupar</th>
                     </tr>
                 </thead>
                 <tbody id="tbodyRequerimientos" class="bg-white">
@@ -162,13 +111,9 @@ document.addEventListener('DOMContentLoaded', () => {
         { field: 'destino', label: 'Destino' },
         { field: 'tipo_atado', label: 'Tipo Atado' },
         { field: 'metros', label: 'Metros' },
-        { field: 'kilos', label: 'Kilos' },
-        { field: 'agrupar', label: 'Agrupar' }
+        { field: 'kilos', label: 'Kilos' }
     ];
     const REQUERIMIENTOS_COLUMN_ORDER = REQUERIMIENTOS_COLUMN_META.map(col => col.field);
-    const REQUERIMIENTOS_COLUMN_LABELS = Object.fromEntries(REQUERIMIENTOS_COLUMN_META.map(col => [col.field, col.label]));
-    const requerimientosColumnFilters = {};
-
     // Función para mapear salón a destino (ITEMA y SMITH ambos usan SMIT) — fallback si no hay grupo en ReqTelares
     function normalizarDestino(destino) {
         const value = String(destino || '').trim();
@@ -475,9 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
                        class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                        value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos" required>
             </td>
-            <td class="px-2 py-3 w-24 text-center" data-column-field="agrupar">
-                <input type="checkbox" class="w-4 h-4" ${telar.agrupar ? 'checked' : ''} data-field="agrupar">
-            </td>
         `;
         return tr;
     }
@@ -534,18 +476,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         filtrados.forEach((t, i) => tbody.appendChild(crearFila(t, i)));
 
-        // Aplicar agrupación automática
-        aplicarAgrupacionAutomatica(filtrados);
-
-        // Agregar event listeners a los checkboxes de agrupación
-        agregarValidacionAgrupacion();
-
         // Agregar event listeners para campos editables (cuenta, calibre, hilo, tipo)
         reordenarColumnasTablaRequerimientos();
         agregarEventListenersCamposEditables();
-        inicializarFiltrosColumnasRequerimientos();
-        applyRequerimientosColumnFilters();
-
         // Autocompletar tamaño inicialmente si las filas ya tienen cuenta y calibre
         const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
         filas.forEach(fila => {
@@ -559,134 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
         cargarDestinoDesdeReqTelares();
     }
 
-    // Función para aplicar agrupación automática basada en Cuenta, Hilo, Calibre y Tipo
-    function aplicarAgrupacionAutomatica(telares) {
-        if (!telares || telares.length === 0) return;
-
-        // Agrupar telares por los criterios de agrupación
-        const grupos = {};
-        const tipoBase = String(telares[0]?.tipo || '').toUpperCase().trim();
-        const esPie = tipoBase === 'PIE';
-
-        telares.forEach((telar, index) => {
-            // Normalizar valores para la clave de agrupación
-            const cuenta = String(telar.cuenta || '').trim();
-            const calibre = telar.calibre != null && telar.calibre !== '' ? parseFloat(telar.calibre).toFixed(2) : '';
-            const hilo = esPie ? '' : (telar.hilo && String(telar.hilo).trim() !== '' ? String(telar.hilo).trim() : '');
-            const tipo = String(telar.tipo || '').toUpperCase().trim();
-
-            // Crear clave de agrupación (para PIE no incluye hilo)
-            const clave = esPie
-                ? `${cuenta}|${calibre}|${tipo}`
-                : `${cuenta}|${hilo}|${calibre}|${tipo}`;
-
-            if (!grupos[clave]) {
-                grupos[clave] = [];
-            }
-            grupos[clave].push({ telar, index });
-        });
-
-        // Marcar checkboxes de agrupación para grupos con más de un telar
-        Object.values(grupos).forEach(grupo => {
-            if (grupo.length > 1) {
-                // Si hay más de un telar en el grupo, marcar todos los checkboxes
-                grupo.forEach(({ index }) => {
-                    const fila = document.querySelector(`#tablaRequerimientos tbody tr[data-index="${index}"]`);
-                    if (fila) {
-                        const checkbox = fila.querySelector('input[data-field="agrupar"]');
-                        if (checkbox) {
-                            checkbox.checked = true;
-                            // Actualizar también el dato en telaresData usando el telarId
-                            const telarId = fila.dataset.telarId || '';
-                            const telarEnData = telaresData.find(t => String(t.no_telar || '') === telarId);
-                            if (telarEnData) {
-                                telarEnData.agrupar = true;
-                            }
-                        }
-                    }
-                });
-            }
-        });
-    }
-
-    // Función para validar si dos telares pueden agruparse
-    function puedenAgruparse(telar1, telar2) {
-        const tipo1 = String(telar1.tipo || '').toUpperCase().trim();
-        const tipo2 = String(telar2.tipo || '').toUpperCase().trim();
-        const esPie = tipo1 === 'PIE';
-
-        // Deben tener el mismo tipo
-        if (tipo1 !== tipo2) {
-            return { puede: false, motivo: 'tipo' };
-        }
-
-        // Deben tener la misma cuenta
-        const cuenta1 = String(telar1.cuenta || '').trim();
-        const cuenta2 = String(telar2.cuenta || '').trim();
-        if (cuenta1 !== cuenta2) {
-            return { puede: false, motivo: 'cuenta' };
-        }
-
-        // Deben tener el mismo calibre
-        const cal1 = telar1.calibre != null && telar1.calibre !== '' ? parseFloat(telar1.calibre) : null;
-        const cal2 = telar2.calibre != null && telar2.calibre !== '' ? parseFloat(telar2.calibre) : null;
-        if (cal1 != null && cal2 != null && Math.abs(cal1 - cal2) >= 0.01) {
-            return { puede: false, motivo: 'calibre' };
-        }
-        if ((cal1 == null) !== (cal2 == null)) {
-            return { puede: false, motivo: 'calibre' };
-        }
-
-        // Para RIZO, deben tener el mismo hilo
-        if (!esPie) {
-            const hilo1 = telar1.hilo && String(telar1.hilo).trim() !== '' ? String(telar1.hilo).trim() : null;
-            const hilo2 = telar2.hilo && String(telar2.hilo).trim() !== '' ? String(telar2.hilo).trim() : null;
-            if (hilo1 && hilo2 && hilo1 !== hilo2) {
-                return { puede: false, motivo: 'hilo' };
-            }
-        }
-
-        return { puede: true };
-    }
-
-    // Función para obtener mensaje de error de agrupación
-    function obtenerMensajeErrorAgrupacion(motivo) {
-        const mensajes = {
-            'tipo': 'No se pueden agrupar telares con diferentes tipos (RIZO/PIE).',
-            'cuenta': 'No se pueden agrupar telares con diferentes cuentas.',
-            'hilo': 'No se pueden agrupar telares con diferentes hilos.',
-            'calibre': 'No se pueden agrupar telares con diferentes calibres.'
-        };
-        return mensajes[motivo] || 'No se pueden agrupar estos telares.';
-    }
-
-    // Función para mostrar alerta de agrupación con SweetAlert2 (toast)
-    function mostrarAlertaAgrupacion(mensaje) {
-        // Verificar si SweetAlert2 está disponible
-        if (typeof Swal !== 'undefined') {
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 1200,
-                timerProgressBar: true,
-                width: 'auto',
-                padding: '0.75rem 1rem',
-                didOpen: (toast) => {
-                    toast.addEventListener('mouseenter', Swal.stopTimer);
-                    toast.addEventListener('mouseleave', Swal.resumeTimer);
-                }
-            });
-            Toast.fire({
-                icon: 'error',
-                title: mensaje,
-                iconColor: '#ef4444'
-            });
-        } else {
-            // Fallback a alert nativo si SweetAlert2 no está disponible
-            alert(mensaje);
-        }
-    }
 
     function reordenarColumnasTablaRequerimientos() {
         const headerRow = document.querySelector('#tablaRequerimientos thead tr');
@@ -719,199 +524,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     fila.appendChild(cell);
                 }
             });
-        });
-    }
-
-    function getRequerimientosDataRows() {
-        return Array.from(document.querySelectorAll('#tablaRequerimientos tbody tr'))
-            .filter(row => row.querySelector('[data-field="telar"]'));
-    }
-
-    function getRequerimientosCellValue(row, field) {
-        const cell = row.querySelector(`[data-column-field="${field}"]`);
-        if (!cell) return '';
-
-        const fieldEl = cell.querySelector('[data-field]');
-        if (!fieldEl) {
-            return cell.textContent.trim();
-        }
-
-        if (fieldEl.type === 'checkbox') {
-            return fieldEl.checked ? 'Sí' : 'No';
-        }
-
-        if (fieldEl.tagName === 'SELECT') {
-            const selectedOption = fieldEl.options[fieldEl.selectedIndex];
-            return (selectedOption?.textContent || fieldEl.value || '').trim();
-        }
-
-        return (fieldEl.value || '').trim();
-    }
-
-    function rowMatchesRequerimientosFilters(row, excludeField = null) {
-        return Object.entries(requerimientosColumnFilters).every(([field, allowedValues]) => {
-            if (field === excludeField) return true;
-            if (!Array.isArray(allowedValues) || allowedValues.length === 0) return true;
-            return allowedValues.includes(getRequerimientosCellValue(row, field));
-        });
-    }
-
-    function getAvailableValuesForRequerimientosColumn(field) {
-        return Array.from(new Set(
-            getRequerimientosDataRows()
-                .filter(row => rowMatchesRequerimientosFilters(row, field))
-                .map(row => getRequerimientosCellValue(row, field))
-                .filter(value => value !== '')
-        )).sort((a, b) => a.localeCompare(b, 'es', { numeric: true, sensitivity: 'base' }));
-    }
-
-    function updateRequerimientosFilterIndicators() {
-        const headers = document.querySelectorAll('#tablaRequerimientos thead th[data-column-field]');
-        headers.forEach(th => {
-            const field = th.dataset.columnField;
-            const hasFilter = Array.isArray(requerimientosColumnFilters[field]) && requerimientosColumnFilters[field].length > 0;
-            th.querySelector('.req-filter-btn')?.classList.toggle('active', hasFilter);
-            th.querySelector('.req-filter-indicator')?.classList.toggle('hidden', !hasFilter);
-        });
-    }
-
-    function inicializarFiltrosColumnasRequerimientos() {
-        const headers = document.querySelectorAll('#tablaRequerimientos thead th[data-column-field]');
-        headers.forEach(th => {
-            const field = th.dataset.columnField;
-            const label = th.dataset.columnLabel || REQUERIMIENTOS_COLUMN_LABELS[field] || th.textContent.trim();
-
-            th.innerHTML = `
-                <div class="req-header-shell">
-                    <span class="req-header-label">${escapeHtml(label)}</span>
-                    <span class="flex items-center gap-1">
-                        <span class="req-filter-indicator hidden" aria-hidden="true"></span>
-                        <button type="button" class="req-filter-btn" data-filter-field="${escapeHtml(field)}" title="Filtrar ${escapeHtml(label)}" aria-label="Filtrar ${escapeHtml(label)}">
-                            <i class="fa-solid fa-filter text-[10px]"></i>
-                        </button>
-                    </span>
-                </div>
-            `;
-
-            const btn = th.querySelector('.req-filter-btn');
-            if (btn) {
-                btn.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    openRequerimientosColumnFilter(field);
-                });
-            }
-        });
-
-        updateRequerimientosFilterIndicators();
-    }
-
-    function applyRequerimientosColumnFilters() {
-        getRequerimientosDataRows().forEach(row => {
-            row.hidden = !rowMatchesRequerimientosFilters(row);
-        });
-        updateRequerimientosFilterIndicators();
-    }
-
-    function openRequerimientosColumnFilter(field) {
-        if (typeof Swal === 'undefined') return;
-
-        const label = REQUERIMIENTOS_COLUMN_LABELS[field] || field;
-        const availableValues = getAvailableValuesForRequerimientosColumn(field);
-
-        if (availableValues.length === 0) {
-            Swal.fire({
-                icon: 'info',
-                title: 'Sin valores',
-                text: `No hay valores disponibles para filtrar en la columna ${label}.`,
-                confirmButtonColor: '#2563eb'
-            });
-            return;
-        }
-
-        const activeValues = Array.isArray(requerimientosColumnFilters[field]) && requerimientosColumnFilters[field].length > 0
-            ? new Set(requerimientosColumnFilters[field])
-            : new Set(availableValues);
-
-        const checkboxesHtml = availableValues.map(value => `
-            <label class="req-filter-option-row flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50">
-                <input type="checkbox" class="req-filter-option h-4 w-4" value="${escapeHtml(value)}" ${activeValues.has(value) ? 'checked' : ''}>
-                <span class="text-sm text-slate-700 break-all">${escapeHtml(value)}</span>
-            </label>
-        `).join('');
-
-        Swal.fire({
-            title: `Filtrar ${label}`,
-            width: 520,
-            showCancelButton: true,
-            showDenyButton: true,
-            confirmButtonText: 'Aplicar',
-            denyButtonText: 'Limpiar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#2563eb',
-            denyButtonColor: '#64748b',
-            html: `
-                <div class="text-left">
-                    <input id="req-filter-search" type="text" class="swal2-input !mt-0 !mb-3 !w-full" placeholder="Buscar valor...">
-                    <label class="flex items-center gap-2 px-1 py-2 border-b border-slate-200 mb-2">
-                        <input id="req-filter-select-all" type="checkbox" class="h-4 w-4" ${activeValues.size === availableValues.length ? 'checked' : ''}>
-                        <span class="text-sm font-medium text-slate-700">Seleccionar todo</span>
-                    </label>
-                    <div id="req-filter-options" class="max-h-72 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
-                        ${checkboxesHtml}
-                    </div>
-                </div>
-            `,
-            didOpen: () => {
-                const popup = Swal.getPopup();
-                const searchInput = popup?.querySelector('#req-filter-search');
-                const selectAll = popup?.querySelector('#req-filter-select-all');
-                const optionInputs = () => Array.from(popup?.querySelectorAll('.req-filter-option') || []);
-
-                searchInput?.addEventListener('input', function () {
-                    const term = String(this.value || '').toLowerCase().trim();
-                    popup?.querySelectorAll('.req-filter-option-row').forEach(row => {
-                        const text = row.textContent.toLowerCase();
-                        row.style.display = text.includes(term) ? '' : 'none';
-                    });
-                });
-
-                selectAll?.addEventListener('change', function () {
-                    optionInputs().forEach(input => {
-                        input.checked = this.checked;
-                    });
-                });
-
-                optionInputs().forEach(input => {
-                    input.addEventListener('change', () => {
-                        if (!selectAll) return;
-                        selectAll.checked = optionInputs().every(option => option.checked);
-                    });
-                });
-            },
-            preConfirm: () => {
-                const selected = Array.from(document.querySelectorAll('.req-filter-option:checked'))
-                    .map(input => input.value);
-
-                if (selected.length === 0) {
-                    Swal.showValidationMessage('Selecciona al menos un valor o usa "Limpiar".');
-                    return false;
-                }
-
-                return selected;
-            }
-        }).then(result => {
-            if (result.isConfirmed && Array.isArray(result.value)) {
-                if (result.value.length === availableValues.length) {
-                    delete requerimientosColumnFilters[field];
-                } else {
-                    requerimientosColumnFilters[field] = result.value;
-                }
-                applyRequerimientosColumnFilters();
-            } else if (result.isDenied) {
-                delete requerimientosColumnFilters[field];
-                applyRequerimientosColumnFilters();
-            }
         });
     }
 
@@ -1287,85 +899,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         }
-    }
-
-    // Función para agregar validación a los checkboxes de agrupación
-    function agregarValidacionAgrupacion() {
-        const checkboxes = document.querySelectorAll('#tablaRequerimientos input[data-field="agrupar"]');
-
-        checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function(e) {
-                // Si se está desmarcando, permitir sin validación
-                if (!this.checked) {
-                    const fila = this.closest('tr');
-                    const telarId = fila.dataset.telarId || '';
-                    const telarEnData = telaresData.find(t => String(t.no_telar || '') === telarId);
-                    if (telarEnData) {
-                        telarEnData.agrupar = false;
-                    }
-                    return;
-                }
-
-                // Si se está marcando, validar que pueda agruparse con los demás
-                const fila = this.closest('tr');
-                const telarId = fila.dataset.telarId || '';
-                const telarActual = telaresData.find(t => String(t.no_telar || '') === telarId);
-
-                if (!telarActual) {
-                    this.checked = false;
-                    return;
-                }
-
-                // Obtener todos los telares que ya tienen el checkbox marcado (excepto el actual)
-                // Buscar todas las filas y verificar cuáles tienen el checkbox marcado
-                const todasLasFilas = document.querySelectorAll('#tablaRequerimientos tbody tr');
-                const telaresAgrupados = [];
-
-                todasLasFilas.forEach(fila => {
-                    const inputTelarFila = fila.querySelector('input[data-field="telar"]');
-                    const checkboxFila = fila.querySelector('input[data-field="agrupar"]');
-
-                    if (!inputTelarFila || !checkboxFila) return;
-
-                    const telarIdFila = inputTelarFila.value;
-                    if (telarIdFila === telarId) return; // Saltar el telar actual
-
-                    if (checkboxFila.checked) {
-                        // Encontrar el telar en telaresData
-                        const telarEncontrado = telaresData.find(t => String(t.no_telar || '') === telarIdFila);
-                        if (telarEncontrado) {
-                            telaresAgrupados.push(telarEncontrado);
-                        }
-                    }
-                });
-
-                // Si hay telares ya agrupados, validar que el actual pueda agruparse con ellos
-                if (telaresAgrupados.length > 0) {
-                    const telarReferencia = telaresAgrupados[0];
-                    const validacion = puedenAgruparse(telarActual, telarReferencia);
-
-                    if (!validacion.puede) {
-                        // Mostrar alerta y desmarcar el checkbox
-                        this.checked = false;
-                        mostrarAlertaAgrupacion(obtenerMensajeErrorAgrupacion(validacion.motivo));
-                        return;
-                    }
-
-                    // Validar también con todos los demás telares agrupados (por seguridad)
-                    for (const otroTelar of telaresAgrupados) {
-                        const validacionOtro = puedenAgruparse(telarActual, otroTelar);
-                        if (!validacionOtro.puede) {
-                            this.checked = false;
-                            mostrarAlertaAgrupacion(obtenerMensajeErrorAgrupacion(validacionOtro.motivo));
-                            return;
-                        }
-                    }
-                }
-
-                // Si pasa todas las validaciones, permitir la agrupación
-                telarActual.agrupar = true;
-            });
-        });
     }
 
     /* =================== Resumen =================== */
@@ -1831,7 +1364,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tipoAtado = fila.querySelector('select[data-field="tipo_atado"]')?.value || '';
             const metros = parseNumberInput(fila.querySelector('input[data-field="metros"]')?.value || '0') || '0';
             const kilos = parseNumberInput(fila.querySelector('input[data-field="kilos"]')?.value || '0') || '0';
-            const agrupar = fila.querySelector('input[data-field="agrupar"]')?.checked || false;
+            const agrupar = true;
 
             if (telarId) {
                 datosTelares.push({
