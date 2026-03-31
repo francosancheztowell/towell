@@ -100,7 +100,41 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
                 $column = $columns[$columnIndex];
                 $sourceCoordinate = "{$column}{$sourceRow}";
                 $targetCoordinate = "{$column}{$targetRow}";
-                $sheet->duplicateStyle($templateSource->getStyle($sourceCoordinate), $targetCoordinate);
+
+                $sourceCell = $templateSource->getCell($sourceCoordinate);
+                $targetCell = $sheet->getCell($targetCoordinate);
+
+                $sourceStyle = $templateSource->getStyle($sourceCoordinate);
+                $targetStyle = $sheet->getStyle($targetCoordinate);
+
+                $targetStyle->getFont()->setName($sourceStyle->getFont()->getName());
+                $targetStyle->getFont()->setSize($sourceStyle->getFont()->getSize());
+                $targetStyle->getFont()->setBold($sourceStyle->getFont()->getBold());
+                $targetStyle->getFont()->setItalic($sourceStyle->getFont()->getItalic());
+                $targetStyle->getFont()->setColor($sourceStyle->getFont()->getColor());
+
+                $targetStyle->getFill()->setFillType($sourceStyle->getFill()->getFillType());
+                if ($sourceStyle->getFill()->getFillType() !== \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_NONE) {
+                    $targetStyle->getFill()->getStartColor()->setRGB(
+                        $sourceStyle->getFill()->getStartColor()->getRGB()
+                    );
+                    $targetStyle->getFill()->getEndColor()->setRGB(
+                        $sourceStyle->getFill()->getEndColor()->getRGB()
+                    );
+                }
+
+                $targetStyle->getAlignment()->setHorizontal($sourceStyle->getAlignment()->getHorizontal());
+                $targetStyle->getAlignment()->setVertical($sourceStyle->getAlignment()->getVertical());
+                $targetStyle->getAlignment()->setWrapText($sourceStyle->getAlignment()->getWrapText());
+
+                $targetStyle->getBorders()->getTop()->setBorderStyle($sourceStyle->getBorders()->getTop()->getBorderStyle());
+                $targetStyle->getBorders()->getBottom()->setBorderStyle($sourceStyle->getBorders()->getBottom()->getBorderStyle());
+                $targetStyle->getBorders()->getLeft()->setBorderStyle($sourceStyle->getBorders()->getLeft()->getBorderStyle());
+                $targetStyle->getBorders()->getRight()->setBorderStyle($sourceStyle->getBorders()->getRight()->getBorderStyle());
+
+                $targetStyle->getNumberFormat()->setFormatCode(
+                    $sourceStyle->getNumberFormat()->getFormatCode()
+                );
             }
         }
 
