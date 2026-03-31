@@ -6,6 +6,9 @@ use App\Exports\Reporte00EAtadoresExport;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -159,6 +162,8 @@ class OeeAtadoresFileService
 
     private const SEMANA_USTER_TEMPLATE_END_COLUMN = 19;
 
+    private static ?array $columnLabels = null;
+
     public function __construct(private readonly string $filePath) {}
 
     public function verificarSemanasConDatos(CarbonImmutable $weekStart, CarbonImmutable $weekEnd): array
@@ -193,12 +198,34 @@ class OeeAtadoresFileService
         ini_set('max_execution_time', '0');
         set_time_limit(0);
 
+        $exportStartedAt = microtime(true);
         $this->assertWorkbookExists();
+
+        // Guardar la ruta original para restaurar al final
+        $originalFilePath = $this->filePath;
+        $usandoTempLocal = false;
+
+        // Optimización: copiar archivo a temp local para evitar lentitud de red
+        $localTempFile = $this->copiarArchivoATemporalLocal($this->filePath);
+        if ($localTempFile !== $originalFilePath) {
+            $usandoTempLocal = true;
+        }
 
         $weeks = $this->getWeeksInRange($weekStart, $weekEnd);
         $requestedWeekNumbers = array_map(fn (CarbonImmutable $week) => $week->isoWeek(), $weeks);
         $year = $this->assertSingleIsoYear($weeks);
+        $logContext = [
+            'file_path' => $this->filePath,
+            'from' => $weekStart->toDateString(),
+            'to' => $weekEnd->toDateString(),
+            'weeks' => $requestedWeekNumbers,
+            'week_count' => count($requestedWeekNumbers),
+            'iso_year' => $year,
+        ];
 
+        Log::info('OEE Atadores export started', $logContext);
+
+        $stageStartedAt = microtime(true);
         $spreadsheet = IOFactory::load($this->filePath);
         $detalle = $spreadsheet->getSheetByName('DETALLE');
 
@@ -206,14 +233,26 @@ class OeeAtadoresFileService
             throw new RuntimeException('No se encontró la hoja DETALLE en el archivo OEE.');
         }
 
-        $dataWorkbook = $this->loadWorkbook(true, ['DETALLE']);
-        $detalleData = $dataWorkbook->getSheetByName('DETALLE');
+        $dataWorkbook = null;
+        $detalleData = null;
 
-        if (! $detalleData) {
-            throw new RuntimeException('No se encontró la hoja DETALLE en el archivo OEE.');
+        $parsed = $this->parseDetalleSections($detalle);
+        $this->logExportStage('load_main_workbook', $stageStartedAt, $logContext);
+
+        if ($this->sectionsRequireDetalleDataWorkbook($detalle, $parsed['sections'])) {
+            $stageStartedAt = microtime(true);
+            $dataWorkbook = $this->loadWorkbook(true, ['DETALLE']);
+            $detalleData = $dataWorkbook->getSheetByName('DETALLE');
+
+            if (! $detalleData) {
+                throw new RuntimeException('No se encontro la hoja DETALLE en el archivo OEE.');
+            }
+
+            $parsed = $this->parseDetalleSections($detalle, $detalleData);
+            $this->logExportStage('load_detalle_data_only', $stageStartedAt, $logContext);
         }
 
-        $parsed = $this->parseDetalleSections($detalle, $detalleData);
+        $stageStartedAt = microtime(true);
         $this->normalizeDetalleFooterWeeks($detalle, $parsed['sections']);
         $parsed = $this->parseDetalleSections($detalle);
 
@@ -222,9 +261,14 @@ class OeeAtadoresFileService
             throw new RuntimeException("El archivo OEE corresponde al año {$workbookYear}; no se pueden mezclar semanas del año ISO {$year}.");
         }
 
-        $diagnostico = $this->buildDiagnostics($weeks, $parsed['map'], $detalle);
+        $recordsByWeek = $this->preloadRecordsByWeek($weeks);
+        $this->logExportStage('prepare_detalle', $stageStartedAt, $logContext + [
+            'detected_sections' => count($parsed['sections'] ?? []),
+        ]);
 
+        $detalleStageStartedAt = microtime(true);
         foreach ($weeks as $week) {
+            $weekStageStartedAt = microtime(true);
             $weekNum = $week->isoWeek();
             $parsed = $this->parseDetalleSections($detalle);
             $existing = $parsed['map'][$weekNum] ?? null;
@@ -233,35 +277,80 @@ class OeeAtadoresFileService
                 $weekNum,
                 $requestedWeekNumbers
             );
+            $weekRecords = $recordsByWeek->get($week->toDateString(), collect());
 
             if ($existing !== null && $prototypeSection !== null) {
-                $this->rebuildDetalleSectionFromPrototype($detalle, $existing, $prototypeSection, $week);
+                $action = 'rebuild_from_prototype';
+                $this->rebuildDetalleSectionFromPrototype($detalle, $existing, $prototypeSection, $week, $weekRecords);
             } elseif ($existing !== null) {
-                $generated = $this->generateWeeklySection($week, $detalle, $prototypeSection);
+                $action = 'replace_existing';
+                $generated = $this->generateWeeklySection($week, $detalle, $prototypeSection, $weekRecords);
                 $this->replaceDetalleSection($detalle, $existing, $generated);
+                unset($generated);
             } else {
-                $generated = $this->generateWeeklySection($week, $detalle, $prototypeSection);
+                $action = 'insert_new';
+                $generated = $this->generateWeeklySection($week, $detalle, $prototypeSection, $weekRecords);
                 $insertTop = $this->resolveInsertTop($parsed['sections'], $weekNum);
                 $this->insertDetalleSection($detalle, $insertTop, $generated);
+                unset($generated);
             }
+
+            $this->logExportStage('detalle_week', $weekStageStartedAt, $logContext + [
+                'week' => $weekNum,
+                'date' => $week->toDateString(),
+                'action' => $action,
+                'records' => $weekRecords->count(),
+                'had_existing_section' => $existing !== null,
+                'used_prototype' => $prototypeSection !== null,
+            ]);
         }
 
+        $this->logExportStage('detalle_all_weeks', $detalleStageStartedAt, $logContext);
+
+        $stageStartedAt = microtime(true);
         $parsed = $this->parseDetalleSections($detalle);
         $this->normalizeDetalleFooterWeeks($detalle, $parsed['sections']);
         $this->normalizeDetalleVisualWeeks($detalle, $parsed['sections']);
         $parsed = $this->parseDetalleSections($detalle);
+        $this->logExportStage('normalize_detalle', $stageStartedAt, $logContext + [
+            'final_sections' => count($parsed['sections'] ?? []),
+        ]);
 
-        $availableWeekSheets = $this->syncSemanaSheets($spreadsheet, $parsed['map'], $requestedWeekNumbers);
+        $stageStartedAt = microtime(true);
+        $availableWeekSheets = $this->syncSemanaSheets($spreadsheet, $parsed['map'], $requestedWeekNumbers, $logContext);
+        $this->logExportStage('sync_semana_sheets', $stageStartedAt, $logContext + [
+            'available_week_sheets' => count($availableWeekSheets),
+        ]);
         $requestedMonths = array_values(array_unique(array_map(
             fn (CarbonImmutable $week) => $week->addDays(3)->month,
             $weeks
         )));
 
+        $stageStartedAt = microtime(true);
         $this->rebuildConcentradoSheets($spreadsheet, $year, $availableWeekSheets, $requestedMonths);
-        $this->rebuildTotalAtadosSheet($spreadsheet, $parsed['map'], $year);
-        $this->rebuildGraficaSheet($spreadsheet, count($parsed['map']));
-        $this->rebuildAnnualAtadoresSheet($spreadsheet, $availableWeekSheets);
+        $this->logExportStage('rebuild_concentrado', $stageStartedAt, $logContext + [
+            'months' => $requestedMonths,
+        ]);
 
+        $stageStartedAt = microtime(true);
+        $this->rebuildTotalAtadosSheet($spreadsheet, $parsed['map'], $year);
+        $this->logExportStage('rebuild_total_atados', $stageStartedAt, $logContext + [
+            'weeks_in_detalle' => count($parsed['map']),
+        ]);
+
+        $stageStartedAt = microtime(true);
+        $this->rebuildGraficaSheet($spreadsheet, count($parsed['map']));
+        $this->logExportStage('rebuild_grafica', $stageStartedAt, $logContext + [
+            'weeks_in_detalle' => count($parsed['map']),
+        ]);
+
+        $stageStartedAt = microtime(true);
+        $this->rebuildAnnualAtadoresSheet($spreadsheet, $availableWeekSheets);
+        $this->logExportStage('rebuild_annual', $stageStartedAt, $logContext + [
+            'available_week_sheets' => count($availableWeekSheets),
+        ]);
+
+        $stageStartedAt = microtime(true);
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
         $writer->setPreCalculateFormulas(false);
 
@@ -275,9 +364,14 @@ class OeeAtadoresFileService
             throw new RuntimeException('No se pudo generar el archivo temporal: '.$e->getMessage(), 0, $e);
         }
 
+        $this->logExportStage('save_temp_file', $stageStartedAt, $logContext + [
+            'tmp_file' => $tmpFile,
+        ]);
+
         unset($writer, $spreadsheet, $detalle, $dataWorkbook, $detalleData);
         gc_collect_cycles();
 
+        $stageStartedAt = microtime(true);
         if (! @rename($tmpFile, $this->filePath)) {
             $copied = @copy($tmpFile, $this->filePath);
             @unlink($tmpFile);
@@ -288,7 +382,30 @@ class OeeAtadoresFileService
             }
         }
 
+        $this->logExportStage('replace_destination_file', $stageStartedAt, $logContext);
+
+        // Si usamos archivo temp local, restaurar al origen original
+        if ($usandoTempLocal) {
+            $this->restaurarArchivoOriginal($this->filePath, $originalFilePath);
+            $this->filePath = $originalFilePath;
+        }
+
+        $this->logExportStage('completed', $exportStartedAt, $logContext);
+
         return $this->filePath;
+    }
+
+    private function logExportStage(string $stage, float $startedAt, array $context = []): void
+    {
+        Log::info('OEE Atadores export stage', $context + [
+            'stage' => $stage,
+            'elapsed_ms' => $this->elapsedMilliseconds($startedAt),
+        ]);
+    }
+
+    private function elapsedMilliseconds(float $startedAt): int
+    {
+        return (int) round((microtime(true) - $startedAt) * 1000);
     }
 
     private function assertWorkbookExists(): void
@@ -436,6 +553,32 @@ class OeeAtadoresFileService
         ksort($map);
 
         return ['sections' => $sections, 'map' => $map, 'slots' => $slots];
+    }
+
+    private function sectionsRequireDetalleDataWorkbook(Worksheet $detalle, array $sections): bool
+    {
+        foreach ($sections as $section) {
+            if (($section['week'] ?? null) !== null) {
+                continue;
+            }
+
+            $footerRow = (int) ($section['footer'] ?? 0);
+            if ($footerRow < 1) {
+                continue;
+            }
+
+            $footerValue = $detalle->getCell(self::DETAIL_FOOTER_WEEK_COLUMN.$footerRow)->getValue();
+            if (is_numeric($footerValue)) {
+                continue;
+            }
+
+            $normalized = trim((string) ($footerValue ?? ''));
+            if ($normalized !== '' && str_starts_with($normalized, '=')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalizeDetalleFooterWeeks(Worksheet $detalle, array $sections): void
@@ -588,15 +731,18 @@ class OeeAtadoresFileService
     private function generateWeeklySection(
         CarbonImmutable $week,
         ?Worksheet $detallePrototype = null,
-        ?array $prototypeSection = null
+        ?array $prototypeSection = null,
+        ?Collection $preloadedRecords = null
     ): array {
         $book = $this->buildDetailPrototypeBook($detallePrototype, $prototypeSection)
             ?? $this->loadSectionTemplateBook();
         $sheet = $book->getSheet(0);
-        $export = new Reporte00EAtadoresExport($week);
+        $export = new Reporte00EAtadoresExport($week, $preloadedRecords);
         $footerRow = $export->renderIntoSheet($sheet, 1, true);
         $layout = $export->getLayout(1, false);
-        $nameMap = $this->loadAtadorNamesForWeek($week);
+        $nameMap = $preloadedRecords !== null
+            ? $this->buildAtadorNameMapFromRecords($preloadedRecords)
+            : $this->loadAtadorNamesForWeek($week);
 
         $this->writeCkCuFormulas($sheet, $layout, 1, $nameMap);
         $sheet->setCellValue(self::DETAIL_FOOTER_WEEK_COLUMN.$footerRow, $week->isoWeek());
@@ -694,29 +840,11 @@ class OeeAtadoresFileService
         Worksheet $detalle,
         array $section,
         array $prototypeSection,
-        CarbonImmutable $week
+        CarbonImmutable $week,
+        ?Collection $preloadedRecords = null
     ): void {
-        $prototypeRows = (int) ($prototypeSection['rows'] ?? 0);
-        $prototypeTop = (int) ($prototypeSection['top'] ?? 0);
-        $targetTop = (int) ($section['top'] ?? 0);
-
-        if ($prototypeRows < 1 || $prototypeTop < 1 || $targetTop < 1) {
-            $generated = $this->generateWeeklySection($week);
-            $this->replaceDetalleSection($detalle, $section, $generated);
-
-            return;
-        }
-
-        $this->resizeDetalleSection($detalle, $section, $prototypeRows);
-        $this->copySectionRange($detalle, $detalle, $prototypeTop, $prototypeRows, $targetTop);
-
-        $export = new Reporte00EAtadoresExport($week);
-        $footerRow = $export->renderIntoSheet($detalle, $targetTop, true);
-        $layout = $export->getLayout($targetTop, false);
-        $nameMap = $this->loadAtadorNamesForWeek($week);
-
-        $this->writeCkCuFormulas($detalle, $layout, $targetTop, $nameMap);
-        $detalle->setCellValue(self::DETAIL_FOOTER_WEEK_COLUMN.$footerRow, $week->isoWeek());
+        $generated = $this->generateWeeklySection($week, $detalle, $prototypeSection, $preloadedRecords);
+        $this->replaceDetalleSection($detalle, $section, $generated);
     }
 
     private function replaceDetalleSection(Worksheet $detalle, array $section, array $generated): void
@@ -787,6 +915,7 @@ class OeeAtadoresFileService
 
         $rowOffset = $targetTop - $sourceTop;
         $referenceHelper = ReferenceHelper::getInstance();
+        $columnLabels = $this->getColumnLabels();
 
         for ($sourceRow = $sourceTop; $sourceRow <= $sourceBottom; $sourceRow++) {
             $targetRow = $sourceRow + $rowOffset;
@@ -799,7 +928,7 @@ class OeeAtadoresFileService
             $targetDimension->setCollapsed($sourceDimension->getCollapsed());
 
             for ($columnIndex = 1; $columnIndex <= self::DETAIL_MAX_COLUMN_INDEX; $columnIndex++) {
-                $column = Coordinate::stringFromColumnIndex($columnIndex);
+                $column = $columnLabels[$columnIndex];
                 $sourceCoordinate = "{$column}{$sourceRow}";
                 $targetCoordinate = "{$column}{$targetRow}";
                 $sourceCell = $source->getCell($sourceCoordinate);
@@ -869,8 +998,26 @@ class OeeAtadoresFileService
         }
     }
 
-    private function syncSemanaSheets(Spreadsheet $spreadsheet, array $sectionMap, array $requestedWeekNumbers): array
+    private function getColumnLabels(): array
     {
+        if (self::$columnLabels !== null) {
+            return self::$columnLabels;
+        }
+
+        $labels = [];
+        for ($column = 1; $column <= self::DETAIL_MAX_COLUMN_INDEX; $column++) {
+            $labels[$column] = Coordinate::stringFromColumnIndex($column);
+        }
+
+        return self::$columnLabels = $labels;
+    }
+
+    private function syncSemanaSheets(
+        Spreadsheet $spreadsheet,
+        array $sectionMap,
+        array $requestedWeekNumbers,
+        array $logContext = []
+    ): array {
         $detalle = $spreadsheet->getSheetByName('DETALLE');
         if (! $detalle) {
             return [];
@@ -910,6 +1057,7 @@ class OeeAtadoresFileService
 
         try {
             foreach ($targetWeeks as $weekNum) {
+                $weekStageStartedAt = microtime(true);
                 $section = $sectionMap[$weekNum] ?? null;
                 if ($section === null) {
                     continue;
@@ -933,6 +1081,11 @@ class OeeAtadoresFileService
 
                 $this->writeSemanaContent($sheet, $templateSource, $weekNum, $section['top'], $atadorList, $preservedState);
                 $available[$weekNum] = $sheet->getTitle();
+                $this->logExportStage('semana_week', $weekStageStartedAt, $logContext + [
+                    'week' => $weekNum,
+                    'sheet' => $sheet->getTitle(),
+                    'atadores' => count($atadorList),
+                ]);
             }
         } finally {
             $templateIndex = $spreadsheet->getIndex($templateSource);
@@ -1693,14 +1846,8 @@ class OeeAtadoresFileService
     {
         $layout = $this->buildSemanaLayout($desiredCapacity);
         $styleTemplate = $this->captureSemanaStyleTemplate($templateSheet);
-        $canvasEndRow = max($sheet->getHighestRow(), $layout['uster_end_row'] + 2);
-        $canvasEndColumn = max(
-            Coordinate::columnIndexFromString($sheet->getHighestColumn()),
-            $layout['actions_end_column'],
-            $layout['uster_end_column'],
-            Coordinate::columnIndexFromString($layout['last_metric_column']),
-            20
-        );
+        $canvasEndRow = $this->resolveSemanaCanvasEndRow($sheet, $layout);
+        $canvasEndColumn = $this->resolveSemanaCanvasEndColumn($sheet, $layout);
 
         $this->unmergeRowsInRange($sheet, self::SEMANA_TITLE_START_ROW, $canvasEndRow);
         $this->resetRangeToDefaultStyle(
@@ -1789,6 +1936,64 @@ class OeeAtadoresFileService
             self::SEMANA_MANUAL_END_COLUMN
         );
         $this->clearSemanaUsterDynamicArea($sheet, $layout);
+    }
+
+    private function resolveSemanaCanvasEndRow(Worksheet $sheet, array $layout): int
+    {
+        $canvasEndRow = max(
+            $this->getSemanaSearchEndRow($sheet),
+            (int) ($layout['uster_end_row'] ?? self::SEMANA_USTER_TEMPLATE_END_ROW) + 2,
+            self::SEMANA_MANUAL_TEMPLATE_END_ROW,
+            self::SEMANA_TITLE_END_ROW
+        );
+
+        $manualStartRow = $this->findSemanaManualStartRow($sheet);
+        if ($manualStartRow > 0) {
+            $canvasEndRow = max($canvasEndRow, $manualStartRow + 12);
+        }
+
+        $usterAnchor = $this->findSemanaUsterAnchor($sheet);
+        if (is_array($usterAnchor)) {
+            $canvasEndRow = max($canvasEndRow, (int) $usterAnchor['row'] + self::SEMANA_BASE_CAPACITY + 3);
+        }
+
+        return $canvasEndRow;
+    }
+
+    private function resolveSemanaCanvasEndColumn(Worksheet $sheet, array $layout): int
+    {
+        return max(
+            $this->getSemanaSearchEndColumnIndex($sheet),
+            (int) ($layout['actions_end_column'] ?? self::SEMANA_ACTIONS_TEMPLATE_END_COLUMN),
+            (int) ($layout['uster_end_column'] ?? self::SEMANA_USTER_TEMPLATE_END_COLUMN),
+            Coordinate::columnIndexFromString((string) ($layout['last_metric_column'] ?? 'T')),
+            self::SEMANA_TITLE_END_COLUMN
+        );
+    }
+
+    private function getSemanaSearchEndRow(Worksheet $sheet): int
+    {
+        return max((int) $sheet->getHighestDataRow(), self::SEMANA_USTER_TEMPLATE_END_ROW);
+    }
+
+    private function getSemanaSearchEndColumnIndex(Worksheet $sheet): int
+    {
+        return max(
+            $this->getHighestDataColumnIndex($sheet),
+            self::SEMANA_ACTIONS_TEMPLATE_END_COLUMN,
+            self::SEMANA_USTER_TEMPLATE_END_COLUMN
+        );
+    }
+
+    private function getHighestDataColumnIndex(Worksheet $sheet): int
+    {
+        $column = $sheet->getHighestDataColumn();
+
+        if (! is_string($column) || $column === '') {
+            return 1;
+        }
+
+        return Coordinate::columnIndexFromString($column);
     }
 
     private function buildSemanaLayout(int $capacity): array
@@ -2046,8 +2251,9 @@ class OeeAtadoresFileService
         $messages = [];
         $nameColumn = Coordinate::stringFromColumnIndex($anchor['column'] + 3);
         $messageColumn = Coordinate::stringFromColumnIndex($anchor['column'] + 5);
+        $searchEndRow = max($this->getSemanaSearchEndRow($sheet), $anchor['row'] + 1);
 
-        for ($row = $anchor['row'] + 1; $row <= $sheet->getHighestRow(); $row++) {
+        for ($row = $anchor['row'] + 1; $row <= $searchEndRow; $row++) {
             $name = trim((string) ($sheet->getCell("{$nameColumn}{$row}")->getValue() ?? ''));
             $message = $sheet->getCell("{$messageColumn}{$row}")->getValue();
             $normalizedMessage = $this->normalizeLabel($message);
@@ -2130,8 +2336,11 @@ class OeeAtadoresFileService
 
     private function findSemanaUsterAnchor(Worksheet $sheet): ?array
     {
-        for ($row = 1; $row <= $sheet->getHighestRow(); $row++) {
-            for ($columnIndex = 1; $columnIndex <= Coordinate::columnIndexFromString($sheet->getHighestColumn()); $columnIndex++) {
+        $maxRow = $this->getSemanaSearchEndRow($sheet);
+        $maxColumnIndex = $this->getSemanaSearchEndColumnIndex($sheet);
+
+        for ($row = 1; $row <= $maxRow; $row++) {
+            for ($columnIndex = 1; $columnIndex <= $maxColumnIndex; $columnIndex++) {
                 $value = $this->normalizeLabel($sheet->getCell(Coordinate::stringFromColumnIndex($columnIndex).$row)->getValue());
                 if (str_starts_with($value, 'USO DE ATADORA USTER = PUNTOS')) {
                     return ['row' => $row, 'column' => $columnIndex];
@@ -2262,8 +2471,9 @@ class OeeAtadoresFileService
     private function describeSemanaSheet(Worksheet $sheet): array
     {
         $eficienciaRow = 17;
+        $searchEndRow = $this->getSemanaSearchEndRow($sheet);
 
-        for ($row = 1; $row <= $sheet->getHighestRow(); $row++) {
+        for ($row = 1; $row <= $searchEndRow; $row++) {
             if ($this->normalizeLabel($sheet->getCell("C{$row}")->getValue()) === 'EFIC. ATADOR') {
                 $eficienciaRow = $row;
                 break;
@@ -2305,7 +2515,9 @@ class OeeAtadoresFileService
 
     private function findSemanaManualStartRow(Worksheet $sheet): int
     {
-        for ($row = 1; $row <= $sheet->getHighestRow(); $row++) {
+        $searchEndRow = $this->getSemanaSearchEndRow($sheet);
+
+        for ($row = 1; $row <= $searchEndRow; $row++) {
             $value = $this->normalizeLabel($sheet->getCell("D{$row}")->getValue());
             if (str_starts_with($value, 'NOMBRE REPORTES')) {
                 return $row;
@@ -2449,6 +2661,78 @@ class OeeAtadoresFileService
         return $weeks;
     }
 
+    private function preloadRecordsByWeek(array $weeks): Collection
+    {
+        if ($weeks === []) {
+            return collect();
+        }
+
+        $sortedWeeks = $weeks;
+        usort($sortedWeeks, fn (CarbonImmutable $a, CarbonImmutable $b) => $a->timestamp <=> $b->timestamp);
+        $rangeStart = reset($sortedWeeks)->toDateString();
+        $rangeEnd = end($sortedWeeks)->addDays(6)->toDateString();
+
+        $records = AtaMontadoTelasModel::query()
+            ->where('Estatus', 'Autorizado')
+            ->whereNotNull('FechaArranque')
+            ->whereBetween('FechaArranque', [$rangeStart, $rangeEnd])
+            ->orderBy('FechaArranque')
+            ->orderBy('Turno')
+            ->orderBy('CveTejedor')
+            ->orderBy('NomTejedor')
+            ->orderBy('HrInicio')
+            ->orderBy('HoraArranque')
+            ->orderBy('Id')
+            ->get([
+                'Id',
+                'FechaArranque',
+                'Turno',
+                'CveTejedor',
+                'NomTejedor',
+                'Tipo',
+                'NoTelarId',
+                'HrInicio',
+                'HoraArranque',
+                'Calidad',
+                'Limpieza',
+                'MergaKg',
+            ]);
+
+        return $records->groupBy(function ($record): string {
+            $value = is_array($record) ? ($record['FechaArranque'] ?? null) : ($record->FechaArranque ?? null);
+            try {
+                return CarbonImmutable::parse((string) $value)
+                    ->startOfDay()
+                    ->startOfWeek(CarbonInterface::MONDAY)
+                    ->toDateString();
+            } catch (\Throwable $e) {
+                return '__invalid__';
+            }
+        });
+    }
+
+    private function buildAtadorNameMapFromRecords(Collection $records): array
+    {
+        $map = [];
+
+        foreach ($records as $record) {
+            $key = trim((string) (is_array($record) ? ($record['CveTejedor'] ?? '') : ($record->CveTejedor ?? '')));
+            $name = trim((string) (is_array($record) ? ($record['NomTejedor'] ?? '') : ($record->NomTejedor ?? '')));
+
+            if ($key === '') {
+                $key = $name;
+            }
+
+            if ($key === '' || isset($map[$key])) {
+                continue;
+            }
+
+            $map[$key] = $name !== '' ? $name : $key;
+        }
+
+        return $map;
+    }
+
     private function loadAtadorNamesForWeek(CarbonImmutable $week): array
     {
         $weekEnd = $week->addDays(6);
@@ -2521,5 +2805,59 @@ class OeeAtadoresFileService
     private function quoteSheetTitle(string $title): string
     {
         return "'".str_replace("'", "''", $title)."'";
+    }
+
+    private function copiarArchivoATemporalLocal(string $originalPath): string
+    {
+        $stageStartedAt = microtime(true);
+        $tempDir = sys_get_temp_dir();
+        $tempFile = $tempDir.DIRECTORY_SEPARATOR.'oee_atadores_'.uniqid('', true).'.xlsx';
+        
+        if (! copy($originalPath, $tempFile)) {
+            // Si falla la copia, usar el original (no optimizar)
+            Log::warning('No se pudo copiar archivo OEE a temp local, usando original', [
+                'original' => $originalPath,
+            ]);
+            return $originalPath;
+        }
+        
+        $this->logExportStage('copy_to_local_temp', $stageStartedAt, [
+            'original' => $originalPath,
+            'temp' => $tempFile,
+            'original_size_bytes' => @filesize($originalPath),
+        ]);
+        
+        // Actualizar la ruta para usar el archivo local
+        $this->filePath = $tempFile;
+        
+        return $tempFile;
+    }
+
+    private function restaurarArchivoOriginal(string $tempFile, string $originalPath): void
+    {
+        $stageStartedAt = microtime(true);
+        
+        // Copiar el archivo temp de vuelta al origen original
+        if (! copy($tempFile, $originalPath)) {
+            Log::error('No se pudo copiar archivo OEE de vuelta a la ruta original', [
+                'temp' => $tempFile,
+                'original' => $originalPath,
+            ]);
+            // El archivo temporal se queda para recuperación manual
+            // No eliminar el temp file en caso de falla
+            $this->logExportStage('restore_failed_temp_retained', $stageStartedAt, [
+                'temp' => $tempFile,
+                'original' => $originalPath,
+            ]);
+            return;
+        }
+        
+        // Eliminar el archivo temporal solo si la copia fue exitosa
+        @unlink($tempFile);
+        
+        $this->logExportStage('restore_from_local_temp', $stageStartedAt, [
+            'temp' => $tempFile,
+            'original' => $originalPath,
+        ]);
     }
 }

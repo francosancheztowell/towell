@@ -66,4 +66,6 @@ Route::prefix('atadores/reportes-atadores')->name('atadores.reportes.')->group(f
     Route::get('/atadores/descargar', [ReportesAtadoresController::class, 'descargarExcelRango'])->name('atadores.descargar');
     Route::get('/oee/verificar', [ReportesAtadoresController::class, 'verificarOeeAtadores'])->name('oee.verificar');
     Route::post('/oee/exportar', [ReportesAtadoresController::class, 'exportarOeeAtadores'])->name('oee.exportar');
+    Route::post('/oee/despachar', [ReportesAtadoresController::class, 'despacharOeeAtadores'])->name('oee.despachar');
+    Route::get('/oee/estado/{token}', [ReportesAtadoresController::class, 'estadoOeeAtadores'])->name('oee.estado');
 });

@@ -144,27 +144,46 @@
 
         if (!confirm.isConfirmed) return;
 
-        // 3. Ejecutar exportación via form POST
-        Swal.fire({ title: 'Exportando...', text: 'Esto puede tardar varios segundos.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        // 3. Despachar job y hacer polling
+        Swal.fire({ title: 'Procesando...', html: 'El archivo OEE se está actualizando.<br><small class="text-gray-500">Puede tomar hasta un minuto.</small>', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("atadores.reportes.oee.exportar") }}';
+        let token;
+        try {
+            const resp = await fetch('{{ route("atadores.reportes.oee.despachar") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ fecha_ini: fechaIni, fecha_fin: fechaFin }),
+            });
+            const data = await resp.json();
+            if (data.error) throw new Error(data.error);
+            token = data.token;
+        } catch (e) {
+            Swal.fire('Error', e.message || 'No se pudo iniciar la exportación.', 'error');
+            return;
+        }
 
-        const addField = (name, value) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = name;
-            input.value = value;
-            form.appendChild(input);
-        };
-
-        addField('_token', '{{ csrf_token() }}');
-        addField('fecha_ini', fechaIni);
-        addField('fecha_fin', fechaFin);
-
-        document.body.appendChild(form);
-        form.submit();
+        // Polling cada 3 segundos, máximo 5 minutos
+        const deadline = Date.now() + 5 * 60 * 1000;
+        const interval = setInterval(async () => {
+            if (Date.now() > deadline) {
+                clearInterval(interval);
+                Swal.fire('Tiempo agotado', 'La exportación tardó demasiado. Verifique el archivo manualmente.', 'warning');
+                return;
+            }
+            try {
+                const resp = await fetch('{{ url("atadores/reportes-atadores/oee/estado") }}/' + token, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await resp.json();
+                if (data.estado === 'completado') {
+                    clearInterval(interval);
+                    Swal.fire({ icon: 'success', title: '¡Listo!', text: 'Archivo OEE actualizado correctamente.', timer: 3000, showConfirmButton: false });
+                } else if (data.estado === 'error') {
+                    clearInterval(interval);
+                    Swal.fire('Error', data.mensaje || 'No se pudo actualizar el archivo OEE.', 'error');
+                }
+            } catch (e) { /* red error, seguir intentando */ }
+        }, 3000);
     }
 
     function mostrarModalRangoFechasAtadores() {

@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Atadores\Reportes;
 use App\Exports\ProgramaAtadoresExport;
 use App\Exports\Reporte00EAtadoresRangoExport;
 use App\Http\Controllers\Controller;
+use App\Jobs\ActualizarOeeAtadoresJob;
 use App\Services\OeeAtadores\OeeAtadoresFileService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
@@ -18,6 +20,8 @@ use RuntimeException;
 
 class ReportesAtadoresController extends Controller
 {
+    private const OEE_QUEUE = 'oee-atadores';
+
     /**
      * Selector de reportes: muestra los reportes disponibles
      */
@@ -210,6 +214,49 @@ class ReportesAtadoresController extends Controller
         );
     }
 
+    public function despacharOeeAtadores(Request $request): JsonResponse
+    {
+        [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin] = $this->resolverRangoFechasAtadoresDesdeRequest($request);
+
+        if (! $lunesInicio || ! $lunesFin) {
+            return response()->json(['error' => 'Rango de fechas inválido.'], 422);
+        }
+
+        $filePath = env('OEE_ATADORES_FILE_PATH', 'C:\\Users\\fsanchez\\Desktop\\OEE_ATADORES.xlsx');
+
+        if (! is_file($filePath)) {
+            return response()->json(['error' => "El archivo OEE no existe: {$filePath}"], 422);
+        }
+
+        $token = bin2hex(random_bytes(16));
+        $cacheKey = "oee_job_{$token}";
+
+        Cache::put($cacheKey, ['estado' => 'despachado'], 600);
+
+        ActualizarOeeAtadoresJob::dispatch(
+            $filePath,
+            $lunesInicio->toDateString(),
+            $lunesFin->toDateString(),
+            $cacheKey
+        )->onQueue(self::OEE_QUEUE);
+
+        $this->bootOeeQueueWorker();
+
+        return response()->json(['token' => $token]);
+    }
+
+    public function estadoOeeAtadores(Request $request, string $token): JsonResponse
+    {
+        $cacheKey = "oee_job_{$token}";
+        $estado = Cache::get($cacheKey);
+
+        if ($estado === null) {
+            return response()->json(['estado' => 'desconocido']);
+        }
+
+        return response()->json($estado);
+    }
+
     public function exportarOeeAtadores(Request $request)
     {
         @set_time_limit(600);
@@ -395,5 +442,46 @@ class ReportesAtadoresController extends Controller
         ]);
 
         return $rutaArchivo;
+    }
+
+    private function bootOeeQueueWorker(): void
+    {
+        $queueConnection = (string) config('queue.default', env('QUEUE_CONNECTION', 'sync'));
+        if ($queueConnection === 'sync') {
+            return;
+        }
+
+        $phpBinary = PHP_BINARY ?: 'php';
+        $artisan = base_path('artisan');
+        $command = implode(' ', [
+            escapeshellarg($phpBinary),
+            escapeshellarg($artisan),
+            'queue:work',
+            escapeshellarg($queueConnection),
+            '--queue='.self::OEE_QUEUE,
+            '--once',
+            '--tries=1',
+            '--timeout=600',
+            '--stop-when-empty',
+        ]);
+
+        try {
+            if (PHP_OS_FAMILY === 'Windows') {
+                @pclose(@popen('start /B "" '.$command.' >NUL 2>&1', 'r'));
+            } else {
+                @exec($command.' >/dev/null 2>&1 &');
+            }
+
+            Log::info('Worker OEE Atadores iniciado', [
+                'queue_connection' => $queueConnection,
+                'queue' => self::OEE_QUEUE,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo iniciar el worker OEE Atadores', [
+                'queue_connection' => $queueConnection,
+                'queue' => self::OEE_QUEUE,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

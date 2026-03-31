@@ -20,14 +20,21 @@ use RuntimeException;
 class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 {
     private const DETAIL_START_ROW = 4;
+
     private const BASE_DETAIL_ROWS = 42;
+
     private const FOOTER_BASE_ROW = 46;
+
     private const DEFAULT_BLOCK_HEIGHT = 6;
+
     private const MIN_BLOCKS_PER_TURN = 2;
+
     private const MAX_COLUMN_INDEX = 88;
+
     private const CAPACITACION_HEIGHT = 6;
 
     private static ?array $templateClearCoordinates = null;
+
     private static ?array $columnLabels = null;
 
     private const TURN_DEFINITIONS = [
@@ -248,8 +255,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         return AtaMontadoTelasModel::query()
             ->where('Estatus', 'Autorizado')
             ->whereNotNull('FechaArranque')
-            ->whereDate('FechaArranque', '>=', $this->weekStart->toDateString())
-            ->whereDate('FechaArranque', '<=', $weekEnd->toDateString())
+            ->whereBetween('FechaArranque', [$this->weekStart->toDateString(), $weekEnd->toDateString()])
             ->orderBy('Turno')
             ->orderBy('CveTejedor')
             ->orderBy('NomTejedor')
@@ -257,7 +263,20 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
             ->orderBy('HrInicio')
             ->orderBy('HoraArranque')
             ->orderBy('Id')
-            ->get();
+            ->get([
+                'Id',
+                'FechaArranque',
+                'Turno',
+                'CveTejedor',
+                'NomTejedor',
+                'Tipo',
+                'NoTelarId',
+                'HrInicio',
+                'HoraArranque',
+                'Calidad',
+                'Limpieza',
+                'MergaKg',
+            ]);
     }
 
     private function prepareRecords(Collection $records): Collection
@@ -389,7 +408,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         $ranges = $sheet->getMergeCells();
 
         foreach (array_keys($ranges) as $range) {
-            if (!preg_match('/([A-Z]+)(\d+):([A-Z]+)(\d+)/', $range, $matches)) {
+            if (! preg_match('/([A-Z]+)(\d+):([A-Z]+)(\d+)/', $range, $matches)) {
                 continue;
             }
 
@@ -557,44 +576,44 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
                 $sheet->setCellValue(
                     "{$day['duration']}{$row}",
                     '=IF(OR('
-                    . "{$day['end']}{$row}"
-                    . '="",'
-                    . "{$day['start']}{$row}"
-                    . '=""),"",'
-                    . "{$day['end']}{$row}"
-                    . '-'
-                    . "{$day['start']}{$row}"
-                    . ')'
+                    ."{$day['end']}{$row}"
+                    .'="",'
+                    ."{$day['start']}{$row}"
+                    .'=""),"",'
+                    ."{$day['end']}{$row}"
+                    .'-'
+                    ."{$day['start']}{$row}"
+                    .')'
                 );
             }
 
             $sheet->setCellValue(
                 "{$day['avg_time']}{$rowStart}",
                 '=IF(COUNT('
-                . "{$day['telar']}{$rowStart}:{$day['telar']}{$rowEnd}"
-                . ')=0,"",SUM('
-                . "{$day['duration']}{$rowStart}:{$day['duration']}{$rowEnd}"
-                . ')/COUNT('
-                . "{$day['telar']}{$rowStart}:{$day['telar']}{$rowEnd}"
-                . '))'
+                ."{$day['telar']}{$rowStart}:{$day['telar']}{$rowEnd}"
+                .')=0,"",SUM('
+                ."{$day['duration']}{$rowStart}:{$day['duration']}{$rowEnd}"
+                .')/COUNT('
+                ."{$day['telar']}{$rowStart}:{$day['telar']}{$rowEnd}"
+                .'))'
             );
 
             $sheet->setCellValue(
                 "{$day['avg_calif']}{$rowStart}",
                 '=IF(COUNTA('
-                . "{$day['calif']}{$rowStart}:{$day['five_s']}{$rowEnd}"
-                . ')=0,"",AVERAGE('
-                . "{$day['calif']}{$rowStart}:{$day['five_s']}{$rowEnd}"
-                . '))'
+                ."{$day['calif']}{$rowStart}:{$day['five_s']}{$rowEnd}"
+                .')=0,"",AVERAGE('
+                ."{$day['calif']}{$rowStart}:{$day['five_s']}{$rowEnd}"
+                .'))'
             );
 
             $sheet->setCellValue(
                 "{$day['avg_merma']}{$rowStart}",
                 '=IF(COUNT('
-                . "{$day['merma']}{$rowStart}:{$day['merma']}{$rowEnd}"
-                . ')=0,"",AVERAGE('
-                . "{$day['merma']}{$rowStart}:{$day['merma']}{$rowEnd}"
-                . '))'
+                ."{$day['merma']}{$rowStart}:{$day['merma']}{$rowEnd}"
+                .')=0,"",AVERAGE('
+                ."{$day['merma']}{$rowStart}:{$day['merma']}{$rowEnd}"
+                .'))'
             );
         }
 
@@ -621,7 +640,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 
         if ($rowStart + 1 <= $rowEnd) {
             $sheet->setCellValue(
-                'CI' . ($rowStart + 1),
+                'CI'.($rowStart + 1),
                 sprintf(
                     '=MIN(CA%d,BO%d,BC%d,AQ%d,AE%d,S%d,G%d)',
                     $rowStart,
@@ -648,18 +667,18 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 
         $footerColumns = [];
         foreach (self::DAY_DEFINITIONS as $day) {
-            $footerColumns[] = $day['footer_count'] . $footerRow;
+            $footerColumns[] = $day['footer_count'].$footerRow;
             $sheet->setCellValue(
                 "{$day['footer_count']}{$footerRow}",
                 '=COUNT('
-                . "{$day['footer_count']}{$detailStartRow}"
-                . ':'
-                . "{$day['footer_count']}{$lastDetailRow}"
-                . ')'
+                ."{$day['footer_count']}{$detailStartRow}"
+                .':'
+                ."{$day['footer_count']}{$lastDetailRow}"
+                .')'
             );
         }
 
-        $sheet->setCellValue("CI{$footerRow}", '=' . implode('+', $footerColumns));
+        $sheet->setCellValue("CI{$footerRow}", '='.implode('+', $footerColumns));
     }
 
     private function copyRowStyles(
@@ -683,6 +702,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
     {
         if ($time === null) {
             $sheet->setCellValue($coordinate, null);
+
             return;
         }
 
@@ -692,6 +712,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
     private function toExcelTime(string $time): float
     {
         [$hours, $minutes, $seconds] = array_map('intval', explode(':', $time));
+
         return (($hours * 3600) + ($minutes * 60) + $seconds) / 86400;
     }
 
@@ -717,6 +738,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         }
 
         $turno = (int) trim((string) $value);
+
         return in_array($turno, [1, 2, 3], true) ? $turno : null;
     }
 
@@ -774,7 +796,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         }
 
         if (preg_match('/^(\d{1,2}:\d{2})$/', $raw, $matches) === 1) {
-            return $matches[1] . ':00';
+            return $matches[1].':00';
         }
 
         try {
@@ -825,7 +847,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
             return $coordinate;
         }
 
-        return $matches[1] . ((int) $matches[2] + $rowOffset);
+        return $matches[1].((int) $matches[2] + $rowOffset);
     }
 
     private function getTemplateClearCoordinates(): array
@@ -839,7 +861,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 
         for ($row = self::DETAIL_START_ROW; $row <= self::FOOTER_BASE_ROW; $row++) {
             for ($column = 1; $column <= self::MAX_COLUMN_INDEX; $column++) {
-                $coordinate = $this->getColumnLabels()[$column] . $row;
+                $coordinate = $this->getColumnLabels()[$column].$row;
                 $value = $templateSheet->getCell($coordinate)->getValue();
 
                 if ($value !== null && $value !== '') {
