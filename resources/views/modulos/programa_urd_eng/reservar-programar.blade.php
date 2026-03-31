@@ -538,7 +538,6 @@ const eq = {
 const sameGroup = (a, b) =>
     eq.str(a.tipo, b.tipo) &&
     eq.num(a.calibre, b.calibre) &&
-    eq.str(a.hilo, b.hilo) &&
     eq.str(a.salon, b.salon);
 
 const normalizeTipo = t => {
@@ -1134,7 +1133,7 @@ const selection = {
 
                 if (!sameGroup(item, ref)) {
                     toast('warning', 'Seleccion incompatible',
-                          'Solo puedes seleccionar telares con el mismo Tipo, Calibre, Hilo y Salon. La cuenta puede variar.',
+                          'Solo puedes seleccionar telares con el mismo Tipo, Calibre y Salon. La cuenta puede variar.',
                           3000);
                     if (cb) cb.checked = false;
                     return;

@@ -105,6 +105,60 @@ class OeeAtadoresFileService
         12 => 'DICIEMBRE',
     ];
 
+    private const SEMANA_TEMPLATE_WEEK = 11;
+
+    private const SEMANA_BASE_CAPACITY = 5;
+
+    private const SEMANA_TITLE_START_ROW = 2;
+
+    private const SEMANA_TITLE_END_ROW = 3;
+
+    private const SEMANA_TITLE_START_COLUMN = 2;
+
+    private const SEMANA_TITLE_END_COLUMN = 13;
+
+    private const SEMANA_LIST_START_ROW = 4;
+
+    private const SEMANA_LIST_START_COLUMN = 2;
+
+    private const SEMANA_LIST_END_COLUMN = 13;
+
+    private const SEMANA_MERMA_PROMEDIO_TEMPLATE_ROW = 11;
+
+    private const SEMANA_PROMEDIO_TEMPLATE_ROW = 13;
+
+    private const SEMANA_METRIC_TEMPLATE_START_ROW = 16;
+
+    private const SEMANA_METRIC_TEMPLATE_END_ROW = 22;
+
+    private const SEMANA_METRIC_TEMPLATE_START_COLUMN = 3;
+
+    private const SEMANA_METRIC_TEMPLATE_END_COLUMN = 8;
+
+    private const SEMANA_MANUAL_TEMPLATE_START_ROW = 26;
+
+    private const SEMANA_MANUAL_TEMPLATE_END_ROW = 38;
+
+    private const SEMANA_MANUAL_START_COLUMN = 4;
+
+    private const SEMANA_MANUAL_END_COLUMN = 10;
+
+    private const SEMANA_ACTIONS_TEMPLATE_START_ROW = 3;
+
+    private const SEMANA_ACTIONS_TEMPLATE_END_ROW = 14;
+
+    private const SEMANA_ACTIONS_TEMPLATE_START_COLUMN = 16;
+
+    private const SEMANA_ACTIONS_TEMPLATE_END_COLUMN = 18;
+
+    private const SEMANA_USTER_TEMPLATE_START_ROW = 44;
+
+    private const SEMANA_USTER_TEMPLATE_END_ROW = 52;
+
+    private const SEMANA_USTER_TEMPLATE_START_COLUMN = 12;
+
+    private const SEMANA_USTER_TEMPLATE_END_COLUMN = 19;
+
     public function __construct(private readonly string $filePath) {}
 
     public function verificarSemanasConDatos(CarbonImmutable $weekStart, CarbonImmutable $weekEnd): array
@@ -823,37 +877,66 @@ class OeeAtadoresFileService
         }
 
         $existingSheets = $this->getExistingSemanaSheets($spreadsheet);
-        $targetWeeks = array_values(array_unique(array_merge(array_keys($existingSheets), $requestedWeekNumbers)));
-        sort($targetWeeks);
+        $templateSheet = $this->resolveSemanaTemplateSheet($spreadsheet, $existingSheets);
+
+        if (! $templateSheet) {
+            throw new RuntimeException('No se encontró una hoja SEMANA canónica para regenerar el formato OEE.');
+        }
+
         $available = [];
-
-        foreach ($targetWeeks as $weekNum) {
-            $section = $sectionMap[$weekNum] ?? null;
-            if ($section === null) {
+        foreach ($existingSheets as $weekNum => $sheet) {
+            if (! isset($sectionMap[$weekNum])) {
                 continue;
             }
 
-            $sheet = $existingSheets[$weekNum] ?? null;
-            $isNew = false;
-
-            if (! $sheet) {
-                $sheet = $this->cloneLastSemanaSheet($spreadsheet, sprintf('SEMANA %02d', $weekNum));
-                $isNew = $sheet !== null;
-            }
-
-            if (! $sheet) {
-                continue;
-            }
-
-            $atadorList = $this->extractAtadorListFromDetail(
-                $detalle,
-                $section['top'] + 3,
-                $section['top'],
-                $section['footer']
-            );
-
-            $this->writeSemanaContent($sheet, $weekNum, $section['top'], $atadorList, $isNew);
             $available[$weekNum] = $sheet->getTitle();
+        }
+
+        $targetWeeks = array_values(array_unique(array_filter(
+            $requestedWeekNumbers,
+            fn (int $weekNum) => isset($sectionMap[$weekNum])
+        )));
+        sort($targetWeeks);
+
+        if ($targetWeeks === []) {
+            ksort($available);
+
+            return $available;
+        }
+
+        $templateSource = clone $templateSheet;
+        $templateSource->setTitle('__SEM_TMP_'.substr(uniqid('', true), -8));
+        $spreadsheet->addSheet($templateSource);
+
+        try {
+            foreach ($targetWeeks as $weekNum) {
+                $section = $sectionMap[$weekNum] ?? null;
+                if ($section === null) {
+                    continue;
+                }
+
+                $existingSheet = $existingSheets[$weekNum] ?? null;
+                $preservedState = $this->captureSemanaPreservedState($existingSheet);
+                $sheet = $this->replaceSemanaSheetFromTemplate(
+                    $spreadsheet,
+                    $templateSource,
+                    sprintf('SEMANA %02d', $weekNum),
+                    $existingSheet
+                );
+
+                $atadorList = $this->extractAtadorListFromDetail(
+                    $detalle,
+                    $section['top'] + 3,
+                    $section['top'],
+                    $section['footer']
+                );
+
+                $this->writeSemanaContent($sheet, $templateSource, $weekNum, $section['top'], $atadorList, $preservedState);
+                $available[$weekNum] = $sheet->getTitle();
+            }
+        } finally {
+            $templateIndex = $spreadsheet->getIndex($templateSource);
+            $spreadsheet->removeSheetByIndex($templateIndex);
         }
 
         ksort($available);
@@ -1435,20 +1518,18 @@ class OeeAtadoresFileService
 
     private function writeSemanaContent(
         Worksheet $sheet,
+        Worksheet $templateSheet,
         int $weekNum,
         int $sectionTopRow,
         array $atadorList,
-        bool $isNew
+        array $preservedState = []
     ): void {
         $sheet->setCellValue('B2', "SEMANA {$weekNum}");
 
-        $securityValues = $this->collectSemanaSecurityValues($sheet);
-        $styleTemplate = $this->captureSemanaStyleTemplate($sheet);
         $desiredCapacity = max(self::MIN_VISIBLE_ATADORES, count($atadorList));
-        $this->resizeSemanaSheet($sheet, $desiredCapacity);
-
-        $layout = $this->describeSemanaSheet($sheet);
-        $this->applySemanaDynamicStyles($sheet, $layout, $desiredCapacity, $styleTemplate);
+        $securityValues = $preservedState['security_values'] ?? [];
+        $this->prepareSemanaSheetLayout($sheet, $templateSheet, $desiredCapacity);
+        $layout = $this->buildSemanaLayout($desiredCapacity);
         $lastMetricColumnIndex = Coordinate::columnIndexFromString($layout['last_metric_column']);
         $actualCount = count($atadorList);
         $actualLastRow = $actualCount > 0 ? 3 + $actualCount : 8;
@@ -1538,10 +1619,527 @@ class OeeAtadoresFileService
             );
         }
 
-        if ($isNew) {
-            $manualStart = $this->findSemanaManualStartRow($sheet);
-            $this->clearRange($sheet, $manualStart, $manualStart + 25, 1, 20);
+        $this->restoreSemanaManualValues($sheet, $layout, $preservedState['manual_values'] ?? []);
+        $this->writeSemanaUsterContent($sheet, $layout, $weekNum, $atadorList, $preservedState['uster_messages'] ?? []);
+    }
+
+    private function resolveSemanaTemplateSheet(Spreadsheet $spreadsheet, array $existingSheets): ?Worksheet
+    {
+        $preferred = $existingSheets[self::SEMANA_TEMPLATE_WEEK] ?? null;
+        if ($preferred instanceof Worksheet && $this->isCanonicalSemanaTemplate($preferred)) {
+            return $preferred;
         }
+
+        foreach ($existingSheets as $sheet) {
+            if ($sheet instanceof Worksheet && $this->isCanonicalSemanaTemplate($sheet)) {
+                return $sheet;
+            }
+        }
+
+        return null;
+    }
+
+    private function isCanonicalSemanaTemplate(Worksheet $sheet): bool
+    {
+        $layout = $this->describeSemanaSheet($sheet);
+
+        return $layout['capacity'] === self::SEMANA_BASE_CAPACITY
+            && $this->normalizeLabel($sheet->getCell('B3')->getValue()) === 'CLAVE ATADOR'
+            && $this->normalizeLabel($sheet->getCell('C17')->getValue()) === 'EFIC. ATADOR'
+            && $this->findSemanaManualStartRow($sheet) === self::SEMANA_MANUAL_TEMPLATE_START_ROW
+            && $this->findSemanaUsterAnchor($sheet) !== null;
+    }
+
+    private function replaceSemanaSheetFromTemplate(
+        Spreadsheet $spreadsheet,
+        Worksheet $templateSource,
+        string $newTitle,
+        ?Worksheet $existingSheet
+    ): Worksheet {
+        $sheet = clone $templateSource;
+        $sheet->setTitle($newTitle);
+
+        if ($existingSheet instanceof Worksheet) {
+            $targetIndex = $spreadsheet->getIndex($existingSheet);
+            $spreadsheet->removeSheetByIndex($targetIndex);
+            $spreadsheet->addSheet($sheet, $targetIndex);
+
+            return $sheet;
+        }
+
+        $spreadsheet->addSheet($sheet);
+
+        return $sheet;
+    }
+
+    private function captureSemanaPreservedState(?Worksheet $sheet): array
+    {
+        if (! $sheet instanceof Worksheet) {
+            return [
+                'security_values' => [],
+                'manual_values' => [],
+                'uster_messages' => [],
+            ];
+        }
+
+        return [
+            'security_values' => $this->collectSemanaSecurityValues($sheet),
+            'manual_values' => $this->captureSemanaManualValues($sheet),
+            'uster_messages' => $this->captureSemanaUsterMessages($sheet),
+        ];
+    }
+
+    private function prepareSemanaSheetLayout(Worksheet $sheet, Worksheet $templateSheet, int $desiredCapacity): void
+    {
+        $layout = $this->buildSemanaLayout($desiredCapacity);
+        $styleTemplate = $this->captureSemanaStyleTemplate($templateSheet);
+        $canvasEndRow = max($sheet->getHighestRow(), $layout['uster_end_row'] + 2);
+        $canvasEndColumn = max(
+            Coordinate::columnIndexFromString($sheet->getHighestColumn()),
+            $layout['actions_end_column'],
+            $layout['uster_end_column'],
+            Coordinate::columnIndexFromString($layout['last_metric_column']),
+            20
+        );
+
+        $this->unmergeRowsInRange($sheet, self::SEMANA_TITLE_START_ROW, $canvasEndRow);
+        $this->resetRangeToDefaultStyle(
+            $sheet,
+            self::SEMANA_TITLE_START_ROW,
+            $canvasEndRow,
+            self::SEMANA_TITLE_START_COLUMN,
+            $canvasEndColumn
+        );
+
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_TITLE_START_ROW,
+            self::SEMANA_TITLE_END_ROW,
+            self::SEMANA_TITLE_START_COLUMN,
+            self::SEMANA_TITLE_END_COLUMN,
+            self::SEMANA_TITLE_START_ROW,
+            self::SEMANA_TITLE_START_COLUMN
+        );
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_MERMA_PROMEDIO_TEMPLATE_ROW,
+            self::SEMANA_MERMA_PROMEDIO_TEMPLATE_ROW,
+            2,
+            13,
+            $layout['merma_promedio_row'],
+            2
+        );
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_PROMEDIO_TEMPLATE_ROW,
+            self::SEMANA_PROMEDIO_TEMPLATE_ROW,
+            3,
+            13,
+            $layout['promedio_general_row'],
+            3
+        );
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_METRIC_TEMPLATE_START_ROW,
+            self::SEMANA_METRIC_TEMPLATE_END_ROW,
+            self::SEMANA_METRIC_TEMPLATE_START_COLUMN,
+            self::SEMANA_METRIC_TEMPLATE_END_COLUMN,
+            $layout['header_row'],
+            self::SEMANA_METRIC_TEMPLATE_START_COLUMN
+        );
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_MANUAL_TEMPLATE_START_ROW,
+            self::SEMANA_MANUAL_TEMPLATE_END_ROW,
+            self::SEMANA_MANUAL_START_COLUMN,
+            self::SEMANA_MANUAL_END_COLUMN,
+            $layout['manual_start_row'],
+            self::SEMANA_MANUAL_START_COLUMN
+        );
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_ACTIONS_TEMPLATE_START_ROW,
+            self::SEMANA_ACTIONS_TEMPLATE_END_ROW,
+            self::SEMANA_ACTIONS_TEMPLATE_START_COLUMN,
+            self::SEMANA_ACTIONS_TEMPLATE_END_COLUMN,
+            self::SEMANA_ACTIONS_TEMPLATE_START_ROW,
+            $layout['actions_start_column']
+        );
+
+        $this->copySemanaUsterTemplate($sheet, $templateSheet, $layout);
+        $this->applySemanaDynamicStyles($sheet, $layout, $desiredCapacity, $styleTemplate);
+        $this->clearRange(
+            $sheet,
+            self::SEMANA_LIST_START_ROW,
+            $layout['oee_row'],
+            self::SEMANA_LIST_START_COLUMN,
+            max(self::SEMANA_LIST_END_COLUMN, Coordinate::columnIndexFromString($layout['last_metric_column']))
+        );
+        $this->clearRange(
+            $sheet,
+            $layout['manual_start_row'] + 1,
+            $layout['manual_end_row'],
+            self::SEMANA_MANUAL_START_COLUMN,
+            self::SEMANA_MANUAL_END_COLUMN
+        );
+        $this->clearSemanaUsterDynamicArea($sheet, $layout);
+    }
+
+    private function buildSemanaLayout(int $capacity): array
+    {
+        $capacity = max(self::MIN_VISIBLE_ATADORES, $capacity);
+        $extraColumns = $capacity - self::SEMANA_BASE_CAPACITY;
+        $listEndRow = 3 + $capacity;
+        $headerRow = $capacity + 11;
+        $manualStartRow = $capacity + 21;
+        $usterStartRow = $capacity + 39;
+        $usterEndRow = $usterStartRow + $capacity + 3;
+
+        return [
+            'capacity' => $capacity,
+            'insert_row' => $capacity + 4,
+            'list_end_row' => $listEndRow,
+            'merma_promedio_row' => $capacity + 6,
+            'promedio_general_row' => $capacity + 8,
+            'header_row' => $headerRow,
+            'eficiencia_row' => $headerRow + 1,
+            'auxiliar_row' => $headerRow + 2,
+            'calidad_row' => $headerRow + 3,
+            'merma_row' => $headerRow + 4,
+            'merma_porcentaje_row' => $headerRow + 5,
+            'oee_row' => $headerRow + 6,
+            'last_metric_column' => Coordinate::stringFromColumnIndex(3 + $capacity),
+            'manual_start_row' => $manualStartRow,
+            'manual_end_row' => $manualStartRow + 12,
+            'actions_start_column' => self::SEMANA_ACTIONS_TEMPLATE_START_COLUMN + $extraColumns,
+            'actions_end_column' => self::SEMANA_ACTIONS_TEMPLATE_END_COLUMN + $extraColumns,
+            'uster_start_row' => $usterStartRow,
+            'uster_end_row' => $usterEndRow,
+            'uster_start_column' => self::SEMANA_USTER_TEMPLATE_START_COLUMN + $extraColumns,
+            'uster_end_column' => self::SEMANA_USTER_TEMPLATE_END_COLUMN + $extraColumns,
+        ];
+    }
+
+    private function copySemanaUsterTemplate(Worksheet $sheet, Worksheet $templateSheet, array $layout): void
+    {
+        $usterStartColumn = (int) $layout['uster_start_column'];
+        $usterStartRow = (int) $layout['uster_start_row'];
+        $capacity = (int) $layout['capacity'];
+
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_USTER_TEMPLATE_START_ROW,
+            self::SEMANA_USTER_TEMPLATE_START_ROW + self::SEMANA_BASE_CAPACITY,
+            self::SEMANA_USTER_TEMPLATE_START_COLUMN,
+            self::SEMANA_USTER_TEMPLATE_END_COLUMN,
+            $usterStartRow,
+            $usterStartColumn
+        );
+
+        if ($capacity > self::SEMANA_BASE_CAPACITY) {
+            for ($index = self::SEMANA_BASE_CAPACITY; $index < $capacity; $index++) {
+                $this->copyRectRange(
+                    $sheet,
+                    $templateSheet,
+                    self::SEMANA_USTER_TEMPLATE_START_ROW + self::SEMANA_BASE_CAPACITY - 1,
+                    self::SEMANA_USTER_TEMPLATE_START_ROW + self::SEMANA_BASE_CAPACITY - 1,
+                    self::SEMANA_USTER_TEMPLATE_START_COLUMN,
+                    self::SEMANA_USTER_TEMPLATE_END_COLUMN,
+                    $usterStartRow + 1 + $index,
+                    $usterStartColumn
+                );
+            }
+        }
+
+        $separatorRow = $usterStartRow + 1 + $capacity;
+        $noteRow = $separatorRow + 1;
+
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_USTER_TEMPLATE_START_ROW + self::SEMANA_BASE_CAPACITY + 1,
+            self::SEMANA_USTER_TEMPLATE_START_ROW + self::SEMANA_BASE_CAPACITY + 1,
+            self::SEMANA_USTER_TEMPLATE_START_COLUMN,
+            self::SEMANA_USTER_TEMPLATE_END_COLUMN,
+            $separatorRow,
+            $usterStartColumn
+        );
+        $this->copyRectRange(
+            $sheet,
+            $templateSheet,
+            self::SEMANA_USTER_TEMPLATE_START_ROW + self::SEMANA_BASE_CAPACITY + 2,
+            self::SEMANA_USTER_TEMPLATE_END_ROW,
+            self::SEMANA_USTER_TEMPLATE_START_COLUMN,
+            self::SEMANA_USTER_TEMPLATE_END_COLUMN,
+            $noteRow,
+            $usterStartColumn
+        );
+    }
+
+    private function resetRangeToDefaultStyle(
+        Worksheet $sheet,
+        int $startRow,
+        int $endRow,
+        int $startColumnIndex,
+        int $endColumnIndex
+    ): void {
+        $defaultStyle = $sheet->getStyle('A1')->exportArray();
+
+        for ($row = $startRow; $row <= $endRow; $row++) {
+            for ($columnIndex = $startColumnIndex; $columnIndex <= $endColumnIndex; $columnIndex++) {
+                $coordinate = Coordinate::stringFromColumnIndex($columnIndex).$row;
+                $sheet->setCellValueExplicit($coordinate, null, DataType::TYPE_NULL);
+                $sheet->getStyle($coordinate)->applyFromArray($defaultStyle);
+            }
+        }
+    }
+
+    private function copyRectRange(
+        Worksheet $target,
+        Worksheet $source,
+        int $sourceStartRow,
+        int $sourceEndRow,
+        int $sourceStartColumnIndex,
+        int $sourceEndColumnIndex,
+        int $targetStartRow,
+        int $targetStartColumnIndex
+    ): void {
+        $rowOffset = $targetStartRow - $sourceStartRow;
+        $columnOffset = $targetStartColumnIndex - $sourceStartColumnIndex;
+        $referenceHelper = ReferenceHelper::getInstance();
+
+        for ($columnIndex = $sourceStartColumnIndex; $columnIndex <= $sourceEndColumnIndex; $columnIndex++) {
+            $sourceColumn = Coordinate::stringFromColumnIndex($columnIndex);
+            $targetColumn = Coordinate::stringFromColumnIndex($columnIndex + $columnOffset);
+            $sourceDimension = $source->getColumnDimension($sourceColumn);
+            $targetDimension = $target->getColumnDimension($targetColumn);
+
+            $targetDimension->setWidth($sourceDimension->getWidth());
+            $targetDimension->setAutoSize($sourceDimension->getAutoSize());
+            $targetDimension->setVisible($sourceDimension->getVisible());
+            $targetDimension->setOutlineLevel($sourceDimension->getOutlineLevel());
+            $targetDimension->setCollapsed($sourceDimension->getCollapsed());
+        }
+
+        for ($sourceRow = $sourceStartRow; $sourceRow <= $sourceEndRow; $sourceRow++) {
+            $targetRow = $sourceRow + $rowOffset;
+            $sourceDimension = $source->getRowDimension($sourceRow);
+            $targetDimension = $target->getRowDimension($targetRow);
+
+            $targetDimension->setRowHeight($sourceDimension->getRowHeight());
+            $targetDimension->setVisible($sourceDimension->getVisible());
+            $targetDimension->setOutlineLevel($sourceDimension->getOutlineLevel());
+            $targetDimension->setCollapsed($sourceDimension->getCollapsed());
+
+            for ($columnIndex = $sourceStartColumnIndex; $columnIndex <= $sourceEndColumnIndex; $columnIndex++) {
+                $sourceCoordinate = Coordinate::stringFromColumnIndex($columnIndex).$sourceRow;
+                $targetCoordinate = Coordinate::stringFromColumnIndex($columnIndex + $columnOffset).$targetRow;
+                $sourceCell = $source->getCell($sourceCoordinate);
+
+                $target->duplicateStyle($source->getStyle($sourceCoordinate), $targetCoordinate);
+
+                $value = $sourceCell->getValue();
+                $dataType = $sourceCell->getDataType();
+
+                if ($dataType === DataType::TYPE_FORMULA && is_string($value)) {
+                    $target->setCellValueExplicit(
+                        $targetCoordinate,
+                        $referenceHelper->updateFormulaReferences(
+                            $value,
+                            'A1',
+                            $columnOffset,
+                            $rowOffset,
+                            $target->getTitle(),
+                            true
+                        ),
+                        DataType::TYPE_FORMULA
+                    );
+
+                    continue;
+                }
+
+                if ($value === null || $value === '') {
+                    $target->setCellValueExplicit($targetCoordinate, null, DataType::TYPE_NULL);
+
+                    continue;
+                }
+
+                $target->setCellValueExplicit($targetCoordinate, $value, $dataType);
+            }
+        }
+
+        foreach (array_keys($source->getMergeCells()) as $range) {
+            if (preg_match('/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/', $range, $matches) !== 1) {
+                continue;
+            }
+
+            $startColumn = Coordinate::columnIndexFromString($matches[1]);
+            $endColumn = Coordinate::columnIndexFromString($matches[3]);
+            $rowStart = (int) $matches[2];
+            $rowEnd = (int) $matches[4];
+
+            if ($rowStart < $sourceStartRow
+                || $rowEnd > $sourceEndRow
+                || $startColumn < $sourceStartColumnIndex
+                || $endColumn > $sourceEndColumnIndex) {
+                continue;
+            }
+
+            $target->mergeCells(sprintf(
+                '%s%d:%s%d',
+                Coordinate::stringFromColumnIndex($startColumn + $columnOffset),
+                $rowStart + $rowOffset,
+                Coordinate::stringFromColumnIndex($endColumn + $columnOffset),
+                $rowEnd + $rowOffset
+            ));
+        }
+    }
+
+    private function captureSemanaManualValues(Worksheet $sheet): array
+    {
+        $startRow = $this->findSemanaManualStartRow($sheet) + 1;
+        $values = [];
+
+        for ($row = 0; $row < 12; $row++) {
+            for ($columnIndex = self::SEMANA_MANUAL_START_COLUMN; $columnIndex <= self::SEMANA_MANUAL_END_COLUMN; $columnIndex++) {
+                $values[$row][$columnIndex] = $sheet->getCell(
+                    Coordinate::stringFromColumnIndex($columnIndex).($startRow + $row)
+                )->getValue();
+            }
+        }
+
+        return $values;
+    }
+
+    private function restoreSemanaManualValues(Worksheet $sheet, array $layout, array $values): void
+    {
+        $startRow = (int) ($layout['manual_start_row'] ?? self::SEMANA_MANUAL_TEMPLATE_START_ROW) + 1;
+
+        foreach ($values as $rowOffset => $columns) {
+            foreach ($columns as $columnIndex => $value) {
+                if ($value === null || $value === '') {
+                    continue;
+                }
+
+                $sheet->setCellValue(
+                    Coordinate::stringFromColumnIndex((int) $columnIndex).($startRow + (int) $rowOffset),
+                    $value
+                );
+            }
+        }
+    }
+
+    private function captureSemanaUsterMessages(Worksheet $sheet): array
+    {
+        $anchor = $this->findSemanaUsterAnchor($sheet);
+        if ($anchor === null) {
+            return [];
+        }
+
+        $messages = [];
+        $nameColumn = Coordinate::stringFromColumnIndex($anchor['column'] + 3);
+        $messageColumn = Coordinate::stringFromColumnIndex($anchor['column'] + 5);
+
+        for ($row = $anchor['row'] + 1; $row <= $sheet->getHighestRow(); $row++) {
+            $name = trim((string) ($sheet->getCell("{$nameColumn}{$row}")->getValue() ?? ''));
+            $message = $sheet->getCell("{$messageColumn}{$row}")->getValue();
+            $normalizedMessage = $this->normalizeLabel($message);
+
+            if (str_starts_with($normalizedMessage, 'NOTA:')) {
+                break;
+            }
+
+            if ($name === '' || $message === null || $message === '') {
+                continue;
+            }
+
+            $messages[$this->normalizeLabel($name)] = $message;
+        }
+
+        return $messages;
+    }
+
+    private function writeSemanaUsterContent(
+        Worksheet $sheet,
+        array $layout,
+        int $weekNum,
+        array $atadorList,
+        array $preservedMessages = []
+    ): void {
+        $startColumn = (int) ($layout['uster_start_column'] ?? self::SEMANA_USTER_TEMPLATE_START_COLUMN);
+        $startRow = (int) ($layout['uster_start_row'] ?? self::SEMANA_USTER_TEMPLATE_START_ROW);
+        $displayCount = max(self::MIN_VISIBLE_ATADORES, count($atadorList));
+        $titleColumn = Coordinate::stringFromColumnIndex($startColumn + 5);
+        $nameColumn = Coordinate::stringFromColumnIndex($startColumn + 3);
+        $messageColumn = Coordinate::stringFromColumnIndex($startColumn + 5);
+
+        $sheet->setCellValue("{$titleColumn}{$startRow}", "USO DE ATADORA USTER EN LA SEMANA {$weekNum}");
+
+        for ($index = 0; $index < $displayCount; $index++) {
+            $row = $startRow + 1 + $index;
+            $entry = $atadorList[$index] ?? null;
+            $name = '';
+
+            if (is_array($entry)) {
+                $name = trim((string) ($entry['name'] ?? $entry['key'] ?? ''));
+            }
+
+            $sheet->setCellValue("{$nameColumn}{$row}", $name !== '' ? $name : null);
+
+            $message = $name !== ''
+                ? ($preservedMessages[$this->normalizeLabel($name)] ?? "UTILIZO ATADORA USTER EN LA SEMANA {$weekNum}")
+                : null;
+
+            $sheet->setCellValue("{$messageColumn}{$row}", $message);
+        }
+    }
+
+    private function clearSemanaUsterDynamicArea(Worksheet $sheet, array $layout): void
+    {
+        $startColumn = (int) ($layout['uster_start_column'] ?? self::SEMANA_USTER_TEMPLATE_START_COLUMN);
+        $startRow = (int) ($layout['uster_start_row'] ?? self::SEMANA_USTER_TEMPLATE_START_ROW);
+        $displayCount = max(self::MIN_VISIBLE_ATADORES, (int) ($layout['capacity'] ?? self::MIN_VISIBLE_ATADORES));
+
+        $sheet->setCellValueExplicit(
+            Coordinate::stringFromColumnIndex($startColumn + 5).$startRow,
+            null,
+            DataType::TYPE_NULL
+        );
+
+        for ($index = 0; $index < $displayCount; $index++) {
+            $row = $startRow + 1 + $index;
+            $sheet->setCellValueExplicit(
+                Coordinate::stringFromColumnIndex($startColumn + 3).$row,
+                null,
+                DataType::TYPE_NULL
+            );
+            $sheet->setCellValueExplicit(
+                Coordinate::stringFromColumnIndex($startColumn + 5).$row,
+                null,
+                DataType::TYPE_NULL
+            );
+        }
+    }
+
+    private function findSemanaUsterAnchor(Worksheet $sheet): ?array
+    {
+        for ($row = 1; $row <= $sheet->getHighestRow(); $row++) {
+            for ($columnIndex = 1; $columnIndex <= Coordinate::columnIndexFromString($sheet->getHighestColumn()); $columnIndex++) {
+                $value = $this->normalizeLabel($sheet->getCell(Coordinate::stringFromColumnIndex($columnIndex).$row)->getValue());
+                if (str_starts_with($value, 'USO DE ATADORA USTER = PUNTOS')) {
+                    return ['row' => $row, 'column' => $columnIndex];
+                }
+            }
+        }
+
+        return null;
     }
 
     private function collectSemanaSecurityValues(Worksheet $sheet): array
@@ -1673,9 +2271,8 @@ class OeeAtadoresFileService
         }
 
         $capacity = max(self::MIN_VISIBLE_ATADORES, $eficienciaRow - 12);
-        $listEndRow = 3 + $capacity;
-        $headerRow = $eficienciaRow - 1;
-        $lastMetricColumn = Coordinate::stringFromColumnIndex(3 + $capacity);
+        $layout = $this->buildSemanaLayout($capacity);
+        $listEndRow = $layout['list_end_row'];
 
         $entries = [];
         for ($row = 4; $row <= $listEndRow; $row++) {
@@ -1694,22 +2291,16 @@ class OeeAtadoresFileService
             ];
         }
 
-        return [
-            'capacity' => $capacity,
-            'insert_row' => $capacity + 4,
-            'list_end_row' => $listEndRow,
-            'merma_promedio_row' => $capacity + 6,
-            'promedio_general_row' => $capacity + 8,
-            'header_row' => $headerRow,
-            'eficiencia_row' => $eficienciaRow,
-            'auxiliar_row' => $eficienciaRow + 1,
-            'calidad_row' => $eficienciaRow + 2,
-            'merma_row' => $eficienciaRow + 3,
-            'merma_porcentaje_row' => $eficienciaRow + 4,
-            'oee_row' => $eficienciaRow + 5,
-            'last_metric_column' => $lastMetricColumn,
-            'entries' => $entries,
-        ];
+        $layout['header_row'] = $eficienciaRow - 1;
+        $layout['eficiencia_row'] = $eficienciaRow;
+        $layout['auxiliar_row'] = $eficienciaRow + 1;
+        $layout['calidad_row'] = $eficienciaRow + 2;
+        $layout['merma_row'] = $eficienciaRow + 3;
+        $layout['merma_porcentaje_row'] = $eficienciaRow + 4;
+        $layout['oee_row'] = $eficienciaRow + 5;
+        $layout['entries'] = $entries;
+
+        return $layout;
     }
 
     private function findSemanaManualStartRow(Worksheet $sheet): int

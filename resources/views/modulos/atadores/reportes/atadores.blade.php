@@ -23,7 +23,7 @@
     <div class="w-full p-4">
         <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 px-6 py-4 flex items-center justify-between">
-                <h1 class="text-xl font-bold text-white">00E Atadores</h1>
+                <h1 class="text-xl font-bold text-white">OEE Atadores</h1>
                 @if (!empty($fechaIni) && !empty($fechaFin))
                     <div class="text-right text-white text-sm">
                         <div>Seleccionado: {{ \Carbon\Carbon::parse($fechaIni)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}</div>

@@ -234,16 +234,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(value).replace(/,/g, '');
     }
 
-    // Valida que todos compartan Tipo (obligatorio) y, si están presentes, mismo calibre/hilo.
-    // NOTA: Para PIE, no se valida hilo
+    // Valida que todos compartan Tipo (obligatorio) y, si están presentes, mismo calibre.
+    // Hilo no se valida para ningún tipo.
     function validarGrupo(telares) {
         if (!telares.length) return { valido:false, mensaje:'No hay telares seleccionados' };
 
         const base = telares[0] || {};
         const tipoBase = String(base.tipo || '').toUpperCase().trim();
         const calBase  = base.calibre != null && base.calibre !== '' ? parseFloat(base.calibre) : null;
-        const hiloBase = base.hilo && String(base.hilo).trim() !== '' ? String(base.hilo).trim() : null;
-        const esPie = tipoBase === 'PIE';
 
         if (!tipoBase) return { valido:false, mensaje:'El telar debe tener un tipo definido' };
 
@@ -256,20 +254,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const cal = t.calibre != null && t.calibre !== '' ? parseFloat(t.calibre) : null;
             if (calBase!=null && cal!=null && Math.abs(calBase - cal) >= 0.01)
                 return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} calibre "${cal}" ≠ "${calBase}".` };
-
-            // Para PIE, no se valida hilo
-            if (!esPie) {
-                const hilo = t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null;
-                if (hiloBase && hilo && hilo !== hiloBase)
-                    return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} hilo "${hilo}" ≠ "${hiloBase}".` };
-            }
-
         }
 
-        // Para PIE, establecer hilo como null para que no se use en consultas
-        // Normalizar el tipo antes de retornarlo
         const tipoNormalizado = normalizarTipo(base.tipo);
-        return { valido:true, tipo:tipoNormalizado, calibre:calBase, hilo:esPie ? null : hiloBase };
+        return { valido:true, tipo:tipoNormalizado, calibre:calBase, hilo:null };
     }
 
     /* =================== Cargar hilos desde TI_PRO =================== */
@@ -448,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <i class="fa-solid fa-triangle-exclamation text-red-400 mb-2"></i>
                         <p class="font-semibold">Error de validación</p>
                         <p class="text-sm mt-2">${v.mensaje}</p>
-                        <p class="text-md mt-2 text-gray-500">Todos los telares deben tener el mismo tipo, y si existen, mismo calibre/hilo.</p>
+                        <p class="text-md mt-2 text-gray-500">Todos los telares deben tener el mismo tipo y calibre.</p>
                     </td>
                 </tr>`;
             renderResumenMensaje('No se puede cargar el resumen por error de validación.');
@@ -464,12 +452,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const cal = t.calibre!=null && t.calibre!=='' ? parseFloat(t.calibre) : null;
             if (v.calibre!=null && cal!=null && Math.abs(v.calibre - cal) >= 0.01) return false;
-
-            // Para PIE, no se filtra por hilo
-            if (!esPie) {
-                const hilo = t.hilo && String(t.hilo).trim() !== '' ? String(t.hilo).trim() : null;
-                if (v.hilo && hilo && v.hilo !== hilo) return false;
-            }
 
             return true;
         });
@@ -1282,7 +1264,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const camposRequeridos = [
             { field: 'cuenta', label: 'Cuenta', selector: 'input[data-field="cuenta"]' },
             { field: 'calibre', label: 'Calibre', selector: 'input[data-field="calibre"]' },
-            { field: 'hilo', label: 'Hilo', selector: 'select[data-field="hilo"]' },
             { field: 'tamano', label: 'Tamaño', selector: 'input[data-field="tamano"]' },
             { field: 'urdido', label: 'Urdido', selector: 'select[data-field="urdido"]' },
             { field: 'tipo', label: 'Tipo', selector: 'select[data-field="tipo"]' },

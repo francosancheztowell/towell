@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Services\OeeAtadores\OeeAtadoresFileService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -30,7 +31,7 @@ class ReportesAtadoresController extends Controller
                 'disponible' => true,
             ],
             [
-                'nombre' => '00E Atadores',
+                'nombre' => 'OEE Atadores',
                 'accion' => 'Seleccionar Fechas',
                 'url' => route('atadores.reportes.atadores'),
                 'disponible' => true,
@@ -114,7 +115,7 @@ class ReportesAtadoresController extends Controller
         if (! $fechaInicio || ! $fechaFin || ! $lunesInicio || ! $lunesFin) {
             return redirect()
                 ->route('atadores.reportes.atadores')
-                ->with('error', 'Debe seleccionar una fecha inicial y final validas para exportar el 00E Atadores.');
+                ->with('error', 'Debe seleccionar una fecha inicial y final validas para exportar el OEE Atadores.');
         }
 
         if ($fechaInicio->year !== $fechaFin->year) {
@@ -123,11 +124,11 @@ class ReportesAtadoresController extends Controller
                     'fecha_ini' => $fechaInicio->toDateString(),
                     'fecha_fin' => $fechaFin->toDateString(),
                 ])
-                ->with('error', 'Para guardar el archivo anual del 00E Atadores, selecciona un rango dentro del mismo año.');
+                ->with('error', 'Para guardar el archivo anual del OEE Atadores, selecciona un rango dentro del mismo año.');
         }
 
         [$inicioAnual, $finAnual, $year] = $this->resolverRangoAnualAtadores($fechaFin);
-        $nombreArchivo = "00E Atadores {$year}.xlsx";
+        $nombreArchivo = "OEE Atadores {$year}.xlsx";
 
         try {
             $rutaGuardado = $this->guardarReporteAtadoresEnRuta(
@@ -135,7 +136,7 @@ class ReportesAtadoresController extends Controller
                 $nombreArchivo
             );
         } catch (\Throwable $e) {
-            Log::error('No se pudo guardar el reporte anual 00E Atadores', [
+            Log::error('No se pudo guardar el reporte anual OEE Atadores', [
                 'fecha_inicio' => $fechaInicio->toDateString(),
                 'fecha_fin' => $fechaFin->toDateString(),
                 'error' => $e->getMessage(),
@@ -146,7 +147,7 @@ class ReportesAtadoresController extends Controller
                     'fecha_ini' => $fechaInicio->toDateString(),
                     'fecha_fin' => $fechaFin->toDateString(),
                 ])
-                ->with('error', 'No se pudo guardar el archivo anual 00E Atadores. '.$e->getMessage());
+                ->with('error', 'No se pudo guardar el archivo anual OEE Atadores. '.$e->getMessage());
         }
 
         return redirect()
@@ -197,11 +198,11 @@ class ReportesAtadoresController extends Controller
                 ->with('error', 'Debe seleccionar una fecha inicial y final válidas para exportar.');
         }
 
-        $nombreArchivo = '00E_Atadores_'
-            . $lunesInicio->format('d-m-Y')
-            . '_al_'
-            . $lunesFin->addDays(6)->format('d-m-Y')
-            . '.xlsx';
+        $nombreArchivo = 'OEE_Atadores_'
+            .$lunesInicio->format('d-m-Y')
+            .'_al_'
+            .$lunesFin->addDays(6)->format('d-m-Y')
+            .'.xlsx';
 
         return Excel::download(
             new Reporte00EAtadoresRangoExport($lunesInicio, $lunesFin),
@@ -281,8 +282,8 @@ class ReportesAtadoresController extends Controller
             return [null, null, null, null];
         }
 
-        $lunesInicio = $fechaInicio->startOfWeek(Carbon::MONDAY);
-        $lunesFin = $fechaFin->startOfWeek(Carbon::MONDAY);
+        $lunesInicio = $fechaInicio->startOfWeek(CarbonInterface::MONDAY);
+        $lunesFin = $fechaFin->startOfWeek(CarbonInterface::MONDAY);
 
         return [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin];
     }
@@ -352,8 +353,8 @@ class ReportesAtadoresController extends Controller
     private function resolverRangoAnualAtadores(CarbonImmutable $fechaReferencia): array
     {
         $year = $fechaReferencia->year;
-        $inicioAnual = $fechaReferencia->startOfYear()->startOfWeek(Carbon::MONDAY);
-        $finAnual = $fechaReferencia->endOfYear()->startOfWeek(Carbon::MONDAY);
+        $inicioAnual = $fechaReferencia->startOfYear()->startOfWeek(CarbonInterface::MONDAY);
+        $finAnual = $fechaReferencia->endOfYear()->startOfWeek(CarbonInterface::MONDAY);
 
         return [$inicioAnual, $finAnual, $year];
     }
@@ -387,7 +388,7 @@ class ReportesAtadoresController extends Controller
             throw new RuntimeException($message);
         }
 
-        Log::info('Reporte anual 00E Atadores guardado en ruta configurada', [
+        Log::info('Reporte anual OEE Atadores guardado en ruta configurada', [
             'archivo' => $nombreArchivo,
             'ruta' => $rutaArchivo,
             'bytes' => $bytes,

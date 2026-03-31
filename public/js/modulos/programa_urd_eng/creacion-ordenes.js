@@ -199,19 +199,14 @@
 
             const cuenta   = String(telar.cuenta || '').trim();
             const calibre  = !isBlank(telar.calibre) ? parseFloat(telar.calibre) : null;
-            // Para la clave de agrupación: PIE no usa hilo; RIZO sí.
-            const hiloClave = esPie ? '' : (!isBlank(telar.hilo) ? String(telar.hilo).trim() : '');
-            // Para el grupo enviado al backend: siempre preservar hilo (obligatorio para ambos tipos)
+            // Hilo no se usa en la clave de agrupación (ni Rizo ni Pie)
             const hilo = !isBlank(telar.hilo) ? String(telar.hilo).trim() : '';
             const tamano   = !isBlank(telar.tamano) ? String(telar.tamano).trim() : '';
             const urdido   = String(telar.urdido || '').trim();
             const tipoAtado= String(telar.tipo_atado || 'Normal').trim();
             const destino  = String(telar.destino || '').trim();
 
-            const calibreClave = calibre !== null ? String(calibre) : '';
-            const clave = esPie
-                ? `${cuenta}|${calibreClave}|${up}|${urdido}|${tipoAtado}`
-                : `${cuenta}|${hiloClave}|${calibreClave}|${up}|${urdido}|${tipoAtado}`;
+            const clave = `${cuenta}|${up}|${urdido}|${tipoAtado}`;
 
             if (!grupos[clave]) {
                 grupos[clave] = { telares:[], cuenta, calibre, hilo, tamano, tipo:tipoN, urdido, tipoAtado, destino,
