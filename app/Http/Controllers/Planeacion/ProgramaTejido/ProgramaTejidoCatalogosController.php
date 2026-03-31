@@ -9,6 +9,7 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqMatrizHilos;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -425,28 +426,10 @@ class ProgramaTejidoCatalogosController extends Controller
                 'NomColorC5'
             ];
 
-            $qBase = ReqModelosCodificados::where('SalonTejidoId', $salon);
             if ($tam) {
-                $datos = (clone $qBase)
-                    ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])
-                    ->select($selectCols)
-                    ->first();
-
-                if (!$datos) {
-                    $datos = (clone $qBase)
-                        ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tam) . '%'])
-                        ->select($selectCols)
-                        ->first();
-                }
-
-                if (!$datos) {
-                    $datos = (clone $qBase)
-                        ->whereRaw('UPPER(TamanoClave) like ?', ['%' . strtoupper($tam) . '%'])
-                        ->select($selectCols)
-                        ->first();
-                }
+                $datos = TejidoHelpers::obtenerModeloPorTamanoClave($tam, $salon, $selectCols);
             } else {
-                $datos = $qBase->select($selectCols)->first();
+                $datos = ReqModelosCodificados::where('SalonTejidoId', $salon)->select($selectCols)->first();
             }
 
             if (!$datos) {

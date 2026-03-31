@@ -559,6 +559,54 @@ class TejidoHelpers
     }
 
     /**
+     * Búsqueda canónica de modelo codificado por TamanoClave y SalonTejidoId
+     * Busca en 3 niveles: exacto → prefijo → contains
+     * Normaliza espacios múltiples
+     *
+     * @param string $tamanoClave Clave a buscar
+     * @param string|null $salonTejidoId Salón opcional
+     * @param array $selectCols Columnas a seleccionar
+     * @return ReqModelosCodificados|null
+     */
+    public static function obtenerModeloPorTamanoClave(
+        string $tamanoClave,
+        ?string $salonTejidoId = null,
+        array $selectCols = ['*']
+    ): ?ReqModelosCodificados {
+        $tam = trim($tamanoClave);
+        if ($tam === '') return null;
+
+        $tam = preg_replace('/\s+/', ' ', $tam);
+
+        $qBase = ReqModelosCodificados::query();
+
+        if ($salonTejidoId !== null && $salonTejidoId !== '') {
+            $qBase->where('SalonTejidoId', $salonTejidoId);
+        }
+
+        $modelo = (clone $qBase)
+            ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])
+            ->select($selectCols)
+            ->first();
+
+        if ($modelo) return $modelo;
+
+        $modelo = (clone $qBase)
+            ->whereRaw('UPPER(TamanoClave) LIKE ?', [strtoupper($tam) . '%'])
+            ->select($selectCols)
+            ->first();
+
+        if ($modelo) return $modelo;
+
+        $modelo = (clone $qBase)
+            ->whereRaw('UPPER(TamanoClave) LIKE ?', ['%' . strtoupper($tam) . '%'])
+            ->select($selectCols)
+            ->first();
+
+        return $modelo;
+    }
+
+    /**
      * Obtener parámetros del modelo codificado por salón
      * @param ReqProgramaTejido $programa
      * @param callable|null $obtenerModeloCallback Función para obtener el modelo (opcional, para usar obtenerModeloCodificadoPorSalon)
