@@ -294,11 +294,14 @@
                 <td class="px-2 py-3 text-sm text-center">${g.urdido || '-'}</td>
                 <td class="px-2 py-3 text-center"><span class="px-2 py-1 inline-block text-sm font-medium rounded-md ${tipoCls}">${g.tipo || 'Rizo'}</span></td>
                 <td class="px-2 py-3 text-sm text-center">
-                    <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            data-destino-select="true"
-                            data-fila-id="${filaId}">
-                        ${buildDestinoOptionsHtml(destinoInicial)}
-                    </select>
+                    ${requiereDestinoManual
+                        ? `<select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                data-destino-select="true"
+                                data-fila-id="${filaId}">
+                            ${buildDestinoOptionsHtml(destinoInicial)}
+                          </select>`
+                        : `<span class="text-xs font-medium text-gray-700" data-destino-text="true">${destinoInicial || '-'}</span>`
+                    }
                 </td>
                 <td class="px-2 py-3 text-sm text-center">${fmtNumber(g.metros)}</td>
                 <td class="px-2 py-3 text-sm text-center">${fmtNumber(g.kilos)}</td>
@@ -1055,7 +1058,7 @@
             const bomId = grupoData.bomId;
             const filaSeleccionada = document.getElementById(filaSeleccionadaId);
             const destinoSelect = filaSeleccionada?.querySelector('[data-destino-select="true"]');
-            const destinoSeleccionado = normalizeDestinoValue(grupoData.destinoSeleccionado || destinoSelect?.value);
+            const destinoSeleccionado = normalizeDestinoValue(grupoData.destinoSeleccionado || destinoSelect?.value || '');
 
             // Validar que tenga BOM ID
             if (isBlank(bomId)) {
