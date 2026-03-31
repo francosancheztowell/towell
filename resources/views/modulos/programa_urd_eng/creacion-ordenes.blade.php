@@ -275,7 +275,7 @@
     </div>
 </div>
 
-<script src="{{ asset('js/modulos/programa_urd_eng/creacion-ordenes.js') }}"></script>
+<script src="{{ asset('js/modulos/programa_urd_eng/creacion-ordenes.js') }}?v={{ filemtime(public_path('js/modulos/programa_urd_eng/creacion-ordenes.js')) }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // Restricción en tiempo real: No. Julios máximo 15
