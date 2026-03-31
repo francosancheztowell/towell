@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoBalanceoController;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class ProgramaTejidoBalanceoTest extends TestCase
@@ -18,5 +20,12 @@ class ProgramaTejidoBalanceoTest extends TestCase
         $route = \Illuminate\Support\Facades\Route::getRoutes()->getByName('programa-tejido.preview-fechas-balanceo');
         $this->assertNotNull($route);
         $this->assertStringContainsString('preview-fechas-balanceo', $route->uri());
+    }
+
+    public function test_ver_detalles_grupo_balanceo_apunta_a_programa_tejido_balanceo_controller(): void
+    {
+        $route = Route::getRoutes()->getByName('verdetallesgrupobalanceo');
+        $this->assertNotNull($route);
+        $this->assertSame(ProgramaTejidoBalanceoController::class.'@verDetallesGrupoBalanceo', $route->getActionName());
     }
 }

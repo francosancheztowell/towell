@@ -10,8 +10,10 @@ use Illuminate\Support\Facades\Log as LogFacade;
 
 /**
  * @file ProgramaTejidoBalanceoController.php
+ *
  * @description Controlador de balanceo para Programa Tejido. Vista de balanceo por OrdCompartida,
  *              preview de fechas, actualizar pedidos, balanceo automático. Regla: snap al calendario.
+ *
  * @dependencies BalancearTejido, ReqProgramaTejido
  */
 class ProgramaTejidoBalanceoController extends Controller
@@ -37,7 +39,7 @@ class ProgramaTejidoBalanceoController extends Controller
                 'EficienciaSTD',
                 'NoTiras',
                 'Luchaje',
-                'PesoCrudo'
+                'PesoCrudo',
             ])
             ->whereNotNull('OrdCompartida')
             ->whereRaw("LTRIM(RTRIM(CAST(OrdCompartida AS NVARCHAR(50)))) <> ''")
@@ -51,7 +53,7 @@ class ProgramaTejidoBalanceoController extends Controller
         });
 
         return view('modulos.programa-tejido.balancear', [
-            'gruposCompartidos' => $gruposCompartidos
+            'gruposCompartidos' => $gruposCompartidos,
         ]);
     }
 
@@ -60,34 +62,35 @@ class ProgramaTejidoBalanceoController extends Controller
         try {
             $registro = ReqProgramaTejido::find($id);
 
-            if (!$registro) {
+            if (! $registro) {
                 LogFacade::warning('detallesBalanceo: registro no encontrado', [
                     'id' => $id,
                     'table' => ReqProgramaTejido::tableName(),
                 ]);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Registro no encontrado'
+                    'message' => 'Registro no encontrado',
                 ], 404);
             }
 
             $registro = $registro->fresh();
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Registro no encontrado después de refrescar'
+                    'message' => 'Registro no encontrado después de refrescar',
                 ], 404);
             }
 
             return response()->json([
                 'success' => true,
-                'registro' => $registro
+                'registro' => $registro,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+                'message' => 'Error al obtener los detalles: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -105,5 +108,35 @@ class ProgramaTejidoBalanceoController extends Controller
     public function balancearAutomatico(Request $request)
     {
         return BalancearTejido::balancearAutomatico($request);
+    }
+
+    /**
+     * Misma respuesta JSON que registros-ord-compartida; expone la ruta histórica
+     * ver-detalles-grupo-balanceo sin usar una clase no-controlador como acción.
+     */
+    public function verDetallesGrupoBalanceo($ordCompartida)
+    {
+        $normalized = $this->normalizeOrdCompartidaRouteParam($ordCompartida);
+        if ($normalized === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'OrdCompartida inválida',
+            ], 400);
+        }
+
+        return BalancearTejido::getRegistrosPorOrdCompartida($normalized);
+    }
+
+    private function normalizeOrdCompartidaRouteParam($value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+        $trimmed = trim((string) $value);
+        if ($trimmed === '' || ! is_numeric($trimmed)) {
+            return null;
+        }
+
+        return (int) $trimmed;
     }
 }

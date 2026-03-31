@@ -80,7 +80,7 @@
 ### Recalcular fechas
 
 - **DateHelpers::recalcularFechasSecuencia**: lógica principal (snap, calcularFechaFinalDesdeInicio, fórmulas).
-- **BalancearTejido::cascadeFechasTelarDesde**: cascade en telar.
+- **BalancearTejido::actualizarPedidos**: cascada en telar tras aplicar cambios del balanceo (snap + fechas).
 - **DateHelpers::cascadeFechas**: cascade tras actualización.
 - **EliminarTejido::recalcularFechasYFormulas**: tras eliminar, llama DateHelpers.
 

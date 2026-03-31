@@ -3,10 +3,12 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
+use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
@@ -77,13 +79,19 @@ class BalancearTejidoTest extends TestCase
             $table->string('EntregaPT')->nullable();
             $table->string('EntregaCte')->nullable();
             $table->float('PTvsCte')->default(0);
+            $table->integer('Posicion')->default(0);
+            $table->string('OrdPrincipal')->nullable();
+            $table->string('UpdatedAt')->nullable();
+            $table->string('NoProduccion')->nullable();
         });
     }
 
     protected function tearDown(): void
     {
+        Schema::connection('sqlsrv')->dropIfExists('ReqCalendarioLine');
         Schema::connection('sqlsrv')->dropIfExists('ReqProgramaTejido');
         Schema::connection('sqlsrv')->dropIfExists('ReqModelosCodificados');
+        config()->set('planeacion.req_calendario_line_table', null);
         parent::tearDown();
     }
 
@@ -91,15 +99,9 @@ class BalancearTejidoTest extends TestCase
     // Helpers
     // =========================================================
 
-    /**
-     * Clear the private static calendar cache on BalancearTejido between tests.
-     */
     private function resetCalendarioCache(): void
     {
-        $reflection = new \ReflectionClass(BalancearTejido::class);
-        $prop = $reflection->getProperty('calLinesCache');
-        $prop->setAccessible(true);
-        $prop->setValue(null, []);
+        BalancearTejido::clearCalendarioLinesCache();
     }
 
     private function makeReg(array $attrs): ReqProgramaTejido
@@ -107,41 +109,42 @@ class BalancearTejidoTest extends TestCase
         return ReqProgramaTejido::create(array_merge([
             'OrdCompartida' => 1,
             'SalonTejidoId' => 'A',
-            'NoTelarId'     => '01',
-            'TotalPedido'   => 5000,
-            'SaldoPedido'   => 5000,
-            'Produccion'    => 0,
-            'VelocidadSTD'  => 100,
+            'NoTelarId' => '01',
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 5000,
+            'Produccion' => 0,
+            'VelocidadSTD' => 100,
             'EficienciaSTD' => 0.85,
-            'EnProceso'     => 0,
-            'FechaInicio'   => now()->subDays(5)->format('Y-m-d H:i:s'),
-            'CalendarioId'  => null,
-            'Ultimo'        => '0',
-            'NoTiras'       => 4,
-            'Luchaje'       => 200,
-            'TamanoClave'   => null,
+            'EnProceso' => 0,
+            'FechaInicio' => now()->subDays(5)->format('Y-m-d H:i:s'),
+            'CalendarioId' => null,
+            'Ultimo' => '0',
+            'NoTiras' => 4,
+            'Luchaje' => 200,
+            'TamanoClave' => null,
         ], $attrs));
     }
 
     private function makeModelo(array $attrs = []): ReqModelosCodificados
     {
         return ReqModelosCodificados::create(array_merge([
-            'TamanoClave'  => 'TEST-TOA',
-            'SalonTejidoId'=> 'A',
-            'NoTiras'      => 4,
+            'TamanoClave' => 'TEST-TOA',
+            'SalonTejidoId' => 'A',
+            'NoTiras' => 4,
             'Repeticiones' => 16,
-            'Luchaje'      => 200,
-            'Total'        => 600,
+            'Luchaje' => 200,
+            'Total' => 600,
         ], $attrs));
     }
 
     private function callBalanceoAuto(int $ordCompartida, string $fechaFinObjetivo): array
     {
         $request = \Illuminate\Http\Request::create('/test', 'POST', [
-            'ord_compartida'     => $ordCompartida,
+            'ord_compartida' => $ordCompartida,
             'fecha_fin_objetivo' => $fechaFinObjetivo,
         ]);
         $response = BalancearTejido::balancearAutomatico($request);
+
         return json_decode($response->getContent(), true);
     }
 
@@ -178,10 +181,10 @@ class BalancearTejidoTest extends TestCase
         $this->assertCount(4, $result['cambios'], 'Deben retornarse 4 cambios');
 
         $idsEnCambios = array_column($result['cambios'], 'id');
-        $this->assertContains((int)$reg1->Id, $idsEnCambios, 'El ID del registro 1 debe estar en cambios');
-        $this->assertContains((int)$reg2->Id, $idsEnCambios, 'El ID del registro 2 debe estar en cambios');
-        $this->assertContains((int)$reg3->Id, $idsEnCambios, 'El ID del registro 3 debe estar en cambios');
-        $this->assertContains((int)$reg4->Id, $idsEnCambios, 'El ID del registro 4 debe estar en cambios');
+        $this->assertContains((int) $reg1->Id, $idsEnCambios, 'El ID del registro 1 debe estar en cambios');
+        $this->assertContains((int) $reg2->Id, $idsEnCambios, 'El ID del registro 2 debe estar en cambios');
+        $this->assertContains((int) $reg3->Id, $idsEnCambios, 'El ID del registro 3 debe estar en cambios');
+        $this->assertContains((int) $reg4->Id, $idsEnCambios, 'El ID del registro 4 debe estar en cambios');
     }
 
     /**
@@ -199,21 +202,21 @@ class BalancearTejidoTest extends TestCase
 
         $reg1 = $this->makeReg([
             'OrdCompartida' => 20,
-            'NoTelarId'     => '01',
-            'FechaInicio'   => $fechaInicio,
-            'TotalPedido'   => 5000,
-            'SaldoPedido'   => 5000,
-            'Produccion'    => 0,
-            'TamanoClave'   => 'TEST-TOA',
+            'NoTelarId' => '01',
+            'FechaInicio' => $fechaInicio,
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 5000,
+            'Produccion' => 0,
+            'TamanoClave' => 'TEST-TOA',
         ]);
         $reg2 = $this->makeReg([
             'OrdCompartida' => 20,
-            'NoTelarId'     => '02',
-            'FechaInicio'   => $fechaInicio,
-            'TotalPedido'   => 5000,
-            'SaldoPedido'   => 5000,
-            'Produccion'    => 0,
-            'TamanoClave'   => 'TEST-TOA',
+            'NoTelarId' => '02',
+            'FechaInicio' => $fechaInicio,
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 5000,
+            'Produccion' => 0,
+            'TamanoClave' => 'TEST-TOA',
         ]);
 
         // Short 3-day horizon forces reg2 to be recalculated below 5000
@@ -228,17 +231,18 @@ class BalancearTejidoTest extends TestCase
         }
 
         // El PRIMER registro (reg1, NoTelarId '01', index 0) está protegido — no debe cambiar
-        $this->assertArrayHasKey((int)$reg1->Id, $cambiosPorId, 'El primer registro debe estar en cambios');
+        $this->assertArrayHasKey((int) $reg1->Id, $cambiosPorId, 'El primer registro debe estar en cambios');
         $this->assertEquals(
             5000,
-            (float)$cambiosPorId[(int)$reg1->Id]['total_pedido'],
+            (float) $cambiosPorId[(int) $reg1->Id]['total_pedido'],
             'El primer registro en caso de 2 no debe cambiar (protegido)'
         );
 
-        // El ÚLTIMO registro (reg2, NoTelarId '02', index 1) absorbe el ajuste — debe diferir de 5000
-        $this->assertArrayHasKey((int)$reg2->Id, $cambiosPorId, 'El último registro debe estar en cambios');
-        $this->assertGreaterThan(0, (float)$cambiosPorId[(int)$reg2->Id]['total_pedido']);
-        $this->assertNotEquals(5000, (float)$cambiosPorId[(int)$reg2->Id]['total_pedido'], 'El último registro absorbe el ajuste y debe diferir de 5000');
+        // El primero queda fijo en 5000; el cierre de total se aplica solo al último telar (Posicion/NoTelarId).
+        $this->assertArrayHasKey((int) $reg2->Id, $cambiosPorId, 'El último registro debe estar en cambios');
+        $this->assertGreaterThan(0, (float) $cambiosPorId[(int) $reg2->Id]['total_pedido']);
+        $sumPedidos = (float) $cambiosPorId[(int) $reg1->Id]['total_pedido'] + (float) $cambiosPorId[(int) $reg2->Id]['total_pedido'];
+        $this->assertEqualsWithDelta(10000.0, $sumPedidos, 0.01, 'El total del grupo debe conservarse');
     }
 
     /**
@@ -248,32 +252,32 @@ class BalancearTejidoTest extends TestCase
     {
         $this->makeReg([
             'OrdCompartida' => 30,
-            'NoTelarId'     => '01',
-            'FechaInicio'   => now()->subDays(10)->format('Y-m-d H:i:s'),
-            'TotalPedido'   => 5000,
-            'SaldoPedido'   => 5000,
-            'Produccion'    => 0,
-            'EnProceso'     => 0,
+            'NoTelarId' => '01',
+            'FechaInicio' => now()->subDays(10)->format('Y-m-d H:i:s'),
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 5000,
+            'Produccion' => 0,
+            'EnProceso' => 0,
         ]);
 
         $this->makeReg([
             'OrdCompartida' => 30,
-            'NoTelarId'     => '02',
-            'FechaInicio'   => now()->subDays(10)->format('Y-m-d H:i:s'),
-            'TotalPedido'   => 5000,
-            'SaldoPedido'   => 5000,
-            'Produccion'    => 0,
-            'EnProceso'     => 0,
+            'NoTelarId' => '02',
+            'FechaInicio' => now()->subDays(10)->format('Y-m-d H:i:s'),
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 5000,
+            'Produccion' => 0,
+            'EnProceso' => 0,
         ]);
 
         $regEnProceso = $this->makeReg([
             'OrdCompartida' => 30,
-            'NoTelarId'     => '03',
-            'FechaInicio'   => now()->subDays(60)->format('Y-m-d H:i:s'),
-            'TotalPedido'   => 5000,
-            'SaldoPedido'   => 4000,
-            'Produccion'    => 1000,
-            'EnProceso'     => 1,
+            'NoTelarId' => '03',
+            'FechaInicio' => now()->subDays(60)->format('Y-m-d H:i:s'),
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 4000,
+            'Produccion' => 1000,
+            'EnProceso' => 1,
         ]);
 
         $result = $this->callBalanceoAuto(30, now()->addDays(20)->format('Y-m-d'));
@@ -282,12 +286,12 @@ class BalancearTejidoTest extends TestCase
         $this->assertCount(3, $result['cambios']);
 
         $idsEnCambios = array_column($result['cambios'], 'id');
-        $this->assertContains((int)$regEnProceso->Id, $idsEnCambios, 'El registro EnProceso debe estar en cambios');
+        $this->assertContains((int) $regEnProceso->Id, $idsEnCambios, 'El registro EnProceso debe estar en cambios');
 
         // Find the EnProceso entry
         $cambioEnProceso = null;
         foreach ($result['cambios'] as $c) {
-            if ((int)$c['id'] === (int)$regEnProceso->Id) {
+            if ((int) $c['id'] === (int) $regEnProceso->Id) {
                 $cambioEnProceso = $c;
                 break;
             }
@@ -296,7 +300,7 @@ class BalancearTejidoTest extends TestCase
         $this->assertNotNull($cambioEnProceso, 'El cambio del registro EnProceso debe encontrarse');
         $this->assertGreaterThanOrEqual(
             1000,
-            (float)$cambioEnProceso['total_pedido'],
+            (float) $cambioEnProceso['total_pedido'],
             'El total_pedido del registro EnProceso nunca debe ser menor a la Produccion ya realizada'
         );
     }
@@ -308,16 +312,16 @@ class BalancearTejidoTest extends TestCase
     {
         $ids = [];
         for ($i = 1; $i <= 8; $i++) {
-            $telarId = str_pad((string)$i, 2, '0', STR_PAD_LEFT);
+            $telarId = str_pad((string) $i, 2, '0', STR_PAD_LEFT);
             $reg = $this->makeReg([
                 'OrdCompartida' => 40,
-                'NoTelarId'     => $telarId,
-                'FechaInicio'   => now()->subDays(5)->format('Y-m-d H:i:s'),
-                'TotalPedido'   => 5000,
-                'SaldoPedido'   => 5000,
-                'Produccion'    => 0,
+                'NoTelarId' => $telarId,
+                'FechaInicio' => now()->subDays(5)->format('Y-m-d H:i:s'),
+                'TotalPedido' => 5000,
+                'SaldoPedido' => 5000,
+                'Produccion' => 0,
             ]);
-            $ids[] = (int)$reg->Id;
+            $ids[] = (int) $reg->Id;
         }
 
         $result = $this->callBalanceoAuto(40, now()->addDays(90)->format('Y-m-d'));
@@ -331,7 +335,7 @@ class BalancearTejidoTest extends TestCase
         }
 
         foreach ($result['cambios'] as $cambio) {
-            $this->assertGreaterThanOrEqual(1, (float)$cambio['total_pedido'], 'Cada total_pedido debe ser al menos 1');
+            $this->assertGreaterThanOrEqual(1, (float) $cambio['total_pedido'], 'Cada total_pedido debe ser al menos 1');
         }
     }
 
@@ -342,6 +346,7 @@ class BalancearTejidoTest extends TestCase
             'NoTelarId' => '02',
             'FechaInicio' => now()->subDays(5)->format('Y-m-d H:i:s'),
             'OrdCompartidaLider' => 1,
+            'ItemId' => 'LID-AX-1',
         ]);
 
         $noLider = $this->makeReg([
@@ -377,4 +382,195 @@ class BalancearTejidoTest extends TestCase
         $this->assertEmpty($result['cambios'], 'cambios debe ser array vacío cuando no hay registros');
     }
 
+    public function test_preview_fechas_modo_saldo_respeta_total_y_saldo(): void
+    {
+        $this->makeModelo();
+        $reg = $this->makeReg([
+            'OrdCompartida' => 60,
+            'TamanoClave' => 'TEST-TOA',
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 4000,
+            'Produccion' => 1000,
+        ]);
+
+        $request = Request::create('/test', 'POST', [
+            'ord_compartida' => 60,
+            'cambios' => [[
+                'id' => (int) $reg->Id,
+                'total_pedido' => 500,
+                'modo' => 'saldo',
+            ]],
+        ]);
+
+        $response = BalancearTejido::previewFechas($request);
+        $this->assertSame(200, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertCount(1, $data['data']);
+        $row = $data['data'][0];
+        $this->assertSame(1500.0, (float) $row['total']);
+        $this->assertSame(500.0, (float) $row['saldo']);
+    }
+
+    public function test_preview_fechas_rechaza_registro_de_otro_ord_compartida(): void
+    {
+        $this->makeModelo();
+        $reg = $this->makeReg([
+            'OrdCompartida' => 61,
+            'TamanoClave' => 'TEST-TOA',
+        ]);
+
+        $request = Request::create('/test', 'POST', [
+            'ord_compartida' => 999,
+            'cambios' => [[
+                'id' => (int) $reg->Id,
+                'total_pedido' => 1000,
+                'modo' => 'total',
+            ]],
+        ]);
+
+        $response = BalancearTejido::previewFechas($request);
+        $this->assertSame(422, $response->getStatusCode());
+        $data = json_decode($response->getContent(), true);
+        $this->assertFalse($data['success']);
+    }
+
+    public function test_preview_fechas_rechaza_id_inexistente(): void
+    {
+        $request = Request::create('/test', 'POST', [
+            'ord_compartida' => 1,
+            'cambios' => [[
+                'id' => 999999,
+                'total_pedido' => 1000,
+                'modo' => 'total',
+            ]],
+        ]);
+
+        $response = BalancearTejido::previewFechas($request);
+        $this->assertSame(422, $response->getStatusCode());
+    }
+
+    public function test_actualizar_pedidos_rechaza_registro_de_otro_ord_compartida(): void
+    {
+        $this->makeModelo();
+        $regOtro = $this->makeReg([
+            'OrdCompartida' => 71,
+            'TamanoClave' => 'TEST-TOA',
+            'NoTelarId' => '99',
+        ]);
+
+        $request = Request::create('/test', 'POST', [
+            'ord_compartida' => 70,
+            'cambios' => [[
+                'id' => (int) $regOtro->Id,
+                'total_pedido' => 2000,
+                'modo' => 'total',
+            ]],
+        ]);
+
+        $response = BalancearTejido::actualizarPedidos($request);
+        $this->assertSame(422, $response->getStatusCode());
+    }
+
+    public function test_balanceo_automatico_con_lineas_calendario_en_sqlite(): void
+    {
+        config()->set('planeacion.req_calendario_line_table', 'ReqCalendarioLine');
+
+        Schema::connection('sqlsrv')->create('ReqCalendarioLine', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('CalendarioId')->nullable();
+            $table->string('FechaInicio')->nullable();
+            $table->string('FechaFin')->nullable();
+        });
+
+        $this->makeModelo();
+        $calId = 'CAL-UT';
+        $base = Carbon::now()->subDay()->startOfDay();
+        for ($d = 0; $d < 120; $d++) {
+            $day = $base->copy()->addDays($d);
+            ReqCalendarioLine::query()->insert([
+                'CalendarioId' => $calId,
+                'FechaInicio' => $day->format('Y-m-d 06:00:00'),
+                'FechaFin' => $day->copy()->setTime(22, 0, 0)->format('Y-m-d H:i:s'),
+            ]);
+        }
+
+        $this->makeReg([
+            'OrdCompartida' => 80,
+            'NoTelarId' => '01',
+            'TamanoClave' => 'TEST-TOA',
+            'CalendarioId' => $calId,
+            'FechaInicio' => $base->copy()->format('Y-m-d 07:00:00'),
+        ]);
+
+        $result = $this->callBalanceoAuto(80, now()->addDays(25)->format('Y-m-d'));
+        $this->assertTrue($result['success'], json_encode($result));
+        $this->assertArrayHasKey('cambios', $result);
+        $this->assertCount(1, $result['cambios']);
+    }
+
+    public function test_clear_calendario_lines_cache_es_idempotente(): void
+    {
+        BalancearTejido::clearCalendarioLinesCache();
+        BalancearTejido::clearCalendarioLinesCache();
+        $this->assertTrue(true);
+    }
+
+    public function test_ajustar_total_exceso_solo_reduce_el_ultimo_registro(): void
+    {
+        $registros = [
+            (object) ['Id' => 101, 'Produccion' => 0.0, 'TotalPedido' => 4000],
+            (object) ['Id' => 102, 'Produccion' => 0.0, 'TotalPedido' => 4000],
+            (object) ['Id' => 103, 'Produccion' => 3800.0, 'TotalPedido' => 4000],
+        ];
+        $nuevosPedidos = [
+            101 => ['id' => 101, 'total_pedido' => 4000, 'modo' => 'total'],
+            102 => ['id' => 102, 'total_pedido' => 4000, 'modo' => 'total'],
+            103 => ['id' => 103, 'total_pedido' => 4000, 'modo' => 'total'],
+        ];
+
+        $meta = $this->invokeAjustarPedidosAlTotalObjetivo($nuevosPedidos, $registros, 10000.0);
+
+        $this->assertSame(4000, $meta['nuevos_pedidos'][101]['total_pedido']);
+        $this->assertSame(4000, $meta['nuevos_pedidos'][102]['total_pedido']);
+        $this->assertSame(3800, $meta['nuevos_pedidos'][103]['total_pedido']);
+        $this->assertNotNull($meta['advertencia_total']);
+        $this->assertNotNull($meta['total_diferencia_vs_objetivo']);
+    }
+
+    public function test_ajustar_total_exceso_ultimo_absorbe_todo_sin_advertencia(): void
+    {
+        $registros = [
+            (object) ['Id' => 201, 'Produccion' => 0.0, 'TotalPedido' => 4000],
+            (object) ['Id' => 202, 'Produccion' => 0.0, 'TotalPedido' => 4000],
+            (object) ['Id' => 203, 'Produccion' => 0.0, 'TotalPedido' => 4000],
+        ];
+        $nuevosPedidos = [
+            201 => ['id' => 201, 'total_pedido' => 4000, 'modo' => 'total'],
+            202 => ['id' => 202, 'total_pedido' => 4000, 'modo' => 'total'],
+            203 => ['id' => 203, 'total_pedido' => 4000, 'modo' => 'total'],
+        ];
+
+        $meta = $this->invokeAjustarPedidosAlTotalObjetivo($nuevosPedidos, $registros, 10000.0);
+
+        $this->assertSame(4000, $meta['nuevos_pedidos'][201]['total_pedido']);
+        $this->assertSame(4000, $meta['nuevos_pedidos'][202]['total_pedido']);
+        $this->assertSame(2000, $meta['nuevos_pedidos'][203]['total_pedido']);
+        $this->assertNull($meta['advertencia_total']);
+        $this->assertNull($meta['total_diferencia_vs_objetivo']);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $nuevosPedidosById
+     * @param  array<int, object>  $registrosArray
+     * @return array{nuevos_pedidos: array, advertencia_total: ?string, total_diferencia_vs_objetivo: ?float}
+     */
+    private function invokeAjustarPedidosAlTotalObjetivo(array $nuevosPedidosById, array $registrosArray, float $totalObjetivo): array
+    {
+        $method = new \ReflectionMethod(BalancearTejido::class, 'ajustarPedidosAlTotalObjetivo');
+        $method->setAccessible(true);
+
+        /** @var array{nuevos_pedidos: array, advertencia_total: ?string, total_diferencia_vs_objetivo: ?float} */
+        return $method->invoke(null, $nuevosPedidosById, $registrosArray, $totalObjetivo);
+    }
 }

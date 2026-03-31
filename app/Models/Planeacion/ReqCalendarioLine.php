@@ -10,7 +10,19 @@ class ReqCalendarioLine extends Model
     use HasFactory;
 
     protected $table = 'dbo.ReqCalendarioLine';
+
+    public function getTable()
+    {
+        $override = config('planeacion.req_calendario_line_table');
+        if (is_string($override) && $override !== '') {
+            return $override;
+        }
+
+        return $this->table;
+    }
+
     protected $primaryKey = 'Id';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -18,7 +30,7 @@ class ReqCalendarioLine extends Model
         'FechaInicio',
         'FechaFin',
         'HorasTurno',
-        'Turno'
+        'Turno',
     ];
 
     protected $casts = [
@@ -26,7 +38,7 @@ class ReqCalendarioLine extends Model
         'HorasTurno' => 'float',
         'Turno' => 'integer',
         'FechaInicio' => 'datetime',
-        'FechaFin' => 'datetime'
+        'FechaFin' => 'datetime',
     ];
 
     public function getRouteKeyName()
@@ -43,7 +55,7 @@ class ReqCalendarioLine extends Model
     public static function obtenerPorCalendario($calendarioId)
     {
         return self::where('CalendarioId', $calendarioId)
-                  ->orderBy('FechaInicio')
-                  ->get();
+            ->orderBy('FechaInicio')
+            ->get();
     }
 }

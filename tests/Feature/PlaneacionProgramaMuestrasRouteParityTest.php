@@ -15,6 +15,7 @@ class PlaneacionProgramaMuestrasRouteParityTest extends TestCase
             ['programa-tejido.duplicar-telar', 'muestras.duplicar-telar'],
             ['programa-tejido.dividir-telar', 'muestras.dividir-telar'],
             ['programa-tejido.preview-fechas-balanceo', 'muestras.preview-fechas-balanceo'],
+            ['verdetallesgrupobalanceo', 'muestras.verdetallesgrupobalanceo'],
             ['programa-tejido.cambiar-telar', 'muestras.cambiar-telar'],
             ['programa-tejido.update', 'muestras.update'],
             ['programa-tejido.destroy', 'muestras.destroy'],

@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
+use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatAplicaciones\AplicacionesController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias\CatalagoEficienciaController;
@@ -9,8 +9,10 @@ use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatPesosRollos\PesosRollo
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatTelares\CatalagoTelarController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatVelocidades\CatalagoVelocidadController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\ModelosCodificados\CodificacionController;
+use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ColumnasProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\DescargarProgramaController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoBalanceoController;
@@ -21,16 +23,12 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoOperacionesCont
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReimprimirOrdenesController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\RepasoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReqProgramaTejidoLineController;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
-use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 use App\Http\Controllers\Planeacion\Utilerias\FinalizarOrdenesController;
 use App\Http\Controllers\Planeacion\Utilerias\MoverOrdenesController;
-
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/planeacion', fn() => app(UsuarioController::class)->showSubModulos('planeacion'))
+Route::get('/planeacion', fn () => app(UsuarioController::class)->showSubModulos('planeacion'))
     ->name('planeacion.index');
 
 Route::redirect('/planeacion/programatejido', '/planeacion/programa-tejido', 301);
@@ -194,7 +192,7 @@ Route::get('/planeacion/programa-tejido/{id}/detalles-balanceo', [ProgramaTejido
 Route::post('/planeacion/programa-tejido/preview-fechas-balanceo', [ProgramaTejidoBalanceoController::class, 'previewFechasBalanceo'])->name('programa-tejido.preview-fechas-balanceo');
 Route::post('/planeacion/programa-tejido/actualizar-pedidos-balanceo', [ProgramaTejidoBalanceoController::class, 'actualizarPedidosBalanceo'])->name('programa-tejido.actualizar-pedidos-balanceo');
 Route::post('/planeacion/programa-tejido/balancear-automatico', [ProgramaTejidoBalanceoController::class, 'balancearAutomatico'])->name('programa-tejido.balancear-automatico');
-Route::get('/planeacion/programa-tejido/ver-detalles-grupo-balanceo/{ordCompartida}', [BalancearTejido::class, 'verDetallesGrupoBalanceo'])->name('verdetallesgrupobalanceo');
+Route::get('/planeacion/programa-tejido/ver-detalles-grupo-balanceo/{ordCompartida}', [ProgramaTejidoBalanceoController::class, 'verDetallesGrupoBalanceo'])->name('verdetallesgrupobalanceo');
 Route::put('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'update'])->name('programa-tejido.update');
 Route::delete('/planeacion/programa-tejido/{id}', [ProgramaTejidoController::class, 'destroy'])->name('programa-tejido.destroy');
 Route::delete('/planeacion/programa-tejido/{id}/en-proceso', [ProgramaTejidoController::class, 'destroyEnProceso'])->name('programa-tejido.destroy-en-proceso');
@@ -259,7 +257,7 @@ Route::get('/planeacion/muestras/{id}/detalles-balanceo', [ProgramaTejidoBalance
 Route::post('/planeacion/muestras/preview-fechas-balanceo', [ProgramaTejidoBalanceoController::class, 'previewFechasBalanceo'])->name('muestras.preview-fechas-balanceo');
 Route::post('/planeacion/muestras/actualizar-pedidos-balanceo', [ProgramaTejidoBalanceoController::class, 'actualizarPedidosBalanceo'])->name('muestras.actualizar-pedidos-balanceo');
 Route::post('/planeacion/muestras/balancear-automatico', [ProgramaTejidoBalanceoController::class, 'balancearAutomatico'])->name('muestras.balancear-automatico');
-Route::get('/planeacion/muestras/ver-detalles-grupo-balanceo/{ordCompartida}', [BalancearTejido::class, 'verDetallesGrupoBalanceo'])->name('muestras.verdetallesgrupobalanceo');
+Route::get('/planeacion/muestras/ver-detalles-grupo-balanceo/{ordCompartida}', [ProgramaTejidoBalanceoController::class, 'verDetallesGrupoBalanceo'])->name('muestras.verdetallesgrupobalanceo');
 Route::put('/planeacion/muestras/{id}', [ProgramaTejidoController::class, 'update'])->name('muestras.update');
 Route::delete('/planeacion/muestras/{id}', [ProgramaTejidoController::class, 'destroy'])->name('muestras.destroy');
 Route::delete('/planeacion/muestras/{id}/en-proceso', [ProgramaTejidoController::class, 'destroyEnProceso'])->name('muestras.destroy-en-proceso');

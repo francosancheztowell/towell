@@ -25,6 +25,13 @@ class ProgramaTejidoRouteContractTest extends TestCase
         );
 
         $this->assertRouteContract(
+            routeName: 'verdetallesgrupobalanceo',
+            expectedUri: 'planeacion/programa-tejido/ver-detalles-grupo-balanceo/{ordCompartida}',
+            expectedMethods: ['GET', 'HEAD'],
+            expectedMiddleware: ['web', 'auth'],
+        );
+
+        $this->assertRouteContract(
             routeName: 'programa-tejido.update',
             expectedUri: 'planeacion/programa-tejido/{id}',
             expectedMethods: ['PUT'],

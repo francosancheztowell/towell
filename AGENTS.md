@@ -38,3 +38,14 @@ Towell is a Laravel 12 application.
 - Never commit `.env` or credentials.
 - This project targets SQL Server by default (`DB_CONNECTION=sqlsrv`); validate DB settings before migrations.
 - Clear caches after config/routing updates: `php artisan optimize:clear`.
+
+## Learned User Preferences
+
+- En modales que ya tienen cierre con X, no duplicar botón "Cancelar" si el usuario prefiere cerrar solo con la X (patrón usado en flujos de programa de tejido).
+- En tablas modales de programa de tejido: encabezados breves cuando se pida (por ejemplo "Saldos"), evitar badges recortados (`whitespace-nowrap` / ancho mínimo), y resaltar saldos negativos o modelo REPASO1 con badge rojo cuando aplique.
+
+## Learned Workspace Facts
+
+- En balanceo automático (`BalancearTejido`), el cierre del total frente al objetivo (sobra o falta) debe concentrarse en el **último** registro del grupo en orden `Posicion` / `NoTelarId`, sin repartir recortes en los demás telares del grupo.
+- En clases bajo `App\...`, usar `use Carbon\Carbon` (o `CarbonInterface` para constantes como `MONDAY`) para evitar que `Carbon::...` se resuelva al namespace local y para satisfacer analizadores estáticos.
+- Métodos PHP muy largos con muchas ramas (p. ej. `balancearAutomatico`) pueden disparar avisos del IDE del tipo "too many types"; extraer lógica a métodos privados y declarar retorno explícito (`JsonResponse`) suele aliviarlo.

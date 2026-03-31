@@ -427,10 +427,10 @@
           html += `<div class="gantt-cell gantt-label">${row.label}</div>`;
           dates.forEach(d => {
             const key = getDateKeyLocal(d);
-            const qty = row.map[key] || 0;
-            const hasQty = qty && qty !== 0;
+            const qty = Math.round(row.map[key] || 0);
+            const hasQty = qty > 0;
             const cls = hasQty ? (idx % 2 === 0 ? 'gantt-bar' : 'gantt-bar-alt') : '';
-            const displayQty = hasQty ? Math.round(qty).toLocaleString('es-MX') : '';
+            const displayQty = hasQty ? qty.toLocaleString('es-MX') : '';
             html += `<div class="gantt-cell ${cls}">${displayQty}</div>`;
           });
         });
@@ -650,7 +650,7 @@
         let totalSaldo = 0;
 
         inputs.forEach(input => {
-          if (input.value && input.value.includes('.')) input.value = Math.round(Number(input.value) || 0);
+          if (input.value && input.value.includes('.')) { const r = Math.round(Number(input.value) || 0); input.value = r || ''; }
 
           const produccion = Number(input.dataset.produccion || 0) || 0;
           let pedido = Math.round(Number(input.value) || 0);
@@ -658,7 +658,7 @@
           // Validar que el pedido nunca sea menor que la producción
           if (produccion > 0 && pedido < produccion) {
             pedido = produccion;
-            input.value = pedido;
+            input.value = pedido || '';
           }
 
           const row = input.closest('tr');
@@ -689,7 +689,8 @@
               const produccion = Number(target.dataset.produccion || 0) || 0;
 
               adjustingPedidos = true;
-              target.value = Math.round(Math.max(produccion, valActualTarget + diff));
+              const adjusted = Math.round(Math.max(produccion, valActualTarget + diff));
+              target.value = adjusted || '';
               adjustingPedidos = false;
 
               return window.calcularTotalesYFechas(target, ordCompartida);
@@ -732,7 +733,7 @@
           const input = inputs[0];
           const produccion = Number(input.dataset.produccion || 0) || 0;
           const nuevoValor = Math.round(Math.max(produccion, (Number(input.value) || 0) + diferencia));
-          input.value = nuevoValor;
+          input.value = nuevoValor || '';
           window.calcularTotalesYFechas(input, ordCompartida);
         } else {
           let diferenciaRestante = diferencia;
@@ -745,11 +746,11 @@
 
             if (index === inputs.length - 1) {
               const nuevoValor = Math.round(Math.max(produccion, valorActual + diferenciaRestante));
-              input.value = nuevoValor;
+              input.value = nuevoValor || '';
             } else {
               const nuevoValor = Math.round(Math.max(produccion, valorActual + delta));
-              input.value = nuevoValor;
-              diferenciaRestante -= delta;
+              input.value = nuevoValor || '';
+              diferenciaRestante -= (nuevoValor - valorActual); // usar el cambio real aplicado, no delta teórico
             }
           });
 
@@ -809,7 +810,14 @@
 
           const data = await response.json();
 
-          if (!data.success) return;
+          if (!data.success) {
+            toastr.error(data.message || 'No se pudo realizar el balanceo.');
+            return;
+          }
+
+          if (data.advertencia_total) {
+            toastr.warning(data.advertencia_total);
+          }
 
           if (data.cambios && Array.isArray(data.cambios)) {
             // Bloquear recálculos intermedios para que cada input no reajuste al último
@@ -820,7 +828,7 @@
               if (input) {
                 const produccion = Number(input.dataset.produccion || 0) || 0;
                 const nuevoValor = Math.round(Math.max(produccion, cambio.total_pedido));
-                input.value = nuevoValor;
+                input.value = nuevoValor || '';
               }
             });
 
@@ -831,7 +839,13 @@
             adjustingPedidos = false;
 
             window.calcularTotalesYFechas(null, ordCompartida);
-            setTimeout(() => { previewFechasExactas(ordCompartida); }, 100);
+            setTimeout(() => {
+              previewFechasExactas(ordCompartida);
+              setTimeout(() => {
+                const ganttContainer = document.getElementById('gantt-ord-container');
+                if (ganttContainer) ganttContainer.scrollLeft = ganttContainer.scrollWidth;
+              }, 350);
+            }, 100);
           }
         } catch (error) {
           console.error('Error al balancear:', error);
@@ -1096,7 +1110,7 @@
                   data-duracion-original="${duracionOriginalMs}"
                   data-std-dia="${stdDia}"
                   data-produccion="${produccion}"
-                  value="${pedidoActual}"
+                  value="${pedidoActual || ''}"
                   min="${minPedido}"
                   step="1"
                   oninput="calcularTotalesYFechas(this, ${ordCompartida})"
