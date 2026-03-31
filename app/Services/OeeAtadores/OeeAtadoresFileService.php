@@ -162,9 +162,11 @@ class OeeAtadoresFileService
 
     private const SEMANA_USTER_TEMPLATE_END_COLUMN = 19;
 
+    private const SEMANA_SEARCH_MAX_ROW = 250;
+
     private static ?array $columnLabels = null;
 
-    public function __construct(private readonly string $filePath) {}
+    public function __construct(private string $filePath) {}
 
     public function verificarSemanasConDatos(CarbonImmutable $weekStart, CarbonImmutable $weekEnd): array
     {
@@ -419,6 +421,14 @@ class OeeAtadoresFileService
     {
         $reader = IOFactory::createReaderForFile($this->filePath);
         $reader->setReadDataOnly($readDataOnly);
+
+        if ($readDataOnly && method_exists($reader, 'setReadEmptyCells')) {
+            $reader->setReadEmptyCells(false);
+        }
+
+        if (method_exists($reader, 'setIncludeCharts')) {
+            $reader->setIncludeCharts(false);
+        }
 
         if ($sheetNames !== [] && method_exists($reader, 'setLoadSheetsOnly')) {
             $reader->setLoadSheetsOnly($sheetNames);
@@ -1064,22 +1074,63 @@ class OeeAtadoresFileService
                 }
 
                 $existingSheet = $existingSheets[$weekNum] ?? null;
-                $preservedState = $this->captureSemanaPreservedState($existingSheet);
-                $sheet = $this->replaceSemanaSheetFromTemplate(
-                    $spreadsheet,
-                    $templateSource,
-                    sprintf('SEMANA %02d', $weekNum),
-                    $existingSheet
-                );
 
+                $subStageStartedAt = microtime(true);
+                $preservedState = $this->captureSemanaPreservedState($existingSheet);
+                $existingCapacity = $existingSheet instanceof Worksheet
+                    ? $this->describeSemanaSheet($existingSheet)['capacity']
+                    : null;
+                $this->logExportStage('semana_capture_state', $subStageStartedAt, $logContext + [
+                    'week' => $weekNum,
+                    'existing_sheet' => $existingSheet?->getTitle(),
+                    'existing_data_rows' => $existingSheet?->getHighestDataRow(),
+                    'existing_capacity' => $existingCapacity,
+                ]);
+
+                $subStageStartedAt = microtime(true);
                 $atadorList = $this->extractAtadorListFromDetail(
                     $detalle,
                     $section['top'] + 3,
                     $section['top'],
                     $section['footer']
                 );
+                $desiredCapacity = max(self::MIN_VISIBLE_ATADORES, count($atadorList));
+                $this->logExportStage('semana_extract_atadores', $subStageStartedAt, $logContext + [
+                    'week' => $weekNum,
+                    'atadores' => count($atadorList),
+                    'desired_capacity' => $desiredCapacity,
+                ]);
 
-                $this->writeSemanaContent($sheet, $templateSource, $weekNum, $section['top'], $atadorList, $preservedState);
+                $subStageStartedAt = microtime(true);
+                $reuseExistingLayout = $existingSheet instanceof Worksheet
+                    && $this->canReuseSemanaSheetLayout($existingSheet, $desiredCapacity);
+
+                if ($reuseExistingLayout) {
+                    $sheet = $existingSheet;
+                } else {
+                    $sheet = $this->replaceSemanaSheetFromTemplate(
+                        $spreadsheet,
+                        $templateSource,
+                        sprintf('SEMANA %02d', $weekNum),
+                        $existingSheet
+                    );
+                }
+
+                $this->logExportStage('semana_prepare_target', $subStageStartedAt, $logContext + [
+                    'week' => $weekNum,
+                    'sheet' => $sheet->getTitle(),
+                    'reused_layout' => $reuseExistingLayout,
+                    'desired_capacity' => $desiredCapacity,
+                ]);
+
+                $subStageStartedAt = microtime(true);
+                $this->writeSemanaContent($sheet, $templateSource, $weekNum, $section['top'], $atadorList, $preservedState, $reuseExistingLayout);
+                $this->logExportStage('semana_write_content', $subStageStartedAt, $logContext + [
+                    'week' => $weekNum,
+                    'sheet' => $sheet->getTitle(),
+                    'atadores' => count($atadorList),
+                    'reused_layout' => $reuseExistingLayout,
+                ]);
                 $available[$weekNum] = $sheet->getTitle();
                 $this->logExportStage('semana_week', $weekStageStartedAt, $logContext + [
                     'week' => $weekNum,
@@ -1675,14 +1726,20 @@ class OeeAtadoresFileService
         int $weekNum,
         int $sectionTopRow,
         array $atadorList,
-        array $preservedState = []
+        array $preservedState = [],
+        bool $reuseExistingLayout = false
     ): void {
         $sheet->setCellValue('B2', "SEMANA {$weekNum}");
 
         $desiredCapacity = max(self::MIN_VISIBLE_ATADORES, count($atadorList));
         $securityValues = $preservedState['security_values'] ?? [];
-        $this->prepareSemanaSheetLayout($sheet, $templateSheet, $desiredCapacity);
-        $layout = $this->buildSemanaLayout($desiredCapacity);
+
+        if ($reuseExistingLayout) {
+            $layout = $this->describeSemanaSheet($sheet);
+        } else {
+            $this->prepareSemanaSheetLayout($sheet, $templateSheet, $desiredCapacity);
+            $layout = $this->buildSemanaLayout($desiredCapacity);
+        }
         $lastMetricColumnIndex = Coordinate::columnIndexFromString($layout['last_metric_column']);
         $actualCount = count($atadorList);
         $actualLastRow = $actualCount > 0 ? 3 + $actualCount : 8;
@@ -1774,6 +1831,15 @@ class OeeAtadoresFileService
 
         $this->restoreSemanaManualValues($sheet, $layout, $preservedState['manual_values'] ?? []);
         $this->writeSemanaUsterContent($sheet, $layout, $weekNum, $atadorList, $preservedState['uster_messages'] ?? []);
+    }
+
+    private function canReuseSemanaSheetLayout(Worksheet $sheet, int $desiredCapacity): bool
+    {
+        $layout = $this->describeSemanaSheet($sheet);
+
+        return (int) ($layout['capacity'] ?? 0) === $desiredCapacity
+            && $this->normalizeLabel($sheet->getCell('B3')->getValue()) === 'CLAVE ATADOR'
+            && $this->normalizeLabel($sheet->getCell('C'.$layout['eficiencia_row'])->getValue()) === 'EFIC. ATADOR';
     }
 
     private function resolveSemanaTemplateSheet(Spreadsheet $spreadsheet, array $existingSheets): ?Worksheet
@@ -1973,7 +2039,9 @@ class OeeAtadoresFileService
 
     private function getSemanaSearchEndRow(Worksheet $sheet): int
     {
-        return max((int) $sheet->getHighestDataRow(), self::SEMANA_USTER_TEMPLATE_END_ROW);
+        $rawHighestDataRow = max((int) $sheet->getHighestDataRow(), self::SEMANA_USTER_TEMPLATE_END_ROW);
+
+        return min($rawHighestDataRow, self::SEMANA_SEARCH_MAX_ROW);
     }
 
     private function getSemanaSearchEndColumnIndex(Worksheet $sheet): int
@@ -2812,31 +2880,32 @@ class OeeAtadoresFileService
         $stageStartedAt = microtime(true);
         $tempDir = sys_get_temp_dir();
         $tempFile = $tempDir.DIRECTORY_SEPARATOR.'oee_atadores_'.uniqid('', true).'.xlsx';
-        
+
         if (! copy($originalPath, $tempFile)) {
             // Si falla la copia, usar el original (no optimizar)
             Log::warning('No se pudo copiar archivo OEE a temp local, usando original', [
                 'original' => $originalPath,
             ]);
+
             return $originalPath;
         }
-        
+
         $this->logExportStage('copy_to_local_temp', $stageStartedAt, [
             'original' => $originalPath,
             'temp' => $tempFile,
             'original_size_bytes' => @filesize($originalPath),
         ]);
-        
+
         // Actualizar la ruta para usar el archivo local
         $this->filePath = $tempFile;
-        
+
         return $tempFile;
     }
 
     private function restaurarArchivoOriginal(string $tempFile, string $originalPath): void
     {
         $stageStartedAt = microtime(true);
-        
+
         // Copiar el archivo temp de vuelta al origen original
         if (! copy($tempFile, $originalPath)) {
             Log::error('No se pudo copiar archivo OEE de vuelta a la ruta original', [
@@ -2849,12 +2918,13 @@ class OeeAtadoresFileService
                 'temp' => $tempFile,
                 'original' => $originalPath,
             ]);
+
             return;
         }
-        
+
         // Eliminar el archivo temporal solo si la copia fue exitosa
         @unlink($tempFile);
-        
+
         $this->logExportStage('restore_from_local_temp', $stageStartedAt, [
             'temp' => $tempFile,
             'original' => $originalPath,

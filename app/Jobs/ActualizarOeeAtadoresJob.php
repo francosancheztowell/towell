@@ -35,7 +35,7 @@ class ActualizarOeeAtadoresJob implements ShouldQueue
             'attempt' => $this->attempts(),
         ]);
 
-        Cache::put($this->cacheKey, ['estado' => 'procesando', 'attempt' => $this->attempts()], 900);
+        Cache::store('file')->put($this->cacheKey, ['estado' => 'procesando', 'attempt' => $this->attempts()], 900);
 
         try {
             $service = new OeeAtadoresFileService($this->filePath);
@@ -44,7 +44,7 @@ class ActualizarOeeAtadoresJob implements ShouldQueue
                 CarbonImmutable::parse($this->weekEnd)
             );
 
-            Cache::put($this->cacheKey, ['estado' => 'completado'], 300);
+            Cache::store('file')->put($this->cacheKey, ['estado' => 'completado'], 300);
 
             Log::info('Job ActualizarOeeAtadoresJob completado exitosamente', [
                 'file_path' => $this->filePath,
@@ -52,6 +52,12 @@ class ActualizarOeeAtadoresJob implements ShouldQueue
                 'week_end' => $this->weekEnd,
             ]);
         } catch (\Throwable $e) {
+            Cache::store('file')->put($this->cacheKey, [
+                'estado' => 'error',
+                'mensaje' => $e->getMessage(),
+                'attempt' => $this->attempts(),
+            ], 300);
+
             Log::error('Job ActualizarOeeAtadoresJob error', [
                 'file_path' => $this->filePath,
                 'week_start' => $this->weekStart,
@@ -73,7 +79,7 @@ class ActualizarOeeAtadoresJob implements ShouldQueue
             'error' => $e->getMessage(),
         ]);
 
-        Cache::put($this->cacheKey, [
+        Cache::store('file')->put($this->cacheKey, [
             'estado' => 'error',
             'mensaje' => $e->getMessage(),
         ], 300);

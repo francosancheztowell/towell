@@ -231,7 +231,7 @@ class ReportesAtadoresController extends Controller
         $token = bin2hex(random_bytes(16));
         $cacheKey = "oee_job_{$token}";
 
-        Cache::put($cacheKey, ['estado' => 'despachado'], 600);
+        Cache::store('file')->put($cacheKey, ['estado' => 'despachado'], 600);
 
         ActualizarOeeAtadoresJob::dispatch(
             $filePath,
@@ -248,7 +248,7 @@ class ReportesAtadoresController extends Controller
     public function estadoOeeAtadores(Request $request, string $token): JsonResponse
     {
         $cacheKey = "oee_job_{$token}";
-        $estado = Cache::get($cacheKey);
+        $estado = Cache::store('file')->get($cacheKey);
 
         if ($estado === null) {
             return response()->json(['estado' => 'desconocido']);
