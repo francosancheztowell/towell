@@ -119,8 +119,25 @@
         return Array.isArray(grupo?.telares) && grupo.telares.length > 1;
     }
 
+    function destinoPorTelar(noTelar) {
+        const n = parseInt(noTelar, 10);
+        if (!n) return '';
+        if (n >= 207 && n <= 211) return 'Jacquard Sulzer';
+        if ([201,202,203,204,205,206,213,214,215].includes(n)) return 'Jacquard Smit';
+        if (n >= 305 && n <= 316) return 'Smit';
+        if ([303,304,317,318].includes(n)) return 'Itema Viejo';
+        if ([299,300,301,302,319,320].includes(n)) return 'Itema Nuevo';
+        return '';
+    }
+
     function getInitialDestino(grupo) {
-        return grupoRequiereDestinoManual(grupo) ? '' : normalizeDestinoValue(grupo?.destino);
+        if (grupoRequiereDestinoManual(grupo)) return '';
+        const explicito = normalizeDestinoValue(grupo?.destino);
+        if (explicito) return explicito;
+        if (Array.isArray(grupo?.telares) && grupo.telares.length === 1) {
+            return destinoPorTelar(grupo.telares[0].no_telar);
+        }
+        return '';
     }
 
     function buildDestinoOptionsHtml(selectedDestino='') {
