@@ -5,136 +5,164 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         {{-- Botón de Filtros --}}
-            <x-navbar.button-report
-            id="btn-open-filters"
-            title="Filtros"
-            icon="fa-filter"
-            text="Filtrar"
-            module="Programa Atadores"
-            iconColor="text-white"
-            hoverBg="hover:bg-green-600"
-            class="text-white"
+        <x-navbar.button-report id="btn-open-filters" title="Filtros" icon="fa-filter" text="Filtrar"
+            module="Programa Atadores" iconColor="text-white" hoverBg="hover:bg-green-600" class="text-white"
             bg="bg-green-600" />
 
-            <x-navbar.button-create
-            id="btnIniciarAtado"
-            onclick="iniciarAtado()"
-            disabled
-            module="Programa Atadores"
-            title="Iniciar Atado"
-            text="Iniciar Atado"
-            />
+        <x-navbar.button-create id="btnIniciarAtado" onclick="iniciarAtado()" disabled module="Programa Atadores"
+            title="Iniciar Atado" text="Iniciar Atado" />
 
     </div>
 @endsection
 
 @section('content')
-{{-- Modal de Filtros --}}
-<div id="modalFiltros" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
-        <div class="flex items-center justify-between mb-2">
-            <p class="text-sm text-slate-500">Puedes elegir uno o varios filtros. Clic de nuevo para quitar.</p>
-            <button type="button" onclick="cerrarModalFiltros()" class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
-        </div>
+    {{-- Modal de Filtros --}}
+    <div id="modalFiltros" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-sm text-slate-500">Puedes elegir uno o varios filtros. Clic de nuevo para quitar.</p>
+                <button type="button" onclick="cerrarModalFiltros()"
+                    class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
+            </div>
 
-        <div class="grid grid-cols-3 gap-3">
-            {{-- Fila 1: Ver Todos, Activo --}}
-            <button type="button" id="btn-filter-todos" onclick="aplicarFiltro('todos')"
+            <div class="grid grid-cols-3 gap-3">
+                {{-- Fila 1: Ver Todos, Activo --}}
+                <button type="button" id="btn-filter-todos" onclick="aplicarFiltro('todos')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                <i class="fa-solid fa-list text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">Ver Todos</div>
-            </button>
-            <button type="button" id="btn-filter-activo" onclick="aplicarFiltro('activo')"
+                    <i class="fa-solid fa-list text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">Ver Todos</div>
+                </button>
+                <button type="button" id="btn-filter-activo" onclick="aplicarFiltro('activo')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                <i class="fa-solid fa-circle-dot text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">Activo</div>
-            </button>
+                    <i class="fa-solid fa-circle-dot text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">Activo</div>
+                </button>
 
-            {{-- Fila 2: En Proceso, Calificados, Terminados --}}
-            <button type="button" id="btn-filter-en-proceso" onclick="aplicarFiltro('en-proceso')"
+                {{-- Fila 2: En Proceso, Calificados, Terminados --}}
+                <button type="button" id="btn-filter-en-proceso" onclick="aplicarFiltro('en-proceso')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                <i class="fa-solid fa-play-circle text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">En Proceso</div>
-            </button>
-            <button type="button" id="btn-filter-calificados" onclick="aplicarFiltro('calificados')"
+                    <i class="fa-solid fa-play-circle text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">En Proceso</div>
+                </button>
+                <button type="button" id="btn-filter-calificados" onclick="aplicarFiltro('calificados')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                <i class="fa-solid fa-star text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">Calificados</div>
-            </button>
-            <button type="button" id="btn-filter-terminados" onclick="aplicarFiltro('terminados')"
+                    <i class="fa-solid fa-star text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">Calificados</div>
+                </button>
+                <button type="button" id="btn-filter-terminados" onclick="aplicarFiltro('terminados')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">Terminados</div>
-            </button>
-            <button type="button" id="btn-filter-autorizados" onclick="aplicarFiltro('autorizados')"
+                    <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">Terminados</div>
+                </button>
+                <button type="button" id="btn-filter-autorizados" onclick="aplicarFiltro('autorizados')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                <i class="fa-solid fa-thumbs-up text-2xl mb-2 block"></i>
-                <div class="font-semibold text-sm">Autorizado</div>
-            </button>
+                    <i class="fa-solid fa-thumbs-up text-2xl mb-2 block"></i>
+                    <div class="font-semibold text-sm">Autorizado</div>
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="container mx-auto px-4 py-4">
+    <div class="container mx-auto px-4 py-4">
 
-    <div class="overflow-x-auto overflow-y-auto rounded-lg shadow-md bg-white">
-        <table class="min-w-full divide-y divide-gray-200 text-md">
+        <div class="overflow-x-auto overflow-y-auto rounded-lg shadow-md bg-white">
+            <table class="min-w-full divide-y divide-gray-200 text-md">
                 <thead id="atadoresTableHead" class="bg-blue-500 sticky top-0 z-10">
                     <tr>
-                        <th data-sort="fecha" data-column="fecha" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Fecha <span class="sort-icon ml-1 opacity-80">▲</span> </th>
-                        <th data-sort="estatus" data-column="estatus" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Estatus <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="turno" data-column="turno" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Turno <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="telar" data-column="telar" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Telar <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="tipo" data-column="tipo" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="julio" data-column="no-julio" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Julio <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="ubicacion" data-column="ubicacion" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Ubicación <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="metros" data-column="metros" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Metros <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="orden" data-column="no-orden" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Orden <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="tipo-atado" data-column="tipo-atado" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="cuenta" data-column="cuenta" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Cuenta <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="calibre" data-column="calibre" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Calibre <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="hilo" data-column="hilo" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Hilo <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="lote" data-column="lote" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Lote <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="no-prov" data-column="no-prov" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> No. Prov. <span class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="hr-paro" data-column="hora-paro" class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none" role="button" title="Clic para ordenar | Clic derecho para filtrar"> Hr. Paro <span class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="fecha" data-column="fecha"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Fecha <span
+                                class="sort-icon ml-1 opacity-80">▲</span> </th>
+                        <th data-sort="estatus" data-column="estatus"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Estatus <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="turno" data-column="turno"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Turno <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="telar" data-column="telar"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Telar <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="tipo" data-column="tipo"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="julio" data-column="no-julio"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Julio <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="ubicacion" data-column="ubicacion"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Ubicación <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="metros" data-column="metros"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Metros <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="orden" data-column="no-orden"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Orden <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="tipo-atado" data-column="tipo-atado"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="cuenta" data-column="cuenta"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Cuenta <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="calibre" data-column="calibre"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Calibre <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="hilo" data-column="hilo"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Hilo <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="lote" data-column="lote"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Lote <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="no-prov" data-column="no-prov"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> No. Prov. <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
+                        <th data-sort="hr-paro" data-column="hora-paro"
+                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Hr. Paro <span
+                                class="sort-icon ml-1 opacity-80"></span> </th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="tb-body">
                     @forelse($inventarioTelares as $item)
                         <tr class="table-row hover:bg-blue-100 cursor-pointer transition-colors duration-150"
-                            onclick="selectRow(this, {{ $item->id }})"
-                            data-id="{{ $item->id }}"
+                            onclick="selectRow(this, {{ $item->id }})" data-id="{{ $item->id }}"
                             data-fecha="{{ $item->fecha ? $item->fecha->format('Y-m-d') : '9999-99-99' }}"
-                            data-estatus="{{ $item->status_proceso ?? 'Activo' }}"
-                            data-turno="{{ $item->turno ?? '' }}"
-                            data-telar="{{ $item->no_telar ?? '' }}"
-                            data-tipo="{{ $item->tipo ?? '' }}"
-                            data-no-julio="{{ $item->no_julio ?? '' }}"
-                            data-ubicacion="{{ $item->localidad ?? '' }}"
+                            data-estatus="{{ $item->status_proceso ?? 'Activo' }}" data-turno="{{ $item->turno ?? '' }}"
+                            data-telar="{{ $item->no_telar ?? '' }}" data-tipo="{{ $item->tipo ?? '' }}"
+                            data-no-julio="{{ $item->no_julio ?? '' }}" data-ubicacion="{{ $item->localidad ?? '' }}"
                             data-metros="{{ $item->metros !== null && $item->metros !== '' ? $item->metros : '-999999' }}"
-                            data-no-orden="{{ $item->no_orden ?? '' }}"
-                            data-config-id="{{ $item->ConfigId ?? '' }}"
+                            data-no-orden="{{ $item->no_orden ?? '' }}" data-config-id="{{ $item->ConfigId ?? '' }}"
                             data-invent-size-id="{{ $item->InventSizeId ?? '' }}"
                             data-invent-color-id="{{ $item->InventColorId ?? '' }}"
-                            data-tipo-atado="{{ $item->tipo_atado ?? '' }}"
-                            data-cuenta="{{ $item->cuenta ?? '' }}"
+                            data-tipo-atado="{{ $item->tipo_atado ?? '' }}" data-cuenta="{{ $item->cuenta ?? '' }}"
                             data-calibre="{{ $item->calibre !== null && $item->calibre !== '' ? $item->calibre : '-999999' }}"
-                            data-hilo="{{ $item->hilo ?? '' }}"
-                            data-lote="{{ $item->LoteProveedor ?? '' }}"
-                            data-no-prov="{{ $item->NoProveedor ?? '' }}"
-                            data-hora-paro="{{ $item->horaParo ?? '' }}"
+                            data-hilo="{{ $item->hilo ?? '' }}" data-lote="{{ $item->LoteProveedor ?? '' }}"
+                            data-no-prov="{{ $item->NoProveedor ?? '' }}" data-hora-paro="{{ $item->horaParo ?? '' }}"
                             data-status="{{ $item->status_proceso ?? 'Activo' }}">
                             <td class="px-2 py-2 whitespace-nowrap text-md">
                                 {{ $item->fecha ? $item->fecha->format('d/m/Y') : '-' }}
                             </td>
                             <td class="px-2 py-2 whitespace-nowrap text-md" data-status="{{ $item->status_proceso }}">
                                 <span class="px-1.5 py-0.5 rounded-full text-md font-semibold
-                                    @if($item->status_proceso === 'Activo') bg-gray-200 text-gray-800
-                                    @elseif($item->status_proceso === 'En Proceso') bg-blue-200 text-blue-800
-                                    @elseif($item->status_proceso === 'Terminado') bg-purple-200 text-purple-800
-                                    @elseif($item->status_proceso === 'Calificado') bg-yellow-200 text-yellow-800
-                                    @elseif($item->status_proceso === 'Autorizado') bg-green-200 text-green-800
-                                    @endif">
+                                            @if($item->status_proceso === 'Activo') bg-gray-200 text-gray-800
+                                            @elseif($item->status_proceso === 'En Proceso') bg-blue-200 text-blue-800
+                                            @elseif($item->status_proceso === 'Terminado') bg-purple-200 text-purple-800
+                                            @elseif($item->status_proceso === 'Calificado') bg-yellow-200 text-yellow-800
+                                            @elseif($item->status_proceso === 'Autorizado') bg-green-200 text-green-800
+                                            @endif">
                                     {{ $item->status_proceso }}
                                 </span>
                             </td>
@@ -145,7 +173,15 @@
                                 {{ $item->no_telar ?? '-' }}
                             </td>
                             <td class="px-2 py-2 whitespace-nowrap text-md">
-                                {{ $item->tipo ?? '-' }}
+                                @php
+                                    $tipo = $item->tipo ?? '-';
+                                    if ($tipo === 'Rizo') {
+                                        $tipo = 'R';
+                                    } elseif ($tipo === 'Pie') {
+                                        $tipo = 'P';
+                                    }
+                                @endphp
+                                {{ $tipo }}
                             </td>
                             <td class="px-2 py-2 whitespace-nowrap text-md">
                                 {{ $item->no_julio ?? '-' }}
@@ -191,303 +227,324 @@
                 </tbody>
             </table>
         </div>
-</div>
+    </div>
 
-{{-- Modal Reporte por Fecha --}}
-<div id="modalReporteFecha" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white max-w-md w-full rounded-xl shadow-xl m-4">
-        <div class="px-4 py-3 border-b flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800">
-                <i class="fa-solid fa-file-excel text-green-600 mr-2"></i>
-                Exportar Reporte a Excel
-            </h3>
-            <button type="button" onclick="cerrarModalReporte()" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
-        </div>
-        <div class="p-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label for="input-fecha-inicio-reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicio</label>
-                    <input
-                        type="date"
-                        id="input-fecha-inicio-reporte"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        value="{{ now()->format('Y-m-d') }}"
-                    />
-                </div>
-                <div>
-                    <label for="input-fecha-fin-reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha fin</label>
-                    <input
-                        type="date"
-                        id="input-fecha-fin-reporte"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        value="{{ now()->format('Y-m-d') }}"
-                    />
-                </div>
+    {{-- Modal Reporte por Fecha --}}
+    <div id="modalReporteFecha" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white max-w-md w-full rounded-xl shadow-xl m-4">
+            <div class="px-4 py-3 border-b flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fa-solid fa-file-excel text-green-600 mr-2"></i>
+                    Exportar Reporte a Excel
+                </h3>
+                <button type="button" onclick="cerrarModalReporte()"
+                    class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
             </div>
-            <p class="text-xs text-gray-500 mt-2">Se exportarán todos los registros de atadores dentro del rango seleccionado.</p>
-        </div>
-        <div class="px-4 py-3 border-t flex justify-end gap-2">
-            <button type="button" onclick="cerrarModalReporte()" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Cancelar</button>
-            <button type="button" onclick="exportarReporteExcel()" class="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
-                <i class="fa-solid fa-download"></i>
-                Descargar Excel
-            </button>
+            <div class="p-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label for="input-fecha-inicio-reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha
+                            inicio</label>
+                        <input type="date" id="input-fecha-inicio-reporte"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            value="{{ now()->format('Y-m-d') }}" />
+                    </div>
+                    <div>
+                        <label for="input-fecha-fin-reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha
+                            fin</label>
+                        <input type="date" id="input-fecha-fin-reporte"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            value="{{ now()->format('Y-m-d') }}" />
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Se exportarán todos los registros de atadores dentro del rango
+                    seleccionado.</p>
+            </div>
+            <div class="px-4 py-3 border-t flex justify-end gap-2">
+                <button type="button" onclick="cerrarModalReporte()"
+                    class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button type="button" onclick="exportarReporteExcel()"
+                    class="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i>
+                    Descargar Excel
+                </button>
+            </div>
         </div>
     </div>
-</div>
 
-{{-- Context Menu para filtrar columnas --}}
-<div id="tableContextMenu"
-     class="hidden fixed z-50 min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg p-1">
-    <button type="button" data-action="filter-column" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
-        <i class="fa-solid fa-filter text-blue-500"></i>
-        Filtrar columna
-    </button>
-    <button type="button" data-action="clear-column-filter" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
-        <i class="fa-solid fa-eraser text-orange-500"></i>
-        Quitar filtro de columna
-    </button>
-    <hr class="my-1 border-gray-200">
-    <button type="button" data-action="clear-all-filters" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
-        <i class="fa-solid fa-broom text-red-500"></i>
-        Quitar todos los filtros
-    </button>
-</div>
+    {{-- Context Menu para filtrar columnas --}}
+    <div id="tableContextMenu"
+        class="hidden fixed z-50 min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+        <button type="button" data-action="filter-column"
+            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
+            <i class="fa-solid fa-filter text-blue-500"></i>
+            Filtrar columna
+        </button>
+        <button type="button" data-action="clear-column-filter"
+            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
+            <i class="fa-solid fa-eraser text-orange-500"></i>
+            Quitar filtro de columna
+        </button>
+        <hr class="my-1 border-gray-200">
+        <button type="button" data-action="clear-all-filters"
+            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2">
+            <i class="fa-solid fa-broom text-red-500"></i>
+            Quitar todos los filtros
+        </button>
+    </div>
 
 @endsection
 
 @push('scripts')
-<script>
-let selectedRowId = null;
-let selectedRow = null;
+    <script>
+        let selectedRowId = null;
+        let selectedRow = null;
 
-// Si el usuario usó el botón Filtrar, el backend ya devolvió todos (sin restricción por área)
-window.filtroGlobalActivo = @json($filtroGlobalActivo ?? false);
-// Estado de filtros - Array de filtros seleccionados (vacíos = ver todos)
-let filterState = {
-    filtros: @json($vista ? array_filter(explode(',', $vista)) : ($filtroAplicado === 'todos' ? [] : [$filtroAplicado])),
-    telaresUsuario: @json($telaresUsuario ?? []),
-    esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }},
-    esSupervisor: {{ ($esSupervisor ?? false) ? 'true' : 'false' }},
-    columnFilters: {} // Filtros por columna desde context menu
-};
+        // Si el usuario usó el botón Filtrar, el backend ya devolvió todos (sin restricción por área)
+        window.filtroGlobalActivo = @json($filtroGlobalActivo ?? false);
+        // Estado de filtros - Array de filtros seleccionados (vacíos = ver todos)
+        let filterState = {
+            filtros: @json($vista ? array_filter(explode(',', $vista)) : ($filtroAplicado === 'todos' ? [] : [$filtroAplicado])),
+            telaresUsuario: @json($telaresUsuario ?? []),
+            esTejedor: {{ $esTejedor ?? false ? 'true' : 'false' }},
+            esSupervisor: {{ ($esSupervisor ?? false) ? 'true' : 'false' }},
+            columnFilters: {} // Filtros por columna desde context menu
+        };
 
-// Orden por columnas: column = clave de columna, dir = 'asc' | 'desc'
-let sortState = { column: 'fecha', dir: 'asc' };
-const SORT_NUMERIC_COLUMNS = ['metros', 'calibre', 'julio', 'orden'];
+        // Orden por columnas: column = clave de columna, dir = 'asc' | 'desc'
+        let sortState = { column: 'fecha', dir: 'asc' };
+        const SORT_NUMERIC_COLUMNS = ['metros', 'calibre', 'julio', 'orden'];
 
-function getDataKey(col) {
-    if (col === 'julio') return 'data-no-julio';
-    if (col === 'orden') return 'data-no-orden';
-    if (col === 'hr-paro') return 'data-hora-paro';
-    return 'data-' + col;
-}
-
-function updateSortIcons() {
-    document.querySelectorAll('.th-sortable .sort-icon').forEach((span, idx) => {
-        const th = span.closest('th');
-        const col = th?.getAttribute('data-sort');
-        if (col === sortState.column) {
-            span.textContent = sortState.dir === 'asc' ? '▲' : '▼';
-        } else {
-            span.textContent = '';
+        function getDataKey(col) {
+            if (col === 'julio') return 'data-no-julio';
+            if (col === 'orden') return 'data-no-orden';
+            if (col === 'hr-paro') return 'data-hora-paro';
+            return 'data-' + col;
         }
-    });
-}
 
-// Funciones para el modal de filtros
-function mostrarModalFiltros() {
-    const modal = document.getElementById('modalFiltros');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
-}
+        function updateSortIcons() {
+            document.querySelectorAll('.th-sortable .sort-icon').forEach((span, idx) => {
+                const th = span.closest('th');
+                const col = th?.getAttribute('data-sort');
+                if (col === sortState.column) {
+                    span.textContent = sortState.dir === 'asc' ? '▲' : '▼';
+                } else {
+                    span.textContent = '';
+                }
+            });
+        }
 
-function cerrarModalFiltros() {
-    const modal = document.getElementById('modalFiltros');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-}
+        // Funciones para el modal de filtros
+        function mostrarModalFiltros() {
+            const modal = document.getElementById('modalFiltros');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
 
-// Toggle de un filtro (permite elegir 2 o más). Ver Todos limpia el resto.
-// Si el usuario usa el botón Filtrar, siempre pedir todos al backend (?filtro=todos) sin importar área/cargo.
-// "Autorizado" hace GET al servidor con ?filtro=autorizados para traer solo esos registros de AtaMontadoTelas.
-function aplicarFiltro(tipo) {
-    const baseUrl = @json(route('atadores.programa'));
+        function cerrarModalFiltros() {
+            const modal = document.getElementById('modalFiltros');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
 
-    if (tipo === 'autorizados') {
-        const idx = filterState.filtros.indexOf('autorizados');
-        if (idx >= 0) {
-            filterState.filtros.splice(idx, 1);
-            cerrarModalFiltros();
-            if (filterState.filtros.length === 0) {
-                window.location.href = baseUrl + (window.filtroGlobalActivo ? '?filtro=todos' : '');
+        // Toggle de un filtro (permite elegir 2 o más). Ver Todos limpia el resto.
+        // Si el usuario usa el botón Filtrar, siempre pedir todos al backend (?filtro=todos) sin importar área/cargo.
+        // "Autorizado" hace GET al servidor con ?filtro=autorizados para traer solo esos registros de AtaMontadoTelas.
+        function aplicarFiltro(tipo) {
+            const baseUrl = @json(route('atadores.programa'));
+
+            if (tipo === 'autorizados') {
+                const idx = filterState.filtros.indexOf('autorizados');
+                if (idx >= 0) {
+                    filterState.filtros.splice(idx, 1);
+                    cerrarModalFiltros();
+                    if (filterState.filtros.length === 0) {
+                        window.location.href = baseUrl + (window.filtroGlobalActivo ? '?filtro=todos' : '');
+                    } else {
+                        updateFilterButtons();
+                        applyFilters();
+                    }
+                } else {
+                    cerrarModalFiltros();
+                    window.location.href = baseUrl + '?filtro=autorizados';
+                }
+                return;
+            }
+
+            if (tipo === 'todos') {
+                if (!window.filtroGlobalActivo) {
+                    cerrarModalFiltros();
+                    window.location.href = baseUrl + '?filtro=todos';
+                    return;
+                }
+                filterState.filtros = [];
             } else {
-                updateFilterButtons();
-                applyFilters();
+                const idx = filterState.filtros.indexOf(tipo);
+                if (idx >= 0) {
+                    filterState.filtros.splice(idx, 1);
+                } else {
+                    filterState.filtros.push(tipo);
+                }
+                if (!window.filtroGlobalActivo) {
+                    cerrarModalFiltros();
+                    const vista = filterState.filtros.length ? filterState.filtros.join(',') : '';
+                    window.location.href = baseUrl + '?filtro=todos' + (vista ? '&vista=' + encodeURIComponent(vista) : '');
+                    return;
+                }
             }
-        } else {
             cerrarModalFiltros();
-            window.location.href = baseUrl + '?filtro=autorizados';
+            updateFilterButtons();
+            applyFilters();
         }
-        return;
-    }
 
-    if (tipo === 'todos') {
-        if (!window.filtroGlobalActivo) {
-            cerrarModalFiltros();
-            window.location.href = baseUrl + '?filtro=todos';
-            return;
-        }
-        filterState.filtros = [];
-    } else {
-        const idx = filterState.filtros.indexOf(tipo);
-        if (idx >= 0) {
-            filterState.filtros.splice(idx, 1);
-        } else {
-            filterState.filtros.push(tipo);
-        }
-        if (!window.filtroGlobalActivo) {
-            cerrarModalFiltros();
-            const vista = filterState.filtros.length ? filterState.filtros.join(',') : '';
-            window.location.href = baseUrl + '?filtro=todos' + (vista ? '&vista=' + encodeURIComponent(vista) : '');
-            return;
-        }
-    }
-    cerrarModalFiltros();
-    updateFilterButtons();
-    applyFilters();
-}
-
-// Qué status(es) incluye cada clave de filtro
-function statusMatchesFilter(status, noTelar, filterKey) {
-    switch (filterKey) {
-        case 'creados':
-            return status === 'Activo'; // legacy: creados = Activo (botón ya no se muestra)
-        case 'activo':
-        case 'activo-proceso':
-            // El área de atadores puede ver tanto Activo como En Proceso
-            return status === 'Activo' || status === 'En Proceso';
-        case 'en-proceso':
-            return status === 'En Proceso';
-        case 'calificados':
-            return status === 'Calificado';
-        case 'terminados':
-            let ok = status === 'Terminado';
-            if (filterState.esTejedor && filterState.telaresUsuario.length > 0) {
-                const noTelarStr = String(noTelar || '');
-                ok = ok && filterState.telaresUsuario.some(t => String(t) === noTelarStr);
+        // Qué status(es) incluye cada clave de filtro
+        function statusMatchesFilter(status, noTelar, filterKey) {
+            switch (filterKey) {
+                case 'creados':
+                    return status === 'Activo'; // legacy: creados = Activo (botón ya no se muestra)
+                case 'activo':
+                case 'activo-proceso':
+                    // El área de atadores puede ver tanto Activo como En Proceso
+                    return status === 'Activo' || status === 'En Proceso';
+                case 'en-proceso':
+                    return status === 'En Proceso';
+                case 'calificados':
+                    return status === 'Calificado';
+                case 'terminados':
+                    let ok = status === 'Terminado';
+                    if (filterState.esTejedor && filterState.telaresUsuario.length > 0) {
+                        const noTelarStr = String(noTelar || '');
+                        ok = ok && filterState.telaresUsuario.some(t => String(t) === noTelarStr);
+                    }
+                    return ok;
+                case 'autorizados':
+                    return status === 'Autorizado';
+                default:
+                    return false;
             }
-            return ok;
-        case 'autorizados':
-            return status === 'Autorizado';
-        default:
-            return false;
-    }
-}
-
-// Función para aplicar filtros a las filas (varios filtros = unión: se muestra si coincide con alguno)
-// NOTA: El backend ya filtra por rol/área, así que estos filtros son adicionales del usuario
-function applyFilters() {
-    const rows = document.querySelectorAll('.table-row');
-    const tbody = document.getElementById('tb-body');
-    let visibleCount = 0;
-    const filtros = filterState.filtros || [];
-
-    rows.forEach(row => {
-        const status = row.getAttribute('data-status') || 'Activo';
-        const noTelar = row.getAttribute('data-telar') || '';
-        let show = true;
-
-        // Solo aplicar filtros si el usuario los ha seleccionado explícitamente
-        // Si filtros está vacío, mostrar todos los registros que el backend ya filtró
-        if (filtros.length > 0) {
-            show = filtros.some(f => statusMatchesFilter(status, noTelar, f));
         }
-        // Si no hay filtros seleccionados, mostrar todas las filas (el backend ya filtró por rol)
 
-        if (show) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
+        // Función para aplicar filtros a las filas (varios filtros = unión: se muestra si coincide con alguno)
+        // NOTA: El backend ya filtra por rol/área, así que estos filtros son adicionales del usuario
+        function applyFilters() {
+            const rows = document.querySelectorAll('.table-row');
+            const tbody = document.getElementById('tb-body');
+            let visibleCount = 0;
+            const filtros = filterState.filtros || [];
+
+            rows.forEach(row => {
+                const status = row.getAttribute('data-status') || 'Activo';
+                const noTelar = row.getAttribute('data-telar') || '';
+                let show = true;
+
+                // Solo aplicar filtros si el usuario los ha seleccionado explícitamente
+                // Si filtros está vacío, mostrar todos los registros que el backend ya filtró
+                if (filtros.length > 0) {
+                    show = filtros.some(f => statusMatchesFilter(status, noTelar, f));
+                }
+                // Si no hay filtros seleccionados, mostrar todas las filas (el backend ya filtró por rol)
+
+                if (show) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            const filterBadge = document.getElementById('filter-badge');
+            if (filtros.length > 0 && filterBadge) {
+                filterBadge.textContent = filtros.length;
+                filterBadge.classList.remove('hidden');
+            } else if (filterBadge) {
+                filterBadge.classList.add('hidden');
+            }
+
+            // Mostrar mensaje si no hay resultados
+            let emptyRow = tbody?.querySelector('tr.no-results');
+            if (visibleCount === 0) {
+                if (!emptyRow) {
+                    const tr = document.createElement('tr');
+                    tr.className = 'no-results';
+                    tr.innerHTML = `<td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">
+                    <div class="flex flex-col items-center gap-2">
+                        <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
+                        <span class="text-base font-medium">Sin resultados con los filtros aplicados</span>
+                    </div>
+                </td>`;
+                    tbody?.appendChild(tr);
+                }
+            } else {
+                emptyRow?.remove();
+            }
         }
-    });
 
-    const filterBadge = document.getElementById('filter-badge');
-    if (filtros.length > 0 && filterBadge) {
-        filterBadge.textContent = filtros.length;
-        filterBadge.classList.remove('hidden');
-    } else if (filterBadge) {
-        filterBadge.classList.add('hidden');
-    }
+        // Actualizar estado visual de botones (varios pueden estar activos)
+        function updateFilterButtons() {
+            const btns = [
+                document.getElementById('btn-filter-todos'),
+                document.getElementById('btn-filter-activo'),
+                document.getElementById('btn-filter-en-proceso'),
+                document.getElementById('btn-filter-calificados'),
+                document.getElementById('btn-filter-terminados'),
+                document.getElementById('btn-filter-autorizados')
+            ];
 
-    // Mostrar mensaje si no hay resultados
-    let emptyRow = tbody?.querySelector('tr.no-results');
-    if (visibleCount === 0) {
-        if (!emptyRow) {
-            const tr = document.createElement('tr');
-            tr.className = 'no-results';
-            tr.innerHTML = `<td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">
-                <div class="flex flex-col items-center gap-2">
-                    <i class="fa-solid fa-inbox text-4xl text-gray-300"></i>
-                    <span class="text-base font-medium">Sin resultados con los filtros aplicados</span>
-                </div>
-            </td>`;
-            tbody?.appendChild(tr);
-        }
-    } else {
-        emptyRow?.remove();
-    }
-}
+            const keyToBtn = {
+                'todos': [btns[0], 'bg-green-100', 'border-green-400', 'text-green-800'],
+                'activo': [btns[1], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
+                'activo-proceso': [btns[1], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
+                'en-proceso': [btns[2], 'bg-yellow-100', 'border-yellow-400', 'text-yellow-800'],
+                'calificados': [btns[3], 'bg-amber-100', 'border-amber-400', 'text-amber-800'],
+                'terminados': [btns[4], 'bg-purple-100', 'border-purple-400', 'text-purple-800'],
+                'autorizados': [btns[5], 'bg-emerald-100', 'border-emerald-400', 'text-emerald-800']
+            };
 
-// Actualizar estado visual de botones (varios pueden estar activos)
-function updateFilterButtons() {
-    const btns = [
-        document.getElementById('btn-filter-todos'),
-        document.getElementById('btn-filter-activo'),
-        document.getElementById('btn-filter-en-proceso'),
-        document.getElementById('btn-filter-calificados'),
-        document.getElementById('btn-filter-terminados'),
-        document.getElementById('btn-filter-autorizados')
-    ];
+            const activeClasses = [
+                'bg-green-100', 'border-green-400', 'text-green-800',
+                'bg-yellow-100', 'border-yellow-400', 'text-yellow-800',
+                'bg-purple-100', 'border-purple-400', 'text-purple-800',
+                'bg-amber-100', 'border-amber-400', 'text-amber-800',
+                'bg-teal-100', 'border-teal-400', 'text-teal-800',
+                'bg-emerald-100', 'border-emerald-400', 'text-emerald-800'
+            ];
 
-    const keyToBtn = {
-        'todos': [btns[0], 'bg-green-100', 'border-green-400', 'text-green-800'],
-        'activo': [btns[1], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
-        'activo-proceso': [btns[1], 'bg-teal-100', 'border-teal-400', 'text-teal-800'],
-        'en-proceso': [btns[2], 'bg-yellow-100', 'border-yellow-400', 'text-yellow-800'],
-        'calificados': [btns[3], 'bg-amber-100', 'border-amber-400', 'text-amber-800'],
-        'terminados': [btns[4], 'bg-purple-100', 'border-purple-400', 'text-purple-800'],
-        'autorizados': [btns[5], 'bg-emerald-100', 'border-emerald-400', 'text-emerald-800']
-    };
+            btns.forEach(btn => {
+                if (btn) {
+                    btn.classList.remove(...activeClasses);
+                    btn.classList.add('bg-gray-50', 'border-gray-300', 'text-gray-700');
+                }
+            });
 
-    const activeClasses = [
-        'bg-green-100', 'border-green-400', 'text-green-800',
-        'bg-yellow-100', 'border-yellow-400', 'text-yellow-800',
-        'bg-purple-100', 'border-purple-400', 'text-purple-800',
-        'bg-amber-100', 'border-amber-400', 'text-amber-800',
-        'bg-teal-100', 'border-teal-400', 'text-teal-800',
-        'bg-emerald-100', 'border-emerald-400', 'text-emerald-800'
-    ];
-
-    btns.forEach(btn => {
-        if (btn) {
-            btn.classList.remove(...activeClasses);
-            btn.classList.add('bg-gray-50', 'border-gray-300', 'text-gray-700');
-        }
-    });
-
-    const filtros = filterState.filtros || [];
-    // Ver Todos activo cuando no hay ningún otro filtro
-    if (filtros.length === 0) {
-        // Si es supervisor y no usó filtro global, resaltar los filtros por defecto del supervisor
-        if (filterState.esSupervisor && !window.filtroGlobalActivo) {
-            ['calificados', 'activo', 'en-proceso'].forEach(key => {
-                const entry = keyToBtn[key];
+            const filtros = filterState.filtros || [];
+            // Ver Todos activo cuando no hay ningún otro filtro
+            if (filtros.length === 0) {
+                // Si es supervisor y no usó filtro global, resaltar los filtros por defecto del supervisor
+                if (filterState.esSupervisor && !window.filtroGlobalActivo) {
+                    ['calificados', 'activo', 'en-proceso'].forEach(key => {
+                        const entry = keyToBtn[key];
+                        if (entry) {
+                            const [btn, ...classes] = entry;
+                            if (btn) {
+                                btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
+                                btn.classList.add(...classes);
+                            }
+                        }
+                    });
+                } else if (keyToBtn['todos']) {
+                    const [btn, ...classes] = keyToBtn['todos'];
+                    if (btn) {
+                        btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
+                        btn.classList.add(...classes);
+                    }
+                }
+            }
+            filtros.forEach(tipo => {
+                const entry = keyToBtn[tipo];
                 if (entry) {
                     const [btn, ...classes] = entry;
                     if (btn) {
@@ -496,524 +553,506 @@ function updateFilterButtons() {
                     }
                 }
             });
-        } else if (keyToBtn['todos']) {
-            const [btn, ...classes] = keyToBtn['todos'];
-            if (btn) {
-                btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
-                btn.classList.add(...classes);
-            }
         }
-    }
-    filtros.forEach(tipo => {
-        const entry = keyToBtn[tipo];
-        if (entry) {
-            const [btn, ...classes] = entry;
-            if (btn) {
-                btn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
-                btn.classList.add(...classes);
-            }
-        }
-    });
-}
 
-// Ordenar tabla por la columna actual (sortState.column / sortState.dir)
-function sortTable() {
-    const tbody = document.getElementById('tb-body');
-    if (!tbody) return;
+        // Ordenar tabla por la columna actual (sortState.column / sortState.dir)
+        function sortTable() {
+            const tbody = document.getElementById('tb-body');
+            if (!tbody) return;
 
-    const noResults = tbody.querySelector('tr.no-results');
-    if (noResults) noResults.remove();
+            const noResults = tbody.querySelector('tr.no-results');
+            if (noResults) noResults.remove();
 
-    const key = getDataKey(sortState.column);
-    const isNumeric = SORT_NUMERIC_COLUMNS.includes(sortState.column);
+            const key = getDataKey(sortState.column);
+            const isNumeric = SORT_NUMERIC_COLUMNS.includes(sortState.column);
 
-    const rows = Array.from(tbody.querySelectorAll('tr.table-row'));
-    rows.sort((a, b) => {
-        let va = a.getAttribute(key) ?? '';
-        let vb = b.getAttribute(key) ?? '';
-        let cmp;
-        if (isNumeric) {
-            const na = parseFloat(va) || -999999;
-            const nb = parseFloat(vb) || -999999;
-            cmp = na - nb;
-        } else {
-            cmp = String(va).localeCompare(String(vb), undefined, { numeric: true });
-        }
-        return sortState.dir === 'asc' ? cmp : -cmp;
-    });
-
-    rows.forEach(tr => tbody.appendChild(tr));
-    if (noResults) tbody.appendChild(noResults);
-    updateSortIcons();
-}
-
-// Clic en cualquier columna ordenable
-document.querySelectorAll('.th-sortable').forEach(th => {
-    th.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const col = this.getAttribute('data-sort');
-        if (!col) return;
-        if (sortState.column === col) {
-            sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
-        } else {
-            sortState.column = col;
-            sortState.dir = 'asc';
-        }
-        sortTable();
-    });
-});
-
-// Cerrar modal al hacer clic fuera de él
-document.getElementById('modalFiltros')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        cerrarModalFiltros();
-    }
-});
-
-// Abrir modal con el botón
-document.getElementById('btn-open-filters')?.addEventListener('click', mostrarModalFiltros);
-
-// =================== Context Menu para filtrar columnas ===================
-let contextTarget = { column: null, columnLabel: '' };
-const contextMenu = document.getElementById('tableContextMenu');
-
-function closeContextMenu() {
-    contextMenu?.classList.add('hidden');
-}
-
-function openContextMenu(e, column, label) {
-    if (!contextMenu || !column) return;
-    e.preventDefault();
-    contextTarget = { column, columnLabel: label };
-    contextMenu.classList.remove('hidden');
-    
-    // Posicionar el menú
-    const menuWidth = 220;
-    const menuHeight = 130;
-    let x = e.pageX;
-    let y = e.pageY;
-    
-    // Ajustar si se sale de la pantalla
-    if (x + menuWidth > window.innerWidth) {
-        x = window.innerWidth - menuWidth - 10;
-    }
-    if (y + menuHeight > window.innerHeight + window.scrollY) {
-        y = e.pageY - menuHeight;
-    }
-    
-    contextMenu.style.left = `${x}px`;
-    contextMenu.style.top = `${y}px`;
-}
-
-// Event listener para clic derecho en thead
-document.getElementById('atadoresTableHead')?.addEventListener('contextmenu', function(e) {
-    const th = e.target.closest('.th-sortable');
-    if (!th) return;
-    const column = th.getAttribute('data-column');
-    const label = th.textContent.trim().replace(/[▲▼]/g, '').trim();
-    openContextMenu(e, column, label);
-});
-
-// Cerrar context menu al hacer clic fuera
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('#tableContextMenu')) {
-        closeContextMenu();
-    }
-});
-
-// Acciones del context menu
-contextMenu?.addEventListener('click', async function(e) {
-    const action = e.target.closest('[data-action]')?.dataset.action;
-    if (!action) return;
-    
-    const { column, columnLabel } = contextTarget;
-    
-    if (action === 'filter-column' && column) {
-        const currentValue = filterState.columnFilters[column] || '';
-        const result = await Swal.fire({
-            title: `<i class="fa-solid fa-filter text-blue-500 mr-2"></i> Filtrar: ${columnLabel}`,
-            input: 'text',
-            inputValue: currentValue,
-            inputPlaceholder: 'Escribe el valor a buscar...',
-            showCancelButton: true,
-            confirmButtonText: '<i class="fa-solid fa-check mr-1"></i> Aplicar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#6b7280',
-            customClass: {
-                input: 'text-lg'
-            }
-        });
-        
-        if (result.isConfirmed) {
-            const value = result.value?.trim() || '';
-            if (value) {
-                filterState.columnFilters[column] = value;
-            } else {
-                delete filterState.columnFilters[column];
-            }
-            applyColumnFilters();
-            updateColumnFilterBadge();
-        }
-    }
-    
-    if (action === 'clear-column-filter' && column) {
-        if (filterState.columnFilters[column]) {
-            delete filterState.columnFilters[column];
-            applyColumnFilters();
-            updateColumnFilterBadge();
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: `Filtro de "${columnLabel}" eliminado`,
-                showConfirmButton: false,
-                timer: 1500
+            const rows = Array.from(tbody.querySelectorAll('tr.table-row'));
+            rows.sort((a, b) => {
+                let va = a.getAttribute(key) ?? '';
+                let vb = b.getAttribute(key) ?? '';
+                let cmp;
+                if (isNumeric) {
+                    const na = parseFloat(va) || -999999;
+                    const nb = parseFloat(vb) || -999999;
+                    cmp = na - nb;
+                } else {
+                    cmp = String(va).localeCompare(String(vb), undefined, { numeric: true });
+                }
+                return sortState.dir === 'asc' ? cmp : -cmp;
             });
+
+            rows.forEach(tr => tbody.appendChild(tr));
+            if (noResults) tbody.appendChild(noResults);
+            updateSortIcons();
         }
-    }
-    
-    if (action === 'clear-all-filters') {
-        const filterCount = Object.keys(filterState.columnFilters).length;
-        if (filterCount > 0) {
-            filterState.columnFilters = {};
-            applyColumnFilters();
-            updateColumnFilterBadge();
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: `${filterCount} filtro(s) eliminados`,
-                showConfirmButton: false,
-                timer: 1500
+
+        // Clic en cualquier columna ordenable
+        document.querySelectorAll('.th-sortable').forEach(th => {
+            th.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const col = this.getAttribute('data-sort');
+                if (!col) return;
+                if (sortState.column === col) {
+                    sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortState.column = col;
+                    sortState.dir = 'asc';
+                }
+                sortTable();
             });
-        }
-    }
-    
-    closeContextMenu();
-});
+        });
 
-// Aplicar filtros por columna
-function applyColumnFilters() {
-    const rows = document.querySelectorAll('.table-row');
-    const filters = filterState.columnFilters;
-    const hasColumnFilters = Object.keys(filters).length > 0;
-    
-    rows.forEach(row => {
-        let matchesColumnFilter = true;
-        
-        if (hasColumnFilters) {
-            for (const [col, val] of Object.entries(filters)) {
-                const dataAttr = `data-${col}`;
-                const cellValue = (row.getAttribute(dataAttr) || '').toLowerCase();
-                const searchValue = val.toLowerCase();
-                
-                if (!cellValue.includes(searchValue)) {
-                    matchesColumnFilter = false;
-                    break;
+        // Cerrar modal al hacer clic fuera de él
+        document.getElementById('modalFiltros')?.addEventListener('click', function (e) {
+            if (e.target === this) {
+                cerrarModalFiltros();
+            }
+        });
+
+        // Abrir modal con el botón
+        document.getElementById('btn-open-filters')?.addEventListener('click', mostrarModalFiltros);
+
+        // =================== Context Menu para filtrar columnas ===================
+        let contextTarget = { column: null, columnLabel: '' };
+        const contextMenu = document.getElementById('tableContextMenu');
+
+        function closeContextMenu() {
+            contextMenu?.classList.add('hidden');
+        }
+
+        function openContextMenu(e, column, label) {
+            if (!contextMenu || !column) return;
+            e.preventDefault();
+            contextTarget = { column, columnLabel: label };
+            contextMenu.classList.remove('hidden');
+
+            // Posicionar el menú
+            const menuWidth = 220;
+            const menuHeight = 130;
+            let x = e.pageX;
+            let y = e.pageY;
+
+            // Ajustar si se sale de la pantalla
+            if (x + menuWidth > window.innerWidth) {
+                x = window.innerWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > window.innerHeight + window.scrollY) {
+                y = e.pageY - menuHeight;
+            }
+
+            contextMenu.style.left = `${x}px`;
+            contextMenu.style.top = `${y}px`;
+        }
+
+        // Event listener para clic derecho en thead
+        document.getElementById('atadoresTableHead')?.addEventListener('contextmenu', function (e) {
+            const th = e.target.closest('.th-sortable');
+            if (!th) return;
+            const column = th.getAttribute('data-column');
+            const label = th.textContent.trim().replace(/[▲▼]/g, '').trim();
+            openContextMenu(e, column, label);
+        });
+
+        // Cerrar context menu al hacer clic fuera
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('#tableContextMenu')) {
+                closeContextMenu();
+            }
+        });
+
+        // Acciones del context menu
+        contextMenu?.addEventListener('click', async function (e) {
+            const action = e.target.closest('[data-action]')?.dataset.action;
+            if (!action) return;
+
+            const { column, columnLabel } = contextTarget;
+
+            if (action === 'filter-column' && column) {
+                const currentValue = filterState.columnFilters[column] || '';
+                const result = await Swal.fire({
+                    title: `<i class="fa-solid fa-filter text-blue-500 mr-2"></i> Filtrar: ${columnLabel}`,
+                    input: 'text',
+                    inputValue: currentValue,
+                    inputPlaceholder: 'Escribe el valor a buscar...',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fa-solid fa-check mr-1"></i> Aplicar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#3b82f6',
+                    cancelButtonColor: '#6b7280',
+                    customClass: {
+                        input: 'text-lg'
+                    }
+                });
+
+                if (result.isConfirmed) {
+                    const value = result.value?.trim() || '';
+                    if (value) {
+                        filterState.columnFilters[column] = value;
+                    } else {
+                        delete filterState.columnFilters[column];
+                    }
+                    applyColumnFilters();
+                    updateColumnFilterBadge();
                 }
             }
-        }
-        
-        // Si tiene filtros de columna y no coincide, ocultar
-        if (!matchesColumnFilter) {
-            row.style.display = 'none';
-        } else {
-            // Verificar también los filtros de status existentes
-            const status = row.getAttribute('data-status') || 'Activo';
-            const noTelar = row.getAttribute('data-telar') || '';
-            const statusFilters = filterState.filtros || [];
-            
-            let matchesStatusFilter = true;
-            if (statusFilters.length > 0) {
-                matchesStatusFilter = statusFilters.some(f => statusMatchesFilter(status, noTelar, f));
-            }
-            
-            row.style.display = matchesStatusFilter ? '' : 'none';
-        }
-    });
-    
-    // Verificar si hay filas visibles
-    const tbody = document.getElementById('tb-body');
-    const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
-    let emptyRow = tbody?.querySelector('tr.no-results');
-    
-    if (visibleRows.length === 0) {
-        if (!emptyRow) {
-            emptyRow = document.createElement('tr');
-            emptyRow.className = 'no-results';
-            emptyRow.innerHTML = '<td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">No hay registros que coincidan con los filtros aplicados</td>';
-            tbody?.appendChild(emptyRow);
-        }
-    } else if (emptyRow) {
-        emptyRow.remove();
-    }
-}
 
-// Actualizar badge de filtros por columna
-function updateColumnFilterBadge() {
-    const filterCount = Object.keys(filterState.columnFilters).length;
-    let badge = document.getElementById('column-filter-badge');
-    
-    if (filterCount > 0) {
-        // Resaltar columnas con filtro activo
-        document.querySelectorAll('#atadoresTableHead th[data-column]').forEach(th => {
-            const col = th.getAttribute('data-column');
-            if (filterState.columnFilters[col]) {
-                th.classList.add('bg-green-600');
-                th.classList.remove('bg-blue-500');
+            if (action === 'clear-column-filter' && column) {
+                if (filterState.columnFilters[column]) {
+                    delete filterState.columnFilters[column];
+                    applyColumnFilters();
+                    updateColumnFilterBadge();
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: `Filtro de "${columnLabel}" eliminado`,
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                }
+            }
+
+            if (action === 'clear-all-filters') {
+                const filterCount = Object.keys(filterState.columnFilters).length;
+                if (filterCount > 0) {
+                    filterState.columnFilters = {};
+                    applyColumnFilters();
+                    updateColumnFilterBadge();
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: `${filterCount} filtro(s) eliminados`,
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                }
+            }
+
+            closeContextMenu();
+        });
+
+        // Aplicar filtros por columna
+        function applyColumnFilters() {
+            const rows = document.querySelectorAll('.table-row');
+            const filters = filterState.columnFilters;
+            const hasColumnFilters = Object.keys(filters).length > 0;
+
+            rows.forEach(row => {
+                let matchesColumnFilter = true;
+
+                if (hasColumnFilters) {
+                    for (const [col, val] of Object.entries(filters)) {
+                        const dataAttr = `data-${col}`;
+                        const cellValue = (row.getAttribute(dataAttr) || '').toLowerCase();
+                        const searchValue = val.toLowerCase();
+
+                        if (!cellValue.includes(searchValue)) {
+                            matchesColumnFilter = false;
+                            break;
+                        }
+                    }
+                }
+
+                // Si tiene filtros de columna y no coincide, ocultar
+                if (!matchesColumnFilter) {
+                    row.style.display = 'none';
+                } else {
+                    // Verificar también los filtros de status existentes
+                    const status = row.getAttribute('data-status') || 'Activo';
+                    const noTelar = row.getAttribute('data-telar') || '';
+                    const statusFilters = filterState.filtros || [];
+
+                    let matchesStatusFilter = true;
+                    if (statusFilters.length > 0) {
+                        matchesStatusFilter = statusFilters.some(f => statusMatchesFilter(status, noTelar, f));
+                    }
+
+                    row.style.display = matchesStatusFilter ? '' : 'none';
+                }
+            });
+
+            // Verificar si hay filas visibles
+            const tbody = document.getElementById('tb-body');
+            const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
+            let emptyRow = tbody?.querySelector('tr.no-results');
+
+            if (visibleRows.length === 0) {
+                if (!emptyRow) {
+                    emptyRow = document.createElement('tr');
+                    emptyRow.className = 'no-results';
+                    emptyRow.innerHTML = '<td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">No hay registros que coincidan con los filtros aplicados</td>';
+                    tbody?.appendChild(emptyRow);
+                }
+            } else if (emptyRow) {
+                emptyRow.remove();
+            }
+        }
+
+        // Actualizar badge de filtros por columna
+        function updateColumnFilterBadge() {
+            const filterCount = Object.keys(filterState.columnFilters).length;
+            let badge = document.getElementById('column-filter-badge');
+
+            if (filterCount > 0) {
+                // Resaltar columnas con filtro activo
+                document.querySelectorAll('#atadoresTableHead th[data-column]').forEach(th => {
+                    const col = th.getAttribute('data-column');
+                    if (filterState.columnFilters[col]) {
+                        th.classList.add('bg-green-600');
+                        th.classList.remove('bg-blue-500');
+                    } else {
+                        th.classList.remove('bg-green-600');
+                        th.classList.add('bg-blue-500');
+                    }
+                });
             } else {
-                th.classList.remove('bg-green-600');
-                th.classList.add('bg-blue-500');
+                // Restaurar colores originales
+                document.querySelectorAll('#atadoresTableHead th[data-column]').forEach(th => {
+                    th.classList.remove('bg-green-600');
+                    th.classList.add('bg-blue-500');
+                });
             }
-        });
-    } else {
-        // Restaurar colores originales
-        document.querySelectorAll('#atadoresTableHead th[data-column]').forEach(th => {
-            th.classList.remove('bg-green-600');
-            th.classList.add('bg-blue-500');
-        });
-    }
-}
+        }
 
-// Inicializar filtros y orden al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    updateFilterButtons();
-    // El backend ya filtró los datos por rol, así que solo aplicar filtros si el usuario los cambió
-    // Si filtroAplicado es 'todos', mostrar todos los registros que el backend trajo
-    if (filterState.filtros.length > 0) {
-        applyFilters();
-    }
-    // Si no hay filtros, todas las filas ya están visibles (el backend ya filtró por rol)
-    updateSortIcons();
-});
-
-setInterval(refreshStatus, 5000);
-
-async function refreshStatus() {
-    try {
-        // Preservar la selección actual antes de actualizar
-        const currentSelectedId = selectedRowId;
-
-        // Obtener todos los registros sin filtro
-        const url = '{{ route("atadores.programa") }}';
-
-        const response = await fetch(url);
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-
-        document.querySelectorAll('tbody tr[data-id]').forEach(row => {
-            const id = row.getAttribute('data-id');
-            const newRow = doc.querySelector(`tr[data-id="${id}"]`);
-            if (newRow) {
-                // Actualizar status
-                const currentStatusCell = row.querySelector('td[data-status]');
-                const newStatusCell = newRow.querySelector('td[data-status]');
-                if (currentStatusCell && newStatusCell &&
-                    currentStatusCell.getAttribute('data-status') !== newStatusCell.getAttribute('data-status')) {
-                    currentStatusCell.innerHTML = newStatusCell.innerHTML;
-                    currentStatusCell.setAttribute('data-status', newStatusCell.getAttribute('data-status'));
-
-                    // Actualizar el atributo data-status y data-estatus de la fila
-                    const newStatus = newStatusCell.getAttribute('data-status');
-                    row.setAttribute('data-status', newStatus || 'Activo');
-                    row.setAttribute('data-estatus', newStatus || 'Activo');
-                }
-
-                // Actualizar telar si cambió
-                const newTelar = newRow.getAttribute('data-telar');
-                if (newTelar) {
-                    row.setAttribute('data-telar', newTelar);
-                }
+        // Inicializar filtros y orden al cargar la página
+        document.addEventListener('DOMContentLoaded', function () {
+            updateFilterButtons();
+            // El backend ya filtró los datos por rol, así que solo aplicar filtros si el usuario los cambió
+            // Si filtroAplicado es 'todos', mostrar todos los registros que el backend trajo
+            if (filterState.filtros.length > 0) {
+                applyFilters();
             }
+            // Si no hay filtros, todas las filas ya están visibles (el backend ya filtró por rol)
+            updateSortIcons();
         });
 
-        // Reaplicar filtros y orden después de actualizar
-        applyFilters();
-        sortTable();
+        setInterval(refreshStatus, 5000);
 
-        // Restaurar la selección después de actualizar solo si todavía existe
-        if (currentSelectedId) {
-            const restoredRow = document.querySelector(`tr[data-id="${currentSelectedId}"]`);
-            if (restoredRow) {
-                // Limpiar todas las selecciones primero para evitar duplicados
+        async function refreshStatus() {
+            try {
+                // Preservar la selección actual antes de actualizar
+                const currentSelectedId = selectedRowId;
+
+                // Obtener todos los registros sin filtro
+                const url = '{{ route("atadores.programa") }}';
+
+                const response = await fetch(url);
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                document.querySelectorAll('tbody tr[data-id]').forEach(row => {
+                    const id = row.getAttribute('data-id');
+                    const newRow = doc.querySelector(`tr[data-id="${id}"]`);
+                    if (newRow) {
+                        // Actualizar status
+                        const currentStatusCell = row.querySelector('td[data-status]');
+                        const newStatusCell = newRow.querySelector('td[data-status]');
+                        if (currentStatusCell && newStatusCell &&
+                            currentStatusCell.getAttribute('data-status') !== newStatusCell.getAttribute('data-status')) {
+                            currentStatusCell.innerHTML = newStatusCell.innerHTML;
+                            currentStatusCell.setAttribute('data-status', newStatusCell.getAttribute('data-status'));
+
+                            // Actualizar el atributo data-status y data-estatus de la fila
+                            const newStatus = newStatusCell.getAttribute('data-status');
+                            row.setAttribute('data-status', newStatus || 'Activo');
+                            row.setAttribute('data-estatus', newStatus || 'Activo');
+                        }
+
+                        // Actualizar telar si cambió
+                        const newTelar = newRow.getAttribute('data-telar');
+                        if (newTelar) {
+                            row.setAttribute('data-telar', newTelar);
+                        }
+                    }
+                });
+
+                // Reaplicar filtros y orden después de actualizar
+                applyFilters();
+                sortTable();
+
+                // Restaurar la selección después de actualizar solo si todavía existe
+                if (currentSelectedId) {
+                    const restoredRow = document.querySelector(`tr[data-id="${currentSelectedId}"]`);
+                    if (restoredRow) {
+                        // Limpiar todas las selecciones primero para evitar duplicados
+                        document.querySelectorAll('tbody tr').forEach(tr => {
+                            tr.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-700');
+                            tr.querySelectorAll('td').forEach(td => {
+                                td.classList.remove('text-white');
+                            });
+                        });
+
+                        // Aplicar selección solo a la fila correcta
+                        selectedRow = restoredRow;
+                        selectedRowId = currentSelectedId;
+                        restoredRow.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-700');
+                        restoredRow.querySelectorAll('td').forEach(td => {
+                            td.classList.add('text-white');
+                        });
+                        enableIniciarButton();
+                    } else {
+                        // Si la fila ya no existe, limpiar la selección
+                        selectedRow = null;
+                        selectedRowId = null;
+                        disableIniciarButton();
+                    }
+                }
+            } catch (error) {
+                console.error('Error refreshing status:', error);
+            }
+        }
+
+        function selectRow(row, id) {
+            // Validar que el ID y la fila sean válidos
+            if (!id || !row) {
+                console.error('Error: ID o fila inválidos');
+                return;
+            }
+
+            // Obtener datos de la fila para validación
+            const noJulio = row.getAttribute('data-no-julio');
+            const noOrden = row.getAttribute('data-no-orden');
+            const horaParo = row.getAttribute('data-hora-paro') || '';
+            if (!horaParo.trim()) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Atención',
+                    text: 'El telar debe registrar la hora de paro antes de iniciar el atado'
+                });
+                disableIniciarButton();
+                return;
+            }
+
+            // Validar que la fila tenga los datos necesarios
+            if (!noJulio || !noOrden) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Atención',
+                    text: 'El registro seleccionado no tiene los datos necesarios (No. Julio o No. Orden)'
+                });
+                return;
+            }
+
+            // Si se hace clic en la misma fila, deseleccionar
+            if (selectedRow === row && selectedRowId === id) {
+                // Limpiar todas las selecciones
                 document.querySelectorAll('tbody tr').forEach(tr => {
                     tr.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-700');
                     tr.querySelectorAll('td').forEach(td => {
                         td.classList.remove('text-white');
                     });
                 });
-
-                // Aplicar selección solo a la fila correcta
-                selectedRow = restoredRow;
-                selectedRowId = currentSelectedId;
-                restoredRow.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-700');
-                restoredRow.querySelectorAll('td').forEach(td => {
-                    td.classList.add('text-white');
-                });
-                enableIniciarButton();
-            } else {
-                // Si la fila ya no existe, limpiar la selección
                 selectedRow = null;
                 selectedRowId = null;
                 disableIniciarButton();
+                return;
+            }
+
+            // Limpiar TODAS las selecciones primero para evitar duplicados
+            document.querySelectorAll('tbody tr').forEach(tr => {
+                tr.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-700');
+                tr.querySelectorAll('td').forEach(td => {
+                    td.classList.remove('text-white');
+                });
+            });
+
+            // Seleccionar nueva fila
+            selectedRow = row;
+            selectedRowId = id;
+            row.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-700');
+            row.querySelectorAll('td').forEach(td => {
+                td.classList.add('text-white');
+            });
+
+            enableIniciarButton();
+        }
+
+        function enableIniciarButton() {
+            const btn = document.getElementById('btnIniciarAtado');
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         }
-    } catch (error) {
-        console.error('Error refreshing status:', error);
-    }
-}
 
-function selectRow(row, id) {
-    // Validar que el ID y la fila sean válidos
-    if (!id || !row) {
-        console.error('Error: ID o fila inválidos');
-        return;
-    }
-
-    // Obtener datos de la fila para validación
-    const noJulio = row.getAttribute('data-no-julio');
-    const noOrden = row.getAttribute('data-no-orden');
-    const horaParo = row.getAttribute('data-hora-paro') || '';
-    if (!horaParo.trim()) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Atención',
-            text: 'El telar debe registrar la hora de paro antes de iniciar el atado'
-        });
-        disableIniciarButton();
-        return;
-    }
-
-    // Validar que la fila tenga los datos necesarios
-    if (!noJulio || !noOrden) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Atención',
-            text: 'El registro seleccionado no tiene los datos necesarios (No. Julio o No. Orden)'
-        });
-        return;
-    }
-
-    // Si se hace clic en la misma fila, deseleccionar
-    if (selectedRow === row && selectedRowId === id) {
-        // Limpiar todas las selecciones
-        document.querySelectorAll('tbody tr').forEach(tr => {
-            tr.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-700');
-            tr.querySelectorAll('td').forEach(td => {
-                td.classList.remove('text-white');
-            });
-        });
-        selectedRow = null;
-        selectedRowId = null;
-        disableIniciarButton();
-        return;
-    }
-
-    // Limpiar TODAS las selecciones primero para evitar duplicados
-    document.querySelectorAll('tbody tr').forEach(tr => {
-        tr.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-700');
-        tr.querySelectorAll('td').forEach(td => {
-            td.classList.remove('text-white');
-        });
-    });
-
-    // Seleccionar nueva fila
-    selectedRow = row;
-    selectedRowId = id;
-    row.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-700');
-    row.querySelectorAll('td').forEach(td => {
-        td.classList.add('text-white');
-    });
-
-    enableIniciarButton();
-}
-
-function enableIniciarButton() {
-    const btn = document.getElementById('btnIniciarAtado');
-    if (btn) {
-        btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-    }
-}
-
-function disableIniciarButton() {
-    const btn = document.getElementById('btnIniciarAtado');
-    if (btn) {
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-    }
-}
-
-function iniciarAtado() {
-    if (!selectedRowId) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Atención',
-            text: 'Debe seleccionar un registro primero'
-        });
-        return;
-    }
-
-    // Obtener datos adicionales del registro seleccionado para validación
-    const selectedRowElement = document.querySelector(`tr[data-id="${selectedRowId}"]`);
-    if (!selectedRowElement) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'No se pudo encontrar el registro seleccionado'
-        });
-        return;
-    }
-
-    const noJulio = selectedRowElement.getAttribute('data-no-julio');
-    const noOrden = selectedRowElement.getAttribute('data-no-orden');
-    const status = selectedRowElement.getAttribute('data-status') || selectedRowElement.getAttribute('data-estatus') || 'Activo';
-    const horaParo = selectedRowElement.getAttribute('data-hora-paro') || '';
-
-    // Si es "Autorizado", permitir acceso sin validar horaParo (solo visualización)
-    if (status !== 'Autorizado' && !horaParo.trim()) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Atención',
-            text: 'Este telar aún no registra la hora de paro. Detén el telar antes de iniciar el atado'
-        });
-        return;
-    }
-
-    // Validar que los datos estén presentes
-    if (!noJulio || !noOrden) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'El registro seleccionado no tiene los datos necesarios (No. Julio o No. Orden)'
-        });
-        return;
-    }
-
-    // Enviar con datos adicionales para validación en el servidor
-    const url = `{{ route("atadores.iniciar") }}?id=${encodeURIComponent(selectedRowId)}&no_julio=${encodeURIComponent(noJulio)}&no_orden=${encodeURIComponent(noOrden)}`;
-
-    // Verificar que la URL sea válida
-    if (!url || url.includes('undefined') || url.includes('null')) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'No se pudo construir la URL de redirección. Por favor, intente nuevamente.'
-        });
-        return;
-    }
-
-    // Redirigir inmediatamente - FORZAR navegación de múltiples formas (similar a engomado)
-    window.location.replace(url);
-    window.location.href = url;
-
-    setTimeout(() => {
-        if (window.location.href !== url && !window.location.href.includes('calificar-atadores')) {
-            window.open(url, '_self');
+        function disableIniciarButton() {
+            const btn = document.getElementById('btnIniciarAtado');
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
         }
-    }, 50);
-}
-</script>
+
+        function iniciarAtado() {
+            if (!selectedRowId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Atención',
+                    text: 'Debe seleccionar un registro primero'
+                });
+                return;
+            }
+
+            // Obtener datos adicionales del registro seleccionado para validación
+            const selectedRowElement = document.querySelector(`tr[data-id="${selectedRowId}"]`);
+            if (!selectedRowElement) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo encontrar el registro seleccionado'
+                });
+                return;
+            }
+
+            const noJulio = selectedRowElement.getAttribute('data-no-julio');
+            const noOrden = selectedRowElement.getAttribute('data-no-orden');
+            const status = selectedRowElement.getAttribute('data-status') || selectedRowElement.getAttribute('data-estatus') || 'Activo';
+            const horaParo = selectedRowElement.getAttribute('data-hora-paro') || '';
+
+            // Si es "Autorizado", permitir acceso sin validar horaParo (solo visualización)
+            if (status !== 'Autorizado' && !horaParo.trim()) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Atención',
+                    text: 'Este telar aún no registra la hora de paro. Detén el telar antes de iniciar el atado'
+                });
+                return;
+            }
+
+            // Validar que los datos estén presentes
+            if (!noJulio || !noOrden) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'El registro seleccionado no tiene los datos necesarios (No. Julio o No. Orden)'
+                });
+                return;
+            }
+
+            // Enviar con datos adicionales para validación en el servidor
+            const url = `{{ route("atadores.iniciar") }}?id=${encodeURIComponent(selectedRowId)}&no_julio=${encodeURIComponent(noJulio)}&no_orden=${encodeURIComponent(noOrden)}`;
+
+            // Verificar que la URL sea válida
+            if (!url || url.includes('undefined') || url.includes('null')) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo construir la URL de redirección. Por favor, intente nuevamente.'
+                });
+                return;
+            }
+
+            // Redirigir inmediatamente - FORZAR navegación de múltiples formas (similar a engomado)
+            window.location.replace(url);
+            window.location.href = url;
+
+            setTimeout(() => {
+                if (window.location.href !== url && !window.location.href.includes('calificar-atadores')) {
+                    window.open(url, '_self');
+                }
+            }, 50);
+        }
+    </script>
 @endpush

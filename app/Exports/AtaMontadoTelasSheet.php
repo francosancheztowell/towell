@@ -52,12 +52,12 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
     protected function construirFoliosUnicos(): Collection
     {
         return $this->datos
-            ->map(fn ($item) => [
+            ->map(fn($item) => [
                 'NoJulio' => (string) ($item->NoJulio ?? ''),
                 'NoProduccion' => (string) ($item->NoProduccion ?? ''),
             ])
-            ->filter(fn ($folio) => $folio['NoJulio'] !== '' || $folio['NoProduccion'] !== '')
-            ->unique(fn ($folio) => $folio['NoJulio'] . '|' . $folio['NoProduccion'])
+            ->filter(fn($folio) => $folio['NoJulio'] !== '' || $folio['NoProduccion'] !== '')
+            ->unique(fn($folio) => $folio['NoJulio'] . '|' . $folio['NoProduccion'])
             ->values();
     }
 
@@ -78,7 +78,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
         $folios->each(function ($folio, $index) use ($queryMaquinas, $queryActividades) {
             $build = function ($q) use ($folio) {
                 $q->where('NoJulio', $folio['NoJulio'])
-                  ->where('NoProduccion', $folio['NoProduccion']);
+                    ->where('NoProduccion', $folio['NoProduccion']);
             };
 
             if ($index === 0) {
@@ -97,18 +97,18 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
         $catalogoMaquinas = AtaMaquinasModel::query()
             ->orderBy('MaquinaId')
             ->pluck('MaquinaId')
-            ->map(fn ($id) => (string) $id)
+            ->map(fn($id) => (string) $id)
             ->all();
 
         $catalogoActividades = AtaActividadesModel::query()
             ->orderBy('ActividadId')
             ->pluck('ActividadId')
-            ->map(fn ($id) => (string) $id)
+            ->map(fn($id) => (string) $id)
             ->all();
 
         $maquinasPresentes = $registrosMaquinas
             ->pluck('MaquinaId')
-            ->map(fn ($id) => (string) $id)
+            ->map(fn($id) => (string) $id)
             ->filter()
             ->unique()
             ->sort()
@@ -117,7 +117,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
 
         $actividadesPresentes = $registrosActividades
             ->pluck('ActividadId')
-            ->map(fn ($id) => (string) $id)
+            ->map(fn($id) => (string) $id)
             ->filter()
             ->unique()
             ->sort()
@@ -248,7 +248,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
                 'Turno' => $item->Turno ?? '-',
                 'No. Julio' => $item->NoJulio ?? '-',
                 'No. Producción' => $item->NoProduccion ?? '-',
-                'Tipo' => $item->Tipo ?? '-',
+                'Tipo' => $this->transformarTipo($item->Tipo),
                 'Metros' => $item->Metros !== null ? number_format($item->Metros, 2) : '-',
                 'No. Telar' => $item->NoTelarId ?? '-',
                 'Lote Proveedor' => $item->LoteProveedor ?? '-',
@@ -384,5 +384,17 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
     protected function lastColumnLetter(): string
     {
         return Coordinate::stringFromColumnIndex(max(1, count($this->headings())));
+    }
+
+    protected function transformarTipo($tipo): string
+    {
+        if ($tipo === 'Rizo') {
+            return 'R';
+        }
+        if ($tipo === 'Pie') {
+            return 'P';
+        }
+
+        return $tipo ?? '-';
     }
 }

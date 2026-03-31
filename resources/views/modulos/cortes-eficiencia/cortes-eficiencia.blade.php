@@ -53,12 +53,12 @@
         </div>
     @endif
 
-    <div class="container mx-auto px-4 py-6">
+    <div class="container mx-auto px-4 py-6 mb-32">
         <!-- Tabla principal, sin encabezado de folio/turno -->
         <div id="tabla-cortes" class="bg-white shadow overflow-hidden">
             <div class="overflow-x-auto">
                 <div class="overflow-y-auto max-h-[80vh]">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200 mb-24">
                         <thead>
                             <tr class="text-white">
                                 <th
@@ -905,7 +905,7 @@
                     await Swal.fire({
                         title: 'Observaciones',
                         html: `<div class='text-left mb-3'><p class='text-sm text-gray-600'>Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong></p></div>
-                                      <textarea class='w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-700 resize-none' rows='4' readonly>${cur}</textarea>`,
+                                              <textarea class='w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-700 resize-none' rows='4' readonly>${cur}</textarea>`,
                         confirmButtonText: 'Cerrar',
                         confirmButtonColor: '#2563eb',
                         width: 520
@@ -916,16 +916,16 @@
                 const fallas = await preloadFallas();
 
                 const html = `
-                            <div class='text-left mb-4'>
-                                <p class='text-sm text-gray-600 mb-2'>Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong></p>
-                                <label class='block text-xs text-gray-700 mb-1'>Falla (Clave)</label>
-                                <select id='swal-select-falla' class='w-full p-2 border border-gray-300 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                                    <option value=''>-- Seleccione una clave --</option>
-                                    ${fallas.map(f => `<option value="${String(f.Clave).replace(/"/g, '&quot;')}" data-desc="${String(f.Descripcion ?? '').replace(/"/g, '&quot;')}">${String(f.Clave)}</option>`).join('')}
-                                </select>
-                            </div>
-                            <textarea id='swal-textarea' class='w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none' rows='4' placeholder='Escriba sus observaciones aquí...'>${cur}</textarea>
-                        `;
+                                    <div class='text-left mb-4'>
+                                        <p class='text-sm text-gray-600 mb-2'>Telar: <strong>${telar}</strong> | Horario: <strong>${horario}</strong></p>
+                                        <label class='block text-xs text-gray-700 mb-1'>Falla (Clave)</label>
+                                        <select id='swal-select-falla' class='w-full p-2 border border-gray-300 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+                                            <option value=''>-- Seleccione una clave --</option>
+                                            ${fallas.map(f => `<option value="${String(f.Clave).replace(/"/g, '&quot;')}" data-desc="${String(f.Descripcion ?? '').replace(/"/g, '&quot;')}">${String(f.Clave)}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <textarea id='swal-textarea' class='w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none' rows='4' placeholder='Escriba sus observaciones aquí...'>${cur}</textarea>
+                                `;
 
                 const r = await Swal.fire({
                     title: 'Observaciones',

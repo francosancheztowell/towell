@@ -83,9 +83,9 @@
 @section('content')
 <!-- Contenedor principal sin alertas flotantes (ahora usa SweetAlert) -->
 
-<div class="w-full h-full overflow-hidden flex flex-col px-4 py-4 md:px-8 lg:px-12 xl:px-16">
+<div class="w-full h-full overflow-hidden flex flex-col px-4 py-4 md:px-8 lg:px-12 xl:px-16 mb-32">
     <!-- Tabla principal -->
-    <div id="segunda-tabla" class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden mx-auto w-full max-w-7xl">
+    <div id="segunda-tabla" class="flex flex-col flex-1 bg-white rounded-lg shadow-md overflow-hidden mx-auto w-full max-w-7xl mb-24 md:mb-10">
         <!-- Header fijo (sticky) dentro del contenedor -->
         <div class="bg-blue-600 text-white sticky top-0 z-10">
             <table class="w-full text-sm">
@@ -114,7 +114,7 @@
         </div>
         <!-- Solo el contenido con scroll -->
         <div class="flex-1 overflow-auto">
-            <table class="w-full text-sm">
+            <table class="w-full text-sm mb-64 md:mb-32">
                 <colgroup>
                     <col style="width: 10%">
                     <col style="width: 10%">
