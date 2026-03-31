@@ -322,8 +322,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /* =================== Agrupar por cuenta =================== */
+    function agruparPorCuenta(telares) {
+        const map = new Map();
+        const order = [];
+        for (const t of telares) {
+            const clave = String(t.cuenta || '').trim() || `_${t.no_telar}`;
+            if (!map.has(clave)) { map.set(clave, []); order.push(clave); }
+            map.get(clave).push(t);
+        }
+        return order.map(k => map.get(k));
+    }
+
     /* =================== Render principal =================== */
-    function crearFila(telar, index) {
+    function crearFila(grupo, index) {
+        const telar = grupo[0];
         const fechaISO = telar.fecha_req || todayISO();
         // Normalizar tipo para mostrar
         const tipoNormalizado = normalizarTipo(telar.tipo);
@@ -338,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.dataset.inventarioId = (telar.id != null && telar.id !== '') ? String(telar.id) : '';
         tr.dataset.fecha = telar.fecha || '';
         tr.dataset.turno = (telar.turno != null && telar.turno !== '') ? String(telar.turno) : '';
+        tr.dataset.telares = JSON.stringify(grupo.map(t => ({ no_telar: t.no_telar, id: t.id, fecha: t.fecha, turno: t.turno })));
 
         // Construir opciones del select de hilo (siempre iniciar vacío, el usuario elige)
         const opcionesHilo = opciones.hilos.map(hilo => `<option value="${hilo}">${hilo}</option>`).join('');
@@ -356,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tr.innerHTML = `
             <td class="px-2 py-3 w-20" data-column-field="telar">
-                <input type="text" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${telar.no_telar || ''}" data-field="telar" disabled>
+                <input type="text" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${grupo.map(t => t.no_telar).join(', ')}" data-field="telar" disabled>
             </td>
             <td class="px-2 py-3 w-28" data-column-field="fecha_req">
                 <input type="date" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${fechaISO}" data-field="fecha_req" disabled>
@@ -474,7 +488,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         });
 
-        filtrados.forEach((t, i) => tbody.appendChild(crearFila(t, i)));
+        const grupos = agruparPorCuenta(filtrados);
+        grupos.forEach((grupo, i) => tbody.appendChild(crearFila(grupo, i)));
 
         // Agregar event listeners para campos editables (cuenta, calibre, hilo, tipo)
         reordenarColumnasTablaRequerimientos();
@@ -1349,7 +1364,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const datosTelares = [];
 
         filas.forEach(fila => {
-            const telarId = fila.querySelector('input[data-field="telar"]')?.value || '';
             const fechaReq = fila.querySelector('input[data-field="fecha_req"]')?.value || '';
             const cuenta = fila.querySelector('input[data-field="cuenta"]')?.value || '';
             const calibre = fila.querySelector('input[data-field="calibre"]')?.value || '';
@@ -1364,25 +1378,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const tipoAtado = fila.querySelector('select[data-field="tipo_atado"]')?.value || '';
             const metros = parseNumberInput(fila.querySelector('input[data-field="metros"]')?.value || '0') || '0';
             const kilos = parseNumberInput(fila.querySelector('input[data-field="kilos"]')?.value || '0') || '0';
-            const agrupar = true;
 
-            if (telarId) {
-                datosTelares.push({
-                    no_telar: telarId,
-                    fecha_req: fechaReq,
-                    cuenta: cuenta,
-                    calibre: calibre !== '' ? parseFloat(calibre) : null,
-                    hilo: hilo,
-                    tamano: tamano,
-                    urdido: urdido,
-                    tipo: tipo,
-                    destino: destino,
-                    tipo_atado: tipoAtado,
-                    metros: metros,
-                    kilos: kilos,
-                    agrupar: agrupar
-                });
+            // Leer grupo de telares desde data-telares
+            let telaresGrupo;
+            try { telaresGrupo = JSON.parse(fila.dataset.telares || 'null'); } catch { telaresGrupo = null; }
+            const telarIdRaw = fila.querySelector('input[data-field="telar"]')?.value || '';
+            if (!telaresGrupo || telaresGrupo.length === 0) {
+                telaresGrupo = telarIdRaw ? [{ no_telar: telarIdRaw }] : [];
             }
+
+            telaresGrupo.forEach(t => {
+                if (t.no_telar) {
+                    datosTelares.push({
+                        no_telar: t.no_telar,
+                        fecha_req: fechaReq,
+                        cuenta: cuenta,
+                        calibre: calibre !== '' ? parseFloat(calibre) : null,
+                        hilo: hilo,
+                        tamano: tamano,
+                        urdido: urdido,
+                        tipo: tipo,
+                        destino: destino,
+                        tipo_atado: tipoAtado,
+                        metros: metros,
+                        kilos: kilos,
+                        agrupar: true
+                    });
+                }
+            });
         });
 
         if (datosTelares.length === 0) {
