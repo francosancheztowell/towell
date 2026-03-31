@@ -31,7 +31,6 @@
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="hilo" data-column-label="Hilo">Hilo</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="urdido" data-column-label="Urdido">Urdido</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="tipo" data-column-label="Tipo">Tipo</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="destino" data-column-label="Destino">Destino</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="tipo_atado" data-column-label="Tipo Atado">Tipo Atado</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="metros" data-column-label="Metros">Metros</th>
                         <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="kilos" data-column-label="Kilos">Kilos</th>
@@ -108,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
         { field: 'hilo', label: 'Hilo' },
         { field: 'urdido', label: 'Urdido' },
         { field: 'tipo', label: 'Tipo' },
-        { field: 'destino', label: 'Destino' },
         { field: 'tipo_atado', label: 'Tipo Atado' },
         { field: 'metros', label: 'Metros' },
         { field: 'kilos', label: 'Kilos' }
@@ -406,19 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <option value="Pie" ${tipoNormalizado === 'Pie' ? 'selected' : ''}>Pie</option>
                 </select>
             </td>
-            <td class="px-2 py-3 w-28" data-column-field="destino">
-                <select class="w-full px-2 py-1.5 text-md bg-transparent border-0 cursor-default appearance-none" data-field="destino" data-telar-id="${telar.no_telar || ''}" disabled>
-                    ${(() => {
-                        const destinoInicial = normalizarDestino(telar.grupo)
-                            || normalizarDestino(telar.destino)
-                            || mapearSalonADestino(telar.salon);
-                        const opcionesUnicas = [...new Set([...opciones.destino, destinoInicial].filter(Boolean))];
-                        return opcionesUnicas.map(x => {
-                            return `<option value="${x}" ${destinoInicial === x ? 'selected' : ''}>${x}</option>`;
-                        }).join('');
-                    })()}
-                </select>
-            </td>
+
             <td class="px-2 py-3 w-28" data-column-field="tipo_atado">
                 <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo_atado" required>
                     ${opciones.tipoAtado.map(x => `<option value="${x}" ${(telar.tipo_atado||'Normal')===x?'selected':''}>${x}</option>`).join('')}
