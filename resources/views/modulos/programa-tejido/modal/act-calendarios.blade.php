@@ -1,51 +1,40 @@
-{{-- Modal Actualizar Calendarios - Estructura tipo Excel --}}
-<div id="modalActCalendarios" class="hidden fixed inset-0 overflow-hidden h-full w-full z-50 backdrop-blur-sm" style="display: none; background-color: rgba(0, 0, 0, 0.3);">
-  <div class="relative top-4 mx-auto p-4 border w-11/12 max-w-2xl shadow-2xl rounded-lg bg-white overflow-hidden" style="height: 90vh; max-height: 90vh; display: flex; flex-direction: column;">
-    {{-- Header del Modal --}}
-    <div class="flex items-center justify-between mb-2 flex-shrink-0">
-      <div class="text-sm font-semibold text-gray-700">
-        Actualizar Calendarios
-      </div>
+{{-- Modal Actualizar Calendarios --}}
+<x-ui.modal-base id="modalActCalendarios" title="Actualizar Calendarios" size="lg" onclose="cerrarModalActCalendarios()">
 
-    </div>
-
-    {{-- Contenido del Modal --}}
-    <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-      {{-- Select de Calendario --}}
-      <div class="mb-2 flex-shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-        <label for="selectCalendario" class="text-xs font-semibold text-gray-600">
-          Calendario
-        </label>
-        <select id="selectCalendario" class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-blue-400">
-          <option value="">Seleccione un calendario...</option>
-        </select>
-        <label class="text-xs text-gray-600 flex items-center gap-2">
-          <input type="checkbox" id="selectAllRegistros" class="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer">
-          Seleccionar todo
-        </label>
-      </div>
-
-      {{-- Tabla tipo Excel con registros de ProgramaTejido --}}
-      <div class="flex-1 min-h-0 border border-gray-300 rounded-lg overflow-y-auto overflow-x-hidden">
-        <table id="tablaRegistros" class="min-w-full bg-white text-sm">
-          <tbody id="tbodyRegistros" class="divide-y divide-gray-200">
-            {{-- Las filas se cargarán dinámicamente con JavaScript --}}
-          </tbody>
-        </table>
-      </div>
-
-      {{-- Botones de acción --}}
-      <div class="flex justify-end gap-3 mt-3 pt-3 border-t border-gray-200 flex-shrink-0">
-        <button type="button" onclick="cerrarModalActCalendarios()" class="px-6 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 shadow-md hover:shadow-lg transition-all font-medium">
-          Cancelar
-        </button>
-        <button type="button" id="btnGuardarCalendarios" onclick="guardarCalendariosSeleccionados()" class="px-6 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-md hover:shadow-lg transition-all font-medium">
-          Guardar
-        </button>
-      </div>
-    </div>
+  {{-- Select de Calendario --}}
+  <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+    <label for="selectCalendario" class="text-xs font-semibold text-gray-600">
+      Calendario
+    </label>
+    <select id="selectCalendario" class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-blue-400">
+      <option value="">Seleccione un calendario...</option>
+    </select>
+    <label class="text-xs text-gray-600 flex items-center gap-2">
+      <input type="checkbox" id="selectAllRegistros" class="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer">
+      Seleccionar todo
+    </label>
   </div>
-</div>
+
+  {{-- Tabla tipo Excel con registros de ProgramaTejido --}}
+  <div class="border border-gray-300 rounded-lg overflow-y-auto overflow-x-hidden" style="max-height: 50vh;">
+    <table id="tablaRegistros" class="min-w-full bg-white text-sm">
+      <tbody id="tbodyRegistros" class="divide-y divide-gray-200">
+        {{-- Las filas se cargarán dinámicamente con JavaScript --}}
+      </tbody>
+    </table>
+  </div>
+
+  {{-- Botones de acción --}}
+  <div class="flex justify-end gap-3 mt-3 pt-3 border-t border-gray-200">
+    <button type="button" onclick="cerrarModalActCalendarios()" class="modal-btn-secondary">
+      Cancelar
+    </button>
+    <button type="button" id="btnGuardarCalendarios" onclick="guardarCalendariosSeleccionados()" class="modal-btn-primary">
+      Guardar
+    </button>
+  </div>
+
+</x-ui.modal-base>
 
 <script>
   // Función para abrir el modal de Actualizar Calendarios
@@ -64,10 +53,7 @@
 
     // Mostrar modal
     modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'flex-start';
-    modal.style.justifyContent = 'center';
-    document.body.style.overflow = 'hidden'; // Prevenir scroll del body
+    document.body.style.overflow = 'hidden';
 
     // Cargar calendarios en el select y registros en la tabla
     await Promise.all([
@@ -81,8 +67,7 @@
     const modal = document.getElementById('modalActCalendarios');
     if (modal) {
       modal.classList.add('hidden');
-      modal.style.display = 'none';
-      document.body.style.overflow = ''; // Restaurar scroll del body
+      document.body.style.overflow = '';
     }
   };
 
@@ -339,16 +324,6 @@
         }
       });
     }
-
-    // Cerrar modal con ESC
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        const modal = document.getElementById('modalActCalendarios');
-        if (modal && !modal.classList.contains('hidden')) {
-          cerrarModalActCalendarios();
-        }
-      }
-    });
   });
 </script>
 
