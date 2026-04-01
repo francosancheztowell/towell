@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
-use App\Models\Planeacion\ReqCalendarioLine;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
@@ -202,6 +202,7 @@ class DateHelpers
             $todos = ReqProgramaTejido::query()
                 ->salon($salon)
                 ->telar($telar)
+                ->orderBy('Posicion', 'asc')
                 ->orderBy('FechaInicio', 'asc')
                 ->lockForUpdate()
                 ->get()
@@ -351,76 +352,12 @@ class DateHelpers
 
     public static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
-        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-            ->where('FechaFin', '>', $fechaInicio)
-            ->orderBy('FechaInicio')
-            ->first();
-
-        if (!$linea) return null;
-
-        $ini = Carbon::parse($linea->FechaInicio);
-        $fin = Carbon::parse($linea->FechaFin);
-
-        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) {
-            return $fechaInicio->copy();
-        }
-
-        return $ini->copy();
+        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
     }
 
     public static function calcularFechaFinalDesdeInicio(string $calendarioId, Carbon $fechaInicio, float $horasNecesarias): ?Carbon
     {
-        $segundosRestantes = (int)(max(0, $horasNecesarias) * 3600);
-        if ($segundosRestantes <= 0) return $fechaInicio->copy();
-
-        $cursor = $fechaInicio->copy();
-
-        while ($segundosRestantes > 0) {
-            $lineas = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-                ->where('FechaFin', '>', $cursor)
-                ->orderBy('FechaInicio')
-                ->limit(5000)
-                ->get();
-
-            if ($lineas->isEmpty()) return null;
-
-            foreach ($lineas as $linea) {
-                if ($segundosRestantes <= 0) break;
-
-                $ini = Carbon::parse($linea->FechaInicio);
-                $fin = Carbon::parse($linea->FechaFin);
-
-                // gap
-                if ($cursor->lt($ini)) {
-                    $cursor = $ini->copy();
-                }
-
-                if ($cursor->gte($fin)) continue;
-
-                $disponibles = $cursor->diffInSeconds($fin, true);
-                if ($disponibles <= 0) {
-                    $cursor = $fin->copy();
-                    continue;
-                }
-
-                $usar = min($disponibles, $segundosRestantes);
-                $cursor->addSeconds($usar);
-                $segundosRestantes -= $usar;
-
-                if ($segundosRestantes <= 0) return $cursor;
-
-                if ($cursor->gte($fin)) {
-                    $cursor = $fin->copy();
-                }
-            }
-
-            $ultimaFin = Carbon::parse($lineas->last()->FechaFin);
-            if ($cursor->lt($ultimaFin)) {
-                $cursor = $ultimaFin->copy();
-            }
-        }
-
-        return $cursor;
+        return BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $fechaInicio, $horasNecesarias);
     }
 
     /* =========================================================

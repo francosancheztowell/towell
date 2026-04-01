@@ -201,6 +201,7 @@ class BalancearTejido
                 $todosRegistrosTelar = ReqProgramaTejido::query()
                     ->where('SalonTejidoId', $salon)
                     ->where('NoTelarId', $telar)
+                    ->orderBy('Posicion', 'asc')
                     ->orderBy('FechaInicio', 'asc')
                     ->orderBy('Id', 'asc')
                     ->get();

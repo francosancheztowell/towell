@@ -77,6 +77,7 @@ class ProgramaTejidoCalendariosController extends Controller
                     ->whereNotNull('FechaInicio')
                     ->orderBy('SalonTejidoId')
                     ->orderBy('NoTelarId')
+                    ->orderBy('Posicion', 'asc')
                     ->orderBy('FechaInicio', 'asc')
                     ->orderBy('Id', 'asc')
                     ->get([

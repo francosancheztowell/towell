@@ -473,11 +473,11 @@ class DuplicarTejido
                     if (!empty($nuevo->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
                         if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                            $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
                         }
                         $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
                 }
 

@@ -292,11 +292,11 @@ class DividirTejido
                     if (!empty($registroOriginal->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registroOriginal->CalendarioId, $inicio, $horasNecesarias);
                         if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                            $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
                         }
                         $registroOriginal->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        $registroOriginal->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                        $registroOriginal->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
                 }
 
@@ -539,11 +539,11 @@ class DividirTejido
                     if (!empty($nuevo->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
                         if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                            $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
                         }
                         $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
                 }
 
@@ -979,11 +979,11 @@ class DividirTejido
                                 if (!empty($registro->CalendarioId)) {
                                     $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
                                     if (!$fin) {
-                                        $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                                        $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
                                     }
                                     $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
                                 } else {
-                                    $registro->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                                    $registro->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                                 }
                             }
                         }
@@ -1103,11 +1103,11 @@ class DividirTejido
                     if (!empty($nuevo->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
                         if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600));
+                            $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
                         }
                         $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
                 }
 
