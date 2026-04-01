@@ -3361,7 +3361,7 @@
         setTimeout(assignClickEvents, 500);
       }
 
-      setTimeout(() => setDragDropButtonGray(!!window.dragDropMode), 0);
+      requestAnimationFrame(() => setDragDropButtonGray(!!window.dragDropMode));
 
       window.addEventListener('resize', () => {
         setNavbarHeightVar();
