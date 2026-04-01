@@ -555,7 +555,10 @@ tbody .saldos-col-frozen { background: #f0f4ff !important; }
 .saldos-row-lider { font-weight: 600; }
 .saldos-row-abierto td { opacity: 0.85; }
 .saldos-row-abierto:hover td { opacity: 1; }
-tr.saldos-row-grupo:hover td { background-color: #dcfce7 !important; }
+/* Grupo highlight on hover/selection */
+tr.saldos-row-grupo:hover td,
+tr.saldos-row-group-hover td { background-color: #dcfce7 !important; }
+tr.saldos-row-group-hover.saldos-row-selected td { background-color: #bfdbfe !important; }
 </style>
 @endpush
 
@@ -720,20 +723,63 @@ tr.saldos-row-grupo:hover td { background-color: #dcfce7 !important; }
     }
 
     /* ═══════════════════════════════════════════════════════════
+       3b. Grupo hover highlight
+     ═══════════════════════════════════════════════════════════ */
+    var grupoHighlighted = null;
+
+    function highlightGrupo(row) {
+        if (row.dataset.esGrupo !== '1') return [];
+        var bloque = getGrupoBloque(row);
+        bloque.forEach(function(r) { r.classList.add('saldos-row-group-hover'); });
+        return bloque;
+    }
+
+    function clearGrupoHighlight(bloque) {
+        if (bloque) {
+            bloque.forEach(function(r) { r.classList.remove('saldos-row-group-hover'); });
+        }
+    }
+
+    tbody.addEventListener('mouseover', function(e) {
+        if (e.target.closest('a, button, input, select')) return;
+        var row = e.target.closest('tr.saldos-row');
+        if (!row || row.dataset.esGrupo !== '1') return;
+        if (grupoHighlighted) clearGrupoHighlight(grupoHighlighted);
+        grupoHighlighted = highlightGrupo(row);
+    });
+
+    tbody.addEventListener('mouseout', function(e) {
+        if (grupoHighlighted) {
+            clearGrupoHighlight(grupoHighlighted);
+            grupoHighlighted = null;
+        }
+    });
+
+    /* ═══════════════════════════════════════════════════════════
        3c. Row selection (single row)
-    ═══════════════════════════════════════════════════════════ */
+     ═══════════════════════════════════════════════════════════ */
     tbody.addEventListener('click', function(e) {
         if (e.target.closest('a, button, input, select')) return;
         var row = e.target.closest('tr.saldos-row');
         if (!row) return;
 
+        // Limpiar selección anterior y hover
+        tbody.querySelectorAll('.saldos-row-selected').forEach(function(r) {
+            r.classList.remove('saldos-row-selected');
+        });
+        if (grupoHighlighted) {
+            clearGrupoHighlight(grupoHighlighted);
+            grupoHighlighted = null;
+        }
+
         if (row.classList.contains('saldos-row-selected')) {
             row.classList.remove('saldos-row-selected');
         } else {
-            tbody.querySelectorAll('.saldos-row-selected').forEach(function(r) {
-                r.classList.remove('saldos-row-selected');
-            });
             row.classList.add('saldos-row-selected');
+            // Si es parte de grupo, resaltar toda la grupo
+            if (row.dataset.esGrupo === '1') {
+                highlightGrupo(row);
+            }
         }
     });
 
