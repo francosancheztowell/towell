@@ -241,10 +241,10 @@ class Saldos2026Export implements FromCollection, WithHeadings, WithStyles, With
 
     public function registerEvents(): array
     {
-        // Columnas verdes (Largo, RIZO x3, Calibre Pie, Fibra Pie, Rollos prog., Rollos x Tejer)
-        $colsVerde      = ['M', 'P', 'Q', 'R', 'T', 'U', 'AI', 'AN'];
-        // Columnas amarillas (Cuenta Pie)
-        $colsAmarillo   = ['S'];
+        // Columnas verdes (Largo, RIZO x3, Rollos prog., Rollos x Tejer)
+        $colsVerde      = ['M', 'P', 'Q', 'R', 'AI', 'AN'];
+        // Columnas amarillas (Cuenta Pie, Calibre Pie, Fibra Pie)
+        $colsAmarillo   = ['S', 'T', 'U'];
 
         return [
             AfterSheet::class => function (AfterSheet $event) use ($colsVerde, $colsAmarillo) {
