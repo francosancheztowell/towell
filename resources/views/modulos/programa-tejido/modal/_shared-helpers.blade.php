@@ -122,6 +122,81 @@ function getCsrfToken() {
 	return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
+// Depuración modal programa-tejido: en consola, window.__PT_DEBUG = true antes de usar el modal
+window.__PT_DEBUG = window.__PT_DEBUG === true;
+function ptDebugLog(...args) {
+	if (window.__PT_DEBUG) {
+		console.log.apply(console, args);
+	}
+}
+
+// Caché compartida telares por salón (duplicar + dividir + clave modelo)
+window.__ptTelaresPorSalonCache = window.__ptTelaresPorSalonCache || new Map();
+
+function obtenerTelaresPorSalonCached(salon) {
+	const key = String(salon || '');
+	const cache = window.__ptTelaresPorSalonCache;
+	if (cache.has(key)) {
+		return Promise.resolve(cache.get(key));
+	}
+	return fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(key), {
+		headers: { 'Accept': 'application/json' }
+	})
+		.then(r => r.json())
+		.then(data => {
+			const lista = Array.isArray(data) ? data : [];
+			cache.set(key, lista);
+			return lista;
+		})
+		.catch(() => {
+			cache.set(key, []);
+			return [];
+		});
+}
+window.obtenerTelaresPorSalonCached = obtenerTelaresPorSalonCached;
+
+// Una sola petición in-flight / resultado para lista de flogs (toda la sesión de página)
+function ensureFlogsListaLoaded() {
+	if (window.__ptFlogsListaPromise) {
+		return window.__ptFlogsListaPromise;
+	}
+	const yaCargadas = window.todasOpcionesFlogGeneral;
+	if (Array.isArray(yaCargadas) && yaCargadas.length > 0) {
+		window.__ptFlogsListaPromise = Promise.resolve(yaCargadas);
+		return window.__ptFlogsListaPromise;
+	}
+	const token = getCsrfToken();
+	window.__ptFlogsListaPromise = fetch('/programa-tejido/flogs-id-from-twflogs', {
+		headers: {
+			'Accept': 'application/json',
+			...(token ? { 'X-CSRF-TOKEN': token } : {})
+		}
+	})
+		.then(r => (r.ok ? r.json() : []))
+		.then(data => {
+			const opcionesArray = Array.isArray(data) ? data : [];
+			const arr = opcionesArray.filter(f => f && String(f).trim()).map(f => String(f).trim());
+			window.todasOpcionesFlogGeneral = arr;
+			return arr;
+		})
+		.catch(() => {
+			window.todasOpcionesFlogGeneral = [];
+			return [];
+		});
+	return window.__ptFlogsListaPromise;
+}
+window.ensureFlogsListaLoaded = ensureFlogsListaLoaded;
+
+function escapeHtmlPtModal(s) {
+	if (s === null || s === undefined) return '';
+	return String(s)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+}
+window.escapeHtmlPtModal = escapeHtmlPtModal;
+
 function normalizeSqlDateValue(value) {
 	if (value === null || value === undefined) return null;
 	const raw = String(value).trim();
@@ -419,7 +494,7 @@ function buildCalendarWarningHtml(message, advertencias) {
 }
 
 async function redirectToRegistro(data) {
-	console.log('[DEBUG] redirectToRegistro llamado', {
+	ptDebugLog('[DEBUG] redirectToRegistro llamado', {
 		modo: data?.modo,
 		registros_ids: data?.registros_ids,
 		registros_ids_length: data?.registros_ids?.length,
@@ -458,9 +533,9 @@ async function redirectToRegistro(data) {
 				const filasExistentes = Array.from(tb.querySelectorAll('.selectable-row')).map(f => f.getAttribute('data-id'));
 				const registrosAgregados = [];
 
-				console.log(`[DEBUG] 📋 IDs de registros a agregar:`, data.registros_ids);
-				console.log(`[DEBUG] 📋 registros_datos disponible:`, !!data.registros_datos, data.registros_datos ? Object.keys(data.registros_datos) : 'N/A');
-				console.log(`[DEBUG] 📋 IDs de filas existentes en DOM:`, filasExistentes);
+				ptDebugLog(`[DEBUG] 📋 IDs de registros a agregar:`, data.registros_ids);
+				ptDebugLog(`[DEBUG] 📋 registros_datos disponible:`, !!data.registros_datos, data.registros_datos ? Object.keys(data.registros_datos) : 'N/A');
+				ptDebugLog(`[DEBUG] 📋 IDs de filas existentes en DOM:`, filasExistentes);
 
 				// Agregar todos los registros usando los IDs devueltos por el backend
 				// Preferir data.registros_datos cuando el backend lo envíe (evita 404 en detalles-balanceo)
@@ -469,7 +544,7 @@ async function redirectToRegistro(data) {
 
 					// Verificar si ya existe en el DOM
 					if (filasExistentes.includes(idStr)) {
-						console.log(`[DEBUG] ⏭️ Registro ${idStr} ya existe en el DOM, saltando`);
+						ptDebugLog(`[DEBUG] ⏭️ Registro ${idStr} ya existe en el DOM, saltando`);
 						registrosAgregados.push(parseInt(idStr));
 						continue;
 					}
@@ -497,7 +572,7 @@ async function redirectToRegistro(data) {
 								});
 								continue;
 							}
-							console.log(`[DEBUG] ➕ Agregando registro ID: ${registroId} (desde registros_datos)`, {
+							ptDebugLog(`[DEBUG] ➕ Agregando registro ID: ${registroId} (desde registros_datos)`, {
 								TamanoClave: registroPrecargado.TamanoClave,
 								ItemId: registroPrecargado.ItemId,
 								InventSizeId: registroPrecargado.InventSizeId,
@@ -532,7 +607,7 @@ async function redirectToRegistro(data) {
 									 result.registro.NoTelarId === data.telar_destino);
 
 								if (telarValido) {
-									console.log(`[DEBUG] ➕ Agregando registro ID: ${registroId}`, {
+									ptDebugLog(`[DEBUG] ➕ Agregando registro ID: ${registroId}`, {
 										TamanoClave: result.registro.TamanoClave,
 										ItemId: result.registro.ItemId,
 										InventSizeId: result.registro.InventSizeId,
@@ -572,7 +647,7 @@ async function redirectToRegistro(data) {
 
 					// Intentar agregar los registros faltantes
 					const idsFaltantes = data.registros_ids.filter(id => !registrosAgregados.includes(parseInt(id)));
-					console.log(`[DEBUG] 🔄 Intentando agregar registros faltantes:`, idsFaltantes);
+					ptDebugLog(`[DEBUG] 🔄 Intentando agregar registros faltantes:`, idsFaltantes);
 
 					for (const idFaltante of idsFaltantes) {
 						try {
@@ -607,7 +682,7 @@ async function redirectToRegistro(data) {
 
 				// Mostrar resumen final
 				const totalFilasFinal = tb.querySelectorAll('.selectable-row').length;
-				console.log(`[DEBUG] ✅ RESUMEN FINAL: Se agregaron ${registrosAgregados.length} de ${data.registros_ids.length} registros esperados. Total filas en tabla: ${totalFilasFinal}`);
+				ptDebugLog(`[DEBUG] ✅ RESUMEN FINAL: Se agregaron ${registrosAgregados.length} de ${data.registros_ids.length} registros esperados. Total filas en tabla: ${totalFilasFinal}`);
 
 				// Verificar que todos los registros agregados estén visibles con sus datos correctos
 				registrosAgregados.forEach((id, index) => {
@@ -616,7 +691,7 @@ async function redirectToRegistro(data) {
 						const itemId = fila.querySelector('[data-column="ItemId"]')?.textContent?.trim() || fila.querySelector('[data-column="ItemId"]')?.getAttribute('data-value') || 'NO ENCONTRADO';
 						const inventSizeId = fila.querySelector('[data-column="InventSizeId"]')?.textContent?.trim() || fila.querySelector('[data-column="InventSizeId"]')?.getAttribute('data-value') || 'NO ENCONTRADO';
 						const tamanoClave = fila.querySelector('[data-column="TamanoClave"]')?.textContent?.trim() || fila.querySelector('[data-column="TamanoClave"]')?.getAttribute('data-value') || 'NO ENCONTRADO';
-						console.log(`[DEBUG] 📋 Registro ${index + 1} (ID: ${id}):`, {
+						ptDebugLog(`[DEBUG] 📋 Registro ${index + 1} (ID: ${id}):`, {
 							TamanoClave: tamanoClave,
 							ItemId: itemId,
 							InventSizeId: inventSizeId,
@@ -644,7 +719,7 @@ async function redirectToRegistro(data) {
 					}
 				}
 
-				console.log('[DEBUG] ✅ Registros agregados sin recargar, saliendo');
+				ptDebugLog('[DEBUG] ✅ Registros agregados sin recargar, saliendo');
 				return; // IMPORTANTE: Salir aquí para NO recargar
 			} catch (error) {
 				console.error('[DEBUG] ❌ Error al agregar múltiples registros con registros_ids:', error);
@@ -652,7 +727,7 @@ async function redirectToRegistro(data) {
 				if (typeof showToast === 'function') {
 					showToast('Error al agregar registros. Algunos pueden no estar visibles.', 'warning');
 				}
-				console.log('[DEBUG] ⚠️ Error pero NO recargando para modo dividir/duplicar');
+				ptDebugLog('[DEBUG] ⚠️ Error pero NO recargando para modo dividir/duplicar');
 				return; // Salir sin recargar
 			}
 		}
@@ -663,7 +738,7 @@ async function redirectToRegistro(data) {
 		const totalRegistrosFallback = data?.registros_duplicados || data?.registros_vinculados || 1;
 		if (data?.registro_id && (data?.salon_destino || data?.registros_vinculados)) {
 			try {
-				console.log('[DEBUG] 🔄 Fallback: Usando método de IDs secuenciales');
+				ptDebugLog('[DEBUG] 🔄 Fallback: Usando método de IDs secuenciales');
 				await new Promise(resolve => setTimeout(resolve, 800));
 
 				await agregarRegistroSinRecargar({ registro_id: data.registro_id, message: data.message });
@@ -738,7 +813,7 @@ async function redirectToRegistro(data) {
 	// Último fallback: si no se pueden obtener los IDs o hay error, intentar agregar al menos el primer registro
 	// PERO NO para dividir/duplicar - esos deben tener registros_ids
 	if (data?.modo !== 'dividir' && data?.modo !== 'duplicar' && data?.registro_id) {
-		console.log('[DEBUG] 🔄 Fallback: Agregando solo el primer registro');
+		ptDebugLog('[DEBUG] 🔄 Fallback: Agregando solo el primer registro');
 		await agregarRegistroSinRecargar(data);
 		if (typeof showToast === 'function') {
 			showToast(data.message || `Se procesaron los registros. Algunos pueden no estar visibles.`, 'warning');
@@ -758,7 +833,7 @@ async function redirectToRegistro(data) {
 		window.location.href = url.toString();
 		return;
 	} else {
-		console.log('[DEBUG] 🔄 Último fallback: recargando página');
+		ptDebugLog('[DEBUG] 🔄 Último fallback: recargando página');
 		window.location.reload();
 		return;
 	}
@@ -779,7 +854,7 @@ async function redirectToRegistro(data) {
 		window.location.href = url.toString();
 		return;
 	} else {
-		console.log('[DEBUG] 🔄 Fallback final: recargando página');
+		ptDebugLog('[DEBUG] 🔄 Fallback final: recargando página');
 		window.location.reload();
 	}
 }
@@ -824,7 +899,7 @@ async function agregarRegistroSinRecargar(data) {
 
 	try {
 		// Verificar que los campos clave estén presentes y actualizados
-		console.log(`[DEBUG] 📥 Datos recibidos del endpoint para registro ${registro.Id}:`, {
+		ptDebugLog(`[DEBUG] 📥 Datos recibidos del endpoint para registro ${registro.Id}:`, {
 			TamanoClave: registro.TamanoClave,
 			ItemId: registro.ItemId,
 			InventSizeId: registro.InventSizeId,
@@ -874,7 +949,7 @@ async function agregarRegistroSinRecargar(data) {
 		const tamanoClaveCell = row.querySelector('[data-column="TamanoClave"]');
 		const custNameCell = row.querySelector('[data-column="CustName"]');
 
-		console.log(`[DEBUG] ✅ Fila construida para registro ${registro.Id}:`, {
+		ptDebugLog(`[DEBUG] ✅ Fila construida para registro ${registro.Id}:`, {
 			ItemId_celda: itemIdCell?.textContent?.trim() || itemIdCell?.innerHTML?.trim() || 'NO ENCONTRADO',
 			InventSizeId_celda: inventSizeIdCell?.textContent?.trim() || inventSizeIdCell?.innerHTML?.trim() || 'NO ENCONTRADO',
 			TamanoClave_celda: tamanoClaveCell?.textContent?.trim() || tamanoClaveCell?.innerHTML?.trim() || 'NO ENCONTRADO',
@@ -988,7 +1063,7 @@ async function agregarRegistroSinRecargar(data) {
 		}
 
 		// Insertar la fila
-		console.log(`[DEBUG] 📍 Insertando fila ${registro.Id}`, {
+		ptDebugLog(`[DEBUG] 📍 Insertando fila ${registro.Id}`, {
 			insertarAntes: insertarAntes ? insertarAntes.getAttribute('data-id') : 'null (al final)',
 			totalFilasAntes: tb.querySelectorAll('.selectable-row').length
 		});
@@ -998,13 +1073,14 @@ async function agregarRegistroSinRecargar(data) {
 		} else {
 			tb.appendChild(row);
 		}
+		window.PTStore?.set(String(registro.Id), registro);
 
 		// Hacer scroll para que la nueva fila sea visible
 		if (row.scrollIntoView) {
 			row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		}
 
-		console.log(`[DEBUG] ✅ Fila ${registro.Id} insertada. Total filas después:`, tb.querySelectorAll('.selectable-row').length);
+		ptDebugLog(`[DEBUG] ✅ Fila ${registro.Id} insertada. Total filas después:`, tb.querySelectorAll('.selectable-row').length);
 
 		// Actualizar window.allRows manualmente y actualizar índices
 		window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
@@ -1422,8 +1498,14 @@ function getProduccionInputFromRow(row) {
 	if (!produccionCell) {
 		return null;
 	}
-	return produccionCell.querySelector('input[readonly]') ||
-		produccionCell.querySelector('input:not([name])') ||
-		produccionCell.querySelector('input[type="hidden"]') ||
+	const explicit = produccionCell.querySelector('input[data-pt-produccion="1"]');
+	if (explicit) {
+		return explicit;
+	}
+	const visible = produccionCell.querySelector('input[type="text"][readonly]');
+	if (visible) {
+		return visible;
+	}
+	return produccionCell.querySelector('input:not([type="hidden"])') ||
 		produccionCell.querySelector('input');
 }

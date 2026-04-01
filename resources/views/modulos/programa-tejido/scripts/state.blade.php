@@ -1,3 +1,33 @@
+// ===== PTStore — cache espejo centralizado =====
+// Definido aquí porque state.blade.php se carga dentro del <script> principal.
+// store.js en resources/js/ es la fuente canónica (misma implementación).
+class PTStore {
+	constructor() {
+		this.registros = new Map();
+		this.listeners = new Set();
+	}
+	getAll() { return Array.from(this.registros.values()); }
+	get(id) { return this.registros.get(String(id)); }
+	set(id, data) {
+		this.registros.set(String(id), { ...this.registros.get(String(id)), ...data });
+		this.notify();
+	}
+	add(data) {
+		const id = data.Id || data.id;
+		if (id) { this.registros.set(String(id), data); this.notify(); return id; }
+		return null;
+	}
+	remove(id) { this.registros.delete(String(id)); this.notify(); }
+	subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+	notify() { this.listeners.forEach(fn => fn(this.getAll())); }
+	loadFromServer(data) {
+		this.registros.clear();
+		data.forEach(r => { const id = r.Id || r.id; if (id) this.registros.set(String(id), r); });
+		this.notify();
+	}
+}
+window.PTStore = new PTStore();
+
 // ===== Estado =====
 let filters = [];
 let hiddenColumns = [];

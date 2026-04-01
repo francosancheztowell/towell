@@ -637,6 +637,7 @@ const uiInlineEditableFields = {
 
       // si backend manda resumen, actualiza otras celdas (fechas/saldo/etc)
       if (result?.data) applyRowUpdatesFromBackend(row, result.data);
+      window.PTStore?.set(String(rowId), result?.data ?? { [payloadField]: value });
 
       // Quitar amarillo después de guardar exitosamente
       row.classList.remove('bg-yellow-100');

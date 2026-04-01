@@ -1630,6 +1630,7 @@
 
               // Eliminar la fila del DOM
               rowToDelete.remove();
+              window.PTStore?.remove(String(id));
 
               // Si el registro eliminado tenía Ultimo=1, buscar el último registro del mismo telar y actualizarlo
               if (tieneUltimo && salonId && telarId) {
@@ -1814,6 +1815,7 @@
             const rowToDelete = tb ? tb.querySelector(`tr.selectable-row[data-id="${id}"]`) : null;
             if (rowToDelete) {
               rowToDelete.remove();
+              window.PTStore?.remove(String(id));
               window.selectedRowIndex = null;
             }
 
@@ -2854,6 +2856,8 @@
               celda.innerHTML = contenidoHTML;
             }
           });
+
+          window.PTStore?.set(String(registroId), registro);
 
           // Pequeño delay para no saturar
           await new Promise(resolve => setTimeout(resolve, 50));

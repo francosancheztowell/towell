@@ -946,6 +946,8 @@
               }
             });
 
+            window.PTStore?.set(String(registroId), registro);
+
             // Pequeño delay para no saturar
             await new Promise(resolve => setTimeout(resolve, 50));
           } catch (error) {
