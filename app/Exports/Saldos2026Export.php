@@ -21,15 +21,26 @@ class Saldos2026Export implements FromCollection, WithHeadings, WithStyles, With
 {
     public function __construct(private readonly Collection $registros) {}
 
+    private array $rowMeta = [];
+
     public function collection(): Collection
     {
         $row = 1; // fila 1 = encabezado, datos desde fila 2
+
+        // Metadata por fila de Excel (row => ['esLider', 'esGrupoVinculado'])
+        $this->rowMeta = [];
 
         return $this->registros->map(function ($r) use (&$row) {
             $row++;
 
             $esLider          = $r->_esLider ?? true;
             $esGrupoVinculado = $r->_esGrupoVinculado ?? false;
+
+            // Guardar metadata para usar en registerEvents
+            $this->rowMeta[$row] = [
+                'esLider'          => $esLider,
+                'esGrupoVinculado' => $esGrupoVinculado,
+            ];
 
             $cantidadProduzir  = $esLider ? ($r->_sumTotalPedido ?? $r->TotalPedido ?? 0) : 'ABIERTO';
             $rollosProg        = $esLider ? ($r->_sumTotalRollos ?? $r->TotalRollos ?? 0) : 'ABIERTO';
@@ -268,13 +279,34 @@ class Saldos2026Export implements FromCollection, WithHeadings, WithStyles, With
                         ->getStartColor()->setRGB('D97706');
                 }
 
-                // Alternar color filas de datos + colorear columnas especiales
+                // Alternar color filas de datos + colorear columnas especiales + formato grupos
                 for ($row = 2; $row <= $highestRow; $row++) {
-                    $baseRgb = ($row % 2 === 0) ? 'F8FAFF' : 'FFFFFF';
+                    $meta = $this->rowMeta[$row] ?? ['esLider' => true, 'esGrupoVinculado' => false];
+                    $esLider          = $meta['esLider'];
+                    $esGrupoVinculado = $meta['esGrupoVinculado'];
+
+                    // Base: verde para grupo, alternado para no-grupo
+                    if ($esGrupoVinculado) {
+                        $baseRgb = 'F0FDF4'; // verde claro grupo
+                    } else {
+                        $baseRgb = ($row % 2 === 0) ? 'F8FAFF' : 'FFFFFF';
+                    }
 
                     $sheet->getStyle("A{$row}:{$highestColumn}{$row}")->getFill()
                         ->setFillType(Fill::FILL_SOLID)
                         ->getStartColor()->setRGB($baseRgb);
+
+                    // Negrita para líder
+                    if ($esLider && $esGrupoVinculado) {
+                        $sheet->getStyle("A{$row}:{$highestColumn}{$row}")->getFont()->setBold(true);
+                    }
+
+                    // Borde izquierdo verde para líder de grupo
+                    if ($esLider && $esGrupoVinculado) {
+                        $sheet->getStyle("A{$row}")->getBorders()->getLeft()
+                            ->setBorderStyle(Border::BORDER_MEDIUM)
+                            ->setColor(new Color('16A34A'));
+                    }
 
                     foreach ($colsVerde as $col) {
                         $sheet->getStyle("{$col}{$row}")->getFill()
@@ -285,6 +317,20 @@ class Saldos2026Export implements FromCollection, WithHeadings, WithStyles, With
                         $sheet->getStyle("{$col}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)
                             ->getStartColor()->setRGB('FEF3C7');
+                    }
+
+                    // Celdas "ABIERTO" (K, AI, AJ, AK) con fondo amarillo
+                    foreach (['K', 'AI', 'AJ', 'AK'] as $col) {
+                        $cell = "{$col}{$row}";
+                        $val = $sheet->getCell($cell)->getValue();
+                        if ($val === 'ABIERTO') {
+                            $sheet->getStyle($cell)->getFill()
+                                ->setFillType(Fill::FILL_SOLID)
+                                ->getStartColor()->setRGB('FEF3C7');
+                            $sheet->getStyle($cell)->getFont()
+                                ->setBold(true)
+                                ->getColor()->setRGB('92400E');
+                        }
                     }
                 }
             },
