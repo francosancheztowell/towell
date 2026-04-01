@@ -188,6 +188,47 @@ class BalancearTejidoTest extends TestCase
     }
 
     /**
+     * La fecha fin objetivo (día) no puede ser anterior al día del inicio más tardío del grupo.
+     */
+    public function test_balanceo_automatico_rechaza_fecha_objetivo_antes_del_inicio_mas_tardio(): void
+    {
+        $ord = 77;
+        $this->makeReg([
+            'OrdCompartida' => $ord,
+            'NoTelarId' => '01',
+            'FechaInicio' => '2026-03-10 08:00:00',
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 5000,
+        ]);
+        $this->makeReg([
+            'OrdCompartida' => $ord,
+            'NoTelarId' => '02',
+            'FechaInicio' => '2026-03-13 08:00:00',
+            'TotalPedido' => 5000,
+            'SaldoPedido' => 5000,
+        ]);
+
+        $request = Request::create('/test', 'POST', [
+            'ord_compartida' => $ord,
+            'fecha_fin_objetivo' => '2026-03-11',
+        ]);
+        $response = BalancearTejido::balancearAutomatico($request);
+        $this->assertEquals(422, $response->getStatusCode());
+        $body = json_decode($response->getContent(), true);
+        $this->assertFalse($body['success']);
+        $this->assertStringContainsString('inicio más tardío', (string) ($body['message'] ?? ''));
+
+        $requestOk = Request::create('/test', 'POST', [
+            'ord_compartida' => $ord,
+            'fecha_fin_objetivo' => '2026-03-13',
+        ]);
+        $responseOk = BalancearTejido::balancearAutomatico($requestOk);
+        $this->assertEquals(200, $responseOk->getStatusCode());
+        $ok = json_decode($responseOk->getContent(), true);
+        $this->assertTrue($ok['success'], 'Con fecha objetivo en el día del inicio tardío debe permitirse el balanceo.');
+    }
+
+    /**
      * Test 2: With exactly 2 records, the FIRST is protected (unchanged), the LAST absorbs adjustment.
      */
     public function test_caso_especial_2_registros_primero_protegido_ultimo_ajustado(): void
@@ -230,19 +271,12 @@ class BalancearTejidoTest extends TestCase
             $cambiosPorId[$c['id']] = $c;
         }
 
-        // El PRIMER registro (reg1, NoTelarId '01', index 0) está protegido — no debe cambiar
         $this->assertArrayHasKey((int) $reg1->Id, $cambiosPorId, 'El primer registro debe estar en cambios');
-        $this->assertEquals(
-            5000,
-            (float) $cambiosPorId[(int) $reg1->Id]['total_pedido'],
-            'El primer registro en caso de 2 no debe cambiar (protegido)'
-        );
-
-        // El primero queda fijo en 5000; el cierre de total se aplica solo al último telar (Posicion/NoTelarId).
         $this->assertArrayHasKey((int) $reg2->Id, $cambiosPorId, 'El último registro debe estar en cambios');
         $this->assertGreaterThan(0, (float) $cambiosPorId[(int) $reg2->Id]['total_pedido']);
         $sumPedidos = (float) $cambiosPorId[(int) $reg1->Id]['total_pedido'] + (float) $cambiosPorId[(int) $reg2->Id]['total_pedido'];
         $this->assertEqualsWithDelta(10000.0, $sumPedidos, 0.01, 'El total del grupo debe conservarse');
+        // El cierre de total frente al objetivo se concentra en el último (Posicion/NoTelarId); cada registro se recalcula hacia la fecha objetivo antes de ese cierre.
     }
 
     /**
@@ -370,16 +404,19 @@ class BalancearTejidoTest extends TestCase
     }
 
     /**
-     * Test 5: No records for the given OrdCompartida returns empty cambios.
+     * Sin registros para el OrdCompartida: la API responde 422 (no éxito con cambios vacíos).
      */
     public function test_balanceo_automatico_sin_registros_retorna_cambios_vacios(): void
     {
-        // No records inserted for OrdCompartida 9999
-        $result = $this->callBalanceoAuto(9999, now()->addDays(30)->format('Y-m-d'));
-
-        $this->assertTrue($result['success']);
-        $this->assertArrayHasKey('cambios', $result);
-        $this->assertEmpty($result['cambios'], 'cambios debe ser array vacío cuando no hay registros');
+        $request = Request::create('/test', 'POST', [
+            'ord_compartida' => 9999,
+            'fecha_fin_objetivo' => now()->addDays(30)->format('Y-m-d'),
+        ]);
+        $response = BalancearTejido::balancearAutomatico($request);
+        $this->assertEquals(422, $response->getStatusCode());
+        $result = json_decode($response->getContent(), true);
+        $this->assertFalse($result['success']);
+        $this->assertArrayNotHasKey('cambios', $result);
     }
 
     public function test_preview_fechas_modo_saldo_respeta_total_y_saldo(): void

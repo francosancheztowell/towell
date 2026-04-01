@@ -9,6 +9,7 @@
             'Finalizado' => 'bg-green-100 text-green-800',
             'En Proceso' => 'bg-yellow-100 text-yellow-800',
             'Programado' => 'bg-blue-100 text-blue-800 ',
+            'Parcial' => 'bg-amber-100 text-amber-800',
             'Cancelado' => 'bg-red-100 text-red-800',
             default => 'bg-gray-100 text-gray-800'
         };
@@ -29,6 +30,7 @@
     <div class="w-full">
         @php
             $statusActual = trim($orden->Status ?? '');
+            $bloquearTamanoPorParcial = ($statusActual === 'Parcial');
             $esEnProcesoOProgramadoOFinalizado = in_array($statusActual, ['En Proceso', 'Programado', 'Finalizado'], true);
             $esEnProcesoOProgramado = in_array($statusActual, ['En Proceso', 'Programado'], true);
         @endphp
@@ -282,8 +284,14 @@
                         data-campo="InventSizeId"
                         data-valor-actual="{{ $orden->InventSizeId ?? '' }}"
                         value="{{ $orden->InventSizeId ?? '' }}"
-                        list="listaTamanos"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        @unless($bloquearTamanoPorParcial)
+                            list="listaTamanos"
+                        @endunless
+                        @if($bloquearTamanoPorParcial)
+                            disabled
+                            title="No se puede editar el tamaño cuando el estado es Parcial"
+                        @endif
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 {{ $bloquearTamanoPorParcial ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : '' }}"
                     >
                 </div>
             </div>
@@ -1074,6 +1082,7 @@
                 const calibreInput = document.getElementById('campo_Calibre');
                 const tamanoInput = document.getElementById('campo_InventSizeId');
                 if (!cuentaInput || !calibreInput || !tamanoInput) return;
+                if (tamanoInput.disabled) return;
 
                 const cuenta = String(cuentaInput.value || '').trim();
                 const calibreRaw = String(calibreInput.value || '').trim();

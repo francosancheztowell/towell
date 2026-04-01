@@ -843,7 +843,18 @@ class BalancearTejido
         if ($fechaInicioMasTemprana && Carbon::parse($fechaInicioMasTemprana)->gt($fechaFinObjetivo)) {
             return response()->json([
                 'success' => false,
-                'message' => 'La fecha objetivo es anterior a la fecha de inicio más temprana ('.Carbon::parse($fechaInicioMasTemprana)->format('d/m/Y')."). Seleccione una fecha posterior.",
+                'message' => 'La fecha objetivo es anterior a la fecha de inicio más temprana ('.Carbon::parse($fechaInicioMasTemprana)->format('d/m/Y').'). Seleccione una fecha posterior.',
+            ], 422);
+        }
+
+        // La fecha objetivo (día calendario) no puede ser anterior al día del inicio más tardío del grupo.
+        $fechaInicioMasTardia = $conFechaInicio->max('FechaInicio');
+        $fechaObjetivoDia = Carbon::parse($request->input('fecha_fin_objetivo'))->startOfDay();
+        $inicioTardioDia = Carbon::parse($fechaInicioMasTardia)->startOfDay();
+        if ($fechaObjetivoDia->lt($inicioTardioDia)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La fecha objetivo no puede ser anterior al inicio más tardío del grupo ('.$inicioTardioDia->format('d/m/Y').'). Hay un telar que inicia ese día o después.',
             ], 422);
         }
 

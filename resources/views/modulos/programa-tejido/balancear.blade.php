@@ -775,6 +775,13 @@
           fechaInput.focus();
           return;
         }
+        if (fechaInput.min && fechaFinObjetivo < fechaInput.min) {
+          if (typeof toastr !== 'undefined') {
+            toastr.error('La fecha objetivo no puede ser anterior al inicio más tardío del grupo (' + fechaInput.min + ').');
+          }
+          fechaInput.focus();
+          return;
+        }
 
         const cambiosActuales = getCurrentInputsPayload();
         const totalObjetivo = getLockedTotalBalanceo(inputs);
@@ -1264,10 +1271,31 @@
             //  preview exacto inmediato (para asegurar dataset y preview correcto)
             previewFechasExactas(ordCompartida);
 
-            // Establecer fecha sugerida en el input de fecha objetivo
+            // Establecer min (inicio más tardío) y fecha sugerida en el input de fecha objetivo
             const fechaInput = document.getElementById('fecha-fin-objetivo-balanceo');
             if (fechaInput && registros.length > 0) {
-              // Obtener la fecha final más lejana de los registros
+              let fechaInicioMax = null;
+              registros.forEach(reg => {
+                if (reg.FechaInicio) {
+                  try {
+                    const fecha = new Date(String(reg.FechaInicio).replace(' ', 'T'));
+                    if (!isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
+                      if (!fechaInicioMax || fecha > fechaInicioMax) {
+                        fechaInicioMax = fecha;
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('Error al parsear FechaInicio:', e);
+                  }
+                }
+              });
+              if (fechaInicioMax) {
+                fechaInput.min = fechaInicioMax.toISOString().split('T')[0];
+              } else {
+                fechaInput.removeAttribute('min');
+              }
+
+              // Obtener la fecha final más lejana de los registros (sugerencia)
               let fechaMaxima = null;
               registros.forEach(reg => {
                 if (reg.FechaFinal) {
@@ -1287,7 +1315,11 @@
               if (fechaMaxima) {
                 const fechaFormateada = fechaMaxima.toISOString().split('T')[0];
                 fechaInput.value = fechaFormateada;
-                // No establecer min para permitir seleccionar cualquier fecha
+              } else if (fechaInput.min) {
+                fechaInput.value = fechaInput.min;
+              }
+              if (fechaInput.min && fechaInput.value && fechaInput.value < fechaInput.min) {
+                fechaInput.value = fechaInput.min;
               }
             }
           }

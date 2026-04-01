@@ -3,25 +3,27 @@
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\Urdido\UrdProgramaUrdido;
-use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
-use Illuminate\Http\Request;
+use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class EditarOrdenesProgramadasController extends Controller
 {
     private const ACCION_METROS_SOLO_CAMPO = 'solo_campo';
+
     private const ACCION_METROS_ACTUALIZAR_TODA = 'actualizar_produccion_toda';
+
     private const ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO = 'actualizar_produccion_sin_hora_inicio';
 
     /**
@@ -31,7 +33,7 @@ class EditarOrdenesProgramadasController extends Controller
     private function usuarioPuedeEditar(): bool
     {
         $usuario = Auth::user();
-        if (!$usuario) {
+        if (! $usuario) {
             return false;
         }
 
@@ -40,7 +42,7 @@ class EditarOrdenesProgramadasController extends Controller
 
         // Verificar puesto - buscar "supervisor" sin importar mayúsculas/minúsculas usando stripos
         // Permitir a cualquier supervisor editar órdenes de urdido
-        $puestoValido = !empty($puesto) && stripos($puesto, 'supervisor') !== false;
+        $puestoValido = ! empty($puesto) && stripos($puesto, 'supervisor') !== false;
 
         return $puestoValido;
     }
@@ -131,13 +133,13 @@ class EditarOrdenesProgramadasController extends Controller
                 'Hilos' => $hilos,
                 'Fecha' => now()->format('Y-m-d'),
             ];
-            if (!empty($claveUsuario)) {
+            if (! empty($claveUsuario)) {
                 $data['CveEmpl1'] = $claveUsuario;
             }
-            if (!empty($nombreUsuario)) {
+            if (! empty($nombreUsuario)) {
                 $data['NomEmpl1'] = $nombreUsuario;
             }
-            if (!empty($turnoUsuario)) {
+            if (! empty($turnoUsuario)) {
                 $data['Turno1'] = (int) $turnoUsuario;
             }
             if ($metrosOrden !== null && $metrosOrden > 0) {
@@ -167,7 +169,7 @@ class EditarOrdenesProgramadasController extends Controller
             ->orderBy('Id', 'desc')
             ->limit($cantidadJulios)
             ->pluck('Id')
-            ->map(static fn($id) => (int) $id)
+            ->map(static fn ($id) => (int) $id)
             ->values()
             ->all();
 
@@ -183,7 +185,6 @@ class EditarOrdenesProgramadasController extends Controller
     /**
      * Mostrar la vista de edición de orden programada
      *
-     * @param Request $request
      * @return View|RedirectResponse
      */
     public function index(Request $request)
@@ -192,9 +193,9 @@ class EditarOrdenesProgramadasController extends Controller
         $fromReimpresion = $request->query('from') === 'reimpresion';
         $routeBack = $fromReimpresion ? 'urdido.reimpresion.finalizadas' : 'urdido.programar.urdido';
 
-
-        if (!$ordenId) {
+        if (! $ordenId) {
             Log::warning('No se proporcionó orden_id');
+
             return redirect()->route($routeBack)
                 ->with('error', 'No se proporcionó el ID de la orden');
         }
@@ -202,8 +203,9 @@ class EditarOrdenesProgramadasController extends Controller
         // Buscar la orden
         $orden = UrdProgramaUrdido::find($ordenId);
 
-        if (!$orden) {
+        if (! $orden) {
             Log::warning('Orden no encontrada', ['orden_id' => $ordenId]);
+
             return redirect()->route($routeBack)
                 ->with('error', 'Orden no encontrada');
         }
@@ -212,7 +214,7 @@ class EditarOrdenesProgramadasController extends Controller
         // No redirigir, solo marcar si puede editar o no
         $puedeEditar = $this->usuarioPuedeEditar();
 
-        if (!$puedeEditar) {
+        if (! $puedeEditar) {
             $usuario = Auth::user();
             Log::warning('Usuario sin permisos para editar', [
                 'usuario_id' => $usuario->id ?? null,
@@ -221,7 +223,6 @@ class EditarOrdenesProgramadasController extends Controller
             ]);
             // No redirigir, permitir ver la página pero sin permisos de edición
         }
-
 
         $julios = $orden->julios()->orderBy('Id')->get();
         $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
@@ -276,9 +277,6 @@ class EditarOrdenesProgramadasController extends Controller
     /**
      * Actualizar campos de la orden programada
      * Sincroniza cambios con EngProgramaEngomado cuando corresponda
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function actualizar(Request $request): JsonResponse
     {
@@ -326,9 +324,9 @@ class EditarOrdenesProgramadasController extends Controller
             $isKarlMayer = (stripos($destino, 'karl') !== false) || (stripos($maquina, 'karl') !== false);
 
             $engomado = null;
-            if (!$isKarlMayer) {
+            if (! $isKarlMayer) {
                 $engomado = $this->obtenerEngomadoPorOrden($orden);
-                if (!$engomado) {
+                if (! $engomado) {
                     return response()->json([
                         'success' => false,
                         'error' => 'No se encontro un folio relacionado en Engomado para esta orden.',
@@ -347,7 +345,7 @@ class EditarOrdenesProgramadasController extends Controller
 
             if ($campo === 'Metros') {
                 $accionesPermitidas = $this->accionesMetrosPermitidasPorStatus($statusActual);
-                if (!in_array($accionMetros, $accionesPermitidas, true)) {
+                if (! in_array($accionMetros, $accionesPermitidas, true)) {
                     return response()->json([
                         'success' => false,
                         'error' => 'La opcion seleccionada para actualizar metros no aplica para el estado actual de la orden.',
@@ -382,10 +380,17 @@ class EditarOrdenesProgramadasController extends Controller
                 ], 403);
             }
 
+            if ($campo === 'InventSizeId' && $statusActual === 'Parcial') {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede modificar el tamaño cuando el estado de la orden es Parcial.',
+                ], 403);
+            }
+
             // Solo En Proceso o Programado permiten editar MaquinaId, BomId, Fibra, Calibre, Cuenta, RizoPie
             $camposPorStatus = ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaId', 'BomId'];
             if (in_array($campo, $camposPorStatus, true)) {
-                if (!in_array($statusActual, ['En Proceso', 'Programado'], true)) {
+                if (! in_array($statusActual, ['En Proceso', 'Programado'], true)) {
                     return response()->json([
                         'success' => false,
                         'error' => 'Solo se pueden editar estos campos cuando el estado es En Proceso o Programado.',
@@ -419,7 +424,7 @@ class EditarOrdenesProgramadasController extends Controller
                 $registrosProduccionActualizados = 0;
                 // Convertir valor según el tipo de campo
                 if (in_array($campo, $camposNumericos)) {
-                    $valor = $valor !== null && $valor !== '' ? (float)$valor : null;
+                    $valor = $valor !== null && $valor !== '' ? (float) $valor : null;
                 } elseif (in_array($campo, $camposFecha)) {
                     $valor = $valor !== null && $valor !== '' ? $valor : null;
                 } elseif ($campo === 'Observaciones') {
@@ -517,23 +522,20 @@ class EditarOrdenesProgramadasController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al actualizar la orden: ' . $e->getMessage(),
+                'error' => 'Error al actualizar la orden: '.$e->getMessage(),
             ], 500);
         }
     }
 
     /**
      * Obtener datos de la orden para edición
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function obtenerOrden(Request $request): JsonResponse
     {
         try {
             $ordenId = $request->query('orden_id');
 
-            if (!$ordenId) {
+            if (! $ordenId) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No se proporcionó el ID de la orden',
@@ -542,7 +544,7 @@ class EditarOrdenesProgramadasController extends Controller
 
             $orden = UrdProgramaUrdido::find($ordenId);
 
-            if (!$orden) {
+            if (! $orden) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Orden no encontrada',
@@ -576,7 +578,7 @@ class EditarOrdenesProgramadasController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al obtener la orden: ' . $e->getMessage(),
+                'error' => 'Error al obtener la orden: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -604,7 +606,7 @@ class EditarOrdenesProgramadasController extends Controller
                     $q->where('Julios', $k)->orWhere('Julios', (int) $k);
                 })->first();
 
-            if (!$julio) {
+            if (! $julio) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No se encontro el registro de julio para actualizar hilos.',
@@ -617,6 +619,7 @@ class EditarOrdenesProgramadasController extends Controller
             if (trim((string) ($orden->Status ?? '')) !== 'Programado') {
                 $registrosProduccionActualizados = $this->sincronizarHilosProduccionPorFolio($orden, $hilosAnterior, $hilos);
             }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Hilos actualizados',
@@ -628,15 +631,13 @@ class EditarOrdenesProgramadasController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar hilos', ['error' => $e->getMessage()]);
+
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
     /**
      * Actualizar No. Julio y Hilos para una orden
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function actualizarJulios(Request $request): JsonResponse
     {
@@ -657,8 +658,8 @@ class EditarOrdenesProgramadasController extends Controller
             $esSoloActualizarHilos = $noJulio !== null && $noJulio !== '' && $hilos !== null && $hilos !== '';
 
             // En Proceso, Programado: permiten todo. Finalizado: solo actualizar Hilos (existente)
-            if (!in_array($statusActual, ['En Proceso', 'Programado'], true)) {
-                if ($statusActual !== 'Finalizado' || !$esSoloActualizarHilos) {
+            if (! in_array($statusActual, ['En Proceso', 'Programado'], true)) {
+                if ($statusActual !== 'Finalizado' || ! $esSoloActualizarHilos) {
                     return response()->json([
                         'success' => false,
                         'error' => 'Solo se pueden editar los julios cuando el estado es En Proceso o Programado.',
@@ -672,7 +673,7 @@ class EditarOrdenesProgramadasController extends Controller
             }
             $bloqueaUrdido = $axUrdido === 1;
 
-            if ($bloqueaUrdido && !$esSoloActualizarHilos) {
+            if ($bloqueaUrdido && ! $esSoloActualizarHilos) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Urdido ya está en AX. No se pueden editar julios.',
@@ -686,7 +687,7 @@ class EditarOrdenesProgramadasController extends Controller
                 if ($registroId) {
                     $registro = UrdJuliosOrden::where('Id', (int) $registroId)->where('Folio', $orden->Folio)->first();
                 }
-                if (!$registro && $noJulio !== null && $noJulio !== '') {
+                if (! $registro && $noJulio !== null && $noJulio !== '') {
                     $k = trim((string) $noJulio);
                     $registro = UrdJuliosOrden::where('Folio', $orden->Folio)
                         ->where(function ($q) use ($k) {
@@ -694,7 +695,7 @@ class EditarOrdenesProgramadasController extends Controller
                         })->first();
                 }
 
-                if (!$registro) {
+                if (! $registro) {
                     return response()->json([
                         'success' => false,
                         'error' => 'No se encontro el registro de julio para actualizar hilos.',
@@ -711,6 +712,7 @@ class EditarOrdenesProgramadasController extends Controller
                         (int) $hilos
                     );
                 }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Hilos actualizados',
@@ -775,7 +777,7 @@ class EditarOrdenesProgramadasController extends Controller
                 ], 422);
             }
 
-            if (!is_numeric($noJulio) || (int) $noJulio <= 0 || !is_numeric($hilos) || (int) $hilos <= 0) {
+            if (! is_numeric($noJulio) || (int) $noJulio <= 0 || ! is_numeric($hilos) || (int) $hilos <= 0) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No. Julio y Hilos deben ser numeros mayores a 0.',
@@ -789,7 +791,7 @@ class EditarOrdenesProgramadasController extends Controller
                         ->where('Folio', $orden->Folio)
                         ->first();
 
-                    if (!$registro) {
+                    if (! $registro) {
                         return response()->json([
                             'success' => false,
                             'error' => 'Registro de julio no encontrado',
@@ -799,9 +801,9 @@ class EditarOrdenesProgramadasController extends Controller
 
                 DB::beginTransaction();
 
-                $esNuevoRegistroJulio = !$registro;
-                if (!$registro) {
-                    $registro = new UrdJuliosOrden();
+                $esNuevoRegistroJulio = ! $registro;
+                if (! $registro) {
+                    $registro = new UrdJuliosOrden;
                     $registro->Folio = $orden->Folio;
                 }
 
@@ -818,7 +820,7 @@ class EditarOrdenesProgramadasController extends Controller
                 if ($statusActual === 'En Proceso') {
                     $deltaJulios = ((int) $noJulio) - max(0, $juliosAnterior);
 
-                    if (!$esNuevoRegistroJulio && $deltaJulios < 0) {
+                    if (! $esNuevoRegistroJulio && $deltaJulios < 0) {
                         $hilosParaEliminar = $hilosAnterior ?? $hilosNuevo;
                         if ($hilosParaEliminar !== null && $hilosParaEliminar > 0) {
                             $registrosProduccionEliminadosIds = $this->eliminarRegistrosProduccionPorEliminacionJulio(
@@ -883,7 +885,7 @@ class EditarOrdenesProgramadasController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al actualizar julios: ' . $e->getMessage(),
+                'error' => 'Error al actualizar julios: '.$e->getMessage(),
             ], 500);
         }
     }
