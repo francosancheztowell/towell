@@ -963,6 +963,20 @@ function pinDefaultColumns() {
 // después de DOMContentLoaded para evitar conflictos con initializeColumnVisibility()
 // No se ejecuta aquí para evitar duplicados
 
+// ===== VISTAS GUARDADAS DE COLUMNAS =====
+async function promptSavePreset() {
+    await saveHiddenColumns();
+    if (typeof showToast === 'function') showToast('Vista de columnas guardada', 'success');
+}
+
+async function promptLoadPreset() {
+    await loadPersistedHiddenColumns();
+    if (typeof showToast === 'function') showToast('Vista de columnas restaurada', 'info');
+}
+
+window.PT = window.PT || {};
+window.PT.presets = { save: promptSavePreset, load: promptLoadPreset };
+
 
 
 

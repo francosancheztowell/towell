@@ -708,20 +708,36 @@ class BalancearTejido
     // =========================================================
     // Fórmulas EXACTAS
     // =========================================================
+    /**
+     * Calculate efficiency formulas for BalancearTejido operations.
+     * Uses includePTvsCte=true because balanceo shows difference vs commitment.
+     *
+     * @param ReqProgramaTejido $programa
+     * @return array
+     */
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
         try {
             $m = TejidoHelpers::obtenerModeloParams($programa);
 
             return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, false);
-        } catch (\Throwable $e) {
-            Log::warning('BalancearTejido: Error al calcular formulas', [
+        } catch (\InvalidArgumentException $e) {
+            // Datos inválidos en parámetros (ej: tamanoClave vacío), no recuperable
+            Log::error('BalancearTejido: Parámetros inválidos para fórmulas', [
                 'error' => $e->getMessage(),
                 'programa_id' => $programa->Id ?? null,
             ]);
-        }
 
-        return [];
+            return [];
+        } catch (\Throwable $e) {
+            // Error inesperado en cálculo, log y continue sin fórmulas
+            Log::warning('BalancearTejido: Error al calcular fórmulas', [
+                'error' => $e->getMessage(),
+                'programa_id' => $programa->Id ?? null,
+            ]);
+
+            return [];
+        }
     }
 
     // =========================================================

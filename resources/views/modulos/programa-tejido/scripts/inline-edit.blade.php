@@ -639,6 +639,11 @@ const uiInlineEditableFields = {
       if (result?.data) applyRowUpdatesFromBackend(row, result.data);
       window.PTStore?.set(String(rowId), result?.data ?? { [payloadField]: value });
 
+      // Actualizar índice de filtros en memoria para reflejar los nuevos valores
+      if (window.PT?.filterIndex) {
+        window.PT.filterIndex.updateRow(row);
+      }
+
       // Quitar amarillo después de guardar exitosamente
       row.classList.remove('bg-yellow-100');
 

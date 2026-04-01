@@ -768,7 +768,6 @@
               if (inicioCell && item.fecha_inicio) {
                 const fechaFormateada = formatearFecha(item.fecha_inicio);
                 inicioCell.textContent = fechaFormateada;
-                inicioCell.innerText = fechaFormateada; // Forzar actualización
               }
 
               // Actualizar fecha final - asegurar que se actualice correctamente
@@ -776,7 +775,6 @@
                 if (item.fecha_final) {
                   const fechaFormateada = formatearFecha(item.fecha_final);
                   finalCell.textContent = fechaFormateada;
-                  finalCell.innerText = fechaFormateada; // Forzar actualización
                   // También actualizar el atributo data si existe
                   if (finalCell.dataset) {
                     finalCell.dataset.fechaFinal = item.fecha_final;
@@ -784,7 +782,6 @@
                 } else {
                   // Si no hay fecha final, limpiar la celda
                   finalCell.textContent = '-';
-                  finalCell.innerText = '-';
                 }
               } else {
                 console.warn('No se encontró celda fecha-final-display para id:', id);
@@ -807,7 +804,7 @@
           return;
         }
         if (previewTimer) clearTimeout(previewTimer);
-        previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), 250);
+        previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), 800);
       }
 
       // ==========================
@@ -891,7 +888,7 @@
         renderBalanceoLeaderBadge(currentGanttRegistros);
         updateBalanceoTotalVisualState();
 
-        if (ordCompartida != null) schedulePreview(ordCompartida);
+        // schedulePreview se llama desde onblur/Enter del input, no en cada keypress
       };
 
       window.actualizarPedidosDesdeTotal = function (totalInput, ordCompartida) {
@@ -1315,6 +1312,8 @@
                   min="${minPedido}"
                   step="1"
                   oninput="calcularTotalesYFechas(this, ${ordCompartida})"
+                  onblur="schedulePreview(${ordCompartida})"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
                 >
               </td>
               <td class="px-3 py-2 text-xs sm:text-sm text-right text-gray-600">${produccion.toLocaleString('es-MX')}</td>
@@ -1336,11 +1335,28 @@
         const htmlContent = `
           <div class="balanceo-modal-content space-y-3 sm:space-y-4 text-left">
             <style>
-              /* Contenedor balanceo: más ancho para ampliar vista y reducir recortes */
+              /* Contenedor balanceo: ancho relativo al viewport (vw ≈ % del ancho pantalla); !important gana al width inline de SweetAlert2 */
               .balanceo-modal-content { max-width: 100%; }
-              .swal2-popup.balanceo-orden-modal { max-width: 99vw; padding: 0.5rem; }
-              @media (min-width: 640px) { .swal2-popup.balanceo-orden-modal { padding: 0.75rem 1rem; max-width: 98vw; } }
-              @media (min-width: 1024px) { .swal2-popup.balanceo-orden-modal { max-width: min(98vw, 1600px); padding: 1rem 1.25rem; } }
+              .swal2-popup.balanceo-orden-modal {
+                width: min(98vw, 100%) !important;
+                max-width: min(98vw, 100%) !important;
+                padding: 0.5rem;
+                box-sizing: border-box;
+              }
+              @media (min-width: 640px) {
+                .swal2-popup.balanceo-orden-modal {
+                  width: min(96vw, 100%) !important;
+                  max-width: min(96vw, 100%) !important;
+                  padding: 0.75rem 1rem;
+                }
+              }
+              @media (min-width: 1024px) {
+                .swal2-popup.balanceo-orden-modal {
+                  width: min(94vw, 100%) !important;
+                  max-width: min(94vw, 100%) !important;
+                  padding: 1rem 1.25rem;
+                }
+              }
               .swal2-html-container.balanceo-orden-body { overflow-x: hidden; overflow-y: auto; max-height: 88vh; padding: 0.5rem; }
               @media (min-width: 640px) { .swal2-html-container.balanceo-orden-body { padding: 0.5rem 0.75rem; } }
               @media (min-width: 1024px) { .swal2-html-container.balanceo-orden-body { max-height: 90vh; padding: 0.75rem 1rem; } }
@@ -1364,6 +1380,7 @@
               }
               /* Gantt: contenedor con scroll */
               #gantt-ord-container { max-height: 75vh; overflow: auto; -webkit-overflow-scrolling: touch; min-height: 150px; }
+              /* justify-content: start evita huecos entre columnas si el grid se estira con min-width:100% */
               .gantt-grid {
                 display: grid;
                 grid-auto-rows: minmax(36px, auto);
@@ -1371,6 +1388,8 @@
                 min-width: 100%;
                 column-gap: 0;
                 row-gap: 0;
+                justify-content: start;
+                justify-items: stretch;
               }
               @media (max-width: 639px) { .gantt-grid { grid-auto-rows: minmax(32px, auto); } }
               /* min-width: 0 evita que el contenido ensanche la cuadrícula; fechas respetan el ancho fijado en template */
@@ -1384,7 +1403,8 @@
                 box-sizing: border-box;
               }
               @media (max-width: 639px) { .gantt-cell { padding: 3px 2px; font-size: 9px; } }
-              .gantt-header { background: #f9fafb; font-weight: 600; color: #374151; position: sticky; top: 0; z-index: 10; }
+                            .gantt-header { background: #f9fafb; font-weight: 600; color: #374151; position: sticky; top: 0; z-index: 10; }
+              /* Sin max-width menor que la columna (200px): si no, el ítem no llena la celda y queda espacio muerto antes del primer día */
               .gantt-label {
                 font-weight: 600;
                 background: #f3f4f6;
@@ -1483,7 +1503,6 @@
         Swal.fire({
           title: 'Balanceo de orden',
           html: htmlContent,
-          width: '100%',
           customClass: { popup: 'balanceo-orden-modal', htmlContainer: 'balanceo-orden-body' },
           showCloseButton: true,
           showConfirmButton: true,

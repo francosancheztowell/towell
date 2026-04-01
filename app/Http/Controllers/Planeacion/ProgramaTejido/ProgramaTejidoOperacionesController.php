@@ -11,6 +11,9 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
+use App\Http\Requests\Planeacion\DividirSaldoRequest;
+use App\Http\Requests\Planeacion\DividirTelarRequest;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
@@ -434,21 +437,13 @@ class ProgramaTejidoOperacionesController extends Controller
         return DragAndDropTejido::mover($request, $id);
     }
 
-    public function duplicarTelar(Request $request)
+    public function duplicarTelar(DuplicarTejidoRequest $request)
     {
         return DuplicarTejido::duplicar($request);
     }
 
-    public function dividirTelar(Request $request)
+    public function dividirTelar(DividirTelarRequest $request)
     {
-        $request->validate([
-            'salon_tejido_id' => 'required|string',
-            'no_telar_id' => 'required|string',
-            'posicion_division' => 'required|integer|min:0',
-            'nuevo_telar' => 'required|string',
-            'nuevo_salon' => 'nullable|string',
-        ]);
-
         $salon = $request->input('salon_tejido_id');
         $telar = $request->input('no_telar_id');
         $posicionDivision = (int) $request->input('posicion_division');
@@ -550,7 +545,7 @@ class ProgramaTejidoOperacionesController extends Controller
         }
     }
 
-    public function dividirSaldo(Request $request)
+    public function dividirSaldo(DividirSaldoRequest $request)
     {
         return DividirTejido::dividir($request);
     }

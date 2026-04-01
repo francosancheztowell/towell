@@ -20,8 +20,14 @@ class DateHelpers
     {
         try {
             $r->{$attr} = Carbon::parse($value);
+        } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+            // Formato de fecha inválido para el atributo, no asignar
         } catch (\Throwable $e) {
-            // silencioso
+            Log::warning('DateHelpers: Error al asignar fecha segura', [
+                'atributo' => $attr,
+                'valor' => $value,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -482,8 +488,13 @@ class DateHelpers
                     $formulas['EntregaCte'] = $entregaCteCalculada->format('Y-m-d H:i:s');
                     $entregaPT = $fechaFinal->copy()->day(15);
                     $formulas['EntregaPT'] = $entregaPT->format('Y-m-d');
+                } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+                    // FechaFinal inválida, no calcular entregas
                 } catch (\Throwable $e) {
-                    // Si hay error al parsear, no establecer EntregaCte
+                    Log::warning('DateHelpers: Error al calcular fecha PT', [
+                        'error' => $e->getMessage(),
+                        'programa_id' => $programa->Id ?? null,
+                    ]);
                 }
             }
 
@@ -491,7 +502,13 @@ class DateHelpers
             if (!$entregaPT && !empty($programa->EntregaPT)) {
                 try {
                     $entregaPT = Carbon::parse($programa->EntregaPT);
+                } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+                    $entregaPT = null;
                 } catch (\Throwable $e) {
+                    Log::warning('DateHelpers: Error al parsear EntregaPT', [
+                        'error' => $e->getMessage(),
+                        'programa_id' => $programa->Id ?? null,
+                    ]);
                     $entregaPT = null;
                 }
             }

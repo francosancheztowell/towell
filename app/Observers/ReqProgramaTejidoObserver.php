@@ -20,10 +20,43 @@ class ReqProgramaTejidoObserver
 
     /** Cache en memoria para ReqMatrizHilos */
     private static array $matrizHilosCache = [];
-    public function saved(ReqProgramaTejido $programa)
+    private const CAMPOS_RELEVANTES = [
+        'FechaInicio', 'FechaFinal',
+        'TotalPedido', 'SaldoPedido', 'Produccion',
+        'PesoCrudo', 'VelocidadSTD',
+        'AnchoToalla',
+        'PasadasTrama', 'CalibreTrama2',
+        'AplicacionId',
+        'FibraRizo', 'CuentaRizo',
+        'LargoCrudo', 'CalibrePie2', 'CuentaPie', 'NoTiras', 'MedidaPlano',
+        'PasadasComb1', 'CalibreComb12',
+        'PasadasComb2', 'CalibreComb22',
+        'PasadasComb3', 'CalibreComb32',
+        'PasadasComb4', 'CalibreComb42',
+        'PasadasComb5', 'CalibreComb52',
+    ];
+
+    public function saved(ReqProgramaTejido $programa): void
     {
-        $this->generarLineasDiarias($programa);
+        if ($this->shouldRegenerateLines($programa)) {
+            $this->generarLineasDiarias($programa);
+        }
     }
+
+    private function shouldRegenerateLines(ReqProgramaTejido $programa): bool
+    {
+        if ($programa->wasRecentlyCreated) {
+            return true;
+        }
+        foreach (self::CAMPOS_RELEVANTES as $campo) {
+            // wasChanged() aplica post-save (producción); isDirty() permite tests sin ciclo save()
+            if ($programa->wasChanged($campo) || $programa->isDirty($campo)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function generarLineasDiarias(ReqProgramaTejido $programa)
     {
         try {

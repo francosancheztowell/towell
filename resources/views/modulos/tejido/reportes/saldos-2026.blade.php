@@ -8,6 +8,11 @@
         <span>Filtrar</span>
         <span id="saldos-filter-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full px-1"></span>
     </button>
+    <button id="saldos-toggle-extra-cols" type="button" title="Mostrar u ocultar el resto de columnas del reporte"
+        class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-sm font-medium transition-colors border border-slate-200">
+        <i class="fas fa-columns"></i>
+        <span id="saldos-toggle-extra-cols-label">Más columnas</span>
+    </button>
     <a href="{{ route('tejido.reportes.saldos-2026.excel') }}"
        class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
         <i class="fas fa-file-excel"></i>
@@ -31,80 +36,97 @@
         @else
             {{-- Sticky table container --}}
             <div class="overflow-auto flex-1" id="saldos-table-container">
-                <table class="min-w-full border-collapse text-xs" id="saldos-table" style="border-spacing: 0;">
+                <table class="min-w-full border-collapse text-xs saldos-hide-extra" id="saldos-table" style="border-spacing: 0;">
                     <thead style="position: sticky; top: 0; z-index: 20;">
-                        {{-- Fila 1: headers principales --}}
                         <tr>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:52px;">TELAR</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:90px;">Orden Vinculada</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:120px;">Orden Jefe Líder</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:70px;">REPASO</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:100px;">Fecha Inicio Telar</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:120px;">No. Orden</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:100px;">Fecha Orden</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:110px;">Fecha Cumplimiento</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:110px;">Departamento</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:70px;">Prioridad</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:160px;">Modelo</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:100px;">CLAVE MODELO</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:100px;">CLAVE AX</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:90px;">TOLERANCIA</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:120px;">CÓDIGO DE DIBUJO</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:100px;">Fecha Compromiso</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:160px;">Nombre Formato Logístico</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:80px;">Clave</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main saldos-th-solsaldo" style="min-width:90px;">Cant. a Producir</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:55px;">Peine</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:55px;">Ancho</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:55px;background:#16a34a !important;border-color:#22c55e !important;">Largo</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:65px;">Peso crudo</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:65px;">Luchaje</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:65px;">Tra</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:80px;">Hilo</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:80px;">OBS.</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main saldos-pending" style="min-width:80px;">Tipo plano</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:80px;">Med plano</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:90px;">TIPO DE RIZO</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:90px;">ALTURA DE RIZO</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:80px;">OBS</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:90px;">Veloc. Mínima</th>
-                            {{-- RIZO group --}}
-                            <th colspan="3" class="saldos-th saldos-th-group saldos-group-rizo">RIZO</th>
-                            {{-- PIE group --}}
-                            <th colspan="3" class="saldos-th saldos-th-group saldos-group-pie">PIE</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:55px;">C1</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:70px;">OBS</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:55px;">C2</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:70px;">OBS</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:55px;">C3</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:70px;">OBS</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:55px;">C4</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:70px;">OBS</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:95px;">Med. de Cenefa</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:130px;">Med. inicio rizo a cenefa</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:75px;">RAZURADA</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:52px;">TIRAS</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:95px;">Rep. por corte</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:85px;background:#16a34a !important;border-color:#22c55e !important;">Rollos prog.</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:85px;">Toallas Tejidas</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main saldos-th-solsaldo" style="min-width:70px;">SALDO</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:60px;">Faltan</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:60px;">Avance</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:85px;background:#16a34a !important;border-color:#22c55e !important;">Rollos x Tejer</th>
-                            <th rowspan="2" class="saldos-th saldos-th-main" style="min-width:160px;">Observaciones</th>
+                            {{-- 24 columnas principales + extras; fila 1: Rizo/Pie agrupados (colspan 3) estilo Excel --}}
+                            <th rowspan="2" class="saldos-th saldos-h-telar" style="min-width:52px;">TELAR</th>
+                            <th rowspan="2" class="saldos-th saldos-h-orden" style="min-width:110px;">Número de Orden</th>
+                            <th rowspan="2" class="saldos-th saldos-h-prioridad" style="min-width:96px;">Prioridad</th>
+                            <th rowspan="2" class="saldos-th saldos-h-modelo" style="min-width:180px;">Modelo</th>
+                            <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:88px;">CLAVE AX</th>
+                            <th rowspan="2" class="saldos-th saldos-h-solicitado" style="min-width:100px;">Cantidad a Producir<br><span class="saldos-h-solicitado-accent">SOLICITADO</span></th>
+                            <th rowspan="2" class="saldos-th saldos-h-green" style="min-width:56px;">Largo</th>
+                            <th rowspan="2" class="saldos-th saldos-h-small saldos-h-white" style="min-width:72px;">Peso crudo</th>
+                            <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:64px;">Luchaje</th>
+                            <th colspan="3" class="saldos-th saldos-h-rizo-group saldos-rizo-pie-sep">Rizo</th>
+                            <th colspan="3" class="saldos-th saldos-h-pie-group">Pie</th>
+                            <th rowspan="2" class="saldos-th saldos-h-razurada" style="min-width:72px;">RAZURADA</th>
+                            <th rowspan="2" class="saldos-th saldos-h-small saldos-h-white" style="min-width:52px;">TIRAS</th>
+                            <th rowspan="2" class="saldos-th saldos-h-small saldos-h-white" style="min-width:100px;">Repeticiones por corte</th>
+                            <th rowspan="2" class="saldos-th saldos-h-green-soft saldos-h-small" style="min-width:88px;">Rollos programados</th>
+                            <th rowspan="2" class="saldos-th saldos-h-toallas" style="min-width:100px;">Toallas Tejidas<br><span class="saldos-h-saldo-accent">SALDO</span></th>
+                            <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:64px;">Faltan</th>
+                            <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:64px;">Avance</th>
+                            <th rowspan="2" class="saldos-th saldos-h-rollos-tejer" style="min-width:92px;">Rollos por Tejer</th>
+                            <th rowspan="2" class="saldos-th saldos-h-obs" style="min-width:200px;">Observaciones</th>
+                            {{-- Columnas adicionales (ocultas por defecto; botón «Más columnas») --}}
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:90px;">Orden Vinculada</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:120px;">Orden Jefe Líder</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:70px;">REPASO</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:100px;">Fecha Inicio Telar</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:100px;">Fecha Orden</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:110px;">Fecha Cumplimiento</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:110px;">Departamento</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:100px;">CLAVE MODELO</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:90px;">TOLERANCIA</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:120px;">CÓDIGO DE DIBUJO</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:100px;">Fecha Compromiso</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:160px;">Nombre Formato Logístico</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:80px;">Clave</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:55px;">Peine</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:55px;">Ancho</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:65px;">Tra</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:80px;">Hilo</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:80px;">OBS.</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-pending saldos-col-extra" style="min-width:80px;">Tipo plano</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:80px;">Med plano</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:90px;">TIPO DE RIZO</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:90px;">ALTURA DE RIZO</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:80px;">OBS mod.</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:90px;">Veloc. Mínima</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:55px;">C1</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:70px;">OBS C1</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:55px;">C2</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:70px;">OBS C2</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:55px;">C3</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:70px;">OBS C3</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:55px;">C4</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:70px;">OBS C4</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:95px;">Med. de Cenefa</th>
+                            <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:130px;">Med. inicio rizo a cenefa</th>
                         </tr>
-                        {{-- Fila 2: sub-headers Rizo y Pie --}}
                         <tr>
-                            <th class="saldos-th saldos-th-sub saldos-group-rizo">Cuenta</th>
-                            <th class="saldos-th saldos-th-sub saldos-group-rizo">Calibre</th>
-                            <th class="saldos-th saldos-th-sub saldos-group-rizo">Fibra</th>
-                            <th class="saldos-th saldos-th-sub saldos-group-pie">Cuenta</th>
-                            <th class="saldos-th saldos-th-sub saldos-group-pie">Calibre</th>
-                            <th class="saldos-th saldos-th-sub saldos-group-pie">Fibra</th>
+                            <th class="saldos-th saldos-h-rizo-sub saldos-h-rizo-sub-calibre" style="min-width:58px;">Calibre</th>
+                            <th class="saldos-th saldos-h-rizo-sub" style="min-width:64px;">Cuenta</th>
+                            <th class="saldos-th saldos-h-rizo-sub saldos-rizo-pie-sep" style="min-width:72px;">Fibra</th>
+                            <th class="saldos-th saldos-h-pie-sub saldos-h-pie-sub-calibre" style="min-width:58px;">Calibre</th>
+                            <th class="saldos-th saldos-h-pie-sub" style="min-width:64px;">Cuenta</th>
+                            <th class="saldos-th saldos-h-pie-sub" style="min-width:72px;">Fibra</th>
                         </tr>
                     </thead>
                     <tbody id="saldos-tbody">
-                        @foreach ($registros as $i => $r)
+                        @php $registrosOrdenados = $registros->values(); @endphp
+                        @foreach ($registrosOrdenados as $i => $r)
+                            @if ($i > 0)
+                                @php
+                                    $prev        = $registrosOrdenados[$i - 1];
+                                    $prevTelar   = trim((string) ($prev->NoTelarId ?? ''));
+                                    $currTelar   = trim((string) ($r->NoTelarId ?? ''));
+                                    $sameTelar   = $prevTelar === $currTelar;
+                                    $ordPrev     = trim((string) ($prev->OrdCompartida ?? ''));
+                                    $ordCurr     = trim((string) ($r->OrdCompartida ?? ''));
+                                    $sameShared  = ($prev->_esGrupoVinculado ?? false)
+                                        && ($r->_esGrupoVinculado ?? false)
+                                        && $ordPrev !== ''
+                                        && $ordPrev === $ordCurr;
+                                    $insertTelarSep = ! ($sameTelar || $sameShared);
+                                @endphp
+                                @if ($insertTelarSep)
+                                    {{-- colspan = 24 columnas principales + 57 extra (mantener alineado con <td> por fila) --}}
+                                    <tr class="saldos-telar-sep" aria-hidden="true"><td colspan="81">&nbsp;</td></tr>
+                                @endif
+                            @endif
                             @php
                                 $esRepaso          = !empty($r->NoExisteBase);
                                 $esGrupoVinculado  = $r->_esGrupoVinculado ?? false;
@@ -121,49 +143,30 @@
                                 $tiras             = (float) ($r->NoTiras ?? 0);
                                 $reps              = (float) ($r->Repeticiones ?? 0);
                                 $rollosXTejer      = ($tiras > 0 && $reps > 0) ? ceil($faltan / ($tiras * $reps)) : '—';
+                                $razuradoNorm      = mb_strtolower(trim((string) ($r->Rasurado ?? '')), 'UTF-8');
+                                $esRasurada        = in_array($razuradoNorm, ['si', 'sí', 'yes'], true);
+                                $salonTelarTipo    = \App\Support\Planeacion\TelarSalonResolver::normalizeSalon($r->SalonTejidoId ?? null, $r->NoTelarId ?? null);
+                                $telarTdClass      = match (true) {
+                                    $salonTelarTipo === 'SMIT' => 'saldos-td-telar-smit',
+                                    $salonTelarTipo === 'JACQUARD' => 'saldos-td-telar-jac',
+                                    default => 'saldos-td-telar-neutral',
+                                };
                             @endphp
                             <tr class="saldos-row {{ $rowClass }}{{ $grupoClass }}{{ $liderClass }}"
                                 style="{{ $esGrupoVinculado ? 'background:#f0fdf4;' : '' }}{{ $esLider && $esGrupoVinculado ? 'border-left:3px solid #16a34a;' : '' }}"
                                 data-search="{{ $searchFull }}"
                                 data-es-grupo="{{ $esGrupoVinculado ? '1' : '0' }}"
-                                data-lider="{{ $esLider ? '1' : '0' }}">
-                                <td class="saldos-td font-semibold text-center text-blue-700">
+                                data-lider="{{ $esLider ? '1' : '0' }}"
+                                data-no-telar="{{ e(trim((string) ($r->NoTelarId ?? ''))) }}"
+                                data-ord-compartida="{{ e(trim((string) ($r->OrdCompartida ?? ''))) }}">
+                                {{-- 24 columnas principales --}}
+                                <td class="saldos-td font-semibold text-center {{ $telarTdClass }}">
                                     {{ $r->NoTelarId }}
                                     @if ($r->EnProceso)
-                                        <span title="En proceso" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a;margin-left:4px;vertical-align:middle;box-shadow:0 0 0 2px #bbf7d0;"></span>
+                                        <span title="En proceso" class="saldos-telar-en-proceso-dot"></span>
                                     @endif
-                                </td>
-                                <td class="saldos-td text-center font-mono text-gray-700">{{ $r->OrdCompartida ?? '—' }}</td>
-                                <td class="saldos-td text-center font-mono {{ $esLider ? 'font-semibold text-amber-700' : 'text-gray-600' }}">
-                                    {{ $r->_ordenLider ?? $r->OrdenLider ?? ($r->NoProduccion ?? '—') }}
-                                    @if ($esLider && $esGrupoVinculado)
-                                        <span title="Es líder" style="margin-left:3px;">&#9733;</span>
-                                    @endif
-                                </td>
-                                <td class="saldos-td text-center" style="{{ $r->NoExisteBase ? 'background:#fee2e2;color:#b91c1c;font-weight:700;' : '' }}">{{ $r->NoExisteBase ?? '—' }}</td>
-                                <td class="saldos-td text-center text-gray-600">
-                                    {{ $r->FechaInicio ? \Carbon\Carbon::parse($r->FechaInicio)->format('d/m/Y') : '—' }}
                                 </td>
                                 <td class="saldos-td font-mono font-medium text-gray-800">{{ $r->NoProduccion }}</td>
-                                <td class="saldos-td text-center text-gray-600">{{ $r->FechaCreacion ? \Carbon\Carbon::parse($r->FechaCreacion)->format('d/m/Y') : '—' }}</td>
-                                <td class="saldos-td text-center text-gray-600">{{ $r->EntregaCte ? \Carbon\Carbon::parse($r->EntregaCte)->format('d/m/Y') : '—' }}</td>
-                                <td class="saldos-td text-center">
-                                    @if ($r->SalonTejidoId)
-                                        @php
-                                            $salon = strtoupper($r->SalonTejidoId);
-                                            $badgeSalon = str_contains($salon, 'JACQUARD') ? 'background:#dcfce7;color:#15803d;border:1px solid #86efac;'
-                                                : (str_contains($salon, 'SMIT') ? 'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;'
-                                                : (str_contains($salon, 'ITEMA') ? 'background:#fef3c7;color:#b45309;border:1px solid #fcd34d;'
-                                                : (str_contains($salon, 'KARL') ? 'background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;'
-                                                : 'background:#f3f4f6;color:#374151;border:1px solid #d1d5db;')));
-                                        @endphp
-                                        <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;letter-spacing:0.04em;{{ $badgeSalon }}">
-                                            {{ $r->SalonTejidoId }}
-                                        </span>
-                                    @else
-                                        <span class="text-gray-300">—</span>
-                                    @endif
-                                </td>
                                 <td class="saldos-td text-center">
                                     @if (!is_null($r->Prioridad) && $r->Prioridad !== '')
                                         @php
@@ -180,72 +183,35 @@
                                         <span class="text-gray-300">—</span>
                                     @endif
                                 </td>
-                                <td class="saldos-td text-gray-800 truncate" style="max-width:160px;" title="{{ $r->NombreProducto }}">{{ $r->NombreProducto ?? '—' }}</td>
-                                <td class="saldos-td text-gray-700">{{ $r->TamanoClave ?? '—' }}</td>
-                                <td class="saldos-td font-mono text-gray-700">{{ $r->ItemId ?? '—' }}</td>
-                                <td class="saldos-td text-center text-gray-700">{{ $r->Tolerancia ?? '—' }}</td>{{-- TOLERANCIA --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->CodigoDibujo ?? '—' }}</td>{{-- CÓDIGO DE DIBUJO --}}
-                                <td class="saldos-td text-center text-gray-600">{{ $r->EntregaProduc ? \Carbon\Carbon::parse($r->EntregaProduc)->format('d/m/Y') : '—' }}</td>
-                                <td class="saldos-td text-gray-700 truncate" style="max-width:140px;" title="{{ $r->FlogsId }}">{{ $r->FlogsId ?? '—' }}</td>{{-- Nombre Formato Logístico --}}
-                                <td class="saldos-td text-gray-700">{{ $r->Clave ?? '—' }}</td>{{-- Clave --}}
-                                <td class="saldos-td saldos-td-solsaldo text-right tabular-nums font-semibold">
+                                <td class="saldos-td saldos-td-modelo text-gray-900 font-bold truncate" style="max-width:220px;" title="{{ $r->NombreProducto }}">{{ $r->NombreProducto ?? '—' }}</td>
+                                <td class="saldos-td font-mono text-gray-800">{{ $r->ItemId ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-solicitado text-right tabular-nums font-semibold">
                                     @if ($esLider)
                                         {{ number_format((float) ($r->_sumTotalPedido ?? $r->TotalPedido ?? 0), 0) }}
                                     @else
                                         <span class="saldos-abierto-badge">ABIERTO</span>
                                     @endif
                                 </td>
-                                <td class="saldos-td text-right tabular-nums">{{ $r->Peine ?? '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums">{{ $r->Ancho ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums" style="background:#dcfce7;border-color:#86efac;">{{ $r->LargoCrudo ?? '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums">{{ $r->PesoCrudo ?? '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-[0.65rem]">{{ $r->PesoCrudo ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums">{{ $r->Luchaje ?? '—' }}</td>
-                                <td class="saldos-td text-center">{{ $r->CalibreTrama2 ?? '—' }}</td>
-                                <td class="saldos-td text-center">{{ $r->FibraTrama ?? '—' }}</td>
-                                <td class="saldos-td text-center text-gray-700">{{ $r->ObsModelo ?? '—' }}</td>{{-- OBS. --}}
-                                <td class="saldos-td text-center text-gray-300">—</td>{{-- Tipo plano --}}
-                                <td class="saldos-td text-center">{{ $r->MedidaPlano ?? '—' }}</td>
-                                <td class="saldos-td text-center text-gray-700">{{ $r->TipoRizo ?? '—' }}</td>{{-- TIPO DE RIZO --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->AlturaRizo ?? '—' }}</td>{{-- ALTURA DE RIZO --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->ObsModelo ?? '—' }}</td>{{-- OBS --}}
-                                <td class="saldos-td text-right tabular-nums">{{ $r->VelocidadSTD ?? '—' }}</td>
-                                {{-- RIZO --}}
-                                <td class="saldos-td text-center" style="background:#dcfce7;border-color:#86efac;">{{ $r->CuentaRizo ?? '—' }}</td>
-                                <td class="saldos-td text-center" style="background:#dcfce7;border-color:#86efac;">{{ $r->CalibreRizo2 ?? '—' }}</td>
-                                <td class="saldos-td" style="background:#dcfce7;border-color:#86efac;">{{ $r->FibraRizo ?? '—' }}</td>
-                                {{-- PIE --}}
-                                <td class="saldos-td text-center" style="background:#fef3c7;border-color:#fcd34d;">{{ $r->CuentaPie ?? '—' }}</td>
-                                <td class="saldos-td text-center" style="background:#fef3c7;border-color:#fcd34d;">{{ $r->CalibrePie2 ?? '—' }}</td>
-                                <td class="saldos-td" style="background:#fef3c7;border-color:#fcd34d;">{{ $r->FibraPie ?? '—' }}</td>
-                                <td class="saldos-td text-center text-gray-700">{{ $r->C1 ?? '—' }}</td>{{-- C1 --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->ObsC1 ?? '—' }}</td>{{-- OBS C1 --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->C2 ?? '—' }}</td>{{-- C2 --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->ObsC2 ?? '—' }}</td>{{-- OBS C2 --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->C3 ?? '—' }}</td>{{-- C3 --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->ObsC3 ?? '—' }}</td>{{-- OBS C3 --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->C4 ?? '—' }}</td>{{-- C4 --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->ObsC4 ?? '—' }}</td>{{-- OBS C4 --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->MedidaCenefa ?? '—' }}</td>{{-- Med. de Cenefa --}}
-                                <td class="saldos-td text-center text-gray-700">{{ $r->MedIniRizoCenefa ?? '—' }}</td>{{-- Med. inicio rizo a cenefa --}}
-                                @php $esRasurada = strtolower(trim($r->Rasurado ?? '')) === 'si'; @endphp
-                                <td class="saldos-td text-center" style="{{ $esRasurada ? 'background:#fee2e2;' : '' }}">{{ $r->Rasurado ?? '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums">{{ $r->NoTiras ?? '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums">{{ $r->Repeticiones !== null ? number_format((float)$r->Repeticiones, 0) : '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums" style="background:#dcfce7;border-color:#86efac;">
+                                <td class="saldos-td saldos-td-rizo-calibre text-center tabular-nums text-[0.68rem]">{{ $r->CalibreRizo2 ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-rizo-cuenta text-center tabular-nums">{{ $r->CuentaRizo ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-rizo-fibra text-[0.65rem]">{{ $r->FibraRizo ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-pie-calibre text-center tabular-nums text-[0.68rem]">{{ $r->CalibrePie2 ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-pie-cuenta text-center tabular-nums">{{ $r->CuentaPie ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-pie-fibra text-[0.65rem]">{{ $r->FibraPie ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-rasurada text-center text-[0.65rem] font-semibold {{ $esRasurada ? 'saldos-td-rasurada-si' : 'text-gray-700' }}">{{ $r->Rasurado ?? '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-[0.65rem]">{{ $r->NoTiras ?? '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-[0.65rem]">{{ $r->Repeticiones !== null ? number_format((float)$r->Repeticiones, 0) : '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-[0.65rem]" style="background:#d1fae5;border-color:#6ee7b7;">
                                     @if ($esLider)
                                         {{ number_format((float) ($r->_sumTotalRollos ?? $r->TotalRollos ?? 0), 0) }}
                                     @else
                                         <span class="saldos-abierto-badge">ABIERTO</span>
                                     @endif
                                 </td>
-                                <td class="saldos-td text-right tabular-nums font-medium text-gray-800">
-                                    @if ($esLider)
-                                        {{ number_format((float) ($r->_sumProduccion ?? $r->Produccion ?? 0), 0) }}
-                                    @else
-                                        <span class="saldos-abierto-badge">ABIERTO</span>
-                                    @endif
-                                </td>
-                                <td class="saldos-td saldos-td-solsaldo text-right tabular-nums font-semibold {{ ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0) > 0 ? 'text-indigo-700' : 'text-gray-400' }}">
+                                <td class="saldos-td saldos-td-toallas-saldo text-right tabular-nums font-semibold text-gray-900">
                                     @if ($esLider)
                                         {{ number_format((float) ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0), 0) }}
                                     @else
@@ -254,12 +220,68 @@
                                 </td>
                                 <td class="saldos-td text-right tabular-nums {{ $faltan > 0 ? 'text-red-600 font-semibold' : 'text-gray-400' }}">
                                     {{ $esLider && $esGrupoVinculado ? number_format($faltan, 0) : ($solicitado > 0 ? number_format($faltan, 0) : '—') }}
-                                </td>{{-- Faltan --}}
-                                <td class="saldos-td text-right tabular-nums {{ $avance >= 100 ? 'text-green-600 font-semibold' : 'text-blue-600' }}">{{ $solicitado > 0 ? $avance . '%' : '—' }}</td>{{-- Avance --}}
-                                <td class="saldos-td text-right tabular-nums text-gray-700" style="background:#dcfce7;border-color:#86efac;">{{ is_numeric($rollosXTejer) ? number_format($rollosXTejer, 0) : $rollosXTejer }}</td>{{-- Rollos x Tejer --}}
-                                <td class="saldos-td text-gray-500 truncate" style="max-width:160px;" title="{{ $r->Observaciones }}">
-                                    {{ $r->Observaciones ?? '' }}
                                 </td>
+                                <td class="saldos-td text-right tabular-nums {{ $avance >= 100 ? 'text-green-600 font-semibold' : 'text-blue-600' }}">{{ $solicitado > 0 ? $avance . '%' : '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="background:#bbf7d0;border-color:#4ade80;">{{ is_numeric($rollosXTejer) ? number_format($rollosXTejer, 0) : $rollosXTejer }}</td>
+                                <td class="saldos-td saldos-td-obs text-gray-800 truncate" style="max-width:220px;" title="{{ $r->Observaciones }}">{{ $r->Observaciones ?? '' }}</td>
+                                {{-- Columnas extra --}}
+                                <td class="saldos-td saldos-col-extra text-center font-mono text-gray-700">{{ $r->OrdCompartida ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center font-mono {{ $esLider ? 'font-semibold text-amber-700' : 'text-gray-600' }}">
+                                    {{ $r->_ordenLider ?? $r->OrdenLider ?? ($r->NoProduccion ?? '—') }}
+                                    @if ($esLider && $esGrupoVinculado)
+                                        <span title="Es líder" style="margin-left:3px;">&#9733;</span>
+                                    @endif
+                                </td>
+                                <td class="saldos-td saldos-col-extra text-center" style="{{ $r->NoExisteBase ? 'background:#fee2e2;color:#b91c1c;font-weight:700;' : '' }}">{{ $r->NoExisteBase ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-600">
+                                    {{ $r->FechaInicio ? \Carbon\Carbon::parse($r->FechaInicio)->format('d/m/Y') : '—' }}
+                                </td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-600">{{ $r->FechaCreacion ? \Carbon\Carbon::parse($r->FechaCreacion)->format('d/m/Y') : '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-600">{{ $r->EntregaCte ? \Carbon\Carbon::parse($r->EntregaCte)->format('d/m/Y') : '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center">
+                                    @if ($r->SalonTejidoId)
+                                        @php
+                                            $salon = strtoupper($r->SalonTejidoId);
+                                            $badgeSalon = str_contains($salon, 'JACQUARD') ? 'background:#dcfce7;color:#111827;border:1px solid #86efac;'
+                                                : (str_contains($salon, 'SMIT') ? 'background:#dbeafe;color:#111827;border:1px solid #93c5fd;'
+                                                : (str_contains($salon, 'ITEMA') ? 'background:#fef3c7;color:#111827;border:1px solid #fcd34d;'
+                                                : (str_contains($salon, 'KARL') ? 'background:#ede9fe;color:#111827;border:1px solid #c4b5fd;'
+                                                : 'background:#f3f4f6;color:#111827;border:1px solid #d1d5db;')));
+                                        @endphp
+                                        <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;letter-spacing:0.04em;{{ $badgeSalon }}">
+                                            {{ $r->SalonTejidoId }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-300">—</span>
+                                    @endif
+                                </td>
+                                <td class="saldos-td saldos-col-extra text-gray-700">{{ $r->TamanoClave ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->Tolerancia ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->CodigoDibujo ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-600">{{ $r->EntregaProduc ? \Carbon\Carbon::parse($r->EntregaProduc)->format('d/m/Y') : '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-gray-700 truncate" style="max-width:140px;" title="{{ $r->FlogsId }}">{{ $r->FlogsId ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-gray-700">{{ $r->Clave ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-right tabular-nums">{{ $r->Peine ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-right tabular-nums">{{ $r->Ancho ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center">{{ $r->CalibreTrama2 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center">{{ $r->FibraTrama ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->ObsModelo ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-300">—</td>
+                                <td class="saldos-td saldos-col-extra text-center">{{ $r->MedidaPlano ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->TipoRizo ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->AlturaRizo ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->ObsModelo ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-right tabular-nums">{{ $r->VelocidadSTD ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->C1 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->ObsC1 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->C2 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->ObsC2 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->C3 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->ObsC3 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->C4 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->ObsC4 ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->MedidaCenefa ?? '—' }}</td>
+                                <td class="saldos-td saldos-col-extra text-center text-gray-700">{{ $r->MedIniRizoCenefa ?? '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -294,22 +316,232 @@
 <style>
 /* ===== Layout base ===== */
 .saldos-th {
-    padding: 0 10px;
+    padding: 6px 10px;
     white-space: nowrap;
     border: 1px solid #d1d5db;
     font-size: 0.68rem;
     font-weight: 600;
     letter-spacing: 0.03em;
+    vertical-align: middle;
+    box-sizing: border-box;
+    height: auto;
+    max-height: none;
+}
+/* Encabezados con filas combinadas: sin altura fija (evita texto recortado) */
+#saldos-table thead .saldos-th[rowspan] {
+    height: auto !important;
+    min-height: 2.5rem;
+    white-space: normal;
+    word-break: break-word;
 }
 
-/* Main header row */
+/* Vista compacta Saldos 2026: ocultar columnas extra (thead, tbody, fila filtro) */
+.saldos-hide-extra .saldos-col-extra {
+    display: none !important;
+}
+
+/* Encabezados principales — orden y colores (referencia hoja Excel); Rizo/Pie = 3 columnas */
+.saldos-h-telar { background: #ffffff !important; color: #111827 !important; border-color: #d1d5db !important; }
+
+/* TELAR: SMIT = azul; Jacquard = naranja; resto = neutro */
+.saldos-td-telar-neutral {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+    border-color: #d1d5db !important;
+}
+.saldos-row-odd .saldos-td-telar-neutral { background-color: #f8faff !important; }
+.saldos-td-telar-smit {
+    background-color: #dbeafe !important;
+    color: #111827 !important;
+    border-color: #93c5fd !important;
+    font-weight: 700 !important;
+}
+.saldos-td-telar-jac {
+    background-color: #ffedd5 !important;
+    color: #111827 !important;
+    border-color: #fdba74 !important;
+    font-weight: 700 !important;
+}
+.saldos-telar-en-proceso-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #16a34a;
+    margin-left: 4px;
+    vertical-align: middle;
+    box-shadow: 0 0 0 2px #bbf7d0;
+}
+.saldos-h-orden { background: #fef08a !important; color: #111827 !important; border-color: #eab308 !important; }
+.saldos-h-white { background: #ffffff !important; color: #111827 !important; border-color: #d1d5db !important; }
+.saldos-h-prioridad { background: #ffffff !important; color: #111827 !important; border-color: #d1d5db !important; min-width: 7rem !important; }
+.saldos-h-modelo {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    line-height: 1.15;
+    white-space: normal !important;
+}
+.saldos-h-solicitado {
+    background: #cffafe !important;
+    color: #111827 !important;
+    border-color: #22d3ee !important;
+    white-space: normal !important;
+    line-height: 1.2;
+    vertical-align: middle;
+}
+.saldos-h-solicitado-accent { color: #1d4ed8 !important; font-weight: 800; font-size: 0.6rem; letter-spacing: 0.04em; }
+.saldos-h-green { background: #bbf7d0 !important; color: #111827 !important; border-color: #4ade80 !important; }
+.saldos-h-small { font-size: 0.58rem !important; font-weight: 600; }
+
+/* Rizo / Pie: encabezado agrupado (Excel) + subfilas Calibre / Cuenta / Fibra */
+.saldos-rizo-pie-sep {
+    border-right: 2px solid #dc2626 !important;
+}
+.saldos-h-rizo-group {
+    background: #22c55e !important;
+    color: #dc2626 !important;
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    border-color: #16a34a !important;
+    vertical-align: middle !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
+.saldos-h-pie-group {
+    background: #fef3c7 !important;
+    color: #dc2626 !important;
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    border-color: #facc15 !important;
+    vertical-align: middle !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
+.saldos-h-rizo-sub {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border-color: #86efac !important;
+    font-size: 0.62rem !important;
+    font-weight: 700 !important;
+    vertical-align: middle !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
+}
+.saldos-h-rizo-sub-calibre { color: #dc2626 !important; }
+.saldos-h-pie-sub {
+    background: #fffbeb !important;
+    color: #111827 !important;
+    border-color: #fde68a !important;
+    font-size: 0.62rem !important;
+    font-weight: 700 !important;
+    vertical-align: middle !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
+}
+.saldos-h-pie-sub-calibre { color: #dc2626 !important; }
+
+.saldos-td-rizo-cuenta {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+    font-weight: 600 !important;
+}
+.saldos-td-rizo-calibre {
+    background-color: #ffffff !important;
+    color: #dc2626 !important;
+    border-color: #d1d5db !important;
+    font-weight: 600 !important;
+}
+.saldos-td-rizo-fibra {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+    font-weight: 700 !important;
+    border-right: 2px solid #dc2626 !important;
+}
+.saldos-td-pie-cuenta {
+    background-color: #fffbeb !important;
+    color: #111827 !important;
+    border-color: #fde68a !important;
+    font-weight: 600 !important;
+}
+.saldos-td-pie-calibre {
+    background-color: #fffbeb !important;
+    color: #dc2626 !important;
+    border-color: #fde68a !important;
+    font-weight: 600 !important;
+}
+.saldos-td-pie-fibra {
+    background-color: #fffbeb !important;
+    color: #111827 !important;
+    border-color: #fde68a !important;
+    font-weight: 700 !important;
+}
+.saldos-h-razurada {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    font-size: 0.55rem !important;
+    font-weight: 700 !important;
+    border-color: #b91c1c !important;
+    letter-spacing: 0.06em;
+}
+.saldos-h-green-soft { background: #d1fae5 !important; color: #111827 !important; border-color: #6ee7b7 !important; }
+.saldos-h-toallas {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+    white-space: normal !important;
+    line-height: 1.2;
+}
+.saldos-h-saldo-accent {
+    color: #6d28d9 !important;
+    font-weight: 800;
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+}
+.saldos-h-rollos-tejer { background: #4ade80 !important; color: #111827 !important; border-color: #22c55e !important; }
+.saldos-h-obs {
+    background: #fef08a !important;
+    color: #111827 !important;
+    border-color: #eab308 !important;
+    min-width: 12rem !important;
+    white-space: normal !important;
+}
+
+.saldos-td-solicitado { background: #ecfeff !important; border-color: #a5f3fc !important; }
+.saldos-td-modelo { font-size: 0.78rem !important; font-weight: 700; }
+.saldos-td-toallas-saldo { background: #fafafa !important; }
+.saldos-td-obs { background: #fffbeb !important; border-color: #fde68a !important; }
+
+/* Razurada = sí: rojo aunque la fila sea grupo vinculado (el verde pisaba el estilo) */
+.saldos-td-rasurada { font-variant-numeric: tabular-nums; }
+/* Mismo rojo que .saldos-h-razurada */
+.saldos-td-rasurada-si {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border-color: #b91c1c !important;
+}
+
+/* Columnas extra (azul): nunca altura fija — suelen ser rowspan="2" y 36px recortaba todo el thead */
 .saldos-th-main {
     background: #1e3a8a;
     color: #ffffff;
-    height: 36px;
+    min-height: 36px;
+    height: auto !important;
     text-align: center;
     vertical-align: middle;
     border-color: #2563eb;
+    white-space: normal;
+    line-height: 1.25;
+    padding: 8px 10px;
 }
 
 /* Group header (RIZO / PIE) */
@@ -387,9 +619,75 @@
 .saldos-row-odd td  { background-color: #f8faff; }
 .saldos-row-repaso td { background-color: #fee2e2 !important; }
 
+/*
+ * Separador entre bloques de telar: con border-collapse las filas vacías colapsan;
+ * el padding vertical + &nbsp; en la celda fuerza altura visible.
+ */
+#saldos-table tbody tr.saldos-telar-sep {
+    height: auto;
+}
+#saldos-table tbody tr.saldos-telar-sep td {
+    padding: 12px 0 !important;
+    height: 12px !important;
+    min-height: 12px !important;
+    border: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    vertical-align: middle;
+    line-height: 1px !important;
+    font-size: 1px !important;
+    box-shadow: none !important;
+    pointer-events: none;
+}
+
 .saldos-row:hover td {
     background-color: #eff6ff !important;
     cursor: default;
+}
+.saldos-row:hover .saldos-td-rizo-cuenta,
+.saldos-row:hover .saldos-td-rizo-calibre,
+.saldos-row:hover .saldos-td-rizo-fibra {
+    background-color: #f1f5f9 !important;
+}
+.saldos-row:hover .saldos-td-pie-cuenta,
+.saldos-row:hover .saldos-td-pie-calibre,
+.saldos-row:hover .saldos-td-pie-fibra {
+    background-color: #fef3c7 !important;
+}
+.saldos-row:hover .saldos-td-rasurada-si {
+    background-color: #b91c1c !important;
+    color: #ffffff !important;
+    border-color: #991b1b !important;
+}
+.saldos-row:hover .saldos-td-telar-smit {
+    background-color: #bfdbfe !important;
+    color: #111827 !important;
+    border-color: #60a5fa !important;
+}
+.saldos-row:hover .saldos-td-telar-jac {
+    background-color: #fed7aa !important;
+    color: #111827 !important;
+    border-color: #fb923c !important;
+}
+.saldos-row:hover .saldos-td-telar-neutral {
+    background-color: #f1f5f9 !important;
+    color: #111827 !important;
+    border-color: #e2e8f0 !important;
+}
+.saldos-row.saldos-row-selected:hover .saldos-td-rizo-cuenta,
+.saldos-row.saldos-row-selected:hover .saldos-td-rizo-calibre,
+.saldos-row.saldos-row-selected:hover .saldos-td-rizo-fibra,
+.saldos-row.saldos-row-selected:hover .saldos-td-pie-cuenta,
+.saldos-row.saldos-row-selected:hover .saldos-td-pie-calibre,
+.saldos-row.saldos-row-selected:hover .saldos-td-pie-fibra {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+.saldos-row.saldos-row-selected:hover .saldos-td-solsaldo {
+    background-color: #1d4ed8 !important;
+    color: #ffffff !important;
 }
 
 /* Priority badges */
@@ -435,6 +733,54 @@
     outline-offset: -1px;
 }
 .saldos-row-selected:hover td { background-color: #2563eb !important; }
+.saldos-row-selected td.saldos-td-rasurada-si,
+.saldos-row-selected:hover td.saldos-td-rasurada-si {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #b91c1c !important;
+}
+.saldos-row-selected td.saldos-td-telar-smit,
+.saldos-row-selected:hover td.saldos-td-telar-smit {
+    background-color: #93c5fd !important;
+    color: #111827 !important;
+    border-color: #2563eb !important;
+}
+.saldos-row-selected td.saldos-td-telar-jac,
+.saldos-row-selected:hover td.saldos-td-telar-jac {
+    background-color: #fdba74 !important;
+    color: #111827 !important;
+    border-color: #ea580c !important;
+}
+.saldos-row-selected td.saldos-td-telar-neutral,
+.saldos-row-selected:hover td.saldos-td-telar-neutral {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+}
+tr.saldos-row-group-hover.saldos-row-selected td.saldos-td-telar-smit,
+tr.saldos-row-group-hover.saldos-row-selected:hover td.saldos-td-telar-smit,
+tr.saldos-row-grupo.saldos-row-selected td.saldos-td-telar-smit,
+tr.saldos-row-grupo.saldos-row-selected:hover td.saldos-td-telar-smit {
+    background-color: #93c5fd !important;
+    color: #111827 !important;
+    border-color: #2563eb !important;
+}
+tr.saldos-row-group-hover.saldos-row-selected td.saldos-td-telar-jac,
+tr.saldos-row-group-hover.saldos-row-selected:hover td.saldos-td-telar-jac,
+tr.saldos-row-grupo.saldos-row-selected td.saldos-td-telar-jac,
+tr.saldos-row-grupo.saldos-row-selected:hover td.saldos-td-telar-jac {
+    background-color: #fdba74 !important;
+    color: #111827 !important;
+    border-color: #ea580c !important;
+}
+tr.saldos-row-group-hover.saldos-row-selected td.saldos-td-telar-neutral,
+tr.saldos-row-group-hover.saldos-row-selected:hover td.saldos-td-telar-neutral,
+tr.saldos-row-grupo.saldos-row-selected td.saldos-td-telar-neutral,
+tr.saldos-row-grupo.saldos-row-selected:hover td.saldos-td-telar-neutral {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+}
 
 /* ── Context menu ── */
 #saldos-ctx {
@@ -506,6 +852,24 @@
 }
 thead .saldos-col-frozen { background: #1e3a8a !important; }
 tbody .saldos-col-frozen { background: #f0f4ff !important; }
+tbody .saldos-col-frozen.saldos-td-telar-smit {
+    background-color: #dbeafe !important;
+    color: #111827 !important;
+    border-color: #93c5fd !important;
+}
+tbody .saldos-col-frozen.saldos-td-telar-jac {
+    background-color: #ffedd5 !important;
+    color: #111827 !important;
+    border-color: #fdba74 !important;
+}
+tbody .saldos-col-frozen.saldos-td-telar-neutral {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+}
+.saldos-row-odd .saldos-col-frozen.saldos-td-telar-neutral {
+    background-color: #f8faff !important;
+}
 
 /* ── Column filter row ── */
 #saldos-filter-row { display: none; }
@@ -555,10 +919,40 @@ tbody .saldos-col-frozen { background: #f0f4ff !important; }
 .saldos-row-lider { font-weight: 600; }
 .saldos-row-abierto td { opacity: 0.85; }
 .saldos-row-abierto:hover td { opacity: 1; }
-/* Grupo highlight on hover/selection */
-tr.saldos-row-grupo:hover td,
-tr.saldos-row-group-hover td { background-color: #dcfce7 !important; }
-tr.saldos-row-group-hover.saldos-row-selected td { background-color: #bfdbfe !important; }
+/* Grupo (orden compartida): verde solo en filas que no están seleccionadas */
+tr.saldos-row-grupo:hover:not(.saldos-row-selected) td,
+tr.saldos-row-group-hover:not(.saldos-row-selected) td {
+    background-color: #dcfce7 !important;
+}
+tr.saldos-row-grupo:hover:not(.saldos-row-selected) td.saldos-td-rasurada-si,
+tr.saldos-row-group-hover:not(.saldos-row-selected) td.saldos-td-rasurada-si {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #b91c1c !important;
+}
+/* Seleccionada dentro del grupo: mismo azul que el resto (evita #bfdbfe “lavado”) */
+tr.saldos-row-group-hover.saldos-row-selected td,
+tr.saldos-row-grupo.saldos-row-selected td {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+tr.saldos-row-group-hover.saldos-row-selected td.saldos-td-rasurada-si,
+tr.saldos-row-grupo.saldos-row-selected td.saldos-td-rasurada-si {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #b91c1c !important;
+}
+tr.saldos-row-grupo.saldos-row-selected:hover td,
+tr.saldos-row-group-hover.saldos-row-selected:hover td {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+tr.saldos-row-grupo.saldos-row-selected:hover td.saldos-td-rasurada-si,
+tr.saldos-row-group-hover.saldos-row-selected:hover td.saldos-td-rasurada-si {
+    background-color: #b91c1c !important;
+    color: #ffffff !important;
+    border-color: #991b1b !important;
+}
 </style>
 @endpush
 
@@ -627,6 +1021,11 @@ tr.saldos-row-group-hover.saldos-row-selected td { background-color: #bfdbfe !im
         })(ci, inp);
         filterInps[ci] = inp;
         th.appendChild(inp);
+        var hdrCells = colCells[ci] || [];
+        var hdr0 = hdrCells[0];
+        if (hdr0 && hdr0.classList && hdr0.classList.contains('saldos-col-extra')) {
+            th.classList.add('saldos-col-extra');
+        }
         filterRow.appendChild(th);
     }
     thead.appendChild(filterRow);
@@ -788,7 +1187,8 @@ tr.saldos-row-group-hover.saldos-row-selected td { background-color: #bfdbfe !im
     ═══════════════════════════════════════════════════════════ */
     var frozenCols   = new Set();
     var hiddenCols   = new Set();
-    var origOrder    = tbody ? Array.from(tbody.rows) : [];
+    /* Solo filas de datos: los separadores telar se recrean con refreshTelarSeparators */
+    var origOrder    = tbody ? Array.from(tbody.querySelectorAll('tr.saldos-row')) : [];
     var ctxColIdx    = null;
     var ctxCell      = null;
     var ctxRow       = null;
@@ -892,7 +1292,9 @@ tr.saldos-row-group-hover.saldos-row-selected td { background-color: #bfdbfe !im
                 table.querySelectorAll('[data-sort-dir]').forEach(function(el){
                     el.removeAttribute('data-sort-dir');
                 });
+                while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
                 origOrder.forEach(function(row){ tbody.appendChild(row); });
+                refreshTelarSeparators();
                 break;
         }
     }
@@ -1194,6 +1596,34 @@ tr.saldos-row-group-hover.saldos-row-selected td { background-color: #bfdbfe !im
     }
 
     /* ═══════════════════════════════════════════════════════════
+       9b. Separadores entre telares (misma regla que Blade)
+    ═══════════════════════════════════════════════════════════ */
+    function refreshTelarSeparators() {
+        if (!tbody) return;
+        tbody.querySelectorAll('tr.saldos-telar-sep').forEach(function(tr){ tr.remove(); });
+        var rows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
+        var first = rows[0];
+        var cs = first && first.cells.length ? first.cells.length : 81;
+        for (var i = 1; i < rows.length; i++) {
+            var prev = rows[i - 1], row = rows[i];
+            var sameTelar = (prev.dataset.noTelar || '') === (row.dataset.noTelar || '');
+            var ordP = (prev.dataset.ordCompartida || '').trim();
+            var ordC = (row.dataset.ordCompartida || '').trim();
+            var sameShared = prev.dataset.esGrupo === '1' && row.dataset.esGrupo === '1'
+                && ordP !== '' && ordP === ordC;
+            if (sameTelar || sameShared) continue;
+            var sep = document.createElement('tr');
+            sep.className = 'saldos-telar-sep';
+            sep.setAttribute('aria-hidden', 'true');
+            var td = document.createElement('td');
+            td.colSpan = cs;
+            td.innerHTML = '&nbsp;';
+            sep.appendChild(td);
+            tbody.insertBefore(sep, row);
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
        10. Sort by column
     ═══════════════════════════════════════════════════════════ */
     function sortByCol(colIdx, dir) {
@@ -1231,12 +1661,30 @@ tr.saldos-row-group-hover.saldos-row-selected td { background-color: #bfdbfe !im
             bloque.forEach(function(row) { tbody.appendChild(row); });
         });
 
+        refreshTelarSeparators();
+
         // Update sort indicator on header
         table.querySelectorAll('[data-sort-dir]').forEach(function(el) { el.removeAttribute('data-sort-dir'); });
         var hdrCells = colCells[colIdx] || [];
         var hdrCell = hdrCells.find(function(c) { return c.closest('thead') && c.tagName === 'TH'; });
         if (hdrCell) hdrCell.setAttribute('data-sort-dir', dir);
     }
+
+    /* Mostrar / ocultar columnas extra (además del menú contextual) */
+    var btnToggleExtra = document.getElementById('saldos-toggle-extra-cols');
+    var lblToggleExtra = document.getElementById('saldos-toggle-extra-cols-label');
+    if (btnToggleExtra && table) {
+        btnToggleExtra.addEventListener('click', function () {
+            table.classList.toggle('saldos-hide-extra');
+            var compact = table.classList.contains('saldos-hide-extra');
+            if (lblToggleExtra) {
+                lblToggleExtra.textContent = compact ? 'Más columnas' : 'Menos columnas';
+            }
+        });
+    }
+
+    /* Regenerar separadores al cargar (colspan = nº real de celdas) para que se vean bien */
+    refreshTelarSeparators();
 
 })();
 </script>

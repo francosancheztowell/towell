@@ -270,6 +270,68 @@ class UtilityHelpers
             Log::warning('marcarCambioHiloAnterior error', ['msg'=>$e->getMessage()]);
         }
     }
+
+    /**
+     * Versión bulk de marcarCambioHiloAnterior para múltiples telares.
+     * Reduce N*2 queries a 2 queries (1 bulk get + 1 bulk update si hay cambios).
+     *
+     * @param string $salon
+     * @param array $telaresIds Array de telar IDs
+     * @param string|null $nuevoHilo
+     * @return array Array con IDs de registros actualizados
+     */
+    public static function marcarCambioHiloBulk(string $salon, array $telaresIds, ?string $nuevoHilo): array
+    {
+        if (empty($telaresIds) || $nuevoHilo === null) {
+            return [];
+        }
+
+        try {
+            // Bulk query: obtener último de cada telar
+            $anteriores = ReqProgramaTejido::query()
+                ->salon($salon)
+                ->whereIn('NoTelarId', $telaresIds)
+                ->where('Ultimo', '1')
+                ->get(['Id', 'NoTelarId', 'FibraRizo'])
+                ->keyBy('NoTelarId');
+
+            // Para telares sin Ultimo=1, obtener el más reciente
+            $telaresSinUltimo = array_diff($telaresIds, $anteriores->keys()->all());
+            if (!empty($telaresSinUltimo)) {
+                $alternativos = ReqProgramaTejido::query()
+                    ->salon($salon)
+                    ->whereIn('NoTelarId', $telaresSinUltimo)
+                    ->orderByDesc('Id')
+                    ->get(['Id', 'NoTelarId', 'FibraRizo'])
+                    ->groupBy('NoTelarId')
+                    ->map(fn($group) => $group->first())
+                    ->filter();
+
+                foreach ($alternativos as $telarId => $registro) {
+                    $anteriores->put($telarId, $registro);
+                }
+            }
+
+            // Determinar cuáles necesitan CambioHilo=1
+            $idsActualizar = [];
+            foreach ($anteriores as $telarId => $registro) {
+                if ($registro->FibraRizo !== null && $registro->FibraRizo !== '' && $registro->FibraRizo !== $nuevoHilo) {
+                    $idsActualizar[] = $registro->Id;
+                }
+            }
+
+            // Bulk update si hay cambios
+            if (!empty($idsActualizar)) {
+                ReqProgramaTejido::whereIn('Id', $idsActualizar)
+                    ->update(['CambioHilo' => 1, 'UpdatedAt' => now()]);
+            }
+
+            return $idsActualizar;
+        } catch (\Throwable $e) {
+            Log::warning('marcarCambioHiloBulk error', ['msg' => $e->getMessage()]);
+            return [];
+        }
+    }
 }
 
 
