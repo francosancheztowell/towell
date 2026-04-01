@@ -26,19 +26,6 @@ class DividirTejido
      */
     public static function dividir(Request $request)
     {
-        $request->validate([
-            'salon_tejido_id' => 'required|string',
-            'no_telar_id' => 'required|string',
-            'destinos' => 'required|array|min:1',
-            'destinos.*.telar' => 'required|string',
-            'destinos.*.salon_destino' => 'nullable|string',
-            'destinos.*.pedido' => 'nullable|string',
-            'destinos.*.pedido_tempo' => 'nullable|string',
-            'destinos.*.observaciones' => 'nullable|string|max:500',
-            'destinos.*.porcentaje_segundos' => 'nullable|numeric|min:0',
-            'registro_id_original' => 'nullable|integer',
-        ]);
-
         $salonOrigen = $request->input('salon_tejido_id');
         $telarOrigen = $request->input('no_telar_id');
         $salonDestino = $request->input('salon_destino', $salonOrigen);
