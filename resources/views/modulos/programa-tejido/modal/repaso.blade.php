@@ -1,57 +1,42 @@
 {{-- Modal Crear Repaso --}}
-<div id="modalRepaso" class="hidden fixed left-0 right-0 bottom-0 z-50 overflow-y-auto" aria-labelledby="modalRepasoTitle" aria-modal="true" role="dialog" style="top: var(--pt-navbar-height, 64px); background-color: rgba(0, 0, 0, 0.4);">
-  <div class="min-h-full flex items-center justify-center p-4">
-  <div class="relative bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-lg overflow-hidden">
-    {{-- Header con título y botón cerrar --}}
-    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
-      <h3 id="modalRepasoTitle" class="text-base font-semibold text-gray-800 uppercase tracking-wide">Crear Repaso</h3>
-      <button type="button" onclick="cerrarModalRepaso()" class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-gray-300" aria-label="Cerrar">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
+<x-ui.modal-base id="modalRepaso" title="Crear Repaso" size="md" onclose="cerrarModalRepaso()">
+  <table class="min-w-full border border-gray-300">
+    <thead>
+      <tr class="bg-gray-50">
+        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Telar</th>
+        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Ancho</th>
+        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Hilo</th>
+        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Calibre</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="px-3 py-2 border-r border-gray-300">
+          <select id="repaso-telar" class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white">
+            <option value="">Seleccione telar...</option>
+          </select>
+        </td>
+        <td class="px-3 py-2 border-r border-gray-300">
+          <input type="number" id="repaso-ancho" step="any" min="0" class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" placeholder="">
+        </td>
+        <td class="px-3 py-2 border-r border-gray-300">
+          <select id="repaso-hilo" class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white">
+            <option value="">Seleccione hilo...</option>
+          </select>
+        </td>
+        <td class="px-3 py-2">
+          <input type="number" id="repaso-calibre" step="any" min="0" class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" placeholder="">
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
-    {{-- Contenido: tabla de campos --}}
-    <div class="p-4">
-      <table class="min-w-full border border-gray-300">
-        <thead>
-          <tr class="bg-gray-50">
-            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Telar</th>
-            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Ancho</th>
-            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Hilo</th>
-            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">Calibre</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="px-3 py-2 border-r border-gray-300">
-              <select id="repaso-telar" class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                <option value="">Seleccione telar...</option>
-              </select>
-            </td>
-            <td class="px-3 py-2 border-r border-gray-300">
-              <input type="number" id="repaso-ancho" step="any" min="0" class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" placeholder="">
-            </td>
-            <td class="px-3 py-2 border-r border-gray-300">
-              <select id="repaso-hilo" class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                <option value="">Seleccione hilo...</option>
-              </select>
-            </td>
-            <td class="px-3 py-2">
-              <input type="number" id="repaso-calibre" step="any" min="0" class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" placeholder="">
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="flex justify-center mt-4">
-        <button type="button" id="btnCrearRepaso" onclick="crearRepasoEnviar()" class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 font-medium transition-colors">
-          Crear
-        </button>
-      </div>
-    </div>
+  <div class="flex justify-center mt-4">
+    <button type="button" id="btnCrearRepaso" onclick="crearRepasoEnviar()" class="modal-btn-primary">
+      Crear
+    </button>
   </div>
-  </div>
-</div>
+</x-ui.modal-base>
 
 <script>
   (function() {
@@ -104,7 +89,6 @@
       var modal = document.getElementById('modalRepaso');
       if (!modal) return;
 
-      // Limpiar y resetear
       var telarSel = document.getElementById('repaso-telar');
       var anchoInp = document.getElementById('repaso-ancho');
       var hiloSel = document.getElementById('repaso-hilo');

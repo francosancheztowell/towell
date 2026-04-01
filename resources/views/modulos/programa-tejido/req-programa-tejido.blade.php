@@ -310,6 +310,7 @@ document.addEventListener('DOMContentLoaded', function () {
 {{-- OJO: EL JS de duplicar/dividir NO VA AQUÍ (si lo incluyes aquí se imprime) --}}
 
 <link rel="stylesheet" href="{{ asset('css/programa-tejido/main.css') }}">
+<link rel="stylesheet" href="{{ asset('css/programa-tejido/modals.css') }}">
 
 {{-- balanceo --}}
 @include('modulos.programa-tejido.balancear')

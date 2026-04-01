@@ -1,0 +1,83 @@
+/* Botón primario de modal (azul) */
+.modal-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1.5rem;
+    background-color: #3b82f6;
+    color: #fff;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+.modal-btn-primary:hover {
+    background-color: #2563eb;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.modal-btn-primary:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(96,165,250,0.5);
+}
+.modal-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Botón secundario de modal (gris) */
+.modal-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1.5rem;
+    background-color: #6b7280;
+    color: #fff;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+.modal-btn-secondary:hover {
+    background-color: #4b5563;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.modal-btn-secondary:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(156,163,175,0.5);
+}
+.modal-btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Botón de peligro de modal (rojo) */
+.modal-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1.5rem;
+    background-color: #ef4444;
+    color: #fff;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+.modal-btn-danger:hover {
+    background-color: #dc2626;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.modal-btn-danger:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(252,165,165,0.5);
+}
+.modal-btn-danger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
