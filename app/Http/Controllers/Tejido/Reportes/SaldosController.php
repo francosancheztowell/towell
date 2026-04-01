@@ -39,7 +39,7 @@ class SaldosController extends Controller
             $esGrupoVinculado = !str_starts_with($key, '__solo__');
 
             if ($esGrupoVinculado) {
-                $lider = $grupo->firstWhere('OrdCompartidaLider', 1) ?? $grupo->first();
+                $lider = $grupo->first(); // el primero de arriba es el líder
                 $noLiderOrden = $lider->NoProduccion;
 
                 $sumTotalPedido = $grupo->sum('TotalPedido');
@@ -48,7 +48,7 @@ class SaldosController extends Controller
                 $sumTotalRollos = $grupo->sum('TotalRollos');
 
                 foreach ($grupo as $r) {
-                    $r->_esLider           = ($r->OrdCompartidaLider == 1);
+                    $r->_esLider           = ($r->Id === $lider->Id); // líder = el primero del grupo
                     $r->_esGrupoVinculado  = true;
                     $r->_ordenLider        = $noLiderOrden;
                     if ($r->_esLider) {
