@@ -47,6 +47,13 @@ class ProgramaTejidoRouteContractTest extends TestCase
             expectedMethods: ['GET', 'HEAD'],
             expectedMiddleware: ['web', 'auth'],
         );
+
+        $this->assertRouteContract(
+            routeName: 'programa-tejido.registros-ord-compartida',
+            expectedUri: 'planeacion/programa-tejido/registros-ord-compartida/{ordCompartida}',
+            expectedMethods: ['GET', 'HEAD'],
+            expectedMiddleware: ['web', 'auth'],
+        );
     }
 
     private function assertRouteContract(

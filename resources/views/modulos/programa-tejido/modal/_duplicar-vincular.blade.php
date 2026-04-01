@@ -2,26 +2,11 @@
 {{-- NOTA: Este archivo se incluye dentro de un bloque <script>, NO agregar etiquetas <script> aquí --}}
 
 // ===== Funciones de Duplicar/Vincular =====
-const telaresPorSalonCacheDuplicar = new Map();
-
 function obtenerTelaresPorSalonCacheDuplicar(salon) {
-	const key = String(salon || '');
-	if (telaresPorSalonCacheDuplicar.has(key)) {
-		return Promise.resolve(telaresPorSalonCacheDuplicar.get(key));
+	if (typeof window.obtenerTelaresPorSalonCached === 'function') {
+		return window.obtenerTelaresPorSalonCached(salon);
 	}
-	return fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(key), {
-		headers: { 'Accept': 'application/json' }
-	})
-		.then(r => r.json())
-		.then(data => {
-			const lista = Array.isArray(data) ? data : [];
-			telaresPorSalonCacheDuplicar.set(key, lista);
-			return lista;
-		})
-		.catch(() => {
-			telaresPorSalonCacheDuplicar.set(key, []);
-			return [];
-		});
+	return Promise.resolve([]);
 }
 
 

@@ -540,61 +540,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		}
 		row.dataset.listenersConfigured = 'true';
 
-		const { pedidoTempoInput, porcentajeSegundosInput, totalInput } = getRowInputs(row);
-		const saldoInput = row.querySelector('input[name="saldo-destino[]"]');
+		const { totalInput } = getRowInputs(row);
 
-		if (pedidoTempoInput) {
-			pedidoTempoInput.addEventListener('input', (event) => {
-				// No ejecutar si se est? redistribuyendo
-				if (window.redistribuyendo) {
-					return;
-				}
-
-				const modoActual = getModoActual();
-				if (modoActual === 'duplicar') {
-					// En modo duplicar, calcular saldo basado en pedido y %segundas
-					calcularSaldoDuplicar(row);
-					return;
-				}
-				// En modo dividir, el listener global se encarga del c?lculo
-				if (!window.modalDuplicarListenersGlobalesAgregados) {
-					const calcularFn = window.calcularSaldoTotal || (typeof calcularSaldoTotal !== 'undefined' ? calcularSaldoTotal : null);
-					if (calcularFn && typeof calcularFn === 'function') {
-						try {
-							calcularFn(row);
-						} catch (error) {
-						}
-					}
-				}
-			}, { capture: true }); // Usar capture para ejecutar antes que otros listeners
-		}
-
-		if (porcentajeSegundosInput) {
-			porcentajeSegundosInput.addEventListener('input', (event) => {
-				// No ejecutar si se est? redistribuyendo
-				if (window.redistribuyendo) {
-					return;
-				}
-
-				const modoActual = getModoActual();
-				if (modoActual === 'duplicar') {
-					// En modo duplicar, calcular saldo basado en pedido y %segundas
-					calcularSaldoDuplicar(row);
-					return;
-				}
-				// Calcular autom?ticamente cuando cambia el porcentaje de segundas
-				// Intentar desde window primero, luego desde scope global
-				if (modoActual === 'dividir' && !window.modalDuplicarListenersGlobalesAgregados) {
-					const calcularFn = window.calcularSaldoTotal || (typeof calcularSaldoTotal !== 'undefined' ? calcularSaldoTotal : null);
-					if (calcularFn && typeof calcularFn === 'function') {
-						try {
-							calcularFn(row);
-						} catch (error) {
-						}
-					}
-				}
-			}, { capture: true }); // Usar capture para ejecutar antes que otros listeners
-		}
+		// Pedido / % segundas: cálculo vía delegación en document (un solo listener; ver initModalDuplicar)
 
 		if (totalInput) {
 			totalInput.addEventListener('input', (event) => {
@@ -988,9 +936,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				});
 			}
 
-			// ⚡ FIX: Bindear el textarea de descripción para sincronización bidireccional
-			bindDescripcionEditableInput();
-
 			// Calcular saldo inicial en modo duplicar
 			if (typeof calcularSaldoDuplicar === 'function') {
 				calcularSaldoDuplicar(filaPrincipal);
@@ -1023,7 +968,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 							class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" style="max-width: 3rem;">
 					</td>
 					<td class="p-2 border-r border-gray-200 produccion-cell" style="width: 5rem; min-width: 5rem;">
-						<input type="text" value="${produccionOriginal || ''}" readonly
+						<input type="text" value="${produccionOriginal || ''}" readonly data-pt-produccion="1"
 							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 						<input type="hidden" name="pedido-destino[]" value="${pedidoOriginal}">
 					</td>
@@ -1067,7 +1012,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		aplicarVisibilidadColumnas(esDuplicar);
 		bindClaveModeloEditableInput();
 		bindFlogEditableInput();
-		bindDescripcionEditableInput();
 		recomputeState();
 		setTimeout(() => {
 			if (typeof aplicarFormatoMilesEnContenedor === 'function') aplicarFormatoMilesEnContenedor(tbody);
@@ -1256,7 +1200,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 							.then(info => {
 								// LOG: CustName desde flog
 								const custNameFromFlog = (info?.custName || info?.CustName || info?.custname || '').trim();
-								console.log('[cargarDatosRelacionados] 🏢 CUSTNAME DESDE FLOG-BY-ITEM:', {
+								ptDebugLog('[cargarDatosRelacionados] 🏢 CUSTNAME DESDE FLOG-BY-ITEM:', {
 									custNameFromFlog,
 									infoCompleto: info
 								});
@@ -1264,7 +1208,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 								// Actualizar CustName desde flog-by-item
 								if (custNameFromFlog && inputCustname) {
 									inputCustname.value = custNameFromFlog;
-									console.log('[cargarDatosRelacionados] ✅ CustName actualizado desde flog:', custNameFromFlog);
+									ptDebugLog('[cargarDatosRelacionados] ✅ CustName actualizado desde flog:', custNameFromFlog);
 								}
 
 								// Autocompletar flog y descripción desde TI_PRO
@@ -1375,14 +1319,13 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			salonActualLocal = selectSalon.value;
 		}
 
-		// Cargar telares de todos los salones donde existe la clave
-		const telas = await Promise.all(
-			salonesMatch.map(salon =>
-				fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(salon), {
-					headers: { 'Accept': 'application/json' }
-				}).then(r => r.json()).catch(() => [])
-			)
-		);
+		const cargarTelaresSalon = typeof window.obtenerTelaresPorSalonCached === 'function'
+			? (s) => window.obtenerTelaresPorSalonCached(s)
+			: (s) => fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(s), {
+				headers: { 'Accept': 'application/json' }
+			}).then(r => r.json()).catch(() => []);
+
+		const telas = await Promise.all(salonesMatch.map(salon => cargarTelaresSalon(salon)));
 
 
 		const merged = [];
@@ -1414,24 +1357,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 	async function cargarOpcionesFlog(search = '') {
 
 		try {
-			// SIEMPRE cargar todos los flogs disponibles (búsqueda libre, sin depender de clave modelo)
-			// Solo cargar del servidor si no los tenemos en caché
-			if (todasOpcionesFlogGeneral.length === 0) {
-				const response = await fetch('/programa-tejido/flogs-id-from-twflogs', {
-					headers: {
-						'Accept': 'application/json',
-						'X-CSRF-TOKEN': getCsrfToken()
-					}
-				});
-
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-
-				const opciones = await response.json();
-				const opcionesArray = Array.isArray(opciones) ? opciones : [];
-				todasOpcionesFlogGeneral = opcionesArray.filter(f => f && String(f).trim()).map(f => String(f).trim());
-			} else {
+			if (typeof window.ensureFlogsListaLoaded === 'function') {
+				todasOpcionesFlogGeneral = await window.ensureFlogsListaLoaded();
 			}
 
 			// Verificar que tenemos flogs disponibles
@@ -1461,9 +1388,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			}
 
 
-		// ⚡ DEBUG: Log para verificar cuántas sugerencias se encontraron
-		console.log('[cargarOpcionesFlog] ⚡ Total sugerencias encontradas:', sugerenciasFlog.length);
-		console.log('[cargarOpcionesFlog] ⚡ Primeras 10 sugerencias:', sugerenciasFlog.slice(0, 10));
+		ptDebugLog('[cargarOpcionesFlog] ⚡ Total sugerencias encontradas:', sugerenciasFlog.length);
+		ptDebugLog('[cargarOpcionesFlog] ⚡ Primeras 10 sugerencias:', sugerenciasFlog.slice(0, 10));
 
 		// SIEMPRE mostrar las sugerencias (incluso si hay 0, para mostrar "No se encontraron coincidencias")
 		mostrarSugerenciasFlog(sugerenciasFlog);
@@ -1532,8 +1458,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				containerSugerenciasFlog.style.pointerEvents = 'auto';
 				containerSugerenciasFlog.classList.remove('hidden');
 
-				// ⚡ DEBUG: Log para verificar posicionamiento
-				console.log('[mostrarSugerenciasFlog] ⚡ Contenedor posicionado en flogCell:', {
+				ptDebugLog('[mostrarSugerenciasFlog] ⚡ Contenedor posicionado en flogCell:', {
 					cellPosition: flogCell.style.position,
 					containerPosition: containerSugerenciasFlog.style.position,
 					containerZIndex: containerSugerenciasFlog.style.zIndex,
@@ -1571,8 +1496,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			return;
 		}
 
-		// ⚡ DEBUG: Log para verificar cuántas sugerencias se van a mostrar
-		console.log('[mostrarSugerenciasFlog] ⚡ Mostrando', sugerencias.length, 'sugerencias');
+		ptDebugLog('[mostrarSugerenciasFlog] ⚡ Mostrando', sugerencias.length, 'sugerencias');
 
 		// Si las sugerencias son objetos con idflog y nombreProyecto
 		const esArrayObjetos = Array.isArray(sugerencias) && sugerencias.length > 0 && typeof sugerencias[0] === 'object' && sugerencias[0] !== null && sugerencias[0].idflog;
@@ -1616,17 +1540,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 					// ⚡ FIX: SIEMPRE hacer el get para cargar la descripción automáticamente
 					// No es necesario presionar Enter, se carga automáticamente al hacer click
 					if (flogValue) {
-						cargarDescripcionPorFlog(flogValue).then(() => {
-							// Sincronizar todas las columnas después de cargar la descripción
-							if (typeof actualizarColumnasInformacion === 'function') {
-								actualizarColumnasInformacion();
-							}
-						}).catch(() => {
-							// Si hay error, al menos sincronizar las columnas
-							if (typeof actualizarColumnasInformacion === 'function') {
-								actualizarColumnasInformacion();
-							}
-						});
+						void cargarDescripcionPorFlog(flogValue);
 					}
 				});
 			} else {
@@ -1659,12 +1573,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 					containerSugerenciasFlog.style.display = 'none';
 
 					// ⚡ FIX: SIEMPRE hacer el get para cargar la descripción automáticamente
-					cargarDescripcionPorFlog(flogValue).then(() => {
-						// Sincronizar todas las columnas después de cargar la descripción
-						if (typeof actualizarColumnasInformacion === 'function') {
-							actualizarColumnasInformacion();
-						}
-					});
+					void cargarDescripcionPorFlog(flogValue);
 				});
 			}
 
@@ -1692,10 +1601,9 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			table.style.overflow = 'visible';
 		}
 
-		// ⚡ DEBUG: Verificar que el contenedor esté visible
-		console.log('[mostrarSugerenciasFlog] ⚡ Contenedor visible:', containerSugerenciasFlog.style.display, '| Hidden class:', containerSugerenciasFlog.classList.contains('hidden'));
-		console.log('[mostrarSugerenciasFlog] ⚡ Total elementos agregados:', containerSugerenciasFlog.children.length);
-		console.log('[mostrarSugerenciasFlog] ⚡ Z-index:', containerSugerenciasFlog.style.zIndex);
+		ptDebugLog('[mostrarSugerenciasFlog] ⚡ Contenedor visible:', containerSugerenciasFlog.style.display, '| Hidden class:', containerSugerenciasFlog.classList.contains('hidden'));
+		ptDebugLog('[mostrarSugerenciasFlog] ⚡ Total elementos agregados:', containerSugerenciasFlog.children.length);
+		ptDebugLog('[mostrarSugerenciasFlog] ⚡ Z-index:', containerSugerenciasFlog.style.zIndex);
 	}
 
 	// Nueva función para mostrar sugerencias con descripción (usada cuando se carga desde clave modelo)
@@ -1956,23 +1864,11 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 			const cargarOpcionesFlogRow = async (search = '') => {
 				try {
-					// Cargar todos los flogs disponibles si no están en caché global
 					let todasOpcionesFlog = [];
-					if (typeof window.todasOpcionesFlogGeneral !== 'undefined' && window.todasOpcionesFlogGeneral.length > 0) {
+					if (typeof window.ensureFlogsListaLoaded === 'function') {
+						todasOpcionesFlog = await window.ensureFlogsListaLoaded();
+					} else if (typeof window.todasOpcionesFlogGeneral !== 'undefined' && window.todasOpcionesFlogGeneral.length > 0) {
 						todasOpcionesFlog = window.todasOpcionesFlogGeneral;
-					} else {
-						const response = await fetch('/programa-tejido/flogs-id-from-twflogs', {
-							headers: {
-								'Accept': 'application/json',
-								'X-CSRF-TOKEN': getCsrfToken()
-							}
-						});
-						if (response.ok) {
-							const opciones = await response.json();
-							const opcionesArray = Array.isArray(opciones) ? opciones : [];
-							todasOpcionesFlog = opcionesArray.filter(f => f && String(f).trim()).map(f => String(f).trim());
-							window.todasOpcionesFlogGeneral = todasOpcionesFlog;
-						}
 					}
 
 					if (todasOpcionesFlog.length === 0) {
@@ -2678,7 +2574,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		const promesasCargaInicial = [];
 
 		// 1. Cargar datos relacionados de la clave modelo (si existe) y luego buscar flog en TI_PRO
-		if (claveModeloInicial && salonInicial) {
+		// Con OrdCompartida ya activa, los campos y la tabla se surten del registro; omitir evita 2+ requests redundantes al abrir.
+		if (!tieneOrdCompartida && claveModeloInicial && salonInicial) {
 			const paramsDatos = new URLSearchParams();
 			paramsDatos.append('salon_tejido_id', salonInicial);
 			paramsDatos.append('tamano_clave', claveModeloInicial);
@@ -2766,7 +2663,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 		// 3. Cargar telares relacionados con la clave modelo (si existe)
 		// IMPORTANTE: Esto se hace DESPUÉS de que salonesDisponibles esté cargado
-		if (claveModeloInicial && salonesDisponibles && salonesDisponibles.length > 0) {
+		// Con OrdCompartida las filas usan telar readonly; no hace falta fusionar listas al abrir.
+		if (!tieneOrdCompartida && claveModeloInicial && salonesDisponibles && salonesDisponibles.length > 0) {
 			promesasCargaInicial.push(
 				Promise.resolve(actualizarTelaresPorClaveModelo(claveModeloInicial))
 					.catch(err => {
@@ -2775,31 +2673,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			);
 		}
 
-		// 4. Cargar todos los flogs generales (para busqueda libre) solo si no hay cache
-		if (todasOpcionesFlogGeneral.length === 0) {
-			promesasCargaInicial.push(
-				fetch('/programa-tejido/flogs-id-from-twflogs', {
-					headers: {
-						'Accept': 'application/json',
-						'X-CSRF-TOKEN': getCsrfToken()
-					}
-				})
-					.then(r => r.json())
-					.then(data => {
-						if (Array.isArray(data)) {
-							todasOpcionesFlogGeneral = data.filter(f => f && String(f).trim()).map(f => String(f).trim());
-						} else {
-							todasOpcionesFlogGeneral = [];
-						}
-						return data;
-					})
-					.catch(err => {
-						console.error('[initModalDuplicar] Error cargando flogs generales:', err);
-						todasOpcionesFlogGeneral = [];
-						return [];
-					})
-			);
-		}
+		// 4. Lista global de flogs: carga perezosa (ensureFlogsListaLoaded) al enfocar / autocompletar flog — no bloquear apertura.
 
 		// 5. Si hay flog inicial, cargar su descripción
 		if (flogInicial && inputDescripcion) {
@@ -3022,10 +2896,6 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		}
 	}, 50);
 
-	// Stubs de compatibilidad (cada fila es independiente)
-	function actualizarColumnasInformacion() {}
-	function bindDescripcionEditableInput() {}
-
 	// Configura autocompletadores para la fila principal
 	function bindClaveModeloEditableInput() {
 		const filaPrincipal = document.querySelector('#telar-pedido-body tr#fila-principal');
@@ -3058,13 +2928,11 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 	actualizarEstiloSwitch();
 	recomputeState();
 
-	// Listener global para capturar cambios en inputs de pedido y porcentaje (DELEGACIÓN DE EVENTOS)
-	// Solo agregar una vez usando una bandera global
+	// Listener global (una vez): duplicar calcula en vivo; dividir usa debounce + AbortController (scheduleCalcularSaldoTotalDebounced)
 	if (!window.modalDuplicarListenersGlobalesAgregados) {
 		window.modalDuplicarListenersGlobalesAgregados = true;
 
 		document.addEventListener('input', (event) => {
-			// No ejecutar si se está redistribuyendo
 			if (window.redistribuyendo) {
 				return;
 			}
@@ -3072,9 +2940,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			const target = event.target;
 			const modoActual = getModoActual();
 
-			// Si es modo duplicar y el input es pedido-tempo-destino o porcentaje-segundos-destino
 			if (modoActual === 'duplicar' && (target.matches('input[name="pedido-tempo-destino[]"]') || target.matches('input[name="porcentaje-segundos-destino[]"]'))) {
-				// Encontrar la fila padre
 				const row = target.closest('tr.telar-row') || target.closest('tr');
 				if (row && typeof window.calcularSaldoDuplicar === 'function') {
 					window.calcularSaldoDuplicar(row);
@@ -3082,26 +2948,16 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 				return;
 			}
 
-			// Si es modo dividir y el input es pedido-tempo-destino
 			if (target.matches('input[name="pedido-tempo-destino[]"]') && modoActual === 'dividir') {
-				// Encontrar la fila padre
 				const row = target.closest('tr.telar-row') || target.closest('tr');
-				if (row && typeof window.calcularSaldoTotal === 'function') {
+				if (row && typeof window.scheduleCalcularSaldoTotalDebounced === 'function') {
+					window.scheduleCalcularSaldoTotalDebounced(row);
+				} else if (row && typeof window.calcularSaldoTotal === 'function') {
 					window.calcularSaldoTotal(row);
 				}
 				return;
 			}
-
-			// Si es modo dividir y el input es porcentaje-segundos-destino
-			if (target.matches('input[name="porcentaje-segundos-destino[]"]') && modoActual === 'dividir') {
-				// Encontrar la fila padre
-				const row = target.closest('tr.telar-row') || target.closest('tr');
-				if (row && typeof window.calcularSaldoTotal === 'function') {
-					window.calcularSaldoTotal(row);
-				}
-				return;
-			}
-		}, true); // Usar capture para capturar antes que otros listeners
+		}, true);
 
 		// Event listener para cambios en selects de aplicación
 		document.addEventListener('change', (event) => {
@@ -3279,8 +3135,7 @@ function validarYCapturarDatosDuplicar() {
 		};
 
 		if (telarVal || pedidoVal || saldoVal) {
-			// LOG: Datos que se van a enviar al backend para esta fila
-			console.log('[validarYCapturarDatosDuplicar] 📤 DATOS ENVIADOS AL BACKEND PARA FILA:', {
+			ptDebugLog('[validarYCapturarDatosDuplicar] 📤 DATOS ENVIADOS AL BACKEND PARA FILA:', {
 				telar: telarVal,
 				salon: salonVal,
 				pedidoTempo: pedidoTempoVal,

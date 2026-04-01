@@ -1,31 +1,35 @@
 {{-- Funciones específicas para dividir telares --}}
 {{-- NOTA: Este archivo se incluye dentro de un bloque <script>, NO agregar etiquetas <script> aquí --}}
 
-// Función para calcular el Saldo Total usando el controller
+const calcularSaldoAbortByRow = new WeakMap();
+const calcularSaldoDebounceTimerByRow = new WeakMap();
+const CALCULAR_SALDO_DEBOUNCE_MS = 220;
+
+// Función para calcular el Saldo Total usando el controller (cancela petición anterior por fila)
 async function calcularSaldoTotal(row) {
 	if (!row) return;
 
 	const modoActual = getModoActual();
 	if (modoActual !== 'dividir') return;
 
-	// Obtener los inputs usando la función compartida
 	const { pedidoTempoInput, porcentajeSegundosInput, totalInput } = getRowInputs(row);
-
-	// Obtener el input de producción
 	const produccionInput = getProduccionInputFromRow(row);
-
-	// Obtener el input de saldo total
 	const saldoTotalInput = row.querySelector('.saldo-total-cell input');
 
 	if (!pedidoTempoInput || !produccionInput || !saldoTotalInput) {
 		return;
 	}
 
-	// Obtener valores
 	const pedido = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(pedidoTempoInput.value) : parseFloat(pedidoTempoInput.value)) || 0;
-	// En modo dividir, el porcentaje de segundas siempre es 0 (campo oculto)
 	const porcentajeSegundos = 0;
 	const produccion = parseFloat(produccionInput.value) || 0;
+
+	const prev = calcularSaldoAbortByRow.get(row);
+	if (prev) {
+		prev.abort();
+	}
+	const controller = new AbortController();
+	calcularSaldoAbortByRow.set(row, controller);
 
 	try {
 		const csrfToken = getCsrfToken();
@@ -41,7 +45,8 @@ async function calcularSaldoTotal(row) {
 				pedido: pedido,
 				porcentaje_segundos: porcentajeSegundos,
 				produccion: produccion
-			})
+			}),
+			signal: controller.signal
 		});
 
 		if (!response.ok) {
@@ -51,29 +56,50 @@ async function calcularSaldoTotal(row) {
 		const data = await response.json();
 
 		if (data.success) {
-			// Actualizar el campo de saldo total
 			saldoTotalInput.value = data.saldo_total.toString();
 
-			// Actualizar el campo total (hidden) si existe
 			if (totalInput) {
 				totalInput.value = data.total_pedido.toString();
 			}
 
-			// Forzar actualización visual del DOM
 			saldoTotalInput.dispatchEvent(new Event('input', { bubbles: true }));
 			if (totalInput) {
 				totalInput.dispatchEvent(new Event('input', { bubbles: true }));
 			}
-			// Habilitar/deshabilitar botón Dividir según estado actual
 			if (typeof recomputeState === 'function') recomputeState();
 		}
 	} catch (error) {
-		// Error silencioso
+		if (error && error.name === 'AbortError') {
+			return;
+		}
 	}
 }
 
-// Hacer la función global para que se pueda llamar desde otros módulos
+function scheduleCalcularSaldoTotalDebounced(row) {
+	if (!row) return;
+	if (getModoActual() !== 'dividir') return;
+	const existing = calcularSaldoDebounceTimerByRow.get(row);
+	if (existing) clearTimeout(existing);
+	const t = setTimeout(() => {
+		calcularSaldoDebounceTimerByRow.delete(row);
+		calcularSaldoTotal(row);
+	}, CALCULAR_SALDO_DEBOUNCE_MS);
+	calcularSaldoDebounceTimerByRow.set(row, t);
+}
+
+function flushCalcularSaldoTotalDebounced(row) {
+	if (!row) return Promise.resolve();
+	const existing = calcularSaldoDebounceTimerByRow.get(row);
+	if (existing) {
+		clearTimeout(existing);
+		calcularSaldoDebounceTimerByRow.delete(row);
+	}
+	return Promise.resolve(calcularSaldoTotal(row));
+}
+
 window.calcularSaldoTotal = calcularSaldoTotal;
+window.scheduleCalcularSaldoTotalDebounced = scheduleCalcularSaldoTotalDebounced;
+window.flushCalcularSaldoTotalDebounced = flushCalcularSaldoTotalDebounced;
 
 // Función para sincronizar PedidoTempo y Total bidireccionalmente en modo dividir
 function sincronizarPedidoTempoYTotal(row, desdeTotal = false) {
@@ -188,27 +214,11 @@ function actualizarResumenCantidades() {
 // Hacer la función global para que se pueda llamar desde oninput
 window.actualizarResumenCantidades = actualizarResumenCantidades;
 
-// Cache y carga de telares por salon (para filas en modo dividir)
-const telaresPorSalonCache = new Map();
-
 function obtenerTelaresPorSalonCache(salon) {
-	const key = String(salon || '');
-	if (telaresPorSalonCache.has(key)) {
-		return Promise.resolve(telaresPorSalonCache.get(key));
+	if (typeof window.obtenerTelaresPorSalonCached === 'function') {
+		return window.obtenerTelaresPorSalonCached(salon);
 	}
-	return fetch('/programa-tejido/telares-by-salon?salon_tejido_id=' + encodeURIComponent(key), {
-		headers: { 'Accept': 'application/json' }
-	})
-		.then(r => r.json())
-		.then(data => {
-			const lista = Array.isArray(data) ? data : [];
-			telaresPorSalonCache.set(key, lista);
-			return lista;
-		})
-		.catch(() => {
-			telaresPorSalonCache.set(key, []);
-			return [];
-		});
+	return Promise.resolve([]);
 }
 
 function actualizarSelectTelaresParaFila(selectTelar, telares, preseleccionar = '') {
@@ -752,21 +762,15 @@ function validarYRedistribuirNuevoRegistro(nuevaFila) {
 		}
 	};
 
-	// ⚡ MEJORA: Listener para cuando se ingresa el pedido tempo - ejecutar inmediatamente
-	// Usar 'input' para capturar cambios en tiempo real mientras se escribe
-	// Input rapido: calcular solo la fila actual mientras se escribe
-	const handleInputRapido = () => {
-		if (typeof calcularSaldoTotal === 'function') {
-			calcularSaldoTotal(nuevaFila);
+	// Modo dividir: el cálculo de saldo en vivo va por delegación en document + debounce (scheduleCalcularSaldoTotalDebounced).
+	const runValidacion = () => {
+		if (typeof window.flushCalcularSaldoTotalDebounced === 'function') {
+			window.flushCalcularSaldoTotalDebounced(nuevaFila).then(() => validarYRedistribuir());
+		} else {
+			validarYRedistribuir();
 		}
 	};
-	const runValidacion = () => {
-		validarYRedistribuir();
-	};
 
-	// Usar 'input' para no frenar el tecleo
-	pedidoTempoInput.addEventListener('input', handleInputRapido, { passive: true });
-	// Validar/redistribuir cuando el usuario termina
 	pedidoTempoInput.addEventListener('change', runValidacion, { passive: true });
 	pedidoTempoInput.addEventListener('blur', runValidacion, { passive: true });
 	pedidoTempoInput.addEventListener('keyup', (e) => {
@@ -844,7 +848,7 @@ function agregarFilaDividir() {
 				class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" style="max-width: 3rem;">
 		</td>
 		<td class="p-2 border-r border-gray-200 produccion-cell" style="width: 5rem; min-width: 5rem;">
-			<input type="text" value="" readonly
+			<input type="text" value="" readonly data-pt-produccion="1"
 				class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 			<input type="hidden" name="pedido-destino[]" value="">
 		</td>
@@ -1063,6 +1067,12 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 			return;
 		}
 
+		const tableEl = tbody.closest('table');
+		const theadRow = tableEl?.querySelector('thead tr');
+		const colCount = theadRow && theadRow.children.length > 0 ? theadRow.children.length : 13;
+		tbody.innerHTML =
+			`<tr data-pt-ord-loading="1"><td colspan="${colCount}" class="p-4 text-center text-sm text-gray-500 border-t border-gray-200">Cargando telares del grupo…</td></tr>`;
+
 		const response = await fetch(url, {
 			method: 'GET',
 			headers: {
@@ -1116,6 +1126,8 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 
 			// Obtener opciones de aplicaci?n disponibles
 			const selectAplicacionGlobal = document.getElementById('swal-aplicacion');
+			const esc = typeof escapeHtmlPtModal === 'function' ? escapeHtmlPtModal : (v) => String(v ?? '');
+
 			// Crear filas para cada registro existente
 			data.registros.forEach((reg, index) => {
 				// El candado se muestra en el registro que tiene OrdCompartidaLider = 1
@@ -1128,7 +1140,7 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 					Array.from(selectAplicacionGlobal.options).forEach(option => {
 						if (option.value) {
 							const selected = (reg.AplicacionId && option.value === reg.AplicacionId) || (!reg.AplicacionId && option.value === aplicacion) ? ' selected' : '';
-							aplicacionOptionsHTMLReg += `<option value="${option.value}"${selected}>${option.textContent}</option>`;
+							aplicacionOptionsHTMLReg += `<option value="${esc(option.value)}"${selected}>${esc(option.textContent)}</option>`;
 						}
 					});
 				}
@@ -1141,55 +1153,55 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 
 				newRow.innerHTML = `
 					<td class="p-2 border-r border-gray-200 clave-modelo-cell">
-						<input type="text" value="${claveModelo || ''}" readonly
+						<input type="text" value="${esc(claveModelo || '')}" readonly
 							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200 producto-cell">
 						<textarea rows="2" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${producto || ''}</textarea>
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${esc(producto || '')}</textarea>
 					</td>
 					<td class="p-2 border-r border-gray-200 flogs-cell" style="min-width: 120px;">
 						<textarea rows="2" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${flog || ''}</textarea>
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${esc(flog || '')}</textarea>
 					</td>
 					<td class="p-2 border-r border-gray-200 descripcion-cell" style="min-width: 130px;">
 						<textarea rows="2" readonly
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${descripcion || ''}</textarea>
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed resize-none">${esc(descripcion || '')}</textarea>
 					</td>
 					<td class="p-2 border-r border-gray-200 aplicacion-cell" style="min-width: 5rem; width: 5rem;">
-						<select name="aplicacion-destino[]" class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" data-registro-id="${reg.Id}" disabled>
+						<select name="aplicacion-destino[]" class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" data-registro-id="${esc(reg.Id)}" disabled>
 							${aplicacionOptionsHTMLReg}
 						</select>
 					</td>
 					<td class="p-2 border-r border-gray-200" style="min-width: 100px;">
 						<div class="flex items-center gap-2">
-							<input type="text" name="telar-destino[]" value="${reg.NoTelarId}" readonly
-								data-registro-id="${reg.Id}"
+							<input type="text" name="telar-destino[]" value="${esc(reg.NoTelarId)}" readonly
+								data-registro-id="${esc(reg.Id)}"
 								class="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 						</div>
 					</td>
 					<td class="p-2 border-r border-gray-200 pedido-tempo-cell" style="width: 5rem; min-width: 5rem;">
-						<input type="text" name="pedido-tempo-destino[]" value="${reg.TotalPedido != null ? reg.TotalPedido : 0}" data-pedido-total="true" readonly data-registro-id="${reg.Id}"
+						<input type="text" name="pedido-tempo-destino[]" value="${esc(reg.TotalPedido != null ? reg.TotalPedido : 0)}" data-pedido-total="true" readonly data-registro-id="${esc(reg.Id)}"
 							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200 porcentaje-segundos-cell" style="width: 3.25rem; min-width: 3.25rem;">
-						<input type="number" name="porcentaje-segundos-destino[]" value="${reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '0'}" step="0.01" min="0" readonly data-registro-id="${reg.Id}"
+						<input type="number" name="porcentaje-segundos-destino[]" value="${esc(reg.PorcentajeSegundos !== null && reg.PorcentajeSegundos !== undefined ? reg.PorcentajeSegundos : '0')}" step="0.01" min="0" readonly data-registro-id="${esc(reg.Id)}"
 							class="w-full min-w-0 px-0.5 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed" style="max-width: 3rem;">
 					</td>
 					<td class="p-2 border-r border-gray-200 produccion-cell" style="width: 5rem; min-width: 5rem;">
-						<input type="text" value="${reg.Produccion !== null && reg.Produccion !== undefined ? reg.Produccion : 0}" readonly
+						<input type="text" value="${esc(reg.Produccion !== null && reg.Produccion !== undefined ? reg.Produccion : 0)}" readonly data-pt-produccion="1"
 							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
-						<input type="hidden" name="pedido-destino[]" value="${reg.TotalPedido || 0}" data-registro-id="${reg.Id}">
+						<input type="hidden" name="pedido-destino[]" value="${esc(reg.TotalPedido || 0)}" data-registro-id="${esc(reg.Id)}">
 					</td>
 					<td class="p-2 border-r border-gray-200 saldo-total-cell" style="width: 5rem; min-width: 5rem;">
-						<input type="text" value="${reg.SaldoPedido !== null && reg.SaldoPedido !== undefined ? reg.SaldoPedido : 0}" readonly
-							data-registro-id="${reg.Id}"
+						<input type="text" value="${esc(reg.SaldoPedido !== null && reg.SaldoPedido !== undefined ? reg.SaldoPedido : 0)}" readonly
+							data-registro-id="${esc(reg.Id)}"
 							class="w-full min-w-0 px-1 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
 					</td>
 					<td class="p-2 border-r border-gray-200">
 						<textarea rows="2" name="observaciones-destino[]" placeholder="Observaciones..."
-							data-registro-id="${reg.Id}"
-							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${reg.Observaciones || ''}</textarea>
+							data-registro-id="${esc(reg.Id)}"
+							class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 resize-none">${esc(reg.Observaciones || '')}</textarea>
 					</td>
 					<td class="py-1 px-0 text-center acciones-cell" style="width: 2rem; min-width: 2rem;">
 						${esLider
@@ -1226,10 +1238,8 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 					agregarListenersCalculoAutomatico(newRow);
 				}
 
-				// Calcular automáticamente los totales
-				if (typeof calcularSaldoTotal === 'function') {
-					calcularSaldoTotal(newRow);
-				}
+				// No llamar calcularSaldoTotal: pedido/producción/saldo vienen del API y los inputs son readonly;
+				// N filas × POST al servidor al abrir el modal era el principal cuello de botella con OrdCompartida.
 			});
 
 			// Actualizar resumen
@@ -1268,6 +1278,9 @@ async function cargarRegistrosOrdCompartida(ordCompartida) {
 				<td class="p-2 border-r border-gray-300"></td>
 				<td class="p-2"></td>
 			`;
+		} else {
+			registrosOrdCompartidaExistentes = [];
+			tbody.innerHTML = '';
 		}
 	} catch (error) {
 		// Mostrar mensaje de error al usuario si existe la función showToast
