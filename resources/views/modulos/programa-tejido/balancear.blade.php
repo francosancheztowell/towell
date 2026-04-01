@@ -804,7 +804,7 @@
           return;
         }
         if (previewTimer) clearTimeout(previewTimer);
-        previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), 800);
+        previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), 250);
       }
 
       // ==========================
@@ -1380,7 +1380,6 @@
               }
               /* Gantt: contenedor con scroll */
               #gantt-ord-container { max-height: 75vh; overflow: auto; -webkit-overflow-scrolling: touch; min-height: 150px; }
-              /* justify-content: start evita huecos entre columnas si el grid se estira con min-width:100% */
               .gantt-grid {
                 display: grid;
                 grid-auto-rows: minmax(36px, auto);
@@ -1388,8 +1387,6 @@
                 min-width: 100%;
                 column-gap: 0;
                 row-gap: 0;
-                justify-content: start;
-                justify-items: stretch;
               }
               @media (max-width: 639px) { .gantt-grid { grid-auto-rows: minmax(32px, auto); } }
               /* min-width: 0 evita que el contenido ensanche la cuadrícula; fechas respetan el ancho fijado en template */
@@ -1403,8 +1400,7 @@
                 box-sizing: border-box;
               }
               @media (max-width: 639px) { .gantt-cell { padding: 3px 2px; font-size: 9px; } }
-                            .gantt-header { background: #f9fafb; font-weight: 600; color: #374151; position: sticky; top: 0; z-index: 10; }
-              /* Sin max-width menor que la columna (200px): si no, el ítem no llena la celda y queda espacio muerto antes del primer día */
+              .gantt-header { background: #f9fafb; font-weight: 600; color: #374151; position: sticky; top: 0; z-index: 10; }
               .gantt-label {
                 font-weight: 600;
                 background: #f3f4f6;
