@@ -6,6 +6,7 @@ function updateRowSelectionStyles(row, isSelected, inlineActive) {
 	const esRepaso = row.dataset.esRepaso === '1';
 	row.classList.toggle('bg-blue-700', isSelected && !esRepaso);
 	row.classList.toggle('bg-blue-400', isSelected && esRepaso);
+	row.classList.toggle('row-selected', isSelected);
 	row.classList.toggle('text-white', isSelected);
 	row.classList.toggle('hover:bg-blue-50', !isSelected);
 
