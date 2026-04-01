@@ -600,7 +600,6 @@
               if (inicioCell && item.fecha_inicio) {
                 const fechaFormateada = formatearFecha(item.fecha_inicio.replace(' ', 'T'));
                 inicioCell.textContent = fechaFormateada;
-                inicioCell.innerText = fechaFormateada; // Forzar actualización
               }
 
               // Actualizar fecha final - asegurar que se actualice correctamente
@@ -608,7 +607,6 @@
                 if (item.fecha_final) {
                   const fechaFormateada = formatearFecha(item.fecha_final.replace(' ', 'T'));
                   finalCell.textContent = fechaFormateada;
-                  finalCell.innerText = fechaFormateada; // Forzar actualización
                   // También actualizar el atributo data si existe
                   if (finalCell.dataset) {
                     finalCell.dataset.fechaFinal = item.fecha_final;
@@ -616,7 +614,6 @@
                 } else {
                   // Si no hay fecha final, limpiar la celda
                   finalCell.textContent = '-';
-                  finalCell.innerText = '-';
                 }
               } else {
                 console.warn('No se encontró celda fecha-final-display para id:', id);
@@ -635,7 +632,7 @@
 
       function schedulePreview(ordCompartida) {
         if (previewTimer) clearTimeout(previewTimer);
-        previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), 250);
+        previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), 800);
       }
 
       // ==========================
@@ -707,7 +704,7 @@
         if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
         renderBalanceoLeaderBadge(currentGanttRegistros);
 
-        if (ordCompartida != null) schedulePreview(ordCompartida);
+        // schedulePreview se llama desde onblur/Enter del input, no en cada keypress
       };
 
       window.actualizarPedidosDesdeTotal = function (totalInput, ordCompartida) {
@@ -1123,6 +1120,8 @@
                   min="${minPedido}"
                   step="1"
                   oninput="calcularTotalesYFechas(this, ${ordCompartida})"
+                  onblur="schedulePreview(${ordCompartida})"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
                 >
               </td>
               <td class="px-3 py-2 text-xs sm:text-sm text-right text-gray-600">${produccion.toLocaleString('es-MX')}</td>
