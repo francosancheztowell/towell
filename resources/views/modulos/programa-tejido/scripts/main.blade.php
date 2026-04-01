@@ -38,6 +38,10 @@
     };
   })();
 
+  // Cargar utilidades JS externas (refactor deuda técnica - integración completa)
+  window.PTFormatters = window.PTFormatters || null;
+  window.ProgramaTejidoUtils = window.ProgramaTejidoUtils || null;
+
 @include('modulos.programa-tejido.modal.duplicar-dividir')
 
   {!! view('modulos.programa-tejido.scripts.state', ['columns' => $columns ?? []])->render() !!}
@@ -60,12 +64,16 @@
     };
 
     /**
-     * Limita la frecuencia de ejecución de una función (útil para operaciones DOM costosas).
-     * @param {Function} fn - Función a envolver
-     * @param {number} delay - Milisegundos mínimos entre ejecuciones
-     * @returns {Function}
-     */
+      * Limita la frecuencia de ejecución de una función (útil para operaciones DOM costosas).
+      * Usa throttle de utils.js si está disponible.
+      * @param {Function} fn - Función a envolver
+      * @param {number} delay - Milisegundos mínimos entre ejecuciones
+      * @returns {Function}
+      */
     const throttle = (fn, delay) => {
+      if (window.ProgramaTejidoUtils?.throttle) {
+        return window.ProgramaTejidoUtils.throttle(fn, delay);
+      }
       let lastCall = 0;
       return function (...args) {
         const now = Date.now();
@@ -170,6 +178,9 @@
     function clearRowCache() { PT.rowCache = new WeakMap(); }
 
     function normalizeTelarValue(value) {
+      if (window.ProgramaTejidoUtils?.normalizeTelarValue) {
+        return window.ProgramaTejidoUtils.normalizeTelarValue(value);
+      }
       const str = String(value ?? '').trim();
       if (!str) return '';
       const num = Number(str);
@@ -210,12 +221,16 @@
     const DD_DATE_TIME_COLS = new Set(['FechaInicio','FechaFinal','EntregaCte']);
     const DD_DATE_ONLY_COLS = new Set(['EntregaProduc','EntregaPT','ProgramarProd','Programado']);
 
+    // Usar PTFormatters si está disponible (cargado via formatters.js)
+    const Formatters = window.PTFormatters || null;
+
     /**
      * Formatea un valor como fecha y hora (dd/mm/yyyy HH:mm).
      * @param {string|null} raw - Valor crudo de la celda
      * @returns {string}
      */
     function ddFormatDateTime(raw) {
+      if (Formatters?.formatDateTime) return Formatters.formatDateTime(raw);
       if (typeof formatDateTimeDisplay === 'function') return formatDateTimeDisplay(raw);
       return raw ? String(raw) : '';
     }
@@ -226,6 +241,7 @@
      * @returns {string}
      */
     function ddFormatDateOnly(raw) {
+      if (Formatters?.formatDateOnly) return Formatters.formatDateOnly(raw);
       if (typeof formatDateOnlyDisplay === 'function') return formatDateOnlyDisplay(raw);
       if (typeof formatDateDisplay === 'function') return formatDateDisplay(raw);
       return raw ? String(raw) : '';
@@ -237,6 +253,7 @@
      * @returns {string}
      */
     function ddFormatNumber(raw) {
+      if (Formatters?.formatNumber) return Formatters.formatNumber(raw);
       if (typeof formatNumber2 === 'function') return formatNumber2(raw);
       const n = Number(raw);
       if (!Number.isFinite(n)) return raw == null ? '' : String(raw);
@@ -244,6 +261,7 @@
     }
 
     function ddSetCellValue(cell, display, rawValue) {
+      if (Formatters?.setCellValue) return Formatters.setCellValue(cell, display, rawValue);
       if (!cell) return;
       cell.innerHTML = display ?? '';
       if (rawValue === null || rawValue === undefined) {
@@ -254,6 +272,8 @@
     }
 
     function ddFormatCell(column, raw) {
+      if (Formatters?.formatCell) return Formatters.formatCell(column, raw);
+
       if (column === 'EnProceso') {
         const checked = (raw == 1 || raw === true) ? 'checked' : '';
         return {
@@ -1621,6 +1641,7 @@
               // Eliminar la fila del DOM
               rowToDelete.remove();
               window.PTStore?.remove(String(id));
+              window.PT?.filterIndex?.removeRow(id);
 
               // Si el registro eliminado tenía Ultimo=1, buscar el último registro del mismo telar y actualizarlo
               if (tieneUltimo && salonId && telarId) {
@@ -1867,6 +1888,7 @@
         if (rowToDelete) {
           rowToDelete.remove();
           window.PTStore?.remove(String(id));
+          window.PT?.filterIndex?.removeRow(id);
           window.selectedRowIndex = null;
         }
         if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
@@ -3002,6 +3024,7 @@
         });
 
         window.PTStore?.set(String(registroId), registro);
+        window.PT?.filterIndex?.updateRow(fila);
       }
     }
 
@@ -3819,6 +3842,58 @@
         }
       }
     });
+
+    // ===== ÍNDICE EN MEMORIA PARA FILTROS =====
+    // Construye Map<rowId, {columna: valor}> desde el DOM una sola vez.
+    // Evita querySelector repetidos en applyProgramaTejidoFilters() — O(1) vs O(n*cols).
+    function buildPTFilterIndex() {
+      const tb = tbodyEl();
+      if (!tb) { window.PT_FILTER_INDEX = new Map(); return; }
+      const index = new Map();
+      tb.querySelectorAll('.selectable-row').forEach(row => {
+        const id = row.dataset.id;
+        if (!id) return;
+        const data = {};
+        row.querySelectorAll('[data-column]').forEach(cell => {
+          const col = cell.dataset.column;
+          if (col) data[col] = (cell.dataset.value ?? cell.textContent ?? '').trim();
+        });
+        data._ordCompartida = row.dataset.ordCompartida ?? '';
+        index.set(id, data);
+      });
+      window.PT_FILTER_INDEX = index;
+    }
+
+    function updatePTFilterIndexRow(rowElement) {
+      if (!window.PT_FILTER_INDEX) return;
+      const id = rowElement?.dataset?.id;
+      if (!id) return;
+      const data = {};
+      rowElement.querySelectorAll('[data-column]').forEach(cell => {
+        const col = cell.dataset.column;
+        if (col) data[col] = (cell.dataset.value ?? cell.textContent ?? '').trim();
+      });
+      data._ordCompartida = rowElement.dataset.ordCompartida ?? '';
+      window.PT_FILTER_INDEX.set(id, data);
+    }
+
+    function removePTFilterIndexRow(rowId) {
+      window.PT_FILTER_INDEX?.delete(String(rowId));
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => { buildPTFilterIndex(); });
+    } else {
+      buildPTFilterIndex();
+    }
+
+    // Exponer para invalidación desde inline-edit y operaciones
+    window.PT = window.PT || {};
+    window.PT.filterIndex = {
+      rebuild: buildPTFilterIndex,
+      updateRow: updatePTFilterIndexRow,
+      removeRow: removePTFilterIndexRow,
+    };
 
   })();
 </script>

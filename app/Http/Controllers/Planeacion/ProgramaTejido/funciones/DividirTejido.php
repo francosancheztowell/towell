@@ -26,19 +26,6 @@ class DividirTejido
      */
     public static function dividir(Request $request)
     {
-        $request->validate([
-            'salon_tejido_id' => 'required|string',
-            'no_telar_id' => 'required|string',
-            'destinos' => 'required|array|min:1',
-            'destinos.*.telar' => 'required|string',
-            'destinos.*.salon_destino' => 'nullable|string',
-            'destinos.*.pedido' => 'nullable|string',
-            'destinos.*.pedido_tempo' => 'nullable|string',
-            'destinos.*.observaciones' => 'nullable|string|max:500',
-            'destinos.*.porcentaje_segundos' => 'nullable|numeric|min:0',
-            'registro_id_original' => 'nullable|integer',
-        ]);
-
         $salonOrigen = $request->input('salon_tejido_id');
         $telarOrigen = $request->input('no_telar_id');
         $salonDestino = $request->input('salon_destino', $salonOrigen);
@@ -856,7 +843,12 @@ class DividirTejido
     }
 
     /**
-     * Calcular fórmulas de eficiencia usando el helper unificado
+     * Calculate efficiency formulas for DividirTejido operations.
+     * Uses includeEntregaCte=true and includePTvsCte=true for full calculation.
+     * Uses fallbackEntregaCte=true because divided records inherit client delivery dates.
+     *
+     * @param ReqProgramaTejido $programa
+     * @return array
      */
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {

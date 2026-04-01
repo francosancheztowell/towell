@@ -379,15 +379,26 @@ class TejidoHelpers
 
                         $entregaPT = $fechaFinal->copy()->day(15);
                         $formulas['EntregaPT'] = $entregaPT->format('Y-m-d');
+                    } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+                        // FechaFinal inválida o no se puede calcular entrega PT
                     } catch (\Throwable $e) {
-                        // Si hay error al parsear, no establecer EntregaCte
+                        Log::warning('TejidoHelpers: Error al calcular fecha PT', [
+                            'error' => $e->getMessage(),
+                            'programa_id' => $programa->Id ?? null,
+                        ]);
                     }
                 }
 
                 if (!$entregaPT && !empty($programa->EntregaPT)) {
                     try {
                         $entregaPT = Carbon::parse($programa->EntregaPT);
+                    } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+                        $entregaPT = null;
                     } catch (\Throwable $e) {
+                        Log::warning('TejidoHelpers: Error al parsear EntregaPT', [
+                            'error' => $e->getMessage(),
+                            'programa_id' => $programa->Id ?? null,
+                        ]);
                         $entregaPT = null;
                     }
                 }

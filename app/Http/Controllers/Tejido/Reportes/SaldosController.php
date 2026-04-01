@@ -6,7 +6,6 @@ use App\Exports\Saldos2026Export;
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
 
 class SaldosController extends Controller
 {
@@ -23,20 +22,21 @@ class SaldosController extends Controller
         $registros = $this->query()->get();
         $registros = $this->preprocesarGrupos($registros);
 
-        return Excel::download(new Saldos2026Export($registros), 'saldos-2026.xlsx');
+        return (new Saldos2026Export($registros))->downloadResponse('saldos-2026.xlsx');
     }
 
     private function preprocesarGrupos($registros)
     {
         $grupos = $registros->groupBy(function ($r) {
             $clave = trim($r->OrdCompartida ?? '');
-            return $clave !== '' ? $clave : '__solo__' . $r->Id;
+
+            return $clave !== '' ? $clave : '__solo__'.$r->Id;
         });
 
         $processed = collect();
 
         foreach ($grupos as $key => $grupo) {
-            $esGrupoVinculado = !str_starts_with($key, '__solo__');
+            $esGrupoVinculado = ! str_starts_with($key, '__solo__');
 
             if ($esGrupoVinculado) {
                 $lider = $grupo->first(); // el primero de arriba es el líder
@@ -44,34 +44,34 @@ class SaldosController extends Controller
 
                 $sumTotalPedido = $grupo->sum('TotalPedido');
                 $sumSaldoPedido = $grupo->sum('SaldoPedido');
-                $sumProduccion  = $grupo->sum('Produccion');
+                $sumProduccion = $grupo->sum('Produccion');
                 $sumTotalRollos = $grupo->sum('TotalRollos');
 
                 foreach ($grupo as $r) {
-                    $r->_esLider           = ($r->Id === $lider->Id); // líder = el primero del grupo
-                    $r->_esGrupoVinculado  = true;
-                    $r->_ordenLider        = $noLiderOrden;
+                    $r->_esLider = ($r->Id === $lider->Id); // líder = el primero del grupo
+                    $r->_esGrupoVinculado = true;
+                    $r->_ordenLider = $noLiderOrden;
                     if ($r->_esLider) {
                         $r->_sumTotalPedido = $sumTotalPedido;
                         $r->_sumSaldoPedido = $sumSaldoPedido;
-                        $r->_sumProduccion  = $sumProduccion;
+                        $r->_sumProduccion = $sumProduccion;
                         $r->_sumTotalRollos = $sumTotalRollos;
                     } else {
                         $r->_sumTotalPedido = null;
                         $r->_sumSaldoPedido = null;
-                        $r->_sumProduccion  = null;
+                        $r->_sumProduccion = null;
                         $r->_sumTotalRollos = null;
                     }
                 }
             } else {
                 foreach ($grupo as $r) {
-                    $r->_esLider          = true;
+                    $r->_esLider = true;
                     $r->_esGrupoVinculado = false;
-                    $r->_ordenLider       = null;
-                    $r->_sumTotalPedido   = $r->TotalPedido;
-                    $r->_sumSaldoPedido   = $r->SaldoPedido;
-                    $r->_sumProduccion    = $r->Produccion;
-                    $r->_sumTotalRollos   = $r->TotalRollos;
+                    $r->_ordenLider = null;
+                    $r->_sumTotalPedido = $r->TotalPedido;
+                    $r->_sumSaldoPedido = $r->SaldoPedido;
+                    $r->_sumProduccion = $r->Produccion;
+                    $r->_sumTotalRollos = $r->TotalRollos;
                 }
             }
 
