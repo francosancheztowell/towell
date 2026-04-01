@@ -3274,6 +3274,30 @@
     })();
 
     // =========================
+    // Store initialization
+    // =========================
+    /**
+     * Puebla window.PTStore con los datos actuales de la tabla.
+     * Se ejecuta una vez al cargar la página, después de que el DOM está listo.
+     */
+    function initStoreFromTable() {
+      if (!window.PTStore) return;
+      const rows = document.querySelectorAll('#mainTable tbody .selectable-row');
+      const datos = [];
+      rows.forEach(row => {
+        const id = row.getAttribute('data-id');
+        if (!id) return;
+        const registro = { Id: id };
+        row.querySelectorAll('td').forEach(td => {
+          const col = td.getAttribute('data-column');
+          if (col) registro[col] = td.dataset.value || td.textContent.trim();
+        });
+        datos.push(registro);
+      });
+      if (datos.length > 0) window.PTStore.loadFromServer(datos);
+    }
+
+    // =========================
     // Init
     // =========================
     document.addEventListener('DOMContentLoaded', () => {
@@ -3387,6 +3411,9 @@
       if (typeof window.initReprogramarListeners === 'function') {
         setTimeout(() => window.initReprogramarListeners(), 300);
       }
+
+      // Poblar el store centralizado con los datos de la tabla
+      setTimeout(initStoreFromTable, 100);
 
       const balanceBtn = document.querySelector('a[title="Balancear"]');
       if (balanceBtn) {
