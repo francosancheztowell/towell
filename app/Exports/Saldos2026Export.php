@@ -28,18 +28,55 @@ class Saldos2026Export implements FromCollection, WithHeadings, WithStyles, With
         return $this->registros->map(function ($r) use (&$row) {
             $row++;
 
+            $esLider          = $r->_esLider ?? true;
+            $esGrupoVinculado = $r->_esGrupoVinculado ?? false;
+
+            $cantidadProduzir  = $esLider ? ($r->_sumTotalPedido ?? $r->TotalPedido ?? 0) : 'ABIERTO';
+            $rollosProg        = $esLider ? ($r->_sumTotalRollos ?? $r->TotalRollos ?? 0) : 'ABIERTO';
+            $toallasTejidas    = $esLider ? ($r->_sumProduccion ?? $r->Produccion ?? 0) : 'ABIERTO';
+            $saldo            = $esLider ? ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0) : 'ABIERTO';
+
+            // Faltan: solo para líderes de grupo vinculadas, o registros normales
+            $faltan = null;
+            if ($esLider && $esGrupoVinculado) {
+                $faltan = "=IF(K{$row}>0,K{$row}-AK{$row},\"\")";
+            } elseif (!$esGrupoVinculado) {
+                $faltan = "=IF(K{$row}>0,K{$row}-AK{$row},\"\")";
+            } else {
+                $faltan = '—';
+            }
+
+            // Avance y Rollos x Tejer: mismo criterio
+            $avance = null;
+            if ($esLider && $esGrupoVinculado) {
+                $avance = "=IF(K{$row}>0,AK{$row}/K{$row},\"\")";
+            } elseif (!$esGrupoVinculado) {
+                $avance = "=IF(K{$row}>0,AK{$row}/K{$row},\"\")";
+            } else {
+                $avance = '—';
+            }
+
+            $rollosXTejer = null;
+            if ($esLider && $esGrupoVinculado) {
+                $rollosXTejer = "=IF(AND(AG{$row}>0,AH{$row}>0,AL{$row}>0),CEILING(AL{$row}/(AG{$row}*AH{$row}),1),\"\")";
+            } elseif (!$esGrupoVinculado) {
+                $rollosXTejer = "=IF(AND(AG{$row}>0,AH{$row}>0,AL{$row}>0),CEILING(AL{$row}/(AG{$row}*AH{$row}),1),\"\")";
+            } else {
+                $rollosXTejer = '—';
+            }
+
             return [
             $r->NoTelarId,
             $r->EnProceso ? 'Sí' : '',
             $r->OrdCompartida,
-            $r->OrdenLider,
+            $r->_ordenLider ?? $r->OrdenLider,
             $r->NoProduccion,
             $r->Programado ? Carbon::parse($r->Programado)->format('d/m/Y') : '',
             $r->Prioridad,
             $r->NombreProducto,
             $r->TamanoClave,
             $r->ItemId,
-            $r->TotalPedido,
+            $cantidadProduzir,
             '',                // SOLICITADO — pendiente
             $r->LargoCrudo,
             $r->PesoCrudo,
@@ -63,12 +100,12 @@ class Saldos2026Export implements FromCollection, WithHeadings, WithStyles, With
             $r->Rasurado,
             $r->NoTiras,
             $r->Repeticiones,
-            $r->TotalRollos,
-            $r->Produccion,
-            $r->SaldoPedido,
-            "=IF(K{$row}>0,K{$row}-AK{$row},\"\")",                                                          // Faltan
-            "=IF(K{$row}>0,AK{$row}/K{$row},\"\")",                                                          // Avance
-            "=IF(AND(AG{$row}>0,AH{$row}>0,AL{$row}>0),CEILING(AL{$row}/(AG{$row}*AH{$row}),1),\"\")",      // Rollos por Tejer
+            $rollosProg,
+            $toallasTejidas,
+            $saldo,
+            $faltan,
+            $avance,
+            $rollosXTejer,
             $r->Observaciones,
             ];
         });
