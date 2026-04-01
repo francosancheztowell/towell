@@ -797,6 +797,7 @@
 
         menuColumnIndex = columnIndex;
         menuColumnField = columnField;
+        PT.selectedColumn = { index: columnIndex, field: columnField };
         menu.style.left = e.clientX + 'px';
         menu.style.top = e.clientY + 'px';
 
@@ -3667,6 +3668,19 @@
       // Inicializar listeners - se ejecutará desde el init principal
       window.initReprogramarListeners = initReprogramarListeners;
     })();
+
+    // Atajo Ctrl+F: abrir filtro de la última columna seleccionada via context menu
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'f') {
+        const col = PT.selectedColumn;
+        if (col && col.index != null && col.field) {
+          e.preventDefault();
+          if (typeof openFilterModal === 'function') {
+            openFilterModal(col.index, col.field);
+          }
+        }
+      }
+    });
 
   })();
 </script>
