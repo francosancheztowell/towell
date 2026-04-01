@@ -23,8 +23,24 @@ function parseTelarValue(value) {
 }
 window.buildTelarValue = buildTelarValue;
 window.parseTelarValue = parseTelarValue;
-const detallesBalanceoCache = new Map();
-const descripcionFlogCache = new Map(); // ⚡ Caché para descripciones de flogs
+/** Cache con límite de entradas para evitar crecimiento ilimitado en sesiones largas. */
+class LimitedCache {
+	constructor(maxSize = 100) {
+		this.cache = new Map();
+		this.maxSize = maxSize;
+	}
+	set(key, value) {
+		if (this.cache.size >= this.maxSize) {
+			this.cache.delete(this.cache.keys().next().value);
+		}
+		this.cache.set(key, value);
+	}
+	get(key)  { return this.cache.get(key); }
+	has(key)  { return this.cache.has(key); }
+}
+
+const detallesBalanceoCache = new LimitedCache(50);
+const descripcionFlogCache  = new LimitedCache(100); // ⚡ Caché para descripciones de flogs
 
 async function obtenerDetalleBalanceo(registroId) {
 	if (!registroId) return null;
