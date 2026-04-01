@@ -49,7 +49,7 @@ class ReqProgramaTejidoObserver
                     }
                 }
                 if (!empty($formulasParaGuardar)) {
-                    DB::table(ReqProgramaTejido::tableName())
+                    $programa->getConnection()->table(ReqProgramaTejido::tableName())
                         ->where('Id', $programa->Id)
                         ->update($formulasParaGuardar);
                 }
@@ -242,26 +242,31 @@ class ReqProgramaTejidoObserver
             }
 
             if (!empty($lineasParaInsertar)) {
-                // Verificar que el registro padre existe antes de insertar.
-                // En SQL Server con ODBC puede haber un lag de visibilidad en la misma conexión
-                // para registros recién commiteados — usamos DB::table() como fallback.
+                // Determinar la conexión para insertar las líneas.
+                // pdo_sqlsrv/ODBC puede no ver registros recién insertados en la misma sesión
+                // (incluso dentro de la misma transacción), así que probamos varias estrategias.
                 $connParaInsert = $connection;
-                $parentExists = $connection->table(ReqProgramaTejido::tableName())
-                    ->where('Id', $programa->Id)
-                    ->exists();
 
-                if (!$parentExists) {
-                    // Intentar con la conexión por defecto del facade (puede ser una conexión diferente)
-                    $parentExists = \Illuminate\Support\Facades\DB::table(ReqProgramaTejido::tableName())
+                // Si el modelo fue save()-ado exitosamente (exists=true, Id>0), confiar en él
+                // e intentar el insert directamente sin verificar EXISTS.
+                // Si no tiene exists=true, verificar visibilidad como safety net.
+                if (!$programa->exists) {
+                    $parentExists = $connection->table(ReqProgramaTejido::tableName())
                         ->where('Id', $programa->Id)
                         ->exists();
-                    if ($parentExists) {
-                        $connParaInsert = \Illuminate\Support\Facades\DB::connection();
-                    } else {
-                        Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias: registro padre no visible, omitiendo líneas', [
-                            'programa_id' => $programa->Id,
-                        ]);
-                        return;
+
+                    if (!$parentExists) {
+                        $parentExists = \Illuminate\Support\Facades\DB::table(ReqProgramaTejido::tableName())
+                            ->where('Id', $programa->Id)
+                            ->exists();
+                        if ($parentExists) {
+                            $connParaInsert = \Illuminate\Support\Facades\DB::connection();
+                        } else {
+                            Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias: registro padre no visible, omitiendo líneas', [
+                                'programa_id' => $programa->Id,
+                            ]);
+                            return;
+                        }
                     }
                 }
 

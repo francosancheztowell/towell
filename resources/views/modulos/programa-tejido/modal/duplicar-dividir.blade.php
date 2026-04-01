@@ -144,8 +144,78 @@ async function duplicarTelar(row) {
 			if (popup) popup.style.maxWidth = '1600px';
 			initModalDuplicar(telar, hilo, ordCompartida, registroId);
 		},
-		preConfirm: () => {
-			return validarYCapturarDatosDuplicar();
+		showLoaderOnConfirm: true,
+		preConfirm: async () => {
+			if (typeof Swal.resetValidationMessage === 'function') {
+				Swal.resetValidationMessage();
+			}
+			const datos = validarYCapturarDatosDuplicar();
+			if (datos === false) {
+				return false;
+			}
+
+			const endpoint = datos.modo === 'dividir'
+				? '/planeacion/programa-tejido/dividir-saldo'
+				: '/planeacion/programa-tejido/duplicar-telar';
+
+			const csrfToken = getCsrfToken();
+			try {
+				const response = await fetch(endpoint, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json',
+						'X-CSRF-TOKEN': csrfToken
+					},
+					body: JSON.stringify({
+						salon_tejido_id: salon,
+						no_telar_id: telar,
+						salon_destino: datos.salon,
+						destinos: datos.destinos,
+						tamano_clave: datos.claveModelo,
+						cod_articulo: datos.codArticulo,
+						producto: datos.producto,
+						hilo: datos.hilo,
+						pedido: datos.pedido,
+						flog: datos.flog,
+						aplicacion: datos.aplicacion,
+						modo: datos.modo,
+						descripcion: datos.descripcion,
+						custname: datos.custname,
+						invent_size_id: datos.inventSizeId,
+						vincular: datos.vincular || false,
+						ord_compartida_existente: datos.ord_compartida_existente,
+						registro_id_original: datos.registro_id_original
+					})
+				});
+
+				let data;
+				try {
+					data = await response.json();
+				} catch (e) {
+					Swal.showValidationMessage('Respuesta inválida del servidor.');
+					return false;
+				}
+
+				if (response.status === 422 && data.tipo_error === 'calendario_sin_fechas') {
+					Swal.showValidationMessage(
+						(typeof data.message === 'string' && data.message.trim() !== '')
+							? data.message.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+							: 'Hay calendarios sin fechas asignadas. Revise los datos e intente de nuevo.'
+					);
+					return false;
+				}
+
+				if (!data.success) {
+					Swal.showValidationMessage(data.message || 'Error al procesar la solicitud');
+					return false;
+				}
+
+				return { datos, data };
+			} catch (err) {
+				Swal.showValidationMessage('Ocurrió un error de conexión.');
+				return false;
+			}
 		}
 	});
 
@@ -153,116 +223,59 @@ async function duplicarTelar(row) {
 		return;
 	}
 
-	const datos = resultado.value;
+	if (!resultado.value || typeof resultado.value !== 'object') {
+		return;
+	}
 
-	// Determinar endpoint según el modo
-	// NOTA: Vincular ahora usa el mismo endpoint de duplicar, solo cambia el parámetro 'vincular'
-	const endpoint = datos.modo === 'dividir'
-		? '/planeacion/programa-tejido/dividir-saldo'
-		: '/planeacion/programa-tejido/duplicar-telar';
+	const { datos, data } = resultado.value;
 
-	// Determinar si es vincular para el mensaje de éxito
 	const usarVincular = datos.vincular === true && datos.modo === 'duplicar';
-
 	const mensajeExito = datos.modo === 'dividir'
 		? 'Registro dividido correctamente'
 		: usarVincular
 			? 'Registro vinculado correctamente'
 			: 'Telar duplicado correctamente';
 
-	// Enviar al backend
-	showLoading();
-	try {
-		const csrfToken = getCsrfToken();
+	// Solo refrescar balanceo de filas tocadas por el divide (evita N requests por todo el telar)
+	const registrosIdsRestrictosDividir = (() => {
+		if (datos.modo !== 'dividir') return undefined;
+		const ids = [];
+		if (data.registro_id_original != null) ids.push(String(data.registro_id_original));
+		if (Array.isArray(data.registros_ids)) data.registros_ids.forEach((id) => ids.push(String(id)));
+		const unique = Array.from(new Set(ids.filter(Boolean)));
+		return unique.length > 0 ? unique : undefined;
+	})();
 
-		const response = await fetch(endpoint, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-CSRF-TOKEN': csrfToken
-			},
-			body: JSON.stringify({
-				salon_tejido_id: salon,
-				no_telar_id: telar,
-				salon_destino: datos.salon,
-				destinos: datos.destinos,
-				tamano_clave: datos.claveModelo,
-				cod_articulo: datos.codArticulo,
-				producto: datos.producto,
-				hilo: datos.hilo,
-				pedido: datos.pedido,
-				flog: datos.flog,
-				aplicacion: datos.aplicacion,
-				modo: datos.modo,
-				descripcion: datos.descripcion,
-				custname: datos.custname,
-				invent_size_id: datos.inventSizeId,
-				vincular: datos.vincular || false, // Checkbox de vincular
-				ord_compartida_existente: datos.ord_compartida_existente,
-				registro_id_original: datos.registro_id_original
-			})
-		});
+	const opcionesTelaresPostDividir = {
+		salonOrigen: salon,
+		telarOrigen: telar,
+		destinos: datos.destinos,
+		...(registrosIdsRestrictosDividir ? { registrosIdsRestrictos: registrosIdsRestrictosDividir } : {})
+	};
 
-		const data = await response.json();
-		hideLoading();
+	if (data.advertencias && data.advertencias.tipo === 'calendario_sin_fechas') {
+		const mensajeAdvertencia = buildCalendarWarningHtml(data.message, data.advertencias);
 
-		// Verificar si hay error de validación de calendario (422)
-		if (response.status === 422 && data.tipo_error === 'calendario_sin_fechas') {
-			const mensajeError = buildCalendarErrorHtml(data);
-
-			Swal.fire({
-				title: 'Error: Calendario sin fechas',
-				html: mensajeError,
-				icon: 'error',
-				confirmButtonText: 'Entendido',
-				confirmButtonColor: '#dc2626',
-				width: '600px'
-			});
-			return;
-		}
-
-		if (data.success) {
-			// Verificar si hay advertencias de calendario
-			if (data.advertencias && data.advertencias.tipo === 'calendario_sin_fechas') {
-				const mensajeAdvertencia = buildCalendarWarningHtml(data.message, data.advertencias);
-
-				Swal.fire({
-					title: 'Duplicacion completada con advertencias',
-					html: mensajeAdvertencia,
-					icon: 'warning',
-					confirmButtonText: 'Entendido',
-					confirmButtonColor: '#f59e0b',
-					width: '600px'
-				}).then(async () => {
-					await redirectToRegistro(data);
-					if (datos.modo === 'dividir') {
-						await actualizarTelaresAfectadosDespuesDividir({
-							salonOrigen: salon,
-							telarOrigen: telar,
-							destinos: datos.destinos
-						});
-					}
-				});
-			} else {
-				// Sin advertencias, mostrar mensaje de éxito normal
-				showToast(data.message || mensajeExito, 'success');
-
-				// Redirigir inmediatamente al registro creado
-				await redirectToRegistro(data);
-				if (datos.modo === 'dividir') {
-					await actualizarTelaresAfectadosDespuesDividir({
-						salonOrigen: salon,
-						telarOrigen: telar,
-						destinos: datos.destinos
-					});
-				}
+		Swal.fire({
+			title: 'Duplicacion completada con advertencias',
+			html: mensajeAdvertencia,
+			icon: 'warning',
+			confirmButtonText: 'Entendido',
+			confirmButtonColor: '#f59e0b',
+			width: '600px'
+		}).then(async () => {
+			await redirectToRegistro(data);
+			if (datos.modo === 'dividir') {
+				await actualizarTelaresAfectadosDespuesDividir(opcionesTelaresPostDividir);
 			}
-		} else {
-			showToast(data.message || 'Error al procesar la solicitud', 'error');
+		});
+	} else {
+		showToast(data.message || mensajeExito, 'success');
+
+		await redirectToRegistro(data);
+		if (datos.modo === 'dividir') {
+			await actualizarTelaresAfectadosDespuesDividir(opcionesTelaresPostDividir);
 		}
-	} catch (error) {
-		hideLoading();
-		showToast('Ocurrió un error al procesar la solicitud', 'error');
 	}
 }
 
@@ -563,6 +576,38 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 
 	// Función para calcular el estado y habilitar/deshabilitar botones
 	function recomputeState() {
+		// Tras reconstruirTablaSegunModo (cambio duplicar/dividir) la fila es nueva DOM pero los ocultos
+		// (#swal-codArticulo, #swal-inventsizeid) ya tienen ItemId/InventSizeId de datos-relacionados.
+		// Sin esto, dataset.claveValida queda vacío y hay que "volver a elegir" la misma clave.
+		const fpSync = document.getElementById('fila-principal');
+		if (fpSync && getModoActual() === 'duplicar') {
+			const claveIn = fpSync.querySelector('.clave-modelo-cell input');
+			const claveVal = (claveIn?.value || '').trim();
+			const hClave = document.getElementById('swal-claveModelo');
+			if (claveVal && hClave) {
+				hClave.value = claveVal;
+			}
+			const elCod = document.getElementById('swal-codArticulo');
+			const elInv = document.getElementById('swal-inventsizeid');
+			let codArt = elCod?.value?.trim() || '';
+			let invSz = elInv?.value?.trim() || '';
+			const dsItemId = (fpSync.dataset.itemId || '').trim();
+			const dsInv = (fpSync.dataset.inventSizeId || '').trim();
+			// Tras reconstruir la fila, el <tr> conserva dataset de cargarDatosRelacionadosRow aunque los ocultos no se hayan repoblado
+			if (!codArt && dsItemId && elCod) {
+				elCod.value = dsItemId;
+				codArt = dsItemId;
+			}
+			if (!invSz && dsInv && elInv) {
+				elInv.value = dsInv;
+				invSz = dsInv;
+			}
+			const tieneCodificado = !!(codArt || invSz || dsItemId || dsInv || (fpSync.dataset.cuentaRizo || '').trim());
+			if (claveVal && tieneCodificado && fpSync.dataset.claveValida !== 'false') {
+				fpSync.dataset.claveValida = 'true';
+			}
+		}
+
 		const modoActual = getModoActual();
 		const esDuplicar = modoActual === 'duplicar';
 		const telarInputs = document.querySelectorAll('[name="telar-destino[]"]');
@@ -741,6 +786,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		// Actualizar el campo hidden con el valor del pedido (sin % de segundas)
 		if (pedidoHiddenInput) {
 			pedidoHiddenInput.value = pedido.toFixed(2);
+			pedidoHiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
 		}
 
 		// Calcular saldo: Pedido * (1 + PorcentajeSegundos / 100)
@@ -1085,7 +1131,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			suppressClaveAutocomplete = false;
 			return;
 		}
-		const salonParaBuscar = selectSalon?.value || salonActual;
+		const salonParaBuscar = (selectSalon?.value || '').trim() || salonActualLocal || salonActual || '';
 		if (!salonParaBuscar || busqueda.length < 1) {
 			containerSugerencias.classList.add('hidden');
 			return;
@@ -1173,6 +1219,15 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			.then(r => r.json())
 			.then(data => {
 				if (data.datos) {
+					// Misma señal que cargarDatosRelacionadosRow: sin esto, recomputeState() deja el botón Aceptar deshabilitado
+					const filaPrincipalMark = document.querySelector('#telar-pedido-body tr#fila-principal');
+					if (filaPrincipalMark) {
+						filaPrincipalMark.dataset.claveValida = 'true';
+					}
+					if (typeof recomputeState === 'function') {
+						recomputeState();
+					}
+
 					inputCodArticulo.value = data.datos.ItemId || '';
 					inputProducto.value = data.datos.Nombre || data.datos.NombreProducto || '';
 
@@ -1758,7 +1813,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 					return;
 				}
 				const selectSalon = document.getElementById('swal-salon');
-				const salonParaBuscar = selectSalon?.value || '';
+				const salonParaBuscar = (selectSalon?.value || '').trim() || salonActualLocal || salonActual || '';
 				if (!salonParaBuscar || busqueda.length < 1) {
 					containerSugerenciasClave.classList.add('hidden');
 					return;
@@ -1790,6 +1845,12 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 									clickedSuggestion = true;
 									suppressAutocompleteClave = true;
 									claveModeloInput.value = sug;
+									if (row.id === 'fila-principal') {
+										const hiddenClaveSug = document.getElementById('swal-claveModelo');
+										if (hiddenClaveSug) {
+											hiddenClaveSug.value = sug;
+										}
+									}
 									containerSugerenciasClave.classList.add('hidden');
 									// Cargar datos relacionados solo para esta fila
 									if (typeof window.cargarDatosRelacionadosRow === 'function') {
@@ -1811,6 +1872,12 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			};
 
 			claveModeloInput.addEventListener('input', (e) => {
+				if (row.id === 'fila-principal') {
+					const hiddenClave = document.getElementById('swal-claveModelo');
+					if (hiddenClave) {
+						hiddenClave.value = e.target.value;
+					}
+				}
 				clearTimeout(debounceTimerClave);
 				debounceTimerClave = setTimeout(() => buscarClaveModeloRow(e.target.value), 150);
 			});
@@ -1973,8 +2040,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			return;
 		}
 
-		const selectSalon = document.getElementById('swal-salon');
-		const salonParaBuscar = selectSalon?.value || '';
+		const selectSalonRow = document.getElementById('swal-salon');
+		const salonParaBuscar = (selectSalonRow?.value || '').trim() || salonActualLocal || salonActual || '';
 		if (!salonParaBuscar) {
 			return;
 		}
@@ -2407,6 +2474,12 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		if (salonesMatch.length > 0) {
 			ocultarAlertaClaveModelo();
 			actualizarTelaresPorClaveModelo(claveModelo);
+			// La clave es válida en codificados (otro salón); sin esto el botón queda deshabilitado hasta "volver a elegir" la misma clave
+			const filaPrincipalAlt = document.querySelector('#telar-pedido-body tr#fila-principal');
+			if (filaPrincipalAlt) {
+				filaPrincipalAlt.dataset.claveValida = 'true';
+			}
+			recomputeState();
 			return;
 		}
 
@@ -2588,6 +2661,15 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 					.then(r => r.json())
 					.then(data => {
 						if (data.datos) {
+							const filaPrincipalIni = document.querySelector('#telar-pedido-body tr#fila-principal');
+							if (filaPrincipalIni) {
+								filaPrincipalIni.dataset.claveValida = 'true';
+							}
+							const visibleClaveIni = document.querySelector('#fila-principal .clave-modelo-cell input');
+							if (inputClaveModelo && visibleClaveIni?.value?.trim()) {
+								inputClaveModelo.value = visibleClaveIni.value.trim();
+							}
+
 							const itemId = data.datos.ItemId || '';
 							const inventSizeId = data.datos.InventSizeId || '';
 
@@ -2708,6 +2790,11 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			Promise.all(promesasCargaInicial)
 				.catch(err => {
 					console.error('[initModalDuplicar] Error en cargas iniciales:', err);
+				})
+				.finally(() => {
+					if (typeof recomputeState === 'function') {
+						recomputeState();
+					}
 				});
 		}
 	});
@@ -3160,8 +3247,8 @@ function validarYCapturarDatosDuplicar() {
 			// - pedido (TotalPedido) = valor del pedido tempo (sin % de segundas)
 			// - saldo (SaldoPedido) = valor calculado con % de segundas
 			// Recortar a 2 decimales para no acumular decimales
-			const pedidoFinalRaw = esDuplicar ? (pedidoTempoVal || pedidoVal) : pedidoVal;
-			const saldoFinalRaw = esDuplicar ? (saldoVal || pedidoTempoVal || pedidoVal) : pedidoVal;
+			const pedidoFinalRaw = esDuplicar ? (pedidoTempoVal || pedidoVal) : (pedidoVal || pedidoTempoVal);
+			const saldoFinalRaw = esDuplicar ? (saldoVal || pedidoTempoVal || pedidoVal) : (pedidoVal || pedidoTempoVal);
 			const pedidoFinal = (typeof a2Decimales === 'function' ? a2Decimales(pedidoFinalRaw) : pedidoFinalRaw) || pedidoFinalRaw;
 			const saldoFinal = (typeof a2Decimales === 'function' ? a2Decimales(saldoFinalRaw) : saldoFinalRaw) || saldoFinalRaw;
 			const pedidoTempoRedondeado = (typeof a2Decimales === 'function' ? a2Decimales(pedidoTempoVal) : pedidoTempoVal) || pedidoTempoVal;

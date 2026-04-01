@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 
 class ProgramaTejidoContext
 {
+    /**
+     * Rutas de muestras usan tablas distintas; ReqProgramaTejido::getTable() lee planeacion.programa_tejido_table.
+     * Si un Id existe en una tabla pero la petición apunta a otra, find/delete pueden responder "no encontrado".
+     */
     public function handle(Request $request, Closure $next)
     {
         if ($this->isMuestrasRequest($request)) {

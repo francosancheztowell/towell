@@ -287,7 +287,7 @@ async function actualizarRegistrosPorIds(registrosIds) {
 		return String(value);
 	};
 
-	for (const registroId of ids) {
+	const fetchDetalle = async (registroId) => {
 		try {
 			const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
 				headers: {
@@ -296,67 +296,80 @@ async function actualizarRegistrosPorIds(registrosIds) {
 					'Cache-Control': 'no-cache'
 				}
 			});
-
-			if (!response.ok) continue;
-
+			if (!response.ok) return null;
 			const result = await response.json();
-			if (!result.success || !result.registro) continue;
-
-			const registro = result.registro;
-			const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
-			if (!fila) continue;
-
-			if (registro.OrdCompartida) {
-				fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
-			} else {
-				fila.removeAttribute('data-ord-compartida');
-			}
-
-			columns.forEach(col => {
-				const field = col.field;
-				const value = registro[field] !== undefined ? registro[field] : null;
-				const celda = fila.querySelector(`td[data-column="${field}"]`);
-				if (!celda) return;
-				celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
-				celda.innerHTML = formatearValor(registro, field, value);
-			});
-
-			await new Promise(resolve => setTimeout(resolve, 40));
+			if (!result.success || !result.registro) return null;
+			return { registroId, registro: result.registro };
 		} catch (error) {
 			console.warn(`Error al actualizar registro ${registroId}:`, error);
+			return null;
 		}
+	};
+
+	const concurrenciaDetalleBalanceo = 12;
+	const resultados = [];
+	for (let i = 0; i < ids.length; i += concurrenciaDetalleBalanceo) {
+		const chunk = ids.slice(i, i + concurrenciaDetalleBalanceo);
+		const part = await Promise.all(chunk.map((id) => fetchDetalle(id)));
+		resultados.push(...part);
+	}
+
+	for (const item of resultados) {
+		if (!item) continue;
+		const { registroId, registro } = item;
+		const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
+		if (!fila) continue;
+
+		if (registro.OrdCompartida) {
+			fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
+		} else {
+			fila.removeAttribute('data-ord-compartida');
+		}
+
+		columns.forEach(col => {
+			const field = col.field;
+			const value = registro[field] !== undefined ? registro[field] : null;
+			const celda = fila.querySelector(`td[data-column="${field}"]`);
+			if (!celda) return;
+			celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
+			celda.innerHTML = formatearValor(registro, field, value);
+		});
 	}
 }
 
-async function actualizarTelaresAfectadosDespuesDividir({ salonOrigen, telarOrigen, destinos }) {
-	const telarKeys = new Set();
-	if (salonOrigen || telarOrigen) {
-		telarKeys.add(buildTelarKey(salonOrigen, telarOrigen));
-	}
-
-	(destinos || []).forEach(destino => {
-		const salonDestino = destino?.salon_destino || destino?.salon || '';
-		const telarDestino = destino?.telar || destino?.no_telar_id || '';
-		if (salonDestino || telarDestino) {
-			telarKeys.add(buildTelarKey(salonDestino, telarDestino));
-		}
-	});
-
-	if (telarKeys.size === 0) return;
-
+async function actualizarTelaresAfectadosDespuesDividir({ salonOrigen, telarOrigen, destinos, registrosIdsRestrictos }) {
 	const tb = document.querySelector('#mainTable tbody');
 	if (!tb) return;
 
-	const registrosIds = [];
-	tb.querySelectorAll('tr.selectable-row').forEach(row => {
-		const salonVal = getRowCellValue(row, 'SalonTejidoId');
-		const telarVal = getRowCellValue(row, 'NoTelarId');
-		const key = buildTelarKey(salonVal, telarVal);
-		if (telarKeys.has(key)) {
-			const id = row.getAttribute('data-id');
-			if (id) registrosIds.push(id);
+	let registrosIds = [];
+	if (Array.isArray(registrosIdsRestrictos) && registrosIdsRestrictos.length > 0) {
+		registrosIds = registrosIdsRestrictos.map((id) => String(id)).filter(Boolean);
+	} else {
+		const telarKeys = new Set();
+		if (salonOrigen || telarOrigen) {
+			telarKeys.add(buildTelarKey(salonOrigen, telarOrigen));
 		}
-	});
+
+		(destinos || []).forEach(destino => {
+			const salonDestino = destino?.salon_destino || destino?.salon || '';
+			const telarDestino = destino?.telar || destino?.no_telar_id || '';
+			if (salonDestino || telarDestino) {
+				telarKeys.add(buildTelarKey(salonDestino, telarDestino));
+			}
+		});
+
+		if (telarKeys.size === 0) return;
+
+		tb.querySelectorAll('tr.selectable-row').forEach(row => {
+			const salonVal = getRowCellValue(row, 'SalonTejidoId');
+			const telarVal = getRowCellValue(row, 'NoTelarId');
+			const key = buildTelarKey(salonVal, telarVal);
+			if (telarKeys.has(key)) {
+				const id = row.getAttribute('data-id');
+				if (id) registrosIds.push(id);
+			}
+		});
+	}
 
 	await actualizarRegistrosPorIds(registrosIds);
 }
@@ -494,6 +507,12 @@ function buildCalendarWarningHtml(message, advertencias) {
 }
 
 async function redirectToRegistro(data) {
+	// Evitar location.href / reload en flujos que ya actualizan la tabla sin recargar (alinear dividir con duplicar/vincular)
+	const evitarRecargaProgramaTejido = (d) =>
+		d?.modo === 'dividir' ||
+		d?.modo === 'duplicar' ||
+		(d?.registro_id_original != null && d?.registros_divididos != null);
+
 	ptDebugLog('[DEBUG] redirectToRegistro llamado', {
 		modo: data?.modo,
 		registros_ids: data?.registros_ids,
@@ -519,12 +538,23 @@ async function redirectToRegistro(data) {
 		// En dividir: registros_ids = solo los nuevos; el original se actualiza con actualizarRegistroOriginalDividir
 		if (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
 			try {
-				// Delay inicial para asegurar que los registros estén completamente guardados en la BD
-				await new Promise(resolve => setTimeout(resolve, 800));
+				const datosPrecargadosCompletos = data.registros_datos &&
+					data.registros_ids.every((id) => data.registros_datos[String(id)] != null);
+				// Sin datos precargados, breve espera por visibilidad en BD tras commit; con datos del servidor no hace falta 800ms
+				const delayInicialMs = datosPrecargadosCompletos ? 0 : 120;
+				if (delayInicialMs > 0) {
+					await new Promise(resolve => setTimeout(resolve, delayInicialMs));
+				}
 
 				const tb = document.querySelector('#mainTable tbody');
 				if (!tb) {
 					console.error('[DEBUG] No se encontró el tbody');
+					if (evitarRecargaProgramaTejido(data)) {
+						if (typeof showToast === 'function') {
+							showToast('No se encontró la tabla principal. Recargue la página si no ve los cambios.', 'warning');
+						}
+						return;
+					}
 					window.location.reload();
 					return;
 				}
@@ -579,15 +609,13 @@ async function redirectToRegistro(data) {
 								SalonTejidoId: registroPrecargado.SalonTejidoId,
 								NoTelarId: registroPrecargado.NoTelarId
 							});
-							await agregarRegistroSinRecargar(payload);
+							await agregarRegistroSinRecargar(payload, { preventReload: true });
 							registrosAgregados.push(parseInt(idStr));
 							filasExistentes.push(idStr);
-							await new Promise(resolve => setTimeout(resolve, 80));
 							continue;
 						}
 
-						// Fallback: obtener por detalles-balanceo
-						await new Promise(resolve => setTimeout(resolve, 200));
+						// Fallback: obtener por detalles-balanceo (sin delay extra: ya hubo espera inicial si hacía falta)
 						const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
 							headers: {
 								'Accept': 'application/json',
@@ -614,10 +642,9 @@ async function redirectToRegistro(data) {
 										SalonTejidoId: result.registro.SalonTejidoId,
 										NoTelarId: result.registro.NoTelarId
 									});
-									await agregarRegistroSinRecargar({ registro_id: registroId, message: '', registro: result.registro });
+									await agregarRegistroSinRecargar({ registro_id: registroId, message: '', registro: result.registro }, { preventReload: true });
 									registrosAgregados.push(parseInt(idStr));
 									filasExistentes.push(idStr);
-									await new Promise(resolve => setTimeout(resolve, 150));
 								} else {
 									console.warn(`[DEBUG] ⚠️ Registro ${registroId} no pertenece al telar destino`, {
 										salon_registro: result.registro.SalonTejidoId,
@@ -654,11 +681,10 @@ async function redirectToRegistro(data) {
 							const idStrFaltante = String(idFaltante);
 							const registroPrecargado = data.registros_datos && data.registros_datos[idStrFaltante];
 							if (registroPrecargado) {
-								await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '', registro: registroPrecargado });
+								await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '', registro: registroPrecargado }, { preventReload: true });
 								registrosAgregados.push(parseInt(idFaltante));
 								continue;
 							}
-							await new Promise(resolve => setTimeout(resolve, 300));
 							const response = await fetch(`/planeacion/programa-tejido/${idFaltante}/detalles-balanceo?t=${Date.now()}`, {
 								headers: {
 									'Accept': 'application/json',
@@ -670,7 +696,7 @@ async function redirectToRegistro(data) {
 							if (response.ok) {
 								const result = await response.json();
 								if (result.success && result.registro) {
-									await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '', registro: result.registro });
+									await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '', registro: result.registro }, { preventReload: true });
 									registrosAgregados.push(parseInt(idFaltante));
 								}
 							}
@@ -733,7 +759,8 @@ async function redirectToRegistro(data) {
 		}
 
 		// Fallback: Si registros_ids no está disponible, usar método anterior con IDs secuenciales
-		// SOLO para duplicar/vincular con múltiples registros (NO para dividir)
+		// SOLO para duplicar/vincular con múltiples registros (NO para dividir).
+		// Cada fila insertada usa registro.Id devuelto por detalles-balanceo (construirFilaRegistro); no se asigna data-id por heurística sin respuesta del API.
 		if (data?.modo !== 'dividir' && data?.modo !== 'duplicar' && data?.registro_id && (data?.salon_destino || data?.registros_vinculados)) {
 		const totalRegistrosFallback = data?.registros_duplicados || data?.registros_vinculados || 1;
 		if (data?.registro_id && (data?.salon_destino || data?.registros_vinculados)) {
@@ -827,12 +854,24 @@ async function redirectToRegistro(data) {
 		}
 		return;
 	} else if (data?.salon_destino && data?.telar_destino) {
+		if (evitarRecargaProgramaTejido(data)) {
+			if (typeof showToast === 'function') {
+				showToast(data.message || 'Operación completada. Actualice la vista si no ve los cambios.', 'info');
+			}
+			return;
+		}
 		const url = new URL(window.location.href);
 		url.searchParams.set('salon', data.salon_destino);
 		url.searchParams.set('telar', data.telar_destino);
 		window.location.href = url.toString();
 		return;
 	} else {
+		if (evitarRecargaProgramaTejido(data)) {
+			if (typeof showToast === 'function') {
+				showToast(data.message || 'Operación completada. Actualice la vista si no ve los cambios.', 'warning');
+			}
+			return;
+		}
 		ptDebugLog('[DEBUG] 🔄 Último fallback: recargando página');
 		window.location.reload();
 		return;
@@ -846,20 +885,29 @@ async function redirectToRegistro(data) {
 			await actualizarRegistroOriginalDividir(data);
 		}
 		return;
-	} else if (data?.salon_destino && data?.telar_destino) {
+	}
+
+	if (evitarRecargaProgramaTejido(data)) {
+		if (typeof showToast === 'function') {
+			showToast(data.message || 'Operación completada. Actualice la vista si no ve los cambios.', 'info');
+		}
+		return;
+	}
+
+	if (data?.salon_destino && data?.telar_destino) {
 		// Si no hay registro_id pero hay destino, recargar con filtros
 		const url = new URL(window.location.href);
 		url.searchParams.set('salon', data.salon_destino);
 		url.searchParams.set('telar', data.telar_destino);
 		window.location.href = url.toString();
 		return;
-	} else {
-		ptDebugLog('[DEBUG] 🔄 Fallback final: recargando página');
-		window.location.reload();
 	}
+
+	ptDebugLog('[DEBUG] 🔄 Fallback final: recargando página');
+	window.location.reload();
 }
 
-async function agregarRegistroSinRecargar(data) {
+async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) {
 	if (!data?.registro_id) return;
 
 	let registro = null;
@@ -897,6 +945,10 @@ async function agregarRegistroSinRecargar(data) {
 		}
 	}
 
+	if (registro && (registro.Id === undefined || registro.Id === null || registro.Id === '') && registro.id != null) {
+		registro.Id = registro.id;
+	}
+
 	try {
 		// Verificar que los campos clave estén presentes y actualizados
 		ptDebugLog(`[DEBUG] 📥 Datos recibidos del endpoint para registro ${registro.Id}:`, {
@@ -912,6 +964,7 @@ async function agregarRegistroSinRecargar(data) {
 		// Verificar si ya existe en la tabla
 		const tb = document.querySelector('#mainTable tbody');
 		if (!tb) {
+			if (preventReload) throw new Error('No se encontró la tabla principal (#mainTable tbody)');
 			window.location.reload();
 			return;
 		}
@@ -935,7 +988,7 @@ async function agregarRegistroSinRecargar(data) {
 			})));
 
 		if (!columns || columns.length === 0) {
-			// Si no hay columnas, recargar
+			if (preventReload) throw new Error('No se encontraron columnas para la tabla');
 			window.location.reload();
 			return;
 		}
@@ -1202,7 +1255,7 @@ async function agregarRegistroSinRecargar(data) {
 
 	} catch (error) {
 		console.error('Error al agregar registro:', error);
-		// Si hay error, recargar la página
+		if (preventReload) throw error;
 		if (data?.salon_destino && data?.telar_destino) {
 			const url = new URL(window.location.href);
 			url.searchParams.set('salon', data.salon_destino);
@@ -1218,9 +1271,16 @@ async function agregarRegistroSinRecargar(data) {
 }
 
 function construirFilaRegistro(registro, columns) {
+	if (registro.id != null && (registro.Id === undefined || registro.Id === null || registro.Id === '')) {
+		registro.Id = registro.id;
+	}
 	const tr = document.createElement('tr');
 	tr.className = 'hover:bg-blue-50 cursor-pointer selectable-row';
-	tr.setAttribute('data-id', registro.Id);
+	const rowPk = registro.Id ?? registro.id;
+	if (rowPk === undefined || rowPk === null || rowPk === '') {
+		console.error('construirFilaRegistro: registro sin Id', registro);
+	}
+	tr.setAttribute('data-id', String(rowPk ?? ''));
 
 	const producto = registro.NombreProducto || '';
 	const esRepaso = producto && producto.toUpperCase().substring(0, 6) === 'REPASO';

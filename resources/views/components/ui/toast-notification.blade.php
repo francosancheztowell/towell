@@ -1,6 +1,6 @@
 {{-- Componente reutilizable para toast notifications --}}
 <script>
-// Función para mostrar toast personalizado
+// Función para mostrar toast personalizado (global + window para scripts en otros bloques)
 function showToast(message, type = 'success') {
     // Crear elemento toast
     const toast = document.createElement('div');
@@ -46,5 +46,6 @@ function showToast(message, type = 'success') {
         }, 300);
     }, 3000);
 }
+window.showToast = showToast;
 </script>
 

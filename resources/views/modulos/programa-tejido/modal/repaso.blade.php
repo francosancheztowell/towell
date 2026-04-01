@@ -48,6 +48,28 @@
       return m ? m.getAttribute('content') || '' : '';
     }
 
+    /** Misma convención que el resto del módulo: showToast en layout; toastr/Swal como respaldo. */
+    function notifyRepaso(msg, type) {
+      type = type || 'success';
+      if (typeof window.showToast === 'function') {
+        window.showToast(msg, type);
+        return;
+      }
+      if (typeof toastr !== 'undefined') {
+        var fn = type === 'error' ? 'error' : (type === 'warning' ? 'warning' : (type === 'info' ? 'info' : 'success'));
+        if (typeof toastr[fn] === 'function') toastr[fn](msg);
+        return;
+      }
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: type === 'error' ? 'error' : (type === 'warning' ? 'warning' : 'success'),
+          text: msg,
+          timer: 2800,
+          showConfirmButton: false
+        });
+      }
+    }
+
     function cargarHilos() {
       return fetch(apiBase + '/hilos-options', {
         headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrf() }
@@ -117,6 +139,7 @@
     };
 
     window.crearRepasoEnviar = function() {
+      var btn = document.getElementById('btnCrearRepaso');
       var telarSel = document.getElementById('repaso-telar');
       var ancho = document.getElementById('repaso-ancho');
       var hiloSel = document.getElementById('repaso-hilo');
@@ -131,6 +154,14 @@
         calibre: calibre ? (calibre.value === '' ? '' : parseFloat(calibre.value)) : ''
       };
 
+      var labelOriginal = btn ? btn.textContent : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.classList.add('opacity-70', 'cursor-wait', 'pointer-events-none');
+        btn.textContent = 'Creando…';
+      }
+
       var base = (typeof PT_BASE_PATH !== 'undefined' ? PT_BASE_PATH : '/planeacion/programa-tejido');
       fetch(base + '/crear-repaso', {
         method: 'POST',
@@ -141,9 +172,17 @@
         },
         body: JSON.stringify(data)
       })
-      .then(function(r) { return r.json().catch(function() { return {}; }); })
-      .then(function(res) {
-        if (res.ok) {
+      .then(function(r) {
+        return r.json().then(function(body) {
+          return { httpOk: r.ok, status: r.status, body: body };
+        }).catch(function() {
+          return { httpOk: r.ok, status: r.status, body: {} };
+        });
+      })
+      .then(function(pack) {
+        var res = pack.body || {};
+        var success = res.ok === true && pack.httpOk;
+        if (success) {
           cerrarModalRepaso();
           if (typeof agregarRegistroSinRecargar === 'function' && res.id) {
             var reg = res.registro && typeof res.registro === 'object' ? res.registro : null;
@@ -156,21 +195,41 @@
             setTimeout(function() {
               agregarRegistroSinRecargar(payload)
                 .then(function() {
-                  if (typeof toast === 'function') toast(res.message || 'Repaso creado', 'success');
+                  notifyRepaso(res.message || 'Repaso creado', 'success');
                 })
                 .catch(function() {
-                  if (typeof toast === 'function') toast('Repaso creado. Si no aparece, recargue la página.', 'info');
+                  notifyRepaso('Repaso creado. Si no aparece, recargue la página.', 'info');
                 });
             }, 200);
           } else {
-            if (typeof toast === 'function') toast(res.message || 'Repaso creado', 'success');
+            notifyRepaso(res.message || 'Repaso creado', 'success');
           }
-        } else {
-          if (typeof toast === 'function') toast(res.message || 'Error al crear repaso', 'error');
+          return;
         }
+        var errMsg = res.message || 'Error al crear repaso';
+        if (res.errors && typeof res.errors === 'object') {
+          var keys = Object.keys(res.errors);
+          if (keys.length) {
+            var first = res.errors[keys[0]];
+            if (Array.isArray(first) && first[0]) errMsg = String(first[0]);
+            else if (typeof first === 'string') errMsg = first;
+          }
+        }
+        if (!pack.httpOk && pack.status === 419) {
+          errMsg = 'Sesión expirada. Recargue la página e intente de nuevo.';
+        }
+        notifyRepaso(errMsg, 'error');
       })
       .catch(function() {
-        if (typeof toast === 'function') toast('Error al crear repaso', 'error');
+        notifyRepaso('Error de conexión al crear repaso', 'error');
+      })
+      .finally(function() {
+        if (btn) {
+          btn.disabled = false;
+          btn.removeAttribute('aria-busy');
+          btn.classList.remove('opacity-70', 'cursor-wait', 'pointer-events-none');
+          btn.textContent = labelOriginal || 'Crear';
+        }
       });
     };
 

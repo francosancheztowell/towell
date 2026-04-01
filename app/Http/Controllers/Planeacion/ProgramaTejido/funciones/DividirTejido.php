@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
-use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
+use App\Helpers\StringTruncator;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
-use App\Models\Planeacion\ReqModelosCodificados;
-use App\Helpers\StringTruncator;
 
 class DividirTejido
 {
@@ -22,7 +22,6 @@ class DividirTejido
      * Se crean nuevos registros con el saldo dividido
      * Todos comparten el mismo OrdCompartida para identificarlos
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public static function dividir(Request $request)
@@ -56,7 +55,7 @@ class DividirTejido
 
         // Verificar si es una redistribuci├│n de un grupo existente
         $ordCompartidaExistente = $request->input('ord_compartida_existente');
-        $esRedistribucion = !empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0';
+        $esRedistribucion = ! empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0';
 
         // Guardar y restaurar dispatcher para no romper otros flujos (igual que DuplicarTejido)
         $dispatcher = ReqProgramaTejido::getEventDispatcher();
@@ -69,13 +68,14 @@ class DividirTejido
             // Si es redistribuci├│n, usar l├│gica diferente
             if ($esRedistribucion) {
                 LogFacade::info('DividirTejido: usando redistribuirGrupoExistente');
+
                 return self::redistribuirGrupoExistente($request, $ordCompartidaExistente, $destinos, $salonDestino, $hilo, $dispatcher);
             }
 
             // Obtener el registro espec├¡fico a dividir:
             // 1) Si viene registro_id_original, usar ese.
             // 2) Si no, usar el ├║ltimo del telar (fallback anterior).
-            if (!empty($registroIdOriginal)) {
+            if (! empty($registroIdOriginal)) {
                 $registroOriginal = ReqProgramaTejido::find($registroIdOriginal);
                 // Verificar que el registro encontrado pertenece al telar y sal├│n correctos
                 if ($registroOriginal && ($registroOriginal->SalonTejidoId !== $salonOrigen || $registroOriginal->NoTelarId !== $telarOrigen)) {
@@ -84,7 +84,7 @@ class DividirTejido
             }
 
             // Fallback: obtener el ├║ltimo registro del telar
-            if (!$registroOriginal) {
+            if (! $registroOriginal) {
                 $registroOriginal = ReqProgramaTejido::query()
                     ->salon($salonOrigen)
                     ->telar($telarOrigen)
@@ -98,10 +98,10 @@ class DividirTejido
                         ->first();
             }
 
-            if (!$registroOriginal) {
+            if (! $registroOriginal) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se encontr├│ el registro para dividir'
+                    'message' => 'No se encontr├│ el registro para dividir',
                 ], 404);
             }
 
@@ -131,7 +131,7 @@ class DividirTejido
                 $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
-                    ? (float)$destino['porcentaje_segundos']
+                    ? (float) $destino['porcentaje_segundos']
                     : null;
 
                 if ($index === 0) {
@@ -258,7 +258,6 @@ class DividirTejido
             $produccionOriginal = (float) ($registroOriginal->Produccion ?? 0);
             $registroOriginal->SaldoPedido = max(0, $cantidadParaOriginal - $produccionOriginal);
 
-
             // Actualizar PedidoTempo, Observaciones y PorcentajeSegundos del registro original
             if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
                 $registroOriginal->PedidoTempo = $pedidoTempoDestino;
@@ -282,21 +281,21 @@ class DividirTejido
             $registroOriginal->UpdatedAt = now();
 
             // ===== RECALCULAR FECHA FINAL desde la fecha inicio existente (sin cambiar fecha inicio) =====
-            if (!empty($registroOriginal->FechaInicio)) {
+            if (! empty($registroOriginal->FechaInicio)) {
                 $inicio = Carbon::parse($registroOriginal->FechaInicio);
                 $horasNecesarias = self::calcularHorasProd($registroOriginal);
 
                 if ($horasNecesarias <= 0) {
                     $registroOriginal->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
                 } else {
-                    if (!empty($registroOriginal->CalendarioId)) {
+                    if (! empty($registroOriginal->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registroOriginal->CalendarioId, $inicio, $horasNecesarias);
-                        if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                        if (! $fin) {
+                            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                         }
                         $registroOriginal->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        $registroOriginal->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                        $registroOriginal->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
                 }
 
@@ -422,14 +421,30 @@ class DividirTejido
                 }
 
                 // Actualizar otros campos si se proporcionan (fallback a valores globales)
-                if (!$itemIdDestino && $codArticulo) $nuevo->ItemId = $codArticulo;
-                if (!$productoDestino && $producto) $nuevo->NombreProducto = $producto;
-                if (!$flogDestino && $flog) $nuevo->FlogsId = $flog;
-                if (!$descripcionDestino && $descripcion) $nuevo->NombreProyecto = $descripcion;
-                if (!$custnameDestino && $custname) $nuevo->CustName = $custname;
-                if (!$inventSizeIdDestino && $inventSizeId) $nuevo->InventSizeId = $inventSizeId;
-                if ($hilo) $nuevo->FibraRizo = $hilo;
-                if ($aplicacion) $nuevo->AplicacionId = $aplicacion;
+                if (! $itemIdDestino && $codArticulo) {
+                    $nuevo->ItemId = $codArticulo;
+                }
+                if (! $productoDestino && $producto) {
+                    $nuevo->NombreProducto = $producto;
+                }
+                if (! $flogDestino && $flog) {
+                    $nuevo->FlogsId = $flog;
+                }
+                if (! $descripcionDestino && $descripcion) {
+                    $nuevo->NombreProyecto = $descripcion;
+                }
+                if (! $custnameDestino && $custname) {
+                    $nuevo->CustName = $custname;
+                }
+                if (! $inventSizeIdDestino && $inventSizeId) {
+                    $nuevo->InventSizeId = $inventSizeId;
+                }
+                if ($hilo) {
+                    $nuevo->FibraRizo = $hilo;
+                }
+                if ($aplicacion) {
+                    $nuevo->AplicacionId = $aplicacion;
+                }
 
                 // ⚡ MEJORA: Aplicar campos técnicos del modelo cuando hay tamano_clave específico diferente
                 // Si hay tamano_clave específico diferente, aplicar todos los campos técnicos del modelo
@@ -438,66 +453,168 @@ class DividirTejido
                     self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem, $tamanoClaveDestino);
 
                     // Aplicar campos técnicos desde los datos del destino (ya vienen del frontend)
-                    if (isset($destino['cuentaRizo']) && $destino['cuentaRizo'] !== null) $nuevo->CuentaRizo = $destino['cuentaRizo'];
-                    if (isset($destino['calibreRizo']) && $destino['calibreRizo'] !== null) $nuevo->CalibreRizo = $destino['calibreRizo'];
-                    if (isset($destino['calibreRizo2']) && $destino['calibreRizo2'] !== null) $nuevo->CalibreRizo2 = $destino['calibreRizo2'];
-                    if (isset($destino['ancho']) && $destino['ancho'] !== null) $nuevo->Ancho = $destino['ancho'];
-                    if (isset($destino['calibrePie']) && $destino['calibrePie'] !== null) $nuevo->CalibrePie = $destino['calibrePie'];
-                    if (isset($destino['calibrePie2']) && $destino['calibrePie2'] !== null) $nuevo->CalibrePie2 = $destino['calibrePie2'];
-                    if (isset($destino['rasurado']) && $destino['rasurado'] !== null) $nuevo->Rasurado = $destino['rasurado'];
-                    if (isset($destino['noTiras']) && $destino['noTiras'] !== null) $nuevo->NoTiras = $destino['noTiras'];
-                    if (isset($destino['peine']) && $destino['peine'] !== null) $nuevo->Peine = $destino['peine'];
-                    if (isset($destino['luchaje']) && $destino['luchaje'] !== null) $nuevo->Luchaje = $destino['luchaje'];
-                    if (isset($destino['pesoCrudo']) && $destino['pesoCrudo'] !== null) $nuevo->PesoCrudo = $destino['pesoCrudo'];
+                    if (isset($destino['cuentaRizo']) && $destino['cuentaRizo'] !== null) {
+                        $nuevo->CuentaRizo = $destino['cuentaRizo'];
+                    }
+                    if (isset($destino['calibreRizo']) && $destino['calibreRizo'] !== null) {
+                        $nuevo->CalibreRizo = $destino['calibreRizo'];
+                    }
+                    if (isset($destino['calibreRizo2']) && $destino['calibreRizo2'] !== null) {
+                        $nuevo->CalibreRizo2 = $destino['calibreRizo2'];
+                    }
+                    if (isset($destino['ancho']) && $destino['ancho'] !== null) {
+                        $nuevo->Ancho = $destino['ancho'];
+                    }
+                    if (isset($destino['calibrePie']) && $destino['calibrePie'] !== null) {
+                        $nuevo->CalibrePie = $destino['calibrePie'];
+                    }
+                    if (isset($destino['calibrePie2']) && $destino['calibrePie2'] !== null) {
+                        $nuevo->CalibrePie2 = $destino['calibrePie2'];
+                    }
+                    if (isset($destino['rasurado']) && $destino['rasurado'] !== null) {
+                        $nuevo->Rasurado = $destino['rasurado'];
+                    }
+                    if (isset($destino['noTiras']) && $destino['noTiras'] !== null) {
+                        $nuevo->NoTiras = $destino['noTiras'];
+                    }
+                    if (isset($destino['peine']) && $destino['peine'] !== null) {
+                        $nuevo->Peine = $destino['peine'];
+                    }
+                    if (isset($destino['luchaje']) && $destino['luchaje'] !== null) {
+                        $nuevo->Luchaje = $destino['luchaje'];
+                    }
+                    if (isset($destino['pesoCrudo']) && $destino['pesoCrudo'] !== null) {
+                        $nuevo->PesoCrudo = $destino['pesoCrudo'];
+                    }
                     // ⚡ CORRECCIÓN: CalibreTrama se invierte al aplicar desde el modelo
                     // CalibreTrama del modelo -> CalibreTrama2 del registro
                     // CalibreTrama2 del modelo -> CalibreTrama del registro
                     // Pero si viene del destino directamente, usarlo tal cual
-                    if (isset($destino['calibreTrama']) && $destino['calibreTrama'] !== null) $nuevo->CalibreTrama = $destino['calibreTrama'];
-                    if (isset($destino['calibreTrama2']) && $destino['calibreTrama2'] !== null) $nuevo->CalibreTrama2 = $destino['calibreTrama2'];
+                    if (isset($destino['calibreTrama']) && $destino['calibreTrama'] !== null) {
+                        $nuevo->CalibreTrama = $destino['calibreTrama'];
+                    }
+                    if (isset($destino['calibreTrama2']) && $destino['calibreTrama2'] !== null) {
+                        $nuevo->CalibreTrama2 = $destino['calibreTrama2'];
+                    }
 
                     // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla del modelo o del destino
                     if (isset($destino['largoToalla']) && $destino['largoToalla'] !== null) {
                         $nuevo->LargoCrudo = (float) $destino['largoToalla'];
                     }
-                    if (isset($destino['fibraTrama']) && $destino['fibraTrama'] !== null) $nuevo->FibraTrama = $destino['fibraTrama'];
-                    if (isset($destino['dobladilloId']) && $destino['dobladilloId'] !== null) $nuevo->DobladilloId = $destino['dobladilloId'];
-                    if (isset($destino['pasadasTrama']) && $destino['pasadasTrama'] !== null) $nuevo->PasadasTrama = $destino['pasadasTrama'];
-                    if (isset($destino['pasadasComb1']) && $destino['pasadasComb1'] !== null) $nuevo->PasadasComb1 = $destino['pasadasComb1'];
-                    if (isset($destino['pasadasComb2']) && $destino['pasadasComb2'] !== null) $nuevo->PasadasComb2 = $destino['pasadasComb2'];
-                    if (isset($destino['pasadasComb3']) && $destino['pasadasComb3'] !== null) $nuevo->PasadasComb3 = $destino['pasadasComb3'];
-                    if (isset($destino['pasadasComb4']) && $destino['pasadasComb4'] !== null) $nuevo->PasadasComb4 = $destino['pasadasComb4'];
-                    if (isset($destino['pasadasComb5']) && $destino['pasadasComb5'] !== null) $nuevo->PasadasComb5 = $destino['pasadasComb5'];
-                    if (isset($destino['anchoToalla']) && $destino['anchoToalla'] !== null) $nuevo->AnchoToalla = $destino['anchoToalla'];
-                    if (isset($destino['codColorTrama']) && $destino['codColorTrama'] !== null) $nuevo->CodColorTrama = $destino['codColorTrama'];
-                    if (isset($destino['colorTrama']) && $destino['colorTrama'] !== null) $nuevo->ColorTrama = $destino['colorTrama'];
-                    if (isset($destino['calibreComb1']) && $destino['calibreComb1'] !== null) $nuevo->CalibreComb1 = $destino['calibreComb1'];
-                    if (isset($destino['calibreComb12']) && $destino['calibreComb12'] !== null) $nuevo->CalibreComb12 = $destino['calibreComb12'];
-                    if (isset($destino['fibraComb1']) && $destino['fibraComb1'] !== null) $nuevo->FibraComb1 = $destino['fibraComb1'];
-                    if (isset($destino['codColorComb1']) && $destino['codColorComb1'] !== null) $nuevo->CodColorComb1 = $destino['codColorComb1'];
-                    if (isset($destino['nombreCC1']) && $destino['nombreCC1'] !== null) $nuevo->NombreCC1 = $destino['nombreCC1'];
-                    if (isset($destino['calibreComb2']) && $destino['calibreComb2'] !== null) $nuevo->CalibreComb2 = $destino['calibreComb2'];
-                    if (isset($destino['calibreComb22']) && $destino['calibreComb22'] !== null) $nuevo->CalibreComb22 = $destino['calibreComb22'];
-                    if (isset($destino['fibraComb2']) && $destino['fibraComb2'] !== null) $nuevo->FibraComb2 = $destino['fibraComb2'];
-                    if (isset($destino['codColorComb2']) && $destino['codColorComb2'] !== null) $nuevo->CodColorComb2 = $destino['codColorComb2'];
-                    if (isset($destino['nombreCC2']) && $destino['nombreCC2'] !== null) $nuevo->NombreCC2 = $destino['nombreCC2'];
-                    if (isset($destino['calibreComb3']) && $destino['calibreComb3'] !== null) $nuevo->CalibreComb3 = $destino['calibreComb3'];
-                    if (isset($destino['calibreComb32']) && $destino['calibreComb32'] !== null) $nuevo->CalibreComb32 = $destino['calibreComb32'];
-                    if (isset($destino['fibraComb3']) && $destino['fibraComb3'] !== null) $nuevo->FibraComb3 = $destino['fibraComb3'];
-                    if (isset($destino['codColorComb3']) && $destino['codColorComb3'] !== null) $nuevo->CodColorComb3 = $destino['codColorComb3'];
-                    if (isset($destino['nombreCC3']) && $destino['nombreCC3'] !== null) $nuevo->NombreCC3 = $destino['nombreCC3'];
-                    if (isset($destino['calibreComb4']) && $destino['calibreComb4'] !== null) $nuevo->CalibreComb4 = $destino['calibreComb4'];
-                    if (isset($destino['calibreComb42']) && $destino['calibreComb42'] !== null) $nuevo->CalibreComb42 = $destino['calibreComb42'];
-                    if (isset($destino['fibraComb4']) && $destino['fibraComb4'] !== null) $nuevo->FibraComb4 = $destino['fibraComb4'];
-                    if (isset($destino['codColorComb4']) && $destino['codColorComb4'] !== null) $nuevo->CodColorComb4 = $destino['codColorComb4'];
-                    if (isset($destino['nombreCC4']) && $destino['nombreCC4'] !== null) $nuevo->NombreCC4 = $destino['nombreCC4'];
-                    if (isset($destino['calibreComb5']) && $destino['calibreComb5'] !== null) $nuevo->CalibreComb5 = $destino['calibreComb5'];
-                    if (isset($destino['calibreComb52']) && $destino['calibreComb52'] !== null) $nuevo->CalibreComb52 = $destino['calibreComb52'];
-                    if (isset($destino['fibraComb5']) && $destino['fibraComb5'] !== null) $nuevo->FibraComb5 = $destino['fibraComb5'];
-                    if (isset($destino['codColorComb5']) && $destino['codColorComb5'] !== null) $nuevo->CodColorComb5 = $destino['codColorComb5'];
-                    if (isset($destino['nombreCC5']) && $destino['nombreCC5'] !== null) $nuevo->NombreCC5 = $destino['nombreCC5'];
-                    if (isset($destino['medidaPlano']) && $destino['medidaPlano'] !== null) $nuevo->MedidaPlano = $destino['medidaPlano'];
-                    if (isset($destino['cuentaPie']) && $destino['cuentaPie'] !== null) $nuevo->CuentaPie = $destino['cuentaPie'];
+                    if (isset($destino['fibraTrama']) && $destino['fibraTrama'] !== null) {
+                        $nuevo->FibraTrama = $destino['fibraTrama'];
+                    }
+                    if (isset($destino['dobladilloId']) && $destino['dobladilloId'] !== null) {
+                        $nuevo->DobladilloId = $destino['dobladilloId'];
+                    }
+                    if (isset($destino['pasadasTrama']) && $destino['pasadasTrama'] !== null) {
+                        $nuevo->PasadasTrama = $destino['pasadasTrama'];
+                    }
+                    if (isset($destino['pasadasComb1']) && $destino['pasadasComb1'] !== null) {
+                        $nuevo->PasadasComb1 = $destino['pasadasComb1'];
+                    }
+                    if (isset($destino['pasadasComb2']) && $destino['pasadasComb2'] !== null) {
+                        $nuevo->PasadasComb2 = $destino['pasadasComb2'];
+                    }
+                    if (isset($destino['pasadasComb3']) && $destino['pasadasComb3'] !== null) {
+                        $nuevo->PasadasComb3 = $destino['pasadasComb3'];
+                    }
+                    if (isset($destino['pasadasComb4']) && $destino['pasadasComb4'] !== null) {
+                        $nuevo->PasadasComb4 = $destino['pasadasComb4'];
+                    }
+                    if (isset($destino['pasadasComb5']) && $destino['pasadasComb5'] !== null) {
+                        $nuevo->PasadasComb5 = $destino['pasadasComb5'];
+                    }
+                    if (isset($destino['anchoToalla']) && $destino['anchoToalla'] !== null) {
+                        $nuevo->AnchoToalla = $destino['anchoToalla'];
+                    }
+                    if (isset($destino['codColorTrama']) && $destino['codColorTrama'] !== null) {
+                        $nuevo->CodColorTrama = $destino['codColorTrama'];
+                    }
+                    if (isset($destino['colorTrama']) && $destino['colorTrama'] !== null) {
+                        $nuevo->ColorTrama = $destino['colorTrama'];
+                    }
+                    if (isset($destino['calibreComb1']) && $destino['calibreComb1'] !== null) {
+                        $nuevo->CalibreComb1 = $destino['calibreComb1'];
+                    }
+                    if (isset($destino['calibreComb12']) && $destino['calibreComb12'] !== null) {
+                        $nuevo->CalibreComb12 = $destino['calibreComb12'];
+                    }
+                    if (isset($destino['fibraComb1']) && $destino['fibraComb1'] !== null) {
+                        $nuevo->FibraComb1 = $destino['fibraComb1'];
+                    }
+                    if (isset($destino['codColorComb1']) && $destino['codColorComb1'] !== null) {
+                        $nuevo->CodColorComb1 = $destino['codColorComb1'];
+                    }
+                    if (isset($destino['nombreCC1']) && $destino['nombreCC1'] !== null) {
+                        $nuevo->NombreCC1 = $destino['nombreCC1'];
+                    }
+                    if (isset($destino['calibreComb2']) && $destino['calibreComb2'] !== null) {
+                        $nuevo->CalibreComb2 = $destino['calibreComb2'];
+                    }
+                    if (isset($destino['calibreComb22']) && $destino['calibreComb22'] !== null) {
+                        $nuevo->CalibreComb22 = $destino['calibreComb22'];
+                    }
+                    if (isset($destino['fibraComb2']) && $destino['fibraComb2'] !== null) {
+                        $nuevo->FibraComb2 = $destino['fibraComb2'];
+                    }
+                    if (isset($destino['codColorComb2']) && $destino['codColorComb2'] !== null) {
+                        $nuevo->CodColorComb2 = $destino['codColorComb2'];
+                    }
+                    if (isset($destino['nombreCC2']) && $destino['nombreCC2'] !== null) {
+                        $nuevo->NombreCC2 = $destino['nombreCC2'];
+                    }
+                    if (isset($destino['calibreComb3']) && $destino['calibreComb3'] !== null) {
+                        $nuevo->CalibreComb3 = $destino['calibreComb3'];
+                    }
+                    if (isset($destino['calibreComb32']) && $destino['calibreComb32'] !== null) {
+                        $nuevo->CalibreComb32 = $destino['calibreComb32'];
+                    }
+                    if (isset($destino['fibraComb3']) && $destino['fibraComb3'] !== null) {
+                        $nuevo->FibraComb3 = $destino['fibraComb3'];
+                    }
+                    if (isset($destino['codColorComb3']) && $destino['codColorComb3'] !== null) {
+                        $nuevo->CodColorComb3 = $destino['codColorComb3'];
+                    }
+                    if (isset($destino['nombreCC3']) && $destino['nombreCC3'] !== null) {
+                        $nuevo->NombreCC3 = $destino['nombreCC3'];
+                    }
+                    if (isset($destino['calibreComb4']) && $destino['calibreComb4'] !== null) {
+                        $nuevo->CalibreComb4 = $destino['calibreComb4'];
+                    }
+                    if (isset($destino['calibreComb42']) && $destino['calibreComb42'] !== null) {
+                        $nuevo->CalibreComb42 = $destino['calibreComb42'];
+                    }
+                    if (isset($destino['fibraComb4']) && $destino['fibraComb4'] !== null) {
+                        $nuevo->FibraComb4 = $destino['fibraComb4'];
+                    }
+                    if (isset($destino['codColorComb4']) && $destino['codColorComb4'] !== null) {
+                        $nuevo->CodColorComb4 = $destino['codColorComb4'];
+                    }
+                    if (isset($destino['nombreCC4']) && $destino['nombreCC4'] !== null) {
+                        $nuevo->NombreCC4 = $destino['nombreCC4'];
+                    }
+                    if (isset($destino['calibreComb5']) && $destino['calibreComb5'] !== null) {
+                        $nuevo->CalibreComb5 = $destino['calibreComb5'];
+                    }
+                    if (isset($destino['calibreComb52']) && $destino['calibreComb52'] !== null) {
+                        $nuevo->CalibreComb52 = $destino['calibreComb52'];
+                    }
+                    if (isset($destino['fibraComb5']) && $destino['fibraComb5'] !== null) {
+                        $nuevo->FibraComb5 = $destino['fibraComb5'];
+                    }
+                    if (isset($destino['codColorComb5']) && $destino['codColorComb5'] !== null) {
+                        $nuevo->CodColorComb5 = $destino['codColorComb5'];
+                    }
+                    if (isset($destino['nombreCC5']) && $destino['nombreCC5'] !== null) {
+                        $nuevo->NombreCC5 = $destino['nombreCC5'];
+                    }
+                    if (isset($destino['medidaPlano']) && $destino['medidaPlano'] !== null) {
+                        $nuevo->MedidaPlano = $destino['medidaPlano'];
+                    }
+                    if (isset($destino['cuentaPie']) && $destino['cuentaPie'] !== null) {
+                        $nuevo->CuentaPie = $destino['cuentaPie'];
+                    }
                     // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla del destino o del modelo
                     if (isset($destino['largoToalla']) && $destino['largoToalla'] !== null) {
                         $nuevo->LargoCrudo = (float) $destino['largoToalla'];
@@ -521,7 +638,7 @@ class DividirTejido
                     $nuevo->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
                 }
                 if ($porcentajeSegundosDestino !== null && $porcentajeSegundosDestino !== '') {
-                    $nuevo->PorcentajeSegundos = (float)$porcentajeSegundosDestino;
+                    $nuevo->PorcentajeSegundos = (float) $porcentajeSegundosDestino;
                 }
 
                 // ===== FECHA INICIO: SIEMPRE la FechaFinal del ├║ltimo registro del telar destino =====
@@ -536,17 +653,16 @@ class DividirTejido
                     $nuevo->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
                 } else {
                     // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
-                    if (!empty($nuevo->CalendarioId)) {
+                    if (! empty($nuevo->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
-                        if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                        if (! $fin) {
+                            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                         }
                         $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
                 }
-
 
                 // CambioHilo
                 if ($ultimoRegistroDestino) {
@@ -573,6 +689,18 @@ class DividirTejido
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
 
+                // El trigger de SYSAuditoria hace que pdo_sqlsrv devuelva el Id de auditoría;
+                // obtener el Id real de ReqProgramaTejido (mismo fix que DuplicarTejido).
+                $idReal = ReqProgramaTejido::on($nuevo->getConnectionName())
+                    ->from(ReqProgramaTejido::tableName())
+                    ->where('SalonTejidoId', $salonDestinoItem)
+                    ->where('NoTelarId', $telarDestino)
+                    ->orderByDesc('Id')
+                    ->value('Id');
+                if ($idReal !== null) {
+                    $nuevo->Id = $idReal;
+                }
+
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosDatosParaRespuesta[(string) $nuevo->Id] = $nuevo->toArray();
                 $registrosParaObserver[] = $nuevo;
@@ -597,14 +725,14 @@ class DividirTejido
                 ReqProgramaTejido::where('OrdCompartida', $nuevoOrdCompartida)
                     ->update([
                         'OrdCompartidaLider' => null,
-                        'UpdatedAt' => now()
+                        'UpdatedAt' => now(),
                     ]);
 
                 // Asignar OrdCompartidaLider = 1 solo al registro con fecha más antigua
                 ReqProgramaTejido::where('Id', $idLider)
                     ->update([
                         'OrdCompartidaLider' => 1,
-                        'UpdatedAt' => now()
+                        'UpdatedAt' => now(),
                     ]);
 
                 // Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
@@ -612,9 +740,9 @@ class DividirTejido
             }
 
             // Asegurar que los registros divididos mantengan EnProceso=0 (dentro de la misma transacción)
-            if (!empty($idsParaObserver)) {
+            if (! empty($idsParaObserver)) {
                 $idsNuevos = array_slice($idsParaObserver, 1);
-                if (!empty($idsNuevos)) {
+                if (! empty($idsNuevos)) {
                     ReqProgramaTejido::whereIn('Id', $idsNuevos)->update(['EnProceso' => 0]);
                 }
             }
@@ -629,13 +757,18 @@ class DividirTejido
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
             // Reconectar para garantizar visibilidad de los registros recién commiteados.
-            try { DBFacade::reconnect(); } catch (\Throwable $ignored) {}
+            try {
+                DBFacade::reconnect();
+            } catch (\Throwable $ignored) {
+            }
 
             // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
-            if (!empty($registrosParaObserver)) {
-                $observer = new ReqProgramaTejidoObserver();
+            if (! empty($registrosParaObserver)) {
+                $observer = new ReqProgramaTejidoObserver;
                 foreach ($registrosParaObserver as $registro) {
-                    if (!$registro || !$registro->Id) continue;
+                    if (! $registro || ! $registro->Id) {
+                        continue;
+                    }
                     try {
                         $observer->saved($registro);
                     } catch (\Throwable $e) {
@@ -648,13 +781,30 @@ class DividirTejido
                 }
             }
 
+            // Re-capturar datos tras observer (las instancias en memoria ya tienen fechas recalculadas)
+            foreach ($registrosParaObserver as $registro) {
+                if ($registro && $registro->Id) {
+                    $registrosDatosParaRespuesta[(string) $registro->Id] = $registro->toArray();
+                }
+            }
+
             // Primer registro nuevo para respuesta (desde memoria; find() tras commit puede fallar en SQL Server)
             $primerNuevoCreado = count($registrosParaObserver) > 1 ? $registrosParaObserver[1] : $registrosParaObserver[0];
 
             // IDs de registros nuevos creados (excluyendo el original)
             $idsNuevosCreados = array_slice($idsParaObserver, 1);
 
-            // Usar datos capturados justo después de save(); find() tras commit puede no encontrar el registro en SQL Server
+            // Si el slice quedó vacío pero hay datos en memoria por Id, el front necesita registros_ids para no caer en navegación/recarga
+            if ($idsNuevosCreados === [] && ! empty($registrosDatosParaRespuesta)) {
+                $origId = (int) $registroOriginal->Id;
+                foreach (array_keys($registrosDatosParaRespuesta) as $kid) {
+                    $nid = (int) $kid;
+                    if ($nid > 0 && $nid !== $origId) {
+                        $idsNuevosCreados[] = $nid;
+                    }
+                }
+            }
+
             $registrosDatos = $registrosDatosParaRespuesta;
 
             return response()->json([
@@ -682,7 +832,7 @@ class DividirTejido
                 ],
                 'salon_destino' => $primerNuevoCreado?->SalonTejidoId,
                 'telar_destino' => $primerNuevoCreado?->NoTelarId,
-                'modo' => 'dividir'
+                'modo' => 'dividir',
             ]);
 
         } catch (\Throwable $e) {
@@ -695,12 +845,12 @@ class DividirTejido
                 'salon' => $salonOrigen,
                 'telar' => $telarOrigen,
                 'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al dividir el telar: ' . $e->getMessage()
+                'message' => 'Error al dividir el telar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -710,7 +860,7 @@ class DividirTejido
      */
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        $modeloParams = TejidoHelpers::obtenerModeloParams($programa, function($tamanoClave, $salonTejidoId) {
+        $modeloParams = TejidoHelpers::obtenerModeloParams($programa, function ($tamanoClave, $salonTejidoId) {
             return self::obtenerModeloCodificadoPorSalon($tamanoClave, $salonTejidoId);
         });
 
@@ -760,7 +910,7 @@ class DividirTejido
         // ⚡ MEJORA: Usar tamanoClave específico si se proporciona, sino usar el del registro
         $claveParaBuscar = $tamanoClave ?? $registro->TamanoClave;
         $modelo = self::obtenerModeloCodificadoPorSalon($claveParaBuscar, $salonDestino);
-        if (!$modelo) {
+        if (! $modelo) {
             return;
         }
 
@@ -769,26 +919,26 @@ class DividirTejido
             $registro->TamanoClave = trim((string) $tamanoClave);
         }
 
-        if (!empty($modelo->ItemId)) {
+        if (! empty($modelo->ItemId)) {
             $registro->ItemId = (string) $modelo->ItemId;
         }
-        if (!empty($modelo->InventSizeId)) {
+        if (! empty($modelo->InventSizeId)) {
             $registro->InventSizeId = (string) $modelo->InventSizeId;
         }
-        if (!empty($modelo->Nombre)) {
+        if (! empty($modelo->Nombre)) {
             $registro->NombreProducto = StringTruncator::truncate('NombreProducto', (string) $modelo->Nombre);
         }
-        if (!empty($modelo->NombreProyecto)) {
+        if (! empty($modelo->NombreProyecto)) {
             $registro->NombreProyecto = StringTruncator::truncate('NombreProyecto', (string) $modelo->NombreProyecto);
         }
-        if (!empty($modelo->FlogsId)) {
+        if (! empty($modelo->FlogsId)) {
             $registro->FlogsId = StringTruncator::truncate('FlogsId', (string) $modelo->FlogsId);
         }
 
         // Solo asignar FibraRizo del modelo si no hay un valor ya asignado (respetar el hilo del usuario)
         if (empty($registro->FibraRizo)) {
             $fibraRizo = $modelo->FibraRizo ?? $modelo->FibraId ?? null;
-            if (!empty($fibraRizo)) {
+            if (! empty($fibraRizo)) {
                 $registro->FibraRizo = (string) $fibraRizo;
             }
         }
@@ -876,6 +1026,8 @@ class DividirTejido
      */
     private static function redistribuirGrupoExistente(Request $request, $ordCompartida, $destinos, $salonDestino, $hilo = null, $dispatcher = null)
     {
+        $registroIdOriginal = $request->input('registro_id_original');
+
         try {
             // Obtener todos los registros del grupo
             $registrosExistentes = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
@@ -885,9 +1037,10 @@ class DividirTejido
             if ($registrosExistentes->isEmpty()) {
                 DBFacade::rollBack();
                 ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se encontraron registros para el grupo OrdCompartida: ' . $ordCompartida
+                    'message' => 'No se encontraron registros para el grupo OrdCompartida: '.$ordCompartida,
                 ], 404);
             }
 
@@ -914,18 +1067,26 @@ class DividirTejido
             // Mapear destinos por registro_id para actualizaciones
             $destinosPorId = [];
             $destinosNuevos = [];
+            $idsExistentes = $registrosExistentes->pluck('Id')->map(fn ($id) => (string) $id)->toArray();
 
             foreach ($destinos as $destino) {
                 $registroId = $destino['registro_id'] ?? '';
                 $esExistente = isset($destino['es_existente']) && $destino['es_existente'];
                 $esNuevo = isset($destino['es_nuevo']) && $destino['es_nuevo'];
 
-                if ($registroId && $esExistente) {
+                if ($registroId && $esExistente && in_array((string) $registroId, $idsExistentes, true)) {
                     $destinosPorId[$registroId] = $destino;
-                } elseif ($esNuevo || !$registroId) {
+                } else {
                     $destinosNuevos[] = $destino;
                 }
             }
+
+            LogFacade::info('redistribuirGrupoExistente: clasificación destinos', [
+                'total_destinos' => count($destinos),
+                'destinos_existentes' => count($destinosPorId),
+                'destinos_nuevos' => count($destinosNuevos),
+                'ids_grupo' => $idsExistentes,
+            ]);
 
             // Actualizar registros existentes
             foreach ($registrosExistentes as $registro) {
@@ -937,7 +1098,7 @@ class DividirTejido
                     $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
                     $observacionesDestino = $destino['observaciones'] ?? null;
                     $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
-                        ? (float)$destino['porcentaje_segundos']
+                        ? (float) $destino['porcentaje_segundos']
                         : null;
 
                     if ($nuevaCantidad > 0) {
@@ -969,21 +1130,21 @@ class DividirTejido
                         self::aplicarStdDesdeCatalogos($registro);
 
                         // ===== RECALCULAR FECHA FINAL desde la fecha inicio existente (sin cambiar fecha inicio) =====
-                        if (!empty($registro->FechaInicio)) {
+                        if (! empty($registro->FechaInicio)) {
                             $inicio = Carbon::parse($registro->FechaInicio);
                             $horasNecesarias = self::calcularHorasProd($registro);
 
                             if ($horasNecesarias <= 0) {
                                 $registro->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
                             } else {
-                                if (!empty($registro->CalendarioId)) {
+                                if (! empty($registro->CalendarioId)) {
                                     $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
-                                    if (!$fin) {
-                                        $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                                    if (! $fin) {
+                                        $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                                     }
                                     $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
                                 } else {
-                                    $registro->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                                    $registro->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                                 }
                             }
                         }
@@ -1009,14 +1170,22 @@ class DividirTejido
             foreach ($destinosNuevos as $destino) {
                 $telarDestino = $destino['telar'] ?? '';
                 $pedidoDestino = (float) ($destino['pedido'] ?? 0);
+                if ($pedidoDestino <= 0) {
+                    $pedidoDestino = (float) ($destino['pedido_tempo'] ?? 0);
+                }
                 $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
-                    ? (float)$destino['porcentaje_segundos']
+                    ? (float) $destino['porcentaje_segundos']
                     : null;
                 $salonDestinoItem = $destino['salon_destino'] ?? $salonDestino;
 
                 if (empty($telarDestino) || $pedidoDestino <= 0) {
+                    LogFacade::warning('redistribuirGrupoExistente: destino nuevo descartado', [
+                        'telar' => $telarDestino,
+                        'pedido' => $destino['pedido'] ?? null,
+                        'pedido_tempo' => $destino['pedido_tempo'] ?? null,
+                    ]);
                     continue;
                 }
 
@@ -1100,14 +1269,14 @@ class DividirTejido
                     $nuevo->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
                 } else {
                     // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
-                    if (!empty($nuevo->CalendarioId)) {
+                    if (! empty($nuevo->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
-                        if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                        if (! $fin) {
+                            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                         }
                         $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
                 }
 
@@ -1136,14 +1305,46 @@ class DividirTejido
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
 
+                // El trigger de SYSAuditoria hace que pdo_sqlsrv devuelva el Id de auditoría;
+                // obtener el Id real de ReqProgramaTejido (mismo fix que DuplicarTejido).
+                $idReal = ReqProgramaTejido::on($nuevo->getConnectionName())
+                    ->from(ReqProgramaTejido::tableName())
+                    ->where('SalonTejidoId', $salonDestinoItem)
+                    ->where('NoTelarId', $telarDestino)
+                    ->orderByDesc('Id')
+                    ->value('Id');
+                if ($idReal !== null) {
+                    $nuevo->Id = $idReal;
+                }
+
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosParaObserver[] = $nuevo;
                 $totalCreados++;
             }
 
+            // Generar ReqProgramaTejidoLine ANTES del commit (igual que DuplicarTejido).
+            // Dentro de la transacción, los registros recién guardados SÍ son visibles
+            // en la misma conexión — evita el lag de visibilidad de pdo_sqlsrv/ODBC post-commit.
+            if (! empty($registrosParaObserver)) {
+                $observer = new ReqProgramaTejidoObserver;
+                foreach ($registrosParaObserver as $registro) {
+                    if (! $registro || ! $registro->Id) {
+                        continue;
+                    }
+                    try {
+                        $observer->saved($registro);
+                    } catch (\Throwable $e) {
+                        LogFacade::error('redistribuirGrupoExistente: error generando líneas observer', [
+                            'programa_id' => $registro->Id,
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
             LogFacade::info('redistribuirGrupoExistente: ANTES commit', [
                 'transaction_level' => DBFacade::transactionLevel(),
-                'nuevos_ids' => array_map(fn($r) => $r->Id ?? 'sin-id', $registrosParaObserver),
+                'nuevos_ids' => array_map(fn ($r) => $r->Id ?? 'sin-id', $registrosParaObserver),
             ]);
 
             DBFacade::commit();
@@ -1158,8 +1359,7 @@ class DividirTejido
             }
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
-            // Reconectar para garantizar visibilidad de los registros recién commiteados.
-            // pdo_sqlsrv/ODBC 17 a veces no ve registros recién commiteados en la misma conexión.
+            // Reconectar para garantizar visibilidad post-commit para queries subsecuentes.
             try {
                 DBFacade::reconnect();
                 LogFacade::info('redistribuirGrupoExistente: reconnect OK');
@@ -1167,65 +1367,80 @@ class DividirTejido
                 LogFacade::warning('redistribuirGrupoExistente: reconnect FALLO', ['error' => $reconnectErr->getMessage()]);
             }
 
-            // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
-            if (!empty($registrosParaObserver)) {
-                $observer = new ReqProgramaTejidoObserver();
-                foreach ($registrosParaObserver as $registro) {
-                    if (!$registro || !$registro->Id) continue;
-                    try {
-                        $observer->saved($registro);
-                    } catch (\Throwable $e) {
-                        LogFacade::error('DividirTejido::redistribuirGrupoExistente: error generando líneas tras commit', [
-                            'programa_id' => $registro->Id,
-                            'message' => $e->getMessage(),
-                        ]);
-                    }
-                }
-            }
-
             // ===== ORDCOMPARTIDALIDER: Asignar al registro con fecha inicio más antigua =====
-            // Obtener todos los registros con este OrdCompartida (incluyendo los actualizados y nuevos)
             $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
                 ->get();
 
             if ($registrosConOrdCompartida->count() > 0) {
-                // Ordenar por FechaInicio (más antigua primero)
                 $registrosOrdenados = $registrosConOrdCompartida->sortBy(function ($registro) {
                     return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
                 });
 
-                // El primero es el líder (fecha más antigua)
                 $idLider = $registrosOrdenados->first()->Id;
 
-                // Quitar OrdCompartidaLider de todos
                 ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
                     ->update([
                         'OrdCompartidaLider' => null,
-                        'UpdatedAt' => now()
+                        'UpdatedAt' => now(),
                     ]);
 
-                // Asignar OrdCompartidaLider = 1 solo al registro con fecha más antigua
                 ReqProgramaTejido::where('Id', $idLider)
                     ->update([
                         'OrdCompartidaLider' => 1,
-                        'UpdatedAt' => now()
+                        'UpdatedAt' => now(),
                     ]);
             }
 
-            // Obtener el primer registro nuevo creado para redirigir (si hay)
-            $primerNuevoCreado = $totalCreados > 0 && !empty($idsParaObserver)
-                ? ReqProgramaTejido::find(end($idsParaObserver))
-                : $registrosExistentes->first();
+            // Usar $registrosConOrdCompartida (query fresca tras commit+reconnect) como fuente de verdad
+            $registrosDatosParaRespuesta = [];
+            $allGroupIds = [];
+            foreach ($registrosConOrdCompartida as $reg) {
+                $registrosDatosParaRespuesta[(string) $reg->Id] = $reg->toArray();
+                $allGroupIds[] = (int) $reg->Id;
+            }
+
+            // IDs para el front: todos los del grupo excepto el original (que se actualiza con registro_original)
+            $origId = $registroIdOriginal ? (int) $registroIdOriginal : null;
+            $idsNuevosCreados = array_values(array_filter($allGroupIds, fn ($nid) => $origId === null || $nid !== $origId));
+
+            // Primer registro nuevo para redirigir
+            $primerNuevoCreado = $totalCreados > 0 && ! empty($idsParaObserver)
+                ? $registrosConOrdCompartida->firstWhere('Id', end($idsParaObserver))
+                : $registrosConOrdCompartida->first();
+
+            // Datos del registro original (frescos desde BD)
+            $registroOriginalObj = $origId
+                ? $registrosConOrdCompartida->firstWhere('Id', $origId)
+                : $registrosConOrdCompartida->first();
 
             return response()->json([
                 'success' => true,
-                'message' => "Redistribuci├│n completada. Actualizados: {$totalActualizados}, Nuevos: {$totalCreados}.",
+                'message' => "Redistribución completada. Actualizados: {$totalActualizados}, Nuevos: {$totalCreados}.",
+                'registros_divididos' => $totalActualizados + $totalCreados,
                 'registros_actualizados' => $totalActualizados,
                 'registros_creados' => $totalCreados,
                 'ord_compartida' => $ordCompartida,
                 'registro_id' => $primerNuevoCreado?->Id,
+                'registros_ids' => $idsNuevosCreados,
+                'registros_datos' => $registrosDatosParaRespuesta,
+                'registro_id_original' => $registroOriginalObj?->Id,
+                'registro_original' => $registroOriginalObj ? [
+                    'TotalPedido' => $registroOriginalObj->TotalPedido,
+                    'SaldoPedido' => $registroOriginalObj->SaldoPedido,
+                    'FechaInicio' => $registroOriginalObj->FechaInicio,
+                    'FechaFinal' => $registroOriginalObj->FechaFinal,
+                    'EntregaProduc' => $registroOriginalObj->EntregaProduc,
+                    'EntregaPT' => $registroOriginalObj->EntregaPT,
+                    'EntregaCte' => $registroOriginalObj->EntregaCte,
+                    'ProgramarProd' => $registroOriginalObj->ProgramarProd,
+                    'HorasProd' => $registroOriginalObj->HorasProd ?? null,
+                    'DiasJornada' => $registroOriginalObj->DiasJornada ?? null,
+                    'StdDia' => $registroOriginalObj->StdDia ?? null,
+                    'ProdKgDia' => $registroOriginalObj->ProdKgDia ?? null,
+                ] : null,
                 'salon_destino' => $primerNuevoCreado?->SalonTejidoId,
-                'telar_destino' => $primerNuevoCreado?->NoTelarId
+                'telar_destino' => $primerNuevoCreado?->NoTelarId,
+                'modo' => 'dividir',
             ]);
 
         } catch (\Throwable $e) {
@@ -1237,12 +1452,12 @@ class DividirTejido
             LogFacade::error('redistribuirGrupoExistente error', [
                 'ord_compartida' => $ordCompartida,
                 'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al redistribuir el grupo: ' . $e->getMessage()
+                'message' => 'Error al redistribuir el grupo: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1288,7 +1503,7 @@ class DividirTejido
         $request->validate([
             'pedido' => 'required|numeric|min:0',
             'porcentaje_segundos' => 'nullable|numeric|min:0',
-            'produccion' => 'nullable|numeric|min:0'
+            'produccion' => 'nullable|numeric|min:0',
         ]);
 
         $pedido = (float) $request->input('pedido', 0);
@@ -1307,7 +1522,7 @@ class DividirTejido
             'saldo_total' => round($saldoTotal, 2),
             'pedido' => round($pedido, 2),
             'porcentaje_segundos' => round($porcentajeSegundos, 2),
-            'produccion' => round($produccion, 2)
+            'produccion' => round($produccion, 2),
         ]);
     }
 }

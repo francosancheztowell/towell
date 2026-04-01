@@ -701,6 +701,7 @@
           hide();
           if (row) {
             const id = row.getAttribute('data-id');
+            console.log('[PT eliminar] row.data-id=' + id + ' menuRow=' + (menuRow ? menuRow.getAttribute('data-id') : 'null') + ' selectedRowIndex=' + window.selectedRowIndex);
             if (id && typeof window.eliminarRegistro === 'function') {
               window.eliminarRegistro(id);
             } else {
@@ -1588,19 +1589,7 @@
     };
 
     PT.actions.eliminarRegistro = function eliminarRegistro(id) {
-      const doDelete = () => {
-        PT.loader.show();
-        fetch(`/planeacion/programa-tejido/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
-          }
-        })
-        .then(r => r.json())
-        .then(data => {
-          PT.loader.hide();
-          if (data.success) {
+      const applyDeleteSuccessDom = () => {
             // Buscar la fila por su data-id
             const tb = tbodyEl();
             const rowToDelete = tb ? tb.querySelector(`tr.selectable-row[data-id="${id}"]`) : null;
@@ -1765,15 +1754,52 @@
                 refreshAllRows();
               }
             }
-          } else {
-            toast(data.message || 'No se pudo eliminar el registro', 'error');
+      };
+
+      const performDeleteFetch = () => fetch(`/planeacion/programa-tejido/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+        }
+      }).then(r => r.json().catch(() => ({})));
+
+      const handleDeleteFailure = (data) => {
+        if (data && data.codigo === 'registro_no_encontrado') {
+          const ghost = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
+          if (ghost) {
+            ghost.remove();
+            window.PTStore?.remove(String(id));
           }
-        })
-        .catch(() => { PT.loader.hide(); toast('Ocurrió un error al procesar la solicitud', 'error'); });
+          if (typeof refreshAllRows === 'function') refreshAllRows();
+        }
+        toast(data?.message || 'No se pudo eliminar el registro', data?.codigo === 'registro_no_encontrado' ? 'warning' : 'error');
+      };
+
+      const doDeleteWithGlobalLoader = () => {
+        const rowCheck = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
+        if (!rowCheck) {
+          console.warn('[PT eliminar] ADVERTENCIA: la fila con data-id=' + id + ' no existe en DOM. Esto puede indicar un ID incorrecto.');
+        }
+        console.log('[PT eliminar] Enviando DELETE id=' + id + ' tipo=' + typeof id);
+        PT.loader.show();
+        performDeleteFetch()
+          .then(data => {
+            PT.loader.hide();
+            if (!data.success) {
+              handleDeleteFailure(data);
+              return;
+            }
+            applyDeleteSuccessDom();
+          })
+          .catch(() => {
+            PT.loader.hide();
+            toast('Ocurrió un error al procesar la solicitud', 'error');
+          });
       };
 
       if (typeof Swal === 'undefined') {
-        if (confirm('¿Eliminar registro? Esta acción no se puede deshacer.')) doDelete();
+        if (confirm('¿Eliminar registro? Esta acción no se puede deshacer.')) doDeleteWithGlobalLoader();
         return;
       }
 
@@ -1785,7 +1811,46 @@
         cancelButtonText: 'Cancelar',
         confirmButtonColor: '#dc2626',
         cancelButtonColor: '#6b7280',
-      }).then(r => { if (r.isConfirmed) doDelete(); });
+        showLoaderOnConfirm: true,
+        allowOutsideClick: () => !Swal.isLoading(),
+        preConfirm: async () => {
+          if (typeof Swal.resetValidationMessage === 'function') Swal.resetValidationMessage();
+          const rowCheck = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
+          if (!rowCheck) {
+            console.warn('[PT eliminar] ADVERTENCIA: la fila con data-id=' + id + ' no existe en DOM. Esto puede indicar un ID incorrecto.');
+          }
+          try {
+            const data = await performDeleteFetch();
+            if (!data.success) {
+              if (data.codigo === 'registro_no_encontrado') {
+                const ghost = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
+                if (ghost) {
+                  ghost.remove();
+                  window.PTStore?.remove(String(id));
+                }
+                if (typeof refreshAllRows === 'function') refreshAllRows();
+                // Cerrar el modal sin mensaje de error: ya no existe (p. ej. doble DELETE o otra pestaña).
+                return { ok: true, alreadyGone: true };
+              }
+              Swal.showValidationMessage(data.message || 'No se pudo eliminar el registro');
+              return false;
+            }
+            return { ok: true };
+          } catch (e) {
+            Swal.showValidationMessage('Ocurrió un error de conexión.');
+            return false;
+          }
+        }
+      }).then(result => {
+        if (!result.isConfirmed || !result.value || !result.value.ok) return;
+        if (result.value.alreadyGone) {
+          if (typeof refreshAllRows === 'function') refreshAllRows();
+          if (typeof window.updateTotales === 'function') window.updateTotales();
+          toast('El registro ya no existía en el programa. La vista se sincronizó.', 'info');
+          return;
+        }
+        applyDeleteSuccessDom();
+      });
     };
 
     window.descargarPrograma = PT.actions.descargarPrograma;
@@ -1796,42 +1861,41 @@
     // Eliminar en proceso
     // =========================
     window.eliminarEnProcesoRegistro = async function eliminarEnProcesoRegistro(id) {
-      const doDelete = async () => {
+      const applyEnProcesoSuccess = async (data) => {
+        const tb = tbodyEl();
+        const rowToDelete = tb ? tb.querySelector(`tr.selectable-row[data-id="${id}"]`) : null;
+        if (rowToDelete) {
+          rowToDelete.remove();
+          window.PTStore?.remove(String(id));
+          window.selectedRowIndex = null;
+        }
+        if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
+          await actualizarRegistrosVinculados(data.registros_ids, null);
+        }
+        if (typeof refreshAllRows === 'function') refreshAllRows();
+        if (typeof window.updateTotales === 'function') window.updateTotales();
+        toast(data.message || 'Registro en proceso eliminado y telar recalculado', 'success');
+      };
+
+      const performEnProcesoFetch = () =>
+        fetch(`/planeacion/programa-tejido/${id}/en-proceso`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+          }
+        }).then(r => r.json().catch(() => ({})));
+
+      const doDeleteWithGlobalLoader = async () => {
         PT.loader.show();
         try {
-          const response = await fetch(`/planeacion/programa-tejido/${id}/en-proceso`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
-            }
-          });
-
-          const data = await response.json();
+          const data = await performEnProcesoFetch();
           PT.loader.hide();
-
-          if (data.success) {
-            // Eliminar la fila del DOM
-            const tb = tbodyEl();
-            const rowToDelete = tb ? tb.querySelector(`tr.selectable-row[data-id="${id}"]`) : null;
-            if (rowToDelete) {
-              rowToDelete.remove();
-              window.PTStore?.remove(String(id));
-              window.selectedRowIndex = null;
-            }
-
-            // Actualizar los registros restantes del telar (fechas, EnProceso, Ultimo, etc.)
-            if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
-              await actualizarRegistrosVinculados(data.registros_ids, null);
-            }
-
-            if (typeof refreshAllRows === 'function') refreshAllRows();
-            if (typeof window.updateTotales === 'function') window.updateTotales();
-
-            toast(data.message || 'Registro en proceso eliminado y telar recalculado', 'success');
-          } else {
+          if (!data.success) {
             toast(data.message || 'No se pudo eliminar el registro en proceso', 'error');
+            return;
           }
+          await applyEnProcesoSuccess(data);
         } catch (err) {
           PT.loader.hide();
           toast('Ocurrió un error al procesar la solicitud', 'error');
@@ -1840,7 +1904,7 @@
 
       if (typeof Swal === 'undefined') {
         if (confirm('¿Eliminar el registro en proceso? El siguiente registro pasará a ser el activo y el telar será recalculado. Esta acción no se puede deshacer.')) {
-          doDelete();
+          doDeleteWithGlobalLoader();
         }
         return;
       }
@@ -1854,7 +1918,41 @@
         cancelButtonText: 'Cancelar',
         confirmButtonColor: '#dc2626',
         cancelButtonColor: '#6b7280',
-      }).then(r => { if (r.isConfirmed) doDelete(); });
+        showLoaderOnConfirm: true,
+        allowOutsideClick: () => !Swal.isLoading(),
+        preConfirm: async () => {
+          if (typeof Swal.resetValidationMessage === 'function') Swal.resetValidationMessage();
+          try {
+            const data = await performEnProcesoFetch();
+            if (!data.success) {
+              if (data.codigo === 'registro_no_encontrado') {
+                const ghost = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
+                if (ghost) {
+                  ghost.remove();
+                  window.PTStore?.remove(String(id));
+                }
+                if (typeof refreshAllRows === 'function') refreshAllRows();
+                return { ok: true, alreadyGone: true };
+              }
+              Swal.showValidationMessage(data.message || 'No se pudo eliminar el registro en proceso');
+              return false;
+            }
+            return { ok: true, payload: data };
+          } catch (e) {
+            Swal.showValidationMessage('Ocurrió un error de conexión.');
+            return false;
+          }
+        }
+      }).then(async (r) => {
+        if (!r.isConfirmed || !r.value || !r.value.ok) return;
+        if (r.value.alreadyGone) {
+          if (typeof refreshAllRows === 'function') refreshAllRows();
+          if (typeof window.updateTotales === 'function') window.updateTotales();
+          toast('El registro ya no existía en el programa. La vista se sincronizó.', 'info');
+          return;
+        }
+        await applyEnProcesoSuccess(r.value.payload);
+      });
     };
 
     // =========================
@@ -1868,6 +1966,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Accept': 'application/json',
               'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
             }
           });
@@ -2757,9 +2856,49 @@
           cancelButtonText: 'Cancelar',
           confirmButtonColor: '#6366f1',
           cancelButtonColor: '#6b7280',
+          showLoaderOnConfirm: true,
+          allowOutsideClick: () => !Swal.isLoading(),
+          preConfirm: async () => {
+            if (typeof Swal.resetValidationMessage === 'function') Swal.resetValidationMessage();
+            const registrosIdsOrdenados = window.selectedRowsOrder.filter(iid => selectedIds.includes(iid));
+            const idsParaEnviar = registrosIdsOrdenados.length > 0 ? registrosIdsOrdenados : selectedIds;
+            try {
+              const r = await fetch('{{ route("programa-tejido.vincular-registros-existentes") }}', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ registros_ids: idsParaEnviar })
+              });
+              const data = await r.json().catch(() => ({}));
+              if (!data.success) {
+                Swal.showValidationMessage(data.message || 'Error al vincular los registros');
+                return false;
+              }
+              return { data, idsParaEnviar };
+            } catch (e) {
+              Swal.showValidationMessage('Error al procesar la solicitud.');
+              return false;
+            }
+          }
         }).then((result) => {
-          if (result.isConfirmed) {
-            doVincular(selectedIds);
+          if (!result.isConfirmed || !result.value) return;
+          const { data, idsParaEnviar } = result.value;
+          actualizarRegistrosVinculados(data.registros_ids || idsParaEnviar, data.ord_compartida);
+          toast(data.message || 'Registros vinculados correctamente', 'success');
+          window.selectedRowsIds.clear();
+          window.selectedRowsOrder = [];
+          window.multiSelectMode = false;
+          updateSelectedRowsVisual();
+          updateVincularButtonState();
+          const btn = qs('#btnVincularExistentes');
+          if (btn) {
+            btn.classList.remove('bg-blue-500','text-white','hover:bg-blue-600','ring-2', 'ring-blue-300', 'bg-blue-300', 'cursor-not-allowed');
+            btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            btn.disabled = false;
+            btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
           }
         });
       }
@@ -2811,10 +2950,11 @@
         return String(value);
       };
 
-      // Actualizar cada registro
-      for (const registroId of registrosIds) {
+      const idsUnicos = Array.from(new Set(registrosIds || [])).filter(Boolean);
+      if (idsUnicos.length === 0) return;
+
+      const fetchDetalle = async (registroId) => {
         try {
-          // Obtener datos actualizados del registro
           const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
             headers: {
               'Accept': 'application/json',
@@ -2822,49 +2962,46 @@
               'Cache-Control': 'no-cache'
             }
           });
-
-          if (!response.ok) continue;
-
+          if (!response.ok) return null;
           const result = await response.json();
-          if (!result.success || !result.registro) continue;
-
-          const registro = result.registro;
-
-          // Buscar la fila existente
-          const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
-          if (!fila) continue;
-
-          // Actualizar data attribute de OrdCompartida
-          if (registro.OrdCompartida) {
-            fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
-          } else {
-            // Si OrdCompartida es null, eliminar el atributo
-            fila.removeAttribute('data-ord-compartida');
-          }
-
-          // Actualizar celdas relevantes
-          columns.forEach(col => {
-            const field = col.field;
-            const value = registro[field] !== undefined ? registro[field] : null;
-            const celda = fila.querySelector(`td[data-column="${field}"]`);
-
-            if (celda) {
-              // Actualizar data-value
-              celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
-
-              // Actualizar contenido HTML formateado
-              const contenidoHTML = formatearValor(registro, field, value);
-              celda.innerHTML = contenidoHTML;
-            }
-          });
-
-          window.PTStore?.set(String(registroId), registro);
-
-          // Pequeño delay para no saturar
-          await new Promise(resolve => setTimeout(resolve, 50));
+          if (!result.success || !result.registro) return null;
+          return { registroId, registro: result.registro };
         } catch (error) {
           console.warn(`Error al actualizar registro ${registroId}:`, error);
+          return null;
         }
+      };
+
+      const concurrenciaDetalleBalanceo = 12;
+      const resultados = [];
+      for (let i = 0; i < idsUnicos.length; i += concurrenciaDetalleBalanceo) {
+        const chunk = idsUnicos.slice(i, i + concurrenciaDetalleBalanceo);
+        const part = await Promise.all(chunk.map((id) => fetchDetalle(id)));
+        resultados.push(...part);
+      }
+
+      for (const item of resultados) {
+        if (!item) continue;
+        const { registroId, registro } = item;
+        const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
+        if (!fila) continue;
+
+        if (registro.OrdCompartida) {
+          fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
+        } else {
+          fila.removeAttribute('data-ord-compartida');
+        }
+
+        columns.forEach(col => {
+          const field = col.field;
+          const value = registro[field] !== undefined ? registro[field] : null;
+          const celda = fila.querySelector(`td[data-column="${field}"]`);
+          if (!celda) return;
+          celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
+          celda.innerHTML = formatearValor(registro, field, value);
+        });
+
+        window.PTStore?.set(String(registroId), registro);
       }
     }
 
@@ -2879,6 +3016,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
         },
         body: JSON.stringify({ registros_ids: idsParaEnviar })

@@ -6,6 +6,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -105,6 +106,16 @@ class EliminarTejido
 
             return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
 
+        } catch (ModelNotFoundException) {
+            DB::rollBack();
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            Log::warning('destroy registro no encontrado', ['id' => $id, 'table' => ReqProgramaTejido::tableName()]);
+
+            return response()->json([
+                'success' => false,
+                'codigo' => 'registro_no_encontrado',
+                'message' => 'El registro ya no existe en el programa. Actualice la vista e intente de nuevo.',
+            ], 404);
         } catch (\Throwable $e) {
             DB::rollBack();
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
@@ -202,6 +213,16 @@ class EliminarTejido
                 'registros_ids'    => array_column($detalles, 'Id'),
             ]);
 
+        } catch (ModelNotFoundException) {
+            DB::rollBack();
+            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            Log::warning('eliminarEnProceso registro no encontrado', ['id' => $id, 'table' => ReqProgramaTejido::tableName()]);
+
+            return response()->json([
+                'success' => false,
+                'codigo' => 'registro_no_encontrado',
+                'message' => 'El registro ya no existe en el programa. Actualice la vista e intente de nuevo.',
+            ], 404);
         } catch (\Throwable $e) {
             DB::rollBack();
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
