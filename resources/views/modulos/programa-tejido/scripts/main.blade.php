@@ -1621,6 +1621,7 @@
               // Eliminar la fila del DOM
               rowToDelete.remove();
               window.PTStore?.remove(String(id));
+              window.PT?.filterIndex?.removeRow(id);
 
               // Si el registro eliminado tenía Ultimo=1, buscar el último registro del mismo telar y actualizarlo
               if (tieneUltimo && salonId && telarId) {
@@ -1867,6 +1868,7 @@
         if (rowToDelete) {
           rowToDelete.remove();
           window.PTStore?.remove(String(id));
+          window.PT?.filterIndex?.removeRow(id);
           window.selectedRowIndex = null;
         }
         if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
@@ -3002,6 +3004,7 @@
         });
 
         window.PTStore?.set(String(registroId), registro);
+        window.PT?.filterIndex?.updateRow(fila);
       }
     }
 
@@ -3858,9 +3861,11 @@
       window.PT_FILTER_INDEX?.delete(String(rowId));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => { buildPTFilterIndex(); });
+    } else {
       buildPTFilterIndex();
-    });
+    }
 
     // Exponer para invalidación desde inline-edit y operaciones
     window.PT = window.PT || {};
