@@ -49,6 +49,7 @@ class ReqProgramaTejidoObserver
             return true;
         }
         foreach (self::CAMPOS_RELEVANTES as $campo) {
+            // wasChanged() aplica post-save (producción); isDirty() permite tests sin ciclo save()
             if ($programa->wasChanged($campo) || $programa->isDirty($campo)) {
                 return true;
             }
