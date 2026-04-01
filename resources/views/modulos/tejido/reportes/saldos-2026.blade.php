@@ -910,6 +910,27 @@ tr.saldos-row-grupo:hover td { background-color: #dcfce7 !important; }
         return '';
     }
 
+    function getGrupoBloque(rowLider) {
+        // rowLider es un <tr> que es líder de grupo (data-lider="1", data-es-grupo="1")
+        // Retorna array con el líder + todos los no-líders adyacentes de la misma grupo
+        var bloque = [];
+        var allRows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
+        var liderIdx = allRows.indexOf(rowLider);
+        if (liderIdx === -1) return [rowLider];
+
+        // Recopilar no-líders después del líder
+        for (var i = liderIdx + 1; i < allRows.length; i++) {
+            var r = allRows[i];
+            if (r.dataset.esGrupo !== '1') break; // fin del grupo
+            if (r.dataset.lider === '1') break;   // otro líder = fin del grupo
+            bloque.push(r);
+        }
+
+        // Devolver [lider] + [no-líders]
+        bloque.unshift(rowLider);
+        return bloque;
+    }
+
     function escapeHtml(str) {
         return String(str)
             .replace(/&/g, '&amp;')
@@ -1080,16 +1101,16 @@ tr.saldos-row-grupo:hover td { background-color: #dcfce7 !important; }
     function applyFilters() {
         var rows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
         var shown = 0;
+
+        // Primera pasada: evaluar cada fila individualmente
         rows.forEach(function(row) {
             var show = !globalQ || (row.dataset.search || '').includes(globalQ);
-
             if (show) {
                 for (var idx in colFilters) {
                     var v = colFilters[idx];
                     if (v && !getCellText(row, parseInt(idx)).includes(v)) { show = false; break; }
                 }
             }
-
             if (show && Object.keys(columnFilters).length > 0) {
                 for (var colIdx in columnFilters) {
                     var allowed = columnFilters[colIdx];
@@ -1099,10 +1120,22 @@ tr.saldos-row-grupo:hover td { background-color: #dcfce7 !important; }
                     if (!allowed.includes(key)) { show = false; break; }
                 }
             }
-
-            row.classList.toggle('saldos-hidden', !show);
-            if (show) shown++;
+            row._miShow = show;
         });
+
+        // Segunda pasada: si cualquier row de un grupo está visible, mostrar todos
+        rows.forEach(function(row) {
+            if (row.dataset.esGrupo !== '1') return;
+            var grupoRows = getGrupoBloque(row);
+            var algunaVisible = grupoRows.some(function(r) { return r._miShow; });
+            grupoRows.forEach(function(r) { r._miShow = algunaVisible; });
+        });
+
+        rows.forEach(function(row) {
+            row.classList.toggle('saldos-hidden', !row._miShow);
+            if (row._miShow) shown++;
+        });
+
         if (counter) counter.textContent = shown;
         if (visibleEl) visibleEl.textContent = shown;
 
@@ -1119,20 +1152,43 @@ tr.saldos-row-grupo:hover td { background-color: #dcfce7 !important; }
     ═══════════════════════════════════════════════════════════ */
     function sortByCol(colIdx, dir) {
         if (!tbody || colIdx === null) return;
-        var rows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
-        rows.sort(function(a, b) {
-            var ta = getCellText(a, colIdx);
-            var tb = getCellText(b, colIdx);
-            var na = parseFloat(ta.replace(/,/g,'')), nb = parseFloat(tb.replace(/,/g,''));
-            var cmp = (!isNaN(na) && !isNaN(nb)) ? (na - nb) : ta.localeCompare(tb, 'es', {sensitivity:'base'});
+
+        // Extraer bloques [líder + no-líders adyacentes]
+        var bloques = [];
+        var bloqueActual = [];
+        var allRows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
+
+        allRows.forEach(function(row) {
+            if (row.dataset.esGrupo === '1' && row.dataset.lider !== '1') {
+                // No-líder: agregar al bloque actual
+                bloqueActual.push(row);
+            } else {
+                // Líder o no-grupo: cerrar bloque anterior
+                if (bloqueActual.length > 0) bloques.push(bloqueActual);
+                bloqueActual = [row];
+            }
+        });
+        if (bloqueActual.length > 0) bloques.push(bloqueActual);
+
+        // Ordenar bloques por el valor del líder (índice 0 del bloque)
+        bloques.sort(function(a, b) {
+            var ta = getCellText(a[0], colIdx);
+            var tb = getCellText(b[0], colIdx);
+            var na = parseFloat(ta.replace(/,/g, '')), nb = parseFloat(tb.replace(/,/g, ''));
+            var cmp = (!isNaN(na) && !isNaN(nb)) ? (na - nb) : ta.localeCompare(tb, 'es', { sensitivity: 'base' });
             return dir === 'asc' ? cmp : -cmp;
         });
-        rows.forEach(function(r){ tbody.appendChild(r); });
+
+        // Reconstruir tbody: vaciar y re-agregar bloques en orden
+        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+        bloques.forEach(function(bloque) {
+            bloque.forEach(function(row) { tbody.appendChild(row); });
+        });
 
         // Update sort indicator on header
-        table.querySelectorAll('[data-sort-dir]').forEach(function(el){ el.removeAttribute('data-sort-dir'); });
+        table.querySelectorAll('[data-sort-dir]').forEach(function(el) { el.removeAttribute('data-sort-dir'); });
         var hdrCells = colCells[colIdx] || [];
-        var hdrCell  = hdrCells.find(function(c){ return c.closest('thead') && c.tagName === 'TH'; });
+        var hdrCell = hdrCells.find(function(c) { return c.closest('thead') && c.tagName === 'TH'; });
         if (hdrCell) hdrCell.setAttribute('data-sort-dir', dir);
     }
 
