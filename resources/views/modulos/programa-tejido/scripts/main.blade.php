@@ -124,6 +124,11 @@
     // =========================
     PT.rowCache = PT.rowCache || new WeakMap();
 
+    /**
+     * Obtiene metadatos de una fila de la tabla (con cache).
+     * @param {HTMLTableRowElement} row - Fila de la tabla
+     * @returns {Object} Objeto con telar, salon, cambioHilo (string), enProceso (boolean), posicion (number|null)
+     */
     function rowMeta(row) {
       if (!row) return { telar:'', salon:'', cambioHilo:'', enProceso:false };
       if (PT.rowCache.has(row)) return PT.rowCache.get(row);
@@ -159,6 +164,10 @@
     // =========================
     // Orden actual de filas
     // =========================
+    /**
+     * Refresca el cache de filas y retorna array de todas las filas seleccionables.
+     * @returns {HTMLTableRowElement[]}
+     */
     function refreshAllRows() {
       const tb = tbodyEl();
       if (!tb) return [];
@@ -181,17 +190,32 @@
     const DD_DATE_TIME_COLS = new Set(['FechaInicio','FechaFinal','EntregaCte']);
     const DD_DATE_ONLY_COLS = new Set(['EntregaProduc','EntregaPT','ProgramarProd','Programado']);
 
+    /**
+     * Formatea un valor como fecha y hora (dd/mm/yyyy HH:mm).
+     * @param {string|null} raw - Valor crudo de la celda
+     * @returns {string}
+     */
     function ddFormatDateTime(raw) {
       if (typeof formatDateTimeDisplay === 'function') return formatDateTimeDisplay(raw);
       return raw ? String(raw) : '';
     }
 
+    /**
+     * Formatea un valor como fecha sola (dd/mm/yyyy).
+     * @param {string|null} raw - Valor crudo de la celda
+     * @returns {string}
+     */
     function ddFormatDateOnly(raw) {
       if (typeof formatDateOnlyDisplay === 'function') return formatDateOnlyDisplay(raw);
       if (typeof formatDateDisplay === 'function') return formatDateDisplay(raw);
       return raw ? String(raw) : '';
     }
 
+    /**
+     * Formatea un valor numérico con 2 decimales (locale es-MX).
+     * @param {string|number|null} raw - Valor crudo de la celda
+     * @returns {string}
+     */
     function ddFormatNumber(raw) {
       if (typeof formatNumber2 === 'function') return formatNumber2(raw);
       const n = Number(raw);
@@ -273,6 +297,10 @@
       });
     }
 
+    /**
+     * Reordena las filas del tbody por salón y luego por número de telar.
+     * Se invoca después de drag-and-drop o cambios de posición.
+     */
     function ddReorderRows() {
       const tb = tbodyEl();
       if (!tb) return;
@@ -908,6 +936,11 @@
     // =========================
     // Función para abrir modal de filtro
     // =========================
+    /**
+     * Abre el modal de filtro para una columna dada.
+     * @param {number} columnIndex - Índice de la columna en el DOM
+     * @param {string} columnField - Campo de datos de la columna (data-column)
+     */
     function openFilterModal(columnIndex, columnField) {
       // Validar parámetros
       if (columnIndex === null || columnIndex === undefined || columnIndex < 0) {
@@ -1114,6 +1147,11 @@
     }
 
     // Función auxiliar para aplicar filtro manualmente
+    /**
+     * Aplica o remueve un filtro de columna con los valores seleccionados.
+     * @param {string} columnField - Campo de datos de la columna (data-column)
+     * @param {string[]} selectedValues - Valores a filtrar; array vacío remueve el filtro
+     */
     function applyColumnFilterManual(columnField, selectedValues) {
       if (!Array.isArray(selectedValues) || selectedValues.length === 0) {
         // Remover filtro
