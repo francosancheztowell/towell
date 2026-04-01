@@ -6,7 +6,8 @@
       "Bash(php -r \":*)",
       "Bash(php artisan:*)",
       "Bash(./vendor/bin/pest tests/Feature/ProgramaTejidoColumnPresetTest.php --stop-on-failure)",
-      "Bash(./vendor/bin/phpunit tests/Feature/ProgramaTejidoColumnPresetTest.php --stop-on-failure)"
+      "Bash(./vendor/bin/phpunit tests/Feature/ProgramaTejidoColumnPresetTest.php --stop-on-failure)",
+      "Bash(./vendor/bin/phpunit --stop-on-failure)"
     ]
   }
 }

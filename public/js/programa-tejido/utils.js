@@ -298,5 +298,54 @@ window.ProgramaTejidoUtils = {
                 if (clase) elemento.classList.remove(clase);
             });
         }
+    },
+
+    // =====================================================
+    // Funciones de tablaProgramaTejido extraídas de Blade
+    // =====================================================
+
+    /**
+     * Obtiene metadatos de una fila de la tabla.
+     * @param {HTMLElement} row - Fila TR
+     * @returns {Object} Objeto con id, posicion, noTelarId, etc.
+     */
+    rowMeta(row) {
+        if (!row) return null;
+        return {
+            id: row.dataset.id || row.getAttribute('data-id'),
+            posicion: row.dataset.posicion || row.getAttribute('data-posicion'),
+            noTelarId: row.dataset.noTelarId || row.getAttribute('data-no-telar-id'),
+            ordCompartida: row.dataset.ordCompartida || row.getAttribute('data-ord-compartida'),
+        };
+    },
+
+    /**
+     * Normaliza el valor de un telar para comparación.
+     * @param {string} value - Valor del telar
+     * @returns {string} Valor normalizado
+     */
+    normalizeTelarValue(value) {
+        if (value == null) return '';
+        return String(value).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    },
+
+    /**
+     * Compara dos telares para ver si son iguales.
+     * @param {string} a - Primer valor
+     * @param {string} b - Segundo valor
+     * @returns {boolean}
+     */
+    isSameTelar(a, b) {
+        return this.normalizeTelarValue(a) === this.normalizeTelarValue(b);
+    },
+
+    /**
+     * Escapa un valor para uso en selectores CSS.
+     * @param {string} value - Valor a escapar
+     * @returns {string} Valor escapado
+     */
+    escapeCSSValue(value) {
+        if (value == null) return '';
+        return String(value).replace(/["'\\]/g, '\\$&');
     }
 };

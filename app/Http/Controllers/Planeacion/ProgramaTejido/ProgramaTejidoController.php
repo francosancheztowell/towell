@@ -214,12 +214,13 @@ class ProgramaTejidoController extends Controller
                     ->whereIn('NoTelarId', $telaresUnicos)
                     ->where('Ultimo', '1')
                     ->update(['Ultimo' => 0]);
+
+                // Bulk update: marcar CambioHilo=1 donde el hilo cambió
+                UtilityHelpers::marcarCambioHiloBulk($salon, $telaresUnicos, $hilo);
             }
 
             foreach ($telaresData as $fila) {
                 $noTelarId = $fila['no_telar_id'];
-
-                UtilityHelpers::marcarCambioHiloAnterior($salon, $noTelarId, $hilo);
 
                 $nuevo = new ReqProgramaTejido();
                 $nuevo->EnProceso      = 0;

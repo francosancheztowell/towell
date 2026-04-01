@@ -178,6 +178,9 @@
     function clearRowCache() { PT.rowCache = new WeakMap(); }
 
     function normalizeTelarValue(value) {
+      if (window.ProgramaTejidoUtils?.normalizeTelarValue) {
+        return window.ProgramaTejidoUtils.normalizeTelarValue(value);
+      }
       const str = String(value ?? '').trim();
       if (!str) return '';
       const num = Number(str);

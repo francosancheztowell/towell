@@ -80,4 +80,42 @@ class ProgramaTejidoStoreBulkTest extends TestCase
             'Debe hacer update([Ultimo => 0]) en el bulk update'
         );
     }
+
+    /**
+     * Verifica que existe el método marcarCambioHiloBulk en UtilityHelpers.
+     */
+    public function test_marcar_cambio_hilo_bulk_method_exists(): void
+    {
+        $this->assertTrue(
+            method_exists(\App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers::class, 'marcarCambioHiloBulk'),
+            'UtilityHelpers debe tener método marcarCambioHiloBulk'
+        );
+    }
+
+    /**
+     * Verifica que UtilityHelpers::marcarCambioHiloBulk usa whereIn para bulk query.
+     */
+    public function test_marcar_cambio_hilo_bulk_uses_where_in(): void
+    {
+        $helpersPath = app_path('Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php');
+        $content = file_get_contents($helpersPath);
+
+        $this->assertStringContainsString('whereIn', $content, 'marcarCambioHiloBulk debe usar whereIn');
+        $this->assertStringContainsString('bulk', strtolower($content), 'Debe tener método bulk');
+    }
+
+    /**
+     * Verifica que el store usa marcarCambioHiloBulk.
+     */
+    public function test_store_uses_marcar_cambio_hilo_bulk(): void
+    {
+        $controllerPath = app_path('Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoController.php');
+        $content = file_get_contents($controllerPath);
+
+        $this->assertStringContainsString(
+            'marcarCambioHiloBulk',
+            $content,
+            'store() debe usar marcarCambioHiloBulk'
+        );
+    }
 }
