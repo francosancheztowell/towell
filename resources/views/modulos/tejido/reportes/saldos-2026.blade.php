@@ -134,9 +134,9 @@
                                     @endif
                                 </td>
                                 <td class="saldos-td text-center font-mono text-gray-700">{{ $r->OrdCompartida ?? '—' }}</td>
-                                <td class="saldos-td text-center font-mono {{ $r->OrdCompartidaLider ? 'font-semibold text-amber-700' : 'text-gray-600' }}">
-                                    {{ $r->OrdenLider ?? ($r->NoProduccion ?? '—') }}
-                                    @if ($r->OrdCompartidaLider)
+                                <td class="saldos-td text-center font-mono {{ $esLider ? 'font-semibold text-amber-700' : 'text-gray-600' }}">
+                                    {{ $r->_ordenLider ?? $r->OrdenLider ?? ($r->NoProduccion ?? '—') }}
+                                    @if ($esLider && $esGrupoVinculado)
                                         <span title="Es líder" style="margin-left:3px;">&#9733;</span>
                                     @endif
                                 </td>
