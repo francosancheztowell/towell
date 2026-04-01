@@ -154,28 +154,29 @@ function applyProgramaTejidoFilters() {
     let visibleRows = 0;
 
     rows.forEach(row => {
-        // AND: debe cumplir TODOS los filtros rápidos seleccionados
+        const rowId = row.dataset.id;
+        const rowData = window.PT_FILTER_INDEX?.get(rowId) ?? null;
+
+        // Quick filters siguen usando DOM (necesitan estado de checkboxes, etc.)
         const matchesQuick = !hasQuickFilters || activeQuickChecks.every(check => check(row));
 
-        // Verificar filtros personalizados con lógica OR por columna, AND entre columnas
+        // Filtros custom usan índice en memoria si disponible, fallback al DOM
         let matchesCustom = true;
         if (hasCustomFilters) {
-            // Para cada columna con filtros, al menos uno debe coincidir (OR)
-            // Todas las columnas deben tener al menos una coincidencia (AND entre columnas)
             matchesCustom = Object.entries(filtersByColumn).every(([column, columnFilters]) => {
-                const cell = row.querySelector(`[data-column="${column}"]`);
-                if (!cell) return false;
-                // ⚡ FIX: Normalizar el valor de la celda correctamente, sin procesar espacios como barras invertidas
-                const rawValue = cell.dataset.value || cell.textContent || '';
-                const cellValue = String(rawValue).trim().toLowerCase();
-
-                // OR: al menos un filtro de esta columna debe coincidir
+                let cellValue;
+                if (rowData) {
+                    cellValue = String(rowData[column] ?? '').toLowerCase().trim();
+                } else {
+                    const cell = row.querySelector(`[data-column="${column}"]`);
+                    if (!cell) return false;
+                    cellValue = String(cell.dataset.value || cell.textContent || '').trim().toLowerCase();
+                }
                 return columnFilters.some(filter => checkFilterMatch(cellValue, filter));
             });
         }
 
         const matchesDates = !hasDateFilters || checkDateFilters(row);
-
         const shouldShow = matchesQuick && matchesCustom && matchesDates;
         if (shouldShow) {
             row.style.display = '';

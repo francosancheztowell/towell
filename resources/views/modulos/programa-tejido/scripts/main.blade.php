@@ -3820,5 +3820,55 @@
       }
     });
 
+    // ===== ÍNDICE EN MEMORIA PARA FILTROS =====
+    // Construye Map<rowId, {columna: valor}> desde el DOM una sola vez.
+    // Evita querySelector repetidos en applyProgramaTejidoFilters() — O(1) vs O(n*cols).
+    function buildPTFilterIndex() {
+      const tb = tbodyEl();
+      if (!tb) { window.PT_FILTER_INDEX = new Map(); return; }
+      const index = new Map();
+      tb.querySelectorAll('.selectable-row').forEach(row => {
+        const id = row.dataset.id;
+        if (!id) return;
+        const data = {};
+        row.querySelectorAll('[data-column]').forEach(cell => {
+          const col = cell.dataset.column;
+          if (col) data[col] = (cell.dataset.value ?? cell.textContent ?? '').trim();
+        });
+        data._ordCompartida = row.dataset.ordCompartida ?? '';
+        index.set(id, data);
+      });
+      window.PT_FILTER_INDEX = index;
+    }
+
+    function updatePTFilterIndexRow(rowElement) {
+      if (!window.PT_FILTER_INDEX) return;
+      const id = rowElement?.dataset?.id;
+      if (!id) return;
+      const data = {};
+      rowElement.querySelectorAll('[data-column]').forEach(cell => {
+        const col = cell.dataset.column;
+        if (col) data[col] = (cell.dataset.value ?? cell.textContent ?? '').trim();
+      });
+      data._ordCompartida = rowElement.dataset.ordCompartida ?? '';
+      window.PT_FILTER_INDEX.set(id, data);
+    }
+
+    function removePTFilterIndexRow(rowId) {
+      window.PT_FILTER_INDEX?.delete(String(rowId));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      buildPTFilterIndex();
+    });
+
+    // Exponer para invalidación desde inline-edit y operaciones
+    window.PT = window.PT || {};
+    window.PT.filterIndex = {
+      rebuild: buildPTFilterIndex,
+      updateRow: updatePTFilterIndexRow,
+      removeRow: removePTFilterIndexRow,
+    };
+
   })();
 </script>
