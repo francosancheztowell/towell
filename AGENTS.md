@@ -43,6 +43,7 @@ Towell is a Laravel 12 application.
 
 - En modales que ya tienen cierre con X, no duplicar botón "Cancelar" si el usuario prefiere cerrar solo con la X (patrón usado en flujos de programa de tejido).
 - En tablas modales de programa de tejido: encabezados breves cuando se pida (por ejemplo "Saldos"), evitar badges recortados (`whitespace-nowrap` / ancho mínimo), y resaltar saldos negativos o modelo REPASO1 con badge rojo cuando aplique.
+- En el modal de detalle de telar (`/planeacion/programa-tejido`), mostrar cantidades como enteros con redondeo estándar: parte decimal ≥ 0,5 hacia arriba; en caso contrario hacia abajo.
 
 ## Learned Workspace Facts
 

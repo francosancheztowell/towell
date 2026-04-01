@@ -34,3 +34,7 @@ gha-creds-*.json
 
 # Claude worktrees
 .claude/
+
+# Descomprimidos accidentales de plantillas .xlsx
+/resources/templates/_saldos_unzip/
+/resources/templates/*_temp.zip
