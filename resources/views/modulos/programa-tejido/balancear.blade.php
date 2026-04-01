@@ -22,11 +22,41 @@
       // ==========================
       // Helpers generales
       // ==========================
+      /**
+       * Fechas SQL/Carbon `Y-m-d` o `Y-m-d H:i:s` como calendario/hora local (evita UTC de `new Date('YYYY-MM-DD')` y desfase de 1 día).
+       */
+      function parseFechaBackendALocal(s) {
+        if (s == null || s === '') return null;
+        const t = String(s).trim();
+        const m = t.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.\d+)?)?/);
+        if (m) {
+          const y = Number(m[1]);
+          const mo = Number(m[2]) - 1;
+          const d = Number(m[3]);
+          const hh = m[4] !== undefined ? Number(m[4]) : 0;
+          const mm = m[5] !== undefined ? Number(m[5]) : 0;
+          const ss = m[6] !== undefined ? Number(m[6]) : 0;
+          const dt = new Date(y, mo, d, hh, mm, ss);
+          return isNaN(dt.getTime()) ? null : dt;
+        }
+        const fallback = new Date(t);
+        return isNaN(fallback.getTime()) ? null : fallback;
+      }
+
+      function toDateInputValueLocal(d) {
+        if (!d || !(d instanceof Date) || isNaN(d.getTime())) return '';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
       function formatearFecha(fecha) {
         if (!fecha) return '-';
         try {
-          const d = new Date(fecha);
-          if (d.getFullYear() <= 1970 || isNaN(d.getTime())) return '-';
+          const raw = String(fecha).trim();
+          const d = /^\d{4}-\d{2}-\d{2}/.test(raw) ? parseFechaBackendALocal(raw) : new Date(fecha);
+          if (!d || isNaN(d.getTime()) || d.getFullYear() <= 1970) return '-';
           return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
         } catch (e) {
           return '-';
@@ -40,11 +70,9 @@
       }
 
       function parseSQLDateToMs(sql) {
-        // sql: "YYYY-MM-DD HH:mm:ss" -> ISO "YYYY-MM-DDTHH:mm:ss"
         if (!sql) return 0;
-        const iso = String(sql).trim().replace(' ', 'T');
-        const d = new Date(iso);
-        return isNaN(d.getTime()) ? 0 : d.getTime();
+        const d = parseFechaBackendALocal(String(sql).trim());
+        return !d || isNaN(d.getTime()) ? 0 : d.getTime();
       }
 
       function sortRegistrosPorFechaTelar(registros) {
@@ -91,9 +119,8 @@
 
         const fecha = String(dateValue).trim().split(' ')[0];
         const hora = String(timeValue || '00:00:00').trim() || '00:00:00';
-        const parsed = new Date(`${fecha}T${hora}`);
-
-        return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+        const parsed = parseFechaBackendALocal(`${fecha} ${hora}`);
+        return parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : null;
       }
 
       function comparePedidoDesc(a, b) {
@@ -216,6 +243,90 @@
         });
       }
 
+      /** Pedido usado para sumas/saldos sin forzar el valor del input si el usuario sigue editando. */
+      function pedidoEfectivoParaCalculo(input, forceNormalize) {
+        const produccion = Number(input.dataset.produccion || 0) || 0;
+        const raw = String(input.value ?? '').trim();
+        const n = Math.round(Number(raw) || 0);
+        const isFocused = !forceNormalize && document.activeElement === input;
+
+        if (isFocused && raw === '') {
+          return produccion > 0 ? produccion : 0;
+        }
+        if (produccion > 0) {
+          return Math.max(produccion, n);
+        }
+        return Math.max(0, n);
+      }
+
+      function isBalanceoTotalsBalanced() {
+        const inputs = Array.from(document.querySelectorAll('.pedido-input'));
+        const locked = getLockedTotalBalanceo(inputs);
+        if (locked <= 0 || inputs.length === 0) {
+          return true;
+        }
+        let sum = 0;
+        inputs.forEach(inp => {
+          sum += pedidoEfectivoParaCalculo(inp, false);
+        });
+        return Math.abs(sum - locked) <= 0.0001;
+      }
+
+      const PEDIDO_INPUT_BASE_CLASS =
+        'pedido-input w-20 sm:w-24 px-2 py-1 text-xs sm:text-sm text-right border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500';
+
+      const TOTAL_PEDIDO_INPUT_BASE_CLASS =
+        'w-20 sm:w-24 px-2 py-1 text-xs sm:text-sm text-right font-bold text-gray-900 border rounded focus:outline-none';
+
+      function updateBalanceoTotalVisualState() {
+        const inputs = Array.from(document.querySelectorAll('.pedido-input'));
+        const totalInput = document.getElementById('total-pedido-input');
+        const msg = document.getElementById('balanceo-total-mensaje');
+        const locked = getLockedTotalBalanceo(inputs);
+        let sum = 0;
+        inputs.forEach(inp => {
+          sum += pedidoEfectivoParaCalculo(inp, false);
+        });
+        const mismatch = locked > 0 && inputs.length > 0 && Math.abs(sum - locked) > 0.0001;
+
+        inputs.forEach(inp => {
+          inp.className = mismatch
+            ? `${PEDIDO_INPUT_BASE_CLASS} border-red-500 ring-1 ring-red-200`
+            : `${PEDIDO_INPUT_BASE_CLASS} border-gray-300`;
+        });
+
+        if (totalInput) {
+          totalInput.className = mismatch
+            ? `${TOTAL_PEDIDO_INPUT_BASE_CLASS} border-red-500 ring-1 ring-red-200`
+            : `${TOTAL_PEDIDO_INPUT_BASE_CLASS} border-gray-300`;
+        }
+
+        if (msg) {
+          msg.classList.toggle('hidden', !mismatch);
+          if (mismatch) {
+            msg.textContent =
+              'La suma de pedidos debe coincidir con el total del grupo (' +
+              locked.toLocaleString('es-MX') +
+              '). Al salir del campo se ajusta el último telar cuando sea posible.';
+          }
+        }
+
+        syncBalanceoGuardarButtonState();
+      }
+
+      function syncBalanceoGuardarButtonState() {
+        const popup = document.querySelector('.swal2-popup.balanceo-orden-modal');
+        if (!popup) return;
+        const btn = popup.querySelector('.swal2-confirm');
+        if (!btn) return;
+        const ok = isBalanceoTotalsBalanced();
+        btn.disabled = !ok;
+        btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+        btn.title = ok ? '' : 'La suma de pedidos debe coincidir con el total del grupo antes de guardar.';
+        btn.classList.toggle('opacity-50', !ok);
+        btn.classList.toggle('cursor-not-allowed', !ok);
+      }
+
       // ==========================
       // API / datos
       // ==========================
@@ -261,8 +372,8 @@
       // ==========================
       function parseDateISO(str) {
         if (!str) return null;
-        const d = new Date(str);
-        return isNaN(d.getTime()) ? null : d;
+        const d = parseFechaBackendALocal(String(str).trim());
+        return d;
       }
 
       function formatShort(d) {
@@ -316,30 +427,50 @@
         return map;
       }
 
+      /** Capacidad teórica por día (piezas) = StdDía × (horas productivas ese día / 24). */
+      function capByDayFromHorasPorDia(horasPorDia, stdDia) {
+        const std = Number(stdDia) || 0;
+        if (std <= 0) return null;
+        const cap = {};
+        Object.entries(horasPorDia).forEach(([key, horasDia]) => {
+          cap[key] = Math.round(((std / 24) * horasDia + Number.EPSILON) * 1000) / 1000;
+        });
+        return cap;
+      }
+
       function mapWithScaledTimeline(reg, _lineasIgnorado, inputsMap) {
         const datos = inputsMap[String(reg.Id)] || {};
+        const stdDia = Number(reg.StdDia || 0) || 0;
 
         const pedidoNuevo = datos.pedido ?? Number(reg.TotalPedido || 0);
         const produccion = Number(reg.Produccion || 0);
         const saldoNuevo = Math.max(0, pedidoNuevo - produccion);
-        if (saldoNuevo <= 0) return { map: {}, min: null, max: null };
+        if (saldoNuevo <= 0) return { map: {}, min: null, max: null, capByDay: null };
 
         const fechaInicioMs =
           datos.fechaInicioMs ||
-          (reg.FechaInicio ? new Date(String(reg.FechaInicio).replace(' ', 'T')).getTime() : 0);
+          (reg.FechaInicio ? (parseFechaBackendALocal(String(reg.FechaInicio).trim())?.getTime() ?? 0) : 0);
 
         const fechaFinalCalcMs = datos.fechaFinalCalcMs || 0;
 
         // si ya hay preview exacto del backend, úsalo
         const fechaFinDestinoMs = fechaFinalCalcMs ||
-          (reg.FechaFinal ? new Date(String(reg.FechaFinal).replace(' ', 'T')).getTime() : 0);
+          (reg.FechaFinal ? (parseFechaBackendALocal(String(reg.FechaFinal).trim())?.getTime() ?? 0) : 0);
 
         if (!fechaInicioMs || !fechaFinDestinoMs || fechaFinDestinoMs <= fechaInicioMs) {
           const inicioDate = fechaInicioMs ? new Date(fechaInicioMs) : null;
           const key = inicioDate ? getDateKeyLocal(inicioDate) : 'N/A';
           const minNormalized = inicioDate ? normalizeToLocalMidnight(inicioDate).getTime() : null;
           const maxNormalized = fechaFinDestinoMs ? normalizeToLocalMidnight(new Date(fechaFinDestinoMs)).getTime() : null;
-          return { map: { [key]: saldoNuevo }, min: minNormalized, max: maxNormalized };
+          let capByDay = null;
+          if (stdDia > 0 && key !== 'N/A') {
+            const horasVentana =
+              fechaFinDestinoMs > fechaInicioMs
+                ? Math.min(24, Math.max(0, (fechaFinDestinoMs - fechaInicioMs) / 3600000))
+                : 24;
+            capByDay = { [key]: Math.round(((stdDia / 24) * horasVentana + Number.EPSILON) * 1000) / 1000 };
+          }
+          return { map: { [key]: saldoNuevo }, min: minNormalized, max: maxNormalized, capByDay };
         }
 
         const inicio = new Date(fechaInicioMs);
@@ -351,7 +482,8 @@
           const key = getDateKeyLocal(inicio);
           const minNormalized = normalizeToLocalMidnight(inicio).getTime();
           const maxNormalized = normalizeToLocalMidnight(fin).getTime();
-          return { map: { [key]: saldoNuevo }, min: minNormalized, max: maxNormalized };
+          const capByDay = stdDia > 0 ? { [key]: stdDia } : null;
+          return { map: { [key]: saldoNuevo }, min: minNormalized, max: maxNormalized, capByDay };
         }
 
         const startDay = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
@@ -391,7 +523,8 @@
 
         const minNormalized = normalizeToLocalMidnight(inicio).getTime();
         const maxNormalized = normalizeToLocalMidnight(fin).getTime();
-        return { map, min: minNormalized, max: maxNormalized };
+        const capByDay = capByDayFromHorasPorDia(horasPorDia, stdDia);
+        return { map, min: minNormalized, max: maxNormalized, capByDay };
       }
 
       function renderGanttGrid(dates, rows) {
@@ -415,23 +548,46 @@
         }
 
         const isSmall = window.innerWidth <= 639;
-        const labelCol = isSmall ? '100px' : '200px';
-        const dateCol = isSmall ? '52px' : '70px';
+        /* Columna telar compacta; sin max-width en CSS que deje hueco antes de la 1.ª fecha */
+        const labelCol = isSmall ? '96px' : '156px';
+        const dateCol = isSmall ? '50px' : '60px';
         const template = `${labelCol} repeat(${dates.length}, ${dateCol})`;
         let html = `<div class="gantt-grid" style="grid-template-columns:${template}">`;
 
-        html += `<div class="gantt-cell gantt-header gantt-label"></div>`;
+        html += `<div class="gantt-cell gantt-header gantt-label gantt-corner"></div>`;
         dates.forEach(d => html += `<div class="gantt-cell gantt-header">${formatShort(d)}</div>`);
+
+        const ganttAttrEscape = (s) =>
+          String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;');
 
         rows.forEach((row, idx) => {
           html += `<div class="gantt-cell gantt-label">${row.label}</div>`;
           dates.forEach(d => {
             const key = getDateKeyLocal(d);
             const qty = Math.round(row.map[key] || 0);
+            const cap = row.capByDay && row.capByDay[key] != null ? Number(row.capByDay[key]) : null;
             const hasQty = qty > 0;
-            const cls = hasQty ? (idx % 2 === 0 ? 'gantt-bar' : 'gantt-bar-alt') : '';
+            let cls = '';
+            let title = '';
+            if (hasQty && cap != null && cap > 0) {
+              const umbral = cap * 0.92;
+              const enCap = qty >= umbral;
+              cls = enCap ? 'gantt-bar-at-cap' : 'gantt-bar-space';
+              const capR = Math.round(cap);
+              const espacio = Math.max(0, Math.round(cap - qty));
+              title = enCap
+                ? `Piezas ${qty.toLocaleString('es-MX')} · ~${capR.toLocaleString('es-MX')} pzas/día prorrateado (cerca del std)`
+                : `Piezas ${qty.toLocaleString('es-MX')} · Cap. prorrateada ~${capR.toLocaleString('es-MX')} · Espacio ~${espacio.toLocaleString('es-MX')} pzas`;
+            } else if (hasQty) {
+              cls = idx % 2 === 0 ? 'gantt-bar' : 'gantt-bar-alt';
+              title = `${qty.toLocaleString('es-MX')} pzas (sin Std/Día para comparar)`;
+            }
             const displayQty = hasQty ? qty.toLocaleString('es-MX') : '';
-            html += `<div class="gantt-cell ${cls}">${displayQty}</div>`;
+            const titleAttr = title ? ` title="${ganttAttrEscape(title)}"` : '';
+            html += `<div class="gantt-cell ${cls}"${titleAttr}>${displayQty}</div>`;
           });
         });
 
@@ -460,12 +616,12 @@
 
           data.forEach(({ reg, lineas }) => {
             const map = {};
-            let localMin = parseDateISO(String(reg.FechaInicio || '').replace(' ', 'T'));
-            let localMax = parseDateISO(String(reg.FechaFinal || '').replace(' ', 'T'));
+            let localMin = parseDateISO(String(reg.FechaInicio || '').trim());
+            let localMax = parseDateISO(String(reg.FechaFinal || '').trim());
 
             if (Array.isArray(lineas) && lineas.length) {
               lineas.forEach(l => {
-                const d = parseDateISO(String(l.Fecha || '').replace(' ', 'T'));
+                const d = parseDateISO(String(l.Fecha || '').trim());
                 if (!d) return;
                 const key = getDateKeyLocal(d);
                 const qty = Number(l.Cantidad || 0);
@@ -486,7 +642,15 @@
             if (localMaxNormalized && (!maxD || localMaxNormalized > maxD)) maxD = localMaxNormalized;
 
             const label = `Telar ${reg.NoTelarId || '-'} · ${reg.NombreProducto || ''}`.trim();
-            rows.push({ label, map });
+            const stdDiaReg = Number(reg.StdDia || 0) || 0;
+            let capByDay = null;
+            if (stdDiaReg > 0 && Object.keys(map).length) {
+              capByDay = {};
+              Object.keys(map).forEach(k => {
+                capByDay[k] = stdDiaReg;
+              });
+            }
+            rows.push({ label, map, capByDay });
           });
 
           if (!minD || !maxD || rows.length === 0) {
@@ -529,7 +693,8 @@
 
           rows.push({
             label: `Telar ${reg.NoTelarId || '-'} · ${reg.NombreProducto || ''}`.trim(),
-            map
+            map,
+            capByDay: result.capByDay ?? null
           });
         });
 
@@ -545,6 +710,9 @@
       async function previewFechasExactas(ordCompartida) {
         if (!hasPedidoChanges()) {
           return; // No hay cambios: no recalcular ni tocar fechas
+        }
+        if (!isBalanceoTotalsBalanced()) {
+          return;
         }
         const myVersion = ++previewVersion;
 
@@ -598,7 +766,7 @@
 
               // Actualizar fecha inicio
               if (inicioCell && item.fecha_inicio) {
-                const fechaFormateada = formatearFecha(item.fecha_inicio.replace(' ', 'T'));
+                const fechaFormateada = formatearFecha(item.fecha_inicio);
                 inicioCell.textContent = fechaFormateada;
                 inicioCell.innerText = fechaFormateada; // Forzar actualización
               }
@@ -606,7 +774,7 @@
               // Actualizar fecha final - asegurar que se actualice correctamente
               if (finalCell) {
                 if (item.fecha_final) {
-                  const fechaFormateada = formatearFecha(item.fecha_final.replace(' ', 'T'));
+                  const fechaFormateada = formatearFecha(item.fecha_final);
                   finalCell.textContent = fechaFormateada;
                   finalCell.innerText = fechaFormateada; // Forzar actualización
                   // También actualizar el atributo data si existe
@@ -634,6 +802,10 @@
       }
 
       function schedulePreview(ordCompartida) {
+        if (!isBalanceoTotalsBalanced()) {
+          if (previewTimer) clearTimeout(previewTimer);
+          return;
+        }
         if (previewTimer) clearTimeout(previewTimer);
         previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), 250);
       }
@@ -641,7 +813,7 @@
       // ==========================
       // Totales / saldos (SIN calcular fecha aquí)
       // ==========================
-      window.calcularTotalesYFechas = function (changedInput = null, ordCompartida = null) {
+      window.calcularTotalesYFechas = function (changedInput = null, ordCompartida = null, forceRebalance = false) {
         if (adjustingPedidos) return;
         lastEditedInput = changedInput || lastEditedInput;
 
@@ -650,50 +822,61 @@
         let totalSaldo = 0;
 
         inputs.forEach(input => {
-          if (input.value && input.value.includes('.')) { const r = Math.round(Number(input.value) || 0); input.value = r || ''; }
+          if (input.value && input.value.includes('.')) {
+            const r = Math.round(Number(input.value) || 0);
+            input.value = r || '';
+          }
 
           const produccion = Number(input.dataset.produccion || 0) || 0;
+          const isFocused = !forceRebalance && document.activeElement === input;
           let pedido = Math.round(Number(input.value) || 0);
 
-          // Validar que el pedido nunca sea menor que la producción
           if (produccion > 0 && pedido < produccion) {
-            pedido = produccion;
-            input.value = pedido || '';
+            if (!isFocused) {
+              pedido = produccion;
+              input.value = pedido || '';
+            }
           }
 
           const row = input.closest('tr');
           const saldoCell = row.querySelector('.saldo-display');
+          const pedidoCalc = pedidoEfectivoParaCalculo(input, forceRebalance);
+          const saldo = Math.max(0, pedidoCalc - produccion);
 
-          const saldo = Math.max(0, pedido - produccion);
-
-          totalPedido += pedido;
+          totalPedido += pedidoCalc;
           totalSaldo += saldo;
 
-          saldoCell.textContent = saldo.toLocaleString('es-MX');
-          saldoCell.className =
-            'px-3 py-2 text-sm text-right saldo-display ' +
-            (saldo > 0 ? 'text-green-600 font-medium' : 'text-gray-500');
+          if (saldoCell) {
+            saldoCell.textContent = saldo.toLocaleString('es-MX');
+            saldoCell.className =
+              'px-3 py-2 text-sm text-right saldo-display ' +
+              (saldo > 0 ? 'text-green-600 font-medium' : 'text-gray-500');
+          }
         });
 
-        // Ajuste automático para mantener suma de pedidos
-        if (!adjustingFromTotal) {
+        const skipLastRowAdjust =
+          !forceRebalance &&
+          document.activeElement &&
+          document.activeElement.matches &&
+          document.activeElement.matches('.pedido-input');
+
+        if (!adjustingFromTotal && !skipLastRowAdjust) {
           const totalDisponible = getLockedTotalBalanceo(inputs);
 
           if (totalDisponible > 0) {
             const diff = totalDisponible - totalPedido;
 
-            // Siempre ajustar el último registro
             if (inputs.length >= 2 && Math.abs(diff) > 0.0001) {
               const target = inputs[inputs.length - 1];
               const valActualTarget = Number(target.value) || 0;
-              const produccion = Number(target.dataset.produccion || 0) || 0;
+              const produccionTarget = Number(target.dataset.produccion || 0) || 0;
 
               adjustingPedidos = true;
-              const adjusted = Math.round(Math.max(produccion, valActualTarget + diff));
+              const adjusted = Math.round(Math.max(produccionTarget, valActualTarget + diff));
               target.value = adjusted || '';
               adjustingPedidos = false;
 
-              return window.calcularTotalesYFechas(target, ordCompartida);
+              return window.calcularTotalesYFechas(target, ordCompartida, forceRebalance);
             }
           }
         }
@@ -706,6 +889,7 @@
         }
         if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
         renderBalanceoLeaderBadge(currentGanttRegistros);
+        updateBalanceoTotalVisualState();
 
         if (ordCompartida != null) schedulePreview(ordCompartida);
       };
@@ -967,6 +1151,14 @@
       // Guardar cambios
       // ==========================
       async function guardarCambiosPedido(ordCompartida) {
+        window.calcularTotalesYFechas(null, ordCompartida, true);
+        if (!isBalanceoTotalsBalanced()) {
+          Swal.showValidationMessage(
+            'La suma de pedidos no coincide con el total del grupo. Revisa el mínimo por producción en el último telar o ajusta los demás telares.'
+          );
+          return false;
+        }
+
         const inputs = document.querySelectorAll('.pedido-input');
         const cambios = [];
         inputs.forEach(input => {
@@ -1090,8 +1282,8 @@
         const noTelarPrincipal = leaderInfo?.noTelarId || null;
 
         const filasHTML = registros.map(reg => {
-          const fechaInicio = reg.FechaInicio ? new Date(String(reg.FechaInicio).replace(' ', 'T')).getTime() : 0;
-          const fechaFinal = reg.FechaFinal ? new Date(String(reg.FechaFinal).replace(' ', 'T')).getTime() : 0;
+          const fechaInicio = reg.FechaInicio ? (parseFechaBackendALocal(String(reg.FechaInicio).trim())?.getTime() ?? 0) : 0;
+          const fechaFinal = reg.FechaFinal ? (parseFechaBackendALocal(String(reg.FechaFinal).trim())?.getTime() ?? 0) : 0;
           const duracionOriginalMs = (fechaInicio && fechaFinal) ? (fechaFinal - fechaInicio) : 0;
 
           // Usar el valor actual de la tabla si existe, sino el del backend
@@ -1112,7 +1304,7 @@
               <td class="px-3 py-2 text-right">
                 <input
                   type="number"
-                  class="pedido-input w-20 sm:w-24 px-2 py-1 text-xs sm:text-sm text-right border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  class="${PEDIDO_INPUT_BASE_CLASS} border-gray-300"
                   data-id="${reg.Id}"
                   data-original="${pedidoOriginal}"
                   data-fecha-inicio="${fechaInicio}"
@@ -1132,10 +1324,10 @@
                 ${saldoActual.toLocaleString('es-MX')}
               </td>
               <td class="px-3 py-2 text-xs sm:text-sm text-center text-gray-600 fecha-inicio-display">
-                ${formatearFecha(String(reg.FechaInicio || '').replace(' ', 'T'))}
+                ${formatearFecha(reg.FechaInicio)}
               </td>
               <td class="px-3 py-2 text-xs sm:text-sm text-center text-gray-600 fecha-final-display">
-                ${formatearFecha(String(reg.FechaFinal || '').replace(' ', 'T'))}
+                ${formatearFecha(reg.FechaFinal)}
               </td>
             </tr>
           `;
@@ -1172,15 +1364,49 @@
               }
               /* Gantt: contenedor con scroll */
               #gantt-ord-container { max-height: 75vh; overflow: auto; -webkit-overflow-scrolling: touch; min-height: 150px; }
-              .gantt-grid { display: grid; grid-auto-rows: minmax(36px, auto); width: max-content; min-width: 100%; }
+              .gantt-grid {
+                display: grid;
+                grid-auto-rows: minmax(36px, auto);
+                width: max-content;
+                min-width: 100%;
+                column-gap: 0;
+                row-gap: 0;
+              }
               @media (max-width: 639px) { .gantt-grid { grid-auto-rows: minmax(32px, auto); } }
-              .gantt-cell { border: 1px solid #e5e7eb; padding: 4px 6px; font-size: 10px; line-height: 1.2; text-align: center; min-width: 64px; box-sizing: border-box; }
-              @media (max-width: 639px) { .gantt-cell { padding: 3px 4px; font-size: 9px; min-width: 52px; } }
+              /* min-width: 0 evita que el contenido ensanche la cuadrícula; fechas respetan el ancho fijado en template */
+              .gantt-cell {
+                border: 1px solid #e5e7eb;
+                padding: 4px 4px;
+                font-size: 10px;
+                line-height: 1.2;
+                text-align: center;
+                min-width: 0;
+                box-sizing: border-box;
+              }
+              @media (max-width: 639px) { .gantt-cell { padding: 3px 2px; font-size: 9px; } }
               .gantt-header { background: #f9fafb; font-weight: 600; color: #374151; position: sticky; top: 0; z-index: 10; }
-              .gantt-label { font-weight: 600; background: #f3f4f6; text-align: left; position: sticky; left: 0; z-index: 20; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
-              @media (max-width: 639px) { .gantt-label { max-width: 100px; font-size: 9px; } }
-              .gantt-bar { background: #fef2f2; color: #b91c1c; font-weight: 600; }
-              .gantt-bar-alt { background: #ecfdf3; color: #166534; font-weight: 600; }
+              .gantt-label {
+                font-weight: 600;
+                background: #f3f4f6;
+                text-align: left;
+                position: sticky;
+                left: 0;
+                z-index: 21;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                width: 100%;
+                max-width: none;
+                min-width: 0;
+                box-shadow: 1px 0 0 #e5e7eb;
+              }
+              @media (max-width: 639px) { .gantt-label { font-size: 9px; } }
+              .gantt-header.gantt-label.gantt-corner { z-index: 30; }
+              .gantt-bar { background: #f3f4f6; color: #4b5563; font-weight: 600; }
+              .gantt-bar-alt { background: #e5e7eb; color: #374151; font-weight: 600; }
+              /* Por Std/Día prorrateado: ámbar = aún hay espacio respecto al std; verde = cerca del tope */
+              .gantt-bar-space { background: #fef3c7; color: #b45309; font-weight: 600; }
+              .gantt-bar-at-cap { background: #ecfdf3; color: #166534; font-weight: 600; }
             </style>
 
             <div class="flex flex-col sm:flex-row sm:justify-end gap-2 items-stretch sm:items-end">
@@ -1229,7 +1455,7 @@
                         <td class="px-3 py-2 text-right">
                           <input type="number"
                             id="total-pedido-input"
-                            class="w-20 sm:w-24 px-2 py-1 text-xs sm:text-sm text-right font-bold text-gray-900 border border-gray-300 rounded"
+                            class="${TOTAL_PEDIDO_INPUT_BASE_CLASS} border-gray-300"
                             value="${Math.round(totalPedido)}"
                             oninput="actualizarPedidosDesdeTotal(this, ${ordCompartida})">
                         </td>
@@ -1240,6 +1466,7 @@
                     </tfoot>
                   </table>
                 </div>
+                <p id="balanceo-total-mensaje" class="hidden px-1 pt-1 text-xs text-red-600" role="status"></p>
                 <div id="total-disponible" class="hidden">${Math.round(totalPedido)}</div>
               </div>
 
@@ -1267,7 +1494,24 @@
           cancelButtonColor: '#6b7280',
           preConfirm: () => guardarCambiosPedido(ordCompartida),
           didOpen: () => {
+            const swalBody = document.querySelector('.swal2-html-container');
+            if (swalBody) {
+              swalBody.addEventListener(
+                'blur',
+                e => {
+                  if (!e.target?.classList?.contains('pedido-input')) return;
+                  const ord = ordCompartida;
+                  window.setTimeout(() => {
+                    if (!document.querySelector('.swal2-popup')) return;
+                    window.calcularTotalesYFechas(null, ord, true);
+                  }, 0);
+                },
+                true
+              );
+            }
+
             renderGanttOrd(registros);
+            updateBalanceoTotalVisualState();
             //  preview exacto inmediato (para asegurar dataset y preview correcto)
             previewFechasExactas(ordCompartida);
 
@@ -1278,8 +1522,8 @@
               registros.forEach(reg => {
                 if (reg.FechaInicio) {
                   try {
-                    const fecha = new Date(String(reg.FechaInicio).replace(' ', 'T'));
-                    if (!isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
+                    const fecha = parseFechaBackendALocal(String(reg.FechaInicio).trim());
+                    if (fecha && !isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
                       if (!fechaInicioMax || fecha > fechaInicioMax) {
                         fechaInicioMax = fecha;
                       }
@@ -1290,7 +1534,7 @@
                 }
               });
               if (fechaInicioMax) {
-                fechaInput.min = fechaInicioMax.toISOString().split('T')[0];
+                fechaInput.min = toDateInputValueLocal(fechaInicioMax);
               } else {
                 fechaInput.removeAttribute('min');
               }
@@ -1300,8 +1544,8 @@
               registros.forEach(reg => {
                 if (reg.FechaFinal) {
                   try {
-                    const fecha = new Date(String(reg.FechaFinal).replace(' ', 'T'));
-                    if (!isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
+                    const fecha = parseFechaBackendALocal(String(reg.FechaFinal).trim());
+                    if (fecha && !isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
                       if (!fechaMaxima || fecha > fechaMaxima) {
                         fechaMaxima = fecha;
                       }
@@ -1313,8 +1557,7 @@
               });
 
               if (fechaMaxima) {
-                const fechaFormateada = fechaMaxima.toISOString().split('T')[0];
-                fechaInput.value = fechaFormateada;
+                fechaInput.value = toDateInputValueLocal(fechaMaxima);
               } else if (fechaInput.min) {
                 fechaInput.value = fechaInput.min;
               }
@@ -1322,6 +1565,8 @@
                 fechaInput.value = fechaInput.min;
               }
             }
+
+            requestAnimationFrame(() => syncBalanceoGuardarButtonState());
           }
         });
       };
