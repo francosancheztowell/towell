@@ -59,6 +59,23 @@
       document.documentElement.style.setProperty('--pt-navbar-height', `${nav.offsetHeight}px`);
     };
 
+    /**
+     * Limita la frecuencia de ejecución de una función (útil para operaciones DOM costosas).
+     * @param {Function} fn - Función a envolver
+     * @param {number} delay - Milisegundos mínimos entre ejecuciones
+     * @returns {Function}
+     */
+    const throttle = (fn, delay) => {
+      let lastCall = 0;
+      return function (...args) {
+        const now = Date.now();
+        if (now - lastCall >= delay) {
+          lastCall = now;
+          return fn.apply(this, args);
+        }
+      };
+    };
+
     const toast = (msg, type='info') => {
       if (typeof window.showToast === 'function') return window.showToast(msg, type);
     };
@@ -179,6 +196,9 @@
       }
       return window.allRows;
     }
+
+    // Versión con throttle para contextos de actualización masiva (ej: balanceo batch)
+    const refreshAllRowsThrottled = throttle(refreshAllRows, 80);
 
     // =========================
     // Actualizar tabla despues de Drag & Drop
