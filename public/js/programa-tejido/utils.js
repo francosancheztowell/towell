@@ -175,6 +175,23 @@ window.ProgramaTejidoUtils = {
     },
 
     /**
+     * Throttle para funciones (mínimo intervalo entre ejecuciones)
+     * @param {Function} func - Función a ejecutar
+     * @param {number} delay - Milisegundos mínimos entre ejecuciones
+     * @returns {Function} Función con throttle
+     */
+    throttle(func, delay) {
+        let lastCall = 0;
+        return function (...args) {
+            const now = Date.now();
+            if (now - lastCall >= delay) {
+                lastCall = now;
+                return func.apply(this, args);
+            }
+        };
+    },
+
+    /**
      * Limpiar un campo del formulario
      * @param {string} fieldId - ID del campo
      */

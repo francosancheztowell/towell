@@ -119,37 +119,35 @@ function applyProgramaTejidoFilters() {
 
     // Agrupar filtros por columna para permitir múltiples valores en la misma columna
     // Lógica: OR entre valores de la misma columna, AND entre diferentes columnas
-    const filtersByColumn = {};
-    if (hasCustomFilters) {
-        filters.forEach(f => {
-            const col = f.column;
-            if (!filtersByColumn[col]) {
-                filtersByColumn[col] = [];
-            }
-            filtersByColumn[col].push({
-                value: String(f.value || '').trim().toLowerCase(), // ⚡ FIX: Normalizar el valor (trim + lowercase)
-                operator: f.operator || 'contains',
-            });
-        });
-    }
+    const filtersByColumn = hasCustomFilters
+        ? (window.PTFilterEngine
+            ? window.PTFilterEngine.groupFiltersByColumn(filters)
+            : (() => {
+                const acc = {};
+                filters.forEach(f => {
+                    if (!acc[f.column]) acc[f.column] = [];
+                    acc[f.column].push({ value: String(f.value || '').trim().toLowerCase(), operator: f.operator || 'contains' });
+                });
+                return acc;
+            })())
+        : {};
 
     // Función para verificar un valor contra un filtro
-    const checkFilterMatch = (cellValue, filter) => {
-        // ⚡ FIX: Normalizar el valor del filtro para evitar problemas con espacios y caracteres especiales
-        // Asegurar que el valor del filtro sea string y esté normalizado
-        const filterValue = String(filter.value || '').toLowerCase().trim();
-        const normalizedCellValue = String(cellValue || '').toLowerCase().trim();
-
-        switch (filter.operator) {
-            case 'equals':   return normalizedCellValue === filterValue;
-            case 'starts':   return normalizedCellValue.startsWith(filterValue);
-            case 'ends':     return normalizedCellValue.endsWith(filterValue);
-            case 'not':      return !normalizedCellValue.includes(filterValue);
-            case 'empty':    return normalizedCellValue === '';
-            case 'notEmpty': return normalizedCellValue !== '';
-            default:         return normalizedCellValue.includes(filterValue);
-        }
-    };
+    const checkFilterMatch = window.PTFilterEngine
+        ? window.PTFilterEngine.checkFilterMatch
+        : (cellValue, filter) => {
+            const filterValue = String(filter.value || '').toLowerCase().trim();
+            const normalizedCellValue = String(cellValue || '').toLowerCase().trim();
+            switch (filter.operator) {
+                case 'equals':   return normalizedCellValue === filterValue;
+                case 'starts':   return normalizedCellValue.startsWith(filterValue);
+                case 'ends':     return normalizedCellValue.endsWith(filterValue);
+                case 'not':      return !normalizedCellValue.includes(filterValue);
+                case 'empty':    return normalizedCellValue === '';
+                case 'notEmpty': return normalizedCellValue !== '';
+                default:         return normalizedCellValue.includes(filterValue);
+            }
+        };
 
     let visibleRows = 0;
 

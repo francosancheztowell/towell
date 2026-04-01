@@ -3,7 +3,10 @@
     "allow": [
       "Bash(xargs grep:*)",
       "Read(//c/Users/fsanchez/Desktop/**)",
-      "Bash(php -r \":*)"
+      "Bash(php -r \":*)",
+      "Bash(php artisan:*)",
+      "Bash(./vendor/bin/pest tests/Feature/ProgramaTejidoColumnPresetTest.php --stop-on-failure)",
+      "Bash(./vendor/bin/phpunit tests/Feature/ProgramaTejidoColumnPresetTest.php --stop-on-failure)"
     ]
   }
 }

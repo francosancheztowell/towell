@@ -843,7 +843,12 @@ class DividirTejido
     }
 
     /**
-     * Calcular fórmulas de eficiencia usando el helper unificado
+     * Calculate efficiency formulas for DividirTejido operations.
+     * Uses includeEntregaCte=true and includePTvsCte=true for full calculation.
+     * Uses fallbackEntregaCte=true because divided records inherit client delivery dates.
+     *
+     * @param ReqProgramaTejido $programa
+     * @return array
      */
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {

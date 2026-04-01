@@ -632,6 +632,13 @@ class DuplicarTejido
         TejidoHelpers::aplicarStdDesdeCatalogos($p);
     }
 
+    /**
+     * Calculate efficiency formulas for DuplicarTejido operations.
+     * Uses fallbackEntregaCte=true because duplicated records inherit client delivery dates.
+     *
+     * @param ReqProgramaTejido $programa
+     * @return array
+     */
     public static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
         try {

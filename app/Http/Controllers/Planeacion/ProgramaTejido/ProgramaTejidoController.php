@@ -205,17 +205,21 @@ class ProgramaTejidoController extends Controller
 
         DBFacade::beginTransaction();
         try {
-            foreach ($request->input('telares', []) as $fila) {
+            // Bulk update: marcar Ultimo=0 para todos los telares de una sola vez
+            $telaresData = $request->input('telares', []);
+            $telaresUnicos = collect($telaresData)->pluck('no_telar_id')->unique()->values()->all();
+
+            if (!empty($telaresUnicos)) {
+                ReqProgramaTejido::where('SalonTejidoId', $salon)
+                    ->whereIn('NoTelarId', $telaresUnicos)
+                    ->where('Ultimo', '1')
+                    ->update(['Ultimo' => 0]);
+            }
+
+            foreach ($telaresData as $fila) {
                 $noTelarId = $fila['no_telar_id'];
 
                 UtilityHelpers::marcarCambioHiloAnterior($salon, $noTelarId, $hilo);
-
-                ReqProgramaTejido::where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $noTelarId)
-                    ->where(function ($query) {
-                        $query->where('Ultimo', '1');
-                    })
-                    ->update(['Ultimo' => 0]);
 
                 $nuevo = new ReqProgramaTejido();
                 $nuevo->EnProceso      = 0;
