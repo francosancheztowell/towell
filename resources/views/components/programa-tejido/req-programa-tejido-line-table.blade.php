@@ -133,13 +133,15 @@ async function loadReqProgramaTejidoLines(params = {}) {
         }
 
         const rows = items.map(it => {
+            // Enteros en UI: fracción ≥ 0.5 redondea arriba (Math.round)
             const f = (v) => {
                 if (v === null || v === undefined || v === '') return '';
-                if (isNaN(v)) return String(v);
                 const num = Number(v);
-                return num.toLocaleString('en-US', {
-                    minimumFractionDigits: num % 1 === 0 ? 0 : 3,
-                    maximumFractionDigits: 3
+                if (Number.isNaN(num)) return String(v);
+                const rounded = Math.round(num);
+                return rounded.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
                 });
             };
             const fecha = it.Fecha ? new Date(it.Fecha).toLocaleDateString() : '';
@@ -292,14 +294,15 @@ async function openLinesModal(programaId) {
 					return;
 				}
 
-				// Función para formatear números
+				// Enteros en modal detalle: fracción ≥ 0.5 redondea arriba (Math.round)
 				const f = (v) => {
 					if (v === null || v === undefined || v === '') return '';
-					if (isNaN(v)) return String(v);
 					const num = Number(v);
-					return num.toLocaleString('en-US', {
-						minimumFractionDigits: num % 1 === 0 ? 0 : 3,
-						maximumFractionDigits: 3
+					if (Number.isNaN(num)) return String(v);
+					const rounded = Math.round(num);
+					return rounded.toLocaleString('en-US', {
+						minimumFractionDigits: 0,
+						maximumFractionDigits: 0
 					});
 				};
 
