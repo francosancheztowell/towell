@@ -106,17 +106,27 @@
                     <tbody id="saldos-tbody">
                         @foreach ($registros as $i => $r)
                             @php
-                                $esRepaso   = !empty($r->NoExisteBase);
-                                $solicitado = (float) ($r->TotalPedido ?? 0);
-                                $saldo      = (float) ($r->SaldoPedido ?? 0);
-                                $faltan     = $solicitado - $saldo;
-                                $avance     = $solicitado > 0 ? round($saldo / $solicitado * 100, 1) : 0;
-                                $tiras      = (float) ($r->NoTiras ?? 0);
-                                $reps       = (float) ($r->Repeticiones ?? 0);
-                                $rollosXTejer = ($tiras > 0 && $reps > 0) ? ceil($faltan / ($tiras * $reps)) : '—';
+                                $esRepaso          = !empty($r->NoExisteBase);
+                                $esGrupoVinculado  = $r->_esGrupoVinculado ?? false;
+                                $esLider           = $r->_esLider ?? true;
+                                $rowClass          = $esRepaso ? 'saldos-row-repaso' : ($i % 2 === 0 ? 'saldos-row-even' : 'saldos-row-odd');
+                                $grupoClass        = $esGrupoVinculado ? ' saldos-row-grupo' : '';
+                                $liderClass        = $esLider ? ' saldos-row-lider' : ' saldos-row-abierto';
+                                $searchBase        = strtolower(($r->NoTelarId ?? '') . ' ' . ($r->NoProduccion ?? '') . ' ' . ($r->NombreProducto ?? '') . ' ' . ($r->ItemId ?? '') . ' ' . ($r->TamanoClave ?? ''));
+                                $searchFull        = $esGrupoVinculado && !$esLider ? $searchBase . ' abierto' : $searchBase;
+                                $solicitado        = (float) ($r->_sumTotalPedido ?? $r->TotalPedido ?? 0);
+                                $saldo             = (float) ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0);
+                                $faltan            = $solicitado - $saldo;
+                                $avance            = $solicitado > 0 ? round($saldo / $solicitado * 100, 1) : 0;
+                                $tiras             = (float) ($r->NoTiras ?? 0);
+                                $reps              = (float) ($r->Repeticiones ?? 0);
+                                $rollosXTejer      = ($tiras > 0 && $reps > 0) ? ceil($faltan / ($tiras * $reps)) : '—';
                             @endphp
-                            <tr class="saldos-row {{ $esRepaso ? 'saldos-row-repaso' : ($i % 2 === 0 ? 'saldos-row-even' : 'saldos-row-odd') }}"
-                                data-search="{{ strtolower(($r->NoTelarId ?? '') . ' ' . ($r->NoProduccion ?? '') . ' ' . ($r->NombreProducto ?? '') . ' ' . ($r->ItemId ?? '') . ' ' . ($r->TamanoClave ?? '')) }}">
+                            <tr class="saldos-row {{ $rowClass }}{{ $grupoClass }}{{ $liderClass }}"
+                                style="{{ $esGrupoVinculado ? 'background:#f0fdf4;' : '' }}{{ $esLider && $esGrupoVinculado ? 'border-left:3px solid #16a34a;' : '' }}"
+                                data-search="{{ $searchFull }}"
+                                data-es-grupo="{{ $esGrupoVinculado ? '1' : '0' }}"
+                                data-lider="{{ $esLider ? '1' : '0' }}">
                                 <td class="saldos-td font-semibold text-center text-blue-700">
                                     {{ $r->NoTelarId }}
                                     @if ($r->EnProceso)
@@ -178,7 +188,13 @@
                                 <td class="saldos-td text-center text-gray-600">{{ $r->EntregaProduc ? \Carbon\Carbon::parse($r->EntregaProduc)->format('d/m/Y') : '—' }}</td>
                                 <td class="saldos-td text-gray-700 truncate" style="max-width:140px;" title="{{ $r->FlogsId }}">{{ $r->FlogsId ?? '—' }}</td>{{-- Nombre Formato Logístico --}}
                                 <td class="saldos-td text-gray-700">{{ $r->Clave ?? '—' }}</td>{{-- Clave --}}
-                                <td class="saldos-td saldos-td-solsaldo text-right tabular-nums font-semibold">{{ $r->TotalPedido !== null ? number_format((float)$r->TotalPedido, 0) : '—' }}</td>
+                                <td class="saldos-td saldos-td-solsaldo text-right tabular-nums font-semibold">
+                                    @if ($esLider)
+                                        {{ number_format((float) ($r->_sumTotalPedido ?? $r->TotalPedido ?? 0), 0) }}
+                                    @else
+                                        <span class="saldos-abierto-badge">ABIERTO</span>
+                                    @endif
+                                </td>
                                 <td class="saldos-td text-right tabular-nums">{{ $r->Peine ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums">{{ $r->Ancho ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums" style="background:#dcfce7;border-color:#86efac;">{{ $r->LargoCrudo ?? '—' }}</td>
@@ -215,12 +231,30 @@
                                 <td class="saldos-td text-center" style="{{ $esRasurada ? 'background:#fee2e2;' : '' }}">{{ $r->Rasurado ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums">{{ $r->NoTiras ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums">{{ $r->Repeticiones !== null ? number_format((float)$r->Repeticiones, 0) : '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums" style="background:#dcfce7;border-color:#86efac;">{{ $r->TotalRollos !== null ? number_format((float)$r->TotalRollos, 0) : '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums font-medium text-gray-800">{{ $r->Produccion !== null ? number_format((float)$r->Produccion, 0) : '—' }}</td>
-                                <td class="saldos-td saldos-td-solsaldo text-right tabular-nums font-semibold {{ ($r->SaldoPedido ?? 0) > 0 ? 'text-indigo-700' : 'text-gray-400' }}">
-                                    {{ $r->SaldoPedido !== null ? number_format((float)$r->SaldoPedido, 0) : '—' }}
+                                <td class="saldos-td text-right tabular-nums" style="background:#dcfce7;border-color:#86efac;">
+                                    @if ($esLider)
+                                        {{ number_format((float) ($r->_sumTotalRollos ?? $r->TotalRollos ?? 0), 0) }}
+                                    @else
+                                        <span class="saldos-abierto-badge">ABIERTO</span>
+                                    @endif
                                 </td>
-                                <td class="saldos-td text-right tabular-nums {{ $faltan > 0 ? 'text-red-600 font-semibold' : 'text-gray-400' }}">{{ $solicitado > 0 ? number_format($faltan, 0) : '—' }}</td>{{-- Faltan --}}
+                                <td class="saldos-td text-right tabular-nums font-medium text-gray-800">
+                                    @if ($esLider)
+                                        {{ number_format((float) ($r->_sumProduccion ?? $r->Produccion ?? 0), 0) }}
+                                    @else
+                                        <span class="saldos-abierto-badge">ABIERTO</span>
+                                    @endif
+                                </td>
+                                <td class="saldos-td saldos-td-solsaldo text-right tabular-nums font-semibold {{ ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0) > 0 ? 'text-indigo-700' : 'text-gray-400' }}">
+                                    @if ($esLider)
+                                        {{ number_format((float) ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0), 0) }}
+                                    @else
+                                        <span class="saldos-abierto-badge">ABIERTO</span>
+                                    @endif
+                                </td>
+                                <td class="saldos-td text-right tabular-nums {{ $faltan > 0 ? 'text-red-600 font-semibold' : 'text-gray-400' }}">
+                                    {{ $esLider && $esGrupoVinculado ? number_format($faltan, 0) : ($solicitado > 0 ? number_format($faltan, 0) : '—') }}
+                                </td>{{-- Faltan --}}
                                 <td class="saldos-td text-right tabular-nums {{ $avance >= 100 ? 'text-green-600 font-semibold' : 'text-blue-600' }}">{{ $solicitado > 0 ? $avance . '%' : '—' }}</td>{{-- Avance --}}
                                 <td class="saldos-td text-right tabular-nums text-gray-700" style="background:#dcfce7;border-color:#86efac;">{{ is_numeric($rollosXTejer) ? number_format($rollosXTejer, 0) : $rollosXTejer }}</td>{{-- Rollos x Tejer --}}
                                 <td class="saldos-td text-gray-500 truncate" style="max-width:160px;" title="{{ $r->Observaciones }}">
@@ -500,6 +534,28 @@ tbody .saldos-col-frozen { background: #f0f4ff !important; }
 /* Sort indicator on headers */
 .saldos-th[data-sort-dir="asc"]::after  { content: ' ↑'; font-size:.7em; opacity:.8; }
 .saldos-th[data-sort-dir="desc"]::after { content: ' ↓'; font-size:.7em; opacity:.8; }
+
+/* ABIERTO badge */
+.saldos-abierto-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 8px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    border-radius: 9999px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+/* Grupo vinculada */
+.saldos-row-grupo td { background-color: #f0fdf4; }
+.saldos-row-lider { font-weight: 600; }
+.saldos-row-abierto td { opacity: 0.85; }
+.saldos-row-abierto:hover td { opacity: 1; }
+tr.saldos-row-grupo:hover td { background-color: #dcfce7 !important; }
 </style>
 @endpush
 
