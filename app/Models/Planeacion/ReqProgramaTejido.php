@@ -282,6 +282,21 @@ class ReqProgramaTejido extends Model
         static::observe(\App\Observers\ReqProgramaTejidoObserver::class);
     }
 
+    /**
+     * Dispara ReqProgramaTejidoObserver::saved() directamente para cada registro.
+     * Funciona aunque los observers estén suprimidos vía suppressObservers(), ya que
+     * invoca el observer directamente sin pasar por el event dispatcher de Eloquent.
+     */
+    public static function regenerarLineas(iterable $registros): void
+    {
+        $observer = new \App\Observers\ReqProgramaTejidoObserver();
+        foreach ($registros as $registro) {
+            if ($registro instanceof static && $registro->Id) {
+                $observer->saved($registro);
+            }
+        }
+    }
+
     /* ===========================
      |  Relaciones (si existen modelos)
      |===========================*/
