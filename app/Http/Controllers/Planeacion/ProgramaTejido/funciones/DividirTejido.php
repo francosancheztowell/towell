@@ -7,7 +7,6 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
@@ -746,23 +745,7 @@ class DividirTejido
             }
 
             // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
-            if (! empty($registrosParaObserver)) {
-                $observer = new ReqProgramaTejidoObserver;
-                foreach ($registrosParaObserver as $registro) {
-                    if (! $registro || ! $registro->Id) {
-                        continue;
-                    }
-                    try {
-                        $observer->saved($registro);
-                    } catch (\Throwable $e) {
-                        LogFacade::error('DividirTejido: error generando líneas tras commit', [
-                            'programa_id' => $registro->Id,
-                            'message' => $e->getMessage(),
-                        ]);
-                        throw $e;
-                    }
-                }
-            }
+            ReqProgramaTejido::regenerarLineas($registrosParaObserver);
 
             // Re-capturar datos tras observer (las instancias en memoria ya tienen fechas recalculadas)
             foreach ($registrosParaObserver as $registro) {
@@ -1310,22 +1293,7 @@ class DividirTejido
             // Generar ReqProgramaTejidoLine ANTES del commit (igual que DuplicarTejido).
             // Dentro de la transacción, los registros recién guardados SÍ son visibles
             // en la misma conexión — evita el lag de visibilidad de pdo_sqlsrv/ODBC post-commit.
-            if (! empty($registrosParaObserver)) {
-                $observer = new ReqProgramaTejidoObserver;
-                foreach ($registrosParaObserver as $registro) {
-                    if (! $registro || ! $registro->Id) {
-                        continue;
-                    }
-                    try {
-                        $observer->saved($registro);
-                    } catch (\Throwable $e) {
-                        LogFacade::error('redistribuirGrupoExistente: error generando líneas observer', [
-                            'programa_id' => $registro->Id,
-                            'message' => $e->getMessage(),
-                        ]);
-                    }
-                }
-            }
+            ReqProgramaTejido::regenerarLineas($registrosParaObserver);
 
             LogFacade::info('redistribuirGrupoExistente: ANTES commit', [
                 'transaction_level' => DBFacade::transactionLevel(),
