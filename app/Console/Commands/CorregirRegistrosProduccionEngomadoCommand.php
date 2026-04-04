@@ -14,7 +14,7 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'engomado:corregir-registros {--dry-run : Solo muestra los problemas sin corregir} {--folio= : Corregir solo un folio específico} {--include-finalizados : Incluir programas finalizados en la corrección}';
+    protected $signature = 'engomado:corregir-registros {--folio= : Folio específico a corregir (requerido para correccion)} {--dry-run : Solo muestra los problemas sin corregir} {--include-finalizados : Incluir programas finalizados en la correccion}';
 
     /**
      * The console command description.
@@ -34,6 +34,16 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
 
         $this->info('=== Corrección de Registros de Producción Engomado ===');
         $this->info('');
+
+        // Solo permitir correccion si se especifica --folio explicitamente
+        // Para correccion sin --folio, usar --dry-run primero para ver problemas
+        if (!$dryRun && empty($folioEspecifico)) {
+            $this->error('ERROR: Para corregir registros debe especificar --folio=<folio>');
+            $this->info('');
+            $this->info('Ejemplo: php artisan engomado:corregir-registros --folio=00278');
+            $this->info('O usar --dry-run para ver todos los problemas: php artisan engomado:corregir-registros --dry-run');
+            return Command::FAILURE;
+        }
 
         if ($dryRun) {
             $this->warn('MODO DRY-RUN: Solo se mostrarán los problemas, no se corregirán.');
