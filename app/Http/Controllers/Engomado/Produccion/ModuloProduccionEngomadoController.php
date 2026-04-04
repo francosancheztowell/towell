@@ -167,24 +167,26 @@ class ModuloProduccionEngomadoController extends Controller
             $solidosFormulacion = $formulacion->Solidos;
         }
 
-        // Crear registros faltantes
-        if ($totalRegistros > 0) {
+        // Sincronizar registros de producción con NoTelas (lógica idempotente)
+        if ($orden->Folio && $totalRegistros > 0) {
             try {
-                if ($orden->Folio) {
-                    $registrosExistentes = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
-                    $registrosFaltantes = max(0, $totalRegistros - $registrosExistentes);
+                $registrosExistentes = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
+                $diferencia = $totalRegistros - $registrosExistentes;
 
-                    if ($registrosFaltantes > 0) {
-                        $user = Auth::user();
-                        $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
-                        $nombreUsuario = $user ? ($user->nombre ?? null) : null;
-                        $turnoUsuario = $user ? ($user->turno ?? null) : null;
-                        if (!$turnoUsuario) {
-                            $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
-                        }
-                        $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
+                // Solo proceder si hay diferencia
+                if ($diferencia !== 0) {
+                    $user = Auth::user();
+                    $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
+                    $nombreUsuario = $user ? ($user->nombre ?? null) : null;
+                    $turnoUsuario = $user ? ($user->turno ?? null) : null;
+                    if (!$turnoUsuario) {
+                        $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
+                    }
+                    $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
 
-                        for ($i = 0; $i < $registrosFaltantes; $i++) {
+                    if ($diferencia > 0) {
+                        // Crear registros faltantes
+                        for ($i = 0; $i < $diferencia; $i++) {
                             $data = [
                                 'Folio' => $orden->Folio,
                                 'NoJulio' => null,
@@ -206,10 +208,42 @@ class ModuloProduccionEngomadoController extends Controller
                                 continue;
                             }
                         }
+                    } elseif ($diferencia < 0) {
+                        // Eliminar registros sobrantes (los que no tienen HoraInicial primero)
+                        $registrosAEliminar = abs($diferencia);
+                        $idsAEliminar = EngProduccionEngomado::where('Folio', $orden->Folio)
+                            ->where(function ($q) {
+                                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                            })
+                            ->orderBy('Id', 'desc')
+                            ->limit($registrosAEliminar)
+                            ->pluck('Id')
+                            ->toArray();
+
+                        if (count($idsAEliminar) < $registrosAEliminar) {
+                            // Si no hay suficientes sin HoraInicial, eliminar los más recientes que sobren
+                            $faltan = $registrosAEliminar - count($idsAEliminar);
+                            $idsRestantes = EngProduccionEngomado::where('Folio', $orden->Folio)
+                                ->whereNotIn('Id', $idsAEliminar)
+                                ->orderBy('Id', 'desc')
+                                ->limit($faltan)
+                                ->pluck('Id')
+                                ->toArray();
+                            $idsAEliminar = array_merge($idsAEliminar, $idsRestantes);
+                        }
+
+                        if (!empty($idsAEliminar)) {
+                            EngProduccionEngomado::whereIn('Id', $idsAEliminar)->delete();
+                            Log::info('Eliminados registros de producción sobrantes', [
+                                'folio' => $orden->Folio,
+                                'ids_eliminados' => $idsAEliminar,
+                                'cantidad' => count($idsAEliminar),
+                            ]);
+                        }
                     }
                 }
             } catch (\Throwable $e) {
-                Log::error('Error general al crear registros en EngProduccionEngomado', [
+                Log::error('Error general al sincronizar registros en EngProduccionEngomado', [
                     'folio' => $orden->Folio,
                     'error' => $e->getMessage(),
                 ]);
