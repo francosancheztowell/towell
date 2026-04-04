@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -99,10 +98,9 @@ class EliminarTejido
             ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Regenerar líneas
-            $observer = new ReqProgramaTejidoObserver();
-            foreach (array_column($detalles,'Id') as $idAct) {
-                if ($r = ReqProgramaTejido::find($idAct)) $observer->saved($r);
-            }
+            ReqProgramaTejido::regenerarLineas(
+                ReqProgramaTejido::findMany(array_column($detalles, 'Id'))
+            );
 
             return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
 
@@ -198,12 +196,9 @@ class EliminarTejido
             ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Regenerar líneas de todos los registros afectados
-            $observer = new ReqProgramaTejidoObserver();
-            foreach (array_column($detalles, 'Id') as $idAct) {
-                if ($r = ReqProgramaTejido::find($idAct)) {
-                    $observer->saved($r);
-                }
-            }
+            ReqProgramaTejido::regenerarLineas(
+                ReqProgramaTejido::findMany(array_column($detalles, 'Id'))
+            );
 
             return response()->json([
                 'success'          => true,
@@ -293,7 +288,6 @@ class EliminarTejido
             ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Regenerar líneas solo para los registros de este telar
-            $observer = new ReqProgramaTejidoObserver();
             $idsAfectados = array_column($detalles, 'Id');
 
             // Obtener solo los registros de este telar que fueron afectados
@@ -303,9 +297,7 @@ class EliminarTejido
                 ->whereIn('Id', $idsAfectados)
                 ->get();
 
-            foreach ($registrosAfectados as $r) {
-                $observer->saved($r);
-            }
+            ReqProgramaTejido::regenerarLineas($registrosAfectados);
 
             $mensaje = $reprogramar == '1'
                 ? 'Registro movido al siguiente correctamente (Reprogramar = 1)'
@@ -396,10 +388,9 @@ class EliminarTejido
                 ReqProgramaTejido::restoreObservers($dispatcher);
 
                 // Regenerar líneas
-                $observer = new ReqProgramaTejidoObserver();
-                foreach (array_column($detalles,'Id') as $idAct) {
-                    if ($r = ReqProgramaTejido::find($idAct)) $observer->saved($r);
-                }
+                ReqProgramaTejido::regenerarLineas(
+                    ReqProgramaTejido::findMany(array_column($detalles, 'Id'))
+                );
 
                 return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
             }
@@ -512,7 +503,6 @@ class EliminarTejido
 
             // Recalcular fechas y regenerar líneas para cada telar afectado
             $dispatcher = ReqProgramaTejido::suppressObservers();
-            $observer = new ReqProgramaTejidoObserver();
             $idsRegenerados = [];
 
             foreach ($telaresAfectados as $ta) {
@@ -538,12 +528,9 @@ class EliminarTejido
                 }
 
                 // Regenerar líneas de todos los registros del telar
-                foreach (array_column($detalles, 'Id') as $idAct) {
-                    if ($r = ReqProgramaTejido::find($idAct)) {
-                        $observer->saved($r);
-                        $idsRegenerados[] = $idAct;
-                    }
-                }
+                $modelos = ReqProgramaTejido::findMany(array_column($detalles, 'Id'));
+                ReqProgramaTejido::regenerarLineas($modelos);
+                $idsRegenerados = array_merge($idsRegenerados, $modelos->pluck('Id')->all());
             }
 
             DB::commit();
@@ -606,12 +593,9 @@ class EliminarTejido
         }
 
         // Regenerar líneas de todos los registros del telar
-        $observer = new ReqProgramaTejidoObserver();
-        foreach (array_column($detalles, 'Id') as $idAct) {
-            if ($r = ReqProgramaTejido::find($idAct)) {
-                $observer->saved($r);
-            }
-        }
+        ReqProgramaTejido::regenerarLineas(
+            ReqProgramaTejido::findMany(array_column($detalles, 'Id'))
+        );
     }
 
 }
