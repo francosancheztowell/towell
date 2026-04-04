@@ -11,7 +11,6 @@ use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
-use App\Observers\ReqProgramaTejidoObserver;
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
 use Carbon\Carbon;
@@ -586,8 +585,7 @@ class UpdateTejido
 
         if ($necesitaLineas) {
             try {
-                $observer = new ReqProgramaTejidoObserver();
-                $observer->saved($registro);
+                ReqProgramaTejido::regenerarLineas([$registro]);
             } catch (\Throwable $e) {
                 LogFacade::warning('UpdateTejido: observer saved error', ['id'=>$registro->Id,'error'=>$e->getMessage()]);
             }
