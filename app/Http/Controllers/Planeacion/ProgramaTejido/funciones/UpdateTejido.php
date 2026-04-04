@@ -504,7 +504,7 @@ class UpdateTejido
             }
 
             if ($horasNecesarias <= 0) {
-                $registro->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                $registro->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
             } else {
                 if (!empty($registro->CalendarioId)) {
                     $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);

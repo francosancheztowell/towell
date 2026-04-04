@@ -899,6 +899,7 @@ class CalendarioController extends Controller
                 $prevId  = null;
                 $esPrimerRegistroTelar = true;
 
+                /** @var ReqProgramaTejido $p */
                 foreach ($rows as $p) {
                     try {
                         if (empty($p->FechaInicio)) { $errores++; continue; }
@@ -1014,7 +1015,7 @@ class CalendarioController extends Controller
         $efic = (float) ($p->EficienciaSTD ?? 0);
         $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
         $m = $this->getModeloParams($p->TamanoClave ?? null, $p);
-        return TejidoHelpers::calcularHorasProd(
+        return TejidoHelpers::calcularHorasProdFromParams(
             $vel,
             $efic,
             $cantidad,

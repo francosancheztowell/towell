@@ -20,6 +20,11 @@ class ReqProgramaTejidoObserver
 
     /** Cache en memoria para ReqMatrizHilos */
     private static array $matrizHilosCache = [];
+
+    private const FACTOR_PESO = 1000.0;
+    private const DENSIDAD_HILO = 0.59;
+    private const FACTOR_RETORCIDO = 1.0162;
+
     private const CAMPOS_RELEVANTES = [
         'FechaInicio', 'FechaFinal',
         'TotalPedido', 'SaldoPedido', 'Produccion',
@@ -333,8 +338,8 @@ class ReqProgramaTejidoObserver
     private function calcularCombinacion(ReqProgramaTejido $programa, int $numero, float $pzasDia): ?float
     {
         try {
-            $candidatesPasadas = ["PasadasComb{$numero}", "Pasadas_C{$numero}", "PASADAS_C{$numero}", "PasadasComb{$numero}", "PasadasComb{$numero}2"];
-            $candidatesCalibre = ["CalibreComb{$numero}2", "CalibreComb{$numero}", "CalibreComb{$numero}{$numero}", "CalibreComb{$numero}2"];
+            $candidatesPasadas = ["PasadasComb{$numero}", "Pasadas_C{$numero}", "PASADAS_C{$numero}"];
+            $candidatesCalibre = ["CalibreComb{$numero}2", "CalibreComb{$numero}"];
 
             $pasadas = $this->resolveField($programa, $candidatesPasadas, 'float');
             $calibre = $this->resolveField($programa, $candidatesCalibre, 'float');
@@ -411,9 +416,6 @@ class ReqProgramaTejidoObserver
     private function calcularMtsRizo(ReqProgramaTejido $programa, ?float $rizo): ?float
     {
         try {
-            $constante1 = 1000;
-            $constante2 = 0.59;
-            $constante3 = 1.0162;
 
             if ($rizo === null || $rizo <= 0) {
                 return null;
@@ -468,10 +470,10 @@ class ReqProgramaTejidoObserver
                 return null;
             }
 
-            $valorRizo1 = (($n1 * ($rizo * $constante1)) / $constante2) / 2;
-            $valorRizo2 = (($n2 * ($rizo * $constante1)) / $constante2) / 2;
+            $valorRizo1 = (($n1 * ($rizo * self::FACTOR_PESO)) / self::DENSIDAD_HILO) / 2;
+            $valorRizo2 = (($n2 * ($rizo * self::FACTOR_PESO)) / self::DENSIDAD_HILO) / 2;
 
-            $mtsRizo = (($valorRizo1 + $valorRizo2) / $cuentaRizo) * $constante3;
+            $mtsRizo = (($valorRizo1 + $valorRizo2) / $cuentaRizo) * self::FACTOR_RETORCIDO;
 
             return $mtsRizo > 0 ? $mtsRizo : null;
         } catch (Throwable $e) {
@@ -482,10 +484,6 @@ class ReqProgramaTejidoObserver
     private function calcularMtsPie(ReqProgramaTejido $programa, ?float $pie): ?float
     {
         try {
-            $constante1 = 1000;
-            $constante2 = 0.59;
-            $constante3 = 1.0162;
-
             if ($pie === null || $pie <= 0) {
                 return null;
             }
@@ -497,7 +495,7 @@ class ReqProgramaTejidoObserver
                 return null;
             }
 
-            $mtsPie = (((($calibrePie * ($pie * $constante1)) / $constante2) / $cuentaPie) * $constante3);
+            $mtsPie = (((($calibrePie * ($pie * self::FACTOR_PESO)) / self::DENSIDAD_HILO) / $cuentaPie) * self::FACTOR_RETORCIDO);
 
             return $mtsPie > 0 ? $mtsPie : null;
         } catch (Throwable) {

@@ -34,12 +34,7 @@ class ReqProgramaTejido extends Model
 
     public static function tableName(): string
     {
-        $override = config('planeacion.programa_tejido_table');
-        if (is_string($override) && $override !== '') {
-            return $override;
-        }
-
-        return (new static())->table;
+        return (new static())->getTable();
     }
 
     /**
@@ -172,6 +167,7 @@ class ReqProgramaTejido extends Model
         'OrdPrincipal' => 'integer', // INT NULL en SQL Server
         'FechaArranque' => 'datetime', // DATETIME NULL en SQL Server
         'FechaFinaliza' => 'datetime', // DATETIME NULL en SQL Server
+        'Prioridad' => 'integer', // INT NULL en SQL Server
     ];
 
     /* ===========================
@@ -267,8 +263,6 @@ class ReqProgramaTejido extends Model
      |===========================*/
     public function lineas()
     {
-        // Si tienes el modelo ReqProgramaTejidoLine, descomenta y ajusta
-        // return $this->hasMany(ReqProgramaTejidoLine::class, 'ProgramaId', 'Id');
         return $this->hasMany(ReqProgramaTejidoLine::class, 'ProgramaId', 'Id');
     }
 }

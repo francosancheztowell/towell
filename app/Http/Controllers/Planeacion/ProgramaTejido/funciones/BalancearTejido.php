@@ -262,7 +262,7 @@ class BalancearTejido
                             ? (self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horas) ?: $inicio->copy()->addSeconds((int) round($horas * 3600)))
                             : $inicio->copy()->addSeconds((int) round($horas * 3600));
                     } else {
-                        $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(12) : $inicio->copy()->addDays(30);
+                        $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(TejidoHelpers::DEFAULT_DURACION_REPASO_HORAS) : $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS);
                     }
                     $r->FechaFinal = $fin->format('Y-m-d H:i:s');
                     $formulas = self::calcularFormulasEficiencia($r);
@@ -420,7 +420,7 @@ class BalancearTejido
         $horasNecesarias = TejidoHelpers::calcularHorasProd($r);
 
         if ($horasNecesarias <= 0) {
-            $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(12) : $inicio->copy()->addDays(30);
+            $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(TejidoHelpers::DEFAULT_DURACION_REPASO_HORAS) : $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS);
 
             return [$inicio, $fin, 0.0];
         }

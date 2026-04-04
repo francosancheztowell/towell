@@ -11,7 +11,7 @@ class TejidoHelpersTest extends TestCase
 
     public function test_calcular_horas_prod_con_valores_validos_retorna_mayor_a_cero(): void
     {
-        $horas = TejidoHelpers::calcularHorasProd(
+        $horas = TejidoHelpers::calcularHorasProdFromParams(
             vel: 100.0,
             efic: 0.85,
             cantidad: 100.0,
@@ -27,7 +27,7 @@ class TejidoHelpersTest extends TestCase
 
     public function test_calcular_horas_prod_con_eficiencia_cero_retorna_cero(): void
     {
-        $horas = TejidoHelpers::calcularHorasProd(
+        $horas = TejidoHelpers::calcularHorasProdFromParams(
             vel: 100.0,
             efic: 0.0,
             cantidad: 100.0,

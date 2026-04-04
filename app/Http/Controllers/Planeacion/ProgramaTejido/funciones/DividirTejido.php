@@ -273,7 +273,7 @@ class DividirTejido
                 $horasNecesarias = self::calcularHorasProd($registroOriginal);
 
                 if ($horasNecesarias <= 0) {
-                    $registroOriginal->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                    $registroOriginal->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
                 } else {
                     if (! empty($registroOriginal->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registroOriginal->CalendarioId, $inicio, $horasNecesarias);
@@ -637,7 +637,7 @@ class DividirTejido
                 $horasNecesarias = self::calcularHorasProd($nuevo);
 
                 if ($horasNecesarias <= 0) {
-                    $nuevo->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                    $nuevo->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
                 } else {
                     // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
                     if (! empty($nuevo->CalendarioId)) {
@@ -1127,7 +1127,7 @@ class DividirTejido
                             $horasNecesarias = self::calcularHorasProd($registro);
 
                             if ($horasNecesarias <= 0) {
-                                $registro->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                                $registro->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
                             } else {
                                 if (! empty($registro->CalendarioId)) {
                                     $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
@@ -1258,7 +1258,7 @@ class DividirTejido
                 $horasNecesarias = self::calcularHorasProd($nuevo);
 
                 if ($horasNecesarias <= 0) {
-                    $nuevo->FechaFinal = $inicio->copy()->addDays(30)->format('Y-m-d H:i:s');
+                    $nuevo->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
                 } else {
                     // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
                     if (! empty($nuevo->CalendarioId)) {

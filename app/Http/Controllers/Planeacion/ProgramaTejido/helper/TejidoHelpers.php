@@ -20,6 +20,15 @@ use Illuminate\Support\Facades\Log;
 
 class TejidoHelpers
 {
+    /** Duración por defecto cuando se crea/duplica un registro sin fechas calculadas */
+    public const DEFAULT_DURACION_DIAS = 30;
+
+    /** Duración por defecto para registros de tipo REPASO */
+    public const DEFAULT_DURACION_REPASO_HORAS = 12;
+
+    /** Cache por-request para obtenerDatosModeloCodificadoArray (clave: 'salon|tamanoClave') */
+    private static array $datosModeloArrayCache = [];
+
     /**
      * Calcular la siguiente posición disponible para un telar específico
      * La posición es consecutiva por telar: 1, 2, 3, 4, etc.
@@ -180,14 +189,14 @@ class TejidoHelpers
      * @param callable|null $obtenerModeloCallback (string $tamanoClave, string $salonTejidoId) => ReqModelosCodificados|null
      * @return float
      */
-    public static function calcularHorasProdFromPrograma(ReqProgramaTejido $programa, ?callable $obtenerModeloCallback = null): float
+    public static function calcularHorasProd(ReqProgramaTejido $programa, ?callable $obtenerModeloCallback = null): float
     {
         $vel = (float) ($programa->VelocidadSTD ?? 0);
         $efic = (float) ($programa->EficienciaSTD ?? 0);
         $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
         $m = self::obtenerModeloParams($programa, $obtenerModeloCallback);
 
-        return self::calcularHorasProd(
+        return self::calcularHorasProdFromParams(
             $vel,
             $efic,
             $cantidad,
@@ -198,7 +207,7 @@ class TejidoHelpers
         );
     }
 
-    public static function calcularHorasProd(
+    public static function calcularHorasProdFromParams(
         float $vel,
         float $efic,
         float $cantidad,
@@ -241,7 +250,7 @@ class TejidoHelpers
     public static function resolverDiasEntrega(ReqProgramaTejido $programa): int
     {
         $aplicacion = trim((string)($programa->AplicacionId ?? ''));
-        if ($aplicacion === '' || strtoupper($aplicacion) === 'NA' || strtoupper($aplicacion) === null) {
+        if ($aplicacion === '' || strtoupper($aplicacion) === 'NA') {
             return 12;
         }
 
@@ -662,5 +671,76 @@ class TejidoHelpers
             'luchaje' => $luchaje > 0 ? $luchaje : (float)($modelo->Luchaje ?? 0),
             'repeticiones' => $rep > 0 ? $rep : (float)($modelo->Repeticiones ?? 0),
         ];
+    }
+
+    /**
+     * Obtiene todos los datos del modelo codificado como array, con cache por-request y field-mapping.
+     * Reemplaza la implementación privada de DuplicarTejido::getDatosModeloCodificado().
+     * Busca en 3 niveles: exacto → prefijo → contains.
+     * Mapea PasadasTramaFondoC1 → PasadasTrama, FibraTramaFondoC1 → FibraTrama.
+     *
+     * @param string $tamanoClave Clave de modelo
+     * @param string $salon       SalonTejidoId para filtrar
+     * @return array|null         Array de campos del modelo o null si no se encuentra
+     */
+    public static function obtenerDatosModeloCodificadoArray(string $tamanoClave, string $salon): ?array
+    {
+        $cacheKey = $salon . '|' . $tamanoClave;
+        if (array_key_exists($cacheKey, self::$datosModeloArrayCache)) {
+            return self::$datosModeloArrayCache[$cacheKey];
+        }
+
+        $selectCols = [
+            'TamanoClave', 'SalonTejidoId', 'FlogsId', 'NombreProyecto', 'InventSizeId', 'ItemId', 'Nombre',
+            'AnchoToalla', 'LargoToalla', 'CuentaPie', 'MedidaPlano', 'PesoCrudo',
+            'NoTiras', 'Luchaje', 'Repeticiones', 'Total', 'CalibreTrama', 'CalibreTrama2',
+            'FibraId', 'CalibreRizo', 'CalibreRizo2', 'CuentaRizo', 'CalibrePie', 'CalibrePie2',
+            'Peine', 'Rasurado', 'CodColorTrama', 'ColorTrama', 'DobladilloId',
+            'PasadasTramaFondoC1', 'FibraTramaFondoC1',
+            'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5',
+            'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorC1', 'NomColorC1',
+            'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorC2', 'NomColorC2',
+            'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3', 'NomColorC3',
+            'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4',
+            'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5',
+        ];
+
+        $tam = trim($tamanoClave);
+        if ($tam !== '') {
+            $tam = preg_replace('/\s+/', ' ', $tam);
+        }
+
+        $qBase = ReqModelosCodificados::where('SalonTejidoId', $salon);
+
+        $datos = (clone $qBase)
+            ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])
+            ->select($selectCols)
+            ->first();
+
+        if (!$datos) {
+            $datos = (clone $qBase)
+                ->whereRaw('UPPER(TamanoClave) LIKE ?', [strtoupper($tam) . '%'])
+                ->select($selectCols)
+                ->first();
+        }
+
+        if (!$datos) {
+            $datos = (clone $qBase)
+                ->whereRaw('UPPER(TamanoClave) LIKE ?', ['%' . strtoupper($tam) . '%'])
+                ->select($selectCols)
+                ->first();
+        }
+
+        if ($datos) {
+            $resultado = $datos->toArray();
+            $resultado['PasadasTrama'] = $resultado['PasadasTramaFondoC1'] ?? null;
+            $resultado['FibraTrama']   = $resultado['FibraTramaFondoC1'] ?? $resultado['FibraId'] ?? null;
+            unset($resultado['PasadasTramaFondoC1'], $resultado['FibraTramaFondoC1']);
+            self::$datosModeloArrayCache[$cacheKey] = $resultado;
+            return $resultado;
+        }
+
+        self::$datosModeloArrayCache[$cacheKey] = null;
+        return null;
     }
 }
