@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
+use App\Helpers\AuditoriaHelper;
+use App\Helpers\StringTruncator;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
-use App\Helpers\AuditoriaHelper;
-use App\Helpers\StringTruncator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -24,9 +23,9 @@ class UpdateTejido
         $registro = ReqProgramaTejido::findOrFail($id);
 
         foreach ([
-            'programar_prod','entrega_produc','entrega_pt','entrega_cte','fecha_final',
-            'pedido','no_tiras','peine','largo_crudo','luchaje','peso_crudo','pt_vs_cte',
-            'ancho','ancho_toalla','no_produccion'
+            'programar_prod', 'entrega_produc', 'entrega_pt', 'entrega_cte', 'fecha_final',
+            'pedido', 'no_tiras', 'peine', 'largo_crudo', 'luchaje', 'peso_crudo', 'pt_vs_cte',
+            'ancho', 'ancho_toalla', 'no_produccion',
         ] as $k) {
             if ($request->has($k) && is_string($request->input($k)) && trim($request->input($k)) === '') {
                 $request->merge([$k => null]);
@@ -34,39 +33,39 @@ class UpdateTejido
         }
 
         $data = $request->validate([
-            'hilo'          => ['sometimes','nullable','string'],
-            'calendario_id' => ['sometimes','nullable','string'],
-            'tamano_clave'  => ['sometimes','nullable','string'],
-            'no_produccion' => ['sometimes','nullable','string','max:80'],
-            'rasurado'      => ['sometimes','nullable','string'],
-            'pedido'        => ['sometimes','nullable','numeric','min:0'],
-            'programar_prod'=> ['sometimes','nullable','date'],
-            'idflog'        => ['sometimes','nullable','string'],
-            'descripcion'   => ['sometimes','nullable','string'],
-            'aplicacion_id' => ['sometimes','nullable','string'],
-            'no_tiras'      => ['sometimes','nullable','numeric'],
-            'peine'         => ['sometimes','nullable','numeric'],
-            'largo_crudo'   => ['sometimes','nullable','numeric'],
-            'luchaje'       => ['sometimes','nullable','numeric'],
-            'peso_crudo'    => ['sometimes','nullable','numeric'],
-            'entrega_produc'=> ['sometimes','nullable','date'],
-            'entrega_pt'    => ['sometimes','nullable','date'],
-            'entrega_cte'   => ['sometimes','nullable','date'],
-            'pt_vs_cte'     => ['sometimes','nullable','numeric'],
-            'fecha_final'   => ['sometimes','nullable','date'],
-            'ancho'         => ['sometimes','nullable','numeric','min:0'],
-            'ancho_toalla'  => ['sometimes','nullable','numeric','min:0'],
+            'hilo' => ['sometimes', 'nullable', 'string'],
+            'calendario_id' => ['sometimes', 'nullable', 'string'],
+            'tamano_clave' => ['sometimes', 'nullable', 'string'],
+            'no_produccion' => ['sometimes', 'nullable', 'string', 'max:80'],
+            'rasurado' => ['sometimes', 'nullable', 'string'],
+            'pedido' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'programar_prod' => ['sometimes', 'nullable', 'date'],
+            'idflog' => ['sometimes', 'nullable', 'string'],
+            'descripcion' => ['sometimes', 'nullable', 'string'],
+            'aplicacion_id' => ['sometimes', 'nullable', 'string'],
+            'no_tiras' => ['sometimes', 'nullable', 'numeric'],
+            'peine' => ['sometimes', 'nullable', 'numeric'],
+            'largo_crudo' => ['sometimes', 'nullable', 'numeric'],
+            'luchaje' => ['sometimes', 'nullable', 'numeric'],
+            'peso_crudo' => ['sometimes', 'nullable', 'numeric'],
+            'entrega_produc' => ['sometimes', 'nullable', 'date'],
+            'entrega_pt' => ['sometimes', 'nullable', 'date'],
+            'entrega_cte' => ['sometimes', 'nullable', 'date'],
+            'pt_vs_cte' => ['sometimes', 'nullable', 'numeric'],
+            'fecha_final' => ['sometimes', 'nullable', 'date'],
+            'ancho' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'ancho_toalla' => ['sometimes', 'nullable', 'numeric', 'min:0'],
         ]);
 
         // Snapshot
-        $fechaFinalAntes = (string)($registro->FechaFinal ?? '');
-        $horasProdAntes  = (float)($registro->HorasProd ?? 0);
-        $cantidadAntes   = TejidoHelpers::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
+        $fechaFinalAntes = (string) ($registro->FechaFinal ?? '');
+        $horasProdAntes = (float) ($registro->HorasProd ?? 0);
+        $cantidadAntes = TejidoHelpers::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
 
         // Flags correctos
         $afectaCalendario = false;   // solo acomodación en líneas
-        $afectaDuracion   = false;   // cambia HorasProd necesaria (pedido/modelo/no_tiras/luchaje)
-        $afectaFormulas   = false;   // cálculos (peso, etc.)
+        $afectaDuracion = false;   // cambia HorasProd necesaria (pedido/modelo/no_tiras/luchaje)
+        $afectaFormulas = false;   // cálculos (peso, etc.)
         $afectaAplicacion = false;  // cambia aplicación (requiere actualizar líneas)
         $fechaFinalManual = false;
 
@@ -89,7 +88,7 @@ class UpdateTejido
             $salonUpper = strtoupper($salon);
             $esJacquardOSmit = str_contains($salonUpper, 'JAC') || str_contains($salonUpper, 'SMI') || str_contains($salonUpper, 'SMIT');
 
-            if (!empty($nuevaClave) && $esJacquardOSmit) {
+            if (! empty($nuevaClave) && $esJacquardOSmit) {
                 // Primero verificar si existe en el salón actual
                 $datosModelo = self::obtenerDatosModeloCodificado($salon, $nuevaClave);
 
@@ -99,210 +98,230 @@ class UpdateTejido
                     $registro->TamanoClave = $nuevaClave;
                     // FlogsId NO se actualiza desde el modelo - se preserva el valor existente
                     if (isset($datosModelo['InventSizeId'])) {
-                        $registro->InventSizeId = $datosModelo['InventSizeId'] !== null ? (string)$datosModelo['InventSizeId'] : null;
+                        $registro->InventSizeId = $datosModelo['InventSizeId'] !== null ? (string) $datosModelo['InventSizeId'] : null;
                     }
                     if (isset($datosModelo['ItemId'])) {
-                        $registro->ItemId = $datosModelo['ItemId'] !== null ? (string)$datosModelo['ItemId'] : null;
+                        $registro->ItemId = $datosModelo['ItemId'] !== null ? (string) $datosModelo['ItemId'] : null;
                     }
-                    if (isset($datosModelo['NombreProducto']) && !array_key_exists('descripcion', $data)) {
-                        $np = $datosModelo['NombreProducto'] !== null ? mb_substr((string)$datosModelo['NombreProducto'], 0, 50) : null;
+                    if (isset($datosModelo['NombreProducto']) && ! array_key_exists('descripcion', $data)) {
+                        $np = $datosModelo['NombreProducto'] !== null ? mb_substr((string) $datosModelo['NombreProducto'], 0, 50) : null;
                         $registro->NombreProducto = $np;
                     }
                     // Tipo de pedido si viene del FlogsId (ej. RS, CE)
-                    if (isset($datosModelo['FlogsId']) && preg_match('/^([A-Za-z]{2})-/', (string)$datosModelo['FlogsId'], $m)) {
+                    if (isset($datosModelo['FlogsId']) && preg_match('/^([A-Za-z]{2})-/', (string) $datosModelo['FlogsId'], $m)) {
                         $registro->TipoPedido = $m[1];
                     }
                     // Actualizar campos técnicos del modelo (solo si no se están editando explícitamente)
-                    if (!array_key_exists('no_tiras', $data) && isset($datosModelo['NoTiras'])) {
-                        $registro->NoTiras = $datosModelo['NoTiras'] !== null ? (float)$datosModelo['NoTiras'] : null;
+                    if (! array_key_exists('no_tiras', $data) && isset($datosModelo['NoTiras'])) {
+                        $registro->NoTiras = $datosModelo['NoTiras'] !== null ? (float) $datosModelo['NoTiras'] : null;
                     }
-                    if (!array_key_exists('luchaje', $data) && isset($datosModelo['Luchaje'])) {
-                        $registro->Luchaje = $datosModelo['Luchaje'] !== null ? (float)$datosModelo['Luchaje'] : null;
+                    if (! array_key_exists('luchaje', $data) && isset($datosModelo['Luchaje'])) {
+                        $registro->Luchaje = $datosModelo['Luchaje'] !== null ? (float) $datosModelo['Luchaje'] : null;
                     }
                     if (isset($datosModelo['Repeticiones'])) {
-                        $registro->Repeticiones = $datosModelo['Repeticiones'] !== null ? (float)$datosModelo['Repeticiones'] : null;
+                        $registro->Repeticiones = $datosModelo['Repeticiones'] !== null ? (float) $datosModelo['Repeticiones'] : null;
                     }
-                    if (!array_key_exists('peso_crudo', $data) && isset($datosModelo['PesoCrudo'])) {
-                        $registro->PesoCrudo = $datosModelo['PesoCrudo'] !== null ? (int)$datosModelo['PesoCrudo'] : null;
+                    if (! array_key_exists('peso_crudo', $data) && isset($datosModelo['PesoCrudo'])) {
+                        $registro->PesoCrudo = $datosModelo['PesoCrudo'] !== null ? (int) $datosModelo['PesoCrudo'] : null;
                     }
-                    if (!array_key_exists('peine', $data) && isset($datosModelo['Peine'])) {
-                        $registro->Peine = $datosModelo['Peine'] !== null ? (int)$datosModelo['Peine'] : null;
+                    if (! array_key_exists('peine', $data) && isset($datosModelo['Peine'])) {
+                        $registro->Peine = $datosModelo['Peine'] !== null ? (int) $datosModelo['Peine'] : null;
                     }
-                    if (!array_key_exists('largo_crudo', $data) && isset($datosModelo['LargoToalla'])) {
-                        $registro->LargoCrudo = $datosModelo['LargoToalla'] !== null ? (int)$datosModelo['LargoToalla'] : null;
+                    if (! array_key_exists('largo_crudo', $data) && isset($datosModelo['LargoToalla'])) {
+                        $registro->LargoCrudo = $datosModelo['LargoToalla'] !== null ? (int) $datosModelo['LargoToalla'] : null;
                     }
-                    if (!array_key_exists('ancho', $data) && !array_key_exists('ancho_toalla', $data)) {
+                    if (! array_key_exists('ancho', $data) && ! array_key_exists('ancho_toalla', $data)) {
                         if (isset($datosModelo['AnchoToalla'])) {
-                            $ancho = $datosModelo['AnchoToalla'] !== null ? (float)$datosModelo['AnchoToalla'] : null;
+                            $ancho = $datosModelo['AnchoToalla'] !== null ? (float) $datosModelo['AnchoToalla'] : null;
                             $registro->Ancho = $ancho;
                             $registro->AnchoToalla = $ancho;
                         }
                     }
 
                     // Campos de rizo
-                    if (!array_key_exists('hilo', $data) && isset($datosModelo['FibraRizo'])) {
+                    if (! array_key_exists('hilo', $data) && isset($datosModelo['FibraRizo'])) {
                         $valor = $datosModelo['FibraRizo'] ?: null;
-                        $registro->FibraRizo = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->FibraRizo = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['CuentaRizo'])) {
                         $valor = $datosModelo['CuentaRizo'] ?: null;
-                        $registro->CuentaRizo = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CuentaRizo = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['CalibreRizo'])) {
-                        $registro->CalibreRizo = $datosModelo['CalibreRizo'] !== null ? (float)$datosModelo['CalibreRizo'] : null;
+                        $registro->CalibreRizo = $datosModelo['CalibreRizo'] !== null ? (float) $datosModelo['CalibreRizo'] : null;
                     }
                     if (isset($datosModelo['CalibreRizo2'])) {
-                        $registro->CalibreRizo2 = $datosModelo['CalibreRizo2'] !== null ? (float)$datosModelo['CalibreRizo2'] : null;
+                        $registro->CalibreRizo2 = $datosModelo['CalibreRizo2'] !== null ? (float) $datosModelo['CalibreRizo2'] : null;
                     }
 
                     // Campos de pie
                     if (isset($datosModelo['CalibrePie'])) {
-                        $registro->CalibrePie = $datosModelo['CalibrePie'] !== null ? (float)$datosModelo['CalibrePie'] : null;
+                        $registro->CalibrePie = $datosModelo['CalibrePie'] !== null ? (float) $datosModelo['CalibrePie'] : null;
                     }
                     if (isset($datosModelo['CalibrePie2'])) {
-                        $registro->CalibrePie2 = $datosModelo['CalibrePie2'] !== null ? (float)$datosModelo['CalibrePie2'] : null;
+                        $registro->CalibrePie2 = $datosModelo['CalibrePie2'] !== null ? (float) $datosModelo['CalibrePie2'] : null;
                     }
                     if (isset($datosModelo['CuentaPie'])) {
                         $valor = $datosModelo['CuentaPie'] ?: null;
-                        $registro->CuentaPie = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CuentaPie = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     // Color Pie (NombreCPie/CodColorCtaPie): ReqModelosCodificados no tiene esas columnas, no se actualizan desde modelo. OrdPrincipal NO se actualiza.
 
                     // Campos de trama (CalibreTrama / CalibreTrama2)
                     if (isset($datosModelo['CalibreTrama'])) {
-                        $registro->CalibreTrama = $datosModelo['CalibreTrama'] !== null ? (float)$datosModelo['CalibreTrama'] : null;
+                        $registro->CalibreTrama = $datosModelo['CalibreTrama'] !== null ? (float) $datosModelo['CalibreTrama'] : null;
                     }
                     if (isset($datosModelo['CalibreTrama2'])) {
-                        $registro->CalibreTrama2 = $datosModelo['CalibreTrama2'] !== null ? (float)$datosModelo['CalibreTrama2'] : null;
+                        $registro->CalibreTrama2 = $datosModelo['CalibreTrama2'] !== null ? (float) $datosModelo['CalibreTrama2'] : null;
                     }
                     if (isset($datosModelo['FibraTrama'])) {
                         $valor = $datosModelo['FibraTrama'] ?: null;
-                        $registro->FibraTrama = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->FibraTrama = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['PasadasTrama'])) {
-                        $registro->PasadasTrama = $datosModelo['PasadasTrama'] !== null ? (int)$datosModelo['PasadasTrama'] : null;
+                        $registro->PasadasTrama = $datosModelo['PasadasTrama'] !== null ? (int) $datosModelo['PasadasTrama'] : null;
                     }
                     if (isset($datosModelo['CodColorTrama'])) {
                         $valor = $datosModelo['CodColorTrama'] ?: null;
-                        $registro->CodColorTrama = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CodColorTrama = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['ColorTrama'])) {
                         $valor = $datosModelo['ColorTrama'] ?: null;
-                        $registro->ColorTrama = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->ColorTrama = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
 
                     // Campos de combinaciones
-                    if (isset($datosModelo['PasadasComb1'])) $registro->PasadasComb1 = $datosModelo['PasadasComb1'] !== null ? (int)$datosModelo['PasadasComb1'] : null;
-                    if (isset($datosModelo['PasadasComb2'])) $registro->PasadasComb2 = $datosModelo['PasadasComb2'] !== null ? (int)$datosModelo['PasadasComb2'] : null;
-                    if (isset($datosModelo['PasadasComb3'])) $registro->PasadasComb3 = $datosModelo['PasadasComb3'] !== null ? (int)$datosModelo['PasadasComb3'] : null;
-                    if (isset($datosModelo['PasadasComb4'])) $registro->PasadasComb4 = $datosModelo['PasadasComb4'] !== null ? (int)$datosModelo['PasadasComb4'] : null;
-                    if (isset($datosModelo['PasadasComb5'])) $registro->PasadasComb5 = $datosModelo['PasadasComb5'] !== null ? (int)$datosModelo['PasadasComb5'] : null;
+                    if (isset($datosModelo['PasadasComb1'])) {
+                        $registro->PasadasComb1 = $datosModelo['PasadasComb1'] !== null ? (int) $datosModelo['PasadasComb1'] : null;
+                    }
+                    if (isset($datosModelo['PasadasComb2'])) {
+                        $registro->PasadasComb2 = $datosModelo['PasadasComb2'] !== null ? (int) $datosModelo['PasadasComb2'] : null;
+                    }
+                    if (isset($datosModelo['PasadasComb3'])) {
+                        $registro->PasadasComb3 = $datosModelo['PasadasComb3'] !== null ? (int) $datosModelo['PasadasComb3'] : null;
+                    }
+                    if (isset($datosModelo['PasadasComb4'])) {
+                        $registro->PasadasComb4 = $datosModelo['PasadasComb4'] !== null ? (int) $datosModelo['PasadasComb4'] : null;
+                    }
+                    if (isset($datosModelo['PasadasComb5'])) {
+                        $registro->PasadasComb5 = $datosModelo['PasadasComb5'] !== null ? (int) $datosModelo['PasadasComb5'] : null;
+                    }
 
                     // Campos de combinaciones con truncamiento para evitar errores de truncamiento en BD
                     if (isset($datosModelo['CalibreComb1'])) {
                         $valor = $datosModelo['CalibreComb1'] ?: null;
-                        $registro->CalibreComb1 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CalibreComb1 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
-                    if (isset($datosModelo['CalibreComb12'])) $registro->CalibreComb12 = $datosModelo['CalibreComb12'] !== null ? (float)$datosModelo['CalibreComb12'] : null;
+                    if (isset($datosModelo['CalibreComb12'])) {
+                        $registro->CalibreComb12 = $datosModelo['CalibreComb12'] !== null ? (float) $datosModelo['CalibreComb12'] : null;
+                    }
                     if (isset($datosModelo['FibraComb1'])) {
                         $valor = $datosModelo['FibraComb1'] ?: null;
-                        $registro->FibraComb1 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->FibraComb1 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['CodColorComb1'])) {
                         $valor = $datosModelo['CodColorComb1'] ?: null;
-                        $registro->CodColorComb1 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CodColorComb1 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['NombreCC1'])) {
                         $valor = $datosModelo['NombreCC1'] ?: null;
-                        $registro->NombreCC1 = $valor !== null ? mb_substr((string)$valor, 0, 60) : null;
+                        $registro->NombreCC1 = $valor !== null ? mb_substr((string) $valor, 0, 60) : null;
                     }
 
                     if (isset($datosModelo['CalibreComb2'])) {
                         $valor = $datosModelo['CalibreComb2'] ?: null;
-                        $registro->CalibreComb2 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CalibreComb2 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
-                    if (isset($datosModelo['CalibreComb22'])) $registro->CalibreComb22 = $datosModelo['CalibreComb22'] !== null ? (float)$datosModelo['CalibreComb22'] : null;
+                    if (isset($datosModelo['CalibreComb22'])) {
+                        $registro->CalibreComb22 = $datosModelo['CalibreComb22'] !== null ? (float) $datosModelo['CalibreComb22'] : null;
+                    }
                     if (isset($datosModelo['FibraComb2'])) {
                         $valor = $datosModelo['FibraComb2'] ?: null;
-                        $registro->FibraComb2 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->FibraComb2 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['CodColorComb2'])) {
                         $valor = $datosModelo['CodColorComb2'] ?: null;
-                        $registro->CodColorComb2 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CodColorComb2 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['NombreCC2'])) {
                         $valor = $datosModelo['NombreCC2'] ?: null;
-                        $registro->NombreCC2 = $valor !== null ? mb_substr((string)$valor, 0, 60) : null;
+                        $registro->NombreCC2 = $valor !== null ? mb_substr((string) $valor, 0, 60) : null;
                     }
 
                     if (isset($datosModelo['CalibreComb3'])) {
                         $valor = $datosModelo['CalibreComb3'] ?: null;
-                        $registro->CalibreComb3 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CalibreComb3 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
-                    if (isset($datosModelo['CalibreComb32'])) $registro->CalibreComb32 = $datosModelo['CalibreComb32'] !== null ? (float)$datosModelo['CalibreComb32'] : null;
+                    if (isset($datosModelo['CalibreComb32'])) {
+                        $registro->CalibreComb32 = $datosModelo['CalibreComb32'] !== null ? (float) $datosModelo['CalibreComb32'] : null;
+                    }
                     if (isset($datosModelo['FibraComb3'])) {
                         $valor = $datosModelo['FibraComb3'] ?: null;
-                        $registro->FibraComb3 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->FibraComb3 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['CodColorComb3'])) {
                         $valor = $datosModelo['CodColorComb3'] ?: null;
-                        $registro->CodColorComb3 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CodColorComb3 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['NombreCC3'])) {
                         $valor = $datosModelo['NombreCC3'] ?: null;
-                        $registro->NombreCC3 = $valor !== null ? mb_substr((string)$valor, 0, 60) : null;
+                        $registro->NombreCC3 = $valor !== null ? mb_substr((string) $valor, 0, 60) : null;
                     }
 
                     if (isset($datosModelo['CalibreComb4'])) {
                         $valor = $datosModelo['CalibreComb4'] ?: null;
-                        $registro->CalibreComb4 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CalibreComb4 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
-                    if (isset($datosModelo['CalibreComb42'])) $registro->CalibreComb42 = $datosModelo['CalibreComb42'] !== null ? (float)$datosModelo['CalibreComb42'] : null;
+                    if (isset($datosModelo['CalibreComb42'])) {
+                        $registro->CalibreComb42 = $datosModelo['CalibreComb42'] !== null ? (float) $datosModelo['CalibreComb42'] : null;
+                    }
                     if (isset($datosModelo['FibraComb4'])) {
                         $valor = $datosModelo['FibraComb4'] ?: null;
-                        $registro->FibraComb4 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->FibraComb4 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['CodColorComb4'])) {
                         $valor = $datosModelo['CodColorComb4'] ?: null;
-                        $registro->CodColorComb4 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CodColorComb4 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['NombreCC4'])) {
                         $valor = $datosModelo['NombreCC4'] ?: null;
-                        $registro->NombreCC4 = $valor !== null ? mb_substr((string)$valor, 0, 60) : null;
+                        $registro->NombreCC4 = $valor !== null ? mb_substr((string) $valor, 0, 60) : null;
                     }
 
                     if (isset($datosModelo['CalibreComb5'])) {
                         $valor = $datosModelo['CalibreComb5'] ?: null;
-                        $registro->CalibreComb5 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CalibreComb5 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
-                    if (isset($datosModelo['CalibreComb52'])) $registro->CalibreComb52 = $datosModelo['CalibreComb52'] !== null ? (float)$datosModelo['CalibreComb52'] : null;
+                    if (isset($datosModelo['CalibreComb52'])) {
+                        $registro->CalibreComb52 = $datosModelo['CalibreComb52'] !== null ? (float) $datosModelo['CalibreComb52'] : null;
+                    }
                     if (isset($datosModelo['FibraComb5'])) {
                         $valor = $datosModelo['FibraComb5'] ?: null;
-                        $registro->FibraComb5 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->FibraComb5 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['CodColorComb5'])) {
                         $valor = $datosModelo['CodColorComb5'] ?: null;
-                        $registro->CodColorComb5 = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->CodColorComb5 = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['NombreCC5'])) {
                         $valor = $datosModelo['NombreCC5'] ?: null;
-                        $registro->NombreCC5 = $valor !== null ? mb_substr((string)$valor, 0, 60) : null;
+                        $registro->NombreCC5 = $valor !== null ? mb_substr((string) $valor, 0, 60) : null;
                     }
 
                     // Otros campos
                     if (isset($datosModelo['MedidaPlano'])) {
-                        $registro->MedidaPlano = $datosModelo['MedidaPlano'] !== null ? (float)$datosModelo['MedidaPlano'] : null;
+                        $registro->MedidaPlano = $datosModelo['MedidaPlano'] !== null ? (float) $datosModelo['MedidaPlano'] : null;
                     }
                     if (isset($datosModelo['DobladilloId'])) {
                         $valor = $datosModelo['DobladilloId'] ?: null;
-                        $registro->DobladilloId = $valor !== null ? mb_substr((string)$valor, 0, 40) : null;
+                        $registro->DobladilloId = $valor !== null ? mb_substr((string) $valor, 0, 40) : null;
                     }
                     if (isset($datosModelo['VelocidadSTD'])) {
-                        $registro->VelocidadSTD = $datosModelo['VelocidadSTD'] !== null ? (int)$datosModelo['VelocidadSTD'] : null;
+                        $registro->VelocidadSTD = $datosModelo['VelocidadSTD'] !== null ? (int) $datosModelo['VelocidadSTD'] : null;
                     }
-                    if (!array_key_exists('rasurado', $data) && isset($datosModelo['Rasurado'])) {
+                    if (! array_key_exists('rasurado', $data) && isset($datosModelo['Rasurado'])) {
                         $valor = $datosModelo['Rasurado'] ?: null;
-                        $registro->Rasurado = $valor !== null ? mb_substr((string)$valor, 0, 10) : null;
+                        $registro->Rasurado = $valor !== null ? mb_substr((string) $valor, 0, 10) : null;
                     }
 
                     // FlogsId y NombreProyecto NO se actualizan desde el modelo - se preservan los valores existentes
@@ -319,21 +338,21 @@ class UpdateTejido
                             'success' => false,
                             'message' => "La clave modelo \"{$nuevaClave}\" no existe en el salón actual ({$salon}), pero se encontró en el salón: {$salonEncontrado}",
                             'tipo' => 'alerta',
-                            'salon_encontrado' => $salonEncontrado
+                            'salon_encontrado' => $salonEncontrado,
                         ], 422);
                     } else {
                         // No existe en ningún salón Jacquard/Smit, retornar error
                         return response()->json([
                             'success' => false,
                             'message' => "La clave modelo \"{$nuevaClave}\" no existe en los codificados de Jacquard o SMIT",
-                            'tipo' => 'error'
+                            'tipo' => 'error',
                         ], 422);
                     }
                 }
             } else {
                 // Si no es Jacquard/Smit o la clave está vacía, solo actualizar la clave sin cambiar otros campos
                 $registro->TamanoClave = $nuevaClave;
-                if (!empty($nuevaClave)) {
+                if (! empty($nuevaClave)) {
                     $afectaDuracion = true;
                     $afectaFormulas = true;
                 }
@@ -349,11 +368,11 @@ class UpdateTejido
         }
 
         if (array_key_exists('pedido', $data)) {
-            $totalPedido = $data['pedido'] !== null ? (float)$data['pedido'] : null;
+            $totalPedido = $data['pedido'] !== null ? (float) $data['pedido'] : null;
             if ($totalPedido !== null) {
                 $registro->TotalPedido = $totalPedido;
 
-                $prod = (float)($registro->Produccion ?? 0);
+                $prod = (float) ($registro->Produccion ?? 0);
                 $registro->SaldoPedido = max(0, $totalPedido - $prod);
 
                 $afectaDuracion = true;
@@ -362,8 +381,11 @@ class UpdateTejido
         }
 
         if (array_key_exists('programar_prod', $data)) {
-            if ($data['programar_prod']) DateHelpers::setSafeDate($registro, 'ProgramarProd', $data['programar_prod']);
-            else $registro->ProgramarProd = null;
+            if ($data['programar_prod']) {
+                DateHelpers::setSafeDate($registro, 'ProgramarProd', $data['programar_prod']);
+            } else {
+                $registro->ProgramarProd = null;
+            }
         }
 
         if (array_key_exists('idflog', $data)) {
@@ -380,46 +402,46 @@ class UpdateTejido
             $registro->AplicacionId = $nuevaAplicacion;
 
             // Detectar si realmente cambió la aplicación
-            if ((string)$aplicacionAnterior !== (string)$nuevaAplicacion) {
+            if ((string) $aplicacionAnterior !== (string) $nuevaAplicacion) {
                 $afectaAplicacion = true;
             }
         }
 
         if (array_key_exists('no_tiras', $data)) {
-            $registro->NoTiras = $data['no_tiras'] !== null ? (float)$data['no_tiras'] : null;
+            $registro->NoTiras = $data['no_tiras'] !== null ? (float) $data['no_tiras'] : null;
             $afectaDuracion = true;
             $afectaFormulas = true;
         }
 
         if (array_key_exists('peine', $data)) {
-            $registro->Peine = $data['peine'] !== null ? (float)$data['peine'] : null;
+            $registro->Peine = $data['peine'] !== null ? (float) $data['peine'] : null;
         }
 
         if (array_key_exists('largo_crudo', $data)) {
-            $registro->LargoCrudo = $data['largo_crudo'] !== null ? (float)$data['largo_crudo'] : null;
+            $registro->LargoCrudo = $data['largo_crudo'] !== null ? (float) $data['largo_crudo'] : null;
         }
 
         if (array_key_exists('luchaje', $data)) {
-            $registro->Luchaje = $data['luchaje'] !== null ? (float)$data['luchaje'] : null;
+            $registro->Luchaje = $data['luchaje'] !== null ? (float) $data['luchaje'] : null;
             $afectaDuracion = true;
             $afectaFormulas = true;
         }
 
         if (array_key_exists('peso_crudo', $data)) {
-            $registro->PesoCrudo = $data['peso_crudo'] !== null ? (float)$data['peso_crudo'] : null;
+            $registro->PesoCrudo = $data['peso_crudo'] !== null ? (float) $data['peso_crudo'] : null;
             $afectaFormulas = true;
         }
 
         // Ancho / AnchoToalla: al editar solo se recalcula PesoGRM2
         $editoAncho = false;
         if (array_key_exists('ancho_toalla', $data)) {
-            $valor = $data['ancho_toalla'] !== null && $data['ancho_toalla'] !== '' ? (float)$data['ancho_toalla'] : null;
+            $valor = $data['ancho_toalla'] !== null && $data['ancho_toalla'] !== '' ? (float) $data['ancho_toalla'] : null;
             $registro->AnchoToalla = $valor;
             $registro->Ancho = $valor;
             $editoAncho = true;
         }
         if (array_key_exists('ancho', $data)) {
-            $valor = $data['ancho'] !== null && $data['ancho'] !== '' ? (float)$data['ancho'] : null;
+            $valor = $data['ancho'] !== null && $data['ancho'] !== '' ? (float) $data['ancho'] : null;
             $registro->Ancho = $valor;
             $registro->AnchoToalla = $valor;
             $editoAncho = true;
@@ -427,22 +449,31 @@ class UpdateTejido
         // No marcar $afectaFormulas: al editar solo ancho solo se recalcula PesoGRM2 más abajo
 
         if (array_key_exists('entrega_produc', $data)) {
-            if ($data['entrega_produc']) DateHelpers::setSafeDate($registro, 'EntregaProduc', $data['entrega_produc']);
-            else $registro->EntregaProduc = null;
+            if ($data['entrega_produc']) {
+                DateHelpers::setSafeDate($registro, 'EntregaProduc', $data['entrega_produc']);
+            } else {
+                $registro->EntregaProduc = null;
+            }
         }
 
         if (array_key_exists('entrega_pt', $data)) {
-            if ($data['entrega_pt']) DateHelpers::setSafeDate($registro, 'EntregaPT', $data['entrega_pt']);
-            else $registro->EntregaPT = null;
+            if ($data['entrega_pt']) {
+                DateHelpers::setSafeDate($registro, 'EntregaPT', $data['entrega_pt']);
+            } else {
+                $registro->EntregaPT = null;
+            }
         }
 
         if (array_key_exists('entrega_cte', $data)) {
-            if ($data['entrega_cte']) DateHelpers::setSafeDate($registro, 'EntregaCte', $data['entrega_cte']);
-            else $registro->EntregaCte = null;
+            if ($data['entrega_cte']) {
+                DateHelpers::setSafeDate($registro, 'EntregaCte', $data['entrega_cte']);
+            } else {
+                $registro->EntregaCte = null;
+            }
         }
 
         if (array_key_exists('pt_vs_cte', $data)) {
-            $registro->PTvsCte = $data['pt_vs_cte'] !== null ? (float)$data['pt_vs_cte'] : null;
+            $registro->PTvsCte = $data['pt_vs_cte'] !== null ? (float) $data['pt_vs_cte'] : null;
         }
 
         if (array_key_exists('fecha_final', $data) && $data['fecha_final']) {
@@ -453,7 +484,7 @@ class UpdateTejido
         // ===== 2) Recalcular FechaFinal =====
         // REGLA: cambiar calendario NO cambia duración; solo re-acomoda en líneas.
         $enProceso = (bool) $registro->EnProceso;
-        $recalcularFecha = (!$fechaFinalManual) && !empty($registro->FechaInicio) && ($afectaCalendario || $afectaDuracion);
+        $recalcularFecha = (! $fechaFinalManual) && ! empty($registro->FechaInicio) && ($afectaCalendario || $afectaDuracion);
 
         if ($recalcularFecha) {
 
@@ -465,9 +496,9 @@ class UpdateTejido
             }
 
             // Snap si cayó en gap (solo si hay calendario y NO está EnProceso)
-            if (!$enProceso && $afectaCalendario && !empty($registro->CalendarioId)) {
+            if (! $enProceso && $afectaCalendario && ! empty($registro->CalendarioId)) {
                 $snap = TejidoHelpers::snapInicioAlCalendario($registro->CalendarioId, $inicio);
-                if ($snap && !$snap->equalTo($inicio)) {
+                if ($snap && ! $snap->equalTo($inicio)) {
                     $fechaInicioAnterior = $registro->FechaInicio;
                     $registro->FechaInicio = $snap->format('Y-m-d H:i:s');
                     $inicio = $snap;
@@ -505,9 +536,11 @@ class UpdateTejido
             if ($horasNecesarias <= 0) {
                 $registro->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
             } else {
-                if (!empty($registro->CalendarioId)) {
+                if (! empty($registro->CalendarioId)) {
                     $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
-                    if (!$fin) $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
+                    if (! $fin) {
+                        $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
+                    }
                     $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
                 } else {
                     $registro->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
@@ -517,14 +550,14 @@ class UpdateTejido
 
         // ===== 3) Fórmulas =====
         // Si SOLO cambió calendario (y NO cambió duración), recalcula SOLO lo que depende de diffDias
-        $soloCalendario = $afectaCalendario && !$afectaDuracion && !$fechaFinalManual && !$afectaFormulas;
+        $soloCalendario = $afectaCalendario && ! $afectaDuracion && ! $fechaFinalManual && ! $afectaFormulas;
 
         if ($soloCalendario) {
             self::recalcularSoloDiffDias($registro);
         } elseif ($afectaFormulas || $afectaDuracion || $afectaCalendario || $fechaFinalManual) {
             // EnProceso: usar now() como inicio efectivo para fórmulas (no FechaInicio)
             $regParaFormulas = $registro;
-            if ($enProceso && !empty($registro->FechaFinal)) {
+            if ($enProceso && ! empty($registro->FechaFinal)) {
                 $regParaFormulas = clone $registro;
                 $regParaFormulas->FechaInicio = Carbon::now()->format('Y-m-d H:i:s');
             }
@@ -536,24 +569,24 @@ class UpdateTejido
 
         // Si se editó ancho/ancho_toalla: recalcular PesoGRM2 (usar LargoCrudo si no hay LargoToalla)
         if ($editoAncho) {
-            $pesoCrudo   = (float)($registro->PesoCrudo ?? 0);
-            $largo       = (float)($registro->LargoToalla ?? $registro->LargoCrudo ?? 0);
-            $anchoToalla = (float)($registro->AnchoToalla ?? 0);
+            $pesoCrudo = (float) ($registro->PesoCrudo ?? 0);
+            $largo = (float) ($registro->LargoToalla ?? $registro->LargoCrudo ?? 0);
+            $anchoToalla = (float) ($registro->AnchoToalla ?? 0);
             if ($pesoCrudo > 0 && $largo > 0 && $anchoToalla > 0) {
                 $registro->PesoGRM2 = (float) round(($pesoCrudo * 10000) / ($largo * $anchoToalla), 2);
             }
         }
 
-        $fechaFinalCambiada = ((string)($registro->FechaFinal ?? '') !== $fechaFinalAntes);
+        $fechaFinalCambiada = ((string) ($registro->FechaFinal ?? '') !== $fechaFinalAntes);
 
         // ===== 4) Truncar strings antes de guardar (evitar error "String or binary data would be truncated")
         StringTruncator::truncateModelAttributes($registro);
 
         // ===== 5) Log de campos que se actualizarán y guardar =====
         $dirty = $registro->getDirty();
-        if (!empty($dirty)) {
+        if (! empty($dirty)) {
             $campos = array_keys($dirty);
-            $ordenNoActualizada = !in_array('OrdPrincipal', $campos, true);
+            $ordenNoActualizada = ! in_array('OrdPrincipal', $campos, true);
             LogFacade::info('UpdateTejido: campos actualizados', [
                 'id' => $registro->Id,
                 'campos' => $campos,
@@ -573,10 +606,11 @@ class UpdateTejido
         $registro->saveQuietly();
 
         // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====
-        if ($fechaFinalCambiada && (int)($registro->Ultimo ?? 0) !== 1) {
-            try { DateHelpers::cascadeFechas($registro); }
-            catch (\Throwable $e) {
-                LogFacade::warning('UpdateTejido: cascadeFechas error', ['id'=>$registro->Id,'error'=>$e->getMessage()]);
+        if ($fechaFinalCambiada && (int) ($registro->Ultimo ?? 0) !== 1) {
+            try {
+                DateHelpers::cascadeFechas($registro);
+            } catch (\Throwable $e) {
+                LogFacade::warning('UpdateTejido: cascadeFechas error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
             }
         }
 
@@ -587,16 +621,16 @@ class UpdateTejido
             try {
                 ReqProgramaTejido::regenerarLineas([$registro]);
             } catch (\Throwable $e) {
-                LogFacade::warning('UpdateTejido: observer saved error', ['id'=>$registro->Id,'error'=>$e->getMessage()]);
+                LogFacade::warning('UpdateTejido: observer saved error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
             }
         }
 
         // ===== 8) Actualizar Aplicacion en líneas existentes (solo si cambió aplicación y NO se regeneraron líneas) =====
-        if ($afectaAplicacion && !$necesitaLineas) {
+        if ($afectaAplicacion && ! $necesitaLineas) {
             try {
                 self::actualizarAplicacionEnLineas($registro);
             } catch (\Throwable $e) {
-                LogFacade::warning('UpdateTejido: actualizarAplicacionEnLineas error', ['id'=>$registro->Id,'error'=>$e->getMessage()]);
+                LogFacade::warning('UpdateTejido: actualizarAplicacionEnLineas error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
             }
         }
 
@@ -605,7 +639,7 @@ class UpdateTejido
         return response()->json([
             'success' => true,
             'message' => 'Programa de tejido actualizado',
-            'data'    => UtilityHelpers::extractResumen($registro),
+            'data' => UtilityHelpers::extractResumen($registro),
         ]);
     }
 
@@ -616,7 +650,9 @@ class UpdateTejido
     private static function buscarClaveModeloEnOtrosSalones(string $tamanoClave, string $salonActual): ?string
     {
         $tam = trim($tamanoClave);
-        if ($tam === '') return null;
+        if ($tam === '') {
+            return null;
+        }
 
         // Normalizar: quitar dobles espacios y usar mayúsculas para comparación flexible
         $tam = preg_replace('/\s+/', ' ', $tam);
@@ -624,14 +660,14 @@ class UpdateTejido
 
         // Obtener todos los salones Jacquard/Smit disponibles
         $salonesJacquardOSmit = ReqModelosCodificados::query()
-            ->where(function($q) {
-                $q->whereRaw("UPPER(SalonTejidoId) LIKE ?", ['%JAC%'])
-                  ->orWhereRaw("UPPER(SalonTejidoId) LIKE ?", ['%SMI%'])
-                  ->orWhereRaw("UPPER(SalonTejidoId) LIKE ?", ['%SMIT%']);
+            ->where(function ($q) {
+                $q->whereRaw('UPPER(SalonTejidoId) LIKE ?', ['%JAC%'])
+                    ->orWhereRaw('UPPER(SalonTejidoId) LIKE ?', ['%SMI%'])
+                    ->orWhereRaw('UPPER(SalonTejidoId) LIKE ?', ['%SMIT%']);
             })
             ->distinct()
             ->pluck('SalonTejidoId')
-            ->filter(function($s) use ($salonActual) {
+            ->filter(function ($s) use ($salonActual) {
                 // Excluir el salón actual
                 return strtoupper($s) !== strtoupper($salonActual);
             })
@@ -653,7 +689,7 @@ class UpdateTejido
 
             // Prefijo
             $existe = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) like ?', [$tamUpper . '%'])
+                ->whereRaw('UPPER(TamanoClave) like ?', [$tamUpper.'%'])
                 ->exists();
 
             if ($existe) {
@@ -662,7 +698,7 @@ class UpdateTejido
 
             // Contiene
             $existe = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) like ?', ['%' . $tamUpper . '%'])
+                ->whereRaw('UPPER(TamanoClave) like ?', ['%'.$tamUpper.'%'])
                 ->exists();
 
             if ($existe) {
@@ -680,7 +716,9 @@ class UpdateTejido
     private static function obtenerDatosModeloCodificado(string $salon, string $tamanoClave): ?array
     {
         $tam = trim($tamanoClave);
-        if ($tam === '') return null;
+        if ($tam === '') {
+            return null;
+        }
 
         // Normalizar: quitar dobles espacios y usar mayúsculas para comparación flexible
         $tam = preg_replace('/\s+/', ' ', $tam);
@@ -695,7 +733,7 @@ class UpdateTejido
             'FibraComb1', 'CodColorC1', 'NomColorC1', 'CalibreComb2', 'CalibreComb22', 'FibraComb2',
             'CodColorC2', 'NomColorC2', 'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3',
             'NomColorC3', 'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4',
-            'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'LargoToalla'
+            'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'LargoToalla',
         ];
 
         $qBase = ReqModelosCodificados::where('SalonTejidoId', $salon);
@@ -707,22 +745,22 @@ class UpdateTejido
             ->first();
 
         // Prefijo
-        if (!$datos) {
+        if (! $datos) {
             $datos = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tam) . '%'])
+                ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tam).'%'])
                 ->select($selectCols)
                 ->first();
         }
 
         // Contiene
-        if (!$datos) {
+        if (! $datos) {
             $datos = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) like ?', ['%' . strtoupper($tam) . '%'])
+                ->whereRaw('UPPER(TamanoClave) like ?', ['%'.strtoupper($tam).'%'])
                 ->select($selectCols)
                 ->first();
         }
 
-        if (!$datos) {
+        if (! $datos) {
             return null;
         }
 
@@ -799,21 +837,27 @@ class UpdateTejido
     // Recalcular SOLO lo que depende de diffDias (para calendar-only)
     private static function recalcularSoloDiffDias(ReqProgramaTejido $p): void
     {
-        if (empty($p->FechaFinal)) return;
+        if (empty($p->FechaFinal)) {
+            return;
+        }
 
         // EnProceso: usar now() como inicio efectivo (no FechaInicio)
         $esEnProceso = (bool) $p->EnProceso;
         $inicio = $esEnProceso ? Carbon::now() : (empty($p->FechaInicio) ? null : Carbon::parse($p->FechaInicio));
-        if (!$inicio) return;
+        if (! $inicio) {
+            return;
+        }
 
         $fin = Carbon::parse($p->FechaFinal);
-        $diffSeg  = abs($fin->getTimestamp() - $inicio->getTimestamp());
+        $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
         $diffDias = $diffSeg / 86400;
 
-        if ($diffDias <= 0) return;
+        if ($diffDias <= 0) {
+            return;
+        }
 
         $cantidad = TejidoHelpers::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
-        $pesoCrudo = (float)($p->PesoCrudo ?? 0);
+        $pesoCrudo = (float) ($p->PesoCrudo ?? 0);
 
         $p->DiasEficiencia = (float) round($diffDias, 2);
 
@@ -827,16 +871,10 @@ class UpdateTejido
 
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        try {
-            $m = TejidoHelpers::obtenerModeloParams($programa);
-            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, true);
-        } catch (\Throwable $e) {
-            LogFacade::warning('UpdateTejido: Error al calcular formulas', [
-                'error' => $e->getMessage(),
-                'programa_id' => $programa->Id ?? null,
-            ]);
-        }
-        return [];
+        return TejidoHelpers::calcularFormulasEficienciaPorContexto(
+            $programa,
+            TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT
+        );
     }
 
     /**
@@ -845,7 +883,7 @@ class UpdateTejido
      */
     private static function actualizarAplicacionEnLineas(ReqProgramaTejido $programa): void
     {
-        if (!$programa->Id || $programa->Id <= 0) {
+        if (! $programa->Id || $programa->Id <= 0) {
             return;
         }
 

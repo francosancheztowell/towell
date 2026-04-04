@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\ProgramaTejidoSecuenciaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
@@ -22,6 +23,7 @@ class EliminarTejido
      */
     public static function eliminar(int $id)
     {
+        $dispatcher = null;
         DB::beginTransaction();
         try {
             $registro = ReqProgramaTejido::findOrFail($id);
@@ -88,19 +90,14 @@ class EliminarTejido
 
             [$updates,$detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
 
-            foreach ($updates as $idU => $data) {
-                DB::table(ReqProgramaTejido::tableName())->where('Id',$idU)->update($data);
-            }
+            ProgramaTejidoSecuenciaHelper::aplicarUpdatesDesdeRecalculo($updates);
 
             DB::commit();
 
             // Re-habilitar observer
             ReqProgramaTejido::restoreObservers($dispatcher);
 
-            // Regenerar líneas
-            ReqProgramaTejido::regenerarLineas(
-                ReqProgramaTejido::findMany(array_column($detalles, 'Id'))
-            );
+            ProgramaTejidoSecuenciaHelper::regenerarLineasDesdeDetalles($detalles);
 
             return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
 
@@ -132,6 +129,7 @@ class EliminarTejido
      */
     public static function eliminarEnProceso(int $id)
     {
+        $dispatcher = null;
         DB::beginTransaction();
         try {
             $registro = ReqProgramaTejido::findOrFail($id);
@@ -186,19 +184,14 @@ class EliminarTejido
 
             [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
 
-            foreach ($updates as $idU => $data) {
-                DB::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
-            }
+            ProgramaTejidoSecuenciaHelper::aplicarUpdatesDesdeRecalculo($updates);
 
             DB::commit();
 
             // Re-habilitar observer
             ReqProgramaTejido::restoreObservers($dispatcher);
 
-            // Regenerar líneas de todos los registros afectados
-            ReqProgramaTejido::regenerarLineas(
-                ReqProgramaTejido::findMany(array_column($detalles, 'Id'))
-            );
+            ProgramaTejidoSecuenciaHelper::regenerarLineasDesdeDetalles($detalles);
 
             return response()->json([
                 'success'          => true,
@@ -240,6 +233,7 @@ class EliminarTejido
      */
     private static function moverEnLugarDeEliminar($registro, $registros, $idx, $reprogramar)
     {
+        $dispatcher = null;
         try {
             // Validar que hay al menos 2 registros
             if ($registros->count() < 2) {
@@ -277,20 +271,14 @@ class EliminarTejido
             // Recalcular fechas para toda la secuencia (solo del telar actual)
             [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal);
 
-            // Actualizar solo los registros de este telar
-            foreach ($updates as $idU => $data) {
-                DB::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
-            }
+            ProgramaTejidoSecuenciaHelper::aplicarUpdatesDesdeRecalculo($updates);
 
             DB::commit();
 
             // Re-habilitar observer
             ReqProgramaTejido::restoreObservers($dispatcher);
 
-            // Regenerar líneas solo para los registros de este telar
             $idsAfectados = array_column($detalles, 'Id');
-
-            // Obtener solo los registros de este telar que fueron afectados
             $registrosAfectados = ReqProgramaTejido::query()
                 ->salon($registro->SalonTejidoId)
                 ->telar($registro->NoTelarId)
@@ -335,6 +323,7 @@ class EliminarTejido
      */
     private static function eliminarConOrdCompartida($registro, $registros, $idx)
     {
+        $dispatcher = null;
         try {
             $ordCompartida = $registro->OrdCompartida;
 
@@ -378,19 +367,14 @@ class EliminarTejido
 
                 [$updates,$detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
 
-                foreach ($updates as $idU => $data) {
-                    DB::table(ReqProgramaTejido::tableName())->where('Id',$idU)->update($data);
-                }
+                ProgramaTejidoSecuenciaHelper::aplicarUpdatesDesdeRecalculo($updates);
 
                 DB::commit();
 
                 // Re-habilitar observer
                 ReqProgramaTejido::restoreObservers($dispatcher);
 
-                // Regenerar líneas
-                ReqProgramaTejido::regenerarLineas(
-                    ReqProgramaTejido::findMany(array_column($detalles, 'Id'))
-                );
+                ProgramaTejidoSecuenciaHelper::regenerarLineasDesdeDetalles($detalles);
 
                 return response()->json(['success'=>true,'message'=>'Registro eliminado correctamente','cascaded_records'=>count($detalles),'detalles'=>$detalles]);
             }
@@ -523,11 +507,8 @@ class EliminarTejido
                 // Recalcular fechas de la secuencia
                 [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosTelar, $inicioOriginal);
 
-                foreach ($updates as $idU => $data) {
-                    DB::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
-                }
+                ProgramaTejidoSecuenciaHelper::aplicarUpdatesDesdeRecalculo($updates);
 
-                // Regenerar líneas de todos los registros del telar
                 $modelos = ReqProgramaTejido::findMany(array_column($detalles, 'Id'));
                 ReqProgramaTejido::regenerarLineas($modelos);
                 $idsRegenerados = array_merge($idsRegenerados, $modelos->pluck('Id')->all());
@@ -588,14 +569,9 @@ class EliminarTejido
         // Recalcular fechas de toda la secuencia del telar
         [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosTelar, $inicioOriginal);
 
-        foreach ($updates as $idU => $data) {
-            DB::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
-        }
+        ProgramaTejidoSecuenciaHelper::aplicarUpdatesDesdeRecalculo($updates);
 
-        // Regenerar líneas de todos los registros del telar
-        ReqProgramaTejido::regenerarLineas(
-            ReqProgramaTejido::findMany(array_column($detalles, 'Id'))
-        );
+        ProgramaTejidoSecuenciaHelper::regenerarLineasDesdeDetalles($detalles);
     }
 
 }

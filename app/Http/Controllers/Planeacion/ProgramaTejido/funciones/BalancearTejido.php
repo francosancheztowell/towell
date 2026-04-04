@@ -248,7 +248,7 @@ class BalancearTejido
                     // Actualizar este registro en cascada
                     [$inicio, $fin] = self::resolverInicioFin($cursor->copy(), $r);
                     $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
-                    $r->FechaFinal  = $fin->format('Y-m-d H:i:s');
+                    $r->FechaFinal = $fin->format('Y-m-d H:i:s');
                     $formulas = self::calcularFormulasEficiencia($r);
                     foreach ($formulas as $campo => $valor) {
                         $r->{$campo} = $valor;
@@ -375,9 +375,9 @@ class BalancearTejido
      * Lógica EnProceso/saldo-negativo queda en los callers; este método recibe
      * el inicio ya resuelto y solo aplica snap + cálculo de fin.
      *
-     * @param  Carbon               $inicio      Inicio candidato (cursor, FechaInicio parseada, etc.)
-     * @param  ReqProgramaTejido    $r           Registro con SaldoPedido, CalendarioId, etc.
-     * @param  bool                 $aplicarSnap Si false (EnProceso), omite snap al calendario.
+     * @param  Carbon  $inicio  Inicio candidato (cursor, FechaInicio parseada, etc.)
+     * @param  ReqProgramaTejido  $r  Registro con SaldoPedido, CalendarioId, etc.
+     * @param  bool  $aplicarSnap  Si false (EnProceso), omite snap al calendario.
      * @return array{0:Carbon, 1:Carbon, 2:float} [$inicio, $fin, $horasNecesarias]
      */
     public static function resolverInicioFin(Carbon $inicio, ReqProgramaTejido $r, bool $aplicarSnap = true): array
@@ -626,14 +626,14 @@ class BalancearTejido
      *   - $linesExhausted = false → detenido por callback o maxIter
      *
      * @param  array<array{ini:Carbon,fin:Carbon,fin_ts:int}>  $lines
-     * @param  Carbon   $cursor         Inicio de iteración (se modifica en lugar)
-     * @param  callable $procesarSegmento  (int $disp, Carbon $ini, Carbon $fin): array{int,bool}
+     * @param  Carbon  $cursor  Inicio de iteración (se modifica en lugar)
+     * @param  callable  $procesarSegmento  (int $disp, Carbon $ini, Carbon $fin): array{int,bool}
      * @return array{0:Carbon, 1:bool}
      */
     public static function iterarLineasActivas(array $lines, Carbon $cursor, callable $procesarSegmento): array
     {
-        $idx     = 0;
-        $iter    = 0;
+        $idx = 0;
+        $iter = 0;
         $maxIter = 200000;
 
         while ($iter < $maxIter) {
@@ -655,18 +655,21 @@ class BalancearTejido
             // Gap antes de la línea: saltar al inicio
             if ($cursor->lt($ini)) {
                 $cursor = $ini->copy();
+
                 continue;
             }
 
             // Línea ya superada
             if ($cursor->gte($fin)) {
                 $idx++;
+
                 continue;
             }
 
             $disponibles = (int) ($fin->getTimestamp() - $cursorTs);
             if ($disponibles <= 0) {
                 $cursor = $fin->copy();
+
                 continue;
             }
 
@@ -704,7 +707,7 @@ class BalancearTejido
             return $fechaInicio->copy();
         }
 
-        $lines  = self::getCalendarioLines($calendarioId);
+        $lines = self::getCalendarioLines($calendarioId);
         $cursor = $fechaInicio->copy();
 
         [$cursor, $linesExhausted] = self::iterarLineasActivas(
@@ -727,33 +730,13 @@ class BalancearTejido
     /**
      * Calculate efficiency formulas for BalancearTejido operations.
      * Uses includePTvsCte=true because balanceo shows difference vs commitment.
-     *
-     * @param ReqProgramaTejido $programa
-     * @return array
      */
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        try {
-            $m = TejidoHelpers::obtenerModeloParams($programa);
-
-            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, false);
-        } catch (\InvalidArgumentException $e) {
-            // Datos inválidos en parámetros (ej: tamanoClave vacío), no recuperable
-            Log::error('BalancearTejido: Parámetros inválidos para fórmulas', [
-                'error' => $e->getMessage(),
-                'programa_id' => $programa->Id ?? null,
-            ]);
-
-            return [];
-        } catch (\Throwable $e) {
-            // Error inesperado en cálculo, log y continue sin fórmulas
-            Log::warning('BalancearTejido: Error al calcular fórmulas', [
-                'error' => $e->getMessage(),
-                'programa_id' => $programa->Id ?? null,
-            ]);
-
-            return [];
-        }
+        return TejidoHelpers::calcularFormulasEficienciaPorContexto(
+            $programa,
+            TejidoHelpers::FORMULAS_CTX_BALANCEAR
+        );
     }
 
     // =========================================================
@@ -997,9 +980,8 @@ class BalancearTejido
         $cumplen = [];
         $necesitanAjuste = [];
         $horasNecesariasOriginales = 0.0;
-        $totalRegistros = count($registrosArray);
 
-        foreach ($registrosArray as $indice => $reg) {
+        foreach ($registrosArray as $reg) {
             $produccion = (float) ($reg->Produccion ?? 0);
             $pedidoActualData = $pedidosActuales[(int) $reg->Id] ?? null;
             $pedidoActual = (float) ($pedidoActualData['pedido'] ?? ($reg->TotalPedido ?? 0));
@@ -1038,9 +1020,12 @@ class BalancearTejido
                 }
             }
 
-            // Todos los registros con FechaInicio pasan por búsqueda binaria.
-            // ajustarPedidosAlTotalObjetivo (llamado después) siempre ajusta el ÚLTIMO.
-            $necesitanAjuste[] = ['reg' => $reg];
+            if ($cumpleObjetivo) {
+                $cumplen[] = ['reg' => $reg, 'pedido' => $pedidoActual];
+            } else {
+                // Requiere recalcular pedido vía calcularPedidoParaFechaObjetivo; ajustarPedidosAlTotalObjetivo ajusta el último telar al final.
+                $necesitanAjuste[] = ['reg' => $reg];
+            }
         }
 
         return [
@@ -1245,7 +1230,7 @@ class BalancearTejido
      */
     private static function calcularHorasDisponiblesHastaFecha(?string $calendarioId, Carbon $fechaInicio, Carbon $fechaFin): float
     {
-        $finTs   = $fechaFin->getTimestamp();
+        $finTs = $fechaFin->getTimestamp();
         $segundos = max(0, $finTs - $fechaInicio->getTimestamp());
 
         if (empty($calendarioId)) {
@@ -1266,8 +1251,8 @@ class BalancearTejido
             function (int $disponibles, Carbon $ini, Carbon $fin) use ($finTs, &$segundosTotales): array {
                 // Recortar disponibles al límite de fechaFin
                 // disponibles = fin.ts - cursorTs  →  exceso = max(0, fin.ts - finTs)
-                $exceso  = max(0, $fin->getTimestamp() - $finTs);
-                $usar    = max(0, $disponibles - $exceso);
+                $exceso = max(0, $fin->getTimestamp() - $finTs);
+                $usar = max(0, $disponibles - $exceso);
                 $segundosTotales += $usar;
 
                 // Continuar solo si la línea termina antes de fechaFin

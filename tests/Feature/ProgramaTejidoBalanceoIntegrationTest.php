@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
-use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\Usuario;
 use Tests\TestCase;
 
@@ -88,38 +87,47 @@ class ProgramaTejidoBalanceoIntegrationTest extends TestCase
     }
 
     /**
-     * Verifica que calcularFormulasEficiencia usa params correctos.
+     * Verifica que calcularFormulasEficiencia usa params correctos (centralizado en TejidoHelpers).
      */
     public function test_calcular_formulas_usa_include_pt_vs_cte_true(): void
     {
         $reflection = new \ReflectionMethod(BalancearTejido::class, 'calcularFormulasEficiencia');
         $this->assertTrue($reflection->isPrivate(), 'calcularFormulasEficiencia debe ser privado');
 
-        // Verificar via código fuente que se usan los params correctos
-        $path = app_path('Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php');
-        $content = file_get_contents($path);
+        $balancearPath = app_path('Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php');
+        $this->assertStringContainsString(
+            'FORMULAS_CTX_BALANCEAR',
+            file_get_contents($balancearPath),
+            'BalancearTejido debe delegar en TejidoHelpers::FORMULAS_CTX_BALANCEAR'
+        );
 
-        // BalancearTejido usa includePTvsCte=true para mostrar diferencia vs compromiso
+        $helpersPath = app_path('Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php');
         $this->assertStringContainsString(
             'true, true, false',
-            $content,
-            'BalancearTejido debe usar params (true, true, false) - includePTvsCte=true'
+            file_get_contents($helpersPath),
+            'Contexto balancear: calcularFormulasEficiencia(..., true, true, false)'
         );
     }
 
     /**
-     * Verifica que DuplicarTejido usa params diferentes (fallbackEntregaCte=true).
+     * Verifica que DuplicarTejido usa contexto pedido_inherit (fallbackEntregaCte=true vía TejidoHelpers).
      */
     public function test_duplicar_usa_fallback_entrega_cte_true(): void
     {
         $path = app_path('Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php');
         $content = file_get_contents($path);
 
-        // DuplicarTejido usa fallbackEntregaCte=true porque duplicados heredan fechas
+        $this->assertStringContainsString(
+            'FORMULAS_CTX_PEDIDO_INHERIT',
+            $content,
+            'DuplicarTejido debe delegar en TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT'
+        );
+
+        $helpersPath = app_path('Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php');
         $this->assertStringContainsString(
             'true, true, true',
-            $content,
-            'DuplicarTejido debe usar params (true, true, true) - fallbackEntregaCte=true'
+            file_get_contents($helpersPath),
+            'Contexto pedido_inherit: calcularFormulasEficiencia(..., true, true, true)'
         );
     }
 

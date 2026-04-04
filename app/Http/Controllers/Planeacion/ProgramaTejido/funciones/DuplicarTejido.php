@@ -3,16 +3,15 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Helpers\StringTruncator;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Models\Planeacion\ReqProgramaTejido;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 
 class DuplicarTejido
 {
@@ -20,21 +19,21 @@ class DuplicarTejido
     {
         $data = $request->validated();
 
-        $salonOrigen  = $data['salon_tejido_id'];
-        $telarOrigen  = $data['no_telar_id'];
+        $salonOrigen = $data['salon_tejido_id'];
+        $telarOrigen = $data['no_telar_id'];
         $salonDestino = $data['salon_destino'] ?? $salonOrigen;
-        $destinos     = $data['destinos'];
+        $destinos = $data['destinos'];
 
-        $pedidoGlobal   = TejidoHelpers::sanitizeNullableNumber($data['pedido'] ?? null);
-        $inventSizeId   = $data['invent_size_id'] ?? null;
-        $tamanoClave    = $data['tamano_clave'] ?? null;
-        $codArticulo    = $data['cod_articulo'] ?? null;
-        $producto       = $data['producto'] ?? null;
-        $custname       = $data['custname'] ?? null;
-        $hilo           = $data['hilo'] ?? null;
-        $flog           = $data['flog'] ?? null;
-        $aplicacion     = $data['aplicacion'] ?? null;
-        $descripcion    = $data['descripcion'] ?? null;
+        $pedidoGlobal = TejidoHelpers::sanitizeNullableNumber($data['pedido'] ?? null);
+        $inventSizeId = $data['invent_size_id'] ?? null;
+        $tamanoClave = $data['tamano_clave'] ?? null;
+        $codArticulo = $data['cod_articulo'] ?? null;
+        $producto = $data['producto'] ?? null;
+        $custname = $data['custname'] ?? null;
+        $hilo = $data['hilo'] ?? null;
+        $flog = $data['flog'] ?? null;
+        $aplicacion = $data['aplicacion'] ?? null;
+        $descripcion = $data['descripcion'] ?? null;
         $registroIdOriginal = $data['registro_id_original'] ?? null;
         $vincular = $data['vincular'] ?? false;
         $ordCompartidaExistente = $data['ord_compartida_existente'] ?? null;
@@ -55,9 +54,10 @@ class DuplicarTejido
 
                 if ($ordCompartidaExistente !== null && $ordCompartidaExistente > 0) {
                     // Verificar que el OrdCompartida existente realmente exista en la BD
-                    $existe = ReqProgramaTejido::where('OrdCompartida', (int)$ordCompartidaExistente)->exists();
-                    if (!$existe) {
+                    $existe = ReqProgramaTejido::where('OrdCompartida', (int) $ordCompartidaExistente)->exists();
+                    if (! $existe) {
                         DBFacade::rollBack();
+
                         return response()->json([
                             'success' => false,
                             'message' => "El OrdCompartida {$ordCompartidaExistente} no existe en la base de datos.",
@@ -73,18 +73,19 @@ class DuplicarTejido
 
             // Obtener registro específico o fallback al último del telar
             $original = null;
-            if (!empty($registroIdOriginal)) {
+            if (! empty($registroIdOriginal)) {
                 $original = ReqProgramaTejido::find($registroIdOriginal);
                 if ($original && ($original->SalonTejidoId !== $salonOrigen || $original->NoTelarId !== $telarOrigen)) {
                     $original = null;
                 }
             }
-            if (!$original) {
+            if (! $original) {
                 $original = self::obtenerUltimoRegistroTelar($salonOrigen, $telarOrigen);
             }
 
-            if (!$original) {
+            if (! $original) {
                 DBFacade::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'No se encontraron registros para duplicar',
@@ -107,10 +108,10 @@ class DuplicarTejido
             $parDestinos = [];
             $flogsIdsBatch = [];
             foreach ($destinos as $destino) {
-                $s = !empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
+                $s = ! empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
                 $t = $destino['telar'];
-                $parDestinos[$s . '|' . $t] = ['salon' => $s, 'telar' => $t];
-                $flogFila = trim((string)($destino['flog'] ?? $destino['FlogsId'] ?? $destino['flogs_id'] ?? ''));
+                $parDestinos[$s.'|'.$t] = ['salon' => $s, 'telar' => $t];
+                $flogFila = trim((string) ($destino['flog'] ?? $destino['FlogsId'] ?? $destino['flogs_id'] ?? ''));
                 if ($flogFila !== '') {
                     $flogsIdsBatch[$flogFila] = true;
                 }
@@ -129,7 +130,7 @@ class DuplicarTejido
                     ->get()
                     ->groupBy('NoTelarId');
                 foreach ($rows as $telar => $grupo) {
-                    $ultimosMap[$salon . '|' . $telar] = $grupo->first();
+                    $ultimosMap[$salon.'|'.$telar] = $grupo->first();
                 }
             }
 
@@ -151,7 +152,7 @@ class DuplicarTejido
                     ->select(['NoTelarId', 'Posicion'])
                     ->get();
                 foreach ($rows as $row) {
-                    $posicionesMap[$salon . '|' . $row->NoTelarId][] = (int)$row->Posicion;
+                    $posicionesMap[$salon.'|'.$row->NoTelarId][] = (int) $row->Posicion;
                 }
             }
 
@@ -159,14 +160,14 @@ class DuplicarTejido
             foreach ($destinos as $destino) {
                 $tcFila = $destino['tamano_clave'] ?? null;
                 if ($tcFila && trim($tcFila) !== '') {
-                    $salonFila = !empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
+                    $salonFila = ! empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
                     TejidoHelpers::obtenerDatosModeloCodificadoArray($tcFila, $salonFila);
                 }
             }
 
             // 6. Batch: pre-cargar TwFlogsCustomer para todos los FlogsId únicos
             $flogsMap = []; // ['FlogsId' => stdClass{IdFlog, CustName, CategoriaCalidad}]
-            if (!empty($flogsIdsBatch)) {
+            if (! empty($flogsIdsBatch)) {
                 try {
                     $flogsRows = DBFacade::connection('sqlsrv_ti')
                         ->table('TwFlogsCustomer')
@@ -189,14 +190,14 @@ class DuplicarTejido
                 $observacionesDestino = $destino['observaciones'] ?? null;
 
                 // Usar el salón específico del destino si está disponible, de lo contrario el global
-                $salonDestinoFila = !empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
+                $salonDestinoFila = ! empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
 
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
-                    ? (float)$destino['porcentaje_segundos']
+                    ? (float) $destino['porcentaje_segundos']
                     : null;
 
                 // Último del destino (para FechaInicio) — desde mapa pre-cargado
-                $ultimoDestino = $ultimosMap[$salonDestinoFila . '|' . $telarDestino] ?? null;
+                $ultimoDestino = $ultimosMap[$salonDestinoFila.'|'.$telarDestino] ?? null;
 
                 // Ultimo=0 ya aplicado en batch antes del loop
 
@@ -209,19 +210,19 @@ class DuplicarTejido
 
                 // ===== Básicos =====
                 $nuevo->SalonTejidoId = $salonDestinoFila;
-                $nuevo->NoTelarId     = $telarDestino;
-                $nuevo->EnProceso     = 0;
-                $nuevo->Ultimo        = 1;
-                $nuevo->CambioHilo    = 0;
+                $nuevo->NoTelarId = $telarDestino;
+                $nuevo->EnProceso = 0;
+                $nuevo->Ultimo = 1;
+                $nuevo->CambioHilo = 0;
 
                 $nuevo->Maquina = TejidoHelpers::construirMaquinaConBase($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
 
                 // Limpiar campos que siempre deben resetearse en duplicación
-                $nuevo->Produccion    = null;
-                $nuevo->Programado    = null;
-                $nuevo->NoProduccion  = null;
+                $nuevo->Produccion = null;
+                $nuevo->Programado = null;
+                $nuevo->NoProduccion = null;
                 $nuevo->ProgramarProd = null;   // Day Scheduling en null
-                $nuevo->SaldoMarbete  = null;  // Saldo marbetes en null
+                $nuevo->SaldoMarbete = null;  // Saldo marbetes en null
 
                 // ===== ORDCOMPARTIDA: Solo si vincular está activo =====
                 if ($vincular) {
@@ -234,7 +235,6 @@ class DuplicarTejido
                 }
                 // Limpiar campos de combinaciones
 
-
                 // ProgramarProd (Day Scheduling) queda en null (asignado arriba)
 
                 // ===== Overrides por destino (específicos de cada fila) o globales =====
@@ -242,7 +242,7 @@ class DuplicarTejido
                 $tamanoClaveDestino = $destino['tamano_clave'] ?? null;
                 $productoDestino = $destino['producto'] ?? null;
                 // Flog de ESTA fila: leer de varias claves por compatibilidad; prioridad absoluta sobre modelo y global
-                $flogDestino = trim((string)($destino['flog'] ?? $destino['FlogsId'] ?? $destino['flogs_id'] ?? ''));
+                $flogDestino = trim((string) ($destino['flog'] ?? $destino['FlogsId'] ?? $destino['flogs_id'] ?? ''));
                 $descripcionDestino = $destino['descripcion'] ?? null;
                 $custNameDestino = $destino['custName'] ?? null;
 
@@ -330,13 +330,13 @@ class DuplicarTejido
                     $nuevo->AplicacionId = StringTruncator::truncate('AplicacionId', $aplicacion);
                 } else {
                     // Si no hay aplicación específica, copiar del registro original si existe
-                    if (!empty($original->AplicacionId)) {
+                    if (! empty($original->AplicacionId)) {
                         $nuevo->AplicacionId = $original->AplicacionId;
                     }
                 }
 
                 // Aplicar FibraRizo del hilo del modal (este campo NO viene del modelo)
-                $nuevo->FibraRizo = $hilo ?: (!empty($original->FibraRizo) ? $original->FibraRizo : null);
+                $nuevo->FibraRizo = $hilo ?: (! empty($original->FibraRizo) ? $original->FibraRizo : null);
 
                 // Eficiencia y Velocidad: Si cambió clave modelo, ya se aplicaron desde el modelo
                 // Si no cambió, se aplicarán desde catálogos más abajo
@@ -358,7 +358,7 @@ class DuplicarTejido
 
                 // ItemId e InventSizeId: Si se aplicaron datos del modelo, ya están correctos
                 // NO sobrescribir con valores del destino (que pueden ser del modelo anterior)
-                if (!$aplicarDatosModelo) {
+                if (! $aplicarDatosModelo) {
                     // Si NO hubo cambio, entonces sí usar valores del destino o globales
                     // InventSizeId: priorizar valor del destino (fila)
                     if (isset($destino['inventSizeId']) && $destino['inventSizeId'] !== '') {
@@ -393,7 +393,7 @@ class DuplicarTejido
                     // NombreProyecto: priorizar descripción del destino para esta fila
                     if ($descripcionDestino !== null && trim((string) $descripcionDestino) !== '') {
                         $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', trim((string) $descripcionDestino));
-                    } elseif (!$aplicarDatosModelo && $descripcion !== null && trim((string) $descripcion) !== '') {
+                    } elseif (! $aplicarDatosModelo && $descripcion !== null && trim((string) $descripcion) !== '') {
                         $nuevo->NombreProyecto = StringTruncator::truncate('NombreProyecto', trim((string) $descripcion));
                     }
                     // Si aplicamos modelo y no hay descripcion en fila ni global, NombreProyecto queda el del modelo
@@ -403,15 +403,15 @@ class DuplicarTejido
                 UpdateHelpers::applyFlogYTipoPedido($nuevo, $nuevo->FlogsId);
 
                 // CustName y CategoriaCalidad (NAC): desde mapa pre-cargado en batch
-                if (!empty($nuevo->FlogsId)) {
-                    $flogsIdTrim = trim((string)$nuevo->FlogsId);
+                if (! empty($nuevo->FlogsId)) {
+                    $flogsIdTrim = trim((string) $nuevo->FlogsId);
                     $row = $flogsMap[$flogsIdTrim] ?? null;
                     if ($row) {
-                        if (!empty($row->CustName)) {
-                            $nuevo->CustName = StringTruncator::truncate('CustName', trim((string)$row->CustName));
+                        if (! empty($row->CustName)) {
+                            $nuevo->CustName = StringTruncator::truncate('CustName', trim((string) $row->CustName));
                         }
-                        if (isset($row->CategoriaCalidad) && (string)$row->CategoriaCalidad !== '') {
-                            $nuevo->CategoriaCalidad = StringTruncator::truncate('CategoriaCalidad', trim((string)$row->CategoriaCalidad));
+                        if (isset($row->CategoriaCalidad) && (string) $row->CategoriaCalidad !== '') {
+                            $nuevo->CategoriaCalidad = StringTruncator::truncate('CategoriaCalidad', trim((string) $row->CategoriaCalidad));
                         }
                     }
                 }
@@ -445,9 +445,9 @@ class DuplicarTejido
                     $nuevo->TotalPedido = $pedidoDestino;
                 } elseif ($pedidoGlobal !== null) {
                     $nuevo->TotalPedido = $pedidoGlobal;
-                } elseif (!empty($original->TotalPedido)) {
+                } elseif (! empty($original->TotalPedido)) {
                     $nuevo->TotalPedido = TejidoHelpers::sanitizeNumber($original->TotalPedido);
-                } elseif (!empty($original->SaldoPedido)) {
+                } elseif (! empty($original->SaldoPedido)) {
                     $nuevo->TotalPedido = TejidoHelpers::sanitizeNumber($original->SaldoPedido);
                 } else {
                     $nuevo->TotalPedido = 0;
@@ -467,10 +467,9 @@ class DuplicarTejido
                 // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
                 // IMPORTANTE: Si NO se aplicaron datos del modelo, aplicar desde catálogos
                 // Si se aplicaron, ya se aplicaron desde el modelo codificado
-                if (!$aplicarDatosModelo) {
+                if (! $aplicarDatosModelo) {
                     TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
                 }
-
 
                 // ===== FECHA INICIO: SIEMPRE la FechaFinal del último registro del telar destino =====
                 // NO hacer snap al calendario, usar exactamente la fecha final del último registro
@@ -481,11 +480,11 @@ class DuplicarTejido
                 $horasNecesarias = TejidoHelpers::calcularHorasProd($nuevo);
 
                 // fallback proporcional si por alguna razón horas=0 pero existe HorasProd en original
-                if ($horasNecesarias <= 0 && !empty($original->HorasProd)) {
+                if ($horasNecesarias <= 0 && ! empty($original->HorasProd)) {
                     $cantOrig = TejidoHelpers::sanitizeNumber($original->SaldoPedido ?? $original->TotalPedido ?? 0);
-                    $cantNew  = TejidoHelpers::sanitizeNumber($nuevo->SaldoPedido ?? $nuevo->TotalPedido ?? 0);
+                    $cantNew = TejidoHelpers::sanitizeNumber($nuevo->SaldoPedido ?? $nuevo->TotalPedido ?? 0);
                     if ($cantOrig > 0 && $cantNew > 0) {
-                        $horasNecesarias = (float)$original->HorasProd * ($cantNew / $cantOrig);
+                        $horasNecesarias = (float) $original->HorasProd * ($cantNew / $cantOrig);
                     }
                 }
 
@@ -493,20 +492,18 @@ class DuplicarTejido
                     $nuevo->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
                 } else {
                     // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
-                    if (!empty($nuevo->CalendarioId)) {
+                    if (! empty($nuevo->CalendarioId)) {
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
-                        if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                        if (! $fin) {
+                            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                         }
                         $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
                     } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int)round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
+                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
                     }
                 }
 
-
-
-                if (!empty($nuevo->FechaFinal) && !empty($nuevo->FechaInicio)) {
+                if (! empty($nuevo->FechaFinal) && ! empty($nuevo->FechaInicio)) {
                     if (Carbon::parse($nuevo->FechaFinal)->lt(Carbon::parse($nuevo->FechaInicio))) {
                         $nuevo->FechaFinal = $nuevo->FechaInicio;
                     }
@@ -514,11 +511,11 @@ class DuplicarTejido
 
                 // ===== CambioHilo =====
                 if ($ultimoDestino) {
-                    $nuevo->CambioHilo = (trim((string)$nuevo->FibraRizo) !== trim((string)$ultimoDestino->FibraRizo)) ? '1' : '0';
+                    $nuevo->CambioHilo = (trim((string) $nuevo->FibraRizo) !== trim((string) $ultimoDestino->FibraRizo)) ? '1' : '0';
                 }
 
                 // ===== Fórmulas =====
-                if (!empty($nuevo->FechaInicio) && !empty($nuevo->FechaFinal)) {
+                if (! empty($nuevo->FechaInicio) && ! empty($nuevo->FechaFinal)) {
                     $formulas = self::calcularFormulasEficiencia($nuevo);
                     foreach ($formulas as $campo => $valor) {
                         $nuevo->{$campo} = $valor;
@@ -527,10 +524,10 @@ class DuplicarTejido
 
                 // Truncar strings
                 foreach ([
-                    'Maquina','NombreProyecto','CustName','AplicacionId','NombreProducto',
-                    'TipoPedido','Observaciones','FibraTrama','FibraComb1','FibraComb2',
-                    'FibraComb3','FibraComb4','FibraComb5','FibraPie','SalonTejidoId','NoTelarId',
-                    'Rasurado','TamanoClave','ItemId','InventSizeId'
+                    'Maquina', 'NombreProyecto', 'CustName', 'AplicacionId', 'NombreProducto',
+                    'TipoPedido', 'Observaciones', 'FibraTrama', 'FibraComb1', 'FibraComb2',
+                    'FibraComb3', 'FibraComb4', 'FibraComb5', 'FibraPie', 'SalonTejidoId', 'NoTelarId',
+                    'Rasurado', 'TamanoClave', 'ItemId', 'InventSizeId',
                 ] as $campoStr) {
                     if (isset($nuevo->{$campoStr})) {
                         $nuevo->{$campoStr} = StringTruncator::truncate($campoStr, $nuevo->{$campoStr});
@@ -538,8 +535,8 @@ class DuplicarTejido
                 }
 
                 // Asignar posición consecutiva desde el mapa pre-computado (evita N queries)
-                $posKey = $salonDestinoFila . '|' . $telarDestino;
-                if (!isset($posicionesMap[$posKey])) {
+                $posKey = $salonDestinoFila.'|'.$telarDestino;
+                if (! isset($posicionesMap[$posKey])) {
                     $posicionesMap[$posKey] = [];
                 }
                 $nuevo->Posicion = self::calcularSiguientePosicion($posicionesMap[$posKey]);
@@ -601,7 +598,7 @@ class DuplicarTejido
 
             ReqProgramaTejido::whereIn('Id', $idsParaObserver)->update(['EnProceso' => 0]);
 
-            $primer = !empty($idsParaObserver) ? ReqProgramaTejido::find($idsParaObserver[0]) : null;
+            $primer = ! empty($idsParaObserver) ? ReqProgramaTejido::find($idsParaObserver[0]) : null;
 
             // Usar datos capturados justo después de save() (registrosDatosParaRespuesta). Tras commit, find() a veces no
             // encuentra el registro en SQL Server, por eso no dependemos de find() para la respuesta al frontend.
@@ -649,7 +646,7 @@ class DuplicarTejido
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al duplicar el telar: ' . $e->getMessage(),
+                'message' => 'Error al duplicar el telar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -672,30 +669,20 @@ class DuplicarTejido
     /**
      * Calculate efficiency formulas for DuplicarTejido operations.
      * Uses fallbackEntregaCte=true because duplicated records inherit client delivery dates.
-     *
-     * @param ReqProgramaTejido $programa
-     * @return array
      */
     public static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        try {
-            $m = TejidoHelpers::obtenerModeloParams($programa);
-            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, true);
-        } catch (\Throwable $e) {
-            LogFacade::warning('DuplicarTejido: Error al calcular formulas', [
-                'error' => $e->getMessage(),
-                'programa_id' => $programa->Id ?? null,
-            ]);
-        }
-
-        return [];
+        return TejidoHelpers::calcularFormulasEficienciaPorContexto(
+            $programa,
+            TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT
+        );
     }
 
     /**
      * Calcula la siguiente posición disponible a partir de una lista de posiciones ya ocupadas.
      * Actualiza la lista en-lugar para que llamadas sucesivas (mismo telar) devuelvan posiciones correctas.
      *
-     * @param int[] $posicionesOcupadas Lista sorted de posiciones existentes (modificada por referencia)
+     * @param  int[]  $posicionesOcupadas  Lista sorted de posiciones existentes (modificada por referencia)
      * @return int Siguiente posición disponible
      */
     private static function calcularSiguientePosicion(array &$posicionesOcupadas): int
@@ -710,6 +697,7 @@ class DuplicarTejido
         }
         $posicionesOcupadas[] = $posEsperada;
         sort($posicionesOcupadas);
+
         return $posEsperada;
     }
 
@@ -720,16 +708,14 @@ class DuplicarTejido
     {
         $datosModelo = TejidoHelpers::obtenerDatosModeloCodificadoArray($tamanoClave, $salon);
 
-        if (!$datosModelo) {
+        if (! $datosModelo) {
             LogFacade::warning('DuplicarTejido: No se encontraron datos para el modelo', [
                 'tamano_clave' => $tamanoClave,
-                'salon' => $salon
+                'salon' => $salon,
             ]);
+
             return;
         }
-
-
-
 
         // Aplicar campos del modelo usando StringTruncator
         // NOTA: VelocidadSTD y EficienciaSTD NO vienen del modelo, vienen de tablas separadas ReqVelocidadStd/ReqEficienciaStd
@@ -790,7 +776,7 @@ class DuplicarTejido
             'CalibreComb52' => 'CalibreComb52',
             'FibraComb5' => 'FibraComb5',
             'CodColorC5' => 'CodColorComb5',
-            'NomColorC5' => 'NombreCC5'
+            'NomColorC5' => 'NombreCC5',
         ];
 
         foreach ($camposAAplicar as $campoModelo => $campoRegistro) {
@@ -802,7 +788,7 @@ class DuplicarTejido
 
                 // Para campos especiales (ItemId, InventSizeId), permitir valores null o vacíos
                 // Para otros campos, requerir que no sean null ni vacíos
-                if (!$esCampoEspecial && ($valorRaw === null || $valorRaw === '')) {
+                if (! $esCampoEspecial && ($valorRaw === null || $valorRaw === '')) {
                     continue;
                 }
 
@@ -814,14 +800,14 @@ class DuplicarTejido
                     'CuentaRizo', 'CalibrePie', 'CalibrePie2', 'Peine', 'PasadasTrama', 'PasadasComb1', 'PasadasComb2',
                     'PasadasComb3', 'PasadasComb4', 'PasadasComb5', 'CalibreComb1', 'CalibreComb12', 'CalibreComb2',
                     'CalibreComb22', 'CalibreComb3', 'CalibreComb32', 'CalibreComb4', 'CalibreComb42', 'CalibreComb5', 'CalibreComb52'])) {
-                    $valor = is_numeric($valor) ? (float)$valor : null;
+                    $valor = is_numeric($valor) ? (float) $valor : null;
                 } elseif (in_array($campoModelo, ['NoTiras', 'Peine', 'Luchaje', 'Repeticiones', 'PasadasTrama', 'PasadasComb1', 'PasadasComb2',
                     'PasadasComb3', 'PasadasComb4', 'PasadasComb5'])) {
-                    $valor = is_numeric($valor) ? (int)$valor : null;
+                    $valor = is_numeric($valor) ? (int) $valor : null;
                 } else {
                     // Campos string - para ItemId e InventSizeId, trim y aplicar truncate
                     if ($esCampoEspecial) {
-                        $valor = trim((string)$valor);
+                        $valor = trim((string) $valor);
                     }
                     $valor = StringTruncator::truncate($campoRegistro, $valor);
                 }

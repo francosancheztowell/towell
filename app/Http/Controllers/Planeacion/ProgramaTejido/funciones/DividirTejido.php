@@ -822,22 +822,13 @@ class DividirTejido
      * Calculate efficiency formulas for DividirTejido operations.
      * Uses includeEntregaCte=true and includePTvsCte=true for full calculation.
      * Uses fallbackEntregaCte=true because divided records inherit client delivery dates.
-     *
-     * @param ReqProgramaTejido $programa
-     * @return array
      */
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        $modeloParams = TejidoHelpers::obtenerModeloParams($programa, function ($tamanoClave, $salonTejidoId) {
-            return self::obtenerModeloCodificadoPorSalon($tamanoClave, $salonTejidoId);
-        });
-
-        return TejidoHelpers::calcularFormulasEficiencia(
+        return TejidoHelpers::calcularFormulasEficienciaPorContexto(
             $programa,
-            $modeloParams,
-            true,  // includeEntregaCte
-            true,  // includePTvsCte
-            true   // fallbackEntregaCteFromProgram
+            TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT,
+            fn (?string $tamanoClave, ?string $salonTejidoId) => self::obtenerModeloCodificadoPorSalon($tamanoClave, $salonTejidoId)
         );
     }
 
@@ -923,21 +914,12 @@ class DividirTejido
         if ($modelo->CalibrePie2 !== null) {
             $registro->CalibrePie2 = (float) $modelo->CalibrePie2;
         }
-        // ⚡ CORRECCIÓN: CalibreTrama se invierte al aplicar desde el modelo
-        // CalibreTrama del modelo -> CalibreTrama2 del registro
-        // CalibreTrama2 del modelo -> CalibreTrama del registro
+        // CalibreTrama: mismo criterio que DuplicarTejido/UpdateTejido (modelo ↔ registro cruzado)
         if ($modelo->CalibreTrama !== null) {
             $registro->CalibreTrama2 = (float) $modelo->CalibreTrama;
         }
         if ($modelo->CalibreTrama2 !== null) {
             $registro->CalibreTrama = (float) $modelo->CalibreTrama2;
-        }
-        // Usar CalibreTrama del modelo codificado (no CalibreTrama2)
-        if ($modelo->CalibreTrama !== null) {
-            $registro->CalibreTrama = (float) $modelo->CalibreTrama2;
-        }
-        if ($modelo->CalibreTrama2 !== null) {
-            $registro->CalibreTrama2 = (float) $modelo->CalibreTrama;
         }
 
         if ($modelo->NoTiras !== null) {
@@ -1154,6 +1136,7 @@ class DividirTejido
                         'pedido' => $destino['pedido'] ?? null,
                         'pedido_tempo' => $destino['pedido_tempo'] ?? null,
                     ]);
+
                     continue;
                 }
 
