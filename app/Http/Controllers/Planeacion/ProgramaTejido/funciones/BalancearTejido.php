@@ -256,7 +256,7 @@ class BalancearTejido
 
                     $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
 
-                    $horas = self::calcularHorasProd($r);
+                    $horas = TejidoHelpers::calcularHorasProd($r);
                     if ($horas > 0) {
                         $fin = ! empty($r->CalendarioId)
                             ? (self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horas) ?: $inicio->copy()->addSeconds((int) round($horas * 3600)))
@@ -417,7 +417,7 @@ class BalancearTejido
             }
         }
 
-        $horasNecesarias = self::calcularHorasProd($r);
+        $horasNecesarias = TejidoHelpers::calcularHorasProd($r);
 
         if ($horasNecesarias <= 0) {
             $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(12) : $inicio->copy()->addDays(30);
@@ -612,14 +612,6 @@ class BalancearTejido
         }
 
         return true;
-    }
-
-    // =========================================================
-    // HorasProd EXACTO (delegado a TejidoHelpers)
-    // =========================================================
-    private static function calcularHorasProd(ReqProgramaTejido $p): float
-    {
-        return TejidoHelpers::calcularHorasProd($p);
     }
 
     // =========================================================
@@ -992,7 +984,7 @@ class BalancearTejido
             $regTemp = clone $reg;
             $regTemp->TotalPedido = $pedidoActual;
             $regTemp->SaldoPedido = $saldoOriginal;
-            $horasNecesariasOriginales += self::calcularHorasProd($regTemp);
+            $horasNecesariasOriginales += TejidoHelpers::calcularHorasProd($regTemp);
 
             if (empty($reg->FechaInicio)) {
                 $cumplen[] = ['reg' => $reg, 'pedido' => $pedidoActual];
@@ -1012,7 +1004,7 @@ class BalancearTejido
             $regTemp = clone $reg;
             $regTemp->TotalPedido = $pedidoActual;
             $regTemp->SaldoPedido = $saldoOriginal;
-            $horasActual = self::calcularHorasProd($regTemp);
+            $horasActual = TejidoHelpers::calcularHorasProd($regTemp);
             $fechaFinalActual = null;
             if ($horasActual > 0) {
                 $fechaInicioTemp = $fechaInicioReg->copy();
@@ -1165,7 +1157,7 @@ class BalancearTejido
         $regTemp = clone $reg;
         $regTemp->TotalPedido = $produccion + 1000; // Valor de prueba en saldo
         $regTemp->SaldoPedido = 1000;
-        $horasPrueba = self::calcularHorasProd($regTemp);
+        $horasPrueba = TejidoHelpers::calcularHorasProd($regTemp);
 
         if ($horasPrueba <= 0) {
             // No se puede calcular eficiencia, usar saldo actual
@@ -1193,7 +1185,7 @@ class BalancearTejido
             $regTemp = clone $reg;
             $regTemp->TotalPedido = $produccion + $saldoPrueba;
             $regTemp->SaldoPedido = max(0, $saldoPrueba);
-            $horas = self::calcularHorasProd($regTemp);
+            $horas = TejidoHelpers::calcularHorasProd($regTemp);
 
             if ($horas <= 0) {
                 $minSaldo = $saldoPrueba;
