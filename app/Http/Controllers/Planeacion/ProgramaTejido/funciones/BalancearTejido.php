@@ -268,9 +268,7 @@ class BalancearTejido
 
             DB::commit();
             // Restaurar dispatcher
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
+            ReqProgramaTejido::restoreObservers($dispatcher);
             // Eventos desactivados durante la transacción; se invoca el observer aquí para regenerar líneas diarias.
             $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
             if (! empty($idsAfectados)) {
@@ -303,9 +301,7 @@ class BalancearTejido
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             return response()->json([
                 'success' => false,

@@ -41,8 +41,7 @@ class DuplicarTejido
         $ordCompartidaExistente = $data['ord_compartida_existente'] ?? null;
 
         // Guardar y restaurar dispatcher para no romper otros flujos
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
-        ReqProgramaTejido::unsetEventDispatcher();
+        $dispatcher = ReqProgramaTejido::suppressObservers();
 
         DBFacade::beginTransaction();
 
@@ -602,10 +601,7 @@ class DuplicarTejido
             DBFacade::commit();
 
             // Restaurar dispatcher y observer
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             ReqProgramaTejido::whereIn('Id', $idsParaObserver)->update(['EnProceso' => 0]);
 
@@ -653,10 +649,7 @@ class DuplicarTejido
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             return response()->json([
                 'success' => false,

@@ -258,6 +258,30 @@ class ReqProgramaTejido extends Model
             ->get();
     }
 
+    /**
+     * Desactiva el dispatcher del modelo para suprimir observers durante saves masivos.
+     * Devuelve el dispatcher original para poder restaurarlo con restoreObservers().
+     */
+    public static function suppressObservers(): ?object
+    {
+        $dispatcher = static::getEventDispatcher();
+        static::unsetEventDispatcher();
+        return $dispatcher;
+    }
+
+    /**
+     * Restaura el dispatcher y re-registra el observer.
+     * Equivale al patrón: setEventDispatcher($dispatcher) + observe(Observer::class)
+     * que se repite en todos los bloques catch/finally de las operaciones.
+     */
+    public static function restoreObservers(?object $dispatcher): void
+    {
+        if ($dispatcher) {
+            static::setEventDispatcher($dispatcher);
+        }
+        static::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+    }
+
     /* ===========================
      |  Relaciones (si existen modelos)
      |===========================*/

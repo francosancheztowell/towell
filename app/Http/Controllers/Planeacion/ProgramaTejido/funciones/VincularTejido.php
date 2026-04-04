@@ -91,7 +91,7 @@ class VincularTejido
         }
 
         DBFacade::beginTransaction();
-        ReqProgramaTejido::unsetEventDispatcher();
+        $dispatcher = ReqProgramaTejido::suppressObservers();
 
         try {
             // PASO 1: Primero, quitar OrdCompartidaLider de todos los registros que se van a vincular
@@ -178,7 +178,7 @@ class VincularTejido
             DBFacade::commit();
 
             // Reactivar observer
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             $observer = new ReqProgramaTejidoObserver();
 
             // Disparar observer para recalcular fórmulas si es necesario
@@ -202,7 +202,7 @@ class VincularTejido
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             LogFacade::error('vincularRegistrosExistentes error', [
                 'registros_ids' => $registrosIds,
@@ -263,8 +263,7 @@ class VincularTejido
             DBFacade::beginTransaction();
 
             // Desactivar observer temporalmente
-            $dispatcher = ReqProgramaTejido::getEventDispatcher();
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
 
             $idsAfectados = [];
             $idsDesvinculados = []; // IDs de registros desvinculados para obtener frescos después
@@ -355,10 +354,7 @@ class VincularTejido
             DBFacade::commit();
 
             // Reactivar observer
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Disparar observer para recalcular fórmulas si es necesario
             $observer = new ReqProgramaTejidoObserver();
@@ -382,10 +378,7 @@ class VincularTejido
         } catch (\Throwable $e) {
             DBFacade::rollBack();
 
-            if (isset($dispatcher)) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             LogFacade::error('desvincularRegistro error', [
                 'registro_id' => $id,

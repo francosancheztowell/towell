@@ -45,8 +45,7 @@ class DividirTejido
         $esRedistribucion = ! empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0';
 
         // Guardar y restaurar dispatcher para no romper otros flujos (igual que DuplicarTejido)
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
-        ReqProgramaTejido::unsetEventDispatcher();
+        $dispatcher = ReqProgramaTejido::suppressObservers();
 
         DBFacade::beginTransaction();
         LogFacade::info('DividirTejido::dividir INICIO', ['salon' => $salonOrigen, 'telar' => $telarOrigen, 'destinos_count' => count($destinos)]);
@@ -738,10 +737,7 @@ class DividirTejido
             LogFacade::info('DividirTejido::dividir COMMIT realizado', ['ids_para_observer' => $idsParaObserver, 'total_divididos' => $totalDivididos]);
 
             // Restaurar dispatcher y re-habilitar observer
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Reconectar para garantizar visibilidad de los registros recién commiteados.
             try {
@@ -824,10 +820,7 @@ class DividirTejido
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            if (isset($dispatcher) && $dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             LogFacade::error('dividirTelar error', [
                 'salon' => $salonOrigen,
                 'telar' => $telarOrigen,
@@ -1028,7 +1021,7 @@ class DividirTejido
 
             if ($registrosExistentes->isEmpty()) {
                 DBFacade::rollBack();
-                ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+                ReqProgramaTejido::restoreObservers($dispatcher);
 
                 return response()->json([
                     'success' => false,
@@ -1346,10 +1339,7 @@ class DividirTejido
             ]);
 
             // Restaurar dispatcher y re-habilitar observer (igual que DuplicarTejido)
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Reconectar para garantizar visibilidad post-commit para queries subsecuentes.
             try {
@@ -1437,10 +1427,7 @@ class DividirTejido
 
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             LogFacade::error('redistribuirGrupoExistente error', [
                 'ord_compartida' => $ordCompartida,
                 'msg' => $e->getMessage(),

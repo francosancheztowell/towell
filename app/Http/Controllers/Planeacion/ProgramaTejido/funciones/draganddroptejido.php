@@ -168,7 +168,7 @@ class DragAndDropTejido
             }, 3);
 
             // Restaurar dispatcher SIEMPRE
-            ReqProgramaTejido::setEventDispatcher($dispatcher);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             // 6) Regenerar líneas (fuera del lock/transaction para no alargar bloqueos)
             //    OPTIMIZADO: un solo query en vez de N finds
@@ -197,9 +197,7 @@ class DragAndDropTejido
             ];
         } catch (\Throwable $e) {
             // Restaurar dispatcher aunque explote
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
 
 

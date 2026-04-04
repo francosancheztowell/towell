@@ -85,7 +85,7 @@ class EliminarTejido
             }
 
             // Deshabilitar observers
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
 
             [$updates,$detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
 
@@ -96,7 +96,7 @@ class EliminarTejido
             DB::commit();
 
             // Re-habilitar observer
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Regenerar líneas
             $observer = new ReqProgramaTejidoObserver();
@@ -108,7 +108,7 @@ class EliminarTejido
 
         } catch (ModelNotFoundException) {
             DB::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             Log::warning('destroy registro no encontrado', ['id' => $id, 'table' => ReqProgramaTejido::tableName()]);
 
             return response()->json([
@@ -118,7 +118,7 @@ class EliminarTejido
             ], 404);
         } catch (\Throwable $e) {
             DB::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             Log::error('destroy error', ['id'=>$id,'msg'=>$e->getMessage()]);
             return response()->json(['success'=>false,'message'=>$e->getMessage()], $e instanceof \RuntimeException ? 422 : 500);
         }
@@ -184,7 +184,7 @@ class EliminarTejido
             $inicioOriginal = Carbon::now();
 
             // Deshabilitar observers durante la actualización masiva
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
 
             [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
 
@@ -195,7 +195,7 @@ class EliminarTejido
             DB::commit();
 
             // Re-habilitar observer
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Regenerar líneas de todos los registros afectados
             $observer = new ReqProgramaTejidoObserver();
@@ -215,7 +215,7 @@ class EliminarTejido
 
         } catch (ModelNotFoundException) {
             DB::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             Log::warning('eliminarEnProceso registro no encontrado', ['id' => $id, 'table' => ReqProgramaTejido::tableName()]);
 
             return response()->json([
@@ -225,7 +225,7 @@ class EliminarTejido
             ], 404);
         } catch (\Throwable $e) {
             DB::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             Log::error('eliminarEnProceso error', ['id' => $id, 'msg' => $e->getMessage()]);
             return response()->json(
                 ['success' => false, 'message' => $e->getMessage()],
@@ -277,7 +277,7 @@ class EliminarTejido
             $registrosReordenados = $registros->values();
 
             // Deshabilitar observers
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
 
             // Recalcular fechas para toda la secuencia (solo del telar actual)
             [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal);
@@ -290,7 +290,7 @@ class EliminarTejido
             DB::commit();
 
             // Re-habilitar observer
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Regenerar líneas solo para los registros de este telar
             $observer = new ReqProgramaTejidoObserver();
@@ -322,7 +322,7 @@ class EliminarTejido
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             Log::error('mover en lugar de eliminar error', [
                 'id' => $registro->Id ?? null,
                 'reprogramar' => $reprogramar,
@@ -382,7 +382,7 @@ class EliminarTejido
                 }
 
                 // Deshabilitar observers
-                ReqProgramaTejido::unsetEventDispatcher();
+                $dispatcher = ReqProgramaTejido::suppressObservers();
 
                 [$updates,$detalles] = DateHelpers::recalcularFechasSecuencia($restantes, $inicioOriginal);
 
@@ -393,7 +393,7 @@ class EliminarTejido
                 DB::commit();
 
                 // Re-habilitar observer
-                ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+                ReqProgramaTejido::restoreObservers($dispatcher);
 
                 // Regenerar líneas
                 $observer = new ReqProgramaTejidoObserver();
@@ -511,7 +511,7 @@ class EliminarTejido
             }
 
             // Recalcular fechas y regenerar líneas para cada telar afectado
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
             $observer = new ReqProgramaTejidoObserver();
             $idsRegenerados = [];
 
@@ -549,7 +549,7 @@ class EliminarTejido
             DB::commit();
 
             // Re-habilitar observer
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             return response()->json([
                 'success' => true,
@@ -560,7 +560,7 @@ class EliminarTejido
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             Log::error('eliminar con OrdCompartida error', [
                 'id' => $registro->Id ?? null,
                 'ord_compartida' => $ordCompartida ?? null,
