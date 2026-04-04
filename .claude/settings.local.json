@@ -8,7 +8,13 @@
       "Bash(./vendor/bin/pest tests/Feature/ProgramaTejidoColumnPresetTest.php --stop-on-failure)",
       "Bash(./vendor/bin/phpunit tests/Feature/ProgramaTejidoColumnPresetTest.php --stop-on-failure)",
       "Bash(./vendor/bin/phpunit --stop-on-failure)",
-      "Bash(./vendor/bin/phpunit:*)"
+      "Bash(./vendor/bin/phpunit:*)",
+      "Bash(./vendor/bin/pest tests/Unit/BalancearTejidoCalendarioTest.php --no-coverage)",
+      "Skill(gsd:pause-work)",
+      "Bash(grep -n \"new ReqProgramaTejidoObserver\\\\|observer->saved\\\\|observer->saved\" app/Http/Controllers/Planeacion/ProgramaTejido/funciones/*.php)",
+      "Bash(grep:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
