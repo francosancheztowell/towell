@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -179,14 +178,11 @@ class VincularTejido
 
             // Reactivar observer
             ReqProgramaTejido::restoreObservers($dispatcher);
-            $observer = new ReqProgramaTejidoObserver();
 
             // Disparar observer para recalcular fórmulas si es necesario
-            foreach ($registrosIds as $id) {
-                if ($registro = ReqProgramaTejido::find($id)) {
-                    $observer->saved($registro);
-                }
-            }
+            ReqProgramaTejido::regenerarLineas(
+                ReqProgramaTejido::findMany($registrosIds)
+            );
 
             $mensaje = $primerTieneOrdCompartida
                 ? "Se vincularon {$actualizados} registro(s) usando el OrdCompartida existente: {$ordCompartidaAVincular}"
@@ -357,12 +353,9 @@ class VincularTejido
             ReqProgramaTejido::restoreObservers($dispatcher);
 
             // Disparar observer para recalcular fórmulas si es necesario
-            $observer = new ReqProgramaTejidoObserver();
-            foreach ($idsAfectados as $idAfectado) {
-                if ($reg = ReqProgramaTejido::find($idAfectado)) {
-                    $observer->saved($reg);
-                }
-            }
+            ReqProgramaTejido::regenerarLineas(
+                ReqProgramaTejido::findMany($idsAfectados)
+            );
 
             $mensaje = $totalRegistros === 2
                 ? 'Se desvincularon ambos registros correctamente'
