@@ -263,7 +263,7 @@ class DividirTejido
             );
 
             // ===== FORZAR STD DESDE CAT├üLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-            self::aplicarStdDesdeCatalogos($registroOriginal);
+            TejidoHelpers::aplicarStdDesdeCatalogos($registroOriginal);
 
             $registroOriginal->UpdatedAt = now();
 
@@ -612,7 +612,7 @@ class DividirTejido
                 }
 
                 // ===== FORZAR STD DESDE CAT├üLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-                self::aplicarStdDesdeCatalogos($nuevo);
+                TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
 
                 // PedidoTempo, Observaciones y PorcentajeSegundos del destino
                 $pedidoTempoDestinoNuevo = $destino['pedido_tempo'] ?? null;
@@ -1119,7 +1119,7 @@ class DividirTejido
                         );
 
                         // ===== FORZAR STD DESDE CAT├üLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-                        self::aplicarStdDesdeCatalogos($registro);
+                        TejidoHelpers::aplicarStdDesdeCatalogos($registro);
 
                         // ===== RECALCULAR FECHA FINAL desde la fecha inicio existente (sin cambiar fecha inicio) =====
                         if (! empty($registro->FechaInicio)) {
@@ -1236,7 +1236,7 @@ class DividirTejido
                 self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem);
 
                 // ===== FORZAR STD DESDE CAT├üLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-                self::aplicarStdDesdeCatalogos($nuevo);
+                TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
 
                 // PedidoTempo, Observaciones y PorcentajeSegundos
                 if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
@@ -1467,27 +1467,10 @@ class DividirTejido
      */
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
-        return TejidoHelpers::calcularHorasProdFromPrograma(
+        return TejidoHelpers::calcularHorasProd(
             $p,
             fn (?string $k, ?string $s) => self::obtenerModeloCodificadoPorSalon($k, $s)
         );
-    }
-
-    /**
-     * Sanitizar número (igual que BalancearTejido)
-     */
-    private static function sanitizeNumber($value): float
-    {
-        return TejidoHelpers::sanitizeNumber($value);
-    }
-
-    // =========================
-    // STD DESDE CAT├üLOGOS
-    // =========================
-
-    private static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
-    {
-        TejidoHelpers::aplicarStdDesdeCatalogos($p);
     }
 
     public static function calcularTotalesDividir(Request $request)
