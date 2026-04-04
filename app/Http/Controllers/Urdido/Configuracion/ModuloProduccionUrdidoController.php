@@ -214,10 +214,6 @@ class ModuloProduccionUrdidoController extends Controller
             $existentes = UrdProduccionUrdido::where('Folio', $orden->Folio)->orderBy('Id')->get();
             $faltantes = max(0, $totalRegistros - $existentes->count());
 
-            if ($faltantes <= 0) {
-                return;
-            }
-
             $user = Auth::user();
             $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
             $nombreUsuario = $user ? ($user->nombre ?? null) : null;
@@ -227,28 +223,65 @@ class ModuloProduccionUrdidoController extends Controller
             }
             $metrosOrden = $orden->Metros ?? 0;
 
-            $registrosPorHilos = [];
-            foreach ($existentes as $reg) {
-                $key = (string) ($reg->Hilos ?? 'null');
-                $registrosPorHilos[$key] = ($registrosPorHilos[$key] ?? 0) + 1;
-            }
-
-            $registrosACrear = [];
+            // Calcular expected por Hilos
+            $expectedPorHilos = [];
             foreach ($julios as $julio) {
                 $numJulio = (int) ($julio->Julios ?? 0);
-                $hilos = $julio->Hilos ?? null;
+                $hilos = $julio->Hilos !== null ? (string) $julio->Hilos : 'null';
+                if ($numJulio > 0) {
+                    $expectedPorHilos[$hilos] = ($expectedPorHilos[$hilos] ?? 0) + $numJulio;
+                }
+            }
 
-                if ($numJulio > 0 && $hilos !== null) {
-                    $key = (string) $hilos;
-                    $existentesHilos = $registrosPorHilos[$key] ?? 0;
-                    $faltantesHilos = max(0, $numJulio - $existentesHilos);
+            // Calcular existentes por Hilos
+            $existentesPorHilos = [];
+            foreach ($existentes as $reg) {
+                $key = (string) ($reg->Hilos ?? 'null');
+                $existentesPorHilos[$key] = ($existentesPorHilos[$key] ?? 0) + 1;
+            }
 
-                    for ($i = 0; $i < $faltantesHilos; $i++) {
+            // Determinar que crear y que eliminar
+            $registrosACrear = [];
+            $idsAEliminar = [];
+
+            foreach ($expectedPorHilos as $hilos => $expected) {
+                $actual = $existentesPorHilos[$hilos] ?? 0;
+                $diff = $actual - $expected;
+
+                if ($diff > 0) {
+                    // Hay mas de los esperados - marcar para eliminar los sobrantes
+                    $sobrantes = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                        ->where('Hilos', $hilos === 'null' ? null : $hilos)
+                        ->where(function ($q) {
+                            $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                        })
+                        ->orderBy('Id', 'desc')
+                        ->limit($diff)
+                        ->pluck('Id')
+                        ->toArray();
+
+                    if (count($sobrantes) < $diff) {
+                        // No hay suficientes sin HoraInicial, tomar los mas recientes
+                        $faltan = $diff - count($sobrantes);
+                        $restantes = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                            ->where('Hilos', $hilos === 'null' ? null : $hilos)
+                            ->whereNotIn('Id', $sobrantes)
+                            ->orderBy('Id', 'desc')
+                            ->limit($faltan)
+                            ->pluck('Id')
+                            ->toArray();
+                        $sobrantes = array_merge($sobrantes, $restantes);
+                    }
+
+                    $idsAEliminar = array_merge($idsAEliminar, $sobrantes);
+                } elseif ($diff < 0) {
+                    // Faltan - crear $diff registros
+                    for ($i = 0; $i < abs($diff); $i++) {
                         $data = [
                             'Folio' => $orden->Folio,
                             'TipoAtado' => $orden->TipoAtado ?? null,
                             'NoJulio' => null,
-                            'Hilos' => $hilos,
+                            'Hilos' => $hilos === 'null' ? null : $hilos,
                             'Fecha' => now()->format('Y-m-d'),
                         ];
                         if (!empty($claveUsuario)) $data['CveEmpl1'] = $claveUsuario;
@@ -261,11 +294,22 @@ class ModuloProduccionUrdidoController extends Controller
                 }
             }
 
+            // Eliminar sobrantes
+            if (!empty($idsAEliminar)) {
+                UrdProduccionUrdido::whereIn('Id', $idsAEliminar)->delete();
+                Log::info('Eliminados registros sobrantes de UrdProduccionUrdido', [
+                    'folio' => $orden->Folio,
+                    'ids_eliminados' => $idsAEliminar,
+                    'cantidad' => count($idsAEliminar),
+                ]);
+            }
+
+            // Crear faltantes
             foreach ($registrosACrear as $data) {
                 UrdProduccionUrdido::create($data);
             }
         } catch (\Throwable $e) {
-            Log::error('Error al crear registros en UrdProduccionUrdido', [
+            Log::error('Error al sincronizar registros en UrdProduccionUrdido', [
                 'folio' => $orden->Folio,
                 'error' => $e->getMessage(),
             ]);
