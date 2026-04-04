@@ -62,7 +62,7 @@ class UpdateTejido
         // Snapshot
         $fechaFinalAntes = (string)($registro->FechaFinal ?? '');
         $horasProdAntes  = (float)($registro->HorasProd ?? 0);
-        $cantidadAntes   = self::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
+        $cantidadAntes   = TejidoHelpers::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
 
         // Flags correctos
         $afectaCalendario = false;   // solo acomodación en líneas
@@ -467,7 +467,7 @@ class UpdateTejido
 
             // Snap si cayó en gap (solo si hay calendario y NO está EnProceso)
             if (!$enProceso && $afectaCalendario && !empty($registro->CalendarioId)) {
-                $snap = self::snapInicioAlCalendario($registro->CalendarioId, $inicio);
+                $snap = TejidoHelpers::snapInicioAlCalendario($registro->CalendarioId, $inicio);
                 if ($snap && !$snap->equalTo($inicio)) {
                     $fechaInicioAnterior = $registro->FechaInicio;
                     $registro->FechaInicio = $snap->format('Y-m-d H:i:s');
@@ -490,17 +490,17 @@ class UpdateTejido
             // - si SOLO cambió calendario: usa HorasProd existente (evita drift 16:09->16:11)
             // - si cambió pedido/modelo/etc: recalcula HorasProd
             if ($afectaDuracion) {
-                $horasNecesarias = self::calcularHorasProd($registro);
+                $horasNecesarias = TejidoHelpers::calcularHorasProd($registro);
 
                 // fallback proporcional (igual a tu duplicar)
                 if ($horasNecesarias <= 0 && $horasProdAntes > 0) {
-                    $cantNew = self::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
+                    $cantNew = TejidoHelpers::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
                     if ($cantidadAntes > 0 && $cantNew > 0) {
                         $horasNecesarias = $horasProdAntes * ($cantNew / $cantidadAntes);
                     }
                 }
             } else {
-                $horasNecesarias = $horasProdAntes > 0 ? $horasProdAntes : self::calcularHorasProd($registro);
+                $horasNecesarias = $horasProdAntes > 0 ? $horasProdAntes : TejidoHelpers::calcularHorasProd($registro);
             }
 
             if ($horasNecesarias <= 0) {
@@ -609,16 +609,6 @@ class UpdateTejido
             'message' => 'Programa de tejido actualizado',
             'data'    => UtilityHelpers::extractResumen($registro),
         ]);
-    }
-
-    private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
-    {
-        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
-    }
-
-    private static function calcularHorasProd(ReqProgramaTejido $p): float
-    {
-        return TejidoHelpers::calcularHorasProdFromPrograma($p);
     }
 
     /**
@@ -824,7 +814,7 @@ class UpdateTejido
 
         if ($diffDias <= 0) return;
 
-        $cantidad = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        $cantidad = TejidoHelpers::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
         $pesoCrudo = (float)($p->PesoCrudo ?? 0);
 
         $p->DiasEficiencia = (float) round($diffDias, 2);
@@ -837,17 +827,18 @@ class UpdateTejido
         }
     }
 
-    // Tu método completo (idéntico a Duplicar)
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        // <- usa el mismo que ya tienes (no lo re-pego aquí para no alargar),
-        //    el de tu Update actual está bien.
-        return DuplicarTejido::calcularFormulasEficiencia($programa); // si lo tienes público
-    }
-
-    private static function sanitizeNumber($value): float
-    {
-        return TejidoHelpers::sanitizeNumber($value);
+        try {
+            $m = TejidoHelpers::obtenerModeloParams($programa);
+            return TejidoHelpers::calcularFormulasEficiencia($programa, $m, true, true, true);
+        } catch (\Throwable $e) {
+            LogFacade::warning('UpdateTejido: Error al calcular formulas', [
+                'error' => $e->getMessage(),
+                'programa_id' => $programa->Id ?? null,
+            ]);
+        }
+        return [];
     }
 
     /**
