@@ -396,11 +396,11 @@ class BalancearTejido
         }
 
         // Si el registro está EnProceso, usar now() como inicio efectivo
-        $esEnProceso = ($r->EnProceso == 1 || $r->EnProceso === true);
+        $esEnProceso = (bool) $r->EnProceso;
         $inicio = $esEnProceso ? Carbon::now() : Carbon::parse($r->FechaInicio);
 
         // Saldo negativo: FechaFin = now() si EnProceso, si no el mismo día que FechaInicio
-        $saldo = self::sanitizeNumber($r->SaldoPedido ?? $r->Produccion ?? $r->TotalPedido ?? 0);
+        $saldo = TejidoHelpers::sanitizeNumber($r->SaldoPedido ?? $r->Produccion ?? $r->TotalPedido ?? 0);
         if ($saldo < 0) {
             $fin = $esEnProceso
                 ? Carbon::now()
@@ -619,7 +619,7 @@ class BalancearTejido
     // =========================================================
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
-        return TejidoHelpers::calcularHorasProdFromPrograma($p);
+        return TejidoHelpers::calcularHorasProd($p);
     }
 
     // =========================================================
@@ -816,11 +816,6 @@ class BalancearTejido
         return self::$calLinesCache[$calendarioId] ?? [];
     }
 
-    private static function sanitizeNumber($value): float
-    {
-        return TejidoHelpers::sanitizeNumber($value);
-    }
-
     public static function balancearAutomatico(Request $request): JsonResponse
     {
         $request->validate([
@@ -1005,7 +1000,7 @@ class BalancearTejido
                 continue;
             }
 
-            $esEnProceso = ($reg->EnProceso == 1 || $reg->EnProceso === true);
+            $esEnProceso = (bool) $reg->EnProceso;
             $fechaInicioReg = $esEnProceso ? Carbon::now() : Carbon::parse($reg->FechaInicio);
             if (! $esEnProceso && ! empty($reg->CalendarioId)) {
                 $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
@@ -1078,7 +1073,7 @@ class BalancearTejido
             $pedidoActualData = $pedidosActuales[(int) $reg->Id] ?? null;
             $pedidoActual = (float) ($pedidoActualData['pedido'] ?? ($reg->TotalPedido ?? 0));
             $saldoActual = (float) ($pedidoActualData['saldo'] ?? max(0, $pedidoActual - $produccion));
-            $esEnProceso = ($reg->EnProceso == 1 || $reg->EnProceso === true);
+            $esEnProceso = (bool) $reg->EnProceso;
             $fechaInicioReg = $esEnProceso ? Carbon::now() : Carbon::parse($reg->FechaInicio);
             if (! $esEnProceso && ! empty($reg->CalendarioId)) {
                 $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);

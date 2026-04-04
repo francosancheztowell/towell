@@ -453,7 +453,7 @@ class UpdateTejido
 
         // ===== 2) Recalcular FechaFinal =====
         // REGLA: cambiar calendario NO cambia duración; solo re-acomoda en líneas.
-        $enProceso = ($registro->EnProceso == 1 || $registro->EnProceso === true);
+        $enProceso = (bool) $registro->EnProceso;
         $recalcularFecha = (!$fechaFinalManual) && !empty($registro->FechaInicio) && ($afectaCalendario || $afectaDuracion);
 
         if ($recalcularFecha) {
@@ -804,7 +804,7 @@ class UpdateTejido
         if (empty($p->FechaFinal)) return;
 
         // EnProceso: usar now() como inicio efectivo (no FechaInicio)
-        $esEnProceso = ($p->EnProceso == 1 || $p->EnProceso === true);
+        $esEnProceso = (bool) $p->EnProceso;
         $inicio = $esEnProceso ? Carbon::now() : (empty($p->FechaInicio) ? null : Carbon::parse($p->FechaInicio));
         if (!$inicio) return;
 
