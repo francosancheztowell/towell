@@ -246,25 +246,9 @@ class BalancearTejido
                     }
 
                     // Actualizar este registro en cascada
-                    $inicio = $cursor->copy();
-                    if (! empty($r->CalendarioId)) {
-                        $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
-                        if ($snap) {
-                            $inicio = $snap;
-                        }
-                    }
-
+                    [$inicio, $fin] = self::resolverInicioFin($cursor->copy(), $r);
                     $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
-
-                    $horas = TejidoHelpers::calcularHorasProd($r);
-                    if ($horas > 0) {
-                        $fin = ! empty($r->CalendarioId)
-                            ? (self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horas) ?: $inicio->copy()->addSeconds((int) round($horas * 3600)))
-                            : $inicio->copy()->addSeconds((int) round($horas * 3600));
-                    } else {
-                        $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(TejidoHelpers::DEFAULT_DURACION_REPASO_HORAS) : $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS);
-                    }
-                    $r->FechaFinal = $fin->format('Y-m-d H:i:s');
+                    $r->FechaFinal  = $fin->format('Y-m-d H:i:s');
                     $formulas = self::calcularFormulasEficiencia($r);
                     foreach ($formulas as $campo => $valor) {
                         $r->{$campo} = $valor;
@@ -389,13 +373,54 @@ class BalancearTejido
     // =========================================================
     // Core: inicio + fin exacto por calendario
     // =========================================================
+
+    /**
+     * Snap $inicio al calendario y calcula $fin según HorasProd del registro.
+     * Lógica EnProceso/saldo-negativo queda en los callers; este método recibe
+     * el inicio ya resuelto y solo aplica snap + cálculo de fin.
+     *
+     * @param  Carbon               $inicio      Inicio candidato (cursor, FechaInicio parseada, etc.)
+     * @param  ReqProgramaTejido    $r           Registro con SaldoPedido, CalendarioId, etc.
+     * @param  bool                 $aplicarSnap Si false (EnProceso), omite snap al calendario.
+     * @return array{0:Carbon, 1:Carbon, 2:float} [$inicio, $fin, $horasNecesarias]
+     */
+    public static function resolverInicioFin(Carbon $inicio, ReqProgramaTejido $r, bool $aplicarSnap = true): array
+    {
+        if ($aplicarSnap && ! empty($r->CalendarioId)) {
+            $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
+            if ($snap) {
+                $inicio = $snap;
+            }
+        }
+
+        $horasNecesarias = TejidoHelpers::calcularHorasProd($r);
+
+        if ($horasNecesarias <= 0) {
+            $fin = TejidoHelpers::esRepaso($r)
+                ? $inicio->copy()->addHours(TejidoHelpers::DEFAULT_DURACION_REPASO_HORAS)
+                : $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS);
+
+            return [$inicio, $fin, 0.0];
+        }
+
+        if (! empty($r->CalendarioId)) {
+            $fin = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
+            if (! $fin) {
+                $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
+            }
+        } else {
+            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
+        }
+
+        return [$inicio, $fin, $horasNecesarias];
+    }
+
     private static function calcularInicioFinExactos(ReqProgramaTejido $r): array
     {
         if (empty($r->FechaInicio)) {
             return [null, null, 0.0];
         }
 
-        // Si el registro está EnProceso, usar now() como inicio efectivo
         $esEnProceso = (bool) $r->EnProceso;
         $inicio = $esEnProceso ? Carbon::now() : Carbon::parse($r->FechaInicio);
 
@@ -409,33 +434,7 @@ class BalancearTejido
             return [$inicio, $fin, 0.0];
         }
 
-        // Snap a calendario (misma lógica, solo sin query repetido) - no aplicar snap a EnProceso
-        if (! $esEnProceso && ! empty($r->CalendarioId)) {
-            $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
-            if ($snap) {
-                $inicio = $snap;
-            }
-        }
-
-        $horasNecesarias = TejidoHelpers::calcularHorasProd($r);
-
-        if ($horasNecesarias <= 0) {
-            $fin = TejidoHelpers::esRepaso($r) ? $inicio->copy()->addHours(TejidoHelpers::DEFAULT_DURACION_REPASO_HORAS) : $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS);
-
-            return [$inicio, $fin, 0.0];
-        }
-
-        if (! empty($r->CalendarioId)) {
-            $fin = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
-            if (! $fin) {
-                $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-            }
-
-            return [$inicio, $fin, $horasNecesarias];
-        }
-        $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-
-        return [$inicio, $fin, $horasNecesarias];
+        return self::resolverInicioFin($inicio, $r, ! $esEnProceso);
     }
 
     // =========================================================
@@ -617,6 +616,79 @@ class BalancearTejido
     // =========================================================
     // Calendario (misma lógica, pero con cache)
     // =========================================================
+
+    /**
+     * Motor de iteración sobre líneas activas de calendario.
+     * Avanza $cursor línea por línea y delega la lógica de consumo al callback.
+     *
+     * El callback recibe ($disponibles, $ini, $fin) y retorna [$usar, $continuar]:
+     *   - $usar:      segundos que el cursor debe avanzar dentro de esta línea
+     *   - $continuar: true = seguir iterando, false = detener
+     *
+     * Retorna [$cursor, $linesExhausted]:
+     *   - $linesExhausted = true  → no quedaron líneas suficientes
+     *   - $linesExhausted = false → detenido por callback o maxIter
+     *
+     * @param  array<array{ini:Carbon,fin:Carbon,fin_ts:int}>  $lines
+     * @param  Carbon   $cursor         Inicio de iteración (se modifica en lugar)
+     * @param  callable $procesarSegmento  (int $disp, Carbon $ini, Carbon $fin): array{int,bool}
+     * @return array{0:Carbon, 1:bool}
+     */
+    public static function iterarLineasActivas(array $lines, Carbon $cursor, callable $procesarSegmento): array
+    {
+        $idx     = 0;
+        $iter    = 0;
+        $maxIter = 200000;
+
+        while ($iter < $maxIter) {
+            $iter++;
+            $cursorTs = $cursor->getTimestamp();
+
+            // Saltar líneas ya vencidas
+            while ($idx < count($lines) && $lines[$idx]['fin_ts'] <= $cursorTs) {
+                $idx++;
+            }
+
+            if ($idx >= count($lines)) {
+                return [$cursor, true]; // líneas agotadas
+            }
+
+            $ini = $lines[$idx]['ini'];
+            $fin = $lines[$idx]['fin'];
+
+            // Gap antes de la línea: saltar al inicio
+            if ($cursor->lt($ini)) {
+                $cursor = $ini->copy();
+                continue;
+            }
+
+            // Línea ya superada
+            if ($cursor->gte($fin)) {
+                $idx++;
+                continue;
+            }
+
+            $disponibles = (int) ($fin->getTimestamp() - $cursorTs);
+            if ($disponibles <= 0) {
+                $cursor = $fin->copy();
+                continue;
+            }
+
+            [$usar, $continuar] = $procesarSegmento($disponibles, $ini, $fin);
+            $cursor->addSeconds((int) max(0, $usar));
+
+            if ($cursor->gte($fin)) {
+                $idx++;
+            }
+
+            if (! $continuar) {
+                return [$cursor, false]; // detenido por callback
+            }
+        }
+
+        return [$cursor, false]; // maxIter alcanzado
+    }
+
     private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
         $lines = self::getCalendarioLines($calendarioId);
@@ -625,76 +697,32 @@ class BalancearTejido
     }
 
     /**
-     * FechaFinal recorriendo líneas reales (FechaInicio/FechaFin).
-     * MISMA lógica que tu while, solo sin query por iteración.
+     * FechaFinal recorriendo líneas reales del calendario.
+     * Retorna null si las líneas se agotan antes de consumir todas las horas
+     * (el caller aplica el fallback continuo).
      */
     public static function calcularFechaFinalDesdeInicio(string $calendarioId, Carbon $fechaInicio, float $horasNecesarias): ?Carbon
     {
         $segundosRestantes = (int) round(max(0, $horasNecesarias) * 3600);
-        $cursor = $fechaInicio->copy();
-
-        $lines = self::getCalendarioLines($calendarioId);
-
-        $iter = 0;
-        $maxIter = 200000;
-
-        $idx = 0;
-
-        while ($segundosRestantes > 0 && $iter < $maxIter) {
-            $iter++;
-
-            $cursorTs = $cursor->getTimestamp();
-
-            // Simula: where FechaFin > $cursor orderBy FechaInicio first()
-            while ($idx < count($lines) && $lines[$idx]['fin_ts'] <= $cursorTs) {
-                $idx++;
-            }
-
-            // Para ser fiel a tu código: si no hay línea, en DB sería null y tronaría al parsear.
-            // Aquí devolvemos null para que tu caller pueda aplicar el fallback que ya tienes.
-            if ($idx >= count($lines)) {
-                return null;
-            }
-
-            $ini = $lines[$idx]['ini'];
-            $fin = $lines[$idx]['fin'];
-
-            // Gap antes de la línea
-            if ($cursor->lt($ini)) {
-                $gapSec = $ini->getTimestamp() - $cursorTs;
-
-                if ($gapSec <= self::SMALL_GAP_SECONDS) {
-                    $cursor = $ini->copy();
-
-                    continue;
-                }
-
-                $cursor = $ini->copy();
-
-                continue;
-            }
-
-            // Consumir dentro de la línea
-            if ($cursor->gte($fin)) {
-                $cursor = $fin->copy();
-
-                continue;
-            }
-
-            $disponibles = (int) ($fin->getTimestamp() - $cursorTs);
-            if ($disponibles <= 0) {
-                $cursor = $fin->copy();
-
-                continue;
-            }
-
-            $usar = min($disponibles, $segundosRestantes);
-
-            $cursor->addSeconds((int) $usar);
-            $segundosRestantes -= (int) $usar;
+        if ($segundosRestantes === 0) {
+            return $fechaInicio->copy();
         }
 
-        return $cursor;
+        $lines  = self::getCalendarioLines($calendarioId);
+        $cursor = $fechaInicio->copy();
+
+        [$cursor, $linesExhausted] = self::iterarLineasActivas(
+            $lines,
+            $cursor,
+            function (int $disponibles) use (&$segundosRestantes): array {
+                $usar = min($disponibles, $segundosRestantes);
+                $segundosRestantes -= (int) $usar;
+
+                return [(int) $usar, $segundosRestantes > 0];
+            }
+        );
+
+        return $linesExhausted ? null : $cursor;
     }
 
     // =========================================================
@@ -994,24 +1022,14 @@ class BalancearTejido
 
             $esEnProceso = (bool) $reg->EnProceso;
             $fechaInicioReg = $esEnProceso ? Carbon::now() : Carbon::parse($reg->FechaInicio);
-            if (! $esEnProceso && ! empty($reg->CalendarioId)) {
-                $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioReg);
-                if ($snap) {
-                    $fechaInicioReg = $snap;
-                }
-            }
 
             $regTemp = clone $reg;
             $regTemp->TotalPedido = $pedidoActual;
             $regTemp->SaldoPedido = $saldoOriginal;
-            $horasActual = TejidoHelpers::calcularHorasProd($regTemp);
-            $fechaFinalActual = null;
-            if ($horasActual > 0) {
-                $fechaInicioTemp = $fechaInicioReg->copy();
-                $fechaFinalActual = ! empty($reg->CalendarioId)
-                    ? (self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $fechaInicioTemp, $horasActual) ?: $fechaInicioTemp->copy()->addSeconds((int) round($horasActual * 3600)))
-                    : $fechaInicioTemp->copy()->addSeconds((int) round($horasActual * 3600));
-            }
+            [$fechaInicioReg, $finResuelto, $horasActual] = self::resolverInicioFin($fechaInicioReg, $regTemp, ! $esEnProceso);
+            // Preservar null cuando no se pudieron calcular horas (sin modelo/velocidad),
+            // para que el check cumpleObjetivo quede en false en lugar de comparar fecha fallback.
+            $fechaFinalActual = $horasActual > 0 ? $finResuelto : null;
 
             $cumpleObjetivo = false;
             if ($fechaFinalActual) {
@@ -1194,17 +1212,7 @@ class BalancearTejido
             }
 
             // Calcular fecha final
-            $fechaInicioTemp = $fechaInicio->copy();
-            if (! empty($reg->CalendarioId)) {
-                $snap = self::snapInicioAlCalendario($reg->CalendarioId, $fechaInicioTemp);
-                if ($snap) {
-                    $fechaInicioTemp = $snap;
-                }
-            }
-
-            $fechaFinal = ! empty($reg->CalendarioId)
-                ? (self::calcularFechaFinalDesdeInicio($reg->CalendarioId, $fechaInicioTemp, $horas) ?: $fechaInicioTemp->copy()->addSeconds((int) round($horas * 3600)))
-                : $fechaInicioTemp->copy()->addSeconds((int) round($horas * 3600));
+            [, $fechaFinal] = self::resolverInicioFin($fechaInicio->copy(), $regTemp);
 
             $diferenciaSegundos = abs($fechaObjetivo->getTimestamp() - $fechaFinal->getTimestamp());
 
@@ -1237,75 +1245,39 @@ class BalancearTejido
     }
 
     /**
-     * Calcula las horas disponibles desde fechaInicio hasta fechaFin usando el calendario
+     * Calcula las horas disponibles desde fechaInicio hasta fechaFin usando el calendario.
      */
     private static function calcularHorasDisponiblesHastaFecha(?string $calendarioId, Carbon $fechaInicio, Carbon $fechaFin): float
     {
-        if (empty($calendarioId)) {
-            // Sin calendario: horas continuas
-            $segundos = max(0, $fechaFin->getTimestamp() - $fechaInicio->getTimestamp());
+        $finTs   = $fechaFin->getTimestamp();
+        $segundos = max(0, $finTs - $fechaInicio->getTimestamp());
 
+        if (empty($calendarioId)) {
             return $segundos / 3600.0;
         }
 
-        // Con calendario: usar las líneas del calendario
         $lines = self::getCalendarioLines($calendarioId);
         if (empty($lines)) {
-            // Sin líneas de calendario: horas continuas
-            $segundos = max(0, $fechaFin->getTimestamp() - $fechaInicio->getTimestamp());
-
             return $segundos / 3600.0;
         }
 
-        $cursor = $fechaInicio->copy();
         $segundosTotales = 0;
-        $fechaFinTs = $fechaFin->getTimestamp();
-        $idx = 0;
-        $iter = 0;
-        $maxIter = 200000;
+        $cursor = $fechaInicio->copy();
 
-        while ($cursor->getTimestamp() < $fechaFinTs && $iter < $maxIter) {
-            $iter++;
-            $cursorTs = $cursor->getTimestamp();
+        self::iterarLineasActivas(
+            $lines,
+            $cursor,
+            function (int $disponibles, Carbon $ini, Carbon $fin) use ($finTs, &$segundosTotales): array {
+                // Recortar disponibles al límite de fechaFin
+                // disponibles = fin.ts - cursorTs  →  exceso = max(0, fin.ts - finTs)
+                $exceso  = max(0, $fin->getTimestamp() - $finTs);
+                $usar    = max(0, $disponibles - $exceso);
+                $segundosTotales += $usar;
 
-            // Buscar siguiente línea disponible
-            while ($idx < count($lines) && $lines[$idx]['fin_ts'] <= $cursorTs) {
-                $idx++;
+                // Continuar solo si la línea termina antes de fechaFin
+                return [$usar, $fin->getTimestamp() < $finTs];
             }
-
-            if ($idx >= count($lines)) {
-                break; // No hay más líneas disponibles
-            }
-
-            $ini = $lines[$idx]['ini'];
-            $fin = $lines[$idx]['fin'];
-
-            // Si hay gap antes de la línea, saltarlo
-            if ($cursor->lt($ini)) {
-                $cursor = $ini->copy();
-
-                continue;
-            }
-
-            // Si la línea ya pasó, siguiente
-            if ($cursor->gte($fin)) {
-                $idx++;
-
-                continue;
-            }
-
-            // Calcular segundos disponibles en esta línea hasta fechaFin
-            $finLineaTs = min($fin->getTimestamp(), $fechaFinTs);
-            $disponibles = max(0, $finLineaTs - $cursorTs);
-            $segundosTotales += $disponibles;
-
-            // Mover cursor al final de esta línea o fechaFin
-            $cursor = Carbon::createFromTimestamp($finLineaTs);
-
-            if ($finLineaTs >= $fin->getTimestamp()) {
-                $idx++; // Pasar a siguiente línea
-            }
-        }
+        );
 
         return $segundosTotales / 3600.0;
     }
