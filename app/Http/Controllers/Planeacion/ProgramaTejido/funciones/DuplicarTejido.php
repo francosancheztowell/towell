@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -593,10 +592,7 @@ class DuplicarTejido
                     // Si falla, continuar igual
                 }
             }
-            $observer = new ReqProgramaTejidoObserver();
-            foreach ($modelosParaObserver as $registro) {
-                $observer->saved($registro);
-            }
+            ReqProgramaTejido::regenerarLineas($modelosParaObserver);
 
             DBFacade::commit();
 
