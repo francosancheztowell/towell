@@ -83,23 +83,38 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
 
                 if (!$dryRun && $puedeCorregir) {
                     if ($diferencia > 0) {
-                        // Hay registros de más - eliminar los que no tengan HoraInicial
+                        // Hay registros de más - eliminar con prioridad: NoJulio=NULL, KgNeto=NULL, Id mas antiguo
                         $registrosAEliminar = $diferencia;
                         $idsAEliminar = EngProduccionEngomado::where('Folio', $programa->Folio)
                             ->where(function ($q) {
-                                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                                $q->whereNull('NoJulio')->orWhere('NoJulio', '');
                             })
-                            ->orderBy('Id', 'desc')
+                            ->orderBy('Id', 'asc')
                             ->limit($registrosAEliminar)
                             ->pluck('Id')
                             ->toArray();
 
                         if (count($idsAEliminar) < $registrosAEliminar) {
-                            // Si no hay suficientes sin HoraInicial, eliminar los más recientes que sobren
+                            // No hay suficientes sin NoJulio, buscar los que tienen KgNeto=NULL
                             $faltan = $registrosAEliminar - count($idsAEliminar);
                             $idsRestantes = EngProduccionEngomado::where('Folio', $programa->Folio)
                                 ->whereNotIn('Id', $idsAEliminar)
-                                ->orderBy('Id', 'desc')
+                                ->where(function ($q) {
+                                    $q->whereNull('KgNeto')->orWhere('KgNeto', 0);
+                                })
+                                ->orderBy('Id', 'asc')
+                                ->limit($faltan)
+                                ->pluck('Id')
+                                ->toArray();
+                            $idsAEliminar = array_merge($idsAEliminar, $idsRestantes);
+                        }
+
+                        if (count($idsAEliminar) < $registrosAEliminar) {
+                            // Aun no hay suficientes, tomar los mas antiguos restantes
+                            $faltan = $registrosAEliminar - count($idsAEliminar);
+                            $idsRestantes = EngProduccionEngomado::where('Folio', $programa->Folio)
+                                ->whereNotIn('Id', $idsAEliminar)
+                                ->orderBy('Id', 'asc')
                                 ->limit($faltan)
                                 ->pluck('Id')
                                 ->toArray();

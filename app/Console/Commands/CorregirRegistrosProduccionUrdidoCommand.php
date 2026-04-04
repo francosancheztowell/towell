@@ -88,12 +88,13 @@ class CorregirRegistrosProduccionUrdidoCommand extends Command
                         $diff = $actual - $expected;
 
                         if ($diff > 0) {
+                            // Prioridad: 1) NoJulio=NULL, 2) KgNeto=NULL, 3) Id mas antiguo
                             $sobrantes = UrdProduccionUrdido::where('Folio', $programa->Folio)
                                 ->where('Hilos', $hilos === 'null' ? null : $hilos)
                                 ->where(function ($q) {
-                                    $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                                    $q->whereNull('NoJulio')->orWhere('NoJulio', '');
                                 })
-                                ->orderBy('Id', 'desc')
+                                ->orderBy('Id', 'asc')
                                 ->limit($diff)
                                 ->pluck('Id')
                                 ->toArray();
@@ -103,7 +104,22 @@ class CorregirRegistrosProduccionUrdidoCommand extends Command
                                 $restantes = UrdProduccionUrdido::where('Folio', $programa->Folio)
                                     ->where('Hilos', $hilos === 'null' ? null : $hilos)
                                     ->whereNotIn('Id', $sobrantes)
-                                    ->orderBy('Id', 'desc')
+                                    ->where(function ($q) {
+                                        $q->whereNull('KgNeto')->orWhere('KgNeto', 0);
+                                    })
+                                    ->orderBy('Id', 'asc')
+                                    ->limit($faltan)
+                                    ->pluck('Id')
+                                    ->toArray();
+                                $sobrantes = array_merge($sobrantes, $restantes);
+                            }
+
+                            if (count($sobrantes) < $diff) {
+                                $faltan = $diff - count($sobrantes);
+                                $restantes = UrdProduccionUrdido::where('Folio', $programa->Folio)
+                                    ->where('Hilos', $hilos === 'null' ? null : $hilos)
+                                    ->whereNotIn('Id', $sobrantes)
+                                    ->orderBy('Id', 'asc')
                                     ->limit($faltan)
                                     ->pluck('Id')
                                     ->toArray();
