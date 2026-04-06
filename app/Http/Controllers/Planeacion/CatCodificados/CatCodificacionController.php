@@ -444,7 +444,8 @@ class CatCodificacionController extends Controller
             // 1. CACHE HIT
             if (!$skipCache && ($cached = Cache::get($cacheKey))) {
                 return response()->json($cached)
-                    ->header('Cache-Control', 'private, max-age=60')
+                    ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    ->header('Pragma', 'no-cache')
                     ->header('X-Cache', 'HIT');
             }
 
@@ -478,7 +479,8 @@ class CatCodificacionController extends Controller
             }
 
             return response()->json($response)
-                ->header('Cache-Control', 'private, max-age=60')
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache')
                 ->header('X-Cache', 'MISS');
 
         } catch (\Throwable $e) {

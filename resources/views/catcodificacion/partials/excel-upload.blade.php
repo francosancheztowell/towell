@@ -206,7 +206,15 @@
                 width: errorCount > 0 ? '820px' : '500px',
                 html: renderImportSummary(created, updated, errors),
                 confirmButtonColor: '#2563eb',
-            }).then(() => {
+            }).then(async () => {
+                if (typeof window.loadData === 'function') {
+                    try {
+                        await window.loadData(true);
+                        return;
+                    } catch (_) {
+                    }
+                }
+
                 window.location.reload();
             });
         };
