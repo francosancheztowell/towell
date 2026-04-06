@@ -18,11 +18,11 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 {
     private const TEMPLATE_SECTION_LAST_ROW = 46;
 
+    private const WEEKLY_TEMPLATE_CLEAR_START_ROW = 4;
+
     private const MAX_COLUMN_INDEX = 88;
 
-    private static ?array $templateSectionCoordinates = null;
-
-    private static ?array $templateSectionMergeRanges = null;
+    private static ?array $templateState = null;
 
     private static ?array $columnLabels = null;
 
@@ -51,20 +51,19 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 
                 $templateBook = $this->loadTemplateBook();
                 $templateSheet = $templateBook->getSheet(0);
-                $templateSourceBook = $this->loadTemplateBook();
-                $templateSource = $templateSourceBook->getSheet(0);
-                $templateSheet->setTitle('00E Atadores');
+                $templateState = $this->resolveTemplateState($templateSheet);
+                $templateSheet->setTitle('OEE de Atadores');
 
                 $book->removeSheetByIndex($sheetIndex);
                 $book->addExternalSheet($templateSheet, $sheetIndex);
 
                 $sheet = $book->getSheet($sheetIndex);
-                $this->renderRangeIntoSheet($sheet, $templateSource);
+                $this->renderRangeIntoSheet($sheet, $templateState);
             },
         ];
     }
 
-    private function renderRangeIntoSheet(Worksheet $sheet, Worksheet $templateSource): void
+    private function renderRangeIntoSheet(Worksheet $sheet, array $templateState): void
     {
         $recordsByWeek = $this->groupRecordsByWeek();
         $sectionTopRow = 1;
@@ -72,12 +71,14 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 
         for ($cursor = $this->weekStart; $cursor->lessThanOrEqualTo($this->weekEnd); $cursor = $cursor->addWeek()) {
             if (! $isFirstWeek) {
-                $this->copyTemplateSection($sheet, $templateSource, $sectionTopRow);
+                $this->copyTemplateSection($sheet, $templateState['section_snapshot'], $sectionTopRow);
             }
 
             $weeklyExport = new Reporte00EAtadoresExport(
                 $cursor,
-                $recordsByWeek->get($cursor->toDateString(), collect())
+                $recordsByWeek->get($cursor->toDateString(), collect()),
+                null,
+                $templateState['weekly_context']
             );
 
             $sectionBottomRow = $weeklyExport->renderIntoSheet($sheet, $sectionTopRow);
@@ -86,66 +87,34 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
         }
     }
 
-    private function copyTemplateSection(Worksheet $sheet, Worksheet $templateSource, int $sectionTopRow): void
+    private function copyTemplateSection(Worksheet $sheet, array $sectionSnapshot, int $sectionTopRow): void
     {
         $rowOffset = $sectionTopRow - 1;
-        $columns = $this->getColumnLabels();
 
-        for ($sourceRow = 1; $sourceRow <= self::TEMPLATE_SECTION_LAST_ROW; $sourceRow++) {
-            $targetRow = $sourceRow + $rowOffset;
-            $sheet->getRowDimension($targetRow)
-                ->setRowHeight($templateSource->getRowDimension($sourceRow)->getRowHeight());
+        foreach (($sectionSnapshot['row_heights'] ?? []) as $sourceRow => $height) {
+            $targetRow = (int) $sourceRow + $rowOffset;
+            $sheet->getRowDimension($targetRow)->setRowHeight((float) $height);
 
-            for ($columnIndex = 1; $columnIndex <= self::MAX_COLUMN_INDEX; $columnIndex++) {
-                $column = $columns[$columnIndex];
-                $sourceCoordinate = "{$column}{$sourceRow}";
-                $targetCoordinate = "{$column}{$targetRow}";
-
-                $sourceCell = $templateSource->getCell($sourceCoordinate);
-                $targetCell = $sheet->getCell($targetCoordinate);
-
-                $sourceStyle = $templateSource->getStyle($sourceCoordinate);
-                $targetStyle = $sheet->getStyle($targetCoordinate);
-
-                $targetStyle->getFont()->setName($sourceStyle->getFont()->getName());
-                $targetStyle->getFont()->setSize($sourceStyle->getFont()->getSize());
-                $targetStyle->getFont()->setBold($sourceStyle->getFont()->getBold());
-                $targetStyle->getFont()->setItalic($sourceStyle->getFont()->getItalic());
-                $targetStyle->getFont()->setColor($sourceStyle->getFont()->getColor());
-
-                $targetStyle->getFill()->setFillType($sourceStyle->getFill()->getFillType());
-                if ($sourceStyle->getFill()->getFillType() !== \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_NONE) {
-                    $targetStyle->getFill()->getStartColor()->setRGB(
-                        $sourceStyle->getFill()->getStartColor()->getRGB()
-                    );
-                    $targetStyle->getFill()->getEndColor()->setRGB(
-                        $sourceStyle->getFill()->getEndColor()->getRGB()
-                    );
-                }
-
-                $targetStyle->getAlignment()->setHorizontal($sourceStyle->getAlignment()->getHorizontal());
-                $targetStyle->getAlignment()->setVertical($sourceStyle->getAlignment()->getVertical());
-                $targetStyle->getAlignment()->setWrapText($sourceStyle->getAlignment()->getWrapText());
-
-                $targetStyle->getBorders()->getTop()->setBorderStyle($sourceStyle->getBorders()->getTop()->getBorderStyle());
-                $targetStyle->getBorders()->getBottom()->setBorderStyle($sourceStyle->getBorders()->getBottom()->getBorderStyle());
-                $targetStyle->getBorders()->getLeft()->setBorderStyle($sourceStyle->getBorders()->getLeft()->getBorderStyle());
-                $targetStyle->getBorders()->getRight()->setBorderStyle($sourceStyle->getBorders()->getRight()->getBorderStyle());
-
-                $targetStyle->getNumberFormat()->setFormatCode(
-                    $sourceStyle->getNumberFormat()->getFormatCode()
+            foreach (($sectionSnapshot['style_runs'][$sourceRow] ?? []) as $styleRun) {
+                $targetRange = sprintf(
+                    '%s%d:%s%d',
+                    Coordinate::stringFromColumnIndex((int) $styleRun['start']),
+                    $targetRow,
+                    Coordinate::stringFromColumnIndex((int) $styleRun['end']),
+                    $targetRow
                 );
+                $sheet->getStyle($targetRange)->applyFromArray($styleRun['style']);
             }
         }
 
-        foreach ($this->getTemplateSectionCoordinates($templateSource) as $coordinate) {
+        foreach (($sectionSnapshot['values'] ?? []) as $coordinate => $value) {
             $sheet->setCellValue(
                 $this->offsetCoordinateRow($coordinate, $rowOffset),
-                $templateSource->getCell($coordinate)->getValue()
+                $value
             );
         }
 
-        foreach ($this->getTemplateSectionMergeRanges($templateSource) as $range) {
+        foreach (($sectionSnapshot['merge_ranges'] ?? []) as $range) {
             $sheet->mergeCells($this->offsetRangeRows($range, $rowOffset));
         }
     }
@@ -208,37 +177,52 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
             });
     }
 
-    private function getTemplateSectionCoordinates(Worksheet $templateSource): array
+    private function resolveTemplateState(Worksheet $templateSheet): array
     {
-        if (self::$templateSectionCoordinates !== null) {
-            return self::$templateSectionCoordinates;
+        if (self::$templateState !== null) {
+            return self::$templateState;
         }
 
-        $coordinates = [];
         $columns = $this->getColumnLabels();
+        $clearCoordinates = [];
+        $sectionValues = [];
+        $rowHeights = [];
+        $styleRuns = [];
 
         for ($row = 1; $row <= self::TEMPLATE_SECTION_LAST_ROW; $row++) {
+            $rowHeights[$row] = $templateSheet->getRowDimension($row)->getRowHeight();
+            $styleRuns[$row] = $this->captureRowStyleRuns($templateSheet, $row);
+
             for ($columnIndex = 1; $columnIndex <= self::MAX_COLUMN_INDEX; $columnIndex++) {
                 $coordinate = $columns[$columnIndex].$row;
-                $value = $templateSource->getCell($coordinate)->getValue();
+                $value = $templateSheet->getCell($coordinate)->getValue();
 
                 if ($value !== null && $value !== '') {
-                    $coordinates[] = $coordinate;
+                    $sectionValues[$coordinate] = $value;
+                    if ($row >= self::WEEKLY_TEMPLATE_CLEAR_START_ROW) {
+                        $clearCoordinates[] = $coordinate;
+                    }
                 }
             }
         }
 
-        return self::$templateSectionCoordinates = $coordinates;
+        return self::$templateState = [
+            'weekly_context' => [
+                'clear_coordinates' => $clearCoordinates,
+            ],
+            'section_snapshot' => [
+                'row_heights' => $rowHeights,
+                'style_runs' => $styleRuns,
+                'values' => $sectionValues,
+                'merge_ranges' => $this->captureTemplateSectionMergeRanges($templateSheet),
+            ],
+        ];
     }
 
-    private function getTemplateSectionMergeRanges(Worksheet $templateSource): array
+    private function captureTemplateSectionMergeRanges(Worksheet $templateSheet): array
     {
-        if (self::$templateSectionMergeRanges !== null) {
-            return self::$templateSectionMergeRanges;
-        }
-
         $ranges = [];
-        foreach (array_keys($templateSource->getMergeCells()) as $range) {
+        foreach (array_keys($templateSheet->getMergeCells()) as $range) {
             if (! preg_match('/([A-Z]+)(\d+):([A-Z]+)(\d+)/', $range, $matches)) {
                 continue;
             }
@@ -250,7 +234,41 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
             }
         }
 
-        return self::$templateSectionMergeRanges = $ranges;
+        return $ranges;
+    }
+
+    private function captureRowStyleRuns(Worksheet $templateSheet, int $row): array
+    {
+        $columns = $this->getColumnLabels();
+        $runs = [];
+        $runStart = 1;
+        $currentHash = $templateSheet->getStyle($columns[$runStart].$row)->getHashCode();
+
+        for ($columnIndex = 2; $columnIndex <= self::MAX_COLUMN_INDEX; $columnIndex++) {
+            $hash = $templateSheet->getStyle($columns[$columnIndex].$row)->getHashCode();
+            if ($hash === $currentHash) {
+                continue;
+            }
+
+            $runs[] = $this->buildStyleRun($templateSheet, $row, $runStart, $columnIndex - 1);
+            $runStart = $columnIndex;
+            $currentHash = $hash;
+        }
+
+        $runs[] = $this->buildStyleRun($templateSheet, $row, $runStart, self::MAX_COLUMN_INDEX);
+
+        return $runs;
+    }
+
+    private function buildStyleRun(Worksheet $templateSheet, int $row, int $startColumnIndex, int $endColumnIndex): array
+    {
+        $coordinate = $this->getColumnLabels()[$startColumnIndex].$row;
+
+        return [
+            'start' => $startColumnIndex,
+            'end' => $endColumnIndex,
+            'style' => $templateSheet->getStyle($coordinate)->exportArray(),
+        ];
     }
 
     private function getColumnLabels(): array

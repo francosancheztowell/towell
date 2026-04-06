@@ -33,7 +33,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 
     private const CAPACITACION_HEIGHT = 6;
 
-    private static ?array $templateClearCoordinates = null;
+    private static ?array $defaultTemplateContext = null;
 
     private static ?array $columnLabels = null;
 
@@ -165,11 +165,17 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 
     private Collection $records;
 
+    private ?array $templateContext;
+
+    private array $rowStyleRunCache = [];
+
     public function __construct(
         private readonly CarbonImmutable $weekStart,
         ?Collection $records = null,
-        private readonly ?string $sheetTitle = null
+        private readonly ?string $sheetTitle = null,
+        ?array $templateContext = null
     ) {
+        $this->templateContext = $templateContext;
         $this->records = $this->prepareRecords($records ?? $this->loadRecords());
     }
 
@@ -193,6 +199,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 
                 $templateBook = $this->loadTemplateBook();
                 $templateSheet = $templateBook->getSheet(0);
+                $this->templateContext = $this->resolveTemplateContext($templateSheet);
                 $templateSheet->setTitle($this->title());
 
                 $book->removeSheetByIndex($sheetIndex);
@@ -424,7 +431,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
     {
         $rowOffset = $sectionTopRow - 1;
 
-        foreach ($this->getTemplateClearCoordinates() as $coordinate) {
+        foreach (($this->resolveTemplateContext()['clear_coordinates'] ?? []) as $coordinate) {
             $sheet->setCellValue($this->offsetCoordinateRow($coordinate, $rowOffset), null);
         }
     }
@@ -690,41 +697,12 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
     ): void {
         $columns = $this->getColumnLabels();
 
-        for ($columnIndex = $startColumnIndex; $columnIndex <= $endColumnIndex; $columnIndex++) {
-            $column = $columns[$columnIndex];
-            $sourceCoordinate = "{$column}{$sourceRow}";
-            $targetCoordinate = "{$column}{$targetRow}";
-
-            $sourceStyle = $sheet->getStyle($sourceCoordinate);
-            $targetStyle = $sheet->getStyle($targetCoordinate);
-
-            $targetStyle->getFont()->setName($sourceStyle->getFont()->getName());
-            $targetStyle->getFont()->setSize($sourceStyle->getFont()->getSize());
-            $targetStyle->getFont()->setBold($sourceStyle->getFont()->getBold());
-            $targetStyle->getFont()->setItalic($sourceStyle->getFont()->getItalic());
-            $targetStyle->getFont()->setColor($sourceStyle->getFont()->getColor());
-
-            $targetStyle->getFill()->setFillType($sourceStyle->getFill()->getFillType());
-            if ($sourceStyle->getFill()->getFillType() !== \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_NONE) {
-                $targetStyle->getFill()->getStartColor()->setRGB(
-                    $sourceStyle->getFill()->getStartColor()->getRGB()
-                );
-                $targetStyle->getFill()->getEndColor()->setRGB(
-                    $sourceStyle->getFill()->getEndColor()->getRGB()
-                );
-            }
-
-            $targetStyle->getAlignment()->setHorizontal($sourceStyle->getAlignment()->getHorizontal());
-            $targetStyle->getAlignment()->setVertical($sourceStyle->getAlignment()->getVertical());
-            $targetStyle->getAlignment()->setWrapText($sourceStyle->getAlignment()->getWrapText());
-
-            $targetStyle->getBorders()->getTop()->setBorderStyle($sourceStyle->getBorders()->getTop()->getBorderStyle());
-            $targetStyle->getBorders()->getBottom()->setBorderStyle($sourceStyle->getBorders()->getBottom()->getBorderStyle());
-            $targetStyle->getBorders()->getLeft()->setBorderStyle($sourceStyle->getBorders()->getLeft()->getBorderStyle());
-            $targetStyle->getBorders()->getRight()->setBorderStyle($sourceStyle->getBorders()->getRight()->getBorderStyle());
-
-            $targetStyle->getNumberFormat()->setFormatCode(
-                $sourceStyle->getNumberFormat()->getFormatCode()
+        foreach ($this->resolveRowStyleRuns($sheet, $sourceRow, $startColumnIndex, $endColumnIndex) as $run) {
+            $startColumn = $columns[$run['start']];
+            $endColumn = $columns[$run['end']];
+            $sheet->duplicateStyle(
+                $sheet->getStyle("{$startColumn}{$sourceRow}"),
+                "{$startColumn}{$targetRow}:{$endColumn}{$targetRow}"
             );
         }
     }
@@ -881,18 +859,33 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         return $matches[1].((int) $matches[2] + $rowOffset);
     }
 
-    private function getTemplateClearCoordinates(): array
+    private function resolveTemplateContext(?Worksheet $templateSheet = null): array
     {
-        if (self::$templateClearCoordinates !== null) {
-            return self::$templateClearCoordinates;
+        if ($this->templateContext !== null) {
+            return $this->templateContext;
+        }
+
+        if ($templateSheet instanceof Worksheet) {
+            return $this->templateContext = $this->buildTemplateContextFromSheet($templateSheet);
+        }
+
+        if (self::$defaultTemplateContext !== null) {
+            return $this->templateContext = self::$defaultTemplateContext;
         }
 
         $templateSheet = $this->loadTemplateBook()->getSheet(0);
+
+        return $this->templateContext = self::$defaultTemplateContext = $this->buildTemplateContextFromSheet($templateSheet);
+    }
+
+    private function buildTemplateContextFromSheet(Worksheet $templateSheet): array
+    {
         $coordinates = [];
+        $columns = $this->getColumnLabels();
 
         for ($row = self::DETAIL_START_ROW; $row <= self::FOOTER_BASE_ROW; $row++) {
             for ($column = 1; $column <= self::MAX_COLUMN_INDEX; $column++) {
-                $coordinate = $this->getColumnLabels()[$column].$row;
+                $coordinate = $columns[$column].$row;
                 $value = $templateSheet->getCell($coordinate)->getValue();
 
                 if ($value !== null && $value !== '') {
@@ -901,7 +894,45 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
             }
         }
 
-        return self::$templateClearCoordinates = $coordinates;
+        return ['clear_coordinates' => $coordinates];
+    }
+
+    private function resolveRowStyleRuns(
+        Worksheet $sheet,
+        int $row,
+        int $startColumnIndex,
+        int $endColumnIndex
+    ): array {
+        $cacheKey = implode(':', [spl_object_id($sheet), $row, $startColumnIndex, $endColumnIndex]);
+        if (isset($this->rowStyleRunCache[$cacheKey])) {
+            return $this->rowStyleRunCache[$cacheKey];
+        }
+
+        $columns = $this->getColumnLabels();
+        $runs = [];
+        $runStart = $startColumnIndex;
+        $currentHash = $sheet->getStyle($columns[$runStart].$row)->getHashCode();
+
+        for ($columnIndex = $startColumnIndex + 1; $columnIndex <= $endColumnIndex; $columnIndex++) {
+            $hash = $sheet->getStyle($columns[$columnIndex].$row)->getHashCode();
+            if ($hash === $currentHash) {
+                continue;
+            }
+
+            $runs[] = [
+                'start' => $runStart,
+                'end' => $columnIndex - 1,
+            ];
+            $runStart = $columnIndex;
+            $currentHash = $hash;
+        }
+
+        $runs[] = [
+            'start' => $runStart,
+            'end' => $endColumnIndex,
+        ];
+
+        return $this->rowStyleRunCache[$cacheKey] = $runs;
     }
 
     private function getColumnLabels(): array
