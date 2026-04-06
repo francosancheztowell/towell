@@ -17,7 +17,6 @@ use App\Models\Atadores\AtaMontadoActividadesModel;
 use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Atadores\AtaActividadesModel;
 use App\Models\Atadores\AtaComentariosModel;
-use App\Models\Tejido\TejHistorialInventarioTelaresModel;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Sistema\SYSMensaje;
 
@@ -740,7 +739,7 @@ class AtadoresController extends Controller
 
             // Obtener el valor de mergaKg y validar que sea numérico
             $mergaKg = $request->input('mergaKg');
-            
+
             // Validar que el valor sea numérico válido
             if ($mergaKg !== null && $mergaKg !== '') {
                 $mergaKg = is_numeric($mergaKg) ? (float) $mergaKg : null;
@@ -757,17 +756,17 @@ class AtadoresController extends Controller
 
             // Verificar si se actualizó el registro
             if ($affected > 0) {
-                
+
                 return response()->json([
-                    'ok' => true, 
+                    'ok' => true,
                     'message' => 'Merma guardada correctamente',
                     'mergaKg' => $mergaKg,
                     'affected' => $affected
                 ]);
             } else {
-                
+
                 return response()->json([
-                    'ok' => false, 
+                    'ok' => false,
                     'message' => 'No se pudo actualizar la merma. Verifica que el registro exista.'
                 ], 500);
             }

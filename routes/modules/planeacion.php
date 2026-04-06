@@ -85,6 +85,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion/api/registros-ord-compartida/{ordCompartida}', [CatCodificacionController::class, 'registrosOrdCompartida'])->name('codificacion.registros-ord-compartida');
     Route::post('/codificacion/excel', [CatCodificacionController::class, 'procesarExcel'])->name('codificacion.excel');
     Route::get('/codificacion/excel-progress/{id}', [CatCodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
+    Route::post('/codificacion/excel-cancel/{id}', [CatCodificacionController::class, 'cancelImport'])->name('codificacion.excel.cancel');
     Route::get('/codificacion/orden-cambio-pdf', [OrdenDeCambioFelpaController::class, 'generarPDF'])->name('codificacion.orden-cambio-pdf');
     Route::get('/codificacion/orden-cambio-excel', [OrdenDeCambioFelpaController::class, 'generarExcel'])->name('codificacion.orden-cambio-excel');
 

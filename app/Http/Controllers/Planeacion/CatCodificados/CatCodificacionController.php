@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Planeacion\CatCodificados;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Planeacion\StoreCatCodificadosExcelRequest;
 use App\Imports\CatCodificadosImport;
+use App\Imports\QueuedCatCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -19,6 +22,13 @@ use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 
 class CatCodificacionController extends Controller
 {
+    private const INLINE_IMPORT_ROW_THRESHOLD = 20;
+
+    public function __construct(
+        private readonly CatCodificadosExcelHeaderMapper $headerMapper,
+    ) {
+    }
+
     /**
      * Mostrar la vista principal del catálogo de codificación.
      */
@@ -54,45 +64,65 @@ class CatCodificacionController extends Controller
     /**
      * Procesar archivo Excel (encolar import).
      */
-    public function procesarExcel(Request $request): JsonResponse
+    public function procesarExcel(StoreCatCodificadosExcelRequest $request): JsonResponse
     {
         try {
-            $request->validate([
-                'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240',
-            ]);
-
             $file = $request->file('archivo_excel');
-            $importId = (string) Str::uuid();
-            $path = $file->getRealPath();
-            $ext = strtolower($file->getClientOriginalExtension());
-
-            $totalRows = null;
-
-            try {
-                $reader = $ext === 'xls' ? new XlsReader() : new XlsxReader();
-                $info   = $reader->listWorksheetInfo($path);
-
-                if (isset($info[0]['totalRows'])) {
-                    $totalRows = max(0, (int) $info[0]['totalRows'] - 1); // -1 cabecera
-                }
-            } catch (\Throwable $e) {
-                Log::warning('CatCodificacionController::procesarExcel totalRows', [
-                    'error' => $e->getMessage(),
-                ]);
+            if ($file === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se recibio un archivo Excel valido.',
+                ], 422);
             }
 
-            Excel::queueImport(
-                new CatCodificadosImport($importId, $totalRows),
-                $file
-            );
+            $importId = (string) Str::uuid();
+            $path = $file->getRealPath();
+            if ($path === false) {
+                throw new \RuntimeException('No fue posible acceder al archivo temporal.');
+            }
+
+            $ext = strtolower($file->getClientOriginalExtension());
+            $headers = $this->readHeaderRow($path, $ext);
+            $mapping = $this->headerMapper->map($headers);
+
+            if ($mapping['errors'] !== []) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La plantilla de Excel no coincide con CatCodificados.',
+                    'errors' => [
+                        'headers' => $mapping['errors'],
+                    ],
+                ], 422);
+            }
+
+            $totalRows = $this->resolveTotalRows($path, $ext);
+
+            $processedInline = $this->shouldProcessInline($totalRows);
+            $import = $processedInline
+                ? new CatCodificadosImport($importId, $totalRows, $mapping['columnMap'])
+                : new QueuedCatCodificadosImport($importId, $totalRows, $mapping['columnMap']);
+
+            if ($processedInline) {
+                Excel::import($import, $file);
+            } else {
+                Excel::queueImport($import, $file);
+            }
+
+            $state = Cache::get('excel_import_progress:' . $importId, []);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Importación encolada correctamente',
-                'data'    => [
+                'message' => $processedInline
+                    ? 'Importación procesada correctamente'
+                    : 'Importación encolada correctamente',
+                'data' => [
                     'import_id' => $importId,
-                    'total_rows'=> $totalRows,
-                    'poll_url'  => url('/planeacion/codificacion/excel-progress/' . $importId),
+                    'total_rows' => $totalRows,
+                    'completed' => $processedInline,
+                    'queued' => !$processedInline,
+                    'summary' => $processedInline ? $this->buildImportSummary($state) : null,
+                    'poll_url' => url('/planeacion/codificacion/excel-progress/' . $importId),
+                    'cancel_url' => url('/planeacion/codificacion/excel-cancel/' . $importId),
                 ],
             ], 202);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -102,7 +132,9 @@ class CatCodificacionController extends Controller
                 'errors'  => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-
+            Log::error('CatCodificacionController::procesarExcel', [
+                'error' => $e->getMessage(),
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -589,12 +621,22 @@ class CatCodificacionController extends Controller
         Cache::forget('catcodificacion_total');
     }
 
+    public static function progressCacheKey(string $id): string
+    {
+        return 'excel_import_progress:' . $id;
+    }
+
+    public static function cancellationCacheKey(string $id): string
+    {
+        return 'excel_import_cancelled:' . $id;
+    }
+
     /**
      * Consultar progreso del import encolado.
      */
     public function importProgress(string $id): JsonResponse
     {
-        $state = Cache::get('excel_import_progress:' . $id);
+        $state = Cache::get(self::progressCacheKey($id));
 
         if (!$state) {
             return response()->json([
@@ -628,5 +670,204 @@ class CatCodificacionController extends Controller
             'errors'    => $errors,
             'has_errors'=> !empty($errors),
         ]);
+    }
+
+    public function cancelImport(string $id): JsonResponse
+    {
+        $key = self::progressCacheKey($id);
+        $state = Cache::get($key);
+
+        if (!$state) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Importacion no encontrada',
+            ], 404);
+        }
+
+        if (($state['status'] ?? null) === 'done') {
+            return response()->json([
+                'success' => false,
+                'message' => 'La importacion ya termino',
+            ], 409);
+        }
+
+        Cache::put(self::cancellationCacheKey($id), true, 3600);
+
+        $state['status'] = 'cancelled';
+        $state['cancelled'] = true;
+        $state['has_errors'] = !empty($state['errors'] ?? []);
+        Cache::put($key, $state, 3600);
+
+        $deletedJobs = $this->deletePendingQueuedImportJobs($id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Importacion cancelada',
+            'data' => [
+                'import_id' => $id,
+                'status' => 'cancelled',
+                'deleted_jobs' => $deletedJobs,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private function readHeaderRow(string $path, string $extension): array
+    {
+        $reader = $this->makeSpreadsheetReader($extension);
+        $reader->setReadDataOnly(true);
+
+        $spreadsheet = $reader->load($path);
+
+        try {
+            $sheet = $spreadsheet->getSheet(0);
+            $highestColumn = $sheet->getHighestDataColumn(1);
+            $range = sprintf('A1:%s1', $highestColumn);
+
+            return $sheet->rangeToArray($range, null, true, true, false)[0] ?? [];
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+        }
+    }
+
+    private function resolveTotalRows(string $path, string $extension): ?int
+    {
+        try {
+            $reader = $this->makeSpreadsheetReader($extension);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($path);
+
+            try {
+                $sheet = $spreadsheet->getSheet(0);
+                $highestRow = $sheet->getHighestDataRow();
+                if ($highestRow < 2) {
+                    return 0;
+                }
+
+                $columns = $this->headerMapper->expectedColumns();
+                $lastColumn = end($columns);
+                if ($lastColumn === false) {
+                    return 0;
+                }
+
+                $totalRows = 0;
+
+                for ($row = 2; $row <= $highestRow; $row++) {
+                    $range = sprintf('A%d:%s%d', $row, $lastColumn, $row);
+                    $values = $sheet->rangeToArray($range, null, true, true, false)[0] ?? [];
+
+                    if ($this->rowHasMeaningfulData($values)) {
+                        $totalRows++;
+                    }
+                }
+
+                return $totalRows;
+            } finally {
+                $spreadsheet->disconnectWorksheets();
+                unset($spreadsheet);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('CatCodificacionController::procesarExcel totalRows', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function makeSpreadsheetReader(string $extension): XlsReader|XlsxReader
+    {
+        return $extension === 'xls'
+            ? new XlsReader()
+            : new XlsxReader();
+    }
+
+    private function shouldProcessInline(?int $totalRows): bool
+    {
+        return $totalRows !== null && $totalRows <= self::INLINE_IMPORT_ROW_THRESHOLD;
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     * @return array<string, mixed>
+     */
+    private function buildImportSummary(array $state): array
+    {
+        $rawErrors = $state['errors'] ?? [];
+        $errors = [];
+
+        if (is_array($rawErrors)) {
+            foreach ($rawErrors as $err) {
+                $errors[] = [
+                    'fila' => $err['fila'] ?? 'N/A',
+                    'error' => mb_substr($err['error'] ?? 'Error desconocido', 0, 150),
+                ];
+            }
+        }
+
+        return [
+            'status' => $state['status'] ?? 'done',
+            'processed_rows' => (int) ($state['processed_rows'] ?? 0),
+            'created' => (int) ($state['created'] ?? 0),
+            'updated' => (int) ($state['updated'] ?? 0),
+            'error_count' => (int) ($state['error_count'] ?? 0),
+            'errors' => $errors,
+        ];
+    }
+
+    private function deletePendingQueuedImportJobs(string $importId): int
+    {
+        if (config('queue.default') !== 'database') {
+            return 0;
+        }
+
+        $connection = config('queue.connections.database.connection');
+        $table = config('queue.connections.database.table', 'jobs');
+
+        try {
+            return DB::connection($connection)
+                ->table($table)
+                ->where('payload', 'like', '%' . $importId . '%')
+                ->delete();
+        } catch (\Throwable $e) {
+            Log::warning('CatCodificacionController::cancelImport delete jobs', [
+                'import_id' => $importId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 0;
+        }
+    }
+
+    /**
+     * @param  array<int, mixed>  $values
+     */
+    private function rowHasMeaningfulData(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (!$this->isNullLikeSpreadsheetValue($value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isNullLikeSpreadsheetValue(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        if (is_string($value)) {
+            $normalized = mb_strtolower(trim($value));
+
+            return in_array($normalized, ['', 'na', 'n/a', 'null', '-', 'nan'], true);
+        }
+
+        return false;
     }
 }

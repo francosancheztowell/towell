@@ -2,143 +2,76 @@
 
 namespace App\Imports;
 
+use App\Exceptions\ImportCancelledException;
 use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelRowMapper;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Maatwebsite\Excel\Concerns\WithBatchInserts;
-use Maatwebsite\Excel\Concerns\WithStartRow;
-use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Events\BeforeImport;
+use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Events\AfterImport;
+use Maatwebsite\Excel\Events\BeforeImport;
+use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
+use Throwable;
 
-class CatCodificadosImport implements
-    ToCollection,
-    WithStartRow,
-    WithChunkReading,
-    WithBatchInserts,
-    SkipsEmptyRows,
-    WithEvents,
-    ShouldQueue
+class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReading, SkipsEmptyRows, WithEvents
 {
     private int $rowCount = 0;
+
+    private int $processedCount = 0;
+
     private int $createdCount = 0;
+
+    private int $updatedCount = 0;
+
+    /**
+     * @var array<int, array{fila: int, error: string}>
+     */
     private array $errors = [];
-    private ?string $importId = null;
-    private ?int $totalRows = null;
-    private array $columnMapping = [];
 
-    // Campos numericos (INT)
-    private const INT_FIELDS = [
-        'Id' => true,
-        'TelarId' => true,
-        'Peine' => true,
-        'Ancho' => true,
-        'Largo' => true,
-        'NoTiras' => true,
-        'Repeticiones' => true,
-        'MinutosCambio' => true,
-    ];
-
-    // Campos numericos (FLOAT)
-    private const FLOAT_FIELDS = [
-        'NoMarbete' => true,
-        'Pedido' => true,
-        'Produccion' => true,
-        'Saldos' => true,
-        'MtsRollo' => true,
-        'PzasRollo' => true,
-        'TotalRollos' => true,
-        'TotalPzas' => true,
-        'Densidad' => true,
-    ];
-
-    // Campos de fecha (DATE)
-    private const DATE_FIELDS = [
-        'FechaTejido' => true,
-        'FechaCumplimiento' => true,
-        'FechaCompromiso' => true,
-        'FechaCreacion' => true,
-        'FechaModificacion' => true,
-    ];
-
-    // Campos de hora (TIME)
-    private const TIME_FIELDS = [
-        'HrInicio' => true,
-        'HrTermino' => true,
-        'HoraCreacion' => true,
-        'HoraModificacion' => true,
-    ];
-
-    // Campos booleanos (BIT)
-    private const BOOL_FIELDS = [
-        'CreaProd' => true,
-        'ActualizaLmat' => true,
-    ];
-
-    // Campos que deben mantenerse como string
-    private const FORCE_STRING_FIELDS = [
-        'ItemId' => true,
-        'InventSizeId' => true,
-        'ClaveModelo' => true,
-        'Clave' => true,
-        'CodigoDibujo' => true,
-        'FlogsId' => true,
-        'OrdenTejido' => true,
-        'NoOrden' => true,
-        'BomId' => true,
-        'BomName' => true,
-        'HiloAX' => true,
-    ];
-
-    public function __construct(?string $importId = null, ?int $totalRows = null)
-    {
-        $this->importId = $importId ?? (string) Str::uuid();
-        $this->totalRows = $totalRows;
-        $this->columnMapping = CatCodificados::COLUMNS;
-
+    /**
+     * @param  array<int, string>  $columnMap
+     */
+    public function __construct(
+        private readonly ?string $importId = null,
+        private readonly ?int $totalRows = null,
+        private readonly array $columnMap = [],
+    ) {
         Cache::put($this->cacheKey(), [
-            'status'         => 'pending',
-            'total_rows'     => $this->totalRows,
+            'status' => 'pending',
+            'total_rows' => $this->totalRows,
             'processed_rows' => 0,
-            'created'        => 0,
-            'errors'         => [],
-            'error_count'    => 0,
+            'created' => 0,
+            'updated' => 0,
+            'errors' => [],
+            'error_count' => 0,
+            'cancelled' => false,
         ], 3600);
     }
 
     public function startRow(): int
     {
-        return 2; // Saltar encabezado
+        return 2;
     }
 
-    // Chunk pequeno = jobs rapidos y estables
     public function chunkSize(): int
     {
         return 500;
     }
 
-    public function batchSize(): int
-    {
-        return 500;
-    }
-
-    private function cacheKey(): string
-    {
-        return 'excel_import_progress:' . $this->importId;
-    }
-
+    /**
+     * @return array<class-string, callable(): void>
+     */
     public function registerEvents(): array
     {
         return [
-            BeforeImport::class => function () {
-                // Sin eventos Eloquent
+            BeforeImport::class => function (): void {
                 CatCodificados::unsetEventDispatcher();
 
                 if (function_exists('ini_set')) {
@@ -146,202 +79,269 @@ class CatCodificadosImport implements
                     @ini_set('max_execution_time', '0');
                 }
 
-                // No log de queries (evita reventar memoria)
-                DB::connection()->disableQueryLog();
+                $connection = DB::connection((new CatCodificados())->getConnectionName());
+                $connection->disableQueryLog();
 
-                // Evita mensajes "X rows affected"
-                DB::unprepared('SET NOCOUNT ON;');
+                if ($connection->getDriverName() === 'sqlsrv') {
+                    $connection->unprepared('SET NOCOUNT ON;');
+                }
             },
+            AfterImport::class => function (): void {
+                $connection = DB::connection((new CatCodificados())->getConnectionName());
 
-            AfterImport::class => function () {
-                DB::unprepared('SET NOCOUNT OFF;');
-
-                $state = Cache::get($this->cacheKey(), []);
-                $state['status']         = 'done';
-                $state['created']        = $this->createdCount;
-                $state['processed_rows'] = $this->rowCount;
-
-                if (count($this->errors) > 0) {
-                    $state['has_errors']  = true;
-                    $state['errors']      = array_slice($this->errors, 0, 20);
-                    $state['error_count'] = count($this->errors);
+                if ($connection->getDriverName() === 'sqlsrv') {
+                    $connection->unprepared('SET NOCOUNT OFF;');
                 }
 
-                Cache::put($this->cacheKey(), $state, 3600);
+                $state = Cache::get($this->cacheKey(), []);
+                $cachedErrors = is_array($state['errors'] ?? null) ? $state['errors'] : [];
+                $allErrors = $this->errors !== []
+                    ? $this->errors
+                    : $cachedErrors;
 
-                // Invalidar cache de getAllFast despues de importar
-                \App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController::clearCache();
+                Cache::put($this->cacheKey(), [
+                    'status' => $this->isCancelled() ? 'cancelled' : 'done',
+                    'total_rows' => $this->totalRows,
+                    'processed_rows' => max((int) ($state['processed_rows'] ?? 0), $this->processedCount),
+                    'created' => max((int) ($state['created'] ?? 0), $this->createdCount),
+                    'updated' => max((int) ($state['updated'] ?? 0), $this->updatedCount),
+                    'errors' => array_slice($allErrors, 0, 20),
+                    'error_count' => max((int) ($state['error_count'] ?? 0), count($allErrors)),
+                    'has_errors' => $allErrors !== [],
+                    'cancelled' => $this->isCancelled(),
+                ], 3600);
+
+                CatCodificacionController::clearCache();
             },
         ];
     }
 
-    public function collection(Collection $rows)
+    public function collection(Collection $rows): void
     {
-        $batchData = [];
-        $processed = 0;
+        $this->throwIfCancelled();
+
+        $mapper = new CatCodificadosExcelRowMapper();
+        $preparedRows = [];
+        $processedRows = 0;
 
         foreach ($rows as $row) {
+            $this->throwIfCancelled();
+
+            $excelRow = $this->startRow() + $this->rowCount;
             $this->rowCount++;
 
-            $rowArr = $row->toArray();
-            $data   = [];
+            $rowValues = $row instanceof Collection
+                ? $row->toArray()
+                : (array) $row;
 
-            foreach ($this->columnMapping as $i => $field) {
-                $value = $rowArr[$i] ?? null;
-                if ($value === null || $value === '') {
-                    continue;
-                }
-
-                $data[$field] = $this->cleanValue($value, $field);
-            }
-
-            // Fila realmente vacia / sin clave base
-            if (
-                empty($data['OrdenTejido']) &&
-                empty($data['Clave']) &&
-                empty($data['Nombre'])
-            ) {
+            $payload = $mapper->map($rowValues, $this->columnMap);
+            if ($payload === []) {
                 continue;
             }
 
-            $batchData[] = $data;
-            $processed++;
+            $processedRows++;
+            $this->processedCount++;
+
+            $ordenTejido = trim((string) ($payload['OrdenTejido'] ?? ''));
+            if ($ordenTejido === '') {
+                $this->pushError($excelRow, 'OrdenTejido no puede estar vacio.');
+                continue;
+            }
+
+            $payload['OrdenTejido'] = $ordenTejido;
+            $preparedRows[$this->lookupKey($ordenTejido)] = [
+                'fila' => $excelRow,
+                'ordenTejido' => $ordenTejido,
+                'payload' => $payload,
+            ];
         }
 
-        if (!empty($batchData)) {
+        $this->throwIfCancelled();
+
+        [$created, $updated] = $this->persistPreparedRows($preparedRows);
+
+        $this->createdCount += $created;
+        $this->updatedCount += $updated;
+
+        $this->updateCache($processedRows, $created, $updated);
+    }
+
+    private function cacheKey(): string
+    {
+        return 'excel_import_progress:' . ($this->importId ?? (string) Str::uuid());
+    }
+
+    /**
+     * @param  array<string, array{fila: int, ordenTejido: string, payload: array<string, mixed>}>  $preparedRows
+     * @return array{0: int, 1: int}
+     */
+    private function persistPreparedRows(array $preparedRows): array
+    {
+        if ($preparedRows === []) {
+            return [0, 0];
+        }
+
+        $existingIds = $this->loadExistingIds(array_values(array_map(
+            static fn (array $entry): string => $entry['ordenTejido'],
+            $preparedRows
+        )));
+        $created = 0;
+        $updated = 0;
+        $table = (new CatCodificados())->getTable();
+        $insertBatch = [];
+        $insertMeta = [];
+
+        foreach ($preparedRows as $entry) {
             try {
-                DB::table((new CatCodificados())->getTable())->insert($batchData);
-                $this->createdCount += count($batchData);
+                $lookupKey = $this->lookupKey($entry['ordenTejido']);
+
+                if (isset($existingIds[$lookupKey])) {
+                    DB::table($table)
+                        ->where('Id', $existingIds[$lookupKey])
+                        ->update($entry['payload']);
+
+                    $updated++;
+                    continue;
+                }
+
+                $insertBatch[] = $entry['payload'];
+                $insertMeta[] = $entry;
             } catch (\Throwable $e) {
-                Log::error('Batch insert error CatCodificados: ' . $e->getMessage());
+                $this->pushError($entry['fila'], $e->getMessage());
             }
-
-            $this->updateCache($processed);
         }
+
+        if ($insertBatch === []) {
+            return [$created, $updated];
+        }
+
+        try {
+            DB::table($table)->insert($insertBatch);
+            $created += count($insertBatch);
+        } catch (\Throwable $e) {
+            Log::warning('CatCodificadosImport batch insert fallback', [
+                'error' => $e->getMessage(),
+                'rows' => count($insertBatch),
+            ]);
+
+            foreach ($insertMeta as $entry) {
+                try {
+                    DB::table($table)->insert($entry['payload']);
+                    $created++;
+                } catch (\Throwable $rowException) {
+                    $this->pushError($entry['fila'], $rowException->getMessage());
+                }
+            }
+        }
+
+        return [$created, $updated];
     }
 
-    private function cleanValue($val, string $field)
+    /**
+     * @param  array<int, string>  $ordenesTejido
+     * @return array<string, int>
+     */
+    private function loadExistingIds(array $ordenesTejido): array
     {
-        if ($val === null || $val === '') {
-            return null;
+        if ($ordenesTejido === []) {
+            return [];
         }
 
-        if (isset(self::DATE_FIELDS[$field])) {
-            return $this->parseDate($val);
+        $existing = CatCodificados::query()
+            ->whereIn('OrdenTejido', $ordenesTejido)
+            ->orderByDesc('Id')
+            ->get(['Id', 'OrdenTejido']);
+
+        $resolved = [];
+
+        foreach ($existing as $registro) {
+            $ordenTejido = trim((string) $registro->OrdenTejido);
+            $lookupKey = $this->lookupKey($ordenTejido);
+
+            if ($ordenTejido === '' || isset($resolved[$lookupKey])) {
+                continue;
+            }
+
+            $resolved[$lookupKey] = (int) $registro->Id;
         }
 
-        if (isset(self::TIME_FIELDS[$field])) {
-            return $this->parseTime($val);
-        }
-
-        if (isset(self::BOOL_FIELDS[$field])) {
-            return $this->parseBool($val);
-        }
-
-        if (isset(self::INT_FIELDS[$field])) {
-            return is_numeric($val) ? (int) $val : null;
-        }
-
-        if (isset(self::FLOAT_FIELDS[$field])) {
-            return is_numeric($val) ? (float) $val : null;
-        }
-
-        if (isset(self::FORCE_STRING_FIELDS[$field])) {
-            return trim((string) $val);
-        }
-
-        return is_string($val) ? trim($val) : $val;
+        return $resolved;
     }
 
-    private function parseDate($val): ?string
+    private function lookupKey(string $ordenTejido): string
     {
-        if ($val instanceof \DateTimeInterface) {
-            return $val->format('Y-m-d');
-        }
-
-        if (is_numeric($val)) {
-            try {
-                $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($val);
-                return $date->format('Y-m-d');
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        if (is_string($val)) {
-            $trimmed = trim($val);
-            if ($trimmed === '') {
-                return null;
-            }
-            try {
-                $date = new \DateTime($trimmed);
-                return $date->format('Y-m-d');
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        return null;
+        return 'ord:' . $ordenTejido;
     }
 
-    private function parseTime($val): ?string
+    private function pushError(int $excelRow, string $message): void
     {
-        if ($val instanceof \DateTimeInterface) {
-            return $val->format('H:i:s');
-        }
-
-        if (is_numeric($val)) {
-            try {
-                $time = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($val);
-                return $time->format('H:i:s');
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        if (is_string($val)) {
-            $trimmed = trim($val);
-            if ($trimmed === '') {
-                return null;
-            }
-            return $trimmed;
-        }
-
-        return null;
+        $this->errors[] = [
+            'fila' => $excelRow,
+            'error' => mb_substr(trim($message), 0, 200),
+        ];
     }
 
-    private function parseBool($val): ?int
+    private function updateCache(int $processedInc, int $createdInc, int $updatedInc): void
     {
-        if (is_bool($val)) {
-            return $val ? 1 : 0;
-        }
+        $key = $this->cacheKey();
+        $state = Cache::get($key, [
+            'status' => 'processing',
+            'total_rows' => $this->totalRows,
+            'processed_rows' => 0,
+            'created' => 0,
+            'updated' => 0,
+            'errors' => [],
+            'error_count' => 0,
+            'cancelled' => false,
+        ]);
 
-        if (is_numeric($val)) {
-            return ((int) $val) ? 1 : 0;
-        }
+        $state['status'] = 'processing';
+        $state['processed_rows'] = (int) ($state['processed_rows'] ?? 0) + $processedInc;
+        $state['created'] = (int) ($state['created'] ?? 0) + $createdInc;
+        $state['updated'] = (int) ($state['updated'] ?? 0) + $updatedInc;
+        $state['errors'] = array_slice($this->errors, 0, 20);
+        $state['error_count'] = count($this->errors);
+        $state['has_errors'] = $this->errors !== [];
+        $state['cancelled'] = false;
 
-        if (is_string($val)) {
-            $normalized = strtolower(trim($val));
-            if (in_array($normalized, ['1', 'true', 'si', 'yes'], true)) {
-                return 1;
-            }
-            if (in_array($normalized, ['0', 'false', 'no'], true)) {
-                return 0;
-            }
-        }
-
-        return null;
+        Cache::put($key, $state, 3600);
     }
 
-    private function updateCache(int $processed): void
+    public function failed(Throwable $e): void
     {
-        $key   = $this->cacheKey();
-        $cache = Cache::get($key, []);
+        if (!$e instanceof ImportCancelledException) {
+            return;
+        }
 
-        $cache['processed_rows'] = ($cache['processed_rows'] ?? 0) + $processed;
-        $cache['created']        = ($cache['created'] ?? 0) + $processed;
-        $cache['status']         = 'processing';
+        $state = Cache::get($this->cacheKey(), []);
+        Cache::put($this->cacheKey(), [
+            'status' => 'cancelled',
+            'total_rows' => $this->totalRows,
+            'processed_rows' => max((int) ($state['processed_rows'] ?? 0), $this->processedCount),
+            'created' => max((int) ($state['created'] ?? 0), $this->createdCount),
+            'updated' => max((int) ($state['updated'] ?? 0), $this->updatedCount),
+            'errors' => array_slice(is_array($state['errors'] ?? null) ? $state['errors'] : $this->errors, 0, 20),
+            'error_count' => max((int) ($state['error_count'] ?? 0), count($this->errors)),
+            'has_errors' => $this->errors !== [],
+            'cancelled' => true,
+        ], 3600);
+    }
 
-        Cache::put($key, $cache, 3600);
+    protected function isCancelled(): bool
+    {
+        if ($this->importId === null) {
+            return false;
+        }
+
+        return Cache::get(CatCodificacionController::cancellationCacheKey($this->importId), false) === true;
+    }
+
+    protected function throwIfCancelled(): void
+    {
+        if (!$this->isCancelled()) {
+            return;
+        }
+
+        throw new ImportCancelledException('Importacion cancelada por el usuario.');
     }
 }

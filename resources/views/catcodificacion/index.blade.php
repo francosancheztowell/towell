@@ -4,6 +4,10 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+        <button type="button" onclick="subirExcelCatCodificacion()" class="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md">
+            <i class="fas fa-file-excel text-white"></i>
+            <span>Subir Excel</span>
+        </button>
         <button type="button" onclick="mostrarAlertaNavbar()"
             class="w-28 h-9 flex items-center justify-center p-4 bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
             title="Peso Muestra" aria-label="Mostrar alerta">
@@ -1610,10 +1614,8 @@
                 showToast('Filtros limpiados', 'info');
             }
 
-            // =========================
-            //   EXCEL
-            // =========================
-            function subirExcelCatCodificacion() {
+            /* Excel upload logic moved to catcodificacion.partials.excel-upload
+            function legacySubirExcelCatCodificacion() {
                 const input = document.createElement('input');
                 input.type = 'file';
                 input.accept = '.xlsx,.xls';
@@ -1645,7 +1647,7 @@
                 input.click();
             }
 
-            function procesarExcel(file) {
+            function legacyProcesarExcel(file) {
                 const formData = new FormData();
                 formData.append('archivo_excel', file);
 
@@ -1680,7 +1682,7 @@
                 });
             }
 
-            function pollImportProgress(url, attempts = 0) {
+            function legacyPollImportProgress(url, attempts = 0) {
                 if (attempts > 600) {
                     Swal.close();
                     showToast('Tiempo de espera agotado al procesar el archivo', 'warning');
@@ -1735,6 +1737,7 @@
             // =========================
             //   MENÚ CONTEXTUAL EN ENCABEZADOS
             // =========================
+            */
             const menu = $('#codificacionContextMenuHeader');
             let menuColumnIndex = null;
             let menuColumnField = null;
@@ -2182,9 +2185,6 @@
             //   EXPOSE GLOBAL
             // =========================
             window.mostrarAlertaNavbar         = mostrarAlertaNavbar;
-            window.subirExcelCatCodificacion   = subirExcelCatCodificacion;
-            window.procesarExcel               = procesarExcel;
-            window.pollImportProgress          = pollImportProgress;
             window.filtrarCodificacion         = filtrarCodificacion;
             window.limpiarFiltrosCodificacion  = limpiarFiltrosCodificacion;
             window.removeFilterFromModal       = removeFilterFromModal;
@@ -2195,4 +2195,5 @@
             window.abrirModalBalancear          = abrirModalBalancear;
         })();
     </script>
+    @include('catcodificacion.partials.excel-upload')
 @endsection
