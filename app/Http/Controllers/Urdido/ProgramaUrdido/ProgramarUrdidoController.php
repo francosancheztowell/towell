@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
+use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
+use App\Services\Programas\ProgramaPrioridadService;
+use App\Support\Programas\ProgramaConfig;
+use App\Support\Programas\ProgramaRouteHelper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +20,8 @@ use Illuminate\Validation\Rule;
 
 class ProgramarUrdidoController extends Controller
 {
+    public function __construct(private readonly ProgramaPrioridadService $prioridadService) {}
+
     /**
      * Verifica si el usuario puede editar: solo usuarios del área Supervisores.
      */
@@ -38,6 +44,9 @@ class ProgramarUrdidoController extends Controller
     {
         return view('modulos.urdido.programar-urdido', [
             'canEdit' => $this->usuarioPuedeEditar(),
+            'programaRoutes' => ProgramaRouteHelper::urdido(),
+            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
+            'calidadComentarioMaxLength' => ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,
         ]);
     }
 
@@ -156,6 +165,18 @@ class ProgramarUrdidoController extends Controller
         return null;
     }
 
+    private function activeOrdersQuery()
+    {
+        return UrdProgramaUrdido::query()
+            ->whereIn('Status', ProgramaConfig::ACTIVE_STATUSES)
+            ->whereNotNull('MaquinaId');
+    }
+
+    private function createdAtFallback(object $orden): int
+    {
+        return $orden->CreatedAt?->timestamp ?? PHP_INT_MAX;
+    }
+
     /**
      * Obtener órdenes de urdido agrupadas por MC Coy
      * Extrae el MC Coy del campo MaquinaId (ej: "Mc Coy 1" -> 1)
@@ -165,39 +186,9 @@ class ProgramarUrdidoController extends Controller
     public function getOrdenes(): JsonResponse
     {
         try {
-            // Observaciones siempre existe, verificar si Prioridad existe
-            $tienePrioridad = false;
-
-            try {
-                // Intentar cargar con Prioridad
-                $ordenes = UrdProgramaUrdido::select([
-                    'Id',
-                    'Folio',
-                    'RizoPie as tipo',
-                    'Cuenta',
-                    'Calibre',
-                    'Fibra',
-                    'Metros',
-                    'MaquinaId',
-                    'Status',
-                    'FechaProg',
-                    'Prioridad',
-                    'CreatedAt',
-                    'Observaciones',
-                    'InventSizeId',
-                    'Calidad',
-                    'CalidadComentario',
-                    'AutorizaCalidad',
-                    'FechaCalidad',
-                ])
-                    ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                    ->whereNotNull('MaquinaId')
-                    ->get();
-
-                $tienePrioridad = true;
-            } catch (\Exception $e) {
-                // Si falla, cargar sin Prioridad (Observaciones siempre existe)
-                $ordenes = UrdProgramaUrdido::select([
+            $payload = $this->prioridadService->loadRecordsWithOptionalPriority(
+                UrdProgramaUrdido::class,
+                [
                     'Id',
                     'Folio',
                     'RizoPie as tipo',
@@ -215,71 +206,17 @@ class ProgramarUrdidoController extends Controller
                     'CalidadComentario',
                     'AutorizaCalidad',
                     'FechaCalidad',
-                ])
-                    ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
+                ],
+                fn ($query) => $query
+                    ->whereIn('Status', ProgramaConfig::ACTIVE_STATUSES)
                     ->whereNotNull('MaquinaId')
-                    ->get();
-            }
+            );
 
-            // Si existe el campo Prioridad, ordenar por él y verificar si necesita inicialización
-            if ($tienePrioridad) {
-                // Inicializar Prioridad si no existe para algunas órdenes
-                $ordenesSinPrioridad = $ordenes->filter(function ($orden) {
-                    return empty($orden->Prioridad);
-                });
-
-                if ($ordenesSinPrioridad->count() > 0) {
-                    try {
-                        // Obtener la máxima prioridad existente
-                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                            ->whereNotNull('MaquinaId')
-                            ->whereNotNull('Prioridad')
-                            ->max('Prioridad') ?? 0;
-
-                        // Asignar prioridades a las que no tienen
-                        foreach ($ordenesSinPrioridad as $orden) {
-                            $maxPrioridad++;
-                            DB::connection('sqlsrv')
-                                ->table('UrdProgramaUrdido')
-                                ->where('Id', $orden->Id)
-                                ->update(['Prioridad' => $maxPrioridad]);
-                        }
-
-                        // Recargar las órdenes con Prioridad y Observaciones
-                        $ordenes = UrdProgramaUrdido::select([
-                            'Id',
-                            'Folio',
-                            'RizoPie as tipo',
-                            'Cuenta',
-                            'Calibre',
-                            'Fibra',
-                            'Metros',
-                            'MaquinaId',
-                            'Status',
-                            'FechaProg',
-                            'Prioridad',
-                            'CreatedAt',
-                            'Observaciones',
-                        ])
-                            ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                            ->whereNotNull('MaquinaId')
-                            ->get();
-                    } catch (\Exception $e) {
-                        // Si falla al actualizar Prioridad, continuar sin inicialización
-                        $tienePrioridad = false;
-                    }
-                }
-
-                // Ordenar todas las órdenes por Prioridad (global)
-                $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                    return isset($orden->Prioridad) && ! empty($orden->Prioridad) ? $orden->Prioridad : 999999;
-                })->values();
-            } else {
-                // Si no existe Prioridad, ordenar por CreatedAt
-                $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                    return $orden->CreatedAt ? $orden->CreatedAt->timestamp : 999999999;
-                })->values();
-            }
+            $ordenes = $payload['records'];
+            $ordenesOrdenadas = $this->prioridadService->sortRecords(
+                $ordenes,
+                fn ($orden) => $this->createdAtFallback($orden)
+            );
 
             // Agrupar por MC Coy (extraído de MaquinaId)
             $ordenesPorMcCoy = [
@@ -308,7 +245,7 @@ class ProgramarUrdidoController extends Controller
                         'maquina_id' => $orden->MaquinaId ?? null,
                         'status' => $orden->Status ?? null,
                         'observaciones' => $orden->Observaciones ?? '',
-                        'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? 999999) : $indexEnGrupo,
+                        'prioridad' => $this->prioridadService->displayPriority($orden, $indexEnGrupo - 1),
                         'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
                         'calidad' => $orden->Calidad ?? null,
                         'calidadcomentario' => $orden->CalidadComentario ?? null,
@@ -589,32 +526,11 @@ class ProgramarUrdidoController extends Controller
                 'source_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'target_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
             ]);
-
-            $ordenSource = UrdProgramaUrdido::findOrFail($request->source_id);
-            $ordenTarget = UrdProgramaUrdido::findOrFail($request->target_id);
-
-            // Asegurar que ambas órdenes tengan Prioridad
-            if (empty($ordenSource->Prioridad)) {
-                $maxPrioridad = UrdProgramaUrdido::max('Prioridad') ?? 0;
-                $ordenSource->Prioridad = $maxPrioridad + 1;
-            }
-
-            if (empty($ordenTarget->Prioridad)) {
-                $maxPrioridad = UrdProgramaUrdido::max('Prioridad') ?? 0;
-                $ordenTarget->Prioridad = $maxPrioridad + 1;
-            }
-
-            DB::beginTransaction();
-
-            // Intercambiar Prioridad (único global)
-            $prioridadTemp = $ordenSource->Prioridad;
-            $ordenSource->Prioridad = $ordenTarget->Prioridad;
-            $ordenTarget->Prioridad = $prioridadTemp;
-
-            $ordenSource->save();
-            $ordenTarget->save();
-
-            DB::commit();
+            $this->prioridadService->swapPriorities(
+                UrdProgramaUrdido::class,
+                (int) $request->source_id,
+                (int) $request->target_id
+            );
 
             return response()->json([
                 'success' => true,
@@ -645,12 +561,12 @@ class ProgramarUrdidoController extends Controller
                 return response()->json([
                     'success' => false,
                     'error' => 'No autorizado',
-                ], 200);
+                ], 403);
             }
 
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
-                'observaciones' => 'nullable|string|max:1000',
+                'observaciones' => 'nullable|string|max:'.ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->id);
@@ -680,7 +596,7 @@ class ProgramarUrdidoController extends Controller
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'calidad' => ['required', 'string', Rule::in(['A', 'R', 'O'])],
-                'calidadcomentario' => 'nullable|string|max:60',
+                'calidadcomentario' => 'nullable|string|max:'.ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->id);
@@ -722,7 +638,7 @@ class ProgramarUrdidoController extends Controller
                             'parse_mode' => 'Markdown',
                         ]);
                     } catch (\Throwable $e) {
-                        Log::warning('Error al enviar telegram calidad urdido: ' . $e->getMessage());
+                        Log::warning('Error al enviar telegram calidad urdido: '.$e->getMessage());
                     }
                 }
             }
@@ -755,33 +671,11 @@ class ProgramarUrdidoController extends Controller
     private function recalcularPrioridades(): void
     {
         try {
-            // Obtener todas las órdenes activas
-            $ordenes = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                ->whereNotNull('MaquinaId')
-                ->get();
-
-            // Ordenar: primero por prioridad (las que tienen), luego por CreatedAt
-            $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                $prioridad = isset($orden->Prioridad) && ! empty($orden->Prioridad) ? $orden->Prioridad : 999999;
-                $fecha = $orden->CreatedAt ? $orden->CreatedAt->timestamp : 999999999;
-
-                return [$prioridad, $fecha];
-            })->values();
-
-            DB::beginTransaction();
-
-            // Asignar prioridades consecutivas empezando desde 1
-            foreach ($ordenesOrdenadas as $index => $orden) {
-                $nuevaPrioridad = $index + 1;
-                DB::connection('sqlsrv')
-                    ->table('UrdProgramaUrdido')
-                    ->where('Id', $orden->Id)
-                    ->update(['Prioridad' => $nuevaPrioridad]);
-            }
-
-            DB::commit();
+            $this->prioridadService->recalculatePriorities(
+                $this->activeOrdersQuery(),
+                fn ($orden) => $this->createdAtFallback($orden)
+            );
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('Error al recalcular prioridades: '.$e->getMessage());
         }
     }
@@ -802,7 +696,7 @@ class ProgramarUrdidoController extends Controller
 
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
-                'status' => ['required', 'string', Rule::in(['Programado', 'En Proceso', 'Parcial', 'Cancelado'])],
+                'status' => ['required', 'string', Rule::in(ProgramaConfig::STATUS_OPTIONS)],
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->id);
@@ -869,7 +763,7 @@ class ProgramarUrdidoController extends Controller
                         // Eliminar registros de producción de engomado cuando se cancela
                         try {
 
-                            $registrosEliminados = \App\Models\Engomado\EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
+                            $registrosEliminados = EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
                         } catch (\Throwable $e) {
                             // No lanzar excepción, solo registrar el error
                         }
@@ -883,13 +777,8 @@ class ProgramarUrdidoController extends Controller
                 $this->recalcularPrioridades();
             }
             // Si se reactiva desde cancelado, asignar nueva prioridad al final
-            elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ['Programado', 'En Proceso', 'Parcial'])) {
-                $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                    ->whereNotNull('MaquinaId')
-                    ->whereNotNull('Prioridad')
-                    ->max('Prioridad') ?? 0;
-
-                $orden->Prioridad = $maxPrioridad + 1;
+            elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ProgramaConfig::ACTIVE_STATUSES, true)) {
+                $orden->Prioridad = $this->prioridadService->nextPriority($this->activeOrdersQuery());
                 $orden->save();
             } else {
                 $orden->save();
@@ -926,30 +815,9 @@ class ProgramarUrdidoController extends Controller
     public function getTodasOrdenes(): JsonResponse
     {
         try {
-            // Intentar cargar con Prioridad
-            $tienePrioridad = false;
-            try {
-                $ordenes = UrdProgramaUrdido::select([
-                    'Id',
-                    'Folio',
-                    'RizoPie as tipo',
-                    'Cuenta',
-                    'Calibre',
-                    'Fibra',
-                    'Metros',
-                    'MaquinaId',
-                    'Status',
-                    'Prioridad',
-                    'CreatedAt',
-                    'InventSizeId',
-                ])
-                    ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                    ->get();
-
-                $tienePrioridad = true;
-            } catch (\Exception $e) {
-                // Si falla, cargar sin Prioridad
-                $ordenes = UrdProgramaUrdido::select([
+            $payload = $this->prioridadService->loadRecordsWithOptionalPriority(
+                UrdProgramaUrdido::class,
+                [
                     'Id',
                     'Folio',
                     'RizoPie as tipo',
@@ -961,67 +829,17 @@ class ProgramarUrdidoController extends Controller
                     'Status',
                     'CreatedAt',
                     'InventSizeId',
-                ])
-                    ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                    ->get();
-            }
+                ],
+                fn ($query) => $query->whereIn('Status', ProgramaConfig::ACTIVE_STATUSES)
+            );
 
-            // Inicializar prioridades si no existen
-            if ($tienePrioridad) {
-                $ordenesSinPrioridad = $ordenes->filter(function ($orden) {
-                    return empty($orden->Prioridad);
-                });
-
-                if ($ordenesSinPrioridad->count() > 0) {
-                    try {
-                        $maxPrioridad = UrdProgramaUrdido::whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                            ->whereNotNull('Prioridad')
-                            ->max('Prioridad') ?? 0;
-
-                        foreach ($ordenesSinPrioridad as $orden) {
-                            $maxPrioridad++;
-                            DB::connection('sqlsrv')
-                                ->table('UrdProgramaUrdido')
-                                ->where('Id', $orden->Id)
-                                ->update(['Prioridad' => $maxPrioridad]);
-                        }
-
-                        // Recargar las órdenes con Prioridad
-                        $ordenes = UrdProgramaUrdido::select([
-                            'Id',
-                            'Folio',
-                            'RizoPie as tipo',
-                            'Cuenta',
-                            'Calibre',
-                            'Fibra',
-                            'Metros',
-                            'MaquinaId',
-                            'Status',
-                            'Prioridad',
-                            'CreatedAt',
-                            'InventSizeId',
-                        ])
-                            ->whereIn('Status', ['Programado', 'En Proceso', 'Parcial'])
-                            ->get();
-                    } catch (\Exception $e) {
-                        $tienePrioridad = false;
-                    }
-                }
-            }
-
-            // Ordenar por Prioridad si existe, sino por CreatedAt
-            if ($tienePrioridad) {
-                $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                    return isset($orden->Prioridad) && ! empty($orden->Prioridad) ? $orden->Prioridad : 999999;
-                })->values();
-            } else {
-                $ordenesOrdenadas = $ordenes->sortBy(function ($orden) {
-                    return $orden->CreatedAt ? $orden->CreatedAt->timestamp : 999999999;
-                })->values();
-            }
+            $ordenesOrdenadas = $this->prioridadService->sortRecords(
+                $payload['records'],
+                fn ($orden) => $this->createdAtFallback($orden)
+            );
 
             // Convertir a array con formato para el frontend
-            $ordenesArray = $ordenesOrdenadas->map(function ($orden, $index) use ($tienePrioridad) {
+            $ordenesArray = $ordenesOrdenadas->map(function ($orden, $index) {
                 return [
                     'id' => $orden->Id,
                     'folio' => $orden->Folio,
@@ -1031,7 +849,7 @@ class ProgramarUrdidoController extends Controller
                     'metros' => $orden->Metros,
                     'maquina' => $orden->MaquinaId ?? '',
                     'status' => $orden->Status ?? null,
-                    'prioridad' => ($tienePrioridad && isset($orden->Prioridad)) ? ($orden->Prioridad ?? ($index + 1)) : ($index + 1),
+                    'prioridad' => $this->prioridadService->displayPriority($orden, $index),
                     'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
                 ];
             })->toArray();
@@ -1060,31 +878,21 @@ class ProgramarUrdidoController extends Controller
                 'prioridades.*.id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'prioridades.*.prioridad' => 'required|integer|min:1',
             ]);
-
-            DB::beginTransaction();
-
-            foreach ($request->prioridades as $item) {
-                $orden = UrdProgramaUrdido::findOrFail($item['id']);
-                $orden->Prioridad = $item['prioridad'];
-                $orden->save();
-            }
-
-            DB::commit();
+            $this->prioridadService->bulkUpdatePriorities(
+                UrdProgramaUrdido::class,
+                $request->prioridades
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Prioridades actualizadas correctamente',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
-            DB::rollBack();
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar prioridades: '.$e->getMessage(),

@@ -139,6 +139,7 @@
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-0.5">Observaciones</label>
                 <textarea id="campo_Observaciones" data-campo="Observaciones" rows="3"
+                    maxlength="{{ $observacionesMaxLength }}"
                     class="campo-editable w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500" style="resize: none;">{{ $orden->Observaciones ?? '' }}</textarea>
             </div>
 

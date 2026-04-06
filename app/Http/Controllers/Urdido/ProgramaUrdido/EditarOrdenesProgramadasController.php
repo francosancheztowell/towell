@@ -9,6 +9,7 @@ use App\Models\Urdido\URDCatalogoMaquina;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
+use App\Support\Programas\ProgramaConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -271,6 +272,7 @@ class EditarOrdenesProgramadasController extends Controller
             'puedeEditar' => $puedeEditar,
             'fromReimpresion' => $fromReimpresion,
             'isKarlMayer' => $isKarlMayer,
+            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
         ]);
     }
 
@@ -300,7 +302,7 @@ class EditarOrdenesProgramadasController extends Controller
                     'NoTelarId',
                     'Observaciones',
                 ])],
-                'valor' => 'nullable|string|max:500',
+                'valor' => 'nullable|string|max:'.ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
                 'accion_metros' => ['nullable', 'string', Rule::in([
                     self::ACCION_METROS_SOLO_CAMPO,
                     self::ACCION_METROS_ACTUALIZAR_TODA,

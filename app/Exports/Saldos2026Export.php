@@ -154,7 +154,9 @@ final class Saldos2026Export
         $numCols = Coordinate::columnIndexFromString($lastCol);
         $blankRow = array_fill(0, $numCols, '');
         $matrix = array_fill(0, $numRows, $blankRow);
-        $sheet->fromArray($matrix, null, 'A'.$startRow, false);
+        // Usar un sentinel evita que fromArray omita las cadenas vacias y deje
+        // visibles los datos de muestra que trae la plantilla.
+        $sheet->fromArray($matrix, '__SKIP_NULL__', 'A'.$startRow, false);
     }
 
     private function writeSeparatorRow(Worksheet $sheet, int $row): void

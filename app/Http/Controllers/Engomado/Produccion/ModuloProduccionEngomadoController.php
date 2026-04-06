@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Engomado\Produccion;
 
 use App\Http\Controllers\Controller;
-use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Engomado\CatUbicaciones;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProduccionFormulacionModel;
+use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
-use App\Models\Engomado\CatUbicaciones;
 use App\Traits\ProduccionTrait;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ModuloProduccionEngomadoController extends Controller
@@ -93,7 +94,7 @@ class ModuloProduccionEngomadoController extends Controller
 
         if ($request->query('check_only') === 'true' && $ordenId) {
             $orden = EngProgramaEngomado::find($ordenId);
-            if (!$orden) {
+            if (! $orden) {
                 return response()->json(['puedeCrear' => false, 'tieneRegistros' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
@@ -107,7 +108,7 @@ class ModuloProduccionEngomadoController extends Controller
             ]);
         }
 
-        if (!$ordenId) {
+        if (! $ordenId) {
             $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
                 ->orderBy('Folio', 'desc')
                 ->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula']);
@@ -133,13 +134,13 @@ class ModuloProduccionEngomadoController extends Controller
         }
 
         $orden = EngProgramaEngomado::find($ordenId);
-        if (!$orden) {
+        if (! $orden) {
             return redirect()->route('engomado.programar.engomado')->with('error', 'Orden no encontrada');
         }
 
         // Verificar que la orden de urdido esté finalizada
         $urdido = UrdProgramaUrdido::where('Folio', $orden->Folio)->first();
-        if (!$urdido || $urdido->Status !== 'Finalizado') {
+        if (! $urdido || $urdido->Status !== 'Finalizado') {
             return redirect()->route('engomado.programar.engomado')
                 ->with('error', "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.");
         }
@@ -179,7 +180,7 @@ class ModuloProduccionEngomadoController extends Controller
                     $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
                     $nombreUsuario = $user ? ($user->nombre ?? null) : null;
                     $turnoUsuario = $user ? ($user->turno ?? null) : null;
-                    if (!$turnoUsuario) {
+                    if (! $turnoUsuario) {
                         $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
                     }
                     $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
@@ -192,11 +193,21 @@ class ModuloProduccionEngomadoController extends Controller
                                 'NoJulio' => null,
                                 'Fecha' => now()->format('Y-m-d'),
                             ];
-                            if ($solidosFormulacion !== null) $data['Solidos'] = $solidosFormulacion;
-                            if (!empty($claveUsuario)) $data['CveEmpl1'] = $claveUsuario;
-                            if (!empty($nombreUsuario)) $data['NomEmpl1'] = $nombreUsuario;
-                            if ($metrosOrden > 0) $data['Metros1'] = round($metrosOrden, 2);
-                            if (!empty($turnoUsuario)) $data['Turno1'] = (int) $turnoUsuario;
+                            if ($solidosFormulacion !== null) {
+                                $data['Solidos'] = $solidosFormulacion;
+                            }
+                            if (! empty($claveUsuario)) {
+                                $data['CveEmpl1'] = $claveUsuario;
+                            }
+                            if (! empty($nombreUsuario)) {
+                                $data['NomEmpl1'] = $nombreUsuario;
+                            }
+                            if ($metrosOrden > 0) {
+                                $data['Metros1'] = round($metrosOrden, 2);
+                            }
+                            if (! empty($turnoUsuario)) {
+                                $data['Turno1'] = (int) $turnoUsuario;
+                            }
 
                             try {
                                 EngProduccionEngomado::create($data);
@@ -205,6 +216,7 @@ class ModuloProduccionEngomadoController extends Controller
                                     'folio' => $orden->Folio,
                                     'error' => $e->getMessage(),
                                 ]);
+
                                 continue;
                             }
                         }
@@ -248,7 +260,7 @@ class ModuloProduccionEngomadoController extends Controller
                             $idsAEliminar = array_merge($idsAEliminar, $idsRestantes);
                         }
 
-                        if (!empty($idsAEliminar)) {
+                        if (! empty($idsAEliminar)) {
                             EngProduccionEngomado::whereIn('Id', $idsAEliminar)->delete();
                             Log::info('Eliminados registros de producción sobrantes', [
                                 'folio' => $orden->Folio,
@@ -290,7 +302,7 @@ class ModuloProduccionEngomadoController extends Controller
             'metros' => $orden->MetrajeTelas ? number_format($orden->MetrajeTelas, 0, '.', ',') : ($orden->Metros ? number_format($orden->Metros, 0, '.', ',') : '0'),
             'destino' => $orden->SalonTejidoId ?? null,
             'hilo' => $orden->Fibra ?? null,
-            'hiloFibra' => !empty($orden->Fibra) ? $orden->Fibra : '-',
+            'hiloFibra' => ! empty($orden->Fibra) ? $orden->Fibra : '-',
             'tipoAtado' => $orden->TipoAtado ?? null,
             'nomEmpl' => $orden->NomEmpl ?? null,
             'hasFinalizarPermission' => $hasFinalizarPermission,
@@ -336,7 +348,7 @@ class ModuloProduccionEngomadoController extends Controller
 
             return response()->json(['success' => true, 'data' => $usuarios]);
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'error' => 'Error al obtener usuarios: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'error' => 'Error al obtener usuarios: '.$e->getMessage()], 500);
         }
     }
 
@@ -352,8 +364,8 @@ class ModuloProduccionEngomadoController extends Controller
 
             $registro = EngProduccionEngomado::find($request->registro_id);
 
-            if (!$registro) {
-                return response()->json(['success' => false, 'error' => 'Registro no encontrado con ID: ' . $request->registro_id], 404);
+            if (! $registro) {
+                return response()->json(['success' => false, 'error' => 'Registro no encontrado con ID: '.$request->registro_id], 404);
             }
 
             $campo = $request->campo;
@@ -362,8 +374,8 @@ class ModuloProduccionEngomadoController extends Controller
                 $valor = $request->valor !== null && $request->valor !== '' ? (string) $request->valor : null;
             } else {
                 if ($request->valor !== null && $request->valor !== '') {
-                    if (!is_numeric($request->valor)) {
-                        return response()->json(['success' => false, 'error' => 'El valor debe ser numérico para el campo ' . $campo], 422);
+                    if (! is_numeric($request->valor)) {
+                        return response()->json(['success' => false, 'error' => 'El valor debe ser numérico para el campo '.$campo], 422);
                     }
                     $valor = (float) $request->valor;
                     if ($campo === 'Solidos') {
@@ -378,13 +390,13 @@ class ModuloProduccionEngomadoController extends Controller
                 $valor = (int) $valor;
             }
 
-            if (!in_array($campo, $registro->getFillable())) {
-                return response()->json(['success' => false, 'error' => 'El campo ' . $campo . ' no está permitido para actualización'], 422);
+            if (! in_array($campo, $registro->getFillable())) {
+                return response()->json(['success' => false, 'error' => 'El campo '.$campo.' no está permitido para actualización'], 422);
             }
 
             $registro->$campo = $valor;
 
-            if (!$registro->save()) {
+            if (! $registro->save()) {
                 return response()->json(['success' => false, 'error' => 'No se pudo guardar el registro'], 500);
             }
 
@@ -392,7 +404,7 @@ class ModuloProduccionEngomadoController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => ucfirst($campo) . ' actualizado correctamente',
+                'message' => ucfirst($campo).' actualizado correctamente',
                 'data' => ['campo' => $campo, 'valor' => $registro->$campo],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -400,7 +412,7 @@ class ModuloProduccionEngomadoController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error al actualizar campo: ' . $e->getMessage(),
+                'error' => 'Error al actualizar campo: '.$e->getMessage(),
                 'details' => config('app.debug') ? $e->getTraceAsString() : null,
             ], 500);
         }
@@ -417,13 +429,13 @@ class ModuloProduccionEngomadoController extends Controller
 
             $orden = EngProgramaEngomado::find($request->orden_id);
 
-            if (!$orden) {
+            if (! $orden) {
                 return response()->json(['success' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
             $valor = null;
             if ($request->has('valor') && $request->valor !== null && $request->valor !== '') {
-                if (!is_numeric($request->valor)) {
+                if (! is_numeric($request->valor)) {
                     return response()->json(['success' => false, 'error' => 'El valor debe ser numérico'], 422);
                 }
                 $valor = (float) $request->valor;
@@ -432,7 +444,7 @@ class ModuloProduccionEngomadoController extends Controller
                 if ($valor < 0) {
                     return response()->json([
                         'success' => false,
-                        'error' => 'El valor de ' . str_replace('_', ' ', $request->campo) . ' no puede ser negativo.',
+                        'error' => 'El valor de '.str_replace('_', ' ', $request->campo).' no puede ser negativo.',
                     ], 422);
                 }
             }
@@ -440,7 +452,7 @@ class ModuloProduccionEngomadoController extends Controller
             $campoMap = ['merma_con_goma' => 'MermaGoma', 'merma_sin_goma' => 'Merma'];
             $campoBD = $campoMap[$request->campo] ?? null;
 
-            if (!$campoBD) {
+            if (! $campoBD) {
                 return response()->json(['success' => false, 'error' => 'Campo no válido'], 422);
             }
 
@@ -450,7 +462,7 @@ class ModuloProduccionEngomadoController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => ucfirst(str_replace('_', ' ', $request->campo)) . ' actualizado correctamente',
+                'message' => ucfirst(str_replace('_', ' ', $request->campo)).' actualizado correctamente',
                 'data' => ['campo' => $request->campo, 'valor' => $orden->$campoBD],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -462,9 +474,10 @@ class ModuloProduccionEngomadoController extends Controller
                     'error' => 'Las columnas MermaGoma y Merma no existen en la tabla. Por favor, ejecuta el script SQL para agregarlas.',
                 ], 500);
             }
-            return response()->json(['success' => false, 'error' => 'Error de base de datos al actualizar campo: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error de base de datos al actualizar campo: '.$e->getMessage()], 500);
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'error' => 'Error al actualizar campo: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'error' => 'Error al actualizar campo: '.$e->getMessage()], 500);
         }
     }
 
@@ -478,7 +491,7 @@ class ModuloProduccionEngomadoController extends Controller
 
             return response()->json(['success' => true, 'tieneFormulaciones' => $count > 0, 'cantidad' => $count]);
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'error' => 'Error al verificar formulaciones: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'error' => 'Error al verificar formulaciones: '.$e->getMessage()], 500);
         }
     }
 
@@ -492,14 +505,14 @@ class ModuloProduccionEngomadoController extends Controller
 
             $orden = EngProgramaEngomado::find($request->orden_id);
 
-            if (!$orden) {
+            if (! $orden) {
                 return response()->json(['success' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
-            if (!in_array($orden->Status, ['En Proceso', 'Parcial'])) {
+            if (! in_array($orden->Status, ['En Proceso', 'Parcial'])) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Solo se puede finalizar una orden en estado "En Proceso" o "Parcial". Estado actual: ' . $orden->Status,
+                    'error' => 'Solo se puede finalizar una orden en estado "En Proceso" o "Parcial". Estado actual: '.$orden->Status,
                 ], 422);
             }
 
@@ -520,17 +533,27 @@ class ModuloProduccionEngomadoController extends Controller
             if ($formulacionesExistentes === 0) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'No se puede finalizar la orden. Debe existir al menos una formulación (EngProduccionFormulacion) con el Folio ' . $orden->Folio . ' antes de finalizar.',
+                    'error' => 'No se puede finalizar la orden. Debe existir al menos una formulación (EngProduccionFormulacion) con el Folio '.$orden->Folio.' antes de finalizar.',
                 ], 422);
             }
 
-            EngProduccionEngomado::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
+            $fechaCierre = $this->resolveMonthlyClosureDateContext();
 
-            $orden->Status = 'Finalizado';
-            $orden->FechaFinaliza = $this->resolveFechaFinalizaFromProduccion($orden->Folio);
-            $orden->save();
+            DB::connection('sqlsrv')->transaction(function () use ($orden, $fechaCierre) {
+                EngProduccionEngomado::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
 
-            EngProduccionFormulacionModel::where('Folio', $orden->Folio)->update(['Status' => 'Finalizado']);
+                if ($fechaCierre['applies']) {
+                    $this->updateProduccionFechaByFolio($orden->Folio, $fechaCierre['fecha_efectiva']);
+                }
+
+                $orden->Status = 'Finalizado';
+                $orden->FechaFinaliza = $fechaCierre['applies']
+                    ? $fechaCierre['fecha_efectiva']
+                    : $this->resolveFechaFinalizaFromProduccion($orden->Folio);
+                $orden->save();
+
+                EngProduccionFormulacionModel::where('Folio', $orden->Folio)->update(['Status' => 'Finalizado']);
+            });
 
             return response()->json([
                 'success' => true,
@@ -545,7 +568,8 @@ class ModuloProduccionEngomadoController extends Controller
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al finalizar orden de engomado', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al finalizar la orden: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al finalizar la orden: '.$e->getMessage()], 500);
         }
     }
 }

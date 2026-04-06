@@ -25,7 +25,7 @@
             module="Programa Urdido"
         />
         <x-navbar.button-edit
-            onclick="window.location.href='{{ route('urdido.reimpresion.finalizadas') }}'"
+            onclick="window.location.href='{{ $programaRoutes['reimpresion'] }}'"
             title="Reimpresion"
             icon="fa-print"
             iconColor="text-white"
@@ -183,7 +183,7 @@
                 <!-- Observaciones textarea -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
-                    <textarea id="calidadcomentario" rows="3" maxlength="60"
+                    <textarea id="calidadcomentario" rows="3" maxlength="{{ $calidadComentarioMaxLength }}"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                         placeholder="Ingrese observaciones (máx. 60 caracteres)"></textarea>
                 </div>
@@ -239,7 +239,7 @@
                 <!-- Observaciones (solo lectura) -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
-                    <textarea id="modalVerCalidadComentario" rows="3" maxlength="60" readonly
+                    <textarea id="modalVerCalidadComentario" rows="3" maxlength="{{ $calidadComentarioMaxLength }}" readonly
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700 resize-none"></textarea>
                 </div>
 
@@ -270,16 +270,7 @@
             // ==========================
             // Config & Estado Global
             // ==========================
-            const routes = {
-                cargarOrdenes: '{{ route('urdido.programar.urdido.ordenes') }}',
-                verificarEnProceso: '{{ route('urdido.programar.urdido.verificar.en.proceso') }}',
-                intercambiarPrioridad: '{{ route('urdido.programar.urdido.intercambiar.prioridad') }}',
-                produccion: '{{ route('urdido.modulo.produccion.urdido') }}',
-                guardarObservaciones: '{{ route('urdido.programar.urdido.guardar.observaciones') }}',
-                obtenerTodasOrdenes: '{{ route('urdido.programar.urdido.todas.ordenes') }}',
-                actualizarPrioridades: '{{ route('urdido.programar.urdido.actualizar.prioridades') }}',
-                actualizarStatus: '{{ route('urdido.programar.urdido.actualizar.status') }}',
-            };
+            const routes = @json($programaRoutes);
 
             const csrfToken = '{{ csrf_token() }}';
             // Solo usuarios del área Supervisores pueden editar (cambiar status, observaciones)
@@ -448,6 +439,7 @@
                                     class="w-full h-9 px-2 py-0 border-0 outline-none bg-transparent focus:bg-blue-50 ${isSelected ? 'text-white focus:text-gray-900' : 'text-gray-900'}"
                                     value="${orden.observaciones || ''}"
                                     data-orden-id="${orden.id}"
+                                    maxlength="{{ $observacionesMaxLength }}"
                                     draggable="false"
                                     onmousedown="event.stopPropagation()"
                                     onclick="event.stopPropagation()"
@@ -685,12 +677,13 @@
                 };
 
                 const response = await fetch(url, defaultOptions);
+                const data = await response.json().catch(() => null);
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(data?.error || `HTTP ${response.status}`);
                 }
 
-                return response.json();
+                return data;
             };
 
             // ==========================
@@ -1402,7 +1395,7 @@
                 ordenCalidadId = null;
             }
 
-            function guardarCalidad() {
+            async function guardarCalidad() {
                 const btn = document.getElementById('btnGuardarCalidad');
                 const btnText = document.getElementById('btnGuardarCalidadText');
                 const calidad = estadosCalidad[estadoActualIdx.value];
@@ -1416,43 +1409,38 @@
                 btn.disabled = true;
                 btnText.textContent = 'Guardando...';
 
-                fetch('/urdido/programar-urdido/actualizar-calidad', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({ id: ordenCalidadId, calidad, calidadcomentario })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        for (let mccoy = 1; mccoy <= 4; mccoy++) {
-                            const ordenIdx = (state.ordenes[mccoy] || []).findIndex(o => o.id === ordenCalidadId);
-                            if (ordenIdx !== -1) {
-                                state.ordenes[mccoy][ordenIdx].calidad = data.calidad;
-                                state.ordenes[mccoy][ordenIdx].calidadcomentario = data.calidadcomentario;
-                                break;
-                            }
-                        }
-                        cerrarModalCalidad();
-                        renderAllTables();
-                        const calidadTexto = calidad === 'A' ? 'Aprobado' : calidad === 'R' ? 'Rechazado' : 'Con observaciones';
-                        const msg = data.calidadcomentario
-                            ? `${calidadTexto}: ${data.calidadcomentario}`
-                            : calidadTexto;
-                        Swal.fire({ icon: 'success', title: '¡Guardado!', text: msg, timer: 2000, showConfirmButton: false });
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Error', timer: 2000, showConfirmButton: false });
-                        btn.disabled = false;
-                        btnText.textContent = 'Guardar';
+                try {
+                    const data = await fetchJson(routes.actualizarCalidad, {
+                        method: 'POST',
+                        body: JSON.stringify({ id: ordenCalidadId, calidad, calidadcomentario }),
+                    });
+
+                    if (!data?.success) {
+                        throw new Error(data?.error || 'Error al guardar calidad');
                     }
-                })
-                .catch(err => {
+
+                    for (let mccoy = 1; mccoy <= 4; mccoy++) {
+                        const ordenIdx = (state.ordenes[mccoy] || []).findIndex(o => o.id === ordenCalidadId);
+                        if (ordenIdx !== -1) {
+                            state.ordenes[mccoy][ordenIdx].calidad = data.calidad;
+                            state.ordenes[mccoy][ordenIdx].calidadcomentario = data.calidadcomentario;
+                            break;
+                        }
+                    }
+
+                    cerrarModalCalidad();
+                    renderAllTables();
+                    const calidadTexto = calidad === 'A' ? 'Aprobado' : calidad === 'R' ? 'Rechazado' : 'Con observaciones';
+                    const msg = data.calidadcomentario
+                        ? `${calidadTexto}: ${data.calidadcomentario}`
+                        : calidadTexto;
+                    Swal.fire({ icon: 'success', title: '¡Guardado!', text: msg, timer: 2000, showConfirmButton: false });
+                } catch (err) {
                     Swal.fire({ icon: 'error', title: 'Error de conexión', text: err.message, timer: 2000, showConfirmButton: false });
+                } finally {
                     btn.disabled = false;
                     btnText.textContent = 'Guardar';
-                });
+                }
             }
 
             window.abrirModalCalidad = abrirModalCalidad;

@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Helpers\TurnoHelper;
 use App\Models\Urdido\UrdCatJulios;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,9 +22,13 @@ use Illuminate\Support\Facades\Log;
 trait ProduccionTrait
 {
     abstract protected function getProduccionModelClass(): string;
+
     abstract protected function getProgramaModelClass(): string;
+
     abstract protected function getDepartamento(): string;
+
     abstract protected function shouldRoundKgBruto(): bool;
+
     abstract protected function getModuleNameForPermissions(): string;
 
     /**
@@ -31,7 +36,7 @@ trait ProduccionTrait
      */
     protected function ensureUserCanEdit(): void
     {
-        if (!function_exists('userCan') || !userCan('modificar', $this->getModuleNameForPermissions())) {
+        if (! function_exists('userCan') || ! userCan('modificar', $this->getModuleNameForPermissions())) {
             abort(403, 'No tiene permiso para modificar en este módulo.');
         }
     }
@@ -56,7 +61,7 @@ trait ProduccionTrait
     protected function traitAutollenarOficial1EnRegistrosSinHoraInicial($orden): void
     {
         $usuarioActual = Auth::user();
-        if (!$usuarioActual) {
+        if (! $usuarioActual) {
             return;
         }
 
@@ -78,6 +83,37 @@ trait ProduccionTrait
                 'NomEmpl1' => $nombreUsuario,
                 'Turno1' => $turnoUsuario !== null && $turnoUsuario !== '' ? (int) $turnoUsuario : null,
             ]);
+    }
+
+    /**
+     * Regla operativa de cierre mensual:
+     * el día 1 antes de las 08:30:00 se registra con la fecha del último día del mes anterior.
+     *
+     * @return array{applies: bool, fecha_efectiva: string, fecha_normal: string}
+     */
+    protected function resolveMonthlyClosureDateContext(?Carbon $momento = null): array
+    {
+        $timezone = config('app.timezone', 'America/Mexico_City');
+        $momentoBase = $momento ? $momento->copy()->setTimezone($timezone) : Carbon::now($timezone);
+        $corte = $momentoBase->copy()->startOfDay()->addHours(8)->addMinutes(30);
+        $applies = $momentoBase->day === 1 && $momentoBase->lt($corte);
+        $fechaNormal = $momentoBase->toDateString();
+        $fechaEfectiva = $applies
+            ? $momentoBase->copy()->startOfMonth()->subDay()->toDateString()
+            : $fechaNormal;
+
+        return [
+            'applies' => $applies,
+            'fecha_efectiva' => $fechaEfectiva,
+            'fecha_normal' => $fechaNormal,
+        ];
+    }
+
+    protected function updateProduccionFechaByFolio(string $folio, string $fecha): void
+    {
+        $model = $this->getProduccionModelClass();
+
+        $model::where('Folio', $folio)->update(['Fecha' => $fecha]);
     }
 
     // ─── endpoints compartidos ───────────────────────────────────────
@@ -106,7 +142,7 @@ trait ProduccionTrait
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al obtener catálogo de julios: ' . $e->getMessage(),
+                'error' => 'Error al obtener catálogo de julios: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -136,7 +172,7 @@ trait ProduccionTrait
             $model = $this->getProduccionModelClass();
             $registro = $model::find($request->registro_id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
@@ -150,7 +186,7 @@ trait ProduccionTrait
                     ->whereNotNull("NomEmpl{$numeroOficial}")
                     ->where("NomEmpl{$numeroOficial}", '!=', '')
                     ->exists();
-                $propagarOficial = !$existeOficialEnFolio;
+                $propagarOficial = ! $existeOficialEnFolio;
             }
 
             if ($numeroOficial < 1 || $numeroOficial > 3) {
@@ -196,7 +232,7 @@ trait ProduccionTrait
                         continue;
                     }
                     $turnoExistente = $registro->{"Turno{$i}"};
-                    if ($turnoExistente !== null && (int) $turnoExistente === (int) $turnoNuevo && !empty($registro->{"NomEmpl{$i}"})) {
+                    if ($turnoExistente !== null && (int) $turnoExistente === (int) $turnoNuevo && ! empty($registro->{"NomEmpl{$i}"})) {
                         return response()->json([
                             'success' => false,
                             'error' => "El Turno {$turnoNuevo} ya está asignado al Oficial {$i}.",
@@ -205,12 +241,12 @@ trait ProduccionTrait
                 }
             }
 
-            $oficialExistente = !empty($registro->{"NomEmpl{$numeroOficial}"});
+            $oficialExistente = ! empty($registro->{"NomEmpl{$numeroOficial}"});
 
-            if (!$oficialExistente) {
+            if (! $oficialExistente) {
                 $oficialesRegistrados = 0;
                 for ($i = 1; $i <= 3; $i++) {
-                    if (!empty($registro->{"NomEmpl{$i}"})) {
+                    if (! empty($registro->{"NomEmpl{$i}"})) {
                         $oficialesRegistrados++;
                     }
                 }
@@ -265,7 +301,8 @@ trait ProduccionTrait
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al guardar oficial', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al guardar oficial: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al guardar oficial: '.$e->getMessage()], 500);
         }
     }
 
@@ -281,7 +318,7 @@ trait ProduccionTrait
             $model = $this->getProduccionModelClass();
             $registro = $model::find($request->registro_id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
@@ -295,7 +332,8 @@ trait ProduccionTrait
             return response()->json(['success' => true, 'message' => 'Oficial eliminado correctamente']);
         } catch (\Throwable $e) {
             Log::error('Error al eliminar oficial', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al eliminar oficial: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al eliminar oficial: '.$e->getMessage()], 500);
         }
     }
 
@@ -312,7 +350,7 @@ trait ProduccionTrait
             $model = $this->getProduccionModelClass();
             $registro = $model::find($request->registro_id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
@@ -338,7 +376,8 @@ trait ProduccionTrait
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar turno de oficial', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al actualizar turno: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al actualizar turno: '.$e->getMessage()], 500);
         }
     }
 
@@ -354,7 +393,7 @@ trait ProduccionTrait
             $model = $this->getProduccionModelClass();
             $registro = $model::find($request->registro_id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
@@ -370,7 +409,8 @@ trait ProduccionTrait
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar fecha', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al actualizar fecha: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al actualizar fecha: '.$e->getMessage()], 500);
         }
     }
 
@@ -386,7 +426,7 @@ trait ProduccionTrait
             $model = $this->getProduccionModelClass();
             $registro = $model::find($request->registro_id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
@@ -421,7 +461,8 @@ trait ProduccionTrait
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar NoJulio y Tara', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al actualizar No. Julio y Tara: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al actualizar No. Julio y Tara: '.$e->getMessage()], 500);
         }
     }
 
@@ -437,7 +478,7 @@ trait ProduccionTrait
             $model = $this->getProduccionModelClass();
             $registro = $model::find($request->registro_id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
@@ -480,7 +521,8 @@ trait ProduccionTrait
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar KgBruto', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al actualizar Kg. Bruto: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al actualizar Kg. Bruto: '.$e->getMessage()], 500);
         }
     }
 
@@ -497,7 +539,7 @@ trait ProduccionTrait
             $model = $this->getProduccionModelClass();
             $registro = $model::find($request->registro_id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
@@ -510,14 +552,15 @@ trait ProduccionTrait
 
             return response()->json([
                 'success' => true,
-                'message' => ($campo === 'HoraInicial' ? 'Hora Inicial' : 'Hora Final') . ' actualizada correctamente',
+                'message' => ($campo === 'HoraInicial' ? 'Hora Inicial' : 'Hora Final').' actualizada correctamente',
                 'data' => ['campo' => $campo, 'valor' => $registro->$campo],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar horas', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al actualizar hora: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al actualizar hora: '.$e->getMessage()], 500);
         }
     }
 
@@ -534,7 +577,7 @@ trait ProduccionTrait
             $programaModel = $this->getProgramaModelClass();
 
             $registro = $produccionModel::find($request->registro_id);
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro de producción no encontrado'], 404);
             }
 
@@ -562,11 +605,11 @@ trait ProduccionTrait
                 if (is_null($registro->KgBruto) || $registro->KgBruto < 0) {
                     $camposFaltantes[] = 'Kg Bruto debe ser un valor mayor o igual a 0';
                 }
-                if (!is_null($registro->KgNeto) && $registro->KgNeto < 0) {
+                if (! is_null($registro->KgNeto) && $registro->KgNeto < 0) {
                     $camposFaltantes[] = 'Kg Neto debe ser un valor mayor o igual a 0';
                 }
 
-                if (!empty($camposFaltantes)) {
+                if (! empty($camposFaltantes)) {
                     return response()->json([
                         'success' => false,
                         'error' => 'No se puede marcar como listo. Faltan campos requeridos.',
@@ -578,7 +621,7 @@ trait ProduccionTrait
             $registro->Finalizar = $request->listo ? 1 : 0;
 
             // Al desmarcar: limpiar Impresion para que el registro vuelva a ser imprimible
-            if (!$request->listo) {
+            if (! $request->listo) {
                 $this->onRegistroDesmarcado($registro);
             }
 
@@ -613,7 +656,8 @@ trait ProduccionTrait
                 'registro_id' => $request->registro_id ?? null,
                 'error' => $e->getMessage(),
             ]);
-            return response()->json(['success' => false, 'error' => 'Error al actualizar el registro: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al actualizar el registro: '.$e->getMessage()], 500);
         }
     }
 

@@ -3,18 +3,19 @@
 namespace App\Http\Controllers\Urdido\Configuracion;
 
 use App\Http\Controllers\Controller;
-use App\Models\Urdido\UrdProgramaUrdido;
-use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Urdido\UrdProduccionUrdido;
+use App\Models\Urdido\UrdProgramaUrdido;
 use App\Traits\ProduccionTrait;
-use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ModuloProduccionUrdidoController extends Controller
 {
@@ -52,6 +53,7 @@ class ModuloProduccionUrdidoController extends Controller
     private function usuarioPuedeEditar(): bool
     {
         $modulo = $this->getModuleNameForPermissions();
+
         return function_exists('userCan') && userCan('modificar', $modulo);
     }
 
@@ -84,12 +86,12 @@ class ModuloProduccionUrdidoController extends Controller
             return $this->handleCheckOnlyRequest($ordenId);
         }
 
-        if (!$ordenId) {
+        if (! $ordenId) {
             return view('modulos.urdido.modulo-produccion-urdido', $this->getEmptyViewData());
         }
 
         $orden = UrdProgramaUrdido::find($ordenId);
-        if (!$orden) {
+        if (! $orden) {
             return redirect()->route('urdido.programar.urdido')->with('error', 'Orden no encontrada');
         }
 
@@ -113,7 +115,7 @@ class ModuloProduccionUrdidoController extends Controller
     private function handleCheckOnlyRequest(int $ordenId): JsonResponse
     {
         $orden = UrdProgramaUrdido::find($ordenId);
-        if (!$orden) {
+        if (! $orden) {
             return response()->json(['puedeCrear' => false, 'tieneRegistros' => false, 'error' => 'Orden no encontrada'], 404);
         }
 
@@ -165,6 +167,7 @@ class ModuloProduccionUrdidoController extends Controller
 
             if ($ordenesEnProceso >= $limitePorMaquina) {
                 $nombreMaquina = $mcCoyActual === 4 ? 'Karl Mayer' : "MC Coy {$mcCoyActual}";
+
                 return redirect()->route('urdido.programar.urdido')
                     ->with('error', "Ya existen {$limitePorMaquina} ordenes con status \"En Proceso\" en {$nombreMaquina}. No se puede cargar otra orden hasta finalizar alguna de las actuales.");
             }
@@ -201,6 +204,7 @@ class ModuloProduccionUrdidoController extends Controller
                 $total += $n;
             }
         }
+
         return $total;
     }
 
@@ -218,7 +222,7 @@ class ModuloProduccionUrdidoController extends Controller
             $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
             $nombreUsuario = $user ? ($user->nombre ?? null) : null;
             $turnoUsuario = $user ? ($user->turno ?? null) : null;
-            if (!$turnoUsuario) {
+            if (! $turnoUsuario) {
                 $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
             }
             $metrosOrden = $orden->Metros ?? 0;
@@ -301,10 +305,18 @@ class ModuloProduccionUrdidoController extends Controller
                             'Hilos' => $hilos === 'null' ? null : $hilos,
                             'Fecha' => now()->format('Y-m-d'),
                         ];
-                        if (!empty($claveUsuario)) $data['CveEmpl1'] = $claveUsuario;
-                        if (!empty($nombreUsuario)) $data['NomEmpl1'] = $nombreUsuario;
-                        if ($metrosOrden > 0) $data['Metros1'] = round($metrosOrden, 2);
-                        if (!empty($turnoUsuario)) $data['Turno1'] = (int) $turnoUsuario;
+                        if (! empty($claveUsuario)) {
+                            $data['CveEmpl1'] = $claveUsuario;
+                        }
+                        if (! empty($nombreUsuario)) {
+                            $data['NomEmpl1'] = $nombreUsuario;
+                        }
+                        if ($metrosOrden > 0) {
+                            $data['Metros1'] = round($metrosOrden, 2);
+                        }
+                        if (! empty($turnoUsuario)) {
+                            $data['Turno1'] = (int) $turnoUsuario;
+                        }
 
                         $registrosACrear[] = $data;
                     }
@@ -312,7 +324,7 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             // Eliminar sobrantes
-            if (!empty($idsAEliminar)) {
+            if (! empty($idsAEliminar)) {
                 UrdProduccionUrdido::whereIn('Id', $idsAEliminar)->delete();
                 Log::info('Eliminados registros sobrantes de UrdProduccionUrdido', [
                     'folio' => $orden->Folio,
@@ -376,7 +388,7 @@ class ModuloProduccionUrdidoController extends Controller
 
             $registro = UrdProduccionUrdido::find($request->registro_id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
@@ -390,14 +402,15 @@ class ModuloProduccionUrdidoController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => ucfirst($campo) . ' actualizado correctamente',
+                'message' => ucfirst($campo).' actualizado correctamente',
                 'data' => ['campo' => $campo, 'valor' => $registro->$campo],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar campos de producción', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al actualizar campo: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al actualizar campo: '.$e->getMessage()], 500);
         }
     }
 
@@ -419,7 +432,8 @@ class ModuloProduccionUrdidoController extends Controller
             return response()->json(['success' => true, 'data' => $usuarios]);
         } catch (\Throwable $e) {
             Log::error('Error al obtener usuarios de Urdido', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al obtener usuarios: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al obtener usuarios: '.$e->getMessage()], 500);
         }
     }
 
@@ -433,14 +447,14 @@ class ModuloProduccionUrdidoController extends Controller
 
             $orden = UrdProgramaUrdido::find($request->orden_id);
 
-            if (!$orden) {
+            if (! $orden) {
                 return response()->json(['success' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
-            if (!in_array($orden->Status, ['En Proceso', 'Parcial'])) {
+            if (! in_array($orden->Status, ['En Proceso', 'Parcial'])) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Solo se puede finalizar una orden en estado "En Proceso" o "Parcial". Estado actual: ' . $orden->Status,
+                    'error' => 'Solo se puede finalizar una orden en estado "En Proceso" o "Parcial". Estado actual: '.$orden->Status,
                 ], 422);
             }
 
@@ -459,7 +473,7 @@ class ModuloProduccionUrdidoController extends Controller
 
             // Validar Vueltas y Diámetro requeridos para Karl Mayer
             $destino = $orden->SalonTejidoId;
-            if (!$destino) {
+            if (! $destino) {
                 $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
                 $destino = $engomado ? $engomado->SalonTejidoId : null;
             }
@@ -471,9 +485,9 @@ class ModuloProduccionUrdidoController extends Controller
                     ->whereNotNull('HoraFinal')
                     ->where(function ($q) {
                         $q->whereNull('Vueltas')
-                          ->orWhere('Vueltas', 0)
-                          ->orWhereNull('Diametro')
-                          ->orWhere('Diametro', 0);
+                            ->orWhere('Vueltas', 0)
+                            ->orWhereNull('Diametro')
+                            ->orWhere('Diametro', 0);
                     })
                     ->count();
 
@@ -485,18 +499,26 @@ class ModuloProduccionUrdidoController extends Controller
                 }
             }
 
-            // Eliminar registros sin HoraInicial o HoraFinal
-            UrdProduccionUrdido::where('Folio', $orden->Folio)
-                ->where(function ($query) {
-                    $query->whereNull('HoraInicial')->orWhereNull('HoraFinal');
-                })
-                ->delete();
+            $fechaCierre = $this->resolveMonthlyClosureDateContext();
 
-            UrdProduccionUrdido::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
+            DB::connection('sqlsrv')->transaction(function () use ($orden, $fechaCierre) {
+                // Eliminar registros sin HoraInicial o HoraFinal antes de consolidar el cierre.
+                UrdProduccionUrdido::where('Folio', $orden->Folio)
+                    ->where(function ($query) {
+                        $query->whereNull('HoraInicial')->orWhereNull('HoraFinal');
+                    })
+                    ->delete();
 
-            $orden->Status = 'Finalizado';
-            $orden->FechaFinaliza = now()->toDateString();
-            $orden->save();
+                UrdProduccionUrdido::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
+
+                if ($fechaCierre['applies']) {
+                    $this->updateProduccionFechaByFolio($orden->Folio, $fechaCierre['fecha_efectiva']);
+                }
+
+                $orden->Status = 'Finalizado';
+                $orden->FechaFinaliza = $fechaCierre['fecha_efectiva'];
+                $orden->save();
+            });
 
             return response()->json([
                 'success' => true,
@@ -511,7 +533,8 @@ class ModuloProduccionUrdidoController extends Controller
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al finalizar orden de urdido', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'error' => 'Error al finalizar la orden: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al finalizar la orden: '.$e->getMessage()], 500);
         }
     }
 }

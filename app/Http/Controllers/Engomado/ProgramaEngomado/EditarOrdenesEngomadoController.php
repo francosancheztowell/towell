@@ -3,35 +3,38 @@
 namespace App\Http\Controllers\Engomado\ProgramaEngomado;
 
 use App\Http\Controllers\Controller;
-use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Engomado\CatUbicaciones;
 use App\Models\Engomado\EngProduccionEngomado;
+use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Urdido\URDCatalogoMaquina;
-use App\Models\Engomado\CatUbicaciones;
-use Illuminate\Http\Request;
+use App\Support\Programas\ProgramaConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class EditarOrdenesEngomadoController extends Controller
 {
     private const ACCION_METROS_SOLO_CAMPO = 'solo_campo';
+
     private const ACCION_METROS_ACTUALIZAR_TODA = 'actualizar_produccion_toda';
+
     private const ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO = 'actualizar_produccion_sin_hora_inicio';
 
     private function usuarioPuedeEditar(): bool
     {
         $usuario = Auth::user();
-        if (!$usuario) {
+        if (! $usuario) {
             return false;
         }
 
         $puesto = trim($usuario->puesto ?? '');
-        $puestoValido = !empty($puesto) && stripos($puesto, 'supervisor') !== false;
+        $puestoValido = ! empty($puesto) && stripos($puesto, 'supervisor') !== false;
 
         return $puestoValido;
     }
@@ -85,7 +88,7 @@ class EditarOrdenesEngomadoController extends Controller
         $claveUsuario = $usuario ? ($usuario->numero_empleado ?? null) : null;
         $nombreUsuario = $usuario ? ($usuario->nombre ?? null) : null;
         $turnoUsuario = $usuario ? ($usuario->turno ?? null) : null;
-        if (!$turnoUsuario) {
+        if (! $turnoUsuario) {
             $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
         }
 
@@ -102,13 +105,13 @@ class EditarOrdenesEngomadoController extends Controller
                 'NoJulio' => null,
                 'Fecha' => now()->format('Y-m-d'),
             ];
-            if (!empty($claveUsuario)) {
+            if (! empty($claveUsuario)) {
                 $data['CveEmpl1'] = $claveUsuario;
             }
-            if (!empty($nombreUsuario)) {
+            if (! empty($nombreUsuario)) {
                 $data['NomEmpl1'] = $nombreUsuario;
             }
-            if (!empty($turnoUsuario)) {
+            if (! empty($turnoUsuario)) {
                 $data['Turno1'] = (int) $turnoUsuario;
             }
             if ($metrosBase !== null && (float) $metrosBase > 0) {
@@ -140,7 +143,7 @@ class EditarOrdenesEngomadoController extends Controller
             ->orderBy('Id', 'desc')
             ->limit($cantidad)
             ->pluck('Id')
-            ->map(static fn($id) => (int) $id)
+            ->map(static fn ($id) => (int) $id)
             ->values()
             ->all();
 
@@ -149,6 +152,7 @@ class EditarOrdenesEngomadoController extends Controller
         }
 
         EngProduccionEngomado::whereIn('Id', $ids)->delete();
+
         return $ids;
     }
 
@@ -161,23 +165,25 @@ class EditarOrdenesEngomadoController extends Controller
         $fromReimpresion = $request->query('from') === 'reimpresion';
         $routeBack = $fromReimpresion ? 'engomado.reimpresion.finalizadas' : 'engomado.programar.engomado';
 
-        if (!$ordenId) {
+        if (! $ordenId) {
             Log::warning('Editar Engomado: No se proporcionó orden_id');
+
             return redirect()->route($routeBack)
                 ->with('error', 'No se proporcionó el ID de la orden');
         }
 
         $orden = EngProgramaEngomado::find($ordenId);
 
-        if (!$orden) {
+        if (! $orden) {
             Log::warning('Editar Engomado: Orden no encontrada', ['orden_id' => $ordenId]);
+
             return redirect()->route($routeBack)
                 ->with('error', 'Orden no encontrada');
         }
 
         $puedeEditar = $this->usuarioPuedeEditar();
 
-        if (!$puedeEditar) {
+        if (! $puedeEditar) {
             $usuario = Auth::user();
             Log::warning('Usuario sin permisos para editar Engomado', [
                 'usuario_id' => $usuario->id ?? null,
@@ -213,6 +219,7 @@ class EditarOrdenesEngomadoController extends Controller
             'registrosProduccion' => $registrosProduccion,
             'puedeEditar' => $puedeEditar,
             'fromReimpresion' => $fromReimpresion,
+            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
         ]);
     }
 
@@ -242,7 +249,7 @@ class EditarOrdenesEngomadoController extends Controller
                     'NoTelas',
                     'Observaciones',
                 ])],
-                'valor' => 'nullable|string|max:500',
+                'valor' => 'nullable|string|max:'.ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
                 'accion_metros' => ['nullable', 'string', Rule::in([
                     self::ACCION_METROS_SOLO_CAMPO,
                     self::ACCION_METROS_ACTUALIZAR_TODA,
@@ -270,7 +277,7 @@ class EditarOrdenesEngomadoController extends Controller
 
             if ($campo === 'Metros') {
                 $accionesPermitidas = $this->accionesMetrosPermitidasPorStatus($statusActual);
-                if (!in_array($accionMetros, $accionesPermitidas, true)) {
+                if (! in_array($accionMetros, $accionesPermitidas, true)) {
                     return response()->json([
                         'success' => false,
                         'error' => 'La opcion seleccionada para actualizar metros no aplica para el estado actual de la orden.',
@@ -280,7 +287,7 @@ class EditarOrdenesEngomadoController extends Controller
 
             $camposPorStatus = ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula'];
             if (in_array($campo, $camposPorStatus, true)) {
-                if (!in_array($statusActual, ['En Proceso', 'Programado', 'Parcial'], true)) {
+                if (! in_array($statusActual, ['En Proceso', 'Programado', 'Parcial'], true)) {
                     return response()->json([
                         'success' => false,
                         'error' => 'Solo se pueden editar estos campos cuando el estado es En Proceso, Programado o Parcial.',
@@ -288,7 +295,7 @@ class EditarOrdenesEngomadoController extends Controller
                 }
             }
 
-            if ($campo === 'NoTelas' && !in_array($statusActual, ['En Proceso', 'Programado', 'Parcial'], true)) {
+            if ($campo === 'NoTelas' && ! in_array($statusActual, ['En Proceso', 'Programado', 'Parcial'], true)) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No. de Telas solo se puede editar cuando el estado es En Proceso, Programado o Parcial.',
@@ -362,7 +369,7 @@ class EditarOrdenesEngomadoController extends Controller
                     $message .= ". Se sincronizaron {$registrosProduccionActualizados} registro(s) de produccion.";
                 }
                 if ($campo === 'NoTelas') {
-                    $message .= ". Produccion creada: " . count($registrosProduccionCreados) . ", eliminada: " . count($registrosProduccionEliminadosIds) . ".";
+                    $message .= '. Produccion creada: '.count($registrosProduccionCreados).', eliminada: '.count($registrosProduccionEliminadosIds).'.';
                 }
 
                 return response()->json([
@@ -398,7 +405,7 @@ class EditarOrdenesEngomadoController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al actualizar la orden: ' . $e->getMessage(),
+                'error' => 'Error al actualizar la orden: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -411,7 +418,7 @@ class EditarOrdenesEngomadoController extends Controller
         try {
             $ordenId = $request->query('orden_id');
 
-            if (!$ordenId) {
+            if (! $ordenId) {
                 return response()->json([
                     'success' => false,
                     'error' => 'No se proporcionó el ID de la orden',
@@ -420,7 +427,7 @@ class EditarOrdenesEngomadoController extends Controller
 
             $orden = EngProgramaEngomado::find($ordenId);
 
-            if (!$orden) {
+            if (! $orden) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Orden no encontrada',
@@ -456,7 +463,7 @@ class EditarOrdenesEngomadoController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al obtener la orden: ' . $e->getMessage(),
+                'error' => 'Error al obtener la orden: '.$e->getMessage(),
             ], 500);
         }
     }

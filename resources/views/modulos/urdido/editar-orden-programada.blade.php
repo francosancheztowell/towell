@@ -338,6 +338,7 @@
                 <div style="height: 100%; display: flex; flex-direction: column;">
                     <label class="block {{ $mostrarTablaProduccion ? 'text-[10px]' : 'text-sm' }} font-semibold text-gray-700 mb-1">Observaciones</label>
                     <textarea id="campo_Observaciones" data-campo="Observaciones" rows="{{ $mostrarTablaProduccion ? 2 : 3 }}"
+                        maxlength="{{ $observacionesMaxLength }}"
                         class="campo-editable w-full {{ $mostrarTablaProduccion ? 'px-1 py-0.5 text-sm' : 'px-2 py-1.5' }} border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         style="flex: 1 1 auto; resize: none;">{{ $orden->Observaciones ?? '' }}</textarea>
                 </div>

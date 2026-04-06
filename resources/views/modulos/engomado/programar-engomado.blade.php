@@ -25,7 +25,7 @@
             module="Programa Engomado"
         />
         <x-navbar.button-edit
-            onclick="window.location.href='{{ route('engomado.reimpresion.finalizadas') }}'"
+            onclick="window.location.href='{{ $programaRoutes['reimpresion'] }}'"
             title="Reimpresion"
             icon="fa-print"
             iconColor="text-white"
@@ -143,16 +143,7 @@
             // ==========================
             // Config & Estado Global
             // ==========================
-            const routes = {
-                cargarOrdenes: '{{ route('engomado.programar.engomado.ordenes') }}',
-                verificarEnProceso: '{{ route('engomado.programar.engomado.verificar.en.proceso') }}',
-                intercambiarPrioridad: '{{ route('engomado.programar.engomado.intercambiar.prioridad') }}',
-                produccion: '{{ route('engomado.modulo.produccion.engomado') }}',
-                guardarObservaciones: '{{ route('engomado.programar.engomado.guardar.observaciones') }}',
-                obtenerTodasOrdenes: '{{ route('engomado.programar.engomado.todas.ordenes') }}',
-                actualizarPrioridades: '{{ route('engomado.programar.engomado.actualizar.prioridades') }}',
-                actualizarStatus: '{{ route('engomado.programar.engomado.actualizar.status') }}',
-            };
+            const routes = @json($programaRoutes);
 
             const csrfToken = '{{ csrf_token() }}';
             const canEdit = {{ json_encode($canEdit ?? false) }};
@@ -320,6 +311,7 @@
                                     class="w-full h-9 px-2 py-0 border-0 outline-none bg-transparent focus:bg-blue-50 ${isSelected ? 'text-white focus:text-gray-900' : 'text-gray-900'}"
                                     value="${(orden.observaciones || '').replace(/"/g, '&quot;')}"
                                     data-orden-id="${orden.id}"
+                                    maxlength="{{ $observacionesMaxLength }}"
                                     draggable="false"
                                     onmousedown="event.stopPropagation()"
                                     onclick="event.stopPropagation()"
@@ -529,12 +521,13 @@
                 };
 
                 const response = await fetch(url, defaultOptions);
+                const data = await response.json().catch(() => null);
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(data?.error || `HTTP ${response.status}`);
                 }
 
-                return response.json();
+                return data;
             };
 
             // ==========================
