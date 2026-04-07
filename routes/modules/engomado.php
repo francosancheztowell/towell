@@ -4,6 +4,7 @@ use App\Http\Controllers\Engomado\BPMEngomado\EngBpmController;
 use App\Http\Controllers\Engomado\BPMEngomado\EngBpmLineController;
 use App\Http\Controllers\Engomado\CapturaFormulas\EngProduccionFormulacionController;
 use App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado\EngActividadesBpmController;
+use App\Http\Controllers\Engomado\Produccion\CalificarJuliosController;
 use App\Http\Controllers\Engomado\Produccion\ModuloProduccionEngomadoController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\EditarOrdenesEngomadoController;
@@ -94,6 +95,10 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::get('/modulo-produccion-engomado/verificar-formulaciones', [ModuloProduccionEngomadoController::class, 'verificarFormulaciones'])->name('modulo.produccion.engomado.verificar.formulaciones');
     Route::post('/modulo-produccion-engomado/finalizar', [ModuloProduccionEngomadoController::class, 'finalizar'])->name('modulo.produccion.engomado.finalizar');
     Route::post('/modulo-produccion-engomado/marcar-listo', [ModuloProduccionEngomadoController::class, 'marcarListo'])->name('modulo.produccion.engomado.marcar.listo');
+    Route::get('/modulo-produccion-engomado/calificar-julios', [CalificarJuliosController::class, 'getJulios'])->name('modulo.produccion.engomado.calificar.julios.get');
+    Route::post('/modulo-produccion-engomado/calificar-julios/calificar', [CalificarJuliosController::class, 'calificar'])->name('modulo.produccion.engomado.calificar.julios.save');
+    Route::get('/modulo-produccion-engomado/calificar-julios-eng', [CalificarJuliosController::class, 'getJuliosEng'])->name('modulo.produccion.engomado.calificar.julios.eng.get');
+    Route::post('/modulo-produccion-engomado/calificar-julios-eng/calificar', [CalificarJuliosController::class, 'calificarEng'])->name('modulo.produccion.engomado.calificar.julios.eng.save');
     Route::get('/modulo-produccion-engomado/pdf', [\App\Http\Controllers\PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.engomado.pdf');
 
     Route::get('/captura-formula', [EngProduccionFormulacionController::class, 'index'])->name('captura-formula.legacy');

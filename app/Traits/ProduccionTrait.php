@@ -58,6 +58,41 @@ trait ProduccionTrait
         return $registro->HoraInicial !== null && trim((string) $registro->HoraInicial) !== '';
     }
 
+    /**
+     * Refresca la Fecha (y Turno1) de los registros que aún no han sido "llenados".
+     *
+     * Se considera que un registro está LLENO (no se debe tocar) cuando:
+     *   - NoJulio NO es nulo/vacío Y
+     *   - KgBruto NO es nulo
+     * Adicionalmente, nunca se tocan registros que ya tienen HoraInicial capturada
+     * (regla operativa existente para no pisar trabajo en curso).
+     *
+     * Para los registros vacíos, se actualiza Fecha = hoy y Turno1 = turno actual del usuario.
+     */
+    protected function traitRefrescarFechaEnRegistrosVacios($orden): void
+    {
+        $usuarioActual = Auth::user();
+        $turnoUsuario = $usuarioActual && ! empty($usuarioActual->turno)
+            ? (int) $usuarioActual->turno
+            : (int) (TurnoHelper::getTurnoActual() ?? 0);
+
+        $hoy = TurnoHelper::getFechaProduccion();
+
+        $model = $this->getProduccionModelClass();
+        $model::where('Folio', $orden->Folio)
+            ->where(function ($q) {
+                $q->whereNull('NoJulio')->orWhere('NoJulio', '')
+                  ->orWhereNull('KgBruto');
+            })
+            ->where(function ($q) {
+                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+            })
+            ->update([
+                'Fecha' => $hoy,
+                'Turno1' => $turnoUsuario > 0 ? $turnoUsuario : null,
+            ]);
+    }
+
     protected function traitAutollenarOficial1EnRegistrosSinHoraInicial($orden): void
     {
         $usuarioActual = Auth::user();
@@ -224,7 +259,8 @@ trait ProduccionTrait
                 ], 422);
             }
 
-            // Validar que no se repita el turno dentro del mismo registro
+            // Detectar turno repetido dentro del mismo registro (ya no bloquea: solo advierte)
+            $warningTurno = null;
             $turnoNuevo = $request->input('turno');
             if ($turnoNuevo !== null) {
                 for ($i = 1; $i <= 3; $i++) {
@@ -233,10 +269,8 @@ trait ProduccionTrait
                     }
                     $turnoExistente = $registro->{"Turno{$i}"};
                     if ($turnoExistente !== null && (int) $turnoExistente === (int) $turnoNuevo && ! empty($registro->{"NomEmpl{$i}"})) {
-                        return response()->json([
-                            'success' => false,
-                            'error' => "El Turno {$turnoNuevo} ya está asignado al Oficial {$i}.",
-                        ], 422);
+                        $warningTurno = "El Turno {$turnoNuevo} ya está asignado al Oficial {$i}. Verifica el turno.";
+                        break;
                     }
                 }
             }
@@ -290,6 +324,7 @@ trait ProduccionTrait
             return response()->json([
                 'success' => true,
                 'message' => 'Oficial guardado correctamente',
+                'warning' => $warningTurno,
                 'data' => [
                     'cve_empl' => $registro->{"CveEmpl{$numeroOficial}"},
                     'nom_empl' => $registro->{"NomEmpl{$numeroOficial}"},

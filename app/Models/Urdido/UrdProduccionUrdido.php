@@ -46,6 +46,11 @@ class UrdProduccionUrdido extends Model
         'AX',
         'Vueltas',
         'Diametro',
+        'Penalizacion',
+        'OperadorDefecto',
+        'NoEmplDefecto',
+        'ClaveDefecto',
+        'FechaDefecto',
     ];
 
     public function programa()
@@ -76,6 +81,10 @@ class UrdProduccionUrdido extends Model
         'AX' => 'integer',
         'Vueltas' => 'float',
         'Diametro' => 'float',
+        'Penalizacion' => 'float',
+        'NoEmplDefecto' => 'integer',
+        'ClaveDefecto' => 'integer',
+        'FechaDefecto' => 'datetime',
     ];
 }
 

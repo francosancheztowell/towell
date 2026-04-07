@@ -29,6 +29,14 @@
             text="Agregar fórmula"
             bg="bg-blue-500"
         />
+        @if(isset($orden) && $orden)
+        <button type="button" onclick="abrirModalCalificarJulios()"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+            title="Calificar julios de urdido">
+            <i class="fa-solid fa-clipboard-check"></i>
+            <span>Calificar julios</span>
+        </button>
+        @endif
         @if($canEdit)
         <x-navbar.button-create
             onclick="finalizar()"
@@ -2830,6 +2838,7 @@
                         try {
                             let guardados = 0;
                             let oficialesGuardados = [];
+                            let warningsTurno = [];
                             for (const oficial of oficiales) {
                                 const data = { registro_id: registroId, ...oficial };
 
@@ -2846,6 +2855,7 @@
                                 if (result.success) {
                                     guardados++;
                                     oficialesGuardados.push(oficial);
+                                    if (result.warning) warningsTurno.push(result.warning);
                                 }
                             }
 
@@ -2862,6 +2872,22 @@
                                         toast: true,
                                         position: 'top-end'
                                     });
+                                }
+                                if (warningsTurno.length > 0) {
+                                    const msg = [...new Set(warningsTurno)].join(' ');
+                                    if (typeof Swal !== 'undefined') {
+                                        Swal.fire({
+                                            icon: 'warning',
+                                            title: 'Verifica el turno',
+                                            text: msg,
+                                            toast: true,
+                                            position: 'top-end',
+                                            timer: 5000,
+                                            showConfirmButton: false
+                                        });
+                                    } else if (typeof toastr !== 'undefined') {
+                                        toastr.warning(msg);
+                                    }
                                 }
                                 setTimeout(() => propagarOficialesHaciaAbajo(registroId, oficialesGuardados), 500);
                             } else {
@@ -3318,4 +3344,8 @@
             };
         })();
     </script>
+
+    @if(isset($orden) && $orden)
+        @include('modulos.engomado.partials.modal-calificar-julios')
+    @endif
 @endsection

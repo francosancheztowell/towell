@@ -76,6 +76,33 @@ class TurnoHelper
     }
 
     /**
+     * Devuelve la fecha de producción correcta considerando:
+     *   - Turno 3 post-medianoche: entre 00:00 y 06:30 el turno empezó ayer → devuelve fecha de ayer.
+     *   - Regla de cierre mensual: el día 1 antes de las 08:30 → devuelve el último día del mes anterior.
+     *   - Resto de los casos → devuelve hoy.
+     *
+     * @return string Fecha en formato Y-m-d
+     */
+    public static function getFechaProduccion(): string
+    {
+        $ahora = Carbon::now('America/Mexico_City');
+        $minutosActuales = ($ahora->hour * 60) + $ahora->minute;
+
+        // Turno 3, porción post-medianoche: 00:00 – 06:30 → fecha de ayer
+        if ($minutosActuales < 390) { // 390 min = 6:30 AM
+            return $ahora->copy()->subDay()->toDateString();
+        }
+
+        // Regla de cierre mensual: día 1 antes de las 08:30 → último día del mes anterior
+        $corte830 = $ahora->copy()->startOfDay()->addHours(8)->addMinutes(30);
+        if ($ahora->day === 1 && $ahora->lt($corte830)) {
+            return $ahora->copy()->startOfMonth()->subDay()->toDateString();
+        }
+
+        return $ahora->toDateString();
+    }
+
+    /**
      * Genera un folio único basado en fecha y turno
      *
      * @return string

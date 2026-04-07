@@ -26,6 +26,17 @@
             <span>Editar</span>
         </button>
         <button
+            type="button"
+            id="btnCalificarJuliosEng"
+            onclick="calificarJuliosSeleccionado()"
+            disabled
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-purple-600"
+            title="Calificar julios de la orden seleccionada"
+        >
+            <i class="fa-solid fa-clipboard-check"></i>
+            <span>Calificar julios</span>
+        </button>
+        <button
             id="btnImprimirSeleccionado"
             onclick="imprimirOrdenSeleccionada()"
             disabled
@@ -210,13 +221,19 @@
             row.classList.remove('hover:bg-gray-50');
             ordenSeleccionada = {
                 id: row.dataset.ordenId,
-                status: row.dataset.status
+                status: row.dataset.status,
+                folio: row.dataset.folio,
             };
 
             const btnEditar = document.getElementById('btnEditarSeleccionado');
             const btnImprimir = document.getElementById('btnImprimirSeleccionado');
+            const btnCalificar = document.getElementById('btnCalificarJuliosEng');
 
             if (btnEditar) btnEditar.disabled = false;
+
+            if (btnCalificar) {
+                btnCalificar.disabled = ordenSeleccionada.status !== 'Finalizado';
+            }
 
             if (btnImprimir) {
                 if (ordenSeleccionada.status === 'Finalizado') {
@@ -226,6 +243,11 @@
                     btnImprimir.style.display = 'none';
                 }
             }
+        };
+
+        window.calificarJuliosSeleccionado = function() {
+            if (!ordenSeleccionada || ordenSeleccionada.status !== 'Finalizado') return;
+            abrirModalCalificarJuliosEng(ordenSeleccionada.folio);
         };
 
         window.editarOrdenSeleccionada = function() {
@@ -445,4 +467,6 @@
         }
     })();
 </script>
+
+@include('modulos.engomado.partials.modal-calificar-julios-eng')
 @endpush

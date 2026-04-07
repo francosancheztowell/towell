@@ -278,6 +278,7 @@ class ModuloProduccionEngomadoController extends Controller
             }
         }
 
+        $this->traitRefrescarFechaEnRegistrosVacios($orden);
         $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
         $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)->orderBy('Id')->get();
 

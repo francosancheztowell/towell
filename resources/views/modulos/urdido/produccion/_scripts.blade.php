@@ -1875,6 +1875,7 @@
                         try {
                             let guardados = 0;
                             let oficialesGuardados = [];
+                            let warningsTurno = [];
 
                             for (const oficial of oficiales) {
                                 const data = {
@@ -1895,6 +1896,7 @@
                                 if (result.success) {
                                     guardados++;
                                     oficialesGuardados.push(oficial);
+                                    if (result.warning) warningsTurno.push(result.warning);
                                 }
                             }
 
@@ -1907,6 +1909,16 @@
 
                                 // Mostrar mensaje de éxito
                                 mostrarToast('success', 'Los oficiales han sido guardados correctamente', 2000);
+
+                                // Avisos de turno duplicado (no bloquean, solo informan)
+                                if (warningsTurno.length > 0) {
+                                    const msg = [...new Set(warningsTurno)].join(' ');
+                                    if (typeof toastr !== 'undefined') {
+                                        toastr.warning(msg);
+                                    } else {
+                                        mostrarToast('warning', msg, 4000);
+                                    }
+                                }
 
                                 // Propagación hacia abajo (excepto si tienen H. Inicio)
                                 // Esperar un poco para que el mensaje se muestre antes de propagar

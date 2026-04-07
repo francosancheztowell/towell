@@ -104,6 +104,7 @@ class ModuloProduccionUrdidoController extends Controller
         $totalRegistros = $this->calculateTotalRegistros($julios);
 
         $this->ensureProductionRecordsExist($orden, $julios, $totalRegistros);
+        $this->traitRefrescarFechaEnRegistrosVacios($orden);
         $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
 
         $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)->orderBy('Id')->get();

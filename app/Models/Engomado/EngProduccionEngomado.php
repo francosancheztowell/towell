@@ -51,6 +51,11 @@ class EngProduccionEngomado extends Model
         'Finalizar',
         'AX',
         'Impresion',
+        'Penalizacion',
+        'OperadorDefecto',
+        'NoEmplDefecto',
+        'ClaveDefecto',
+        'FechaDefecto',
     ];
 
     protected $casts = [
@@ -80,6 +85,10 @@ class EngProduccionEngomado extends Model
         'Finalizar' => 'integer',
         'AX' => 'integer',
         'Impresion' => 'boolean',
+        'Penalizacion' => 'float',
+        'NoEmplDefecto' => 'integer',
+        'ClaveDefecto' => 'integer',
+        'FechaDefecto' => 'datetime',
     ];
 
     public function programa(): HasOne
