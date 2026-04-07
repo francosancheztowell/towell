@@ -85,6 +85,21 @@
         }
     }
 
+    function parseFecha(val) {
+        if (!val) return '';
+        // Acepta: "2026-04-07T00:00:00.000000Z", "2026-04-07 14:30:00", "2026-04-07"
+        return String(val).replace('T', ' ').substring(0, 10);
+    }
+
+    function buildInfoOperador(julio) {
+        if (!julio.OperadorDefecto && !julio.FechaDefecto) return '';
+        let html = '<div class="info-operador-defecto text-xs text-gray-500 mb-1 flex gap-3">';
+        if (julio.OperadorDefecto) html += '<span><i class="fa-solid fa-user mr-1"></i>' + julio.OperadorDefecto + '</span>';
+        if (julio.FechaDefecto)    html += '<span><i class="fa-solid fa-calendar mr-1"></i>' + parseFecha(julio.FechaDefecto) + '</span>';
+        html += '</div>';
+        return html;
+    }
+
     function buildSelect(julio) {
         let html = '<select class="w-full border rounded px-2 py-1 text-sm font-semibold" '
                  + 'onchange="window.__calificarJulioChange(' + julio.Id + ', this)">';
@@ -118,7 +133,7 @@
             tr.innerHTML =
                 '<td class="px-3 py-2">' + (j.Folio ?? '') + '</td>' +
                 '<td class="px-3 py-2 font-semibold">' + (j.NoJulio ?? '') + '</td>' +
-                '<td class="px-3 py-2">' + buildSelect(j) + '</td>';
+                '<td class="px-3 py-2">' + buildInfoOperador(j) + buildSelect(j) + '</td>';
             tbody.appendChild(tr);
             const sel = tr.querySelector('select');
             aplicarColor(sel);
@@ -172,6 +187,15 @@
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Error al guardar');
             if (typeof toastr !== 'undefined') toastr.success('Julio calificado');
+            // Actualizar info de operador/fecha en el DOM sin recargar
+            const td = selectEl.closest('td');
+            if (td) {
+                const existing = td.querySelector('.info-operador-defecto');
+                if (existing) existing.remove();
+                const data = json.data || {};
+                const infoHtml = buildInfoOperador(data);
+                if (infoHtml) td.insertAdjacentHTML('afterbegin', infoHtml);
+            }
         } catch (e) {
             if (typeof toastr !== 'undefined') toastr.error(e.message);
             else alert(e.message);

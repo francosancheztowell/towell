@@ -72,6 +72,20 @@
         }
     }
 
+    function parseFechaEng(val) {
+        if (!val) return '';
+        return String(val).replace('T', ' ').substring(0, 10);
+    }
+
+    function buildInfoOperadorEng(j) {
+        if (!j.OperadorDefecto && !j.FechaDefecto) return '';
+        let html = '<div class="info-operador-defecto text-xs text-gray-500 mb-1 flex gap-3">';
+        if (j.OperadorDefecto) html += '<span><i class="fa-solid fa-user mr-1"></i>' + j.OperadorDefecto + '</span>';
+        if (j.FechaDefecto)    html += '<span><i class="fa-solid fa-calendar mr-1"></i>' + parseFechaEng(j.FechaDefecto) + '</span>';
+        html += '</div>';
+        return html;
+    }
+
     function buildSelectEng(registro) {
         let html = '<select class="w-full border rounded px-2 py-1 text-sm font-semibold" '
                  + 'onchange="window.__calificarJulioEngChange(' + registro.Id + ', this)">';
@@ -105,7 +119,7 @@
             tr.innerHTML =
                 '<td class="px-3 py-2">' + (j.Folio ?? '') + '</td>' +
                 '<td class="px-3 py-2 font-semibold">' + (j.NoJulio ?? '') + '</td>' +
-                '<td class="px-3 py-2">' + buildSelectEng(j) + '</td>';
+                '<td class="px-3 py-2">' + buildInfoOperadorEng(j) + buildSelectEng(j) + '</td>';
             tbody.appendChild(tr);
             const sel = tr.querySelector('select');
             aplicarColorEng(sel);
@@ -160,6 +174,15 @@
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Error al guardar');
             if (typeof toastr !== 'undefined') toastr.success('Calificado correctamente');
+            // Actualizar info de operador/fecha en el DOM sin recargar
+            const td = selectEl.closest('td');
+            if (td) {
+                const existing = td.querySelector('.info-operador-defecto');
+                if (existing) existing.remove();
+                const data = json.data || {};
+                const infoHtml = buildInfoOperadorEng(data);
+                if (infoHtml) td.insertAdjacentHTML('afterbegin', infoHtml);
+            }
         } catch (e) {
             if (typeof toastr !== 'undefined') toastr.error(e.message);
             else alert(e.message);
