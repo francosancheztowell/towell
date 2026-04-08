@@ -15,9 +15,9 @@ class ActualizarOeeAtadoresJob implements ShouldQueue
 
     public int $timeout = 900; // 15 minutos
 
-    public int $tries = 3;
+    public int $tries = 1;
 
-    public int $maxExceptions = 3;
+    public int $maxExceptions = 1;
 
     public function __construct(
         private readonly string $filePath,

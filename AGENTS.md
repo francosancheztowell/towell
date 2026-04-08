@@ -47,6 +47,7 @@ Towell is a Laravel 12 application.
 
 ## Learned Workspace Facts
 
+- En módulos de producción que usan `ProduccionTrait`, el tope de Kg. Neto se controla con `maxKgNetoAllowed()`: el trait devuelve `null` (sin límite); `ModuloProduccionUrdidoController` lo sobreescribe a 700; Engomado mantiene el valor por defecto (`null`).
 - En balanceo automático (`BalancearTejido`), el cierre del total frente al objetivo (sobra o falta) debe concentrarse en el **último** registro del grupo en orden `Posicion` / `NoTelarId`, sin repartir recortes en los demás telares del grupo.
 - En clases bajo `App\...`, usar `use Carbon\Carbon` (o `CarbonInterface` para constantes como `MONDAY`) para evitar que `Carbon::...` se resuelva al namespace local y para satisfacer analizadores estáticos.
 - Métodos PHP muy largos con muchas ramas (p. ej. `balancearAutomatico`) pueden disparar avisos del IDE del tipo "too many types"; extraer lógica a métodos privados y declarar retorno explícito (`JsonResponse`) suele aliviarlo.

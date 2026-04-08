@@ -32,6 +32,63 @@ trait ProduccionTrait
     abstract protected function getModuleNameForPermissions(): string;
 
     /**
+     * Límite superior de Kg. Neto en producción.
+     * null = sin límite (Engomado y el valor por defecto del trait).
+     * Producción Urdido lo sobrescribe (p. ej. 700).
+     */
+    protected function maxKgNetoAllowed(): ?float
+    {
+        return null;
+    }
+
+    /**
+     * @return JsonResponse|null Respuesta 422 si excede el límite; null si OK.
+     */
+    protected function jsonIfKgNetoExceedsLimit(?float $kgNeto): ?JsonResponse
+    {
+        $max = $this->maxKgNetoAllowed();
+        if ($max === null || $kgNeto === null) {
+            return null;
+        }
+        if ($kgNeto > $max) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Kg. Neto no puede ser mayor a '.rtrim(rtrim(number_format($max, 2, '.', ''), '0'), '.').' kg.',
+            ], 422);
+        }
+
+        return null;
+    }
+
+    /**
+     * Límite superior de Kg. Bruto en producción.
+     * null = sin límite (valor por defecto; Engomado p. ej. 2000).
+     */
+    protected function maxKgBrutoAllowed(): ?float
+    {
+        return null;
+    }
+
+    /**
+     * @return JsonResponse|null Respuesta 422 si excede el límite; null si OK.
+     */
+    protected function jsonIfKgBrutoExceedsLimit(?float $kgBruto): ?JsonResponse
+    {
+        $max = $this->maxKgBrutoAllowed();
+        if ($max === null || $kgBruto === null) {
+            return null;
+        }
+        if ($kgBruto > $max) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Kg. Bruto no puede ser mayor a '.rtrim(rtrim(number_format($max, 2, '.', ''), '0'), '.').' kg.',
+            ], 422);
+        }
+
+        return null;
+    }
+
+    /**
      * Verifica que el usuario tenga permiso de modificar. Usa permisos del módulo, no el área.
      */
     protected function ensureUserCanEdit(): void
@@ -82,7 +139,7 @@ trait ProduccionTrait
         $model::where('Folio', $orden->Folio)
             ->where(function ($q) {
                 $q->whereNull('NoJulio')->orWhere('NoJulio', '')
-                  ->orWhereNull('KgBruto');
+                    ->orWhereNull('KgBruto');
             })
             ->where(function ($q) {
                 $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
@@ -465,6 +522,8 @@ trait ProduccionTrait
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
+            $this->ensureUserCanEdit();
+
             $registro->NoJulio = $request->no_julio ?? null;
 
             $taraValue = null;
@@ -478,6 +537,13 @@ trait ProduccionTrait
                 $registro->KgNeto = $kgBruto - $taraValue;
             } else {
                 $registro->KgNeto = $registro->KgBruto !== null ? (float) $registro->KgBruto : null;
+            }
+
+            $reject = $this->jsonIfKgNetoExceedsLimit(
+                $registro->KgNeto !== null ? (float) $registro->KgNeto : null
+            );
+            if ($reject !== null) {
+                return $reject;
             }
 
             $registro->save();
@@ -524,6 +590,12 @@ trait ProduccionTrait
                     $kgBrutoValue = round($kgBrutoValue, 2);
                 }
             }
+
+            $rejectBruto = $this->jsonIfKgBrutoExceedsLimit($kgBrutoValue);
+            if ($rejectBruto !== null) {
+                return $rejectBruto;
+            }
+
             $registro->KgBruto = $kgBrutoValue;
 
             if ($registro->Tara !== null) {
@@ -532,6 +604,13 @@ trait ProduccionTrait
                 $registro->KgNeto = $kgBruto - $tara;
             } else {
                 $registro->KgNeto = $kgBrutoValue;
+            }
+
+            $rejectKg = $this->jsonIfKgNetoExceedsLimit(
+                $registro->KgNeto !== null ? (float) $registro->KgNeto : null
+            );
+            if ($rejectKg !== null) {
+                return $rejectKg;
             }
 
             $registro->save();
@@ -640,8 +719,16 @@ trait ProduccionTrait
                 if (is_null($registro->KgBruto) || $registro->KgBruto < 0) {
                     $camposFaltantes[] = 'Kg Bruto debe ser un valor mayor o igual a 0';
                 }
+                $maxBruto = $this->maxKgBrutoAllowed();
+                if ($maxBruto !== null && $registro->KgBruto !== null && (float) $registro->KgBruto > $maxBruto) {
+                    $camposFaltantes[] = 'Kg Bruto no puede ser mayor a '.$maxBruto.' kg';
+                }
                 if (! is_null($registro->KgNeto) && $registro->KgNeto < 0) {
                     $camposFaltantes[] = 'Kg Neto debe ser un valor mayor o igual a 0';
+                }
+                $maxNeto = $this->maxKgNetoAllowed();
+                if ($maxNeto !== null && $registro->KgNeto !== null && (float) $registro->KgNeto > $maxNeto) {
+                    $camposFaltantes[] = 'Kg Neto no puede ser mayor a '.$maxNeto.' kg';
                 }
 
                 if (! empty($camposFaltantes)) {

@@ -145,7 +145,7 @@
         if (!confirm.isConfirmed) return;
 
         // 3. Despachar job y hacer polling
-        Swal.fire({ title: 'Procesando...', html: 'El archivo OEE se está actualizando.<br><small class="text-gray-500">Puede tomar hasta un minuto.</small>', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Procesando...', html: 'El archivo OEE se está actualizando.<br><small class="text-gray-500">Puede tomar varios minutos según la cantidad de semanas.</small>', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
         let token;
         try {
@@ -162,8 +162,8 @@
             return;
         }
 
-        // Polling cada 3 segundos, máximo 5 minutos
-        const deadline = Date.now() + 5 * 60 * 1000;
+        // Polling cada 3 segundos, máximo 10 minutos
+        const deadline = Date.now() + 10 * 60 * 1000;
         const interval = setInterval(async () => {
             if (Date.now() > deadline) {
                 clearInterval(interval);

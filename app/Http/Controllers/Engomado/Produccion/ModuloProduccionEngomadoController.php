@@ -41,6 +41,19 @@ class ModuloProduccionEngomadoController extends Controller
         return true;
     }
 
+    /**
+     * Engomado no aplica tope de Kg. Neto (el límite de 700 kg es solo en producción Urdido).
+     */
+    protected function maxKgNetoAllowed(): ?float
+    {
+        return null;
+    }
+
+    protected function maxKgBrutoAllowed(): ?float
+    {
+        return 2000.0;
+    }
+
     protected function getModuleNameForPermissions(): string
     {
         return 'Producción Engomado';
@@ -130,6 +143,7 @@ class ModuloProduccionEngomadoController extends Controller
                 'foliosPrograma' => $foliosPrograma,
                 'tieneRegistrosParciales' => false,
                 'canEdit' => $this->usuarioPuedeEditar(),
+                'maxKgBruto' => $this->maxKgBrutoAllowed(),
             ]);
         }
 
@@ -327,6 +341,7 @@ class ModuloProduccionEngomadoController extends Controller
             'foliosPrograma' => $foliosPrograma,
             'tieneRegistrosParciales' => $tieneRegistrosParciales,
             'canEdit' => $this->usuarioPuedeEditar(),
+            'maxKgBruto' => $this->maxKgBrutoAllowed(),
         ]);
     }
 

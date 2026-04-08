@@ -12,6 +12,8 @@
         (function () {
     'use strict';
 
+    const MAX_KG_NETO = @json($maxKgNeto ?? null);
+
     const canEdit = document.querySelector('[data-can-edit]')?.getAttribute('data-can-edit') === '1';
     function requireCanEdit() {
         if (!canEdit) {
@@ -46,18 +48,33 @@
 
         if (!brutoInput || !taraInput || !netoInput) return;
 
-        const bruto = parseFloat(brutoInput.value) || 0;
         const tara = parseFloat(taraInput.value) || 0;
+
+        if (MAX_KG_NETO !== null) {
+            const maxBruto = MAX_KG_NETO + tara;
+            brutoInput.max = String(maxBruto);
+            brutoInput.setAttribute('title', 'Kg. Bruto máximo: ' + maxBruto.toFixed(2) + ' (Kg. Neto ≤ ' + MAX_KG_NETO + ')');
+            const brutoNum = parseFloat(brutoInput.value);
+            if (!Number.isNaN(brutoNum) && brutoNum > maxBruto) {
+                brutoInput.value = maxBruto.toFixed(2);
+            }
+        } else {
+            brutoInput.removeAttribute('max');
+            brutoInput.removeAttribute('title');
+        }
+
+        const bruto = parseFloat(brutoInput.value) || 0;
         const neto = bruto - tara;
 
-        // Si el neto es negativo, marcarlo en rojo, si no, quitar el error
-        if (neto < 0) {
-            netoInput.value = neto.toFixed(2);
-            marcarCampoError(netoInput, true);
-        } else {
-            netoInput.value = neto.toFixed(2);
-            marcarCampoError(netoInput, false);
-        }
+        netoInput.value = neto.toFixed(2);
+        const fueraDeRango = neto < 0 || (MAX_KG_NETO !== null && neto > MAX_KG_NETO);
+        marcarCampoError(netoInput, fueraDeRango);
+    }
+
+    function netoFueraDeRango(neto) {
+        if (neto < 0) return true;
+        if (MAX_KG_NETO !== null && neto > MAX_KG_NETO) return true;
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -167,6 +184,28 @@
 
                 // ─── Event listeners de input (Kg Bruto, Tara, Karl Mayer) ───
                 if (tablaBody) {
+                    tablaBody.addEventListener('beforeinput', function (e) {
+                        if (MAX_KG_NETO === null || e.target.dataset.field !== 'kg_bruto') return;
+                        const row = e.target.closest('tr');
+                        if (!row) return;
+                        const tara = parseFloat(row.querySelector('input[data-field="tara"]')?.value) || 0;
+                        const maxBruto = MAX_KG_NETO + tara;
+                        const el = e.target;
+                        const start = el.selectionStart ?? 0;
+                        const end = el.selectionEnd ?? 0;
+                        const cur = el.value;
+                        const ins = e.data != null ? e.data : '';
+                        if (e.inputType === 'insertText' || e.inputType === 'insertCompositionText' || e.inputType === 'insertFromPaste') {
+                            const next = cur.slice(0, start) + ins + cur.slice(end);
+                            if (next === '' || next === '.' || /^-?\.$/.test(next.trim())) return;
+                            const n = parseFloat(next);
+                            if (!Number.isNaN(n) && n > maxBruto + 1e-9) {
+                                e.preventDefault();
+                                mostrarToast('warning', 'Kg. Bruto máx. ' + maxBruto.toFixed(2) + ' (neto ≤ ' + MAX_KG_NETO + ')', 2000);
+                            }
+                        }
+                    });
+
                     tablaBody.addEventListener('input', function (e) {
                         const row = e.target.closest('tr');
                         if (!row) return;
@@ -259,6 +298,7 @@
                             const taraInput = row ? row.querySelector('input[data-field="tara"]') : null;
                             const selectedOption = target.options[target.selectedIndex];
                             const noJulioValue = selectedOption ? selectedOption.value : '';
+                            const valorJulioAnterior = target.getAttribute('data-valor-anterior') ?? '';
 
                             if (!(taraInput && registroId)) return;
 
@@ -296,12 +336,21 @@
                                         const taraVal = tara !== null ? tara : 0;
                                         kgNeto = bruto - taraVal;
                                         netoInput.value = kgNeto.toFixed(2);
-                                        // Marcar en rojo si es negativo
-                                        if (kgNeto < 0) {
-                                            marcarCampoError(netoInput, true);
-                                        } else {
-                                            marcarCampoError(netoInput, false);
+                                        marcarCampoError(netoInput, netoFueraDeRango(kgNeto));
+                                    }
+
+                                    if (MAX_KG_NETO !== null && kgNeto !== null && kgNeto > MAX_KG_NETO) {
+                                        mostrarAlerta('warning', 'Límite', 'Kg. Neto no puede ser mayor a ' + MAX_KG_NETO + ' kg.');
+                                        target.value = valorJulioAnterior;
+                                        const optPrev = target.options[target.selectedIndex];
+                                        if (optPrev && taraInput) {
+                                            const ts = optPrev.getAttribute('data-tara');
+                                            const tv = ts !== null && ts !== '' ? parseFloat(ts) : null;
+                                            taraInput.value = tv !== null ? tv : '';
                                         }
+                                        if (row) calcularNeto(row);
+                                        actualizarTodosLosSelectsJulios();
+                                        return;
                                     }
 
                                     actualizarJulioTara(registroId, noJulioValue, tara, kgNeto);
@@ -624,6 +673,18 @@
                         return;
                     }
 
+                    const rowCheck = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                    if (rowCheck) {
+                        calcularNeto(rowCheck);
+                        const netoIn = rowCheck.querySelector('input[data-field="kg_neto"]');
+                        const nVal = netoIn ? parseFloat(netoIn.value) : NaN;
+                        if (!isNaN(nVal) && MAX_KG_NETO !== null && nVal > MAX_KG_NETO) {
+                            mostrarAlerta('warning', 'Límite', 'Kg. Neto no puede ser mayor a ' + MAX_KG_NETO + ' kg.');
+                            if (netoIn) marcarCampoError(netoIn, true);
+                            return;
+                        }
+                    }
+
                     try {
                         const response = await fetch('{{ route('urdido.modulo.produccion.urdido.actualizar.kg.bruto') }}', {
                             method: 'POST',
@@ -658,12 +719,7 @@
                                 if (netoInput && result.data.kg_neto !== undefined && result.data.kg_neto !== null) {
                                     const kgNetoValue = parseFloat(result.data.kg_neto);
                                     netoInput.value = kgNetoValue.toFixed(2);
-                                    // Marcar en rojo si es negativo
-                                    if (kgNetoValue < 0) {
-                                        marcarCampoError(netoInput, true);
-                                    } else {
-                                        marcarCampoError(netoInput, false);
-                                    }
+                                    marcarCampoError(netoInput, netoFueraDeRango(kgNetoValue));
                                 } else if (netoInput && result.data.kg_neto === null) {
                                     netoInput.value = '';
                                     marcarCampoError(netoInput, false);
@@ -677,6 +733,8 @@
                                     text: result.error || 'Error al actualizar Kg. Bruto'
                                 });
                             }
+                            const rowErr = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                            if (rowErr) calcularNeto(rowErr);
                         }
                     } catch (error) {
                         console.error('Error al actualizar KgBruto:', error);
@@ -732,12 +790,7 @@
                                 if (netoInput && result.data.kg_neto !== null) {
                                     const kgNetoValue = parseFloat(result.data.kg_neto);
                                     netoInput.value = kgNetoValue.toFixed(2);
-                                    // Marcar en rojo si es negativo
-                                    if (kgNetoValue < 0) {
-                                        marcarCampoError(netoInput, true);
-                                    } else {
-                                        marcarCampoError(netoInput, false);
-                                    }
+                                    marcarCampoError(netoInput, netoFueraDeRango(kgNetoValue));
                                 } else if (netoInput) {
                                     netoInput.value = '';
                                     marcarCampoError(netoInput, false);
@@ -751,6 +804,8 @@
                                     text: result.error || 'Error al actualizar No. Julio y Tara'
                                 });
                             }
+                            const rowJt = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                            if (rowJt) calcularNeto(rowJt);
                         }
                     } catch (error) {
                         console.error('Error al actualizar NoJulio y Tara:', error);
@@ -925,12 +980,7 @@
                                         const taraVal = parseFloat(tara) || 0;
                                         const neto = bruto - taraVal;
                                         netoInput.value = neto.toFixed(2);
-                                        // Marcar en rojo si es negativo
-                                        if (neto < 0) {
-                                            marcarCampoError(netoInput, true);
-                                        } else {
-                                            marcarCampoError(netoInput, false);
-                                        }
+                                        marcarCampoError(netoInput, netoFueraDeRango(neto));
                                     }
                                 }
                             } else {
@@ -1974,6 +2024,9 @@
                 if (kgNetoInput && kgNetoInput.value) {
                     const kgNetoValue = parseFloat(kgNetoInput.value);
                     if (!isNaN(kgNetoValue) && kgNetoValue < 0) camposFaltantes.push('Kg. Neto (no puede ser negativo)');
+                    if (MAX_KG_NETO !== null && !isNaN(kgNetoValue) && kgNetoValue > MAX_KG_NETO) {
+                        camposFaltantes.push('Kg. Neto (excede el máximo permitido)');
+                    }
                 }
 
                 const metrosInput = row.querySelector('input[data-field="metros"]');
@@ -2014,6 +2067,7 @@
                     'Kg. Bruto': 'input[data-field="kg_bruto"]',
                     'Tara': 'input[data-field="tara"]',
                     'Kg. Neto (no puede ser negativo)': 'input[data-field="kg_neto"]',
+                    'Kg. Neto (excede el máximo permitido)': 'input[data-field="kg_neto"]',
                     'Metros': 'input[data-field="metros"]',
                     @if($isKarlMayer ?? false)
                     'Vueltas': 'input[data-field="vueltas"]',

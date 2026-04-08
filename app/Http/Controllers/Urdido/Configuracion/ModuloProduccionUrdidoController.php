@@ -41,6 +41,11 @@ class ModuloProduccionUrdidoController extends Controller
         return false;
     }
 
+    protected function maxKgNetoAllowed(): ?float
+    {
+        return 700.0;
+    }
+
     protected function getModuleNameForPermissions(): string
     {
         return 'Producción Urdido';
@@ -146,6 +151,7 @@ class ModuloProduccionUrdidoController extends Controller
             'totalRegistros' => 0,
             'registrosProduccion' => collect([]),
             'canEdit' => $this->usuarioPuedeEditar(),
+            'maxKgNeto' => $this->maxKgNetoAllowed(),
         ];
     }
 
@@ -373,6 +379,7 @@ class ModuloProduccionUrdidoController extends Controller
             'usuarioClave' => $user ? ($user->numero_empleado ?? '') : '',
             'usuarioArea' => $user ? ($user->area ?? null) : null,
             'canEdit' => $this->usuarioPuedeEditar(),
+            'maxKgNeto' => $this->maxKgNetoAllowed(),
         ];
     }
 

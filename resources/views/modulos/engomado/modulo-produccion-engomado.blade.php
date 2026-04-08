@@ -452,6 +452,7 @@
                                         <input
                                             type="number"
                                             step="0.01"
+                                            min="0"
                                             data-field="kg_bruto"
                                             class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-lg text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                             value="{{ $kgBruto }}"
@@ -815,6 +816,8 @@
         (function () {
             'use strict';
 
+            const MAX_KG_BRUTO = @json($maxKgBruto ?? null);
+
             const canEdit = document.querySelector('[data-can-edit]')?.getAttribute('data-can-edit') === '1';
             function requireCanEdit() {
                 if (!canEdit) {
@@ -906,6 +909,18 @@
                 const netoInput  = row.querySelector('input[data-field="kg_neto"]');
 
                 if (!brutoInput || !taraInput || !netoInput) return;
+
+                if (MAX_KG_BRUTO !== null) {
+                    brutoInput.max = String(MAX_KG_BRUTO);
+                    brutoInput.setAttribute('title', 'Kg. Bruto máximo: ' + MAX_KG_BRUTO.toFixed(0));
+                    const bNum = parseFloat(brutoInput.value);
+                    if (!Number.isNaN(bNum) && bNum > MAX_KG_BRUTO) {
+                        brutoInput.value = MAX_KG_BRUTO.toFixed(2);
+                    }
+                } else {
+                    brutoInput.removeAttribute('max');
+                    brutoInput.removeAttribute('title');
+                }
 
                 const bruto = parseFloat(brutoInput.value) || 0;
                 const tara  = parseFloat(taraInput.value) || 0;
@@ -1175,6 +1190,10 @@
                                 }
                             }
                         }
+                    } else {
+                        mostrarAlerta('error', 'Error', result.error || 'No se pudo actualizar Kg. Bruto');
+                        const rowErr = document.querySelector(`tr[data-registro-id="${registroId}"]`);
+                        if (rowErr) calcularNeto(rowErr);
                     }
                 } catch (error) {
                     console.error('Error al actualizar KgBruto:', error);
@@ -2105,6 +2124,24 @@
                         }
                     });
 
+                    tablaBody.addEventListener('beforeinput', function (e) {
+                        if (MAX_KG_BRUTO === null || e.target.dataset.field !== 'kg_bruto') return;
+                        const el = e.target;
+                        const start = el.selectionStart ?? 0;
+                        const end = el.selectionEnd ?? 0;
+                        const cur = el.value;
+                        const ins = e.data != null ? e.data : '';
+                        if (e.inputType === 'insertText' || e.inputType === 'insertCompositionText' || e.inputType === 'insertFromPaste') {
+                            const next = cur.slice(0, start) + ins + cur.slice(end);
+                            if (next === '' || next === '.' || /^-?\.$/.test(next.trim())) return;
+                            const n = parseFloat(next);
+                            if (!Number.isNaN(n) && n > MAX_KG_BRUTO + 1e-9) {
+                                e.preventDefault();
+                                mostrarToast('warning', 'Kg. Bruto máx. ' + MAX_KG_BRUTO.toFixed(0), 2000);
+                            }
+                        }
+                    });
+
                     tablaBody.addEventListener('input', function (e) {
                         const row = e.target.closest('tr');
                         if (!row) return;
@@ -2956,6 +2993,12 @@
 
                 const kgBrutoInput = row.querySelector('input[data-field="kg_bruto"]');
                 if (!kgBrutoInput || !kgBrutoInput.value || kgBrutoInput.value.trim() === '') camposFaltantes.push('Kg. Bruto');
+                if (kgBrutoInput && kgBrutoInput.value && kgBrutoInput.value.trim() !== '') {
+                    const kgBrutoVal = parseFloat(kgBrutoInput.value);
+                    if (MAX_KG_BRUTO !== null && !isNaN(kgBrutoVal) && kgBrutoVal > MAX_KG_BRUTO) {
+                        camposFaltantes.push('Kg. Bruto (excede el máximo permitido)');
+                    }
+                }
 
                 const taraInput = row.querySelector('input[data-field="tara"]');
                 if (!taraInput || !taraInput.value || taraInput.value.trim() === '') camposFaltantes.push('Tara');
@@ -3025,6 +3068,7 @@
                     'H. Fin': 'input[data-field="h_fin"]',
                     'Julio': 'select[data-field="no_julio"]',
                     'Kg. Bruto': 'input[data-field="kg_bruto"]',
+                    'Kg. Bruto (excede el máximo permitido)': 'input[data-field="kg_bruto"]',
                     'Tara': 'input[data-field="tara"]',
                     'Kg. Neto (no puede ser negativo)': 'input[data-field="kg_neto"]',
                     'Metros': 'input[data-field="metros"]',

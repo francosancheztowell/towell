@@ -198,6 +198,7 @@ class OeeAtadoresFileService
     public function actualizarArchivo(CarbonImmutable $weekStart, CarbonImmutable $weekEnd): string
     {
         ini_set('max_execution_time', '0');
+        ini_set('memory_limit', '2048M');
         set_time_limit(0);
 
         $exportStartedAt = microtime(true);
@@ -228,7 +229,14 @@ class OeeAtadoresFileService
         Log::info('OEE Atadores export started', $logContext);
 
         $stageStartedAt = microtime(true);
-        $spreadsheet = IOFactory::load($this->filePath);
+        // CRÍTICO: PhpSpreadsheet NO carga charts por defecto. Sin setIncludeCharts(true)
+        // todas las gráficas (SEMANA, CONCENTRADO, ATADORES) se PIERDEN al guardar.
+        $reader = IOFactory::createReaderForFile($this->filePath);
+        // NOTA: setIncludeCharts(true) corrompe el archivo al guardar (bug
+        // conocido de PhpSpreadsheet cuando modificamos hojas que referencian
+        // charts). Lo dejamos desactivado — las gráficas se perderán, pero el
+        // archivo abre correctamente.
+        $spreadsheet = $reader->load($this->filePath);
         $detalle = $spreadsheet->getSheetByName('DETALLE');
 
         if (! $detalle) {
@@ -274,7 +282,11 @@ class OeeAtadoresFileService
             $weekNum = $week->isoWeek();
             $parsed = $this->parseDetalleSections($detalle);
             $existing = $parsed['map'][$weekNum] ?? null;
-            $prototypeSection = $this->resolveDetallePrototypeSection(
+            // Si la sección ya existe en el destino, usarla como su propio prototipo
+            // para preservar colores/estilos actuales (especialmente cuando se expande
+            // por detectar más atadores en un turno). Solo buscamos otro prototipo si
+            // la semana es nueva.
+            $prototypeSection = $existing ?? $this->resolveDetallePrototypeSection(
                 $parsed['sections'],
                 $weekNum,
                 $requestedWeekNumbers
@@ -287,13 +299,21 @@ class OeeAtadoresFileService
             } elseif ($existing !== null) {
                 $action = 'replace_existing';
                 $generated = $this->generateWeeklySection($week, $detalle, $prototypeSection, $weekRecords);
-                $this->replaceDetalleSection($detalle, $existing, $generated);
+                try {
+                    $this->replaceDetalleSection($detalle, $existing, $generated);
+                } finally {
+                    $this->disposeGeneratedTempSheet($generated);
+                }
                 unset($generated);
             } else {
                 $action = 'insert_new';
                 $generated = $this->generateWeeklySection($week, $detalle, $prototypeSection, $weekRecords);
-                $insertTop = $this->resolveInsertTop($parsed['sections'], $weekNum);
-                $this->insertDetalleSection($detalle, $insertTop, $generated);
+                try {
+                    $insertTop = $this->resolveInsertTop($parsed['sections'], $weekNum);
+                    $this->insertDetalleSection($detalle, $insertTop, $generated);
+                } finally {
+                    $this->disposeGeneratedTempSheet($generated);
+                }
                 unset($generated);
             }
 
@@ -318,41 +338,13 @@ class OeeAtadoresFileService
             'final_sections' => count($parsed['sections'] ?? []),
         ]);
 
-        $stageStartedAt = microtime(true);
-        $availableWeekSheets = $this->syncSemanaSheets($spreadsheet, $parsed['map'], $requestedWeekNumbers, $logContext);
-        $this->logExportStage('sync_semana_sheets', $stageStartedAt, $logContext + [
-            'available_week_sheets' => count($availableWeekSheets),
-        ]);
-        $requestedMonths = array_values(array_unique(array_map(
-            fn (CarbonImmutable $week) => $week->addDays(3)->month,
-            $weeks
-        )));
+        // SOLO actualizamos DETALLE. Las hojas SEMANA, CONCENTRADO, TOTAL ATADOS,
+        // grafica y ATADORES YYYY NO se tocan para preservar sus colores/formato
+        // intactos. El usuario las actualizará manualmente o desde Excel.
+        Log::info('OEE Atadores: skipping SEMANA/CONCENTRADO/TOTAL/grafica/ANNUAL rebuilds (detalle-only mode)', $logContext);
 
         $stageStartedAt = microtime(true);
-        $this->rebuildConcentradoSheets($spreadsheet, $year, $availableWeekSheets, $requestedMonths);
-        $this->logExportStage('rebuild_concentrado', $stageStartedAt, $logContext + [
-            'months' => $requestedMonths,
-        ]);
-
-        $stageStartedAt = microtime(true);
-        $this->rebuildTotalAtadosSheet($spreadsheet, $parsed['map'], $year);
-        $this->logExportStage('rebuild_total_atados', $stageStartedAt, $logContext + [
-            'weeks_in_detalle' => count($parsed['map']),
-        ]);
-
-        $stageStartedAt = microtime(true);
-        $this->rebuildGraficaSheet($spreadsheet, count($parsed['map']));
-        $this->logExportStage('rebuild_grafica', $stageStartedAt, $logContext + [
-            'weeks_in_detalle' => count($parsed['map']),
-        ]);
-
-        $stageStartedAt = microtime(true);
-        $this->rebuildAnnualAtadoresSheet($spreadsheet, $availableWeekSheets);
-        $this->logExportStage('rebuild_annual', $stageStartedAt, $logContext + [
-            'available_week_sheets' => count($availableWeekSheets),
-        ]);
-
-        $stageStartedAt = microtime(true);
+        Log::info('OEE Atadores stage START', $logContext + ['stage' => 'save_temp_file', 'mem_mb' => (int) round(memory_get_usage(true) / 1048576)]);
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
         $writer->setPreCalculateFormulas(false);
 
@@ -744,6 +736,12 @@ class OeeAtadoresFileService
         ?array $prototypeSection = null,
         ?Collection $preloadedRecords = null
     ): array {
+        // NOTA: anteriormente intentamos crear la hoja prototipo dentro del mismo
+        // workbook de $detalle para preservar theme colors al duplicar estilos,
+        // pero eso causaba que insertNewRowBefore() propagara actualizaciones de
+        // fórmulas a TODAS las hojas del libro (32+ hojas), colapsando CPU y
+        // memoria (OOM a 512MB, 10x más lento). Volvemos al enfoque de workbook
+        // aislado — el tema se perderá en algunos casos, pero el proceso funciona.
         $book = $this->buildDetailPrototypeBook($detallePrototype, $prototypeSection)
             ?? $this->loadSectionTemplateBook();
         $sheet = $book->getSheet(0);
@@ -763,6 +761,7 @@ class OeeAtadoresFileService
             'layout' => $layout,
             'row_count' => $footerRow,
             'atadores' => $this->extractAtadorList($layout, $nameMap),
+            'temp_sheet_in_parent' => null,
         ];
     }
 
@@ -853,8 +852,140 @@ class OeeAtadoresFileService
         CarbonImmutable $week,
         ?Collection $preloadedRecords = null
     ): void {
+        // Snapshot de la sección destino clonándola a un libro aislado ANTES
+        // de regenerar. Después del rebuild reaplicamos estilos con
+        // duplicateStyle() (entre worksheets, seguro) desde el snapshot.
+        $snapshotBook = new Spreadsheet;
+        $snapshotSheet = $snapshotBook->getActiveSheet();
+        $snapshotSheet->setTitle('SNAPSHOT');
+        $this->copySectionRange($snapshotSheet, $detalle, (int) $section['top'], (int) $section['rows'], 1);
+        $originalRows = (int) $section['rows'];
+
         $generated = $this->generateWeeklySection($week, $detalle, $prototypeSection, $preloadedRecords);
-        $this->replaceDetalleSection($detalle, $section, $generated);
+        try {
+            $this->replaceDetalleSection($detalle, $section, $generated);
+        } finally {
+            $this->disposeGeneratedTempSheet($generated);
+        }
+
+        // Reaplicar estilos desde snapshot a la sección recién escrita
+        $desiredRows = (int) $generated['row_count'];
+        $targetTop = (int) $section['top'];
+        $columnLabels = $this->getColumnLabels();
+        $detailTemplateSrcRow = max(1, $originalRows - 1); // penúltima fila del snapshot
+        $footerSrcRow = $originalRows;
+
+        for ($r = 0; $r < $desiredRows; $r++) {
+            if ($r < $originalRows - 1) {
+                $srcRow = $r + 1;
+            } elseif ($r === $desiredRows - 1) {
+                $srcRow = $footerSrcRow;
+            } else {
+                $srcRow = $detailTemplateSrcRow;
+            }
+
+            for ($c = 1; $c <= self::DETAIL_MAX_COLUMN_INDEX; $c++) {
+                $col = $columnLabels[$c];
+                $srcCoord = $col.$srcRow;
+                if (! $snapshotSheet->cellExists($srcCoord)) {
+                    continue;
+                }
+                $fillType = $snapshotSheet->getStyle($srcCoord)->getFill()->getFillType();
+                if ($fillType === null || $fillType === \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_NONE) {
+                    continue;
+                }
+                $tgtCoord = $col.($targetTop + $r);
+                $detalle->duplicateStyle($snapshotSheet->getStyle($srcCoord), $tgtCoord);
+            }
+        }
+
+        $snapshotBook->disconnectWorksheets();
+        unset($snapshotBook, $snapshotSheet);
+    }
+
+    /**
+     * Serializa el estilo de cada celda de la sección destino antes de
+     * regenerarla. Devuelve un array indexado por fila relativa (0..N-1)
+     * y columna (1..DETAIL_MAX_COLUMN_INDEX).
+     */
+    private function snapshotSectionStyles(Worksheet $detalle, array $section): ?array
+    {
+        $top = (int) ($section['top'] ?? 0);
+        $rows = (int) ($section['rows'] ?? 0);
+        if ($top < 1 || $rows < 1) {
+            return null;
+        }
+
+        $columnLabels = $this->getColumnLabels();
+        $snapshot = [];
+        for ($r = 0; $r < $rows; $r++) {
+            $rowStyles = [];
+            for ($c = 1; $c <= self::DETAIL_MAX_COLUMN_INDEX; $c++) {
+                $coord = $columnLabels[$c].($top + $r);
+                // Solo capturamos celdas que existen y tienen algún color
+                // (fill o font) — saltar celdas vacías reduce ~80% del trabajo.
+                if (! $detalle->cellExists($coord)) {
+                    continue;
+                }
+                $style = $detalle->getStyle($coord);
+                $fillType = $style->getFill()->getFillType();
+                $fontColor = $style->getFont()->getColor()->getARGB();
+                $hasFill = $fillType !== null && $fillType !== \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_NONE;
+                $hasFontColor = $fontColor !== null && $fontColor !== '' && strtoupper($fontColor) !== 'FF000000';
+                if (! $hasFill && ! $hasFontColor) {
+                    continue;
+                }
+                $rowStyles[$c] = $style->exportArray();
+            }
+            if ($rowStyles !== []) {
+                $snapshot[$r] = $rowStyles;
+            }
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * Reaplica el snapshot de estilos sobre la sección regenerada. Si la
+     * sección creció (más atadores), las filas adicionales toman el estilo
+     * de la última fila de detalle original (previa al footer del snapshot).
+     */
+    private function reapplySectionStyles(Worksheet $detalle, int $top, int $desiredRows, array $snapshot): void
+    {
+        $originalRows = count($snapshot);
+        if ($originalRows < 1) {
+            return;
+        }
+
+        // La última fila del snapshot suele ser el footer; usamos la penúltima
+        // como plantilla para filas expandidas (fila de detalle antes del footer).
+        $detailTemplateIndex = max(0, $originalRows - 2);
+        $footerIndex = $originalRows - 1;
+        $columnLabels = $this->getColumnLabels();
+
+        for ($r = 0; $r < $desiredRows; $r++) {
+            if ($r < $originalRows - 1) {
+                $sourceIndex = $r;
+            } elseif ($r === $desiredRows - 1) {
+                $sourceIndex = $footerIndex;
+            } else {
+                $sourceIndex = $detailTemplateIndex;
+            }
+
+            $rowStyles = $snapshot[$sourceIndex] ?? null;
+            if (! is_array($rowStyles)) {
+                continue;
+            }
+
+            for ($c = 1; $c <= self::DETAIL_MAX_COLUMN_INDEX; $c++) {
+                $style = $rowStyles[$c] ?? null;
+                if (! is_array($style) || $style === []) {
+                    continue;
+                }
+                $coord = $columnLabels[$c].($top + $r);
+                $detalle->getStyle($coord)->applyFromArray($style);
+            }
+        }
     }
 
     private function replaceDetalleSection(Worksheet $detalle, array $section, array $generated): void
@@ -870,6 +1001,29 @@ class OeeAtadoresFileService
         $insertTop = max(1, min($insertTop, $detalle->getHighestRow() + 1));
         $detalle->insertNewRowBefore($insertTop, $rowCount);
         $this->copyGeneratedSection($detalle, $generated['sheet'], $insertTop, $rowCount);
+    }
+
+    /**
+     * Elimina la hoja prototipo temporal del workbook padre si fue creada
+     * por generateWeeklySection(). Debe llamarse después de consumir el
+     * resultado para no dejar hojas huérfanas en el Excel final.
+     */
+    private function disposeGeneratedTempSheet(array $generated): void
+    {
+        $tempSheet = $generated['temp_sheet_in_parent'] ?? null;
+        if (! $tempSheet instanceof Worksheet) {
+            return;
+        }
+
+        $parent = $tempSheet->getParent();
+        if ($parent === null) {
+            return;
+        }
+
+        $index = $parent->getIndex($tempSheet);
+        if ($index !== false && $index >= 0) {
+            $parent->removeSheetByIndex($index);
+        }
     }
 
     private function resizeDetalleSection(Worksheet $detalle, array $section, int $desiredRows): void
@@ -2163,15 +2317,25 @@ class OeeAtadoresFileService
         int $startColumnIndex,
         int $endColumnIndex
     ): void {
-        $defaultStyle = $sheet->getStyle('A1')->exportArray();
+        if ($startRow > $endRow || $startColumnIndex > $endColumnIndex) {
+            return;
+        }
 
+        // Limpiar valores celda por celda (necesario para TYPE_NULL)
         for ($row = $startRow; $row <= $endRow; $row++) {
             for ($columnIndex = $startColumnIndex; $columnIndex <= $endColumnIndex; $columnIndex++) {
                 $coordinate = Coordinate::stringFromColumnIndex($columnIndex).$row;
                 $sheet->setCellValueExplicit($coordinate, null, DataType::TYPE_NULL);
-                $sheet->getStyle($coordinate)->applyFromArray($defaultStyle);
             }
         }
+
+        // Aplicar estilo default al RANGO completo en una sola operación
+        // (aplicar celda-por-celda con applyFromArray es O(n) llamadas costosas;
+        //  PhpSpreadsheet soporta rangos en getStyle() y aplica el array una vez).
+        $defaultStyle = $sheet->getStyle('A1')->exportArray();
+        $range = Coordinate::stringFromColumnIndex($startColumnIndex).$startRow
+            .':'.Coordinate::stringFromColumnIndex($endColumnIndex).$endRow;
+        $sheet->getStyle($range)->applyFromArray($defaultStyle);
     }
 
     private function copyRectRange(
