@@ -1,7 +1,7 @@
 @use('Carbon\Carbon')
 @extends('layouts.app')
 
-@section('page-title', 'Reportes 03 OEE ')
+@section('page-title', 'Reportes OEE-URD-ENG')
 
 @section('navbar-right')
     <button type="button" onclick="mostrarModalConsultarReportesUrdido()"

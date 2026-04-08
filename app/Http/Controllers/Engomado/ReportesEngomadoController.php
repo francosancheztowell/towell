@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Engomado;
 
 use App\Exports\BpmEngomadoExport;
 use App\Exports\ControlMermaExport;
-use App\Exports\ReporteResumenEngomadoExport;
 use App\Exports\ReporteResumenSemanalEngomadoExport;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngBpmModel;
@@ -25,7 +24,7 @@ class ReportesEngomadoController extends Controller
     {
         $reportes = [
             [
-                'nombre' => 'Reportes de Produccion 03-OEE URD-ENG',
+                'nombre' => 'Produccion OEE-URD-ENG',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('urdido.reportes.urdido.03-oee'),
                 'disponible' => true,
@@ -322,7 +321,7 @@ class ReportesEngomadoController extends Controller
 
         foreach ($producciones as $prod) {
             $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha : Carbon::parse($prod->Fecha);
-            $weekYear = $fecha->format('W-o'); 
+            $weekYear = $fecha->format('W-o');
 
             if (!isset($porSemana[$weekYear])) {
                 $porSemana[$weekYear] = [

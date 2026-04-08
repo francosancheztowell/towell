@@ -2,13 +2,34 @@
      class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/60"
      onclick="if(event.target===this) cerrarModalCalificarJulios()">
     <div class="bg-white rounded-xl shadow-2xl w-[95%] max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-3 bg-purple-600 text-white">
-            <h3 class="text-lg font-semibold flex items-center gap-2">
-                <i class="fa-solid fa-clipboard-check"></i>
-                Calificar Julios &mdash; Folio {{ $orden->Folio }}
+        <div class="flex items-center justify-between gap-3 px-5 py-3 bg-purple-600 text-white">
+            <h3 class="text-lg font-semibold flex flex-wrap items-center gap-2 min-w-0">
+                <i class="fa-solid fa-clipboard-check shrink-0"></i>
+                <span>Calificar Julios &mdash; Folio {{ $orden->Folio }}</span>
             </h3>
-            <button type="button" class="text-white hover:text-gray-200 text-2xl leading-none"
+            <button type="button" class="text-white hover:text-gray-200 text-2xl leading-none shrink-0"
                     onclick="cerrarModalCalificarJulios()">&times;</button>
+        </div>
+
+        <div class="px-5 py-4 bg-gray-50 border-b border-gray-200">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+                        <i class="fa-solid fa-user text-xl"></i>
+                    </div>
+                    <div class="text-xl font-semibold text-gray-900 truncate min-w-0">
+                        {{ $usuarioNombre ?? auth()->user()->nombre ?? '—' }}
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                        <i class="fa-solid fa-calendar text-xl"></i>
+                    </div>
+                    <div id="calificarJuliosFechaHoyLabel" class="text-xl font-semibold text-gray-900 min-w-0">
+                        {{ now()->format('Y-m-d') }}
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="p-4 overflow-auto flex-1">
@@ -46,6 +67,11 @@
     const URL_SAVE = "{{ route('engomado.modulo.produccion.engomado.calificar.julios.save') }}";
     const FOLIO = @json($orden->Folio);
     const CSRF = "{{ csrf_token() }}";
+    const APP_TIMEZONE = @json(config('app.timezone'));
+
+    function fechaHoyCalificacionYmd() {
+        return new Date().toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE });
+    }
 
     // Mapeo de Clave -> clase Tailwind por familia
     const COLOR_MAP = {
@@ -141,6 +167,9 @@
     }
 
     window.abrirModalCalificarJulios = async function () {
+        const feHoy = document.getElementById('calificarJuliosFechaHoyLabel');
+        if (feHoy) feHoy.textContent = fechaHoyCalificacionYmd();
+
         const modal = document.getElementById('modalCalificarJulios');
         modal.classList.remove('hidden');
         modal.classList.add('flex');

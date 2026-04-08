@@ -85,7 +85,7 @@ class ReportesUrdidoController extends Controller
     {
         $reportes = [
             [
-                'nombre' => 'Reportes de Produccion 03-OEE URD-ENG',
+                'nombre' => 'Produccion OEE-URD-ENG',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('urdido.reportes.urdido.03-oee'),
                 'disponible' => true,
@@ -1058,6 +1058,7 @@ class ReportesUrdidoController extends Controller
         unset($datos);
 
         ksort($porFecha);
+        $defectosData = $this->buildReporte03DefectosData($fechaIni, $fechaFin);
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
@@ -1065,7 +1066,7 @@ class ReportesUrdidoController extends Controller
         $filenameRed = '03-0EE URD-ENG-'.$fechaFinCarbon->format('Y').'.xlsx';
         $filenameDownload = 'reporte-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
-        $export = new ReportesUrdidoExport($porFecha);
+        $export = new ReportesUrdidoExport($porFecha, $defectosData);
 
         return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, '03-OEE URD-ENG');
     }
@@ -1127,6 +1128,168 @@ class ReportesUrdidoController extends Controller
         if (! isset($porFecha[$fecha]['engomado'])) {
             $porFecha[$fecha]['engomado'] = ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
         }
+    }
+
+    private function buildReporte03DefectosData(string $fechaIni, string $fechaFin): array
+    {
+        $registros = $this->fetchReporte03DefectosRegistros($fechaIni, $fechaFin);
+
+        $calidadRows = [];
+        $seguridadRows = [];
+        $footerOperators = [];
+        $operatorsSeen = [];
+
+        foreach ($registros as $registro) {
+            $operador = $this->normalizeReporte03DefectOperator($registro['ope'] ?? null);
+
+            $calidadRows[] = [
+                'fecha' => $registro['fecha'] ?? '',
+                'area' => $registro['area'] ?? '',
+                'orden' => $registro['orden'] ?? '',
+                'julio' => $registro['julio'] ?? '',
+                'defecto' => (string) ($registro['clave_catalogo'] ?? $registro['clave_defecto'] ?? ''),
+                'ope' => $operador,
+                'penalizar' => $registro['penalizar'] ?? '',
+            ];
+
+            foreach ($this->buildReporte03SeguridadRows($registro, $operador) as $row) {
+                $seguridadRows[] = $row;
+            }
+
+            if (! isset($operatorsSeen[$operador])) {
+                $operatorsSeen[$operador] = true;
+                $footerOperators[] = $operador;
+            }
+        }
+
+        return [
+            'calidad_rows' => $calidadRows,
+            'seguridad_rows' => $seguridadRows,
+            'footer_operators' => $footerOperators,
+        ];
+    }
+
+    private function fetchReporte03DefectosRegistros(string $fechaIni, string $fechaFin): array
+    {
+        $fechaIniCarbon = $this->parseReportDate($fechaIni);
+        $fechaFinCarbon = $this->parseReportDate($fechaFin)->endOfDay();
+
+        $registrosUrd = UrdProduccionUrdido::query()
+            ->leftJoin('CatDefectosUrdEng as d', 'UrdProduccionUrdido.ClaveDefecto', '=', 'd.Id')
+            ->whereNotNull('UrdProduccionUrdido.ClaveDefecto')
+            ->whereNotNull('UrdProduccionUrdido.FechaDefecto')
+            ->whereBetween('UrdProduccionUrdido.FechaDefecto', [$fechaIniCarbon, $fechaFinCarbon])
+            ->select([
+                'UrdProduccionUrdido.Id',
+                'UrdProduccionUrdido.Folio',
+                'UrdProduccionUrdido.NoJulio',
+                'UrdProduccionUrdido.ClaveDefecto',
+                'UrdProduccionUrdido.Penalizacion',
+                'UrdProduccionUrdido.OperadorDefecto',
+                'UrdProduccionUrdido.FechaDefecto',
+                'd.Clave as ClaveCatalogo',
+                'd.CincoS',
+                'd.Seguridad',
+                'd.Penalizacion as PenalizacionCatalogo',
+            ])
+            ->get()
+            ->map(fn ($row) => $this->mapReporte03DefectoRecord($row, 'URD'));
+
+        $registrosEng = EngProduccionEngomado::query()
+            ->leftJoin('CatDefectosUrdEng as d', 'EngProduccionEngomado.ClaveDefecto', '=', 'd.Id')
+            ->whereNotNull('EngProduccionEngomado.ClaveDefecto')
+            ->whereNotNull('EngProduccionEngomado.FechaDefecto')
+            ->whereBetween('EngProduccionEngomado.FechaDefecto', [$fechaIniCarbon, $fechaFinCarbon])
+            ->select([
+                'EngProduccionEngomado.Id',
+                'EngProduccionEngomado.Folio',
+                'EngProduccionEngomado.NoJulio',
+                'EngProduccionEngomado.ClaveDefecto',
+                'EngProduccionEngomado.Penalizacion',
+                'EngProduccionEngomado.OperadorDefecto',
+                'EngProduccionEngomado.FechaDefecto',
+                'd.Clave as ClaveCatalogo',
+                'd.CincoS',
+                'd.Seguridad',
+                'd.Penalizacion as PenalizacionCatalogo',
+            ])
+            ->get()
+            ->map(fn ($row) => $this->mapReporte03DefectoRecord($row, 'ENG'));
+
+        $registros = $registrosUrd
+            ->concat($registrosEng)
+            ->sort(function (array $a, array $b) {
+                return [
+                    $a['fecha'] ?? '',
+                    $a['area_sort'] ?? 99,
+                    (string) ($a['orden'] ?? ''),
+                    (string) ($a['julio'] ?? ''),
+                    (int) ($a['id'] ?? 0),
+                ] <=> [
+                    $b['fecha'] ?? '',
+                    $b['area_sort'] ?? 99,
+                    (string) ($b['orden'] ?? ''),
+                    (string) ($b['julio'] ?? ''),
+                    (int) ($b['id'] ?? 0),
+                ];
+            })
+            ->values();
+
+        return $registros->all();
+    }
+
+    private function mapReporte03DefectoRecord(object $row, string $area): array
+    {
+        $penalizacion = $row->Penalizacion;
+        if ($penalizacion === null || $penalizacion === '') {
+            $penalizacion = $row->PenalizacionCatalogo ?? '';
+        }
+
+        return [
+            'id' => (int) ($row->Id ?? 0),
+            'fecha' => $this->normalizeReporte03DateKey($row->FechaDefecto ?? null),
+            'area' => $area,
+            'area_sort' => $area === 'URD' ? 0 : 1,
+            'orden' => $row->Folio ?? '',
+            'julio' => $row->NoJulio ?? '',
+            'clave_defecto' => $row->ClaveDefecto ?? '',
+            'clave_catalogo' => trim((string) ($row->ClaveCatalogo ?? '')),
+            'cinco_s' => trim((string) ($row->CincoS ?? '')),
+            'seguridad' => trim((string) ($row->Seguridad ?? '')),
+            'ope' => $row->OperadorDefecto ?? '',
+            'penalizar' => $penalizacion,
+        ];
+    }
+
+    private function buildReporte03SeguridadRows(array $registro, string $operador): array
+    {
+        $rows = [];
+
+        foreach (['cinco_s', 'seguridad'] as $field) {
+            $defecto = trim((string) ($registro[$field] ?? ''));
+            if ($defecto === '') {
+                continue;
+            }
+
+            $rows[] = [
+                'fecha' => $registro['fecha'] ?? '',
+                'area' => $registro['area'] ?? '',
+                'orden' => $registro['orden'] ?? '',
+                'julio' => $registro['julio'] ?? '',
+                'defecto' => $defecto,
+                'ope' => $operador,
+                'penalizar' => $registro['penalizar'] ?? '',
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function normalizeReporte03DefectOperator(?string $operador): string
+    {
+        $operador = trim((string) ($operador ?? ''));
+
+        return $operador !== '' ? $operador : 'Sin asignar';
     }
 
     public function reporteResumen(Request $request)
