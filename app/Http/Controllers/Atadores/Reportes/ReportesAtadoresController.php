@@ -237,7 +237,8 @@ class ReportesAtadoresController extends Controller
             $filePath,
             $lunesInicio->toDateString(),
             $lunesFin->toDateString(),
-            $cacheKey
+            $cacheKey,
+            $token,
         )->onQueue(self::OEE_QUEUE);
 
         $this->bootOeeQueueWorker();
@@ -253,6 +254,18 @@ class ReportesAtadoresController extends Controller
         if ($estado === null) {
             return response()->json(['estado' => 'desconocido']);
         }
+
+        $statusFile = $estado['status_file'] ?? null;
+        if (is_string($statusFile) && is_file($statusFile)) {
+            $json = json_decode((string) file_get_contents($statusFile), true);
+            if (is_array($json)) {
+                unset($estado['status_file']);
+
+                return response()->json(array_merge($estado, $json));
+            }
+        }
+
+        unset($estado['status_file']);
 
         return response()->json($estado);
     }

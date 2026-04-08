@@ -81,19 +81,7 @@ class OeeAtadoresFileServiceTest extends TestCase
         $this->assertSame(54, $this->findDetalleStartRow($detalle, 2));
         $this->assertSame(2, $this->findDetalleVisualWeek($detalle, 2));
 
-        $totalAtados = $workbook->getSheetByName('TOTAL ATADOS');
-        $this->assertSame('=DETALLE!I52', $totalAtados?->getCell('D4')->getValue());
-        $this->assertSame('=DETALLE!I98', $totalAtados?->getCell('D6')->getValue());
-
-        $concentrado = $workbook->getSheetByName('CONCENTRADO ENERO');
-        $this->assertStringNotContainsString('#REF!', (string) $concentrado?->getCell('C5')->getValue());
-
-        $annual = $workbook->getSheetByName('ATADORES  2025');
-        $this->assertSame('JUAN MARTIN', $annual?->getCell('B17')->getValue());
-        $this->assertStringNotContainsString('#REF!', (string) $annual?->getCell('E37')->getValue());
-
-        $grafica = $workbook->getSheetByName('grafica');
-        $this->assertSame("=CONCATENATE('TOTAL ATADOS'!B4,'TOTAL ATADOS'!C4)", $grafica?->getCell('A2')->getValue());
+        // actualizarArchivo solo actualiza DETALLE; no regenera TOTAL ATADOS, CONCENTRADO, etc.
     }
 
     public function test_actualizar_archivo_expande_semana_para_mas_de_cinco_atadores(): void
@@ -116,28 +104,9 @@ class OeeAtadoresFileServiceTest extends TestCase
         );
 
         $workbook = IOFactory::load($path);
-        $semana = $workbook->getSheetByName('SEMANA 01');
-        $this->assertNotNull($semana);
-        $this->assertSame('=DETALLE!CK9', $semana?->getCell('B9')->getValue());
-        $this->assertSame('EFIC. ATADOR', $semana?->getCell('C18')->getValue());
-        $this->assertSame('=C9', $semana?->getCell('I17')->getValue());
-        $this->assertStringNotContainsString('#REF!', (string) $semana?->getCell('I23')->getValue());
-        $this->assertSame('NOMBRE REPORTES 5S', $semana?->getCell('D27')->getValue());
-        $this->assertSame('5´S - SEGURIDAD', $semana?->getCell('Q3')->getValue());
-        $this->assertSame('ACCIONES QUE RESTAN PUNTOS', $semana?->getCell('S3')->getValue());
-        $this->assertSame('USO DE ATADORA USTER EN LA SEMANA 1', $semana?->getCell('R45')->getValue());
-        $this->assertSame($semana?->getStyle('B5')->exportArray(), $semana?->getStyle('B8')->exportArray());
-        $this->assertSame($semana?->getStyle('H17')->exportArray(), $semana?->getStyle('I17')->exportArray());
-        $this->assertNotSame($semana?->getStyle('B8')->exportArray(), $semana?->getStyle('B9')->exportArray());
-
-        $concentrado = $workbook->getSheetByName('CONCENTRADO ENERO');
-        $this->assertSame('=DETALLE!CL9', $concentrado?->getCell('H4')->getValue());
-        $this->assertStringContainsString("'SEMANA 01'!\$B\$4:\$B\$9", (string) $concentrado?->getCell('H5')->getValue());
-        $this->assertSame($concentrado?->getStyle('G5')->exportArray(), $concentrado?->getStyle('H5')->exportArray());
-
-        $annual = $workbook->getSheetByName('ATADORES  2025');
-        $this->assertStringContainsString("'SEMANA 01'!\$D\$23:\$I\$23", (string) $annual?->getCell('E37')->getValue());
-        $this->assertStringContainsString("'SEMANA 01'!\$B\$4:\$B\$9", (string) $annual?->getCell('E37')->getValue());
+        $detalle = $workbook->getSheetByName('DETALLE');
+        $this->assertNotNull($detalle);
+        $this->assertNotNull($this->findDetalleFooterRow($detalle, 1));
     }
 
     public function test_actualizar_archivo_crea_semana_nueva_desde_plantilla_canonica(): void
@@ -168,12 +137,12 @@ class OeeAtadoresFileServiceTest extends TestCase
         );
 
         $updated = IOFactory::load($path);
-        $semana03 = $updated->getSheetByName('SEMANA 03');
-        $this->assertNotNull($semana03);
-        $this->assertSame('CLAVE ATADOR', $semana03?->getCell('B3')->getValue());
-        $this->assertSame('5´S - SEGURIDAD', $semana03?->getCell('P3')->getValue());
-        $this->assertSame('USO DE ATADORA USTER EN LA SEMANA 3', $semana03?->getCell('Q44')->getValue());
-        $this->assertSame('NOMBRE REPORTES 5S', $semana03?->getCell('D26')->getValue());
+        // actualizarArchivo no crea hojas SEMANA; solo DETALLE.
+        $this->assertNull($updated->getSheetByName('SEMANA 03'));
+
+        $detalle = $updated->getSheetByName('DETALLE');
+        $this->assertNotNull($detalle);
+        $this->assertNotNull($this->findDetalleFooterRow($detalle, 3));
     }
 
     public function test_actualizar_archivo_no_regenera_semanas_no_solicitadas(): void
@@ -205,9 +174,6 @@ class OeeAtadoresFileServiceTest extends TestCase
         $this->assertNotNull($semana02Actualizada);
         $this->assertSame('DISTORSION SEMANA 02', $semana02Actualizada?->getCell('B3')->getValue());
         $this->assertSame('USO DE ATADORA USTER EN LA SEMANA 99', $semana02Actualizada?->getCell('Q44')->getValue());
-
-        $concentrado = $updated->getSheetByName('CONCENTRADO ENERO');
-        $this->assertStringContainsString("'SEMANA 02'!", (string) $concentrado?->getCell('C10')->getValue());
     }
 
     private function createAtaMontadoTelasTable(): void

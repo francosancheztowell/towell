@@ -798,7 +798,7 @@
         }
       }
 
-      function schedulePreview(ordCompartida) {
+      window.schedulePreview = function schedulePreview(ordCompartida) {
         if (!isBalanceoTotalsBalanced()) {
           if (previewTimer) clearTimeout(previewTimer);
           return;
@@ -1519,6 +1519,7 @@
                   window.setTimeout(() => {
                     if (!document.querySelector('.swal2-popup')) return;
                     window.calcularTotalesYFechas(null, ord, true);
+                    window.schedulePreview(ord);
                   }, 0);
                 },
                 true
