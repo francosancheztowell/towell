@@ -44,6 +44,7 @@ Towell is a Laravel 12 application.
 - En modales que ya tienen cierre con X, no duplicar botón "Cancelar" si el usuario prefiere cerrar solo con la X (patrón usado en flujos de programa de tejido).
 - En tablas modales de programa de tejido: encabezados breves cuando se pida (por ejemplo "Saldos"), evitar badges recortados (`whitespace-nowrap` / ancho mínimo), y resaltar saldos negativos o modelo REPASO1 con badge rojo cuando aplique.
 - En el modal de detalle de telar (`/planeacion/programa-tejido`) y en modales de programa de tejido, mostrar cantidades como enteros con redondeo estándar (parte decimal ≥ 0,5 hacia arriba; en caso contrario hacia abajo).
+- En tablas con filas de alerta (p. ej. alineación con registros activos en `ManFallasParos` para el mismo `NoTelar`): colorear con fondo amarillo tenue + ícono de alerta; si la fila también está seleccionada, mantener el color amarillo sin sobreescribirlo con el azul de selección.
 
 ## Learned Workspace Facts
 
@@ -53,3 +54,6 @@ Towell is a Laravel 12 application.
 - En clases bajo `App\...`, usar `use Carbon\Carbon` (o `CarbonInterface` para constantes como `MONDAY`) para evitar que `Carbon::...` se resuelva al namespace local y para satisfacer analizadores estáticos.
 - Métodos PHP muy largos con muchas ramas (p. ej. `balancearAutomatico`) pueden disparar avisos del IDE del tipo "too many types"; extraer lógica a métodos privados y declarar retorno explícito (`JsonResponse`) suele aliviarlo.
 - La ruta rápida de exportación OEE Atadores en Python (`scripts/oee_export.py`, integrada vía `OeeAtadoresFileService`) debe conservar encabezados y la estructura de semanas del Excel como el generador PHP; si hay más atadores que la plantilla fija, extender filas sin romper ni reetiquetar mal las semanas posteriores.
+- En `scripts/oee_export.py`: `openpyxl.insert_rows`/`delete_rows` no actualizan los textos de fórmulas (p. ej. `=C46+1`); después de redimensionar secciones se debe usar `openpyxl.formula.translate.Translator` para corregir referencias de fila en las celdas desplazadas.
+- En `balancear.blade.php`: `previewFechasExactas` acepta `{ force: true }` para forzar el preview aunque no haya cambios de pedido; llamar con esta opción al abrir el modal y tras balanceo automático para alinear F.Inicio/F.Final con el Gantt. En `didOpen`, ejecutar `await renderGanttOrd` y luego `await previewFechasExactas(..., { force: true })` secuencialmente para evitar condición de carrera entre Gantt y preview.
+- En handlers `beforeinput` sobre `<input type="number">`: `selectionStart`/`selectionEnd` retorna `null` en Chrome/Edge (lanza `TypeError` en Firefox); siempre permitir el separador decimal (`.` o `,`) sin validar posición de cursor; si `el.value` está vacío (estado inválido intermedio, p. ej. al escribir `381.`), permitir el siguiente dígito sin bloquear.

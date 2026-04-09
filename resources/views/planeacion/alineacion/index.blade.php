@@ -235,9 +235,14 @@
         #mainTable tbody tr.alineacion-row-selected:hover td { background-color: #2563eb !important; }
 
         /* Filas con paro activo en ManFallasParos */
-        #mainTable tbody tr.alineacion-row-alerta td { background-color: #fefce8 !important; }
+        #mainTable tbody tr.alineacion-row-alerta td { background-color: #fefce8 !important; color: #713f12 !important; }
         #mainTable tbody tr.alineacion-row-alerta:hover td { background-color: #fef9c3 !important; }
         #mainTable tbody tr.alineacion-row-alerta td.alineacion-pinned { background-color: #fef08a !important; }
+
+        /* Fila con paro activo + seleccionada: amarillo más intenso */
+        #mainTable tbody tr.alineacion-row-alerta-selected td { background-color: #fde047 !important; color: #713f12 !important; }
+        #mainTable tbody tr.alineacion-row-alerta-selected:hover td { background-color: #facc15 !important; }
+        #mainTable tbody tr.alineacion-row-alerta-selected td.alineacion-pinned { background-color: #eab308 !important; color: #713f12 !important; }
     </style>
 
     <script>
@@ -353,18 +358,20 @@
 
                 tbody.innerHTML = data.map((row, index) => {
                     const selected = state.selectedRowIndex === index;
-                    const tieneParoActivo = !selected && !!row._tieneParoActivo;
+                    const tieneParoActivo = !!row._tieneParoActivo;
                     const isEven = index % 2 === 0;
                     let baseClass;
-                    if (selected) {
+                    if (selected && tieneParoActivo) {
+                        baseClass = 'alineacion-row-alerta alineacion-row-alerta-selected';
+                    } else if (selected) {
                         baseClass = 'alineacion-row-selected bg-blue-500 text-white hover:bg-blue-600';
                     } else if (tieneParoActivo) {
-                        baseClass = 'alineacion-row-alerta hover:bg-yellow-100';
+                        baseClass = 'alineacion-row-alerta';
                     } else {
                         baseClass = isEven ? 'bg-white hover:bg-gray-100' : 'bg-gray-50 hover:bg-gray-200';
                     }
                     const rowClass = 'alineacion-selectable-row cursor-pointer transition-colors ' + baseClass;
-                    const cellClass = selected ? 'px-3 py-1.5 border-b border-r border-blue-400 whitespace-nowrap text-sm text-white column-' : 'px-3 py-1.5 border-b border-r border-gray-200 whitespace-nowrap text-sm text-gray-700 column-';
+                    const cellClass = (selected && !tieneParoActivo) ? 'px-3 py-1.5 border-b border-r border-blue-400 whitespace-nowrap text-sm text-white column-' : 'px-3 py-1.5 border-b border-r border-gray-200 whitespace-nowrap text-sm text-gray-700 column-';
                     const cells = CONFIG.columnas.map((col, colIdx) => {
                         let value = row[col] ?? '';
                         let raw = value !== null && value !== '' ? String(value) : '';

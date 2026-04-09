@@ -184,34 +184,19 @@
 
                 // ─── Event listeners de input (Kg Bruto, Tara, Karl Mayer) ───
                 if (tablaBody) {
-                    tablaBody.addEventListener('beforeinput', function (e) {
-                        if (MAX_KG_NETO === null || e.target.dataset.field !== 'kg_bruto') return;
-                        const row = e.target.closest('tr');
-                        if (!row) return;
-                        const tara = parseFloat(row.querySelector('input[data-field="tara"]')?.value) || 0;
-                        const maxBruto = MAX_KG_NETO + tara;
-                        const el = e.target;
-                        const start = el.selectionStart ?? 0;
-                        const end = el.selectionEnd ?? 0;
-                        const cur = el.value;
-                        const ins = e.data != null ? e.data : '';
-                        if (e.inputType === 'insertText' || e.inputType === 'insertCompositionText' || e.inputType === 'insertFromPaste') {
-                            const next = cur.slice(0, start) + ins + cur.slice(end);
-                            if (next === '' || next === '.' || /^-?\.$/.test(next.trim())) return;
-                            const n = parseFloat(next);
-                            if (!Number.isNaN(n) && n > maxBruto + 1e-9) {
-                                e.preventDefault();
-                                mostrarToast('warning', 'Kg. Bruto máx. ' + maxBruto.toFixed(2) + ' (neto ≤ ' + MAX_KG_NETO + ')', 2000);
-                            }
-                        }
-                    });
 
                     tablaBody.addEventListener('input', function (e) {
                         const row = e.target.closest('tr');
                         if (!row) return;
 
                         if (e.target.dataset.field === 'kg_bruto' || e.target.dataset.field === 'tara') {
+                            const brutoAntes = e.target.dataset.field === 'kg_bruto' ? e.target.value : null;
                             calcularNeto(row);
+                            // Avisar si calcularNeto recortó el valor al máximo
+                            if (brutoAntes !== null && e.target.value !== brutoAntes && e.target.value !== '') {
+                                const tara = parseFloat(row.querySelector('input[data-field="tara"]')?.value) || 0;
+                                mostrarToast('warning', 'Kg. Bruto máx. ' + e.target.value + ' (Kg. Neto ≤ ' + MAX_KG_NETO + ')', 2000);
+                            }
 
                             if (e.target.dataset.field === 'kg_bruto') {
                                 const registroId = row.getAttribute('data-registro-id');
