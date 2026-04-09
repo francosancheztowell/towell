@@ -2124,24 +2124,6 @@
                         }
                     });
 
-                    tablaBody.addEventListener('beforeinput', function (e) {
-                        if (MAX_KG_BRUTO === null || e.target.dataset.field !== 'kg_bruto') return;
-                        const el = e.target;
-                        const start = el.selectionStart ?? 0;
-                        const end = el.selectionEnd ?? 0;
-                        const cur = el.value;
-                        const ins = e.data != null ? e.data : '';
-                        if (e.inputType === 'insertText' || e.inputType === 'insertCompositionText' || e.inputType === 'insertFromPaste') {
-                            const next = cur.slice(0, start) + ins + cur.slice(end);
-                            if (next === '' || next === '.' || /^-?\.$/.test(next.trim())) return;
-                            const n = parseFloat(next);
-                            if (!Number.isNaN(n) && n > MAX_KG_BRUTO + 1e-9) {
-                                e.preventDefault();
-                                mostrarToast('warning', 'Kg. Bruto máx. ' + MAX_KG_BRUTO.toFixed(0), 2000);
-                            }
-                        }
-                    });
-
                     tablaBody.addEventListener('input', function (e) {
                         const row = e.target.closest('tr');
                         if (!row) return;
@@ -2149,7 +2131,11 @@
                         const campo = e.target.dataset.field;
 
                         if (campo === 'kg_bruto' || campo === 'tara') {
+                            const brutoAntes = campo === 'kg_bruto' ? e.target.value : null;
                             calcularNeto(row);
+                            if (brutoAntes !== null && e.target.value !== brutoAntes && e.target.value !== '') {
+                                mostrarToast('warning', 'Kg. Bruto máx. ' + MAX_KG_BRUTO.toFixed(0), 2000);
+                            }
 
                             if (campo === 'kg_bruto') {
                                 const registroId = row.getAttribute('data-registro-id');
