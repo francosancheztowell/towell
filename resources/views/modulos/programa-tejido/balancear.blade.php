@@ -715,11 +715,14 @@
       // ==========================
       // PREVIEW EXACTO (backend)
       // ==========================
-      async function previewFechasExactas(ordCompartida) {
-        if (!hasPedidoChanges()) {
-          return; // No hay cambios: no recalcular ni tocar fechas
+      async function previewFechasExactas(ordCompartida, options = {}) {
+        const force = options.force === true;
+        if (!force && !hasPedidoChanges()) {
+          setBalanceoPreviewLoading(false);
+          return;
         }
         if (!isBalanceoTotalsBalanced()) {
+          setBalanceoPreviewLoading(false);
           return;
         }
         const myVersion = ++previewVersion;
@@ -1043,7 +1046,7 @@
 
             window.calcularTotalesYFechas(null, ordCompartida);
             setTimeout(() => {
-              previewFechasExactas(ordCompartida);
+              previewFechasExactas(ordCompartida, { force: true });
               setTimeout(() => {
                 const ganttContainer = document.getElementById('gantt-ord-container');
                 if (ganttContainer) ganttContainer.scrollLeft = ganttContainer.scrollWidth;
@@ -1209,14 +1212,12 @@
           const data = await response.json();
 
           if (data.success) {
-            try {
-              lineasCache = {};
-              const registrosRefrescados = await fetchRegistrosOrdCompartida(ordCompartida);
-              gruposDataCache[ordCompartida] = registrosRefrescados;
-              currentGanttRegistros = registrosRefrescados;
-              await prefetchLineas(registrosRefrescados);
-              await renderGanttOrd(registrosRefrescados);
-            } catch (_) {}
+            lineasCache = {};
+            delete gruposDataCache[ordCompartida];
+
+            if (typeof Swal.hideLoading === 'function') {
+              Swal.hideLoading();
+            }
 
             Swal.fire({
               icon: 'success',
@@ -1227,7 +1228,6 @@
               showConfirmButton: false
             });
 
-            // Actualizar registros en la tabla principal sin recargar
             if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
               actualizarRegistrosBalanceo(data.registros_ids);
             }
@@ -1581,63 +1581,62 @@
               );
             }
 
-            renderGanttOrd(registros);
-            updateBalanceoTotalVisualState();
-            //  preview exacto inmediato (para asegurar dataset y preview correcto)
-            previewFechasExactas(ordCompartida);
+            void (async () => {
+              await renderGanttOrd(registros);
+              updateBalanceoTotalVisualState();
+              await previewFechasExactas(ordCompartida, { force: true });
 
-            // Establecer min (inicio más tardío) y fecha sugerida en el input de fecha objetivo
-            const fechaInput = document.getElementById('fecha-fin-objetivo-balanceo');
-            if (fechaInput && registros.length > 0) {
-              let fechaInicioMax = null;
-              registros.forEach(reg => {
-                if (reg.FechaInicio) {
-                  try {
-                    const fecha = parseFechaBackendALocal(String(reg.FechaInicio).trim());
-                    if (fecha && !isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
-                      if (!fechaInicioMax || fecha > fechaInicioMax) {
-                        fechaInicioMax = fecha;
+              const fechaInput = document.getElementById('fecha-fin-objetivo-balanceo');
+              if (fechaInput && registros.length > 0) {
+                let fechaInicioMax = null;
+                registros.forEach(reg => {
+                  if (reg.FechaInicio) {
+                    try {
+                      const fecha = parseFechaBackendALocal(String(reg.FechaInicio).trim());
+                      if (fecha && !isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
+                        if (!fechaInicioMax || fecha > fechaInicioMax) {
+                          fechaInicioMax = fecha;
+                        }
                       }
+                    } catch (e) {
+                      console.warn('Error al parsear FechaInicio:', e);
                     }
-                  } catch (e) {
-                    console.warn('Error al parsear FechaInicio:', e);
                   }
+                });
+                if (fechaInicioMax) {
+                  fechaInput.min = toDateInputValueLocal(fechaInicioMax);
+                } else {
+                  fechaInput.removeAttribute('min');
                 }
-              });
-              if (fechaInicioMax) {
-                fechaInput.min = toDateInputValueLocal(fechaInicioMax);
-              } else {
-                fechaInput.removeAttribute('min');
-              }
 
-              // Obtener la fecha final más lejana de los registros (sugerencia)
-              let fechaMaxima = null;
-              registros.forEach(reg => {
-                if (reg.FechaFinal) {
-                  try {
-                    const fecha = parseFechaBackendALocal(String(reg.FechaFinal).trim());
-                    if (fecha && !isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
-                      if (!fechaMaxima || fecha > fechaMaxima) {
-                        fechaMaxima = fecha;
+                let fechaMaxima = null;
+                registros.forEach(reg => {
+                  if (reg.FechaFinal) {
+                    try {
+                      const fecha = parseFechaBackendALocal(String(reg.FechaFinal).trim());
+                      if (fecha && !isNaN(fecha.getTime()) && fecha.getFullYear() > 1970) {
+                        if (!fechaMaxima || fecha > fechaMaxima) {
+                          fechaMaxima = fecha;
+                        }
                       }
+                    } catch (e) {
+                      console.warn('Error al parsear fecha:', e);
                     }
-                  } catch (e) {
-                    console.warn('Error al parsear fecha:', e);
                   }
+                });
+
+                if (fechaMaxima) {
+                  fechaInput.value = toDateInputValueLocal(fechaMaxima);
+                } else if (fechaInput.min) {
+                  fechaInput.value = fechaInput.min;
                 }
-              });
-
-              if (fechaMaxima) {
-                fechaInput.value = toDateInputValueLocal(fechaMaxima);
-              } else if (fechaInput.min) {
-                fechaInput.value = fechaInput.min;
+                if (fechaInput.min && fechaInput.value && fechaInput.value < fechaInput.min) {
+                  fechaInput.value = fechaInput.min;
+                }
               }
-              if (fechaInput.min && fechaInput.value && fechaInput.value < fechaInput.min) {
-                fechaInput.value = fechaInput.min;
-              }
-            }
 
-            requestAnimationFrame(() => syncBalanceoGuardarButtonState());
+              requestAnimationFrame(() => syncBalanceoGuardarButtonState());
+            })();
           }
         });
       };
