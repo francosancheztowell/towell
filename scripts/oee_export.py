@@ -722,6 +722,51 @@ def unmerge_rows_in_range(ws, start_row: int, end_row: int) -> None:
     _cleanup_orphan_merged_cells(ws, start_row, end_row)
 
 
+def sync_merged_ranges_after_row_insert(ws, before_row: int, amount: int) -> None:
+    """
+    openpyxl insert_rows(idx, amount) moves cells in _cells but leaves
+    ws.merged_cells stale; fix ranges so rows >= idx match _move_cells.
+    """
+    if amount <= 0:
+        return
+    from openpyxl.worksheet.cell_range import CellRange  # noqa: PLC0415
+
+    for cr in list(ws.merged_cells.ranges):
+        if cr.min_row >= before_row:
+            ws.merged_cells.remove(cr)
+            ws.merged_cells.add(
+                CellRange(
+                    min_row=cr.min_row + amount,
+                    max_row=cr.max_row + amount,
+                    min_col=cr.min_col,
+                    max_col=cr.max_col,
+                )
+            )
+
+
+def sync_merged_ranges_after_row_delete(ws, start_row: int, amount: int) -> None:
+    """
+    openpyxl delete_rows(idx, amount) moves cells but not merged_cells; fix ranges
+    for rows >= idx + amount per internal _move_cells(min_row=idx+amount, ...).
+    """
+    if amount <= 0:
+        return
+    from openpyxl.worksheet.cell_range import CellRange  # noqa: PLC0415
+
+    threshold = start_row + amount
+    for cr in list(ws.merged_cells.ranges):
+        if cr.min_row >= threshold:
+            ws.merged_cells.remove(cr)
+            ws.merged_cells.add(
+                CellRange(
+                    min_row=cr.min_row - amount,
+                    max_row=cr.max_row - amount,
+                    min_col=cr.min_col,
+                    max_col=cr.max_col,
+                )
+            )
+
+
 # ---------------------------------------------------------------------------
 # Section clearing (values only, preserve styles)
 # ---------------------------------------------------------------------------
@@ -764,9 +809,12 @@ def resize_section(ws, section: dict, desired_rows: int) -> dict:
 
     if delta > 0:
         ws.insert_rows(footer, delta)
+        sync_merged_ranges_after_row_insert(ws, footer, delta)
     else:
         delete_start = footer + delta
-        ws.delete_rows(delete_start, -delta)
+        del_count = -delta
+        ws.delete_rows(delete_start, del_count)
+        sync_merged_ranges_after_row_delete(ws, delete_start, del_count)
 
     new_footer = footer + delta
     return {
@@ -1298,6 +1346,7 @@ def run(args: argparse.Namespace) -> None:
             section_rows = layout_tmp["footer_row"] - insert_top + 1
 
             ws.insert_rows(insert_top, section_rows)
+            sync_merged_ranges_after_row_insert(ws, insert_top, section_rows)
 
             new_section = {
                 "top": insert_top,

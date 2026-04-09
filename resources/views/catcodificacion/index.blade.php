@@ -1618,7 +1618,6 @@
             // =========================
             //   MENÚ CONTEXTUAL EN ENCABEZADOS
             // =========================
-            */
             const menu = $('#codificacionContextMenuHeader');
             let menuColumnIndex = null;
             let menuColumnField = null;
