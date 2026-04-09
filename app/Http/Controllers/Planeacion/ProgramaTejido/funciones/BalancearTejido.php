@@ -6,7 +6,6 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -55,46 +54,173 @@ class BalancearTejido
         // Warm caches (NO cambia resultados, solo evita N+1)
         self::warmCachesFromProgramas($regs->values());
 
-        $resp = [];
-
-        foreach ($cambios as $cambio) {
-            $id = (int) $cambio['id'];
-            /** @var ReqProgramaTejido|null $r */
-            $r = $regs->get($id);
-            if (! $r) {
-                continue;
-            }
-
-            $produccion = (float) ($r->Produccion ?? 0);
-            $input = (float) $cambio['total_pedido'];
-
-            [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total');
-
-            // Mutar EN MEMORIA (no save)
-            $r->TotalPedido = $total;
-            $r->SaldoPedido = $saldo;
-
-            $fechaInicioOriginal = ! empty($r->FechaInicio)
-                ? Carbon::parse($r->FechaInicio)
-                : null;
-
-            [$inicio, $fin, $horas] = self::calcularInicioFinExactos($r);
-
-            $resp[] = [
-                'id' => (int) $r->Id,
-                'fecha_inicio' => $fechaInicioOriginal ? $fechaInicioOriginal->format('Y-m-d H:i:s') : null,
-                'fecha_final' => $fin ? $fin->format('Y-m-d H:i:s') : null,
-                'horas_prod' => $horas,
-                'saldo' => $saldo,
-                'total' => $total,
-                'calendario_id' => $r->CalendarioId ?? null,
-            ];
-        }
+        $resp = self::previewSimularGuardadoBalanceo($regs, $cambios);
 
         return response()->json([
             'success' => true,
             'data' => $resp,
         ]);
+    }
+
+    /**
+     * Réplica en memoria de `actualizarPedidos` (PASO 1 + cascada por telar PASO 2), sin persistir.
+     * Así el modal de balanceo manual muestra las mismas fechas que se aplicarían al guardar (incl. cascada),
+     * alineado con el balanceo automático que también usa el motor de calendario.
+     *
+     * @param  Collection<int|string, ReqProgramaTejido>  $regsById
+     * @return list<array{id: int, fecha_inicio: ?string, fecha_final: ?string, horas_prod: float, saldo: float, total: float, calendario_id: ?string}>
+     */
+    private static function previewSimularGuardadoBalanceo(Collection $regsById, array $cambios): array
+    {
+        $copies = [];
+        foreach ($regsById as $id => $reg) {
+            $copies[(int) $id] = clone $reg;
+        }
+
+        $idsActualizados = [];
+
+        foreach ($cambios as $cambio) {
+            $id = (int) $cambio['id'];
+            if (! isset($copies[$id])) {
+                continue;
+            }
+
+            $registro = $copies[$id];
+            $produccion = (float) ($registro->Produccion ?? 0);
+            $input = (float) $cambio['total_pedido'];
+
+            [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total');
+
+            $registro->TotalPedido = $total;
+            $registro->SaldoPedido = $saldo;
+
+            if (! empty($registro->FechaInicio)) {
+                [$inicio, $fin, $horas] = self::calcularInicioFinExactos($registro);
+
+                if ($inicio) {
+                    $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
+                }
+                if ($fin) {
+                    $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
+                }
+            }
+
+            if (! empty($registro->FechaInicio) && ! empty($registro->FechaFinal)) {
+                $formulas = self::calcularFormulasEficiencia($registro);
+                foreach ($formulas as $campo => $valor) {
+                    $registro->{$campo} = $valor;
+                }
+            }
+
+            $idsActualizados[$id] = true;
+        }
+
+        $porTelarKeys = [];
+        foreach ($cambios as $cambio) {
+            $id = (int) $cambio['id'];
+            if (! isset($copies[$id])) {
+                continue;
+            }
+            $r = $copies[$id];
+            $key = trim((string) $r->SalonTejidoId).'|'.trim((string) $r->NoTelarId);
+            $porTelarKeys[$key] = true;
+        }
+
+        foreach (array_keys($porTelarKeys) as $key) {
+            $salonTelar = explode('|', $key);
+            $salon = $salonTelar[0];
+            $telar = $salonTelar[1] ?? '';
+
+            $todosRegistrosTelar = ReqProgramaTejido::query()
+                ->where('SalonTejidoId', $salon)
+                ->where('NoTelarId', $telar)
+                ->orderBy('Posicion', 'asc')
+                ->orderBy('FechaInicio', 'asc')
+                ->orderBy('Id', 'asc')
+                ->get();
+
+            if ($todosRegistrosTelar->isEmpty()) {
+                continue;
+            }
+
+            $merged = [];
+            foreach ($todosRegistrosTelar as $r) {
+                $rid = (int) $r->Id;
+                if (isset($copies[$rid])) {
+                    $merged[] = $copies[$rid];
+                } else {
+                    $merged[] = clone $r;
+                }
+            }
+
+            self::warmCachesFromProgramas(collect($merged));
+
+            $idxBase = null;
+            foreach ($merged as $idx => $r) {
+                if (isset($idsActualizados[(int) $r->Id])) {
+                    $idxBase = $idx;
+                    break;
+                }
+            }
+
+            if ($idxBase === null) {
+                continue;
+            }
+
+            $base = $merged[$idxBase];
+            $cursor = ! empty($base->FechaFinal)
+                ? Carbon::parse($base->FechaFinal)
+                : Carbon::parse($base->FechaInicio);
+
+            $rest = array_slice($merged, $idxBase + 1);
+            foreach ($rest as $r) {
+                $rid = (int) $r->Id;
+                if (isset($idsActualizados[$rid])) {
+                    if (! empty($r->FechaFinal)) {
+                        $cursor = Carbon::parse($r->FechaFinal);
+                    }
+
+                    continue;
+                }
+
+                [$inicio, $fin] = self::resolverInicioFin($cursor->copy(), $r);
+                $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
+                $r->FechaFinal = $fin->format('Y-m-d H:i:s');
+                $formulas = self::calcularFormulasEficiencia($r);
+                foreach ($formulas as $campo => $valor) {
+                    $r->{$campo} = $valor;
+                }
+                $cursor = $fin->copy();
+            }
+        }
+
+        $resp = [];
+        foreach ($cambios as $cambio) {
+            $id = (int) $cambio['id'];
+            if (! isset($copies[$id])) {
+                continue;
+            }
+            $r = $copies[$id];
+            $horas = 0.0;
+            if (! empty($r->FechaInicio) && ! empty($r->FechaFinal)) {
+                $horas = TejidoHelpers::calcularHorasProd($r);
+            }
+
+            $iniStr = ! empty($r->FechaInicio) ? Carbon::parse($r->FechaInicio)->format('Y-m-d H:i:s') : null;
+            $finStr = ! empty($r->FechaFinal) ? Carbon::parse($r->FechaFinal)->format('Y-m-d H:i:s') : null;
+
+            $resp[] = [
+                'id' => $id,
+                'fecha_inicio' => $iniStr,
+                'fecha_final' => $finStr,
+                'horas_prod' => $horas,
+                'saldo' => (float) ($r->SaldoPedido ?? 0),
+                'total' => (float) ($r->TotalPedido ?? 0),
+                'calendario_id' => $r->CalendarioId ?? null,
+            ];
+        }
+
+        return $resp;
     }
 
     // =========================================================
@@ -269,25 +395,19 @@ class BalancearTejido
             DB::commit();
             // Restaurar dispatcher
             ReqProgramaTejido::restoreObservers($dispatcher);
-            // Eventos desactivados durante la transacción; se invoca el observer aquí para regenerar líneas diarias.
+            // Eventos desactivados durante la transacción; regenerar líneas diarias alineadas a las nuevas fechas.
+            // Nota: usamos regenerarLineas() que bypassa el guard shouldRegenerateLines() del observer,
+            // porque los registros refetcheados desde BD no tienen isDirty()/wasChanged() (ver docblock del método).
             $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
             if (! empty($idsAfectados)) {
-                $observer = new ReqProgramaTejidoObserver;
-                $regsObs = ReqProgramaTejido::whereIn('Id', $idsAfectados)->get()->keyBy('Id');
-
-                foreach ($idsAfectados as $id) {
-                    $reg = $regsObs->get($id);
-                    if (! $reg) {
-                        continue;
-                    }
-                    try {
-                        $observer->saved($reg);
-                    } catch (\Throwable $e) {
-                        Log::error('BalancearTejido: Error en observer', [
-                            'id' => $id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
+                try {
+                    $regsObs = ReqProgramaTejido::whereIn('Id', $idsAfectados)->get();
+                    ReqProgramaTejido::regenerarLineas($regsObs);
+                } catch (\Throwable $e) {
+                    Log::error('BalancearTejido: Error regenerando líneas tras balanceo', [
+                        'ids' => $idsAfectados,
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
 
@@ -595,8 +715,9 @@ class BalancearTejido
 
         $registro->saveQuietly();
 
-        $observer = new ReqProgramaTejidoObserver;
-        $observer->saved($registro->fresh());
+        // regenerarLineas() bypassa el guard shouldRegenerateLines() (ver docblock).
+        // Pasamos $registro (no fresh()) porque la instancia en memoria ya tiene las fechas recalculadas.
+        ReqProgramaTejido::regenerarLineas([$registro]);
 
         $ultimo = (int) ($registro->Ultimo ?? 0);
         if ($ultimo !== 1) {

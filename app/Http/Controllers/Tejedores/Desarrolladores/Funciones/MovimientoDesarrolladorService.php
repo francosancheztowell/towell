@@ -5,7 +5,6 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -196,12 +195,9 @@ class MovimientoDesarrolladorService
         }
 
         if (!empty($idsAfectados)) {
-            $observer = new ReqProgramaTejidoObserver();
-            $modelos = ReqProgramaTejido::query()->whereIn('Id', $idsAfectados)->get();
-            /** @var ReqProgramaTejido $modelo */
-            foreach ($modelos as $modelo) {
-                $observer->saved($modelo);
-            }
+            ReqProgramaTejido::regenerarLineas(
+                ReqProgramaTejido::query()->whereIn('Id', $idsAfectados)->get()
+            );
         }
 
         $registroParaModelo = ReqProgramaTejido::query()->where('Id', $registroActualizado->Id)->first();
@@ -439,11 +435,9 @@ class MovimientoDesarrolladorService
             return;
         }
 
-        $observer = new ReqProgramaTejidoObserver();
-        $modelos = ReqProgramaTejido::query()->whereIn('Id', $idsAfectados)->get();
-        foreach ($modelos as $modelo) {
-            $observer->saved($modelo);
-        }
+        ReqProgramaTejido::regenerarLineas(
+            ReqProgramaTejido::query()->whereIn('Id', $idsAfectados)->get()
+        );
     }
 
     private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar): array

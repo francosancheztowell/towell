@@ -388,12 +388,10 @@ class ProgramaTejidoOperacionesController extends Controller
             }
 
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-            $observer = new ReqProgramaTejidoObserver();
-            foreach ($idsAfectados as $idAfectado) {
-                if ($r = ReqProgramaTejido::find($idAfectado)) {
-                    $r->refresh();
-                    $observer->saved($r);
-                }
+            if (!empty($idsAfectados)) {
+                ReqProgramaTejido::regenerarLineas(
+                    ReqProgramaTejido::whereIn('Id', $idsAfectados)->get()
+                );
             }
 
             $despues = [
@@ -514,11 +512,10 @@ class ProgramaTejidoOperacionesController extends Controller
             DBFacade::commit();
 
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-            $observer = new ReqProgramaTejidoObserver();
-            foreach ($idsActualizados as $idAct) {
-                if ($r = ReqProgramaTejido::find($idAct)) {
-                    $observer->saved($r);
-                }
+            if (!empty($idsActualizados)) {
+                ReqProgramaTejido::regenerarLineas(
+                    ReqProgramaTejido::whereIn('Id', $idsActualizados)->get()
+                );
             }
 
             return response()->json([

@@ -128,13 +128,11 @@ class ConfiguracionController extends Controller
                 $chunks = array_chunk($idsValidos, 100);
                 foreach ($chunks as $chunkIds) {
                     $registrosCompletos = ReqProgramaTejido::whereIn('Id', $chunkIds)->get();
-                    foreach ($registrosCompletos as $registroCompleto) {
-                        try {
-                            $observer->saved($registroCompleto);
-                            $totalRegenerados++;
-                        } catch (\Throwable $lineEx) {
-                            $errores++;
-                        }
+                    try {
+                        ReqProgramaTejido::regenerarLineas($registrosCompletos);
+                        $totalRegenerados += $registrosCompletos->count();
+                    } catch (\Throwable $lineEx) {
+                        $errores += $registrosCompletos->count();
                     }
                 }
 
@@ -296,13 +294,11 @@ class ConfiguracionController extends Controller
                 $chunks = array_chunk($idsValidos, 100);
                 foreach ($chunks as $chunkIds) {
                     $registrosCompletos = ReqProgramaTejido::whereIn('Id', $chunkIds)->get();
-                    foreach ($registrosCompletos as $registroCompleto) {
-                        try {
-                            $observer->saved($registroCompleto);
-                            $totalRegenerados++;
-                        } catch (\Throwable $lineEx) {
-                            $errores++;
-                        }
+                    try {
+                        ReqProgramaTejido::regenerarLineas($registrosCompletos);
+                        $totalRegenerados += $registrosCompletos->count();
+                    } catch (\Throwable $lineEx) {
+                        $errores += $registrosCompletos->count();
                     }
                 }
 

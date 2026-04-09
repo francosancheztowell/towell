@@ -48,6 +48,18 @@ class ReqProgramaTejidoObserver
         }
     }
 
+    /**
+     * Regenera líneas diarias para un programa, bypassing el guard de shouldRegenerateLines().
+     * Usar cuando el caller ya decidió explícitamente que quiere regenerar
+     * (p. ej. tras un bulk update vía query builder o tras refetch desde BD, donde
+     * wasChanged()/isDirty() no reflejan el cambio real). Para saves normales de
+     * Eloquent, el event dispatcher sigue llamando a saved() con el guard intacto.
+     */
+    public function regenerateLinesFor(ReqProgramaTejido $programa): void
+    {
+        $this->generarLineasDiarias($programa);
+    }
+
     private function shouldRegenerateLines(ReqProgramaTejido $programa): bool
     {
         if ($programa->wasRecentlyCreated) {

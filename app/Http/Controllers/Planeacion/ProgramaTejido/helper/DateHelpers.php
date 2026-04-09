@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -325,13 +324,13 @@ class DateHelpers
                 ReqProgramaTejido::setEventDispatcher($dispatcher);
             }
 
-            // regenerar líneas en batch (evita N+1)
+            // regenerar líneas en batch (evita N+1).
+            // regenerarLineas() bypassa el guard shouldRegenerateLines() del observer,
+            // porque los modelos refetcheados desde BD no tienen isDirty()/wasChanged().
             if (!empty($idsActualizados)) {
-                $observer = new ReqProgramaTejidoObserver();
-                $modelos = ReqProgramaTejido::whereIn('Id', $idsActualizados)->get();
-                foreach ($modelos as $m) {
-                    $observer->saved($m);
-                }
+                ReqProgramaTejido::regenerarLineas(
+                    ReqProgramaTejido::whereIn('Id', $idsActualizados)->get()
+                );
             }
 
             return $detalles;

@@ -283,7 +283,13 @@ class ReqProgramaTejido extends Model
     }
 
     /**
-     * Dispara ReqProgramaTejidoObserver::saved() directamente para cada registro.
+     * Regenera ReqProgramaTejidoLine para cada registro de forma incondicional.
+     *
+     * A diferencia del callback saved() del observer (que usa shouldRegenerateLines()
+     * como optimización), este helper bypassa el guard: cuando un caller lo invoca
+     * explícitamente ya decidió que quiere regenerar, incluso si los modelos vienen
+     * refetcheados desde BD (donde wasChanged()/isDirty() siempre retornan false).
+     *
      * Funciona aunque los observers estén suprimidos vía suppressObservers(), ya que
      * invoca el observer directamente sin pasar por el event dispatcher de Eloquent.
      */
@@ -292,7 +298,7 @@ class ReqProgramaTejido extends Model
         $observer = new \App\Observers\ReqProgramaTejidoObserver();
         foreach ($registros as $registro) {
             if ($registro instanceof static && $registro->Id) {
-                $observer->saved($registro);
+                $observer->regenerateLinesFor($registro);
             }
         }
     }

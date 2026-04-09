@@ -30,7 +30,6 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use App\Support\Planeacion\TelarSalonResolver;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
@@ -567,13 +566,9 @@ class MoverOrdenesController extends Controller
         if (empty($todosIds)) {
             return;
         }
-        $observer = new ReqProgramaTejidoObserver();
-        $modelos  = ReqProgramaTejido::query()->whereIn('Id', $todosIds)->get();
-        /** @var ReqProgramaTejido $modelo */
-        foreach ($modelos as $modelo) {
-            $modelo->refresh();
-            $observer->saved($modelo);
-        }
+        ReqProgramaTejido::regenerarLineas(
+            ReqProgramaTejido::query()->whereIn('Id', $todosIds)->get()
+        );
     }
 
     /**

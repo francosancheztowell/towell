@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -204,10 +203,8 @@ class ProgramaTejidoCalendariosController extends Controller
                             $actualizados++;
                         }
 
-                        $programaFull = ReqProgramaTejido::find($p->Id);
-                        if ($programaFull) {
-                            $observer->saved($programaFull);
-                        }
+                        // regenerarLineas() bypassa el guard del observer (modelos refetcheados no tienen isDirty)
+                        ReqProgramaTejido::regenerarLineas([$p]);
 
                         $prevFin = $fin->copy();
                         $prevTelar = $p;

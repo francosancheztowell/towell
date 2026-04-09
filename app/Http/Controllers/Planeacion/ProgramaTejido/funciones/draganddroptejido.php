@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -173,20 +172,13 @@ class DragAndDropTejido
             //    OPTIMIZADO: un solo query en vez de N finds
             $idsAfectados = $resultado['idsAfectados'] ?? [];
             if (!empty($idsAfectados)) {
-                $observer = new ReqProgramaTejidoObserver();
-
-                // IMPORTANTE: Refrescar los modelos desde la BD para tener los valores actualizados (incluyendo Posicion)
-                $modelos = ReqProgramaTejido::query()
-                    ->whereIn('Id', $idsAfectados)
-                    ->where('SalonTejidoId', $registro->SalonTejidoId)
-                    ->where('NoTelarId', $registro->NoTelarId)
-                    ->get();
-
-                foreach ($modelos as $m) {
-                    // Refrescar el modelo para asegurar que tiene los valores más recientes de la BD
-                    $m->refresh();
-                    $observer->saved($m);
-                }
+                ReqProgramaTejido::regenerarLineas(
+                    ReqProgramaTejido::query()
+                        ->whereIn('Id', $idsAfectados)
+                        ->where('SalonTejidoId', $registro->SalonTejidoId)
+                        ->where('NoTelarId', $registro->NoTelarId)
+                        ->get()
+                );
             }
 
             return [

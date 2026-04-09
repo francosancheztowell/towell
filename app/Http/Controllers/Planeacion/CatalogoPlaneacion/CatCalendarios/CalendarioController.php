@@ -8,7 +8,6 @@ use App\Models\Planeacion\ReqCalendarioTab;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
-use App\Observers\ReqProgramaTejidoObserver;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
@@ -859,7 +858,6 @@ class CalendarioController extends Controller
                 ->select(['SalonTejidoId', 'NoTelarId'])
                 ->distinct()
                 ->get();
-            $observer = $regenerarLineas ? new ReqProgramaTejidoObserver() : null;
 
             foreach ($telares as $t) {
                 $salon = $t->SalonTejidoId;
@@ -967,11 +965,10 @@ class CalendarioController extends Controller
                         $procesados++;
                         if ($cambio) $actualizados++;
 
-                        if ($regenerarLineas && $observer) {
-                            $programaFull = ReqProgramaTejido::find($p->Id);
-                            if ($programaFull) {
-                                $observer->saved($programaFull);
-                            }
+                        if ($regenerarLineas) {
+                            // $p ya tiene las nuevas fechas recién guardadas en memoria.
+                            // regenerarLineas() bypassa el guard shouldRegenerateLines() del observer.
+                            ReqProgramaTejido::regenerarLineas([$p]);
                         }
 
                         $prevFin = $fin->copy();

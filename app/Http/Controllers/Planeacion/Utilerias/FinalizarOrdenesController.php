@@ -30,7 +30,6 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use App\Support\Planeacion\TelarSalonResolver;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
@@ -394,13 +393,9 @@ class FinalizarOrdenesController extends Controller
         // ─── PASO 4: Disparar observer (fuera de transacción) ────────────────────
         $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
         if (!empty($idsAfectados)) {
-            $observer = new ReqProgramaTejidoObserver();
-            $modelos  = ReqProgramaTejido::query()->whereIn('Id', $idsAfectados)->get();
-            /** @var ReqProgramaTejido $modelo */
-            foreach ($modelos as $modelo) {
-                $modelo->refresh();
-                $observer->saved($modelo);
-            }
+            ReqProgramaTejido::regenerarLineas(
+                ReqProgramaTejido::query()->whereIn('Id', $idsAfectados)->get()
+            );
         }
 
         return response()->json([

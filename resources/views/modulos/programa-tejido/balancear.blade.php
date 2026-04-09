@@ -14,10 +14,18 @@
       let lineasCache = {};           // programaId => líneas originales
       let currentGanttRegistros = []; // registros actuales en modal
 
-      // preview debounce + abort
+      // preview debounce + abort (debounce bajo = UI más reactiva; el servidor aborta peticiones viejas)
       let previewTimer = null;
       let previewAbort = null;
       let previewVersion = 0;
+      const PREVIEW_DEBOUNCE_MS = 100;
+
+      function setBalanceoPreviewLoading(show) {
+        const el = document.getElementById('gantt-preview-loading');
+        if (!el) return;
+        el.classList.toggle('hidden', !show);
+        el.setAttribute('aria-busy', show ? 'true' : 'false');
+      }
 
       // ==========================
       // Helpers generales
@@ -722,6 +730,7 @@
         const cambios = getCurrentInputsPayload();
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
+        setBalanceoPreviewLoading(true);
         try {
           const res = await fetch('/planeacion/programa-tejido/preview-fechas-balanceo', {
             method: 'POST',
@@ -735,10 +744,13 @@
           });
 
           const data = await res.json();
-          if (!data?.success || !Array.isArray(data.data)) return;
-          if (myVersion !== previewVersion) return; // respuesta vieja
+          if (!data?.success || !Array.isArray(data.data)) {
+            if (myVersion === previewVersion) setBalanceoPreviewLoading(false);
+            return;
+          }
+          if (myVersion !== previewVersion) return;
 
-          // Pintar fechas exactas - usar requestAnimationFrame para asegurar que el DOM esté listo
+          // Pintar fechas y quitar loading tras pintar el Gantt (evita parpadeo)
           requestAnimationFrame(() => {
             data.data.forEach(item => {
               const id = Number(item.id);
@@ -788,13 +800,16 @@
               }
             });
 
-            // Actualizar gantt después de actualizar las fechas
             renderBalanceoLeaderBadge(currentGanttRegistros);
             updateGanttPreview();
+            requestAnimationFrame(() => {
+              if (myVersion === previewVersion) setBalanceoPreviewLoading(false);
+            });
           });
         } catch (e) {
           if (e?.name === 'AbortError') return;
           console.error('previewFechasExactas error', e);
+          if (myVersion === previewVersion) setBalanceoPreviewLoading(false);
         }
       }
 
@@ -804,7 +819,7 @@
           return;
         }
         if (previewTimer) clearTimeout(previewTimer);
-        previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), 250);
+        previewTimer = setTimeout(() => previewFechasExactas(ordCompartida), PREVIEW_DEBOUNCE_MS);
       }
 
       // ==========================
@@ -887,8 +902,6 @@
         if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
         renderBalanceoLeaderBadge(currentGanttRegistros);
         updateBalanceoTotalVisualState();
-
-        // schedulePreview se llama desde onblur/Enter del input, no en cada keypress
       };
 
       window.actualizarPedidosDesdeTotal = function (totalInput, ordCompartida) {
@@ -939,6 +952,7 @@
         }
 
         adjustingFromTotal = false;
+        window.schedulePreview(ordCompartida);
       };
 
       // ==========================
@@ -976,6 +990,7 @@
           btn.disabled = loading;
           if (btnIcon)  btnIcon.className  = loading ? 'fa-solid fa-spinner fa-spin text-xs btn-balancear-icon' : 'fa-solid fa-scale-balanced text-xs btn-balancear-icon';
           if (btnLabel) btnLabel.textContent = loading ? 'Calculando...' : 'Balancear';
+          setBalanceoPreviewLoading(loading);
         };
 
         setLoading(true);
@@ -1156,27 +1171,31 @@
           return false;
         }
 
+        // Mismo snapshot que el preview (`getCurrentInputsPayload`): todas las filas con el pedido actual.
+        // Si solo se enviaran filas "cambiadas", el backend aplicaba otra cascada que el preview y las fechas no coincidían al guardar.
         const inputs = document.querySelectorAll('.pedido-input');
         const cambios = [];
         inputs.forEach(input => {
           const id = input.dataset.id;
-          const original = Number(input.dataset.original) || 0;
           const nuevo = Math.round(Number(input.value) || 0);
-
-          if (original !== nuevo) {
-            cambios.push({
-              id,
-              total_pedido: nuevo,
-              modo: 'total'
-            });
-          }
+          cambios.push({
+            id,
+            total_pedido: nuevo,
+            modo: 'total'
+          });
         });
 
         if (cambios.length === 0) {
+          Swal.showValidationMessage('No hay filas de pedido para guardar');
+          return false;
+        }
+
+        if (!hasPedidoChanges()) {
           Swal.showValidationMessage('No hay cambios para guardar');
           return false;
         }
 
+        setBalanceoPreviewLoading(true);
         try {
           const response = await fetch('/planeacion/programa-tejido/actualizar-pedidos-balanceo', {
             method: 'POST',
@@ -1195,7 +1214,8 @@
               const registrosRefrescados = await fetchRegistrosOrdCompartida(ordCompartida);
               gruposDataCache[ordCompartida] = registrosRefrescados;
               currentGanttRegistros = registrosRefrescados;
-              renderGanttOrd(registrosRefrescados);
+              await prefetchLineas(registrosRefrescados);
+              await renderGanttOrd(registrosRefrescados);
             } catch (_) {}
 
             Swal.fire({
@@ -1220,6 +1240,8 @@
         } catch (error) {
           Swal.showValidationMessage('Error de conexión al guardar los cambios');
           return false;
+        } finally {
+          setBalanceoPreviewLoading(false);
         }
       }
 
@@ -1235,7 +1257,33 @@
       };
 
       window.verDetallesGrupoBalanceo = async function (ordCompartida) {
-        const registros = await fetchRegistrosOrdCompartida(ordCompartida);
+        Swal.fire({
+          title: 'Cargando balanceo',
+          html: '<p class="text-sm text-gray-600">Obteniendo datos y líneas de programa…</p>',
+          allowOutsideClick: false,
+          showConfirmButton: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        let registros;
+        try {
+          registros = await fetchRegistrosOrdCompartida(ordCompartida);
+          await prefetchLineas(registros);
+        } catch (err) {
+          console.error(err);
+          Swal.fire({
+            icon: 'error',
+            title: 'No se pudo abrir el balanceo',
+            text: 'Revisa la conexión e inténtalo de nuevo.',
+            confirmButtonColor: '#3b82f6'
+          });
+          return;
+        }
+
+        Swal.close();
+
         currentGanttRegistros = registros;
 
         // Obtener valores actuales desde la tabla principal (después de balanceos previos)
@@ -1489,6 +1537,12 @@
               <div class="w-full lg:flex-1 min-w-0 flex flex-col rounded-lg border border-gray-200 bg-white p-2">
                 <div id="gantt-ord-container" class="relative min-h-[150px] overflow-auto">
                   <div id="gantt-loading" class="p-3 text-sm text-gray-500">Cargando líneas...</div>
+                  <div id="gantt-preview-loading" class="hidden absolute inset-0 z-20 flex items-center justify-center rounded bg-white/80 backdrop-blur-[1px]" aria-busy="false">
+                    <span class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm">
+                      <i class="fa-solid fa-spinner fa-spin text-blue-500" aria-hidden="true"></i>
+                      Actualizando fechas…
+                    </span>
+                  </div>
                   <div id="gantt-ord"></div>
                 </div>
               </div>
@@ -1502,6 +1556,7 @@
           customClass: { popup: 'balanceo-orden-modal', htmlContainer: 'balanceo-orden-body' },
           showCloseButton: true,
           showConfirmButton: true,
+          showLoaderOnConfirm: true,
           confirmButtonText: '<i class="fa-solid fa-save mr-2"></i> Guardar',
           confirmButtonColor: '#3b82f6',
           showCancelButton: true,
