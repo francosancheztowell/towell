@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Planeacion\Alineacion;
 
 use App\Http\Controllers\Controller;
+use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
@@ -97,8 +98,27 @@ class AlineacionController extends Controller
             ->get();
 
         $catCodPorOrden = $this->obtenerCatCodificadosPorOrden($registros);
+        $telaresConParoActivo = $this->obtenerTelaresConParoActivo();
 
-        return $registros->map(fn (ReqProgramaTejido $r) => $this->mapearProgramaTejidoAItem($r, $catCodPorOrden))->all();
+        return $registros->map(fn (ReqProgramaTejido $r) => $this->mapearProgramaTejidoAItem($r, $catCodPorOrden, $telaresConParoActivo))->all();
+    }
+
+    /**
+     * Devuelve un array de MaquinaId (como strings) que tienen al menos un paro activo
+     * en ManFallasParos (Estatus = 'Activo').
+     *
+     * @return array<int, string>
+     */
+    private function obtenerTelaresConParoActivo(): array
+    {
+        return ManFallasParos::query()
+            ->where('Estatus', 'Activo')
+            ->pluck('MaquinaId')
+            ->map(fn ($id) => trim((string) ($id ?? '')))
+            ->filter(fn ($id) => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -147,7 +167,7 @@ class AlineacionController extends Controller
      * @param  array<string, CatCodificados>  $catCodPorOrden
      * @return array<string, mixed>
      */
-    private function mapearProgramaTejidoAItem(ReqProgramaTejido $r, array $catCodPorOrden = []): array
+    private function mapearProgramaTejidoAItem(ReqProgramaTejido $r, array $catCodPorOrden = [], array $telaresConParoActivo = []): array
     {
         $noOrden = trim((string) ($r->NoProduccion ?? ''));
         $cat = $catCodPorOrden[$noOrden] ?? null;
@@ -222,6 +242,11 @@ class AlineacionController extends Controller
             : 'ABIERTO';
         // FechaTejido en Y-m-d para cálculo de Días de prod. en el front (catcodificados)
         $item['FechaTejido'] = $cat?->FechaTejido ? Carbon::parse($cat->FechaTejido)->format('Y-m-d') : '';
+
+        // Indica si el telar tiene un paro activo en ManFallasParos
+        $noTelar = trim((string) ($r->NoTelarId ?? ''));
+        $item['_tieneParoActivo'] = $noTelar !== '' && in_array($noTelar, $telaresConParoActivo, true);
+
         return $item;
     }
 

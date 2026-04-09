@@ -233,6 +233,11 @@
         #mainTable tbody tr.alineacion-row-selected td.alineacion-pinned { background-color: #2563eb !important; color: #fff !important; }
         #mainTable tbody tr.alineacion-row-selected:hover,
         #mainTable tbody tr.alineacion-row-selected:hover td { background-color: #2563eb !important; }
+
+        /* Filas con paro activo en ManFallasParos */
+        #mainTable tbody tr.alineacion-row-alerta td { background-color: #fefce8 !important; }
+        #mainTable tbody tr.alineacion-row-alerta:hover td { background-color: #fef9c3 !important; }
+        #mainTable tbody tr.alineacion-row-alerta td.alineacion-pinned { background-color: #fef08a !important; }
     </style>
 
     <script>
@@ -348,8 +353,16 @@
 
                 tbody.innerHTML = data.map((row, index) => {
                     const selected = state.selectedRowIndex === index;
+                    const tieneParoActivo = !selected && !!row._tieneParoActivo;
                     const isEven = index % 2 === 0;
-                    const baseClass = selected ? 'alineacion-row-selected bg-blue-500 text-white hover:bg-blue-600' : (isEven ? 'bg-white hover:bg-gray-100' : 'bg-gray-50 hover:bg-gray-200');
+                    let baseClass;
+                    if (selected) {
+                        baseClass = 'alineacion-row-selected bg-blue-500 text-white hover:bg-blue-600';
+                    } else if (tieneParoActivo) {
+                        baseClass = 'alineacion-row-alerta hover:bg-yellow-100';
+                    } else {
+                        baseClass = isEven ? 'bg-white hover:bg-gray-100' : 'bg-gray-50 hover:bg-gray-200';
+                    }
                     const rowClass = 'alineacion-selectable-row cursor-pointer transition-colors ' + baseClass;
                     const cellClass = selected ? 'px-3 py-1.5 border-b border-r border-blue-400 whitespace-nowrap text-sm text-white column-' : 'px-3 py-1.5 border-b border-r border-gray-200 whitespace-nowrap text-sm text-gray-700 column-';
                     const cells = CONFIG.columnas.map((col, colIdx) => {
@@ -389,8 +402,12 @@
                                 if (Number.isFinite(diffDias)) raw = diffDias >= 0 ? Number(diffDias).toFixed(1) : '0';
                             }
                         }
+                        let cellContent = raw ? escapeHtml(raw) : '';
+                        if (col === 'NoTelarId' && tieneParoActivo) {
+                            cellContent = '<i class="fas fa-exclamation-triangle text-yellow-500 mr-1" title="Paro activo en mantenimiento"></i>' + cellContent;
+                        }
                         return '<td class="' + cellClass + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
-                            (raw ? escapeHtml(raw) : '') + '</td>';
+                            cellContent + '</td>';
                     }).join('');
                     return '<tr class="' + rowClass + '" data-row-index="' + index + '">' + cells + '</tr>';
                 }).join('');

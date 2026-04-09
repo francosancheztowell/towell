@@ -458,7 +458,18 @@ def normalize_label(value) -> str:
 
 
 def _merged_cell_top_left(ws, row: int, col: int) -> tuple[int, int]:
-    """If (row,col) is inside a merged range, return top-left of that range."""
+    """
+    If (row,col) is inside a merged range, return top-left of that range.
+    Fast path: non-top-left merged cells are stored as MergedCell objects in
+    ws._cells; regular cells (including top-left of a merge) are not MergedCell.
+    Avoids iterating all merged_cells.ranges for the common non-merged case.
+    """
+    from openpyxl.cell.cell import MergedCell  # noqa: PLC0415
+
+    cell = ws._cells.get((row, col))
+    if cell is None or not isinstance(cell, MergedCell):
+        return row, col
+    # Cell is a non-top-left merged cell; find its top-left via ranges
     for m in ws.merged_cells.ranges:
         if m.min_row <= row <= m.max_row and m.min_col <= col <= m.max_col:
             return m.min_row, m.min_col
@@ -538,16 +549,19 @@ def parse_detalle_sections(ws) -> dict:
 
 
 def _resolve_week_formula_value(ws, value: Any, depth: int = 0) -> int | None:
-    """Mirror PHP resolveWeekFormulaValue for =COLrow+/-N."""
+    """
+    Mirror PHP resolveWeekFormulaValue for =COLrow or =COLrow+/-N.
+    Handles optional delta (=C46, =C46+1, =C46-1) and ignores spaces.
+    """
     if depth > 8 or not isinstance(value, str):
         return None
-    formula = value.strip()
+    formula = value.strip().replace(" ", "")
     if not formula.startswith("="):
         return None
-    m = re.match(r"^=([A-Z]+)(\d+)([+-]\d+)$", formula.upper())
+    m = re.match(r"^=([A-Z]+)(\d+)([+-]\d+)?$", formula.upper())
     if not m:
         return None
-    col_l, row_s, delta_s = m.group(1), m.group(2), m.group(3)
+    col_l, row_s, delta_s = m.group(1), m.group(2), m.group(3) or "+0"
     from openpyxl.utils import column_index_from_string as col_idx  # noqa: PLC0415
 
     r = int(row_s)
@@ -695,12 +709,15 @@ def _cleanup_orphan_merged_cells(ws, start_row: int, end_row: int) -> None:
     because the cleanup loop fails with KeyError for cells never accessed.
     These orphans get shifted by insert_rows into neighboring sections,
     corrupting their structure. Remove them explicitly.
+    Iterates only the target row range instead of all cells for performance.
     """
     from openpyxl.cell.cell import MergedCell  # noqa: PLC0415
 
     orphans = [
-        (r, c) for (r, c), cell in ws._cells.items()
-        if start_row <= r <= end_row and isinstance(cell, MergedCell)
+        (r, c)
+        for r in range(start_row, end_row + 1)
+        for c in range(1, MAX_COLUMN_INDEX + 12)
+        if isinstance(ws._cells.get((r, c)), MergedCell)
     ]
     for key in orphans:
         del ws._cells[key]
@@ -720,6 +737,45 @@ def unmerge_rows_in_range(ws, start_row: int, end_row: int) -> None:
     for m in to_remove:
         _safe_unmerge(ws, m)
     _cleanup_orphan_merged_cells(ws, start_row, end_row)
+
+
+def _translate_shifted_formulas(ws, before_row: int, amount: int) -> None:
+    """
+    openpyxl insert_rows / delete_rows moves cell objects in _cells but does NOT
+    update the formula strings stored inside those cells.  Template sections for
+    weeks that have not yet been processed by this script keep formula-based week
+    references (e.g. =C46+1 in col A or footer col C).  After a row shift those
+    strings point to stale row numbers; Excel then evaluates them against wrong
+    cells and the week label appears blank/wrong.
+
+    This function updates every formula string in the cells that were shifted
+    (rows >= before_row after insert, rows that ended up >= before_row after
+    delete) so their relative cell references point to the correct new rows.
+
+    Called immediately after insert_rows / delete_rows + the merge sync, before
+    any new data is written into those rows.
+    """
+    if amount == 0:
+        return
+    try:
+        from openpyxl.formula.translate import Translator  # noqa: PLC0415
+    except ImportError:
+        return
+
+    for (r, c), cell in list(ws._cells.items()):
+        if r < before_row:
+            continue
+        if getattr(cell, "data_type", None) != "f":
+            continue
+        val = cell.value
+        if not isinstance(val, str) or not val.startswith("="):
+            continue
+        try:
+            cell.value = Translator(val, cell.coordinate).translate_formula(
+                row_delta=amount, col_delta=0
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def sync_merged_ranges_after_row_insert(ws, before_row: int, amount: int) -> None:
@@ -810,11 +866,13 @@ def resize_section(ws, section: dict, desired_rows: int) -> dict:
     if delta > 0:
         ws.insert_rows(footer, delta)
         sync_merged_ranges_after_row_insert(ws, footer, delta)
+        _translate_shifted_formulas(ws, footer, delta)
     else:
         delete_start = footer + delta
         del_count = -delta
         ws.delete_rows(delete_start, del_count)
         sync_merged_ranges_after_row_delete(ws, delete_start, del_count)
+        _translate_shifted_formulas(ws, delete_start, -del_count)
 
     new_footer = footer + delta
     return {
@@ -1017,7 +1075,14 @@ def _write_col_a(ws, layout: dict, section_top: int, week_number: int) -> None:
 
 
 def _unmerge_col_range(ws, col_start: int, col_end: int, row_start: int, row_end: int) -> None:
-    """Remove any existing merge ranges that overlap the given area."""
+    """
+    Remove any existing merge ranges that overlap the given area.
+    Orphan cleanup is intentionally omitted here: this function is called
+    many times inside write_section_data (after clear_section_values already
+    cleaned all orphans), so the extra full-scan would be wasted work.
+    Orphan cleanup is handled by unmerge_rows_in_range before any structural
+    row insertions/deletions.
+    """
     to_remove = [
         m for m in list(ws.merged_cells.ranges)
         if (m.min_row <= row_end and m.max_row >= row_start
@@ -1025,7 +1090,6 @@ def _unmerge_col_range(ws, col_start: int, col_end: int, row_start: int, row_end
     ]
     for m in to_remove:
         _safe_unmerge(ws, m)
-    _cleanup_orphan_merged_cells(ws, row_start, row_end)
 
 
 def _write_turn_labels(ws, layout: dict) -> None:
@@ -1347,6 +1411,7 @@ def run(args: argparse.Namespace) -> None:
 
             ws.insert_rows(insert_top, section_rows)
             sync_merged_ranges_after_row_insert(ws, insert_top, section_rows)
+            _translate_shifted_formulas(ws, insert_top, section_rows)
 
             new_section = {
                 "top": insert_top,
