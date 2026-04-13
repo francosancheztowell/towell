@@ -911,6 +911,46 @@ class ReportesUrdidoController extends Controller
     }
 
     /**
+     * Oficial de urdido con mayor Metros1–Metros3 en el registro (misma regla que modales de calificar julios).
+     */
+    private function operadorUrdidoMayorMetros(object $row): string
+    {
+        $slots = [];
+        foreach ([1, 2, 3] as $n) {
+            $slots[] = [
+                'm' => round((float) ($row->{"Metros{$n}"} ?? 0), 4),
+                'nom' => $row->{"NomEmpl{$n}"} ?? null,
+                'cve' => $row->{"CveEmpl{$n}"} ?? null,
+            ];
+        }
+        $maxM = max(array_column($slots, 'm'));
+        if ($maxM > 0) {
+            foreach ($slots as $s) {
+                if ($s['m'] === $maxM) {
+                    $disp = $this->obtenerOperadorDisplayCompleto(
+                        $s['nom'] !== null ? (string) $s['nom'] : null,
+                        $s['cve'] !== null ? (string) $s['cve'] : null
+                    );
+                    if (trim($disp) !== '') {
+                        return $disp;
+                    }
+                }
+            }
+        }
+        foreach ($slots as $s) {
+            $disp = $this->obtenerOperadorDisplayCompleto(
+                $s['nom'] !== null ? (string) $s['nom'] : null,
+                $s['cve'] !== null ? (string) $s['cve'] : null
+            );
+            if (trim($disp) !== '') {
+                return $disp;
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Descargar Excel con el reporte (usa los mismos filtros: fecha_ini, fecha_fin, solo_finalizados)
      */
     public function exportarExcel(Request $request)
@@ -1183,6 +1223,15 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.Id',
                 'UrdProduccionUrdido.Folio',
                 'UrdProduccionUrdido.NoJulio',
+                'UrdProduccionUrdido.Metros1',
+                'UrdProduccionUrdido.Metros2',
+                'UrdProduccionUrdido.Metros3',
+                'UrdProduccionUrdido.CveEmpl1',
+                'UrdProduccionUrdido.NomEmpl1',
+                'UrdProduccionUrdido.CveEmpl2',
+                'UrdProduccionUrdido.NomEmpl2',
+                'UrdProduccionUrdido.CveEmpl3',
+                'UrdProduccionUrdido.NomEmpl3',
                 'UrdProduccionUrdido.ClaveDefecto',
                 'UrdProduccionUrdido.Penalizacion',
                 'UrdProduccionUrdido.OperadorDefecto',
@@ -1256,7 +1305,9 @@ class ReportesUrdidoController extends Controller
             'clave_catalogo' => trim((string) ($row->ClaveCatalogo ?? '')),
             'cinco_s' => trim((string) ($row->CincoS ?? '')),
             'seguridad' => trim((string) ($row->Seguridad ?? '')),
-            'ope' => $row->OperadorDefecto ?? '',
+            'ope' => $area === 'URD'
+                ? $this->operadorUrdidoMayorMetros($row)
+                : (string) ($row->OperadorDefecto ?? ''),
             'penalizar' => $penalizacion,
         ];
     }

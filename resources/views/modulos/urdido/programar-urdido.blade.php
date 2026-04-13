@@ -127,7 +127,7 @@
                         </thead>
                         <tbody id="modalPrioridadTableBody" class="bg-white">
                             <tr>
-                                <td colspan="9" class="px-3 py-4 text-center text-gray-500">
+                                <td colspan="8" class="px-3 py-4 text-center text-gray-500">
                                     <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
                                 </td>
                             </tr>
@@ -1071,7 +1071,7 @@
                     if (tbody) {
                         tbody.innerHTML = `
                             <tr>
-                                <td colspan="9" class="px-3 py-4 text-center text-red-500">
+                                <td colspan="8" class="px-3 py-4 text-center text-red-500">
                                     Error al cargar órdenes
                                 </td>
                             </tr>
@@ -1089,7 +1089,7 @@
                 if (!ordenes.length) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="9" class="px-3 py-4 text-center text-gray-500">
+                            <td colspan="8" class="px-3 py-4 text-center text-gray-500">
                                 No hay órdenes disponibles
                             </td>
                         </tr>

@@ -101,11 +101,41 @@
         return String(val).replace('T', ' ').substring(0, 10);
     }
 
-    function buildInfoOperadorEng(j) {
-        if (!j.OperadorDefecto && !j.FechaDefecto) return '';
-        let html = '<div class="info-operador-defecto text-xs text-gray-500 mb-1 flex gap-3">';
-        if (j.OperadorDefecto) html += '<span><i class="fa-solid fa-user mr-1"></i>' + j.OperadorDefecto + '</span>';
-        if (j.FechaDefecto)    html += '<span><i class="fa-solid fa-calendar mr-1"></i>' + parseFechaEng(j.FechaDefecto) + '</span>';
+    function resolveOperadorJulioEng(j) {
+        const slots = [
+            { m: parseFloat(j.Metros1) || 0, n: j.NomEmpl1 },
+            { m: parseFloat(j.Metros2) || 0, n: j.NomEmpl2 },
+            { m: parseFloat(j.Metros3) || 0, n: j.NomEmpl3 },
+        ];
+        let bestI = 0;
+        for (let i = 1; i < 3; i++) {
+            if (slots[i].m > slots[bestI].m) bestI = i;
+        }
+        const maxM = slots[bestI].m;
+        if (maxM > 0) {
+            for (let i = 0; i < 3; i++) {
+                if (slots[i].m === maxM && slots[i].n != null && String(slots[i].n).trim() !== '') {
+                    return String(slots[i].n).trim();
+                }
+            }
+        }
+        for (const s of slots) {
+            if (s.n != null && String(s.n).trim() !== '') return String(s.n).trim();
+        }
+        return '';
+    }
+
+    function buildInfoJulioEng(j) {
+        const operador = resolveOperadorJulioEng(j);
+        const fechaJulio = j.Fecha ? parseFechaEng(j.Fecha) : '';
+        if (!operador && !fechaJulio) return '';
+        let html = '<div class="info-julio-eng text-xs text-gray-500 mb-1 flex flex-wrap gap-3">';
+        if (operador) {
+            html += '<span title="Oficial con mayor metraje en este julio"><i class="fa-solid fa-user mr-1"></i>' + operador + '</span>';
+        }
+        if (fechaJulio) {
+            html += '<span title="Fecha del julio"><i class="fa-solid fa-calendar mr-1"></i>' + fechaJulio + '</span>';
+        }
         html += '</div>';
         return html;
     }
@@ -143,7 +173,7 @@
             tr.innerHTML =
                 '<td class="px-3 py-2">' + (j.Folio ?? '') + '</td>' +
                 '<td class="px-3 py-2 font-semibold">' + (j.NoJulio ?? '') + '</td>' +
-                '<td class="px-3 py-2">' + buildInfoOperadorEng(j) + buildSelectEng(j) + '</td>';
+                '<td class="px-3 py-2">' + buildInfoJulioEng(j) + buildSelectEng(j) + '</td>';
             tbody.appendChild(tr);
             const sel = tr.querySelector('select');
             aplicarColorEng(sel);
@@ -203,10 +233,10 @@
             // Actualizar info de operador/fecha en el DOM sin recargar
             const td = selectEl.closest('td');
             if (td) {
-                const existing = td.querySelector('.info-operador-defecto');
+                const existing = td.querySelector('.info-julio-eng');
                 if (existing) existing.remove();
                 const data = json.data || {};
-                const infoHtml = buildInfoOperadorEng(data);
+                const infoHtml = buildInfoJulioEng(data);
                 if (infoHtml) td.insertAdjacentHTML('afterbegin', infoHtml);
             }
         } catch (e) {

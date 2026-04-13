@@ -117,11 +117,41 @@
         return String(val).replace('T', ' ').substring(0, 10);
     }
 
-    function buildInfoOperador(julio) {
-        if (!julio.OperadorDefecto && !julio.FechaDefecto) return '';
-        let html = '<div class="info-operador-defecto text-xs text-gray-500 mb-1 flex gap-3">';
-        if (julio.OperadorDefecto) html += '<span><i class="fa-solid fa-user mr-1"></i>' + julio.OperadorDefecto + '</span>';
-        if (julio.FechaDefecto)    html += '<span><i class="fa-solid fa-calendar mr-1"></i>' + parseFecha(julio.FechaDefecto) + '</span>';
+    function resolveOperadorJulioUrd(j) {
+        const slots = [
+            { m: parseFloat(j.Metros1) || 0, n: j.NomEmpl1 },
+            { m: parseFloat(j.Metros2) || 0, n: j.NomEmpl2 },
+            { m: parseFloat(j.Metros3) || 0, n: j.NomEmpl3 },
+        ];
+        let bestI = 0;
+        for (let i = 1; i < 3; i++) {
+            if (slots[i].m > slots[bestI].m) bestI = i;
+        }
+        const maxM = slots[bestI].m;
+        if (maxM > 0) {
+            for (let i = 0; i < 3; i++) {
+                if (slots[i].m === maxM && slots[i].n != null && String(slots[i].n).trim() !== '') {
+                    return String(slots[i].n).trim();
+                }
+            }
+        }
+        for (const s of slots) {
+            if (s.n != null && String(s.n).trim() !== '') return String(s.n).trim();
+        }
+        return '';
+    }
+
+    function buildInfoJulioUrd(j) {
+        const operador = resolveOperadorJulioUrd(j);
+        const fechaJulio = j.Fecha ? parseFecha(j.Fecha) : '';
+        if (!operador && !fechaJulio) return '';
+        let html = '<div class="info-julio-urdido text-xs text-gray-500 mb-1 flex flex-wrap gap-3">';
+        if (operador) {
+            html += '<span title="Oficial con mayor metraje en este julio (urdido)"><i class="fa-solid fa-user mr-1"></i>' + operador + '</span>';
+        }
+        if (fechaJulio) {
+            html += '<span title="Fecha del julio (urdido)"><i class="fa-solid fa-calendar mr-1"></i>' + fechaJulio + '</span>';
+        }
         html += '</div>';
         return html;
     }
@@ -159,7 +189,7 @@
             tr.innerHTML =
                 '<td class="px-3 py-2">' + (j.Folio ?? '') + '</td>' +
                 '<td class="px-3 py-2 font-semibold">' + (j.NoJulio ?? '') + '</td>' +
-                '<td class="px-3 py-2">' + buildInfoOperador(j) + buildSelect(j) + '</td>';
+                '<td class="px-3 py-2">' + buildInfoJulioUrd(j) + buildSelect(j) + '</td>';
             tbody.appendChild(tr);
             const sel = tr.querySelector('select');
             aplicarColor(sel);
@@ -219,10 +249,10 @@
             // Actualizar info de operador/fecha en el DOM sin recargar
             const td = selectEl.closest('td');
             if (td) {
-                const existing = td.querySelector('.info-operador-defecto');
+                const existing = td.querySelector('.info-julio-urdido');
                 if (existing) existing.remove();
                 const data = json.data || {};
-                const infoHtml = buildInfoOperador(data);
+                const infoHtml = buildInfoJulioUrd(data);
                 if (infoHtml) td.insertAdjacentHTML('afterbegin', infoHtml);
             }
         } catch (e) {

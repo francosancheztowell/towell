@@ -106,13 +106,12 @@
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Calibre</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Configuración</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Metros</th>
-                                <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Tabla</th>
                                 <th class="px-3 py-2 text-center font-semibold text-sm border border-gray-300">Status</th>
                             </tr>
                         </thead>
                         <tbody id="modalPrioridadTableBody" class="bg-white">
                             <tr>
-                                <td colspan="9" class="px-3 py-4 text-center text-gray-500">
+                                <td colspan="8" class="px-3 py-4 text-center text-gray-500">
                                     <div class="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-500 mx-auto"></div>
                                 </td>
                             </tr>
@@ -915,10 +914,10 @@
                             </td>
                             <td class="${baseTd}">${orden.folio || ''}</td>
                             <td class="${baseTd} text-center">${renderTipoBadge(orden.tipo, false)}</td>
-                            <td class="${baseTd}">${orden.cuenta_calibre || ''}</td>
+                            <td class="${baseTd}">${orden.cuenta ?? ''}</td>
+                            <td class="${baseTd}">${orden.calibre ?? ''}</td>
                             <td class="${baseTd}">${orden.configuracion || ''}</td>
                             <td class="${baseTd}">${metros}</td>
-                            <td class="${baseTd}">${orden.tabla || ''}</td>
                             <td class="${baseTd}">${orden.status || ''}</td>
                         </tr>
                     `;

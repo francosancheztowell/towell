@@ -32,7 +32,7 @@
         @if(isset($orden) && $orden)
         <button type="button" onclick="abrirModalCalificarJulios()"
             class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
-            title="Calificar julios de urdido">
+            title="Calificar julios de urdido (folio de la orden)">
             <i class="fa-solid fa-clipboard-check"></i>
             <span>Calificar julios</span>
         </button>

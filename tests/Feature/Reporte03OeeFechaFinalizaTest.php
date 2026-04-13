@@ -287,7 +287,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
                     array_column($defectosData['seguridad_rows'], 'defecto')
                 );
                 $this->assertSame(
-                    ['Operador B Defecto', 'Operador C Defecto', 'Eng A Defecto'],
+                    ['Operador B', 'Operador C', 'Eng A Defecto'],
                     $defectosData['footer_operators']
                 );
                 $this->assertSame('URD', $defectosData['calidad_rows'][0]['area']);

@@ -30,6 +30,9 @@ class CalificarJuliosController extends Controller
                 ->orderBy('NoJulio', 'asc')
                 ->get([
                     'Id', 'Folio', 'NoJulio',
+                    'Fecha',
+                    'Metros1', 'Metros2', 'Metros3',
+                    'NomEmpl1', 'NomEmpl2', 'NomEmpl3',
                     'ClaveDefecto', 'Penalizacion',
                     'OperadorDefecto', 'NoEmplDefecto', 'FechaDefecto',
                 ]);
@@ -108,6 +111,9 @@ class CalificarJuliosController extends Controller
                 ->orderBy('Id')
                 ->get([
                     'Id', 'Folio', 'NoJulio',
+                    'Fecha',
+                    'Metros1', 'Metros2', 'Metros3',
+                    'NomEmpl1', 'NomEmpl2', 'NomEmpl3',
                     'ClaveDefecto', 'Penalizacion',
                     'OperadorDefecto', 'NoEmplDefecto', 'FechaDefecto',
                 ]);
