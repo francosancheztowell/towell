@@ -55,8 +55,8 @@
                             <th rowspan="2" class="saldos-th saldos-h-small saldos-h-white" style="min-width:52px;">TIRAS</th>
                             <th rowspan="2" class="saldos-th saldos-h-small saldos-h-white" style="min-width:100px;">Repeticiones por corte</th>
                             <th rowspan="2" class="saldos-th saldos-h-green-soft saldos-h-small" style="min-width:88px;">Rollos programados</th>
-                            <th rowspan="2" class="saldos-th saldos-h-toallas" style="min-width:100px;">Toallas Tejidas<br><span class="saldos-h-saldo-accent">SALDO</span></th>
-                            <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:64px;">Faltan</th>
+                            <th rowspan="2" class="saldos-th saldos-h-toallas" style="min-width:100px;">Toallas Tejidas</th>
+                            <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:100px;">Faltan</th>
                             <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:64px;">Avance</th>
                             <th rowspan="2" class="saldos-th saldos-h-rollos-tejer" style="min-width:92px;">Rollos por Tejer</th>
                             <th rowspan="2" class="saldos-th saldos-h-obs" style="min-width:200px;">Observaciones</th>
@@ -134,12 +134,15 @@
                                 $rowClass          = $esRepaso ? 'saldos-row-repaso' : ($i % 2 === 0 ? 'saldos-row-even' : 'saldos-row-odd');
                                 $grupoClass        = $esGrupoVinculado ? ' saldos-row-grupo' : '';
                                 $liderClass        = $esLider ? ' saldos-row-lider' : ' saldos-row-abierto';
-                                $searchBase        = strtolower(($r->NoTelarId ?? '') . ' ' . ($r->NoProduccion ?? '') . ' ' . ($r->NombreProducto ?? '') . ' ' . ($r->ItemId ?? '') . ' ' . ($r->TamanoClave ?? ''));
-                                $searchFull        = $esGrupoVinculado && !$esLider ? $searchBase . ' abierto' : $searchBase;
                                 $solicitado        = (float) ($r->_sumTotalPedido ?? $r->TotalPedido ?? 0);
                                 $saldo             = (float) ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0);
+                                $produccionVal     = (float) ($r->_sumProduccion ?? $r->Produccion ?? 0);
                                 $faltan            = $solicitado - $saldo;
-                                $avance            = $solicitado > 0 ? round($saldo / $solicitado * 100, 1) : 0;
+                                $searchBase        = strtolower(($r->NoTelarId ?? '') . ' ' . ($r->NoProduccion ?? '') . ' ' . ($r->NombreProducto ?? '') . ' ' . ($r->ItemId ?? '') . ' ' . ($r->TamanoClave ?? '') . ' ' . $saldo . ' ' . $produccionVal);
+                                $searchFull        = $esGrupoVinculado && !$esLider ? $searchBase . ' abierto' : $searchBase;
+                                $avance            = $solicitado > 0
+                                    ? round(min(100, max(0, $produccionVal / $solicitado * 100)), 1)
+                                    : 0;
                                 $tiras             = (float) ($r->NoTiras ?? 0);
                                 $reps              = (float) ($r->Repeticiones ?? 0);
                                 $rollosXTejer      = ($tiras > 0 && $reps > 0) ? ceil($faltan / ($tiras * $reps)) : '—';
@@ -211,15 +214,19 @@
                                         <span class="saldos-abierto-badge">ABIERTO</span>
                                     @endif
                                 </td>
+                                <td class="saldos-td text-right tabular-nums font-semibold text-gray-900">
+                                    @if ($esLider)
+                                        {{ number_format($produccionVal, 0) }}
+                                    @else
+                                        <span class="text-gray-300">—</span>
+                                    @endif
+                                </td>
                                 <td class="saldos-td saldos-td-toallas-saldo text-right tabular-nums font-semibold text-gray-900">
                                     @if ($esLider)
                                         {{ number_format((float) ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0), 0) }}
                                     @else
                                         <span class="saldos-abierto-badge">ABIERTO</span>
                                     @endif
-                                </td>
-                                <td class="saldos-td text-right tabular-nums {{ $faltan > 0 ? 'text-red-600 font-semibold' : 'text-gray-400' }}">
-                                    {{ $esLider && $esGrupoVinculado ? number_format($faltan, 0) : ($solicitado > 0 ? number_format($faltan, 0) : '—') }}
                                 </td>
                                 <td class="saldos-td text-right tabular-nums {{ $avance >= 100 ? 'text-green-600 font-semibold' : 'text-blue-600' }}">{{ $solicitado > 0 ? $avance . '%' : '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="background:#bbf7d0;border-color:#4ade80;">{{ is_numeric($rollosXTejer) ? number_format($rollosXTejer, 0) : $rollosXTejer }}</td>

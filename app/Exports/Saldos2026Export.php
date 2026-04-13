@@ -182,7 +182,7 @@ final class Saldos2026Export
         $rollosXTejer = null;
         if ($esLider) {
             $faltan = $solicitado - $saldo;
-            $avance = $solicitado > 0 ? $saldo / $solicitado : null;
+            $avance = $solicitado > 0 ? min(1.0, max(0.0, $produccion / $solicitado)) : null;
             $tiras = (float) ($r->NoTiras ?? 0);
             $reps = (float) ($r->Repeticiones ?? 0);
             $f = (float) $faltan;
