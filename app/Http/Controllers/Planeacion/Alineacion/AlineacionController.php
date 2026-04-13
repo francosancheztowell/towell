@@ -179,10 +179,8 @@ class AlineacionController extends Controller
             'RazSN' => null,
             'TipoRizo' => null,
             'TipoPlano' => null,
-            'PesoMin' => 'PesoMuesMin',
-            'PesoMax' => 'PesoMuesMax',
-            'MuestraMin' => null,
-            'MuestraMax' => null,
+            'PesoMin' => null,
+            'PesoMax' => null,
             'ProdAcumMesAnt' => null,
             'ProdAcumMes' => null,
             'DiasPorEjecutar' => null,
@@ -195,6 +193,8 @@ class AlineacionController extends Controller
             'PasadasComb4' => fn () => $this->concatCalibreFibra($r->CalibreComb4, $r->FibraComb4),
         ];
 
+        [$pesoMinAlineacion, $pesoMaxAlineacion] = $this->minMaxAlineacionToleranciaN($cat, $r->PesoCrudo);
+
         $deCat = [
             'FechaCambio' => fn () => $cat?->FechaTejido ? $this->formatDateAlineacion($cat->FechaTejido, 'd M Y') : '',
             'Tolerancia' => fn () => $cat?->Tolerancia,
@@ -202,21 +202,28 @@ class AlineacionController extends Controller
             'TipoRizo' => fn () => $cat?->TipoRizo,
             'TipoPlano' => fn () => $cat?->DobladilloId,
             'Observaciones' => fn () => $cat?->Obs5,
+            'PesoMin' => fn () => $pesoMinAlineacion,
+            'PesoMax' => fn () => $pesoMaxAlineacion,
+            'MuestraMin' => fn () => $pesoMinAlineacion,
+            'MuestraMax' => fn () => $pesoMaxAlineacion,
         ];
 
         foreach ($this->columnas as $key) {
             if (isset($concatCalibreFibra[$key])) {
                 $item[$key] = $concatCalibreFibra[$key]();
+
                 continue;
             }
             if (isset($deCat[$key])) {
                 $item[$key] = $deCat[$key]() ?? '';
+
                 continue;
             }
             if (array_key_exists($key, $mapeoEspecial)) {
                 $attr = $mapeoEspecial[$key];
                 if ($attr === null) {
                     $item[$key] = '';
+
                     continue;
                 }
                 $value = $r->getAttribute($attr);
@@ -225,11 +232,13 @@ class AlineacionController extends Controller
                         $attr === 'EntregaCte' ? $this->formatDateAlineacion($value, 'd M Y') : $value
                     )
                 ) : '';
+
                 continue;
             }
             $value = $r->getAttribute($key);
             if ($value === null) {
                 $item[$key] = '';
+
                 continue;
             }
             $item[$key] = $value;
@@ -251,6 +260,23 @@ class AlineacionController extends Controller
     }
 
     /**
+     * Mínimo y máximo de alineación cuando Tolerancia del catálogo es N: base/(1+3%), base/(1+0%), base/(1+5%).
+     *
+     * @param  mixed  $base  Peso crudo, peso muestra, etc.
+     * @return array{0: ''|int, 1: ''|int}
+     */
+    private function minMaxAlineacionToleranciaN(?CatCodificados $cat, mixed $base): array
+    {
+        if (trim((string) ($cat?->Tolerancia ?? '')) !== 'N' || (float) ($base ?? 0) <= 0) {
+            return ['', ''];
+        }
+        $b = (float) $base;
+        $candidatos = [$b / 1.03, $b / 1.00, $b / 1.05];
+
+        return [(int) round(min($candidatos)), (int) round(max($candidatos))];
+    }
+
+    /**
      * Concatena Calibre/Fibra para Cenefa Trama (ReqProgramaTejido).
      */
     private function concatCalibreFibra($calibre, $fibra): string
@@ -261,16 +287,16 @@ class AlineacionController extends Controller
             return '';
         }
         if ($c === '' || $f === '') {
-            return $c . $f;
+            return $c.$f;
         }
 
-        return $c . '/' . $f;
+        return $c.'/'.$f;
     }
 
     /**
      * Formatea fecha/datetime en español para la vista Alineación.
      *
-     * @param mixed $value
+     * @param  mixed  $value
      */
     private function formatDateAlineacion($value, string $format): string
     {

@@ -54,8 +54,8 @@
                 'FibraRizo' => 'Rizo', 'FibraPie' => 'Pie', 'CalibreTrama' => 'Trama',
                 'PasadasComb1' => '1', 'PasadasComb2' => '2', 'PasadasComb3' => '3', 'PasadasComb4' => '4',
                 'AnchoToalla' => '', 'PesoGRM2' => '',
-                'PesoMin' => 'Min', 'PesoMax' => 'Max',
-                'MuestraMin' => 'Min', 'MuestraMax' => 'Max',
+                'PesoMin' => 'Mín.', 'PesoMax' => 'Máx.',
+                'MuestraMin' => 'Mín.', 'MuestraMax' => 'Máx.',
                 'TotalPedido' => '', 'ProdAcumMesAnt' => '', 'ProdAcumMes' => '',
                 'Produccion' => '', 'SaldoPedido' => '', 'DiasEficiencia' => '',
                 'ProdKgDia' => '', 'DiasPorEjecutar' => '', 'Observaciones' => '',
@@ -243,6 +243,18 @@
         #mainTable tbody tr.alineacion-row-alerta-selected td { background-color: #fde047 !important; color: #713f12 !important; }
         #mainTable tbody tr.alineacion-row-alerta-selected:hover td { background-color: #facc15 !important; }
         #mainTable tbody tr.alineacion-row-alerta-selected td.alineacion-pinned { background-color: #eab308 !important; color: #713f12 !important; }
+
+        /* Rango peso / muestra (tolerancia N): ancho mínimo para que min–max se lean al hacer scroll */
+        #mainTable thead th[data-column="PesoMin"], #mainTable thead th[data-column="PesoMax"],
+        #mainTable thead th[data-column="MuestraMin"], #mainTable thead th[data-column="MuestraMax"] {
+            min-width: 4.25rem;
+            text-align: center;
+        }
+        #mainTable tbody td[data-column="PesoMin"], #mainTable tbody td[data-column="PesoMax"],
+        #mainTable tbody td[data-column="MuestraMin"], #mainTable tbody td[data-column="MuestraMax"] {
+            min-width: 4.25rem;
+            text-align: center;
+        }
     </style>
 
     <script>
