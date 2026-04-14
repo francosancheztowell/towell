@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 class BomMaterialesService
 {
     private const CONN = 'sqlsrv_ti';
+
     private const DATAAREA = 'PRO';
 
     public function buscarBomUrdido(string $query): array
@@ -24,8 +25,8 @@ class BomMaterialesService
 
         if (strlen($query) >= 1) {
             $q->where(function ($sub) use ($query) {
-                $sub->where('bt.BOMID', 'LIKE', '%' . $query . '%')
-                    ->orWhere('bt.NAME', 'LIKE', '%' . $query . '%');
+                $sub->where('bt.BOMID', 'LIKE', '%'.$query.'%')
+                    ->orWhere('bt.NAME', 'LIKE', '%'.$query.'%');
             });
         }
 
@@ -42,8 +43,8 @@ class BomMaterialesService
 
         if (strlen($query) >= 1) {
             $q->where(function ($sub) use ($query) {
-                $sub->where('bt.BOMID', 'LIKE', '%' . $query . '%')
-                    ->orWhere('bt.NAME', 'LIKE', '%' . $query . '%');
+                $sub->where('bt.BOMID', 'LIKE', '%'.$query.'%')
+                    ->orWhere('bt.NAME', 'LIKE', '%'.$query.'%');
             });
         }
 
@@ -53,7 +54,9 @@ class BomMaterialesService
 
     public function getMaterialesUrdido(string $bomId): array
     {
-        if (empty(trim($bomId))) return [];
+        if (empty(trim($bomId))) {
+            return [];
+        }
 
         return DB::connection(self::CONN)
             ->table('BOM as b')
@@ -72,7 +75,7 @@ class BomMaterialesService
                 'b.ITEMID as ItemId',
                 DB::raw('SUM(CAST(b.BOMQTY AS DECIMAL(18,6))) as BomQty'),
                 'id.CONFIGID as ConfigId',
-                DB::raw('MAX(it.ITEMNAME) as ItemName')
+                DB::raw('MAX(it.ITEMNAME) as ItemName'),
             ])
             ->groupBy('b.ITEMID', 'id.CONFIGID')
             ->orderBy('b.ITEMID')
@@ -121,7 +124,9 @@ class BomMaterialesService
     private function getInventarioPorMaterialesUrdidoRaw(array $itemIds, array $configIds): array
     {
         $itemIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $itemIds)));
-        if (empty($itemIds)) return [];
+        if (empty($itemIds)) {
+            return [];
+        }
 
         $configIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $configIds)));
         $consumidosKeys = $this->obtenerMaterialesConsumidosKeys($itemIds);
@@ -170,6 +175,7 @@ class BomMaterialesService
             } elseif ($prodDate !== null && $prodDate !== '') {
                 $prodDateStr = (string) $prodDate;
             }
+
             return [
                 'ItemId' => trim($row->ItemId ?? ''),
                 'ConfigId' => trim($row->ConfigId ?? ''),
@@ -190,12 +196,15 @@ class BomMaterialesService
 
     /**
      * Inventario físico disponible por ItemId/ConfigId (para tabla detalle Karl Mayer).
+     *
      * @deprecated Usar getInventarioPorMaterialesUrdidoRaw para formato creacion-ordenes
      */
     private function getInventarioPorMaterialesUrdido(array $itemIds, array $configIds): array
     {
         $itemIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $itemIds)));
-        if (empty($itemIds)) return [];
+        if (empty($itemIds)) {
+            return [];
+        }
 
         $configIds = array_values(array_filter(array_map(fn ($id) => trim((string) $id) ?: null, $configIds)));
         $consumidosKeys = $this->obtenerMaterialesConsumidosKeys($itemIds);
@@ -247,6 +256,7 @@ class BomMaterialesService
             } else {
                 $fecha = '';
             }
+
             return [
                 'articulo' => trim($row->ItemId ?? ''),
                 'config' => trim($row->ConfigId ?? ''),
@@ -261,7 +271,7 @@ class BomMaterialesService
                 'fecha' => $fecha,
                 'conos' => $twTiras,
                 'kilos' => $physical,
-                'id' => ($row->ItemId ?? '') . '|' . ($row->InventSerialId ?? ''),
+                'id' => ($row->ItemId ?? '').'|'.($row->InventSerialId ?? ''),
             ];
         }, $filtered);
     }
@@ -351,7 +361,7 @@ class BomMaterialesService
      */
     private static function claveMaterialConsumido(string $itemId, string $inventSerialId): string
     {
-        return $itemId . '|' . $inventSerialId;
+        return $itemId.'|'.$inventSerialId;
     }
 
     /**
@@ -359,7 +369,6 @@ class BomMaterialesService
      *
      * @param  \Illuminate\Support\Collection  $results
      * @param  array<string, true>  $consumidosKeys
-     * @return array
      */
     private function excluirMaterialesConsumidos($results, array $consumidosKeys): array
     {
@@ -387,8 +396,12 @@ class BomMaterialesService
         $cuenta = $cuenta && trim($cuenta) !== '' ? trim($cuenta) : null;
 
         $query = EngAnchoBalonaCuenta::query();
-        if ($cuenta) $query->whereRaw('LTRIM(RTRIM(Cuenta)) = ?', [$cuenta]);
-        if ($tipoNorm) $query->whereRaw('LTRIM(RTRIM(RizoPie)) = ?', [$tipoNorm]);
+        if ($cuenta) {
+            $query->whereRaw('LTRIM(RTRIM(Cuenta)) = ?', [$cuenta]);
+        }
+        if ($tipoNorm) {
+            $query->whereRaw('LTRIM(RTRIM(RizoPie)) = ?', [$tipoNorm]);
+        }
         $resultados = $query->orderBy('AnchoBalona')->get();
 
         if ($resultados->isEmpty() && ($cuenta || $tipoNorm)) {
@@ -396,7 +409,7 @@ class BomMaterialesService
         }
 
         return $resultados->map(fn ($i) => [
-            'id' => $i->Id, 'anchoBalona' => $i->AnchoBalona, 'cuenta' => $i->Cuenta, 'rizoPie' => $i->RizoPie
+            'id' => $i->Id, 'anchoBalona' => $i->AnchoBalona, 'cuenta' => $i->Cuenta, 'rizoPie' => $i->RizoPie,
         ])->toArray();
     }
 
@@ -435,28 +448,200 @@ class BomMaterialesService
     }
 
     /**
-     * Obtiene el BomFormula (ITEMID) a partir del BOM ID de engomado.
-     * Busca en BOM donde BOMID coincida y ITEMID sea tipo TE-PD-ENF%.
+     * Resuelve el BomId de AX a partir del ITEMID de una fórmula (misma lógica que enlaza BOMVersion con componentes).
+     */
+    public function resolveBomIdFromFormulaItem(?string $formulaItemId): ?string
+    {
+        if (empty(trim((string) ($formulaItemId ?? '')))) {
+            return null;
+        }
+
+        $itemId = trim((string) $formulaItemId);
+
+        try {
+            $bomId = DB::connection(self::CONN)
+                ->table('BOMVersion')
+                ->where('ItemId', $itemId)
+                ->where('DATAAREAID', self::DATAAREA)
+                ->orderBy('BomId')
+                ->value('BomId');
+
+            if ($bomId === null || $bomId === '') {
+                return null;
+            }
+
+            return trim((string) $bomId);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Lista TE-PD-ENF%: por BomEng se agrupan todos los BOM de engomado (ENG %) que en AX comparten el mismo
+     * artículo en {@see BOMVersion} (alternativas de lista); si no aplica, una sola lista vía {@see getBomFormulas()}.
+     * Sin bom id, intenta resolver BomId vía {@see resolveBomIdFromFormulaItem()}.
+     *
+     * @return list<string>
+     */
+    public function getBomFormulasWithFallback(?string $bomEngId, ?string $formulaItemId): array
+    {
+        $bomKey = trim((string) ($bomEngId ?? ''));
+        if ($bomKey !== '') {
+            $aggregated = $this->getBomFormulasAggregatedForEngProgram($bomKey);
+            if ($aggregated !== []) {
+                return $aggregated;
+            }
+        }
+
+        $resolved = $this->resolveBomIdFromFormulaItem($formulaItemId);
+        if ($resolved === null || $resolved === '') {
+            return [];
+        }
+
+        return $this->getBomFormulasAggregatedForEngProgram($resolved);
+    }
+
+    /**
+     * Todas las fórmulas TE-PD-ENF% del programa de engomado: une las de cada BOM ENG % que comparte ItemId
+     * en BOMVersion con el BomEng actual (mismas alternativas de lista que en AX para el mismo producto).
+     *
+     * @return list<string>
+     */
+    public function getBomFormulasAggregatedForEngProgram(?string $bomEngId): array
+    {
+        if (empty(trim((string) ($bomEngId ?? '')))) {
+            return [];
+        }
+
+        $key = trim((string) $bomEngId);
+
+        try {
+            $parentItems = $this->resolveParentItemIdsForEngBom($key);
+            $bomIds = $parentItems !== []
+                ? $this->resolveEngBomIdsForParentItems($parentItems)
+                : [];
+
+            if ($bomIds === []) {
+                return $this->getBomFormulas($key);
+            }
+
+            $seen = [];
+            foreach ($bomIds as $bid) {
+                foreach ($this->getBomFormulas($bid) as $f) {
+                    $seen[$f] = true;
+                }
+            }
+
+            $result = array_keys($seen);
+            sort($result);
+
+            return $result;
+        } catch (\Throwable $e) {
+            return $this->getBomFormulas($key);
+        }
+    }
+
+    /**
+     * ItemId de producto enlazados al BomId en BOMVersion (un engomado puede tener varias filas de versión).
+     *
+     * @return list<string>
+     */
+    private function resolveParentItemIdsForEngBom(string $bomEngId): array
+    {
+        try {
+            return DB::connection(self::CONN)
+                ->table('BOMVersion')
+                ->whereRaw('RTRIM(BomId) = ?', [trim($bomEngId)])
+                ->where('DATAAREAID', self::DATAAREA)
+                ->distinct()
+                ->pluck('ItemId')
+                ->map(fn ($id) => trim((string) $id))
+                ->filter(fn (string $id) => $id !== '')
+                ->values()
+                ->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Todos los BomId de listas de materiales de engomado (JUL-ENG, ENG %) que comparten el mismo ItemId padre.
+     *
+     * @param  list<string>  $parentItemIds
+     * @return list<string>
+     */
+    private function resolveEngBomIdsForParentItems(array $parentItemIds): array
+    {
+        if ($parentItemIds === []) {
+            return [];
+        }
+
+        try {
+            return DB::connection(self::CONN)
+                ->table('BOMVersion as BV')
+                ->join('BOMTABLE as BT', function ($j) {
+                    $j->on('BT.BOMID', '=', 'BV.BomId')
+                        ->on('BT.DATAAREAID', '=', 'BV.DATAAREAID');
+                })
+                ->where('BV.DATAAREAID', self::DATAAREA)
+                ->whereIn('BV.ItemId', $parentItemIds)
+                ->where('BT.ITEMGROUPID', 'JUL-ENG')
+                ->where('BT.BOMID', 'like', 'ENG %')
+                ->distinct()
+                ->pluck('BV.BomId')
+                ->map(fn ($id) => trim((string) $id))
+                ->filter(fn (string $id) => $id !== '')
+                ->values()
+                ->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Todos los ITEMID de fórmula (TE-PD-ENF%) distintos de **un** BOM de engomado en AX, ordenados.
+     *
+     * @return list<string>
+     */
+    public function getBomFormulas(?string $bomEngId): array
+    {
+        if (empty(trim($bomEngId ?? ''))) {
+            return [];
+        }
+
+        $bomKey = trim((string) $bomEngId);
+
+        try {
+            $rows = DB::connection(self::CONN)
+                ->table('BOM')
+                ->select('ITEMID')
+                ->whereRaw('RTRIM(BOM.BOMID) = ?', [$bomKey])
+                ->where('DATAAREAID', self::DATAAREA)
+                ->where('ITEMID', 'like', 'TE-PD-ENF%')
+                ->orderBy('ITEMID')
+                ->distinct()
+                ->pluck('ITEMID');
+
+            return $rows
+                ->map(fn ($id) => (string) $id)
+                ->map(fn (string $id) => trim($id))
+                ->filter(fn (string $id) => $id !== '')
+                ->values()
+                ->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Compatibilidad Programa URD/ENG: primera fórmula de {@see getBomFormulas()} (mismo criterio y orden).
      *
      * @return string|null ITEMID de la fórmula o null si no existe
      */
     public function getBomFormula(?string $bomEngId): ?string
     {
-        if (empty(trim($bomEngId ?? ''))) {
-            return null;
-        }
+        $formulas = $this->getBomFormulas($bomEngId);
 
-        try {
-            $itemId = DB::connection(self::CONN)
-                ->table('BOM')
-                ->where('BOMID', trim($bomEngId))
-                ->where('DATAAREAID', self::DATAAREA)
-                ->where('ITEMID', 'like', 'TE-PD-ENF%')
-                ->value('ITEMID');
-
-            return $itemId ? (string) $itemId : null;
-        } catch (\Throwable $e) {
-            return null;
-        }
+        return $formulas[0] ?? null;
     }
 }

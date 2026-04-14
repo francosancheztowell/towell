@@ -3,18 +3,23 @@
 namespace App\Http\Controllers\Engomado\CapturaFormulas;
 
 use App\Http\Controllers\Controller;
-use App\Models\Engomado\EngProduccionFormulacionModel;
 use App\Models\Engomado\EngFormulacionLineModel;
+use App\Models\Engomado\EngProduccionFormulacionModel;
+use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\URDCatalogoMaquina;
-use App\Models\Engomado\EngProgramaEngomado;
+use App\Services\ProgramaUrdEng\BomMaterialesService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 
 class EngProduccionFormulacionController extends Controller
 {
+    public function __construct(
+        private BomMaterialesService $bomMaterialesService
+    ) {}
+
     public function index(Request $request)
     {
         try {
@@ -23,7 +28,7 @@ class EngProduccionFormulacionController extends Controller
             // Ordenar por ID descendente para mostrar los más recientes primero
             // Si hay múltiples registros con el mismo Folio, se distinguen por ID
             $itemsQuery = EngProduccionFormulacionModel::orderBy('Id', 'desc');
-            if (!empty($folioFiltro)) {
+            if (! empty($folioFiltro)) {
                 $itemsQuery->where(function ($query) use ($folioFiltro) {
                     $query->where('Folio', $folioFiltro)
                         ->orWhere(function ($fallbackQuery) use ($folioFiltro) {
@@ -34,6 +39,7 @@ class EngProduccionFormulacionController extends Controller
             }
             $items = $itemsQuery->get()->map(function ($item) use ($folioFiltro) {
                 $item->folio_resuelto = $this->resolveFormulacionFolio($item, $folioFiltro);
+
                 return $item;
             });
             $usuarios = SYSUsuario::orderBy('nombre', 'asc')->get();
@@ -44,15 +50,15 @@ class EngProduccionFormulacionController extends Controller
             // Obtener folios de EngProgramaEngomado con Status diferente de 'Finalizado'
             $foliosProgramaQuery = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
                 ->orderBy('Folio', 'desc');
-            if (!empty($folioFiltro)) {
+            if (! empty($folioFiltro)) {
                 $foliosProgramaQuery->where('Folio', $folioFiltro);
             }
-            $foliosPrograma = $foliosProgramaQuery->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula', 'Status']);
+            $foliosPrograma = $foliosProgramaQuery->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula', 'BomEng', 'Status']);
 
             // Generar folio sugerido
             $year = date('Y');
             $prefix = "ENG-FORM-{$year}-";
-            $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix . '%')
+            $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix.'%')
                 ->orderBy('Folio', 'desc')
                 ->first();
 
@@ -63,26 +69,26 @@ class EngProduccionFormulacionController extends Controller
                 $nextNumber = 1;
             }
 
-            $folioSugerido = $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $folioSugerido = $prefix.str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         } catch (\Exception $e) {
             $items = collect([]);
             $usuarios = collect([]);
             $maquinas = collect([]);
             $foliosPrograma = collect([]);
-            $folioSugerido = 'ENG-FORM-' . date('Y') . '-0001';
+            $folioSugerido = 'ENG-FORM-'.date('Y').'-0001';
             $folioFiltro = $request->query('folio');
         }
 
         // Si hay folio, obtener orden_id para el enlace "Volver a producción"
         $ordenIdProduccion = null;
-        if (!empty($folioFiltro)) {
+        if (! empty($folioFiltro)) {
             $ordenEngomado = EngProgramaEngomado::where('Folio', $folioFiltro)->first();
             if ($ordenEngomado) {
                 $ordenIdProduccion = $ordenEngomado->Id;
             }
         }
 
-        return view("modulos.engomado.captura-formula.index", compact("items", "usuarios", "maquinas", "foliosPrograma", "folioSugerido", "folioFiltro", "ordenIdProduccion"));
+        return view('modulos.engomado.captura-formula.index', compact('items', 'usuarios', 'maquinas', 'foliosPrograma', 'folioSugerido', 'folioFiltro', 'ordenIdProduccion'));
     }
 
     public function store(Request $request)
@@ -131,13 +137,13 @@ class EngProduccionFormulacionController extends Controller
 
             // Validar que el folio exista en EngProgramaEngomado
             $programa = EngProgramaEngomado::where('Folio', $folio)->first();
-            if (!$programa) {
+            if (! $programa) {
                 return redirect()->back()
-                    ->with('error', 'El folio no existe en el programa de engomado: ' . $folio);
+                    ->with('error', 'El folio no existe en el programa de engomado: '.$folio);
             }
             if ($this->isFinalStatus($programa->Status ?? null)) {
                 return redirect()->back()
-                    ->with('error', 'No se puede registrar una formulación para un folio finalizado: ' . $folio);
+                    ->with('error', 'No se puede registrar una formulación para un folio finalizado: '.$folio);
             }
 
             $validated['Folio'] = $folio;
@@ -150,6 +156,12 @@ class EngProduccionFormulacionController extends Controller
                 // Crear el encabezado y obtener el Id generado
                 $formulacion = EngProduccionFormulacionModel::create($validated);
                 $formulacionId = $formulacion->Id;
+
+                // Sincronizar BomFormula en EngProgramaEngomado
+                if (! empty($validated['Formula'])) {
+                    EngProgramaEngomado::where('Folio', $folio)
+                        ->update(['BomFormula' => $validated['Formula']]);
+                }
 
                 $componentesRaw = $request->input('componentes');
                 if ($componentesRaw) {
@@ -174,9 +186,9 @@ class EngProduccionFormulacionController extends Controller
             });
 
             return redirect()->back()
-                ->with('success', 'Formulación creada exitosamente con folio: ' . $folio);
+                ->with('success', 'Formulación creada exitosamente con folio: '.$folio);
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al crear la formulación: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al crear la formulación: '.$e->getMessage());
         }
     }
 
@@ -188,16 +200,16 @@ class EngProduccionFormulacionController extends Controller
         try {
             $folio = $request->query('folio');
 
-            if (!$folio) {
+            if (! $folio) {
                 return response()->json(['error' => 'No se proporcionó el folio'], 400);
             }
 
             $programa = EngProgramaEngomado::where('Folio', $folio)->first();
 
-            if (!$programa) {
+            if (! $programa) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'No se encontró el folio en EngProgramaEngomado'
+                    'error' => 'No se encontró el folio en EngProgramaEngomado',
                 ], 404);
             }
 
@@ -213,11 +225,11 @@ class EngProduccionFormulacionController extends Controller
                     'Tipo' => $programa->RizoPie,
                     'NomEmpl' => $operador,
                     'CveEmpl' => $usuario ? $usuario->numero : '',
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Error al validar folio: ' . $e->getMessage()
+                'error' => 'Error al validar folio: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -232,17 +244,17 @@ class EngProduccionFormulacionController extends Controller
         try {
             $id = $request->query('id');
 
-            if (!$id) {
+            if (! $id) {
                 return response()->json(['error' => 'No se proporcionó el ID'], 400);
             }
 
             // Obtener formulación por ID
             $formulacion = EngProduccionFormulacionModel::find($id);
 
-            if (!$formulacion) {
+            if (! $formulacion) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'No se encontró la formulación con ID: ' . $id
+                    'error' => 'No se encontró la formulación con ID: '.$id,
                 ], 404);
             }
 
@@ -257,14 +269,14 @@ class EngProduccionFormulacionController extends Controller
                 ->get();
 
             // Verificar que todos los componentes pertenezcan al ID correcto
-            $componentesInvalidos = $componentes->filter(function($line) use ($idFormulacion) {
-                return (int)$line->EngProduccionFormulacionId !== $idFormulacion;
+            $componentesInvalidos = $componentes->filter(function ($line) use ($idFormulacion) {
+                return (int) $line->EngProduccionFormulacionId !== $idFormulacion;
             });
 
             if ($componentesInvalidos->count() > 0) {
                 Log::warning('Se encontraron componentes con EngProduccionFormulacionId incorrecto', [
                     'formulacion_id_esperado' => $idFormulacion,
-                    'componentes_invalidos' => $componentesInvalidos->pluck('Id')->toArray()
+                    'componentes_invalidos' => $componentesInvalidos->pluck('Id')->toArray(),
                 ]);
             }
 
@@ -280,7 +292,6 @@ class EngProduccionFormulacionController extends Controller
                     'Almacen' => $line->InventLocation,
                 ];
             });
-
 
             return response()->json([
                 'success' => true,
@@ -308,15 +319,15 @@ class EngProduccionFormulacionController extends Controller
                 ],
                 'componentes' => $componentes,
                 'total' => $componentes->count(),
-                'vacio' => $componentes->isEmpty()
+                'vacio' => $componentes->isEmpty(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al obtener formulación por ID: ' . $e->getMessage());
-            Log::error('Trace: ' . $e->getTraceAsString());
+            Log::error('Error al obtener formulación por ID: '.$e->getMessage());
+            Log::error('Trace: '.$e->getTraceAsString());
 
             return response()->json([
-                'error' => 'Error al obtener formulación: ' . $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error' => 'Error al obtener formulación: '.$e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
@@ -353,7 +364,7 @@ class EngProduccionFormulacionController extends Controller
             $id = $request->query('id');
             $folio = $request->query('folio'); // Mantener compatibilidad con Folio
 
-            if (!$id && !$folio) {
+            if (! $id && ! $folio) {
                 return response()->json(['error' => 'No se proporcionó el ID ni el Folio'], 400);
             }
 
@@ -387,15 +398,15 @@ class EngProduccionFormulacionController extends Controller
                 'success' => true,
                 'componentes' => $componentes,
                 'total' => $componentes->count(),
-                'vacio' => $componentes->isEmpty()
+                'vacio' => $componentes->isEmpty(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al obtener componentes de formulación: ' . $e->getMessage());
-            Log::error('Trace: ' . $e->getTraceAsString());
+            Log::error('Error al obtener componentes de formulación: '.$e->getMessage());
+            Log::error('Trace: '.$e->getTraceAsString());
 
             return response()->json([
-                'error' => 'Error al obtener componentes: ' . $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error' => 'Error al obtener componentes: '.$e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
@@ -411,7 +422,7 @@ class EngProduccionFormulacionController extends Controller
         try {
             $formula = $request->query('formula');
 
-            if (!$formula) {
+            if (! $formula) {
                 return response()->json(['error' => 'No se proporcionó el código de fórmula'], 400);
             }
 
@@ -442,15 +453,15 @@ class EngProduccionFormulacionController extends Controller
                 'success' => true,
                 'componentes' => $componentes,
                 'total' => $componentes->count(),
-                'vacio' => $componentes->isEmpty()
+                'vacio' => $componentes->isEmpty(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al obtener componentes: ' . $e->getMessage());
-            Log::error('Trace: ' . $e->getTraceAsString());
+            Log::error('Error al obtener componentes: '.$e->getMessage());
+            Log::error('Trace: '.$e->getTraceAsString());
 
             return response()->json([
-                'error' => 'Error al obtener componentes: ' . $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error' => 'Error al obtener componentes: '.$e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
@@ -489,14 +500,15 @@ class EngProduccionFormulacionController extends Controller
         ]);
 
         $idFromRequest = $request->input('formulacion_id');
-        $item = !empty($idFromRequest)
+        $item = ! empty($idFromRequest)
             ? EngProduccionFormulacionModel::find($idFromRequest)
             : EngProduccionFormulacionModel::where('Folio', $folio)->first();
 
-        if (!$item) {
+        if (! $item) {
             if ($request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'Formulación no encontrada.'], 404);
             }
+
             return redirect()->back()->with('error', 'Formulación no encontrada.');
         }
 
@@ -504,13 +516,14 @@ class EngProduccionFormulacionController extends Controller
             if ($request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'No se puede editar una formulación con AX = 1.'], 403);
             }
+
             return redirect()->back()->with('error', 'No se puede editar una formulación con AX = 1.');
         }
 
         try {
             DB::transaction(function () use ($validated, $folio, $request) {
                 $idFromRequest = $request->input('formulacion_id');
-                $item = !empty($idFromRequest)
+                $item = ! empty($idFromRequest)
                     ? EngProduccionFormulacionModel::findOrFail((int) $idFromRequest)
                     : EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
                 // Solo actualizar campos que vienen en el request (evitar sobrescribir con null campos no enviados por el form)
@@ -538,6 +551,16 @@ class EngProduccionFormulacionController extends Controller
                 }
                 $item->update($toUpdate);
                 $formulacionId = $item->Id; // Obtener el ID real de la tabla
+
+                // Sincronizar BomFormula si se actualizó la fórmula del primer registro
+                $itemFolioResolved = $item->Folio ?? $folio;
+                $firstId = EngProduccionFormulacionModel::where('Folio', $itemFolioResolved)
+                    ->orderBy('Id')
+                    ->value('Id');
+                if ($firstId == $item->Id && array_key_exists('Formula', $toUpdate)) {
+                    EngProgramaEngomado::where('Folio', $itemFolioResolved)
+                        ->update(['BomFormula' => $toUpdate['Formula']]);
+                }
 
                 // Actualizar componentes si se proporcionan
                 $componentesRaw = $request->input('componentes');
@@ -574,13 +597,13 @@ class EngProduccionFormulacionController extends Controller
 
             return redirect()->back()->with('success', 'Formulación actualizada exitosamente');
         } catch (\Exception $e) {
-            Log::error('Error al actualizar formulación: ' . $e->getMessage());
+            Log::error('Error al actualizar formulación: '.$e->getMessage());
 
             if ($request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Error al actualizar la formulación: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Error al actualizar la formulación: '.$e->getMessage()], 500);
             }
 
-            return redirect()->back()->with('error', 'Error al actualizar la formulación: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al actualizar la formulación: '.$e->getMessage());
         }
     }
 
@@ -591,11 +614,17 @@ class EngProduccionFormulacionController extends Controller
 
             // Priorizar Id cuando hay múltiples registros con el mismo Folio
             $idFromRequest = $request->input('formulacion_id');
-            if (!empty($idFromRequest)) {
+            if (! empty($idFromRequest)) {
                 $item = EngProduccionFormulacionModel::findOrFail((int) $idFromRequest);
             } else {
                 $item = EngProduccionFormulacionModel::where('Folio', $folio)->firstOrFail();
             }
+            if ($item->AX == 1) {
+                DB::rollBack();
+
+                return redirect()->back()->with('error', 'No se puede eliminar una formulación con AX = 1.');
+            }
+
             $formulacionId = $item->Id;
 
             // Eliminar líneas asociadas por EngProduccionFormulacionId
@@ -606,11 +635,13 @@ class EngProduccionFormulacionController extends Controller
             $item->delete();
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Formulación eliminada exitosamente');
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al eliminar formulación: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al eliminar la formulación: ' . $e->getMessage());
+            Log::error('Error al eliminar formulación: '.$e->getMessage());
+
+            return redirect()->back()->with('error', 'Error al eliminar la formulación: '.$e->getMessage());
         }
     }
 
@@ -632,6 +663,7 @@ class EngProduccionFormulacionController extends Controller
             return response()->json(['success' => true, 'data' => $items]);
         } catch (\Throwable $e) {
             Log::error('Error obteniendo calibres de fórmula', ['exception' => $e]);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -642,7 +674,7 @@ class EngProduccionFormulacionController extends Controller
     public function getFibrasFormula(Request $request)
     {
         $itemId = $request->query('itemId');
-        if (!$itemId) {
+        if (! $itemId) {
             return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
         }
 
@@ -659,6 +691,7 @@ class EngProduccionFormulacionController extends Controller
             return response()->json(['success' => true, 'data' => $fibras]);
         } catch (\Throwable $e) {
             Log::error('Error obteniendo fibras de fórmula', ['exception' => $e, 'itemId' => $itemId]);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -669,7 +702,7 @@ class EngProduccionFormulacionController extends Controller
     public function getColoresFormula(Request $request)
     {
         $itemId = $request->query('itemId');
-        if (!$itemId) {
+        if (! $itemId) {
             return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
         }
 
@@ -685,6 +718,34 @@ class EngProduccionFormulacionController extends Controller
             return response()->json(['success' => true, 'data' => $colores]);
         } catch (\Throwable $e) {
             Log::error('Error obteniendo colores de fórmula', ['exception' => $e, 'itemId' => $itemId]);
+
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Obtener fórmulas disponibles desde AX (BOM) por BomId de engomado y/o por fórmula actual:
+     * si falta BomEng o no hay filas TE-PD-ENF%, se resuelve BomId vía BOMVersion (ItemId = formula).
+     */
+    public function getFormulasDisponibles(Request $request)
+    {
+        $bomId = trim((string) ($request->query('bomId') ?? ''));
+        $formula = trim((string) ($request->query('formula') ?? ''));
+
+        if ($bomId === '' && $formula === '') {
+            return response()->json(['success' => false, 'message' => 'Indique bomId y/o formula'], 400);
+        }
+
+        try {
+            $formulas = $this->bomMaterialesService->getBomFormulasWithFallback(
+                $bomId !== '' ? $bomId : null,
+                $formula !== '' ? $formula : null
+            );
+
+            return response()->json(['success' => true, 'formulas' => $formulas]);
+        } catch (\Throwable $e) {
+            Log::error('Error obteniendo fórmulas disponibles', ['exception' => $e, 'bomId' => $bomId, 'formula' => $formula]);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -692,8 +753,8 @@ class EngProduccionFormulacionController extends Controller
     /**
      * Trunca un string a la longitud máxima especificada
      *
-     * @param string|null $value
-     * @param int $maxLength
+     * @param  string|null  $value
+     * @param  int  $maxLength
      * @return string|null
      */
     private function truncateString($value, $maxLength)
@@ -709,8 +770,9 @@ class EngProduccionFormulacionController extends Controller
                 'valor_original' => $value,
                 'longitud_original' => mb_strlen($value),
                 'longitud_maxima' => $maxLength,
-                'valor_truncado' => mb_substr($value, 0, $maxLength)
+                'valor_truncado' => mb_substr($value, 0, $maxLength),
             ]);
+
             return mb_substr($value, 0, $maxLength);
         }
 
@@ -720,6 +782,7 @@ class EngProduccionFormulacionController extends Controller
     private function isFinalStatus(?string $status): bool
     {
         $status = mb_strtoupper(trim((string) $status));
+
         return in_array($status, ['FINALIZADO', 'TERMINADO'], true);
     }
 }

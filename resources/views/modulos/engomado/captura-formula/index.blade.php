@@ -243,6 +243,7 @@
                                             data-calibre="{{ $prog->Calibre }}"
                                             data-tipo="{{ $prog->RizoPie }}"
                                             data-formula="{{ $prog->BomFormula }}"
+                                            data-bomeng="{{ $prog->BomEng }}"
                                             data-status="{{ $prog->Status ?? '' }}"
                                             {{ isset($folioFiltro) && $folioFiltro === $prog->Folio ? 'selected' : '' }}>
                                         {{ $prog->Folio }} - {{ $prog->Cuenta }}
@@ -269,12 +270,16 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Fórmula</label>
-                            <input type="text" name="Formula" id="create_formula" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                            <select id="create_formula"
+                                class="campo-formula-select w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
+                                <option value="">-- Seleccione fórmula --</option>
+                            </select>
                         </div>
                     </div>
                 </div>
 
                 <!-- Campos ocultos para datos de EngProgramaEngomado -->
+                <input type="hidden" name="Formula" id="create_formula_value" value="">
                 <input type="hidden" name="Cuenta" id="create_cuenta">
                 <input type="hidden" name="Calibre" id="create_calibre">
                 <input type="hidden" name="Tipo" id="create_tipo">
@@ -780,10 +785,87 @@
         let viewOnlyMode = false;
         let editMode = false;
         let editFormInitialSnapshot = null;
+        let formulaSelectSoloConsulta = false;
         const observaciones = {};
         let fechaSortAsc = null;
         const desdeProduccion = {{ $desdeProduccion ? 'true' : 'false' }};
         const STATUS_FINALIZADOS = ['FINALIZADO', 'TERMINADO'];
+
+        function getCreateFormulaHidden() {
+            return document.getElementById('create_formula_value');
+        }
+
+        function setCreateFormulaValorReal(val) {
+            const v = val || '';
+            const hid = getCreateFormulaHidden();
+            const sel = document.getElementById('create_formula');
+            if (hid) {
+                hid.value = v;
+            }
+            if (sel) {
+                if (v && !Array.from(sel.options).some(o => o.value === v)) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = v;
+                    sel.appendChild(opt);
+                }
+                sel.value = v;
+            }
+            formulaCreateActual = v;
+        }
+
+        function buildFormulasDisponiblesUrl(bomEng, formulaGuardada) {
+            const params = new URLSearchParams();
+            const b = (bomEng || '').trim();
+            const f = (formulaGuardada || '').trim();
+            if (b) {
+                params.set('bomId', b);
+            }
+            if (f) {
+                params.set('formula', f);
+            }
+            const q = params.toString();
+            if (!q) {
+                throw new Error('formulas-disponibles: falta bomId o formula');
+            }
+            return `/eng-formulacion/formulas-disponibles?${q}`;
+        }
+
+        /** Lista AX + fórmula histórica al final si no está en AX; sincroniza hidden y estado del select. */
+        function poblarOpcionesFormulaCreateDesdeAx(bomEng, formulaGuardada, isPrimerRegistroDelFolio) {
+            return fetch(buildFormulasDisponiblesUrl(bomEng, formulaGuardada))
+                .then(r => {
+                    if (!r.ok) {
+                        throw new Error('formulas-disponibles HTTP ' + r.status);
+                    }
+                    return r.json();
+                })
+                .then(d => {
+                    const fsel = document.getElementById('create_formula');
+                    if (!fsel) {
+                        return;
+                    }
+                    fsel.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                    if (d.success && Array.isArray(d.formulas) && d.formulas.length > 0) {
+                        d.formulas.forEach(f => {
+                            const opt = document.createElement('option');
+                            opt.value = f;
+                            opt.textContent = f;
+                            fsel.appendChild(opt);
+                        });
+                    }
+                    const existingF = Array.from(fsel.options).map(o => o.value);
+                    const fg = formulaGuardada || '';
+                    if (fg && !existingF.includes(fg)) {
+                        const opt = document.createElement('option');
+                        opt.value = fg;
+                        opt.textContent = fg;
+                        fsel.appendChild(opt);
+                    }
+                    setCreateFormulaValorReal(fg);
+                    actualizarEstadoFormulaSelect(isPrimerRegistroDelFolio);
+                });
+        }
 
         function normalizarStatus(status) {
             return (status || '').toString().trim().toUpperCase();
@@ -915,7 +997,7 @@
             const bloqueadoPorAX = formulacionTieneAX1();
 
             setButtonEnabled('btn-view', haySeleccion);
-            setButtonEnabled('btn-delete', haySeleccion);
+            setButtonEnabled('btn-delete', haySeleccion && !bloqueadoPorAX);
             setButtonEnabled('btn-edit', haySeleccion && !bloqueadoPorAX);
         }
 
@@ -1012,9 +1094,29 @@
             componentesCreateData = [];
             formulaCreateActual = '';
 
+            // Resetear el select de fórmula antes de la carga async
+            const formulaSelectCreate = document.getElementById('create_formula');
+            if (formulaSelectCreate) {
+                formulaSelectCreate.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                formulaSelectCreate.removeAttribute('disabled');
+                formulaSelectCreate.disabled = false;
+            }
+            const formulaHidReset = getCreateFormulaHidden();
+            if (formulaHidReset) {
+                formulaHidReset.value = '';
+            }
+            actualizarEstadoFormulaSelect(false);
+
             // Si hay un folio seleccionado en el dropdown, cargar sus datos básicos
             const select = document.getElementById('create_folio_prog');
             if (select && select.value) {
+                // Habilitar/deshabilitar el select sincronamente ANTES de la carga async de opciones
+                const folioValSync = select.value;
+                const existingCountSync = document.querySelectorAll(
+                    `#formulaTableBody tr[data-folio="${CSS.escape(folioValSync)}"]`
+                ).length;
+                actualizarEstadoFormulaSelect(existingCountSync === 0);
+
                 cargarDatosPrograma(select, false);
             }
 
@@ -1193,8 +1295,40 @@
                             document.getElementById('create_cuenta').value = form.Cuenta || '';
                             document.getElementById('create_calibre').value = form.Calibre || '';
                             document.getElementById('create_tipo').value = form.Tipo || '';
-                            document.getElementById('create_formula').value = form.Formula || '';
-                            formulaCreateActual = form.Formula || '';
+
+                            const allFolioRowsEdit = document.querySelectorAll(
+                                `#formulaTableBody tr[data-folio="${CSS.escape(form.Folio || '')}"]`
+                            );
+                            const allIdsEdit = Array.from(allFolioRowsEdit)
+                                .map(r => parseInt(r.dataset.id || '0')).filter(n => n > 0);
+                            const minIdEdit = allIdsEdit.length > 0 ? Math.min(...allIdsEdit) : null;
+                            const isFirstRecordEdit = (minIdEdit !== null && minIdEdit === parseInt(form.Id));
+
+                            const folioSelEdit = document.getElementById('create_folio_prog');
+                            const folioOptEdit = folioSelEdit
+                                ? Array.from(folioSelEdit.options).find(o => o.value === (form.Folio || ''))
+                                : null;
+                            const bomEngEdit = folioOptEdit ? (folioOptEdit.getAttribute('data-bomeng') || '') : '';
+
+                            if (bomEngEdit) {
+                                poblarOpcionesFormulaCreateDesdeAx(bomEngEdit, form.Formula || '', isFirstRecordEdit)
+                                    .catch(() => {
+                                        const fEl = document.getElementById('create_formula');
+                                        if (fEl) {
+                                            fEl.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                                        }
+                                        setCreateFormulaValorReal(form.Formula || '');
+                                        actualizarEstadoFormulaSelect(isFirstRecordEdit);
+                                    });
+                            } else {
+                                const editFormulaEl = document.getElementById('create_formula');
+                                if (editFormulaEl) {
+                                    editFormulaEl.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                                }
+                                setCreateFormulaValorReal(form.Formula || '');
+                                actualizarEstadoFormulaSelect(isFirstRecordEdit);
+                            }
+
                             actualizarPresentacionFolioCreate(true);
                         }
 
@@ -1232,7 +1366,7 @@
 
                         document.getElementById('create_obs_section')?.classList.add('hidden');
 
-                        formulaCreateActual = form.Formula || '';
+                        setCreateFormulaValorReal(form.Formula || '');
 
                         // IMPORTANTE: Cargar componentes desde EngFormulacionLine filtrados por EngProduccionFormulacionId
                         // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
@@ -1287,6 +1421,7 @@
                 ConsumoUnitario: c.ConsumoUnitario
             }));
             return JSON.stringify({
+                Formula: getCreateFormulaHidden()?.value || '',
                 Olla: document.getElementById('create_olla')?.value || '',
                 Kilos: document.getElementById('create_kilos')?.value || '0',
                 Litros: document.getElementById('create_litros')?.value || '0',
@@ -1382,8 +1517,38 @@
                             document.getElementById('create_cuenta').value = form.Cuenta || '';
                             document.getElementById('create_calibre').value = form.Calibre || '';
                             document.getElementById('create_tipo').value = form.Tipo || '';
-                            document.getElementById('create_formula').value = form.Formula || '';
-                            formulaCreateActual = form.Formula || '';
+
+                            const allFolioRowsView = document.querySelectorAll(
+                                `#formulaTableBody tr[data-folio="${CSS.escape(form.Folio || '')}"]`
+                            );
+                            const allIdsView = Array.from(allFolioRowsView)
+                                .map(r => parseInt(r.dataset.id || '0')).filter(n => n > 0);
+                            const minIdView = allIdsView.length > 0 ? Math.min(...allIdsView) : null;
+                            const isFirstRecordView = (minIdView !== null && minIdView === parseInt(form.Id));
+                            const folioSelView = document.getElementById('create_folio_prog');
+                            const folioOptView = folioSelView
+                                ? Array.from(folioSelView.options).find(o => o.value === (form.Folio || ''))
+                                : null;
+                            const bomEngView = folioOptView ? (folioOptView.getAttribute('data-bomeng') || '') : '';
+
+                            if (bomEngView) {
+                                poblarOpcionesFormulaCreateDesdeAx(bomEngView, form.Formula || '', isFirstRecordView)
+                                    .catch(() => {
+                                        const vEl = document.getElementById('create_formula');
+                                        if (vEl) {
+                                            vEl.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                                        }
+                                        setCreateFormulaValorReal(form.Formula || '');
+                                        actualizarEstadoFormulaSelect(isFirstRecordView);
+                                    });
+                            } else {
+                                const viewFormulaEl = document.getElementById('create_formula');
+                                if (viewFormulaEl) {
+                                    viewFormulaEl.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                                }
+                                setCreateFormulaValorReal(form.Formula || '');
+                                actualizarEstadoFormulaSelect(isFirstRecordView);
+                            }
                             actualizarPresentacionFolioCreate(true);
                         }
 
@@ -1415,7 +1580,7 @@
 
                         document.getElementById('create_obs_section')?.classList.add('hidden');
 
-                        formulaCreateActual = form.Formula || '';
+                        setCreateFormulaValorReal(form.Formula || '');
 
                         // IMPORTANTE: Cargar componentes desde EngFormulacionLine filtrados por EngProduccionFormulacionId
                         // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
@@ -1500,6 +1665,9 @@
                     field.classList.remove('bg-gray-50', 'text-gray-700', 'cursor-not-allowed', 'pointer-events-none');
                     return;
                 }
+                if (field.id === 'create_formula') {
+                    return; // Manejado por actualizarEstadoFormulaSelect()
+                }
                 // NUNCA desbloquear: Folio, Fecha, Hora, No Empleado, Operador, Fórmula
                 if (field.classList.contains('campo-siempre-bloqueado')) {
                     field.setAttribute('readonly', 'readonly');
@@ -1546,6 +1714,20 @@
             if (cancelBtn) {
                 cancelBtn.classList.toggle('hidden', isReadOnly);
             }
+        }
+
+        function actualizarEstadoFormulaSelect(isFirstRecord) {
+            const sel = document.getElementById('create_formula');
+            if (!sel) return;
+            const method = document.getElementById('create_method')?.value;
+            formulaSelectSoloConsulta = viewOnlyMode
+                || (method === 'POST' && !isFirstRecord)
+                || (method === 'PUT' && !isFirstRecord);
+            sel.removeAttribute('disabled');
+            sel.disabled = false;
+            sel.classList.toggle('bg-gray-50', formulaSelectSoloConsulta);
+            sel.classList.toggle('cursor-not-allowed', formulaSelectSoloConsulta);
+            sel.classList.toggle('cursor-pointer', !formulaSelectSoloConsulta);
         }
 
         function fillEditModalFromRow(row) {
@@ -1694,6 +1876,16 @@
                 return;
             }
 
+            if (formulacionTieneAX1()) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Eliminación bloqueada',
+                    text: 'No se puede eliminar una formulación con AX = 1.',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
             Swal.fire({
                 title: '¿Estás seguro?',
                 html: `Se eliminará la formulación con folio <strong>${selectedFolio}</strong> y todas sus líneas asociadas`,
@@ -1713,16 +1905,26 @@
             });
         }
 
-        function cargarDatosPrograma(select, mostrarAlerta = true) {
+        async function cargarDatosPrograma(select, mostrarAlerta = true) {
             const option = select.options[select.selectedIndex];
+            const formulaSelect = document.getElementById('create_formula');
 
             if (!option.value) {
                 // Limpiar campos si no hay selección
                 document.getElementById('create_cuenta').value = '';
                 document.getElementById('create_calibre').value = '';
                 document.getElementById('create_tipo').value = '';
-                document.getElementById('create_formula').value = '';
+                if (formulaSelect) {
+                    formulaSelect.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                    formulaSelect.removeAttribute('disabled');
+                    formulaSelect.disabled = false;
+                }
+                const hClear = getCreateFormulaHidden();
+                if (hClear) {
+                    hClear.value = '';
+                }
                 formulaCreateActual = '';
+                actualizarEstadoFormulaSelect(false);
                 componentesCreateData = [];
                 renderizarTablaComponentesCreate();
                 document.getElementById('create_componentes_tabla_container').classList.add('hidden');
@@ -1733,18 +1935,47 @@
             }
 
             // Obtener datos del option seleccionado
-            const cuenta = option.getAttribute('data-cuenta') || '';
-            const calibre = option.getAttribute('data-calibre') || '';
-            const tipo = option.getAttribute('data-tipo') || '';
-            const formula = option.getAttribute('data-formula') || '';
+            const cuenta     = option.getAttribute('data-cuenta')   || '';
+            const calibre    = option.getAttribute('data-calibre')  || '';
+            const tipo       = option.getAttribute('data-tipo')      || '';
+            const bomEng     = option.getAttribute('data-bomeng')    || '';
+            const bomFormula = option.getAttribute('data-formula')   || '';
 
             // Llenar campos ocultos
-            document.getElementById('create_cuenta').value = cuenta;
+            document.getElementById('create_cuenta').value  = cuenta;
             document.getElementById('create_calibre').value = calibre;
-            document.getElementById('create_tipo').value = tipo;
-            document.getElementById('create_formula').value = formula;
-            formulaCreateActual = formula;
-            cargarComponentesCreate(formulaCreateActual);
+            document.getElementById('create_tipo').value    = tipo;
+
+            // Determinar si es el primer registro para este folio
+            const selectedFolioVal = option.value;
+            const existingCount = document.querySelectorAll(
+                `#formulaTableBody tr[data-folio="${CSS.escape(selectedFolioVal)}"]`
+            ).length;
+            const isFirstRecord = existingCount === 0;
+
+            if (bomEng || bomFormula) {
+                try {
+                    await poblarOpcionesFormulaCreateDesdeAx(bomEng, bomFormula, isFirstRecord);
+                } catch (e) {
+                    if (formulaSelect) {
+                        formulaSelect.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                    }
+                    setCreateFormulaValorReal(bomFormula || '');
+                    actualizarEstadoFormulaSelect(isFirstRecord);
+                }
+            } else if (formulaSelect) {
+                formulaSelect.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
+                setCreateFormulaValorReal('');
+                actualizarEstadoFormulaSelect(isFirstRecord);
+            }
+
+            if (formulaCreateActual) {
+                cargarComponentesCreate(formulaCreateActual);
+            } else {
+                componentesCreateData = [];
+                renderizarTablaComponentesCreate();
+                document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+            }
 
             // Obtener operador actual del sistema (ya está cargado en Auth)
             @if(Auth::check())
@@ -2928,6 +3159,28 @@
             disableButtons();
             initCtxMenuFiltering();
             updateCtxFilterInfo();
+
+            // Listener para recargar componentes cuando el usuario cambia la fórmula seleccionada
+            const formulaSelectEl = document.getElementById('create_formula');
+            if (formulaSelectEl) {
+                formulaSelectEl.addEventListener('change', function() {
+                    if (formulaSelectSoloConsulta) {
+                        this.value = formulaCreateActual || getCreateFormulaHidden()?.value || '';
+                        actualizarBotonGuardarEdicion();
+                        return;
+                    }
+                    const val = this.value || '';
+                    setCreateFormulaValorReal(val);
+                    if (formulaCreateActual) {
+                        cargarComponentesCreate(formulaCreateActual);
+                    } else {
+                        componentesCreateData = [];
+                        renderizarTablaComponentesCreate();
+                        document.getElementById('create_componentes_tabla_container').classList.add('hidden');
+                    }
+                    actualizarBotonGuardarEdicion();
+                });
+            }
 
             const thFecha = document.getElementById('th-fecha');
             if (thFecha) {

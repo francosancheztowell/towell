@@ -6,8 +6,8 @@ use App\Http\Controllers\Engomado\CapturaFormulas\EngProduccionFormulacionContro
 use App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado\EngActividadesBpmController;
 use App\Http\Controllers\Engomado\Produccion\CalificarJuliosController;
 use App\Http\Controllers\Engomado\Produccion\ModuloProduccionEngomadoController;
-use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\EditarOrdenesEngomadoController;
+use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
 use App\Http\Controllers\Engomado\ReportesEngomadoController;
 use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
 use App\Http\Controllers\UsuarioController;
@@ -125,6 +125,7 @@ Route::get('eng-formulacion/componentes/formulacion', [EngProduccionFormulacionC
 Route::get('eng-formulacion/calibres-formula', [EngProduccionFormulacionController::class, 'getCalibresFormula'])->name('eng-formulacion.calibres');
 Route::get('eng-formulacion/fibras-formula', [EngProduccionFormulacionController::class, 'getFibrasFormula'])->name('eng-formulacion.fibras');
 Route::get('eng-formulacion/colores-formula', [EngProduccionFormulacionController::class, 'getColoresFormula'])->name('eng-formulacion.colores');
+Route::get('eng-formulacion/formulas-disponibles', [EngProduccionFormulacionController::class, 'getFormulasDisponibles'])->name('eng-formulacion.formulas-disponibles');
 
 Route::resource('eng-formulacion', EngProduccionFormulacionController::class)
     ->parameters(['eng-formulacion' => 'folio'])
