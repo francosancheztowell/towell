@@ -462,14 +462,14 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 
     private function applyBlockStyles(Worksheet $sheet, array $prototype, int $targetStartRow, int $height): void
     {
-        for ($offset = 0; $offset < $height; $offset++) {
-            $sourceRow = $this->resolvePrototypeRow($prototype, $offset, $height);
-            $targetRow = $targetStartRow + $offset;
-
-            $sheet->getRowDimension($targetRow)
-                ->setRowHeight($sheet->getRowDimension($sourceRow)->getRowHeight());
-            $this->copyRowStyles($sheet, $sourceRow, $targetRow, 2, self::MAX_COLUMN_INDEX);
-        }
+        $this->applyPrototypeStyles(
+            $sheet,
+            $prototype,
+            $targetStartRow,
+            $height,
+            2,
+            self::MAX_COLUMN_INDEX
+        );
     }
 
     private function applyColumnAStyles(Worksheet $sheet, array $layout, int $sectionTopRow): void
@@ -482,21 +482,28 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
             foreach ($turn['blocks'] as $block) {
                 $isWeekNumberBlock = $turno === 3 && $block['row_start'] === $lastTurnThreeBlock['row_start'];
                 $prototype = $this->offsetPrototype($isWeekNumberBlock ? [34, 39] : [4, 9], $sectionTopRow);
-
-                for ($offset = 0; $offset < $block['height']; $offset++) {
-                    $sourceRow = $this->resolvePrototypeRow($prototype, $offset, $block['height']);
-                    $targetRow = $block['row_start'] + $offset;
-                    $this->copyRowStyles($sheet, $sourceRow, $targetRow, 1, 1);
-                }
+                $this->applyPrototypeStyles(
+                    $sheet,
+                    $prototype,
+                    $block['row_start'],
+                    $block['height'],
+                    1,
+                    1,
+                    false
+                );
             }
         }
 
         $cap = $layout['capacitacion'];
-        for ($offset = 0; $offset < self::CAPACITACION_HEIGHT; $offset++) {
-            $sourceRow = $this->resolvePrototypeRow($cap['prototype'], $offset, self::CAPACITACION_HEIGHT);
-            $targetRow = $cap['row_start'] + $offset;
-            $this->copyRowStyles($sheet, $sourceRow, $targetRow, 1, 1);
-        }
+        $this->applyPrototypeStyles(
+            $sheet,
+            $cap['prototype'],
+            $cap['row_start'],
+            self::CAPACITACION_HEIGHT,
+            1,
+            1,
+            false
+        );
 
         $labelEndRow = $lastTurnThreeBlock['row_start'] - 1;
         if ($labelEndRow >= $headerLabelRow) {
@@ -695,6 +702,81 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         int $startColumnIndex,
         int $endColumnIndex
     ): void {
+        $this->copyRowStylesToRange($sheet, $sourceRow, $targetRow, $targetRow, $startColumnIndex, $endColumnIndex);
+    }
+
+    private function applyPrototypeStyles(
+        Worksheet $sheet,
+        array $prototype,
+        int $targetStartRow,
+        int $height,
+        int $startColumnIndex,
+        int $endColumnIndex,
+        bool $copyRowHeights = true
+    ): void {
+        $targetEndRow = $targetStartRow + $height - 1;
+        [$firstRow, $lastRow] = $prototype;
+        $middleRow = min($firstRow + 1, $lastRow);
+
+        if ($copyRowHeights) {
+            $this->copyRowHeightRange($sheet, $firstRow, $targetStartRow, $targetStartRow);
+            if ($height > 2) {
+                $this->copyRowHeightRange($sheet, $middleRow, $targetStartRow + 1, $targetEndRow - 1);
+            }
+            if ($height > 1) {
+                $this->copyRowHeightRange($sheet, $lastRow, $targetEndRow, $targetEndRow);
+            }
+        }
+
+        $this->copyRowStylesToRange(
+            $sheet,
+            $firstRow,
+            $targetStartRow,
+            $targetStartRow,
+            $startColumnIndex,
+            $endColumnIndex
+        );
+
+        if ($height > 2) {
+            $this->copyRowStylesToRange(
+                $sheet,
+                $middleRow,
+                $targetStartRow + 1,
+                $targetEndRow - 1,
+                $startColumnIndex,
+                $endColumnIndex
+            );
+        }
+
+        if ($height > 1) {
+            $this->copyRowStylesToRange(
+                $sheet,
+                $lastRow,
+                $targetEndRow,
+                $targetEndRow,
+                $startColumnIndex,
+                $endColumnIndex
+            );
+        }
+    }
+
+    private function copyRowHeightRange(Worksheet $sheet, int $sourceRow, int $targetStartRow, int $targetEndRow): void
+    {
+        $height = $sheet->getRowDimension($sourceRow)->getRowHeight();
+
+        for ($row = $targetStartRow; $row <= $targetEndRow; $row++) {
+            $sheet->getRowDimension($row)->setRowHeight($height);
+        }
+    }
+
+    private function copyRowStylesToRange(
+        Worksheet $sheet,
+        int $sourceRow,
+        int $targetStartRow,
+        int $targetEndRow,
+        int $startColumnIndex,
+        int $endColumnIndex
+    ): void {
         $columns = $this->getColumnLabels();
 
         foreach ($this->resolveRowStyleRuns($sheet, $sourceRow, $startColumnIndex, $endColumnIndex) as $run) {
@@ -702,7 +784,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
             $endColumn = $columns[$run['end']];
             $sheet->duplicateStyle(
                 $sheet->getStyle("{$startColumn}{$sourceRow}"),
-                "{$startColumn}{$targetRow}:{$endColumn}{$targetRow}"
+                "{$startColumn}{$targetStartRow}:{$endColumn}{$targetEndRow}"
             );
         }
     }
@@ -723,21 +805,6 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         [$hours, $minutes, $seconds] = array_map('intval', explode(':', $time));
 
         return (($hours * 3600) + ($minutes * 60) + $seconds) / 86400;
-    }
-
-    private function resolvePrototypeRow(array $prototype, int $offset, int $height): int
-    {
-        [$firstRow, $lastRow] = $prototype;
-
-        if ($offset === 0) {
-            return $firstRow;
-        }
-
-        if ($offset === $height - 1) {
-            return $lastRow;
-        }
-
-        return $firstRow + 1;
     }
 
     private function normalizeTurn(mixed $value): ?int

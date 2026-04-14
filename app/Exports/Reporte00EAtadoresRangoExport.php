@@ -54,16 +54,25 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
                 $templateState = $this->resolveTemplateState($templateSheet);
                 $templateSheet->setTitle('OEE de Atadores');
 
+                $templateSourceBook = $this->loadTemplateBook();
+                $templateSourceSheet = $templateSourceBook->getSheet(0);
+                $templateSourceSheet->setTitle('_oee_template_source');
+
                 $book->removeSheetByIndex($sheetIndex);
                 $book->addExternalSheet($templateSheet, $sheetIndex);
+                $book->addExternalSheet($templateSourceSheet);
+                $templateSourceSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
                 $sheet = $book->getSheet($sheetIndex);
-                $this->renderRangeIntoSheet($sheet, $templateState);
+                $templateSourceIndex = $book->getIndex($templateSourceSheet);
+
+                $this->renderRangeIntoSheet($sheet, $templateState, $templateSourceSheet);
+                $book->removeSheetByIndex($templateSourceIndex);
             },
         ];
     }
 
-    private function renderRangeIntoSheet(Worksheet $sheet, array $templateState): void
+    private function renderRangeIntoSheet(Worksheet $sheet, array $templateState, Worksheet $templateSource): void
     {
         $recordsByWeek = $this->groupRecordsByWeek();
         $sectionTopRow = 1;
@@ -71,7 +80,7 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 
         for ($cursor = $this->weekStart; $cursor->lessThanOrEqualTo($this->weekEnd); $cursor = $cursor->addWeek()) {
             if (! $isFirstWeek) {
-                $this->copyTemplateSection($sheet, $templateState['section_snapshot'], $sectionTopRow);
+                $this->copyTemplateSection($sheet, $templateSource, $templateState['section_snapshot'], $sectionTopRow);
             }
 
             $weeklyExport = new Reporte00EAtadoresExport(
@@ -87,23 +96,27 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
         }
     }
 
-    private function copyTemplateSection(Worksheet $sheet, array $sectionSnapshot, int $sectionTopRow): void
+    private function copyTemplateSection(
+        Worksheet $sheet,
+        Worksheet $templateSource,
+        array $sectionSnapshot,
+        int $sectionTopRow
+    ): void
     {
         $rowOffset = $sectionTopRow - 1;
+        $columns = $this->getColumnLabels();
 
         foreach (($sectionSnapshot['row_heights'] ?? []) as $sourceRow => $height) {
             $targetRow = (int) $sourceRow + $rowOffset;
             $sheet->getRowDimension($targetRow)->setRowHeight((float) $height);
 
             foreach (($sectionSnapshot['style_runs'][$sourceRow] ?? []) as $styleRun) {
-                $targetRange = sprintf(
-                    '%s%d:%s%d',
-                    Coordinate::stringFromColumnIndex((int) $styleRun['start']),
-                    $targetRow,
-                    Coordinate::stringFromColumnIndex((int) $styleRun['end']),
-                    $targetRow
+                $startColumn = $columns[(int) $styleRun['start']];
+                $endColumn = $columns[(int) $styleRun['end']];
+                $sheet->duplicateStyle(
+                    $templateSource->getStyle("{$startColumn}{$sourceRow}"),
+                    "{$startColumn}{$targetRow}:{$endColumn}{$targetRow}"
                 );
-                $sheet->getStyle($targetRange)->applyFromArray($styleRun['style']);
             }
         }
 
@@ -139,13 +152,28 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
 
     private function loadRecords(): Collection
     {
-        $rangeEnd = $this->weekEnd->addDays(6);
+        $rangeStart = $this->weekStart->startOfDay()->toDateTimeString();
+        $rangeEndExclusive = $this->weekEnd->addDays(7)->startOfDay()->toDateTimeString();
 
         return AtaMontadoTelasModel::query()
+            ->select([
+                'Id',
+                'FechaArranque',
+                'Turno',
+                'CveTejedor',
+                'NomTejedor',
+                'Tipo',
+                'NoTelarId',
+                'HrInicio',
+                'HoraArranque',
+                'Calidad',
+                'Limpieza',
+                'MergaKg',
+            ])
             ->where('Estatus', 'Autorizado')
             ->whereNotNull('FechaArranque')
-            ->whereDate('FechaArranque', '>=', $this->weekStart->toDateString())
-            ->whereDate('FechaArranque', '<=', $rangeEnd->toDateString())
+            ->where('FechaArranque', '>=', $rangeStart)
+            ->where('FechaArranque', '<', $rangeEndExclusive)
             ->orderBy('FechaArranque')
             ->orderBy('Turno')
             ->orderBy('CveTejedor')
@@ -153,6 +181,7 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
             ->orderBy('HrInicio')
             ->orderBy('HoraArranque')
             ->orderBy('Id')
+            ->toBase()
             ->get();
     }
 
@@ -250,24 +279,21 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
                 continue;
             }
 
-            $runs[] = $this->buildStyleRun($templateSheet, $row, $runStart, $columnIndex - 1);
+            $runs[] = $this->buildStyleRun($runStart, $columnIndex - 1);
             $runStart = $columnIndex;
             $currentHash = $hash;
         }
 
-        $runs[] = $this->buildStyleRun($templateSheet, $row, $runStart, self::MAX_COLUMN_INDEX);
+        $runs[] = $this->buildStyleRun($runStart, self::MAX_COLUMN_INDEX);
 
         return $runs;
     }
 
-    private function buildStyleRun(Worksheet $templateSheet, int $row, int $startColumnIndex, int $endColumnIndex): array
+    private function buildStyleRun(int $startColumnIndex, int $endColumnIndex): array
     {
-        $coordinate = $this->getColumnLabels()[$startColumnIndex].$row;
-
         return [
             'start' => $startColumnIndex,
             'end' => $endColumnIndex,
-            'style' => $templateSheet->getStyle($coordinate)->exportArray(),
         ];
     }
 
