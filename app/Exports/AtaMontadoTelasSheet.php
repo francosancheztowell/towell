@@ -196,22 +196,22 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
     protected function baseHeadings(): array
     {
         return [
-            'Estatus',
             'Fecha',
             'Turno',
-            'No. Julio',
-            'No. Producción',
             'Tipo',
-            'Metros',
             'No. Telar',
-            'Lote Proveedor',
-            'No. Proveedor',
             'Merma Kg',
             'Hora Paro',
             'Hora Arranque',
             'Hr. Inicio',
             'Calidad',
             'Limpieza',
+            'Estatus',
+            'No. Julio',
+            'No. Producción',
+            'Metros',
+            'Lote Proveedor',
+            'No. Proveedor',
             'Cve. Supervisor',
             'Nom. Supervisor',
             'Fecha Supervisor',
@@ -243,22 +243,22 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
     {
         return $this->datos->map(function ($item) {
             $fila = [
-                'Estatus' => $item->Estatus ?? '-',
                 'Fecha' => $item->Fecha ? Carbon::parse($item->Fecha)->format('d/m/Y') : '-',
                 'Turno' => $item->Turno ?? '-',
-                'No. Julio' => $item->NoJulio ?? '-',
-                'No. Producción' => $item->NoProduccion ?? '-',
                 'Tipo' => $this->transformarTipo($item->Tipo),
-                'Metros' => $item->Metros !== null ? number_format($item->Metros, 2) : '-',
                 'No. Telar' => $item->NoTelarId ?? '-',
-                'Lote Proveedor' => $item->LoteProveedor ?? '-',
-                'No. Proveedor' => $item->NoProveedor ?? '-',
-                'Merga Kg' => $item->MergaKg !== null ? number_format($item->MergaKg, 2) : '-',
+                'Merma Kg' => $item->MergaKg !== null ? number_format($item->MergaKg, 2) : '-',
                 'Hora Paro' => $item->HoraParo ?? '-',
                 'Hora Arranque' => $item->HoraArranque ?? '-',
                 'Hr. Inicio' => $item->HrInicio ?? '-',
                 'Calidad' => $item->Calidad ?? '-',
                 'Limpieza' => $item->Limpieza ?? '-',
+                'Estatus' => $item->Estatus ?? '-',
+                'No. Julio' => $item->NoJulio ?? '-',
+                'No. Producción' => $item->NoProduccion ?? '-',
+                'Metros' => $item->Metros !== null ? number_format($item->Metros, 2) : '-',
+                'Lote Proveedor' => $item->LoteProveedor ?? '-',
+                'No. Proveedor' => $item->NoProveedor ?? '-',
                 'Cve. Supervisor' => $item->CveSupervisor ?? '-',
                 'Nom. Supervisor' => $item->NomSupervisor ?? '-',
                 'Fecha Supervisor' => $item->FechaSupervisor ? Carbon::parse($item->FechaSupervisor)->format('d/m/Y H:i') : '-',
@@ -287,31 +287,31 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
     public function columnWidths(): array
     {
         $widths = [
-            'A' => 12,
-            'B' => 12,
-            'C' => 8,
-            'D' => 14,
-            'E' => 16,
-            'F' => 10,
-            'G' => 10,
-            'H' => 10,
-            'I' => 14,
-            'J' => 12,
-            'K' => 10,
-            'L' => 12,
-            'M' => 14,
-            'N' => 12,
-            'O' => 10,
-            'P' => 10,
-            'Q' => 14,
-            'R' => 20,
-            'S' => 18,
-            'T' => 14,
-            'U' => 20,
-            'V' => 25,
-            'W' => 25,
-            'X' => 25,
-            'Y' => 25,
+            'A' => 12,  // Fecha
+            'B' => 8,   // Turno
+            'C' => 8,   // Tipo
+            'D' => 10,  // No. Telar
+            'E' => 12,  // Merma Kg
+            'F' => 12,  // Hora Paro
+            'G' => 14,  // Hora Arranque
+            'H' => 12,  // Hr. Inicio
+            'I' => 10,  // Calidad
+            'J' => 10,  // Limpieza
+            'K' => 12,  // Estatus
+            'L' => 14,  // No. Julio
+            'M' => 16,  // No. Producción
+            'N' => 10,  // Metros
+            'O' => 14,  // Lote Proveedor
+            'P' => 12,  // No. Proveedor
+            'Q' => 14,  // Cve. Supervisor
+            'R' => 20,  // Nom. Supervisor
+            'S' => 18,  // Fecha Supervisor
+            'T' => 14,  // Cve. Tejedor
+            'U' => 20,  // Nom. Tejedor
+            'V' => 25,  // Obs
+            'W' => 25,  // Comentarios Sup.
+            'X' => 25,  // Comentarios Tej.
+            'Y' => 25,  // Comentarios Ata.
         ];
 
         $totalColumns = count($this->headings());
@@ -371,6 +371,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
                     ]);
                 }
 
+                $sheet->setAutoFilter("A1:{$lastColumn}1");
                 $sheet->freezePane('A2');
             },
         ];
