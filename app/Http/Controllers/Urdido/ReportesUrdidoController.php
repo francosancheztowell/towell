@@ -989,7 +989,7 @@ class ReportesUrdidoController extends Controller
             ->get();
 
         $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4, 'Otros' => 5];
-        $porFecha = [];
+        $porFecha = $this->buildReporte03DateBuckets($fechaIni, $fechaFin);
         foreach ($registros as $r) {
             $mc = $this->extractMcCoyNumber($r->MaquinaId);
             $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
@@ -1167,6 +1167,19 @@ class ReportesUrdidoController extends Controller
         if (! isset($porFecha[$fecha]['engomado'])) {
             $porFecha[$fecha]['engomado'] = ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
         }
+    }
+
+    private function buildReporte03DateBuckets(string $fechaIni, string $fechaFin): array
+    {
+        $inicio = $this->parseReportDate($fechaIni)->startOfDay();
+        $fin = $this->parseReportDate($fechaFin)->startOfDay();
+        $porFecha = [];
+
+        for ($fecha = $inicio->copy(); $fecha->lessThanOrEqualTo($fin); $fecha->addDay()) {
+            $this->ensureReporte03DateBucket($porFecha, $fecha->format('Y-m-d'));
+        }
+
+        return $porFecha;
     }
 
     private function buildReporte03DefectosData(string $fechaIni, string $fechaFin): array

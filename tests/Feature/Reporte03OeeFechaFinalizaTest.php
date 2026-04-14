@@ -189,7 +189,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
         $response->assertDontSee('URD-NULL');
     }
 
-    public function test_exporte_03_oee_agrupa_por_fecha_de_produccion_y_mantiene_defectos_en_excel(): void
+    public function test_exporte_03_oee_arma_todos_los_dias_del_rango_por_fecha_de_produccion_y_mantiene_defectos(): void
     {
         $this->actingAs($this->createUsuario(['area' => 'Urdido']));
 
@@ -306,7 +306,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
 
         EngProduccionEngomado::create([
             'Folio' => 'ENG-A',
-            'Fecha' => '2026-03-01',
+            'Fecha' => '2026-03-12',
             'NoJulio' => 'EN-12',
             'KgNeto' => 12,
             'Metros1' => 90,
@@ -319,7 +319,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
 
         EngProduccionEngomado::create([
             'Folio' => 'ENG-B',
-            'Fecha' => '2026-02-27',
+            'Fecha' => '2026-03-10',
             'NoJulio' => 'EN-10',
             'KgNeto' => 10,
             'Metros1' => 80,
@@ -345,12 +345,11 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
                 $porFecha = $this->extractProperty($export, 'porFecha');
                 $defectosData = $this->extractProperty($export, 'defectosData');
 
-                $this->assertSame(['2026-03-10', '2026-03-12'], array_keys($porFecha));
+                $this->assertSame(['2026-03-10', '2026-03-11', '2026-03-12'], array_keys($porFecha));
                 $this->assertSame('URD-B', $porFecha['2026-03-10']['porMaquina'][0]['filas'][0]['orden']);
-                $this->assertSame('ENG-B', $porFecha['2026-03-10']['engomado']['WP2']['filas'][0]['orden']);
+                $this->assertSame([], $porFecha['2026-03-11']['porMaquina']);
+                $this->assertSame(['WP2' => ['filas' => []], 'WP3' => ['filas' => []]], $porFecha['2026-03-11']['engomado']);
                 $this->assertSame([], $porFecha['2026-03-12']['porMaquina']);
-                $this->assertSame('ENG-A', $porFecha['2026-03-12']['engomado']['WP3']['filas'][0]['orden']);
-                $this->assertArrayNotHasKey('2026-03-11', $porFecha);
 
                 $this->assertSame(['URD-B', 'URD-C', 'ENG-A'], array_column($defectosData['calidad_rows'], 'orden'));
                 $this->assertSame(['RHCE', 'N', 'RHS'], array_column($defectosData['calidad_rows'], 'defecto'));
@@ -374,15 +373,15 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
             ->once()
             ->withArgs(function ($export, $filename) {
                 $this->assertInstanceOf(ReportesUrdidoExport::class, $export);
-                $this->assertSame('reporte-urdido-20260301-20260331.xlsx', $filename);
+                $this->assertSame('reporte-urdido-20260310-20260312.xlsx', $filename);
 
                 return true;
             })
             ->andReturn(response('ok', 200));
 
         $response = $this->get(route('urdido.reportes.urdido.excel', [
-            'fecha_ini' => '2026-03-01',
-            'fecha_fin' => '2026-03-31',
+            'fecha_ini' => '2026-03-10',
+            'fecha_fin' => '2026-03-12',
         ]));
 
         $response->assertOk();
