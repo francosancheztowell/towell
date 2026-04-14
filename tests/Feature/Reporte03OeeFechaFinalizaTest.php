@@ -49,7 +49,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_reporte_03_oee_filtra_por_fecha_finaliza_en_pantalla(): void
+    public function test_reporte_03_oee_filtra_por_fecha_de_produccion_en_pantalla(): void
     {
         $this->actingAs($this->createUsuario(['area' => 'Urdido']));
 
@@ -57,14 +57,14 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
             'Folio' => 'URD-IN',
             'MaquinaId' => 'Mc Coy 2',
             'Status' => 'En Proceso',
-            'FechaFinaliza' => '2026-03-10',
+            'FechaFinaliza' => '2026-02-10',
         ]);
 
         UrdProgramaUrdido::create([
             'Folio' => 'URD-OUT',
             'MaquinaId' => 'Mc Coy 1',
             'Status' => 'Finalizado',
-            'FechaFinaliza' => '2026-04-02',
+            'FechaFinaliza' => '2026-03-12',
         ]);
 
         UrdProgramaUrdido::create([
@@ -76,20 +76,22 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
 
         UrdProduccionUrdido::create([
             'Folio' => 'URD-IN',
-            'Fecha' => '2026-02-25',
+            'Fecha' => '2026-03-05',
             'NoJulio' => 'J-100',
             'KgNeto' => 18.5,
             'Metros1' => 120,
             'NomEmpl1' => 'Operador Visible',
+            'Finalizar' => 1,
         ]);
 
         UrdProduccionUrdido::create([
             'Folio' => 'URD-OUT',
-            'Fecha' => '2026-03-12',
+            'Fecha' => '2026-02-25',
             'NoJulio' => 'J-200',
             'KgNeto' => 22,
             'Metros1' => 140,
             'NomEmpl1' => 'No Debe Entrar',
+            'Finalizar' => 1,
         ]);
 
         UrdProduccionUrdido::create([
@@ -99,6 +101,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
             'KgNeto' => 25,
             'Metros1' => 150,
             'NomEmpl1' => 'Sin Fecha Finaliza',
+            'Finalizar' => 1,
         ]);
 
         $response = $this->get(route('urdido.reportes.urdido.03-oee', [
@@ -111,16 +114,82 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
         $response->assertViewHas('porMaquina', function (array $porMaquina) {
             return isset($porMaquina['MC2'])
                 && ($porMaquina['MC2']['filas'][0]['orden'] ?? null) === 'URD-IN'
-                && ! isset($porMaquina['MC1'])
+                && isset($porMaquina['MC3'])
+                && ($porMaquina['MC3']['filas'][0]['orden'] ?? null) === 'URD-NULL'
+                && ! isset($porMaquina['MC1']);
+        });
+        $response->assertViewHas('totalKg', 43.5);
+        $response->assertSee('URD-IN');
+        $response->assertSee('URD-NULL');
+        $response->assertDontSee('URD-OUT');
+    }
+
+    public function test_reporte_03_oee_solo_finalizados_usa_finalizar_de_produccion_en_pantalla(): void
+    {
+        $this->actingAs($this->createUsuario(['area' => 'Urdido']));
+
+        foreach ([
+            ['folio' => 'URD-FIN', 'maq' => 'Mc Coy 1'],
+            ['folio' => 'URD-NO', 'maq' => 'Mc Coy 2'],
+            ['folio' => 'URD-NULL', 'maq' => 'Mc Coy 3'],
+        ] as $programa) {
+            UrdProgramaUrdido::create([
+                'Folio' => $programa['folio'],
+                'MaquinaId' => $programa['maq'],
+                'Status' => 'En Proceso',
+                'FechaFinaliza' => '2026-03-31',
+            ]);
+        }
+
+        UrdProduccionUrdido::create([
+            'Folio' => 'URD-FIN',
+            'Fecha' => '2026-03-10',
+            'NoJulio' => 'JF-10',
+            'KgNeto' => 10,
+            'Metros1' => 90,
+            'NomEmpl1' => 'Operador Finalizado',
+            'Finalizar' => 1,
+        ]);
+
+        UrdProduccionUrdido::create([
+            'Folio' => 'URD-NO',
+            'Fecha' => '2026-03-11',
+            'NoJulio' => 'JN-11',
+            'KgNeto' => 12,
+            'Metros1' => 95,
+            'NomEmpl1' => 'Operador Pendiente',
+            'Finalizar' => 0,
+        ]);
+
+        UrdProduccionUrdido::create([
+            'Folio' => 'URD-NULL',
+            'Fecha' => '2026-03-12',
+            'NoJulio' => 'JX-12',
+            'KgNeto' => 14,
+            'Metros1' => 100,
+            'NomEmpl1' => 'Operador Nulo',
+        ]);
+
+        $response = $this->get(route('urdido.reportes.urdido.03-oee', [
+            'fecha_ini' => '2026-03-01',
+            'fecha_fin' => '2026-03-31',
+            'solo_finalizados' => '1',
+        ]));
+
+        $response->assertOk();
+        $response->assertViewHas('porMaquina', function (array $porMaquina) {
+            return isset($porMaquina['MC1'])
+                && ($porMaquina['MC1']['filas'][0]['orden'] ?? null) === 'URD-FIN'
+                && ! isset($porMaquina['MC2'])
                 && ! isset($porMaquina['MC3']);
         });
-        $response->assertViewHas('totalKg', 18.5);
-        $response->assertSee('URD-IN');
-        $response->assertDontSee('URD-OUT');
+        $response->assertViewHas('totalKg', 10.0);
+        $response->assertSee('URD-FIN');
+        $response->assertDontSee('URD-NO');
         $response->assertDontSee('URD-NULL');
     }
 
-    public function test_exporte_03_oee_agrupa_y_ordena_por_fecha_finaliza_y_fecha_defecto_en_excel(): void
+    public function test_exporte_03_oee_agrupa_por_fecha_de_produccion_y_mantiene_defectos_en_excel(): void
     {
         $this->actingAs($this->createUsuario(['area' => 'Urdido']));
 
@@ -161,14 +230,14 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
         UrdProgramaUrdido::create([
             'Folio' => 'URD-B',
             'MaquinaId' => 'Mc Coy 2',
-            'Status' => 'Finalizado',
+            'Status' => 'En Proceso',
             'FechaFinaliza' => '2026-03-10',
         ]);
 
         UrdProgramaUrdido::create([
             'Folio' => 'URD-C',
             'MaquinaId' => 'Mc Coy 3',
-            'Status' => 'En Proceso',
+            'Status' => 'Finalizado',
             'FechaFinaliza' => '2026-03-11',
         ]);
 
@@ -200,6 +269,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
             'KgNeto' => 15,
             'Metros1' => 100,
             'NomEmpl1' => 'Operador A',
+            'Finalizar' => 1,
             'ClaveDefecto' => 1,
             'Penalizacion' => 1.5,
             'OperadorDefecto' => 'Fuera Rango',
@@ -213,6 +283,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
             'KgNeto' => 20,
             'Metros1' => 120,
             'NomEmpl1' => 'Operador B',
+            'Finalizar' => 1,
             'ClaveDefecto' => 2,
             'Penalizacion' => 2,
             'OperadorDefecto' => 'Operador B Defecto',
@@ -226,6 +297,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
             'KgNeto' => 30,
             'Metros1' => 130,
             'NomEmpl1' => 'Operador C',
+            'Finalizar' => 0,
             'ClaveDefecto' => 3,
             'Penalizacion' => 5,
             'OperadorDefecto' => 'Operador C Defecto',
@@ -276,7 +348,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
                 $this->assertSame(['2026-03-10', '2026-03-12'], array_keys($porFecha));
                 $this->assertSame('URD-B', $porFecha['2026-03-10']['porMaquina'][0]['filas'][0]['orden']);
                 $this->assertSame('ENG-B', $porFecha['2026-03-10']['engomado']['WP2']['filas'][0]['orden']);
-                $this->assertSame('URD-A', $porFecha['2026-03-12']['porMaquina'][0]['filas'][0]['orden']);
+                $this->assertSame([], $porFecha['2026-03-12']['porMaquina']);
                 $this->assertSame('ENG-A', $porFecha['2026-03-12']['engomado']['WP3']['filas'][0]['orden']);
                 $this->assertArrayNotHasKey('2026-03-11', $porFecha);
 
@@ -450,6 +522,7 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
             $table->string('CveEmpl3')->nullable();
             $table->string('NomEmpl3')->nullable();
             $table->float('Metros3')->nullable();
+            $table->integer('Finalizar')->nullable();
             $table->float('Penalizacion')->nullable();
             $table->string('OperadorDefecto')->nullable();
             $table->integer('NoEmplDefecto')->nullable();

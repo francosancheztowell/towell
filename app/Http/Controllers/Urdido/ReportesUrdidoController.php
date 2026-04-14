@@ -143,7 +143,7 @@ class ReportesUrdidoController extends Controller
             ->select([
                 'UrdProduccionUrdido.Id',
                 'UrdProduccionUrdido.Folio',
-                'p.FechaFinaliza as FechaReporte',
+                'UrdProduccionUrdido.Fecha as FechaReporte',
                 'UrdProduccionUrdido.NoJulio',
                 'UrdProduccionUrdido.KgNeto',
                 'UrdProduccionUrdido.Metros1',
@@ -157,7 +157,7 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.NomEmpl3',
                 'p.MaquinaId',
             ])
-            ->orderBy('p.FechaFinaliza')
+            ->orderBy('UrdProduccionUrdido.Fecha')
             ->orderBy('p.MaquinaId')
             ->orderBy('UrdProduccionUrdido.Folio')
             ->orderBy('UrdProduccionUrdido.NoJulio')
@@ -968,7 +968,7 @@ class ReportesUrdidoController extends Controller
             ->select([
                 'UrdProduccionUrdido.Id',
                 'UrdProduccionUrdido.Folio',
-                'p.FechaFinaliza as FechaReporte',
+                'UrdProduccionUrdido.Fecha as FechaReporte',
                 'UrdProduccionUrdido.NoJulio',
                 'UrdProduccionUrdido.KgNeto',
                 'UrdProduccionUrdido.Metros1',
@@ -982,7 +982,7 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.NomEmpl3',
                 'p.MaquinaId',
             ])
-            ->orderBy('p.FechaFinaliza')
+            ->orderBy('UrdProduccionUrdido.Fecha')
             ->orderBy('p.MaquinaId')
             ->orderBy('UrdProduccionUrdido.Folio')
             ->orderBy('UrdProduccionUrdido.NoJulio')
@@ -1115,11 +1115,10 @@ class ReportesUrdidoController extends Controller
     {
         $query = UrdProduccionUrdido::query()
             ->join('UrdProgramaUrdido as p', 'UrdProduccionUrdido.Folio', '=', 'p.Folio')
-            ->whereNotNull('p.FechaFinaliza')
-            ->whereBetween('p.FechaFinaliza', [$fechaIni, $fechaFin]);
+            ->whereBetween('UrdProduccionUrdido.Fecha', [$fechaIni, $fechaFin]);
 
         if ($soloFinalizados) {
-            $query->where('p.Status', 'Finalizado');
+            $query->where('UrdProduccionUrdido.Finalizar', 1);
         }
 
         return $query;
