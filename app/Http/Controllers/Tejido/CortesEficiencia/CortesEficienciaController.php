@@ -208,7 +208,26 @@ class CortesEficienciaController extends Controller
                 ], 401);
             }
 
-            // Verificar si existe algún folio que no esté finalizado
+            // Usar fecha y turno del request si se proporcionaron, de lo contrario usar valores del sistema
+            $fecha = $request->query('fecha', now()->toDateString());
+            $turno = $request->query('turno', TurnoHelper::getTurnoActual());
+
+            // 1. Verificar si ya existe un folio para esta misma fecha y turno (independientemente del status)
+            // Esta es la restricción principal para evitar duplicados por turno
+            $folioExistenteTurno = TejEficiencia::where('Date', $fecha)
+                ->where('Turno', $turno)
+                ->first();
+
+            if ($folioExistenteTurno) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un folio para la fecha ' . $fecha . ' y turno ' . $turno . ': ' . $folioExistenteTurno->Folio,
+                    'folio_existente' => $folioExistenteTurno->Folio,
+                    'status' => $folioExistenteTurno->Status
+                ], 400);
+            }
+
+            // 2. Verificar si existe algún OTRO folio que no esté finalizado (restricción global de "uno a la vez")
             $folioEnProceso = TejEficiencia::where('Status', '!=', 'Finalizado')
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -216,42 +235,57 @@ class CortesEficienciaController extends Controller
             if ($folioEnProceso) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ya existe un folio en proceso',
+                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
                     'folio_existente' => $folioEnProceso->Folio
                 ], 400);
             }
 
-            // Generar el folio real (incrementa el consecutivo)
-            // Este será el folio definitivo que se usará para guardar
-            $folio = FolioHelper::obtenerSiguienteFolio('CorteEficiencia', 4);
+            return DB::transaction(function () use ($fecha, $turno, $user) {
+                // Doble verificación dentro de la transacción para evitar condiciones de carrera
+                $folioExistenteTurno = TejEficiencia::where('Date', $fecha)
+                    ->where('Turno', $turno)
+                    ->lockForUpdate()
+                    ->first();
 
-            // Usar fecha y turno del request si se proporcionaron, de lo contrario usar valores del sistema
-            $fecha = $request->query('fecha', now()->toDateString());
-            $turno = $request->query('turno', TurnoHelper::getTurnoActual());
+                if ($folioExistenteTurno) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ya existe un folio para esta fecha y turno',
+                        'folio_existente' => $folioExistenteTurno->Folio
+                    ], 400);
+                }
 
-            // Crear inmediatamente el registro en TejEficiencia con status "En Proceso"
-            // Esto reserva el folio y evita duplicados
-            TejEficiencia::create([
-                'Folio' => $folio,
-                'Date' => $fecha,
-                'Turno' => $turno,
-                'Status' => 'En Proceso',
-                'numero_empleado' => $user->numero_empleado ?? 'N/A',
-                'nombreEmpl' => $user->nombre ?? 'Usuario',
-            ]);
+                // Generar el folio real (incrementa el consecutivo)
+                $folio = FolioHelper::obtenerSiguienteFolio('CorteEficiencia', 4);
 
-            // Obtener información del usuario actual desde la autenticación
-            $usuario = [
-                'nombre' => $user->nombre ?? 'Usuario',
-                'numero_empleado' => $user->numero_empleado ?? 'N/A'
-            ];
+                if (empty($folio)) {
+                    throw new \Exception('No se pudo generar un nuevo folio.');
+                }
 
-            return response()->json([
-                'success' => true,
-                'folio' => $folio,
-                'turno' => $turno,
-                'usuario' => $usuario
-            ]);
+                // Crear inmediatamente el registro en TejEficiencia con status "En Proceso"
+                // Esto reserva el folio y evita duplicados
+                TejEficiencia::create([
+                    'Folio' => $folio,
+                    'Date' => $fecha,
+                    'Turno' => $turno,
+                    'Status' => 'En Proceso',
+                    'numero_empleado' => $user->numero_empleado ?? 'N/A',
+                    'nombreEmpl' => $user->nombre ?? 'Usuario',
+                ]);
+
+                // Obtener información del usuario actual desde la autenticación
+                $usuario = [
+                    'nombre' => $user->nombre ?? 'Usuario',
+                    'numero_empleado' => $user->numero_empleado ?? 'N/A'
+                ];
+
+                return response()->json([
+                    'success' => true,
+                    'folio' => $folio,
+                    'turno' => $turno,
+                    'usuario' => $usuario
+                ]);
+            });
 
         } catch (\Exception $e) {
             Log::error('Error al generar folio: ' . $e->getMessage());
@@ -282,7 +316,7 @@ class CortesEficienciaController extends Controller
                 'horario3' => 'nullable|string',
             ]);
 
-            // Verificar si existe otro folio en proceso (excepto el actual)
+            // 1. Verificar si existe otro folio en proceso (excepto el actual)
             $folioEnProceso = TejEficiencia::where('Status', '!=', 'Finalizado')
                 ->where('Folio', '!=', $validated['folio'])
                 ->first();
@@ -292,6 +326,21 @@ class CortesEficienciaController extends Controller
                     'success' => false,
                     'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
                     'folio_existente' => $folioEnProceso->Folio
+                ], 400);
+            }
+
+            // 2. Verificar si ya existe un folio para la misma fecha y turno (excepto el actual)
+            // Esto evita que al intentar "guardar como nuevo" un registro que ya existe para ese turno se duplique
+            $folioExistenteTurno = TejEficiencia::where('Date', $validated['fecha'])
+                ->where('Turno', $validated['turno'])
+                ->where('Folio', '!=', $validated['folio'])
+                ->first();
+
+            if ($folioExistenteTurno) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un folio para la fecha ' . $validated['fecha'] . ' y turno ' . $validated['turno'] . ': ' . $folioExistenteTurno->Folio,
+                    'folio_existente' => $folioExistenteTurno->Folio
                 ], 400);
             }
 
