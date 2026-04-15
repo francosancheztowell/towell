@@ -318,20 +318,22 @@
         const btnCancelar  = $('#btn-cancelar');
         const btnResumen   = $('#btn-resumen');
 
-        // Resetear todos los botones
-        [btnSolicitar, btnEditar, btnCancelar, btnResumen].forEach(b => b?.classList.remove('hidden'));
-
-        if (status === 'En Proceso') return; // puede todo
-        if (status === 'En preparación'){
-            // Solo mostrar resumen
+        if (status === 'En Proceso') {
+            // Estatus "En Proceso": mostrar todas las acciones
+            btnSolicitar?.classList.remove('hidden');
+            btnEditar?.classList.remove('hidden');
+            btnCancelar?.classList.remove('hidden');
+            btnResumen?.classList.remove('hidden');
+        } else {
+            // Para cualquier otro estatus (Registrado, En preparación, Solicitado, Surtido, Cancelado, etc.)
+            // Ocultamos las acciones de modificación/solicitud
             btnSolicitar?.classList.add('hidden');
             btnEditar?.classList.add('hidden');
             btnCancelar?.classList.add('hidden');
-            return;
+            
+            // Mantenemos el Resumen visible para consulta en cualquier estado
+            btnResumen?.classList.remove('hidden');
         }
-        if (status === 'Solicitado'){ btnSolicitar?.classList.add('hidden'); btnEditar?.classList.add('hidden'); return; }
-        if (status === 'Surtido'){ btnSolicitar?.classList.add('hidden'); btnEditar?.classList.add('hidden'); btnCancelar?.classList.add('hidden'); return; }
-        if (status === 'Cancelado'){ btnSolicitar?.classList.add('hidden'); btnEditar?.classList.add('hidden'); btnCancelar?.classList.add('hidden'); return; }
     }
 
     // --------- Fetch helpers ---------
