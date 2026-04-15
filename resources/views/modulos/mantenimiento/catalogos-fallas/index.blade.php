@@ -148,6 +148,21 @@ Catálogo de Fallas
     </form>
 </div>
 
+@php
+    $departamentosOptions = collect(['ENGOMADO', 'Tejido', 'Calidad', 'Atadores', 'URDIDO'])
+        ->merge($departamentos ?? collect())
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
+
+    $tiposFallaOptions = collect($tiposFalla ?? collect())
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
+@endphp
+
 <style>
     /* Estilos para filas seleccionadas */
     tbody tr {
@@ -173,19 +188,8 @@ Catálogo de Fallas
     const storeUrl = '{{ route("mantenimiento.catalogos-fallas.store") }}';
 
     // Opciones para los selects
-    const departamentos = @json(
-        collect(['ENGOMADO', 'Tejido', 'Calidad', 'Atadores', 'URDIDO'])
-            ->merge($departamentos ?? collect())
-            ->filter()
-            ->unique()
-            ->values()
-    );
-    const tiposFalla = @json(
-        collect($tiposFalla ?? collect())
-            ->filter()
-            ->unique()
-            ->values()
-    );
+    const departamentos = @json($departamentosOptions);
+    const tiposFalla = @json($tiposFallaOptions);
 
     let selectedRow = null;
     let selectedKey = null;
