@@ -425,7 +425,7 @@
             }
 
             if (!lineas || !lineas.length) {
-                this.dom.body.innerHTML = '<tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">Sin líneas capturadas</td></tr>';
+                this.dom.body.innerHTML = '<tr><td colspan="8" class="px-3 py-6 text-center text-gray-500">Sin líneas capturadas</td></tr>';
                 return;
             }
 
@@ -436,6 +436,7 @@
                         <td class="px-2 py-2 font-semibold text-gray-900 truncate">${linea.NoTelarId ?? '-'}</td>
                         <td class="px-2 py-2 text-center">${eficiencia}</td>
                         <td class="px-2 py-2 text-center">${linea.Marcas ?? '-'}</td>
+                        <td class="px-2 py-2 text-center">${linea.Horas ?? '-'}</td>
                         <td class="px-2 py-2 text-center">${linea.Trama ?? '-'}</td>
                         <td class="px-2 py-2 text-center">${linea.Pie ?? '-'}</td>
                         <td class="px-2 py-2 text-center">${linea.Rizo ?? '-'}</td>
@@ -733,6 +734,7 @@
 
             if (esVacioOCero(l.Eficiencia)) camposVacios.push('% Efi');
             if (esVacioOCero(l.Marcas)) camposVacios.push('Marcas');
+            if (esVacioOCero(l.Horas)) camposVacios.push('Horas');
             if (esVacioOCero(l.Trama)) camposVacios.push('Trama');
             if (esVacioOCero(l.Pie)) camposVacios.push('Pie');
             if (esVacioOCero(l.Rizo)) camposVacios.push('Rizo');

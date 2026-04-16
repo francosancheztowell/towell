@@ -51,7 +51,7 @@ class ReporteMarcasFinalesController extends Controller
             ->whereBetween('Date', [$fechaIni, $fechaFin])
             ->orderBy('Date')
             ->orderBy('Turno')
-            ->get(['Folio', 'Date', 'Turno', 'NoTelarId', 'Marcas', 'Trama', 'Pie', 'Rizo', 'Otros']);
+            ->get(['Folio', 'Date', 'Turno', 'NoTelarId', 'Marcas', 'Horas', 'Trama', 'Pie', 'Rizo', 'Otros']);
 
         if ($registros->isEmpty()) {
             return collect();
@@ -69,6 +69,7 @@ class ReporteMarcasFinalesController extends Controller
                     'folio' => $registro->Folio,
                     'telar' => $telar,
                     'marcas' => (int) ($registro->Marcas ?? 0),
+                    'horas' => (float) ($registro->Horas ?? 0),
                     'trama' => (int) ($registro->Trama ?? 0),
                     'pie' => (int) ($registro->Pie ?? 0),
                     'rizo' => (int) ($registro->Rizo ?? 0),
@@ -77,17 +78,37 @@ class ReporteMarcasFinalesController extends Controller
             })
             ->groupBy('maquina')
             ->map(function (Collection $items, string $maquina) {
-                $ordenados = $items->sortBy([
-                    ['fecha', 'asc'],
-                    ['turno', 'asc'],
-                    ['telar', 'asc'],
-                ])->values();
+                $telares = $items
+                    ->groupBy('telar')
+                    ->map(function (Collection $lineas, int|string $telar) {
+                        $turnos = collect(range(1, 4))->mapWithKeys(function (int $turno) use ($lineas) {
+                            $lineasTurno = $lineas->where('turno', $turno);
+
+                            return [
+                                $turno => (object) [
+                                    'marcas' => (int) $lineasTurno->sum('marcas'),
+                                    'horas' => (float) $lineasTurno->sum('horas'),
+                                    'trama' => (int) $lineasTurno->sum('trama'),
+                                    'pie' => (int) $lineasTurno->sum('pie'),
+                                    'rizo' => (int) $lineasTurno->sum('rizo'),
+                                    'otros' => (int) $lineasTurno->sum('otros'),
+                                ],
+                            ];
+                        });
+
+                        return (object) [
+                            'telar' => (int) $telar,
+                            'turnos' => $turnos,
+                        ];
+                    })
+                    ->sortBy('telar')
+                    ->values();
 
                 return (object) [
                     'maquina' => $maquina,
-                    'total_telares' => $items->pluck('telar')->unique()->count(),
+                    'total_telares' => $telares->count(),
                     'total_marcas' => (int) round((float) $items->sum('marcas')),
-                    'registros' => $ordenados,
+                    'telares' => $telares,
                 ];
             })
             ->sortBy(function ($grupo) {

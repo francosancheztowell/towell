@@ -57,39 +57,51 @@
                                     </div>
 
                                     <div class="overflow-auto">
+                                        @php
+                                            $turnoHeaderClass = [
+                                                1 => 'bg-sky-100 text-sky-800',
+                                                2 => 'bg-emerald-100 text-emerald-800',
+                                                3 => 'bg-amber-100 text-amber-800',
+                                                4 => 'bg-violet-100 text-violet-800',
+                                            ];
+                                            $turnoCellClass = [
+                                                1 => 'bg-sky-50',
+                                                2 => 'bg-emerald-50',
+                                                3 => 'bg-amber-50',
+                                                4 => 'bg-violet-50',
+                                            ];
+                                        @endphp
                                         <table class="min-w-full text-sm">
                                             <thead class="bg-blue-50 text-blue-800">
                                                 <tr>
-                                                    <th class="px-4 py-2 text-left font-semibold border-b border-blue-100">Fecha</th>
-                                                    <th class="px-4 py-2 text-center font-semibold border-b border-blue-100">Turno</th>
-                                                    <th class="px-4 py-2 text-left font-semibold border-b border-blue-100">Folio</th>
-                                                    <th class="px-4 py-2 text-center font-semibold border-b border-blue-100">Telar</th>
-                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Marcas</th>
-                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Trama</th>
-                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Pie</th>
-                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Rizo</th>
-                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Otros</th>
+                                                    <th rowspan="2" class="px-4 py-2 text-center font-semibold border-b border-blue-100">Telar</th>
+                                                    @for ($turno = 1; $turno <= 4; $turno++)
+                                                        <th colspan="6" class="px-4 py-2 text-center font-semibold border-b border-blue-100 {{ $turnoHeaderClass[$turno] }}">Turno {{ $turno }}</th>
+                                                    @endfor
+                                                </tr>
+                                                <tr>
+                                                    @for ($turno = 1; $turno <= 4; $turno++)
+                                                        <th class="px-2 py-2 text-right font-semibold border-b border-blue-100 {{ $turnoHeaderClass[$turno] }}">Marcas</th>
+                                                        <th class="px-2 py-2 text-right font-semibold border-b border-blue-100 {{ $turnoHeaderClass[$turno] }}">Horas</th>
+                                                        <th class="px-2 py-2 text-right font-semibold border-b border-blue-100 {{ $turnoHeaderClass[$turno] }}">Trama</th>
+                                                        <th class="px-2 py-2 text-right font-semibold border-b border-blue-100 {{ $turnoHeaderClass[$turno] }}">Pie</th>
+                                                        <th class="px-2 py-2 text-right font-semibold border-b border-blue-100 {{ $turnoHeaderClass[$turno] }}">Rizo</th>
+                                                        <th class="px-2 py-2 text-right font-semibold border-b border-blue-100 {{ $turnoHeaderClass[$turno] }}">Otros</th>
+                                                    @endfor
                                                 </tr>
                                             </thead>
                                             <tbody class="divide-y divide-gray-100">
-                                                @foreach ($grupo->registros as $registro)
+                                                @foreach ($grupo->telares as $registro)
                                                     <tr class="hover:bg-gray-50">
-                                                        <td class="px-4 py-2">{{ \Carbon\Carbon::parse($registro->fecha)->format('d/m/Y') }}
-                                                        </td>
-                                                        <td class="px-4 py-2 text-center">{{ $registro->turno }}</td>
-                                                        <td class="px-4 py-2 font-mono">{{ $registro->folio }}</td>
-                                                        <td class="px-4 py-2 text-center tabular-nums">
-                                                            {{ number_format($registro->telar, 0) }}</td>
-                                                        <td class="px-4 py-2 text-right tabular-nums font-semibold">
-                                                            {{ number_format($registro->marcas, 0) }}</td>
-                                                        <td class="px-4 py-2 text-right tabular-nums">
-                                                            {{ number_format($registro->trama, 0) }}</td>
-                                                        <td class="px-4 py-2 text-right tabular-nums">{{ number_format($registro->pie, 0) }}
-                                                        </td>
-                                                        <td class="px-4 py-2 text-right tabular-nums">
-                                                            {{ number_format($registro->rizo, 0) }}</td>
-                                                        <td class="px-4 py-2 text-right tabular-nums">
-                                                            {{ number_format($registro->otros, 0) }}</td>
+                                                        <td class="px-4 py-2 text-center tabular-nums">{{ number_format($registro->telar, 0) }}</td>
+                                                        @for ($turno = 1; $turno <= 4; $turno++)
+                                                            <td class="px-2 py-2 text-right tabular-nums font-semibold {{ $turnoCellClass[$turno] }}">{{ number_format($registro->turnos[$turno]->marcas ?? 0, 0) }}</td>
+                                                            <td class="px-2 py-2 text-right tabular-nums {{ $turnoCellClass[$turno] }}">{{ number_format((float) ($registro->turnos[$turno]->horas ?? 0), 2) }}</td>
+                                                            <td class="px-2 py-2 text-right tabular-nums {{ $turnoCellClass[$turno] }}">{{ number_format($registro->turnos[$turno]->trama ?? 0, 0) }}</td>
+                                                            <td class="px-2 py-2 text-right tabular-nums {{ $turnoCellClass[$turno] }}">{{ number_format($registro->turnos[$turno]->pie ?? 0, 0) }}</td>
+                                                            <td class="px-2 py-2 text-right tabular-nums {{ $turnoCellClass[$turno] }}">{{ number_format($registro->turnos[$turno]->rizo ?? 0, 0) }}</td>
+                                                            <td class="px-2 py-2 text-right tabular-nums {{ $turnoCellClass[$turno] }}">{{ number_format($registro->turnos[$turno]->otros ?? 0, 0) }}</td>
+                                                        @endfor
                                                     </tr>
                                                 @endforeach
                                             </tbody>

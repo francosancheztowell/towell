@@ -31,6 +31,7 @@
     $colsEditables = [
         ['key' => 'efi',    'label' => '% Efi'],
         ['key' => 'marcas', 'label' => 'Marcas'],
+        ['key' => 'horas',  'label' => 'Horas'],
         ['key' => 'trama',  'label' => 'Trama'],
         ['key' => 'pie',    'label' => 'Pie'],
         ['key' => 'rizo',   'label' => 'Rizo'],
@@ -90,14 +91,15 @@
         <div class="bg-blue-600 text-white sticky top-0 z-10">
             <table class="w-full text-sm">
                 <colgroup>
-                    <col style="width: 10%">
-                    <col style="width: 10%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
+                    <col style="width: 9%">
+                    <col style="width: 9%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
                 </colgroup>
                 <thead>
                     <tr>
@@ -116,14 +118,15 @@
         <div class="flex-1 overflow-auto">
             <table class="w-full text-sm mb-64 md:mb-32">
                 <colgroup>
-                    <col style="width: 10%">
-                    <col style="width: 10%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
-                    <col style="width: 13.33%">
+                    <col style="width: 9%">
+                    <col style="width: 9%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
+                    <col style="width: 11.71%">
                 </colgroup>
                 <tbody id="telares-body" class="bg-white divide-y divide-gray-200">
                 @foreach(($telares ?? []) as $telar)
@@ -145,8 +148,9 @@
                         @foreach($colsEditables as $col)
                             <td class="px-3 py-3 text-center {{ !$loop->last ? 'border-r border-gray-200' : '' }}">
                                 @php
-                                    $maxVal = $col['key'] === 'marcas' ? 250 : 100;
+                                    $maxVal = $col['key'] === 'marcas' ? 250 : ($col['key'] === 'horas' ? 9999 : 100);
                                     $isEfi = $col['key'] === 'efi';
+                                    $isHoras = $col['key'] === 'horas';
                                 @endphp
                                 <input type="number" 
                                     class="valor-input w-full max-w-[80px] mx-auto px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400 {{ !$puedeEditar ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white' }}" 
@@ -155,6 +159,7 @@
                                     value="0"
                                     min="0"
                                     max="{{ $maxVal }}"
+                                    step="{{ $isHoras ? 'any' : '1' }}"
                                     placeholder="{{ $isEfi ? '0%' : '0' }}"
                                     {{ !$puedeEditar ? 'readonly' : '' }}>
                             </td>
@@ -198,6 +203,7 @@ const elements = {
 // Rango permitido por tipo
 const RANGOS = {
     marcas: [0,   250],
+    horas:  [0,   9999],
     efi:    [0,   100],
     trama:  [0,   100],
     pie:    [0,   100],
@@ -205,7 +211,7 @@ const RANGOS = {
     otros:  [0,   100],
 };
 // Orden para recorrer al guardar
-const CAMPOS = ['efi', 'trama', 'pie', 'rizo', 'otros', 'marcas'];
+const CAMPOS = ['efi', 'trama', 'pie', 'rizo', 'otros', 'marcas', 'horas'];
 
 /* =========================
    Inicialización
@@ -219,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input.addEventListener('focus', () => {
             if (PAGE_MODE.soloLectura || input.readOnly) return;
             const tipo = input.dataset.type;
-            const currentVal = parseInt(input.value, 10) || 0;
+            const currentVal = parseFloat(input.value) || 0;
             
             // Si el valor es 0 y es % Efi, sugerir el STD recomendado
             if (currentVal === 0 && tipo === 'efi') {
@@ -239,20 +245,35 @@ document.addEventListener('DOMContentLoaded', () => {
             input.select();
         });
         
-        // Al escribir, validar rango
+        // Al escribir, solo permitir que el navegador maneje la entrada,
+        // pero podemos limitar el máximo si es necesario sin resetear el string.
         input.addEventListener('input', () => {
             if (PAGE_MODE.soloLectura || input.readOnly) return;
             const tipo = input.dataset.type;
             const [min, max] = RANGOS[tipo] || [0, 100];
-            let val = parseInt(input.value, 10) || 0;
-            if (val < min) val = min;
-            if (val > max) val = max;
-            input.value = val;
+            let val = parseFloat(input.value);
+            
+            // Si excede el máximo, sí limitamos inmediatamente
+            if (!isNaN(val) && val > max) {
+                input.value = max;
+            }
         });
         
-        // Al perder focus, guardar automáticamente
+        // Al perder focus, validar rango completo y guardar automáticamente
         input.addEventListener('blur', () => {
             if (PAGE_MODE.soloLectura || input.readOnly) return;
+            
+            const tipo = input.dataset.type;
+            const [min, max] = RANGOS[tipo] || [0, 100];
+            let val = parseFloat(input.value);
+
+            if (isNaN(val)) {
+                input.value = 0;
+            } else {
+                if (val < min) input.value = min;
+                if (val > max) input.value = max;
+            }
+
             guardarAutomatico();
         });
         
@@ -375,7 +396,7 @@ function guardarDatosTabla() {
         const datos = { NoTelarId: telar };
         CAMPOS.forEach(t => {
             const input = row.querySelector(`input.valor-input[data-telar="${telar}"][data-type="${t}"]`);
-            const val = input ? (parseInt(input.value, 10) || 0) : 0;
+            const val = input ? (parseFloat(input.value) || 0) : 0;
             datos[(t === 'efi' ? 'PorcentajeEfi' : t.charAt(0).toUpperCase()+t.slice(1))] = val;
         });
         lineas.push(datos);
@@ -663,6 +684,7 @@ function cargarMarcaExistente(folio) {
             // Actualizar otros campos
             const campos = {
                 marcas: l.Marcas ?? 0,
+                horas: l.Horas ?? 0,
                 trama: l.Trama ?? 0,
                 pie: l.Pie ?? 0,
                 rizo: l.Rizo ?? 0,

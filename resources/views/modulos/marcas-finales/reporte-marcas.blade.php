@@ -53,14 +53,15 @@
                 <thead class="bg-blue-600 text-white sticky top-0 z-10">
                     <tr>
                         <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" rowspan="2">Telar</th>
-                        <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" colspan="6">Turno 1</th>
-                        <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" colspan="6">Turno 2</th>
-                        <th class="px-3 py-2 text-center align-middle" colspan="6">Turno 3</th>
+                        <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" colspan="7">Turno 1</th>
+                        <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" colspan="7">Turno 2</th>
+                        <th class="px-3 py-2 text-center align-middle" colspan="7">Turno 3</th>
                     </tr>
                     <tr class="bg-blue-700/90">
                         @for ($i=0;$i<3;$i++)
                             <th class="px-2 py-1 text-center align-middle font-semibold">% Ef</th>
                             <th class="px-2 py-1 text-center align-middle font-semibold">Marcas</th>
+                            <th class="px-2 py-1 text-center align-middle font-semibold">Horas</th>
                             <th class="px-2 py-1 text-center align-middle font-semibold">TRAMA</th>
                             <th class="px-2 py-1 text-center align-middle font-semibold">PIE</th>
                             <th class="px-2 py-1 text-center align-middle font-semibold">RIZO</th>
@@ -81,6 +82,7 @@
                             <!-- Turno 1 -->
                             <td class="px-2 py-2 text-center align-middle">{{ $fmtEfi($t1) }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t1,'Marcas') }}</td>
+                            <td class="px-2 py-2 text-center align-middle">{{ $val($t1,'Horas') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t1,'Trama') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t1,'Pie') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t1,'Rizo') }}</td>
@@ -88,6 +90,7 @@
                             <!-- Turno 2 -->
                             <td class="px-2 py-2 text-center align-middle">{{ $fmtEfi($t2) }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t2,'Marcas') }}</td>
+                            <td class="px-2 py-2 text-center align-middle">{{ $val($t2,'Horas') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t2,'Trama') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t2,'Pie') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t2,'Rizo') }}</td>
@@ -95,6 +98,7 @@
                             <!-- Turno 3 -->
                             <td class="px-2 py-2 text-center align-middle">{{ $fmtEfi($t3) }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t3,'Marcas') }}</td>
+                            <td class="px-2 py-2 text-center align-middle">{{ $val($t3,'Horas') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t3,'Trama') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t3,'Pie') }}</td>
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t3,'Rizo') }}</td>
@@ -102,7 +106,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="19" class="px-4 py-6 text-center text-gray-500 text-sm">Sin datos para la fecha seleccionada.</td>
+                            <td colspan="22" class="px-4 py-6 text-center text-gray-500 text-sm">Sin datos para la fecha seleccionada.</td>
                         </tr>
                     @endforelse
                 </tbody>
