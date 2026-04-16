@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Tejido\Reportes;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tejido\TejMarcas;
 use App\Models\Tejido\TejMarcasLine;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -48,34 +47,84 @@ class ReporteMarcasFinalesController extends Controller
 
     private function obtenerPreview(string $fechaIni, string $fechaFin): Collection
     {
-        $registros = TejMarcas::query()
+        $registros = TejMarcasLine::query()
             ->whereBetween('Date', [$fechaIni, $fechaFin])
             ->orderBy('Date')
             ->orderBy('Turno')
-            ->get(['Folio', 'Date', 'Turno', 'Status']);
+            ->get(['Folio', 'Date', 'Turno', 'NoTelarId', 'Marcas', 'Trama', 'Pie', 'Rizo', 'Otros']);
 
         if ($registros->isEmpty()) {
             return collect();
         }
 
-        $totalesPorFolio = TejMarcasLine::query()
-            ->whereIn('Folio', $registros->pluck('Folio')->all())
-            ->selectRaw('Folio, COUNT(*) as TotalTelares, SUM(COALESCE(Marcas, 0)) as TotalMarcas')
-            ->groupBy('Folio')
-            ->get()
-            ->keyBy('Folio');
+        return $registros
+            ->map(function ($registro) {
+                $telar = (int) $registro->NoTelarId;
+                $maquina = $this->resolverMaquinaPorTelar($telar);
 
-        return $registros->map(function ($registro) use ($totalesPorFolio) {
-            $totales = $totalesPorFolio->get($registro->Folio);
+                return (object) [
+                    'maquina' => $maquina,
+                    'fecha' => $registro->Date,
+                    'turno' => (int) $registro->Turno,
+                    'folio' => $registro->Folio,
+                    'telar' => $telar,
+                    'marcas' => (int) ($registro->Marcas ?? 0),
+                    'trama' => (int) ($registro->Trama ?? 0),
+                    'pie' => (int) ($registro->Pie ?? 0),
+                    'rizo' => (int) ($registro->Rizo ?? 0),
+                    'otros' => (int) ($registro->Otros ?? 0),
+                ];
+            })
+            ->groupBy('maquina')
+            ->map(function (Collection $items, string $maquina) {
+                $ordenados = $items->sortBy([
+                    ['fecha', 'asc'],
+                    ['turno', 'asc'],
+                    ['telar', 'asc'],
+                ])->values();
 
-            return (object) [
-                'fecha' => $registro->Date,
-                'turno' => $registro->Turno,
-                'folio' => $registro->Folio,
-                'status' => $registro->Status,
-                'total_telares' => (int) ($totales->TotalTelares ?? 0),
-                'total_marcas' => (int) round((float) ($totales->TotalMarcas ?? 0)),
-            ];
-        });
+                return (object) [
+                    'maquina' => $maquina,
+                    'total_telares' => $items->pluck('telar')->unique()->count(),
+                    'total_marcas' => (int) round((float) $items->sum('marcas')),
+                    'registros' => $ordenados,
+                ];
+            })
+            ->sortBy(function ($grupo) {
+                return $this->ordenMaquina($grupo->maquina);
+            })
+            ->values();
+    }
+
+    private function resolverMaquinaPorTelar(int $telar): string
+    {
+        if ($telar >= 207 && $telar <= 211) {
+            return 'Jacquard Sulzer';
+        }
+
+        if (($telar >= 201 && $telar <= 206) || ($telar >= 212 && $telar <= 215)) {
+            return 'Jacquard Smith';
+        }
+
+        if ($telar >= 299 && $telar <= 320) {
+            return 'Smith Liso';
+        }
+
+        if (in_array($telar, [401, 402], true)) {
+            return 'Karl Mayer';
+        }
+
+        return 'Sin clasificación';
+    }
+
+    private function ordenMaquina(string $maquina): int
+    {
+        return match ($maquina) {
+            'Jacquard Sulzer' => 1,
+            'Jacquard Smith' => 2,
+            'Smith Liso' => 3,
+            'Karl Mayer' => 4,
+            default => 99,
+        };
     }
 }

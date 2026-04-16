@@ -45,33 +45,58 @@
                             <p class="text-gray-600 text-lg">No hay registros de marcas finales en el rango seleccionado.</p>
                         </div>
                     @else
-                        <div class="overflow-auto border border-gray-200 rounded-lg">
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-blue-50 text-blue-800">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left font-semibold border-b border-blue-100">Fecha</th>
-                                        <th class="px-4 py-3 text-center font-semibold border-b border-blue-100">Turno</th>
-                                        <th class="px-4 py-3 text-left font-semibold border-b border-blue-100">Folio</th>
-                                        <th class="px-4 py-3 text-center font-semibold border-b border-blue-100">Status</th>
-                                        <th class="px-4 py-3 text-right font-semibold border-b border-blue-100">Telares</th>
-                                        <th class="px-4 py-3 text-right font-semibold border-b border-blue-100">Marcas</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100">
-                                    @foreach ($preview as $registro)
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-2">{{ \Carbon\Carbon::parse($registro->fecha)->format('d/m/Y') }}</td>
-                                            <td class="px-4 py-2 text-center">{{ $registro->turno }}</td>
-                                            <td class="px-4 py-2 font-mono">{{ $registro->folio }}</td>
-                                            <td class="px-4 py-2 text-center">{{ $registro->status ?? '—' }}</td>
-                                            <td class="px-4 py-2 text-right tabular-nums">
-                                                {{ number_format($registro->total_telares, 0) }}</td>
-                                            <td class="px-4 py-2 text-right tabular-nums font-semibold">
-                                                {{ number_format($registro->total_marcas, 0) }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                        <div class="space-y-6">
+                            @foreach ($preview as $grupo)
+                                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="bg-slate-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                                        <h2 class="text-sm font-semibold text-slate-800">{{ $grupo->maquina }}</h2>
+                                        <div class="text-xs text-slate-600 flex items-center gap-4">
+                                            <span>Telares: <strong>{{ number_format($grupo->total_telares, 0) }}</strong></span>
+                                            <span>Total Marcas: <strong>{{ number_format($grupo->total_marcas, 0) }}</strong></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="overflow-auto">
+                                        <table class="min-w-full text-sm">
+                                            <thead class="bg-blue-50 text-blue-800">
+                                                <tr>
+                                                    <th class="px-4 py-2 text-left font-semibold border-b border-blue-100">Fecha</th>
+                                                    <th class="px-4 py-2 text-center font-semibold border-b border-blue-100">Turno</th>
+                                                    <th class="px-4 py-2 text-left font-semibold border-b border-blue-100">Folio</th>
+                                                    <th class="px-4 py-2 text-center font-semibold border-b border-blue-100">Telar</th>
+                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Marcas</th>
+                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Trama</th>
+                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Pie</th>
+                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Rizo</th>
+                                                    <th class="px-4 py-2 text-right font-semibold border-b border-blue-100">Otros</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-100">
+                                                @foreach ($grupo->registros as $registro)
+                                                    <tr class="hover:bg-gray-50">
+                                                        <td class="px-4 py-2">{{ \Carbon\Carbon::parse($registro->fecha)->format('d/m/Y') }}
+                                                        </td>
+                                                        <td class="px-4 py-2 text-center">{{ $registro->turno }}</td>
+                                                        <td class="px-4 py-2 font-mono">{{ $registro->folio }}</td>
+                                                        <td class="px-4 py-2 text-center tabular-nums">
+                                                            {{ number_format($registro->telar, 0) }}</td>
+                                                        <td class="px-4 py-2 text-right tabular-nums font-semibold">
+                                                            {{ number_format($registro->marcas, 0) }}</td>
+                                                        <td class="px-4 py-2 text-right tabular-nums">
+                                                            {{ number_format($registro->trama, 0) }}</td>
+                                                        <td class="px-4 py-2 text-right tabular-nums">{{ number_format($registro->pie, 0) }}
+                                                        </td>
+                                                        <td class="px-4 py-2 text-right tabular-nums">
+                                                            {{ number_format($registro->rizo, 0) }}</td>
+                                                        <td class="px-4 py-2 text-right tabular-nums">
+                                                            {{ number_format($registro->otros, 0) }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     @endif
                 @endif
@@ -90,18 +115,18 @@
             Swal.fire({
                 title: 'Consultar rango',
                 html: `
-                    <div class="text-left space-y-4">
-                        <p class="text-sm text-gray-600">Seleccione la fecha inicial y final del reporte.</p>
-                        <div>
-                            <label for="swal_fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
-                            <input type="date" id="swal_fecha_ini" value="${fechaIni}" class="swal2-input w-full" style="margin: 0; width: 100%;">
+                        <div class="text-left space-y-4">
+                            <p class="text-sm text-gray-600">Seleccione la fecha inicial y final del reporte.</p>
+                            <div>
+                                <label for="swal_fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
+                                <input type="date" id="swal_fecha_ini" value="${fechaIni}" class="swal2-input w-full" style="margin: 0; width: 100%;">
+                            </div>
+                            <div>
+                                <label for="swal_fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
+                                <input type="date" id="swal_fecha_fin" value="${fechaFin}" class="swal2-input w-full" style="margin: 0; width: 100%;">
+                            </div>
                         </div>
-                        <div>
-                            <label for="swal_fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
-                            <input type="date" id="swal_fecha_fin" value="${fechaFin}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                        </div>
-                    </div>
-                `,
+                    `,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Consultar',
@@ -137,6 +162,6 @@
             @if (empty($fechaIni) || empty($fechaFin))
                 mostrarModalReporteMarcasFinales();
             @endif
-        });
+            });
     </script>
 @endpush
