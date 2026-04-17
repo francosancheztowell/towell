@@ -57,62 +57,84 @@ class ReporteMarcasFinalesController extends Controller
             return collect();
         }
 
-        return $registros
-            ->map(function ($registro) {
-                $telar = (int) $registro->NoTelarId;
-                $maquina = $this->resolverMaquinaPorTelar($telar);
+        $registrosNormalizados = $registros->map(function ($registro) {
+            $telar = (int) $registro->NoTelarId;
+            $maquina = $this->resolverMaquinaPorTelar($telar);
 
-                return (object) [
-                    'maquina' => $maquina,
-                    'fecha' => $registro->Date,
-                    'turno' => (int) $registro->Turno,
-                    'folio' => $registro->Folio,
-                    'telar' => $telar,
-                    'marcas' => (int) ($registro->Marcas ?? 0),
-                    'horas' => (float) ($registro->Horas ?? 0),
-                    'trama' => (int) ($registro->Trama ?? 0),
-                    'pie' => (int) ($registro->Pie ?? 0),
-                    'rizo' => (int) ($registro->Rizo ?? 0),
-                    'otros' => (int) ($registro->Otros ?? 0),
-                ];
+            return (object) [
+                'maquina' => $maquina,
+                'fecha' => $registro->Date,
+                'turno' => (int) $registro->Turno,
+                'folio' => $registro->Folio,
+                'telar' => $telar,
+                'marcas' => (int) ($registro->Marcas ?? 0),
+                'horas' => (float) ($registro->Horas ?? 0),
+                'trama' => (int) ($registro->Trama ?? 0),
+                'pie' => (int) ($registro->Pie ?? 0),
+                'rizo' => (int) ($registro->Rizo ?? 0),
+                'otros' => (int) ($registro->Otros ?? 0),
+            ];
+        });
+
+        $promediosPorTelar = $registrosNormalizados
+            ->filter(function ($registro) {
+                return in_array((int) $registro->turno, [1, 2, 3], true);
             })
-            ->groupBy('maquina')
-            ->map(function (Collection $items, string $maquina) {
-                $telares = $items
-                    ->groupBy('telar')
-                    ->map(function (Collection $lineas, int|string $telar) {
-                        $turnos = collect(range(1, 4))->mapWithKeys(function (int $turno) use ($lineas) {
-                            $lineasTurno = $lineas->where('turno', $turno);
+            ->groupBy(function ($registro) {
+                return $registro->maquina . '|' . $registro->telar;
+            })
+            ->map(function (Collection $lineas) {
+                $sumaTurnos = collect([1, 2, 3])->sum(function (int $turno) use ($lineas) {
+                    return (float) $lineas->where('turno', $turno)->sum('marcas');
+                });
 
-                            return [
-                                $turno => (object) [
-                                    'marcas' => (int) $lineasTurno->sum('marcas'),
-                                    'horas' => (float) $lineasTurno->sum('horas'),
-                                    'trama' => (int) $lineasTurno->sum('trama'),
-                                    'pie' => (int) $lineasTurno->sum('pie'),
-                                    'rizo' => (int) $lineasTurno->sum('rizo'),
-                                    'otros' => (int) $lineasTurno->sum('otros'),
-                                ],
-                            ];
-                        });
+                return $sumaTurnos / 3;
+            });
+
+        return $registrosNormalizados
+            ->groupBy('turno')
+            ->map(function (Collection $itemsTurno, int|string $turno) use ($promediosPorTelar) {
+                $maquinas = $itemsTurno
+                    ->groupBy('maquina')
+                    ->map(function (Collection $itemsMaquina, string $maquina) use ($promediosPorTelar) {
+                        $telares = $itemsMaquina
+                            ->groupBy('telar')
+                            ->map(function (Collection $lineas, int|string $telar) use ($maquina, $promediosPorTelar) {
+                                $promedioKey = $maquina . '|' . (int) $telar;
+
+                                return (object) [
+                                    'telar' => (int) $telar,
+                                    'marcas' => (int) $lineas->sum('marcas'),
+                                    'horas' => (float) $lineas->sum('horas'),
+                                    'trama' => (int) $lineas->sum('trama'),
+                                    'pie' => (int) $lineas->sum('pie'),
+                                    'rizo' => (int) $lineas->sum('rizo'),
+                                    'otros' => (int) $lineas->sum('otros'),
+                                    'promedio_gral_telar' => (float) ($promediosPorTelar->get($promedioKey, 0.0)),
+                                ];
+                            })
+                            ->sortBy('telar')
+                            ->values();
 
                         return (object) [
-                            'telar' => (int) $telar,
-                            'turnos' => $turnos,
+                            'maquina' => $maquina,
+                            'total_telares' => $telares->count(),
+                            'total_marcas' => (int) round((float) $telares->sum('marcas')),
+                            'telares' => $telares,
                         ];
                     })
-                    ->sortBy('telar')
+                    ->sortBy(function ($grupoMaquina) {
+                        return $this->ordenMaquina($grupoMaquina->maquina);
+                    })
                     ->values();
 
                 return (object) [
-                    'maquina' => $maquina,
-                    'total_telares' => $telares->count(),
-                    'total_marcas' => (int) round((float) $items->sum('marcas')),
-                    'telares' => $telares,
+                    'turno' => (int) $turno,
+                    'maquinas' => $maquinas,
                 ];
             })
-            ->sortBy(function ($grupo) {
-                return $this->ordenMaquina($grupo->maquina);
+            ->sortBy(function ($grupoTurno) {
+                return $grupoTurno->turno;
             })
             ->values();
     }
