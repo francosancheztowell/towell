@@ -11,6 +11,7 @@ use App\Http\Controllers\Tejido\InventarioTrama\NuevoRequerimientoController;
 use App\Http\Controllers\Tejido\MarcasFinales\MarcasController;
 use App\Http\Controllers\Tejido\ProduccionReenconado\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\Tejido\Reportes\PromedioParosEficienciaController;
+use App\Http\Controllers\Tejido\Reportes\ReporteMarcasFinalesController;
 use App\Http\Controllers\Tejido\Reportes\ReporteInvTelasController;
 use App\Http\Controllers\Tejido\Reportes\SaldosController;
 use App\Http\Controllers\UsuarioController;
@@ -37,6 +38,12 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
                 'disponible' => true,
             ],
             [
+                'nombre' => 'Marcas Finales',
+                'accion' => 'Pedir Rango de Fechas',
+                'url' => route('tejido.reportes.marcas-finales'),
+                'disponible' => true,
+            ],
+            [
                 'nombre' => 'Saldos 2026',
                 'accion' => 'Órdenes de producción activas',
                 'url' => route('tejido.reportes.saldos-2026'),
@@ -51,6 +58,7 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::get('/reportes/inv-telas/pdf', [ReporteInvTelasController::class, 'exportarPdf'])->name('reportes.inv-telas.pdf');
     Route::get('/reportes/promedio-paros-eficiencia', [PromedioParosEficienciaController::class, 'index'])->name('reportes.promedio-paros-eficiencia');
     Route::get('/reportes/promedio-paros-eficiencia/excel', [PromedioParosEficienciaController::class, 'exportarExcel'])->name('reportes.promedio-paros-eficiencia.excel');
+    Route::get('/reportes/marcas-finales', [ReporteMarcasFinalesController::class, 'index'])->name('reportes.marcas-finales');
 
     Route::get('/reportes/saldos-2026', [SaldosController::class, 'index'])->name('reportes.saldos-2026');
     Route::get('/reportes/saldos-2026/excel', [SaldosController::class, 'exportarExcel'])->name('reportes.saldos-2026.excel');

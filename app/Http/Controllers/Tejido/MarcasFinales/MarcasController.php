@@ -335,6 +335,7 @@ class MarcasController extends Controller
                         'NoTelarId' => $noTelar,
                         'Eficiencia' => $efiPercent, // Guardar como ENTERO 0-100
                         'Marcas' => (int)($linea['Marcas'] ?? 0),
+                        'Horas' => (float)($linea['Horas'] ?? 0),
                         'Trama' => (int)($linea['Trama'] ?? 0),
                         'Pie' => (int)($linea['Pie'] ?? 0),
                         'Rizo' => (int)($linea['Rizo'] ?? 0),

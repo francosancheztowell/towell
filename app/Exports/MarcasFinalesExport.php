@@ -109,6 +109,7 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
                     'Salon' => $salonPorTelar->get($telar) ?? ($linea->SalonTejidoId ?? ''),
                     'Eficiencia' => $ef,
                     'Marcas' => $linea->Marcas ?? null,
+                    'Horas' => $linea->Horas ?? null,
                     'Trama' => $linea->Trama ?? null,
                     'Pie' => $linea->Pie ?? null,
                     'Rizo' => $linea->Rizo ?? null,
@@ -133,6 +134,7 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
             'Salon',
             'Eficiencia',
             'Marcas',
+            'Horas',
             'Trama',
             'Pie',
             'Rizo',
@@ -171,10 +173,11 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
             'H' => 10, // Salon
             'I' => 12, // Eficiencia
             'J' => 10, // Marcas
-            'K' => 10, // Trama
-            'L' => 8,  // Pie
-            'M' => 8,  // Rizo
-            'N' => 10, // Otros
+            'K' => 10, // Horas
+            'L' => 10, // Trama
+            'M' => 8,  // Pie
+            'N' => 8,  // Rizo
+            'O' => 10, // Otros
         ];
     }
 
@@ -214,10 +217,11 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
             'C' => NumberFormat::FORMAT_NUMBER,        // Turno
             'I' => NumberFormat::FORMAT_NUMBER,        // Eficiencia (entero)
             'J' => NumberFormat::FORMAT_NUMBER,
-            'K' => NumberFormat::FORMAT_NUMBER,
-            'L' => NumberFormat::FORMAT_NUMBER,
+            'K' => NumberFormat::FORMAT_NUMBER_00,     // Horas (flotante)
+            'L' => NumberFormat::FORMAT_NUMBER,        // Trama
             'M' => NumberFormat::FORMAT_NUMBER,
             'N' => NumberFormat::FORMAT_NUMBER,
+            'O' => NumberFormat::FORMAT_NUMBER,
         ];
     }
 }

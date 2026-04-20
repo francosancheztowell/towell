@@ -104,14 +104,15 @@
         <thead>
             <tr>
                 <th rowspan="2">Telar</th>
-                <th colspan="6" class="turno-separator">Turno 1</th>
-                <th colspan="6" class="turno-separator">Turno 2</th>
-                <th colspan="6">Turno 3</th>
+                <th colspan="7" class="turno-separator">Turno 1</th>
+                <th colspan="7" class="turno-separator">Turno 2</th>
+                <th colspan="7">Turno 3</th>
             </tr>
             <tr>
                 @for ($i=0;$i<3;$i++)
                     <th>% Ef</th>
                     <th>Marcas</th>
+                    <th>Horas</th>
                     <th>TRAMA</th>
                     <th>PIE</th>
                     <th>RIZO</th>
@@ -145,6 +146,7 @@
                     <!-- Turno 1 -->
                     <td>{{ $fmtEfi($t1) }}</td>
                     <td>{{ $val($t1,'Marcas') }}</td>
+                    <td>{{ $val($t1,'Horas') }}</td>
                     <td>{{ $val($t1,'Trama') }}</td>
                     <td>{{ $val($t1,'Pie') }}</td>
                     <td>{{ $val($t1,'Rizo') }}</td>
@@ -152,6 +154,7 @@
                     <!-- Turno 2 -->
                     <td>{{ $fmtEfi($t2) }}</td>
                     <td>{{ $val($t2,'Marcas') }}</td>
+                    <td>{{ $val($t2,'Horas') }}</td>
                     <td>{{ $val($t2,'Trama') }}</td>
                     <td>{{ $val($t2,'Pie') }}</td>
                     <td>{{ $val($t2,'Rizo') }}</td>
@@ -159,6 +162,7 @@
                     <!-- Turno 3 -->
                     <td>{{ $fmtEfi($t3) }}</td>
                     <td>{{ $val($t3,'Marcas') }}</td>
+                    <td>{{ $val($t3,'Horas') }}</td>
                     <td>{{ $val($t3,'Trama') }}</td>
                     <td>{{ $val($t3,'Pie') }}</td>
                     <td>{{ $val($t3,'Rizo') }}</td>
@@ -166,7 +170,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="19">Sin datos para la fecha seleccionada.</td>
+                    <td colspan="22">Sin datos para la fecha seleccionada.</td>
                 </tr>
             @endforelse
         </tbody>
