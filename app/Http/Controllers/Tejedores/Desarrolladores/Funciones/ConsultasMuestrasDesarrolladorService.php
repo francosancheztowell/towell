@@ -48,15 +48,12 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
     /**
      * Obtiene producciones desde MuestrasPrograma.
      */
-    public function obtenerProducciones($telarId, bool $soloConOrden = false): array
+    public function obtenerProducciones(string $telarId): array
     {
         try {
-            $query = Muestras::where('NoTelarId', $telarId);
-
-            if ($soloConOrden) {
-                $query->whereNotNull('NoProduccion')
-                      ->where('NoProduccion', '!=', '');
-            }
+            $query = Muestras::where('NoTelarId', $telarId)
+                ->whereNotNull('NoProduccion')
+                ->where('NoProduccion', '!=', '');
 
             $producciones = $query->select('SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()

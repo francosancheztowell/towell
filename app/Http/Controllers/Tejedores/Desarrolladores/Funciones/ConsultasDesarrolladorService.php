@@ -145,16 +145,13 @@ class ConsultasDesarrolladorService
      * @param string $telarId
      * @return array
      */
-    public function obtenerProducciones($telarId, bool $soloConOrden = false): array
+    public function obtenerProducciones(string $telarId): array
     {
         try {
             $query = ReqProgramaTejido::where('NoTelarId', $telarId)
-                ->where('EnProceso', 0);
-
-            if ($soloConOrden) {
-                $query->whereNotNull('NoProduccion')
-                      ->where('NoProduccion', '!=', '');
-            }
+                ->where('EnProceso', 0)
+                ->whereNotNull('NoProduccion')
+                ->where('NoProduccion', '!=', '');
 
             $producciones = $query->select('Id', 'SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()
