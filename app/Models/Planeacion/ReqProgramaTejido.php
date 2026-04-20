@@ -167,7 +167,8 @@ class ReqProgramaTejido extends Model
         'OrdPrincipal' => 'integer', // INT NULL en SQL Server
         'FechaArranque' => 'datetime', // DATETIME NULL en SQL Server
         'FechaFinaliza' => 'datetime', // DATETIME NULL en SQL Server
-        'Prioridad' => 'integer', // INT NULL en SQL Server
+        // Texto (ej. SALDAR/CHECAR + producto); integer forzaba a 0 al guardar cadenas desde liberar órdenes
+        'Prioridad' => 'string',
     ];
 
     /* ===========================

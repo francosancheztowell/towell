@@ -310,6 +310,7 @@ class LiberarOrdenesController extends Controller
             'registros.*.cambioRepaso' => ['nullable', 'string', Rule::in(['SI', 'NO', 'Si', 'No', 'si', 'no'])],
             'registros.*.combinaTram' => 'nullable|string|max:60',
             'registros.*.noProduccion' => 'nullable|string|max:100',
+            'registros.*.codigoDibujo' => 'nullable|string|max:500',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
             'registros.*.id.exists' => 'Uno de los registros seleccionados no existe.',
@@ -565,8 +566,12 @@ class LiberarOrdenesController extends Controller
 
                 $registro->save();
 
-                // Actualizar CatCodificados con los mismos campos
-                $this->actualizarCatCodificados($registro);
+                // Actualizar CatCodificados con los mismos campos (incl. CodigoDibujo: lo mostrado en pantalla o resuelto desde catálogo)
+                $codigoDibujoLiberacion = trim((string) ($item['codigoDibujo'] ?? ''));
+                $this->actualizarCatCodificados(
+                    $registro,
+                    $codigoDibujoLiberacion !== '' ? $codigoDibujoLiberacion : null
+                );
 
                 // Actualizar ReqModelosCodificados con OrdPrincipal y PesoMuestra
                 $this->actualizarReqModelosCodificados($registro);
@@ -1040,9 +1045,11 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Actualiza CatCodificados con los campos de ReqProgramaTejido después de liberar
+     * Actualiza CatCodificados con los campos de ReqProgramaTejido después de liberar.
+     *
+     * @param  string|null  $codigoDibujoDesdePantalla  Valor de la columna Codigo Dibujo al liberar (mismo que en la vista); si es null/vacío se intenta resolver con CatCodificados.
      */
-    private function actualizarCatCodificados(ReqProgramaTejido $registro): void
+    private function actualizarCatCodificados(ReqProgramaTejido $registro, ?string $codigoDibujoDesdePantalla = null): void
     {
         try {
             $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
@@ -1084,7 +1091,21 @@ class LiberarOrdenesController extends Controller
                 return;
             }
 
-
+            // Código de dibujo: priorizar lo enviado desde la grilla (autollenado o edición); si no, último CatCodificados (misma lógica que obtenerCodigoDibujo)
+            $codigoDibujoFinal = null;
+            $explicito = $codigoDibujoDesdePantalla !== null ? trim($codigoDibujoDesdePantalla) : '';
+            if ($explicito !== '') {
+                $codigoDibujoFinal = $explicito;
+            } elseif (in_array('CodigoDibujo', $columns, true)) {
+                $resuelto = $this->resolverCodigoDibujoCatCodificados(
+                    trim((string) ($registro->ItemId ?? '')),
+                    trim((string) ($registro->InventSizeId ?? '')),
+                    trim((string) ($registro->SalonTejidoId ?? ''))
+                );
+                if ($resuelto !== null && $resuelto !== '') {
+                    $codigoDibujoFinal = $resuelto;
+                }
+            }
 
             // Campos a actualizar desde ReqProgramaTejido
             // Convertir valores null a 0 para campos numéricos si es necesario
@@ -1174,6 +1195,11 @@ class LiberarOrdenesController extends Controller
                     }
                 }
                 $registroCodificado->OrdPrincipal = $ordPrincipalValue;
+                $updated = true;
+            }
+
+            if ($codigoDibujoFinal !== null && in_array('CodigoDibujo', $columns, true)) {
+                $registroCodificado->CodigoDibujo = $codigoDibujoFinal;
                 $updated = true;
             }
 

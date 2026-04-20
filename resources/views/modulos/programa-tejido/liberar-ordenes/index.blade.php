@@ -92,10 +92,12 @@
             }
 
             if ($field === 'prioridad') {
-                // Usar PrioridadAnterior si existe, sino usar Prioridad actual, sino vacío
+                // Preferir valor guardado; si no hay, sugerir PrioridadAnterior. No usar empty(): "0" es válido.
                 $prioridadAnterior = $registro->PrioridadAnterior ?? '';
-                $prioridadActual = $registro->Prioridad ?? '';
-                $prioridad = !empty($prioridadActual) ? $prioridadActual : $prioridadAnterior;
+                $prioridadActual = $registro->Prioridad;
+                $prioridad = ($prioridadActual !== null && trim((string) $prioridadActual) !== '')
+                    ? trim((string) $prioridadActual)
+                    : (string) $prioridadAnterior;
                 $id = $registro->Id ?? '';
 
                 return '<input type="text"
@@ -1825,6 +1827,7 @@ function obtenerRegistrosSeleccionados() {
         return {
             id: cb.getAttribute('data-id'),
             prioridad: prioridadInput ? prioridadInput.value.trim() : '',
+            codigoDibujo: getCellValue('CodigoDibujo'),
             bomId: getCellValue('BomId'),
             bomName: getCellValue('BomName'),
             hiloAX: getCellValue('HiloAX'),
