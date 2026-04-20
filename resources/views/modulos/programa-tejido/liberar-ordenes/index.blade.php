@@ -405,7 +405,7 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
                             @foreach($registros as $index => $registro)
-                            <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}" data-id="{{ $registro->Id ?? '' }}" title="Clic en la fila para marcar como referencia visual (azul)">
+                            <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}" data-id="{{ $registro->Id ?? '' }}" data-salon-tejido-id="{{ $registro->SalonTejidoId ?? '' }}" title="Clic en la fila para marcar como referencia visual (azul)">
                                 @foreach($columns as $colIndex => $col)
                                 <td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }} {{ $col['field'] === 'select' ? 'text-center' : '' }} {{ $col['field'] === 'prioridad' ? 'px-4 py-3' : '' }}"
                                     data-column="{{ $col['field'] }}">
@@ -712,7 +712,6 @@ function autoFillAllCodigoDibujo() {
 
     const combinations = [];
     const cellsByKey = new Map();
-    const rowsByKey = new Map();
 
     rows.forEach((row) => {
         const itemIdCell = row.querySelector('[data-column="ItemId"]');
@@ -723,18 +722,19 @@ function autoFillAllCodigoDibujo() {
 
         const itemId = (itemIdCell.textContent || '').trim();
         const inventSizeId = (inventSizeIdCell.textContent || '').trim();
+        const salon = (row.getAttribute('data-salon-tejido-id') || '').trim();
         const currentCodigoDibujo = (codigoDibujoCell.textContent || '').trim();
 
-        if (!currentCodigoDibujo && itemId && inventSizeId) {
-            const cacheKey = `${itemId}|${inventSizeId}`;
+        // CatCodificados suele ligar por ItemId + Departamento (= SalonTejidoId); InventSizeId puede no coincidir
+        if (!currentCodigoDibujo && itemId && (inventSizeId || salon)) {
+            const cacheKey = `${itemId}|${inventSizeId}|${salon}`;
+            const comboParam = [itemId, inventSizeId, salon].join('::');
 
             if (!cellsByKey.has(cacheKey)) {
                 cellsByKey.set(cacheKey, []);
-                rowsByKey.set(cacheKey, []);
-                combinations.push(`${itemId}:${inventSizeId}`);
+                combinations.push(comboParam);
             }
             cellsByKey.get(cacheKey).push(codigoDibujoCell);
-            rowsByKey.get(cacheKey).push(row);
         }
     });
 
@@ -1877,6 +1877,20 @@ function liberarOrdenes() {
         return;
     }
 
+    const sinLMat = registros.find(r => {
+        const bid = (r.bomId != null ? String(r.bomId) : '').trim();
+        const bname = (r.bomName != null ? String(r.bomName) : '').trim();
+        return !bid || !bname;
+    });
+    if (sinLMat) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'L.Mat obligatorio',
+            text: 'Cada registro seleccionado debe tener L.Mat y Nombre L.Mat antes de liberar.',
+        });
+        return;
+    }
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
     Swal.fire({
@@ -1903,7 +1917,12 @@ function liberarOrdenes() {
             .then(async response => {
                 const data = await response.json();
                 if (!response.ok || !data.success) {
-                    throw new Error(data.message || 'Error al liberar las órdenes.');
+                    let msg = data.message || 'Error al liberar las órdenes.';
+                    if (data.errors && typeof data.errors === 'object') {
+                        const first = Object.values(data.errors).flat().find(Boolean);
+                        if (first) msg = first;
+                    }
+                    throw new Error(msg);
                 }
                 return data;
             })

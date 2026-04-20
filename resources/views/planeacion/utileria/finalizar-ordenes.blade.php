@@ -224,7 +224,8 @@
     function renderTablaFinalizar() {
         const tbody = document.getElementById('finalizarTbody');
         tbody.innerHTML = finalizarState.ordenes.map(function (o, i) {
-            const isChecked = finalizarState.selectedIds.has(o.id);
+            const idKey = typeof o.id === 'number' ? o.id : parseInt(String(o.id), 10);
+            const isChecked = Number.isNaN(idKey) ? finalizarState.selectedIds.has(o.id) : finalizarState.selectedIds.has(idKey);
             const checkedAttr = isChecked ? ' checked' : '';
             const rowBg = o.enProceso ? 'bg-amber-50' : (i % 2 === 0 ? 'bg-white' : 'bg-gray-50');
             const rowBorder = o.enProceso ? ' border-l-4 border-l-amber-400' : '';
@@ -255,14 +256,19 @@
     window.toggleFinalizarRow = function (id, tr) {
         toggleFinalizarCheck(id);
         const cb = tr.querySelector('.finalizar-check');
-        if (cb) cb.checked = finalizarState.selectedIds.has(id);
+        if (cb) {
+            const idNum = parseInt(cb.getAttribute('data-id'), 10);
+            cb.checked = Number.isNaN(idNum) ? finalizarState.selectedIds.has(String(cb.getAttribute('data-id'))) : finalizarState.selectedIds.has(idNum);
+        }
     };
 
     window.toggleFinalizarCheck = function (id) {
-        if (finalizarState.selectedIds.has(id)) {
-            finalizarState.selectedIds.delete(id);
+        const idNorm = typeof id === 'number' ? id : parseInt(String(id), 10);
+        const key = Number.isNaN(idNorm) ? id : idNorm;
+        if (finalizarState.selectedIds.has(key)) {
+            finalizarState.selectedIds.delete(key);
         } else {
-            finalizarState.selectedIds.add(id);
+            finalizarState.selectedIds.add(key);
         }
         syncCheckboxesFinalizar();
         updateFinalizarFooter();
@@ -270,20 +276,41 @@
 
     function syncCheckboxesFinalizar() {
         document.querySelectorAll('.finalizar-check').forEach(function (cb) {
-            cb.checked = finalizarState.selectedIds.has(parseInt(cb.getAttribute('data-id'), 10));
+            const idNum = parseInt(cb.getAttribute('data-id'), 10);
+            cb.checked = Number.isNaN(idNum) ? finalizarState.selectedIds.has(cb.getAttribute('data-id')) : finalizarState.selectedIds.has(idNum);
         });
+    }
+
+    function tieneSeleccionSinProduccion() {
+        for (const id of finalizarState.selectedIds) {
+            const idNum = typeof id === 'number' ? id : parseInt(String(id), 10);
+            const o = finalizarState.ordenes.find(function (x) {
+                return Number(x.id) === idNum || String(x.id) === String(id);
+            });
+            if (!o || o.produccion == null || Number(o.produccion) === 0) return true;
+        }
+        return false;
     }
 
     function updateFinalizarFooter() {
         const count = finalizarState.selectedIds.size;
-        document.getElementById('finalizarSeleccionados').textContent = count > 0 ? count + ' orden(es) seleccionada(s)' : '';
-        document.getElementById('btnFinalizarConfirm').disabled = count === 0;
+        const sinProd = count > 0 && tieneSeleccionSinProduccion();
+        const spanSel = document.getElementById('finalizarSeleccionados');
+        if (count === 0) {
+            spanSel.textContent = '';
+        } else if (sinProd) {
+            spanSel.textContent = count + ' orden(es) seleccionada(s). No se puede finalizar si falta producción o la producción es cero.';
+        } else {
+            spanSel.textContent = count + ' orden(es) seleccionada(s)';
+        }
+        document.getElementById('btnFinalizarConfirm').disabled = count === 0 || sinProd;
     }
 
     // * Confirmar finalización con SweetAlert2
     window.confirmarFinalizar = function () {
         const count = finalizarState.selectedIds.size;
         if (count === 0) return;
+        if (tieneSeleccionSinProduccion()) return;
 
         Swal.fire({
             title: '¿Finalizar órdenes?',

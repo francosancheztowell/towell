@@ -296,8 +296,8 @@ class LiberarOrdenesController extends Controller
             'registros' => 'required|array|min:1',
             'registros.*.id' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
             'registros.*.prioridad' => 'nullable|string|max:100',
-            'registros.*.bomId' => 'nullable|string|max:20',
-            'registros.*.bomName' => 'nullable|string|max:60',
+            'registros.*.bomId' => 'required|string|max:20',
+            'registros.*.bomName' => 'required|string|max:60',
             'registros.*.hiloAX' => 'nullable|string|max:30',
             'registros.*.mtsRollo' => 'nullable|numeric',
             'registros.*.pzasRollo' => 'nullable|numeric',
@@ -313,6 +313,8 @@ class LiberarOrdenesController extends Controller
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
             'registros.*.id.exists' => 'Uno de los registros seleccionados no existe.',
+            'registros.*.bomId.required' => 'L.Mat es obligatorio en cada registro seleccionado.',
+            'registros.*.bomName.required' => 'Nombre L.Mat es obligatorio en cada registro seleccionado.',
         ]);
 
         $registrosInput = collect($data['registros'])->unique('id');
@@ -1194,11 +1196,7 @@ class LiberarOrdenesController extends Controller
                 $registroCodificado->refresh();
             }
         } catch (\Throwable $e) {
-            Log::warning('Error al actualizar CatCodificados desde liberacion', [
-                'no_produccion' => $registro->NoProduccion ?? null,
-                'no_telar_id' => $registro->NoTelarId ?? null,
-                'error' => $e->getMessage(),
-            ]);
+
         }
     }
 
@@ -1273,12 +1271,6 @@ class LiberarOrdenesController extends Controller
                 }
             }
         } catch (\Throwable $e) {
-            // Loggear error pero no fallar la operación principal
-            Log::warning('Error al actualizar ReqModelosCodificados desde liberación', [
-                'no_produccion' => $registro->NoProduccion ?? null,
-                'tamano_clave' => $registro->TamanoClave ?? null,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 
@@ -1361,8 +1353,13 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Obtiene el código de dibujo (CodigoDibujo) desde ReqModelosCodificados
-     * para uno o múltiples items usando ItemId e InventSizeId
+     * Obtiene el código de dibujo (CodigoDibujo) desde CatCodificados.
+     * Parámetro combinations: valores separados por coma; cada valor es
+     *   itemId::inventSizeId::salonTejidoId (salon = Departamento en CatCodificados), o legado itemId:inventSizeId.
+     * Orden de búsqueda por combinación (primer CodigoDibujo no vacío con Id más alto en cada intento):
+     *   1) ItemId + InventSizeId + Departamento (si hay invent y salón)
+     *   2) ItemId + Departamento (si hay salón; cubre cuando InventSizeId del programa no coincide con CatCodificados)
+     *   3) ItemId + InventSizeId (sin filtrar departamento)
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -1388,20 +1385,34 @@ class LiberarOrdenesController extends Controller
                 ]);
             }
 
-            // Parsear combinaciones: "itemId1:inventSizeId1,itemId2:inventSizeId2,..."
             $pairs = [];
             foreach ($combinations as $combo) {
-                $parts = explode(':', $combo);
-                if (count($parts) === 2) {
-                    $itemId = trim($parts[0]);
-                    $inventSizeId = trim($parts[1]);
-                    if (!empty($itemId) && !empty($inventSizeId)) {
-                        $pairs[] = [
-                            'itemId' => $itemId,
-                            'inventSizeId' => $inventSizeId,
-                        ];
-                    }
+                $itemId = '';
+                $inventSizeId = '';
+                $departamento = '';
+
+                if (str_contains($combo, '::')) {
+                    $parts = explode('::', $combo, 3);
+                    $itemId = trim((string) ($parts[0] ?? ''));
+                    $inventSizeId = trim((string) ($parts[1] ?? ''));
+                    $departamento = trim((string) ($parts[2] ?? ''));
+                } else {
+                    $parts = explode(':', $combo, 2);
+                    $itemId = trim((string) ($parts[0] ?? ''));
+                    $inventSizeId = trim((string) ($parts[1] ?? ''));
                 }
+
+                if ($itemId === '' || ($inventSizeId === '' && $departamento === '')) {
+                    continue;
+                }
+
+                $cacheKey = $itemId . '|' . $inventSizeId . '|' . $departamento;
+                $pairs[$cacheKey] = [
+                    'itemId' => $itemId,
+                    'inventSizeId' => $inventSizeId,
+                    'departamento' => $departamento,
+                    'cacheKey' => $cacheKey,
+                ];
             }
 
             if (empty($pairs)) {
@@ -1411,27 +1422,15 @@ class LiberarOrdenesController extends Controller
                 ]);
             }
 
-            // Consulta única optimizada para múltiples combinaciones
-            $query = ReqModelosCodificados::query()
-                ->select('ItemId', 'InventSizeId', 'CodigoDibujo');
-
-            $query->where(function($q) use ($pairs) {
-                foreach ($pairs as $pair) {
-                    $q->orWhere(function($subQ) use ($pair) {
-                        $subQ->where('ItemId', $pair['itemId'])
-                             ->where('InventSizeId', $pair['inventSizeId']);
-                    });
-                }
-            });
-
-            $results = $query->get();
-
-            // Crear mapa por combinación ItemId|InventSizeId
             $map = [];
-            foreach ($results as $result) {
-                $key = $result->ItemId . '|' . $result->InventSizeId;
-                if (!isset($map[$key]) && !empty($result->CodigoDibujo)) {
-                    $map[$key] = $result->CodigoDibujo;
+            foreach ($pairs as $pair) {
+                $codigo = $this->resolverCodigoDibujoCatCodificados(
+                    $pair['itemId'],
+                    $pair['inventSizeId'],
+                    $pair['departamento']
+                );
+                if ($codigo !== null && $codigo !== '') {
+                    $map[$pair['cacheKey']] = $codigo;
                 }
             }
 
@@ -1445,6 +1444,43 @@ class LiberarOrdenesController extends Controller
                 'message' => 'Error al obtener Código de Dibujo.',
             ], 500);
         }
+    }
+
+    /**
+     * @return string|null Primer CodigoDibujo no vacío con Id más alto por cada criterio aplicado
+     */
+    private function resolverCodigoDibujoCatCodificados(string $itemId, string $inventSizeId, string $departamento): ?string
+    {
+        $try = function (\Illuminate\Database\Eloquent\Builder $q): ?string {
+            foreach ($q->orderByDesc('Id')->get(['Id', 'CodigoDibujo']) as $row) {
+                $c = trim((string) ($row->CodigoDibujo ?? ''));
+                if ($c !== '') {
+                    return $c;
+                }
+            }
+
+            return null;
+        };
+
+        if ($itemId !== '' && $inventSizeId !== '' && $departamento !== '') {
+            $c = $try(CatCodificados::query()->where('ItemId', $itemId)->where('InventSizeId', $inventSizeId)->where('Departamento', $departamento));
+            if ($c !== null) {
+                return $c;
+            }
+        }
+
+        if ($itemId !== '' && $departamento !== '') {
+            $c = $try(CatCodificados::query()->where('ItemId', $itemId)->where('Departamento', $departamento));
+            if ($c !== null) {
+                return $c;
+            }
+        }
+
+        if ($itemId !== '' && $inventSizeId !== '') {
+            return $try(CatCodificados::query()->where('ItemId', $itemId)->where('InventSizeId', $inventSizeId));
+        }
+
+        return null;
     }
 
     /**

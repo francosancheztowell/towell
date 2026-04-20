@@ -585,6 +585,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const btnAceptar = document.getElementById('btn-aceptar');
         const textoOriginal = btnAceptar.textContent;
 
+        function restaurarBotonReportar() {
+            isSubmitting = false;
+            btnAceptar.disabled = false;
+            btnAceptar.textContent = textoOriginal;
+            btnAceptar.style.cursor = 'pointer';
+            btnAceptar.style.opacity = '1';
+        }
+
         // Bloquear botón y cambiar texto
         isSubmitting = true;
         btnAceptar.disabled = true;
@@ -612,6 +620,36 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('notificar_supervisor', checkboxNotificarSupervisor.checked ? '1' : '0');
 
         try {
+            const maquinaVal = selectMaquina.value;
+            const tipoFallaVal = selectTipoFalla.value;
+            if (maquinaVal && tipoFallaVal) {
+                const validarUrl = new URL('{{ route('api.mantenimiento.paros.validar-duplicado') }}', window.location.origin);
+                validarUrl.searchParams.set('maquina', maquinaVal);
+                validarUrl.searchParams.set('tipo_falla', tipoFallaVal);
+                const valResp = await fetch(validarUrl.toString(), { headers: { 'Accept': 'application/json' } });
+                const valResult = await valResp.json().catch(function () { return {}; });
+                if (!valResp.ok || valResult.success === false) {
+                    restaurarBotonReportar();
+                    const errVal = valResult.error || 'No se pudo validar si el paro está duplicado. Intenta de nuevo.';
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Error', text: errVal });
+                    } else {
+                        alert(errVal);
+                    }
+                    return;
+                }
+                if (valResult.duplicado) {
+                    restaurarBotonReportar();
+                    const msgDuplicado = valResult.message || 'No se puede reportar: ya existe un paro activo con el mismo tipo de falla en este telar.';
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Ya hay un paro en esta maquina con este tipo de falla', text: 'Finalice el paro actual antes de reportar otro igual.' });
+                    } else {
+                        alert('Ya hay un paro en esta maquina con este tipo de falla. Finalice el paro actual antes de reportar otro igual.');
+                    }
+                    return;
+                }
+            }
+
             // Enviar datos al servidor
             const response = await fetch('{{ route('api.mantenimiento.paros.store') }}', {
                 method: 'POST',
@@ -657,11 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 // Error del servidor - reabilitar botón
-                isSubmitting = false;
-                btnAceptar.disabled = false;
-                btnAceptar.textContent = textoOriginal;
-                btnAceptar.style.cursor = 'pointer';
-                btnAceptar.style.opacity = '1';
+                restaurarBotonReportar();
 
                 const errorMsg = result.error || 'Error al reportar el paro. Por favor, intenta nuevamente.';
                 if (typeof Swal !== 'undefined') {
@@ -676,11 +710,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             // Error de conexión - reabilitar botón
-            isSubmitting = false;
-            btnAceptar.disabled = false;
-            btnAceptar.textContent = textoOriginal;
-            btnAceptar.style.cursor = 'pointer';
-            btnAceptar.style.opacity = '1';
+            restaurarBotonReportar();
 
             console.error('Error al reportar paro:', error);
             const errorMsg = 'Error de conexión. Por favor, verifica tu conexión e intenta nuevamente.';

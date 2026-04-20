@@ -257,13 +257,13 @@ class MantenimientoParosController extends Controller
             }
 
             $items = $query
-                ->orderByRaw("CASE WHEN Departamento = ? THEN 0 ELSE 1 END", ['Calidad'])
+                ->orderByRaw('CASE WHEN Departamento = ? THEN 0 ELSE 1 END', ['Calidad'])
                 ->orderBy('Falla')
                 ->get(['Falla', 'Descripcion', 'Abreviado', 'Seccion', 'TipoFallaId', 'Departamento'])
                 ->unique(function ($item) {
                     return mb_strtoupper(trim((string) $item->Falla))
-                        . '|'
-                        . mb_strtoupper(trim((string) ($item->Descripcion ?? '')));
+                        .'|'
+                        .mb_strtoupper(trim((string) ($item->Descripcion ?? '')));
                 })
                 ->values();
 
@@ -363,6 +363,58 @@ class MantenimientoParosController extends Controller
     }
 
     /**
+     * Valida si ya existe un paro activo en el mismo telar con el mismo tipo de falla (ManFallasParos).
+     */
+    public function validarDuplicadoParo(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'maquina' => 'required|string|max:50',
+                'tipo_falla' => 'required|string|max:20',
+            ]);
+
+            $duplicado = $this->existeParoActivoDuplicado($request->maquina, $request->tipo_falla);
+            $mensaje = 'No se puede reportar: ya existe un paro activo con el mismo tipo de falla en este telar. Finalice el paro actual antes de reportar otro igual.';
+
+            return response()->json([
+                'success' => true,
+                'duplicado' => $duplicado,
+                'message' => $duplicado ? $mensaje : null,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de validación',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Error al validar duplicado de paro', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Indica si en ManFallasParos ya hay un registro Activo para la misma máquina y TipoFallaId.
+     */
+    private function existeParoActivoDuplicado(string $maquinaId, string $tipoFallaId): bool
+    {
+        $maquinaId = trim($maquinaId);
+        $tipoFallaId = trim($tipoFallaId);
+
+        return ManFallasParos::query()
+            ->where('Estatus', 'Activo')
+            ->whereRaw('LTRIM(RTRIM(CAST(MaquinaId AS NVARCHAR(100)))) = ?', [$maquinaId])
+            ->whereRaw('LTRIM(RTRIM(CAST(TipoFallaId AS NVARCHAR(100)))) = ?', [$tipoFallaId])
+            ->exists();
+    }
+
+    /**
      * Guardar un nuevo paro/falla en ManFallasParos.
      */
     public function store(Request $request)
@@ -388,6 +440,13 @@ class MantenimientoParosController extends Controller
                 'orden_trabajo' => 'nullable|string|max:50',
                 'obs' => 'nullable|string',
             ]);
+
+            if ($this->existeParoActivoDuplicado($request->maquina, $request->tipo_falla)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede reportar: ya existe un paro activo con el mismo tipo de falla en este telar. Finalice el paro actual antes de reportar otro igual.',
+                ], 422);
+            }
 
             $folio = FolioHelper::obtenerSiguienteFolio('ParosFallas', 5);
 
