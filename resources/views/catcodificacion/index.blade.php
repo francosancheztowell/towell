@@ -633,6 +633,7 @@
 
                 // Valores iniciales desde el registro seleccionado o vacíos
                 const ordenTejido = registroSeleccionado?.OrdenTejido || '';
+                const ordenDesdeFila = String(ordenTejido || '').trim();
                 const telar = registroSeleccionado?.TelarId || '';
                 const articulo = registroSeleccionado?.ItemId || registroSeleccionado?.ClaveModelo || '';
                 const pesoMuestra = registroSeleccionado?.PesoMuestra || '';
@@ -643,6 +644,19 @@
                     title: 'Peso Muestra',
                     html: `
                         <div class="text-left space-y-4">
+                            <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        id="swal-usar-fila-seleccionada"
+                                        class="swal-usar-fila-seleccionada mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    >
+                                    <span>
+                                        <span class="text-sm font-medium text-gray-800">Usar orden de la fila seleccionada</span>
+                                        <span class="block text-xs text-gray-500 mt-0.5">Si está activo, no se listan solo órdenes en proceso: se usa el Orden Tejido del registro marcado en la tabla y se consulta CatCodificados.</span>
+                                    </span>
+                                </label>
+                            </div>
                             <div class="grid grid-cols-3 gap-3">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Orden Tejido</label>
@@ -855,7 +869,27 @@
                                 .catch(() => {});
                         }
 
-                        if (selectOrden) {
+                        const chkUsarFila = document.getElementById('swal-usar-fila-seleccionada');
+
+                        function onOrdenTejidoSelectChange() {
+                            if (!selectOrden) return;
+                            const opt = selectOrden.options[selectOrden.selectedIndex];
+                            if (opt && opt.value) {
+                                if (telarInput) telarInput.value = opt.dataset.noTelarId || '';
+                                if (articuloInput) articuloInput.value = opt.dataset.itemId || opt.dataset.nombreProducto || '';
+                                cargarCatCodificadosPorOrden(selectOrden.value);
+                            } else {
+                                if (telarInput) telarInput.value = '';
+                                if (articuloInput) articuloInput.value = '';
+                                cargarCatCodificadosPorOrden('');
+                            }
+                        }
+
+                        function poblarSelectOrdenesEnProceso() {
+                            if (!selectOrden) return;
+                            selectOrden.disabled = false;
+                            selectOrden.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                            selectOrden.innerHTML = '<option value="">Seleccione una orden en proceso...</option>';
                             fetch('/planeacion/codificacion/api/ordenes-en-proceso', { headers: { 'Accept': 'application/json' } })
                                 .then(resp => resp.json())
                                 .then(json => {
@@ -870,23 +904,50 @@
                                             selectOrden.appendChild(opt);
                                         });
                                         if (ordenTejido) selectOrden.value = ordenTejido;
-                                        selectOrden.addEventListener('change', function() {
-                                            const opt = this.options[this.selectedIndex];
-                                            if (opt && opt.value) {
-                                                if (telarInput) telarInput.value = opt.dataset.noTelarId || '';
-                                                if (articuloInput) articuloInput.value = opt.dataset.itemId || opt.dataset.nombreProducto || '';
-                                                cargarCatCodificadosPorOrden(this.value);
-                                            } else {
-                                                if (telarInput) telarInput.value = '';
-                                                if (articuloInput) articuloInput.value = '';
-                                                cargarCatCodificadosPorOrden('');
-                                            }
-                                        });
                                         if (selectOrden.value && selectOrden.dispatchEvent) selectOrden.dispatchEvent(new Event('change'));
                                     }
                                 })
                                 .catch(() => {});
-                            selectOrden.focus();
+                        }
+
+                        function aplicarModoOrdenTejido(usarFila) {
+                            if (!selectOrden) return;
+                            if (usarFila) {
+                                if (!ordenDesdeFila) {
+                                    internalToast('Selecciona primero una fila en la tabla que tenga Orden Tejido.', 'warning');
+                                    if (chkUsarFila) chkUsarFila.checked = false;
+                                    return;
+                                }
+                                selectOrden.disabled = true;
+                                selectOrden.classList.add('bg-gray-100', 'cursor-not-allowed');
+                                selectOrden.innerHTML = '';
+                                const o = document.createElement('option');
+                                o.value = ordenDesdeFila;
+                                o.textContent = ordenDesdeFila + ' (fila / catálogo)';
+                                selectOrden.appendChild(o);
+                                selectOrden.value = ordenDesdeFila;
+                                if (telarInput && registroSeleccionado) {
+                                    telarInput.value = registroSeleccionado.TelarId != null ? String(registroSeleccionado.TelarId) : '';
+                                }
+                                if (articuloInput && registroSeleccionado) {
+                                    articuloInput.value = (registroSeleccionado.ItemId != null ? String(registroSeleccionado.ItemId) : '')
+                                        || (registroSeleccionado.ClaveModelo != null ? String(registroSeleccionado.ClaveModelo) : '');
+                                }
+                                cargarCatCodificadosPorOrden(ordenDesdeFila);
+                            } else {
+                                poblarSelectOrdenesEnProceso();
+                                selectOrden.focus();
+                            }
+                        }
+
+                        if (selectOrden) {
+                            selectOrden.addEventListener('change', onOrdenTejidoSelectChange);
+                            if (chkUsarFila) {
+                                chkUsarFila.addEventListener('change', function() {
+                                    aplicarModoOrdenTejido(chkUsarFila.checked);
+                                });
+                            }
+                            aplicarModoOrdenTejido(false);
                         }
                     },
                     preConfirm: () => {
@@ -901,7 +962,12 @@
 
                         // Validaciones básicas
                         if (!ordenTejido) {
-                            Swal.showValidationMessage('Seleccione una orden en proceso');
+                            const usarFila = document.getElementById('swal-usar-fila-seleccionada')?.checked;
+                            Swal.showValidationMessage(
+                                usarFila
+                                    ? 'La fila seleccionada no tiene Orden Tejido o el catálogo no devolvió datos.'
+                                    : 'Seleccione una orden en proceso'
+                            );
                             return false;
                         }
                         if (pesoMuestra !== null && (Number.isNaN(pesoMuestra) || pesoMuestra < 0)) {
