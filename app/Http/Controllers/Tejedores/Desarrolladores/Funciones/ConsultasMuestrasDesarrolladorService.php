@@ -47,10 +47,14 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
 
     /**
      * Obtiene producciones desde MuestrasPrograma.
+     *
+     * @param mixed $telarId Se acepta sin tipo para mantener compatibilidad LSP con firmas antiguas del padre.
+     * @param bool $soloConOrden Ignorado: el filtro por orden no vacía siempre aplica en esta variante.
      */
-    public function obtenerProducciones(string $telarId): array
+    public function obtenerProducciones($telarId, bool $soloConOrden = false): array
     {
         try {
+            $telarId = (string) $telarId;
             $query = Muestras::where('NoTelarId', $telarId)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '');

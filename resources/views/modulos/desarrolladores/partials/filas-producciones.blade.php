@@ -2,7 +2,6 @@
 @if($hasData)
     @foreach($producciones as $p)
         @php
-            $ordenVacio = empty($p['NoProduccion'] ?? null) || trim($p['NoProduccion'] ?? '') === '';
             $fechaFormateada = !empty($p['FechaInicio'])
                 ? \Carbon\Carbon::parse($p['FechaInicio'])->format('d/m/Y')
                 : 'N/A';
@@ -14,11 +13,7 @@
         @endphp
         <tr class="hover:bg-gray-100 transition-colors">
             <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white">
-                @if($ordenVacio)
-                    <input type="number" min="1" class="orden-input w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Escribe orden" data-original="">
-                @else
-                    <span class="orden-value">{{ $p['NoProduccion'] }}</span>
-                @endif
+                <span class="orden-value">{{ $p['NoProduccion'] }}</span>
             </td>
             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-blue-50">{{ $fechaFormateada }}</td>
             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-white">{{ $p['TamanoClave'] ?? 'N/A' }}</td>

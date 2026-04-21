@@ -183,4 +183,44 @@ class ConsultasDesarrolladorServiceTest extends TestCase
         $firstItem = $result['producciones']->first();
         $this->assertArrayHasKey('Id', $firstItem->toArray(), 'obtenerProducciones should include the Id field in its select');
     }
+
+    public function test_obtener_producciones_excluye_filas_sin_orden(): void
+    {
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+            [
+                'SalonTejidoId' => 'S1',
+                'NoTelarId' => '101',
+                'NoProduccion' => null,
+                'FechaInicio' => '2026-03-18 08:00:00',
+                'TamanoClave' => '100x50',
+                'NombreProducto' => 'Sin orden',
+                'EnProceso' => 0,
+            ],
+            [
+                'SalonTejidoId' => 'S1',
+                'NoTelarId' => '101',
+                'NoProduccion' => '',
+                'FechaInicio' => '2026-03-19 08:00:00',
+                'TamanoClave' => '100x51',
+                'NombreProducto' => 'Orden vacía',
+                'EnProceso' => 0,
+            ],
+            [
+                'SalonTejidoId' => 'S1',
+                'NoTelarId' => '101',
+                'NoProduccion' => 'ORD-777',
+                'FechaInicio' => '2026-03-20 08:00:00',
+                'TamanoClave' => '100x52',
+                'NombreProducto' => 'Con orden',
+                'EnProceso' => 0,
+            ],
+        ]);
+
+        $service = new ConsultasDesarrolladorService();
+        $result = $service->obtenerProducciones('101');
+
+        $this->assertTrue($result['success']);
+        $this->assertCount(1, $result['producciones']);
+        $this->assertSame('ORD-777', $result['producciones']->first()->NoProduccion);
+    }
 }

@@ -67,8 +67,7 @@ class TelDesarrolladoresController extends Controller
      */
     public function obtenerProduccionesHtml(Request $request, $telarId)
     {
-        $soloConOrden = $request->boolean('solo_con_orden', false);
-        $resultado = $this->consultasService->obtenerProducciones($telarId, $soloConOrden);
+        $resultado = $this->consultasService->obtenerProducciones($telarId);
 
         if (!$resultado['success']) {
             return response('', 500);
@@ -92,8 +91,7 @@ class TelDesarrolladoresController extends Controller
      */
     public function obtenerProducciones(Request $request, $telarId)
     {
-        $soloConOrden = $request->boolean('solo_con_orden', false);
-        $resultado = $this->consultasService->obtenerProducciones($telarId, $soloConOrden);
+        $resultado = $this->consultasService->obtenerProducciones($telarId);
         $status = $resultado['success'] ? 200 : 500;
         return response()->json($resultado, $status);
     }

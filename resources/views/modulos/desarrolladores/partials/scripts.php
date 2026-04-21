@@ -11,9 +11,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const els = {
         selectTelar:        document.getElementById('telarOperador'),
         tablaProducciones:  document.getElementById('tablaProducciones'),
-        filtroSoloConOrden:  document.getElementById('filtroSoloConOrden'),
-        filtroOrdenContainer: document.getElementById('filtroOrdenContainer'),
-        msgValidacionOrden:   document.getElementById('msgValidacionOrden'),
         bodyProducciones:   document.getElementById('bodyProducciones'),
         bodyDetallesOrden:  document.getElementById('bodyDetallesOrden'),
         noDataMessage:      document.getElementById('noDataMessage'),
@@ -891,44 +888,6 @@ document.addEventListener('DOMContentLoaded', function () {
         checkFormValidity();
     }
 
-    // ── Filtro Solo con Orden ─────────────────────────────────────────────
-    els.filtroSoloConOrden?.addEventListener('change', function () {
-        filtrarFilasConOrden();
-    });
-
-    function filtrarFilasConOrden() {
-        const soloConOrden = els.filtroSoloConOrden?.checked;
-
-        if (soloConOrden) {
-            // Verificar si hay filas sin orden seleccionadas
-            const filasSinOrden = els.bodyProducciones?.querySelectorAll('tr') || [];
-            let tieneSeleccionSinOrden = false;
-            filasSinOrden.forEach(row => {
-                const checkbox = row.querySelector('.checkbox-produccion');
-                const ordenSpan = row.querySelector('.orden-value');
-                const ordenInput = row.querySelector('.orden-input');
-                const tieneOrden = ordenSpan?.textContent?.trim() || ordenInput?.value?.trim();
-                if (!tieneOrden && checkbox?.checked) {
-                    tieneSeleccionSinOrden = true;
-                }
-            });
-
-            if (tieneSeleccionSinOrden) {
-                alert('Deselecciona primero las filas que no tienen orden antes de filtrar.');
-                els.filtroSoloConOrden.checked = false;
-                return;
-            }
-        }
-
-        const filas = els.bodyProducciones?.querySelectorAll('tr') || [];
-        filas.forEach(row => {
-            const ordenSpan = row.querySelector('.orden-value');
-            const ordenInput = row.querySelector('.orden-input');
-            const tieneOrden = ordenSpan?.textContent?.trim() || ordenInput?.value?.trim();
-            row.style.display = (soloConOrden && !tieneOrden) ? 'none' : '';
-        });
-    }
-
     // ── Cargas AJAX ───────────────────────────────────────────────────────
     function cargarProducciones(telarId) {
         // Resetear estado
@@ -939,12 +898,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (els.inputTelarDestino) els.inputTelarDestino.value = '';
         if (els.inputCambioTelarActivo) els.inputCambioTelarActivo.value = 'false';
 
-        const soloConOrden = els.filtroSoloConOrden?.checked ? '?solo_con_orden=1' : '';
-        const url = `/desarrolladores/telar/${telarId}/producciones-html${soloConOrden}`;
+        const url = `/desarrolladores/telar/${telarId}/producciones-html`;
         if (els.ordenEnProcesoBanner) els.ordenEnProcesoBanner.classList.add('hidden');
         els.bodyProducciones.innerHTML = spinnerHtml(6, 'Cargando producciones...');
         els.tablaProducciones.classList.remove('hidden');
-        els.filtroOrdenContainer?.classList.remove('hidden');
         els.noDataMessage.classList.add('hidden');
 
         fetch(url)
@@ -953,7 +910,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 els.bodyProducciones.innerHTML = html || emptyRowHtml(6, 'No se encontraron producciones');
                 if (!html || html.trim() === '') {
                     els.noDataMessage.classList.remove('hidden');
-                    els.filtroOrdenContainer?.classList.add('hidden');
                 }
                 // Configurar listeners para telar-destino
                 setupTelarDestinoListeners();
@@ -964,7 +920,6 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(() => {
                 els.bodyProducciones.innerHTML = '<tr><td colspan="6" class="px-3 py-3 text-center text-red-500">Error al cargar las producciones</td></tr>';
-                els.filtroOrdenContainer?.classList.add('hidden');
             });
 
         // ── Cargar orden en proceso (SIEMPRE) ──
@@ -1088,8 +1043,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 telarDestinoActual.value = '';
                 telarDestinoActual.disabled = true;
             }
-            var ordenInputDeselect = rowActual ? rowActual.querySelector('.orden-input') : null;
-            if (ordenInputDeselect) ordenInputDeselect.value = '';
             rowSeleccionadaAnterior = null;
             els.formContainer.classList.add('hidden');
             if (els.inputTelarDestino) els.inputTelarDestino.value = '';
@@ -1108,29 +1061,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return;
         }
-        // Si la fila no tiene orden, verificar que se haya escrito antes de seleccionar
-        var rowActualCheck = checkbox.closest('tr');
-        var ordenInputCheck = rowActualCheck ? rowActualCheck.querySelector('.orden-input') : null;
-        if (ordenInputCheck !== null && ordenInputCheck.value.trim() === '') {
-            checkbox.checked = false;
-            Swal.fire({ icon: 'info', title: 'Escribe el número de orden', text: 'Esta fila no tiene orden asignada. Escribe el número de orden antes de seleccionar.', confirmButtonColor: '#2563eb' });
-            return;
-        }
-
-        // Desmarcar otras filas y limpiar sus orden-input vacíos
+        // Desmarcar otras filas
         document.querySelectorAll('.checkbox-produccion').forEach(cb => {
             if (cb !== checkbox) {
                 cb.checked = false;
-                var otherRow = cb.closest('tr');
-                var otherOrdenInput = otherRow ? otherRow.querySelector('.orden-input') : null;
-                if (otherOrdenInput) otherOrdenInput.value = '';
             }
         });
 
         const { telar, produccion, modelo = '', salon = '', tamano = '' } = checkbox.dataset;
 
-        // Para filas sin orden, usar el valor escrito en el input
-        const noProduccionFinal = produccion || (ordenInputCheck ? ordenInputCheck.value.trim() : '');
+        const noProduccionFinal = produccion || '';
 
         els.inputTelarId.value = telar;
         els.inputNoProduccion.value = noProduccionFinal;
@@ -1346,54 +1286,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
     Codificacion.initListeners();
     NumberSelectorManager.init();
-
-    // ── Validación de Orden ─────────────────────────────────────────────
-    let ordenValidacionTimer = null;
-
-    function validarOrden(input) {
-        clearTimeout(ordenValidacionTimer);
-        const valor = input.value.trim();
-        if (!valor || valor.length < 4) {
-            input.classList.remove('border-red-500', 'border-green-500');
-            input.classList.add('border-gray-300');
-            input.dataset.valido = 'false';
-            if (els.msgValidacionOrden) els.msgValidacionOrden.classList.add('hidden');
-            return;
-        }
-        ordenValidacionTimer = setTimeout(() => {
-            fetch(`/desarrolladores/verificar-orden?noProduccion=${encodeURIComponent(valor)}`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.exists) {
-                        input.classList.remove('border-gray-300', 'border-green-500');
-                        input.classList.add('border-red-500');
-                        input.dataset.valido = 'false';
-                        if (els.msgValidacionOrden) {
-                            els.msgValidacionOrden.classList.remove('hidden');
-                            els.msgValidacionOrden.querySelector('span').textContent = `La orden "${valor}" ya existe`;
-                        }
-                    } else {
-                        input.classList.remove('border-gray-300', 'border-red-500');
-                        input.classList.add('border-green-500');
-                        input.dataset.valido = 'true';
-                        if (els.msgValidacionOrden) els.msgValidacionOrden.classList.add('hidden');
-                    }
-                });
-        }, 400);
-    }
-
-    els.bodyProducciones?.addEventListener('input', function (e) {
-        if (e.target.classList.contains('orden-input')) {
-            validarOrden(e.target);
-            // Si esta fila ya está seleccionada, sincronizar el valor al campo oculto
-            var row = e.target.closest('tr');
-            var cb = row ? row.querySelector('.checkbox-produccion') : null;
-            if (cb && cb.checked) {
-                var val = e.target.value.trim();
-                els.inputNoProduccion.value = val;
-                if (els.formNoProduccion) els.formNoProduccion.textContent = val || '-';
-            }
-        }
-    });
 });
 </script>
