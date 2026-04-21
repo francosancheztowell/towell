@@ -335,6 +335,7 @@ class LiberarOrdenesController extends Controller
 
         try {
             $actualizados = collect();
+            $foliosUsadosEnLote = [];
 
             foreach ($registrosInput as $item) {
                 $id = (int) ($item['id'] ?? 0);
@@ -353,6 +354,35 @@ class LiberarOrdenesController extends Controller
                 // Generar folio o usar el valor manual ingresado por el usuario
                 $noProduccionManual = trim((string) ($item['noProduccion'] ?? ''));
                 $folio = $noProduccionManual !== '' ? $noProduccionManual : FolioHelper::obtenerSiguienteFolio('Planeacion', 5);
+
+                $folio = trim((string) $folio);
+                if ($folio === '') {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se pudo obtener un número de orden válido.',
+                    ], 422);
+                }
+
+                if (isset($foliosUsadosEnLote[$folio])) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El número de orden "' . $folio . '" está duplicado entre los registros seleccionados.',
+                    ], 422);
+                }
+
+                $errorUnico = $this->validarOrdenTejidoUnicoParaLiberacion($folio, $registro);
+                if ($errorUnico !== null) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorUnico,
+                    ], 422);
+                }
+
+                $foliosUsadosEnLote[$folio] = true;
+
                 $programado = $this->calcularFechaProgramada($registro, $hoy, $fechaFormula);
 
                 // Configurar valores básicos del registro
@@ -948,6 +978,89 @@ class LiberarOrdenesController extends Controller
                 'message' => 'Error inesperado al guardar el campo.',
             ], 500);
         }
+    }
+
+    /**
+     * OrdenTejido / NoProduccion debe ser único: no puede repetirse en otro registro de programa
+     * ni en CatCodificados para otro telar (mismo telar = fila que se actualizará al liberar).
+     *
+     * @return string|null mensaje de error para JSON, o null si el folio es válido
+     */
+    private function validarOrdenTejidoUnicoParaLiberacion(string $folio, ReqProgramaTejido $registro): ?string
+    {
+        $folio = trim($folio);
+        if ($folio === '') {
+            return 'No se pudo validar el número de orden.';
+        }
+
+        $duplicadoPrograma = ReqProgramaTejido::query()
+            ->where('NoProduccion', $folio)
+            ->where('Id', '!=', $registro->Id)
+            ->exists();
+
+        if ($duplicadoPrograma) {
+            return 'El número de orden "' . $folio . '" ya está asignado en otro registro del programa de tejido.';
+        }
+
+        try {
+            $modelo = new CatCodificados();
+            $table = $modelo->getTable();
+            $columns = Schema::getColumnListing($table);
+
+            $query = CatCodificados::query();
+            $hasKeyFilter = false;
+
+            if (in_array('OrdenTejido', $columns, true)) {
+                $query->where('OrdenTejido', $folio);
+                $hasKeyFilter = true;
+            } elseif (in_array('NumOrden', $columns, true)) {
+                $query->where('NumOrden', $folio);
+                $hasKeyFilter = true;
+            }
+
+            if (!$hasKeyFilter && in_array('NoProduccion', $columns, true)) {
+                $query->where('NoProduccion', $folio);
+                $hasKeyFilter = true;
+            }
+
+            if (!$hasKeyFilter) {
+                return null;
+            }
+
+            $codificados = $query->get();
+            if ($codificados->isEmpty()) {
+                return null;
+            }
+
+            $telarCol = null;
+            if (in_array('TelarId', $columns, true)) {
+                $telarCol = 'TelarId';
+            } elseif (in_array('NoTelarId', $columns, true)) {
+                $telarCol = 'NoTelarId';
+            }
+
+            $noTelarSesion = trim((string) ($registro->NoTelarId ?? ''));
+
+            if ($telarCol === null) {
+                return 'El número de orden "' . $folio . '" ya existe en catálogo codificados.';
+            }
+
+            foreach ($codificados as $c) {
+                $telarCod = trim((string) ($c->{$telarCol} ?? ''));
+                if ($telarCod !== $noTelarSesion) {
+                    return 'El número de orden "' . $folio . '" ya existe en codificados para otro telar.';
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('validarOrdenTejidoUnicoParaLiberacion', [
+                'folio' => $folio,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'No se pudo validar la unicidad del número de orden en codificados.';
+        }
+
+        return null;
     }
 
     /**
