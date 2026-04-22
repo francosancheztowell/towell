@@ -9,6 +9,11 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Chart\Chart;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
+use PhpOffice\PhpSpreadsheet\Chart\Legend;
+use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -206,6 +211,74 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
                 $this->applyNumericCellPresentation($sheet, $coordinate, self::INTEGER_FORMAT);
             }
         }
+
+        $this->addSummaryChart($sheet, $layout);
+    }
+
+    private function addSummaryChart(Worksheet $sheet, array $layout): void
+    {
+        $sheetName = $sheet->getTitle();
+        $startRow = (int) $layout['detail_start_row'];
+        $telarCount = count($layout['telars']);
+        $endRow = $startRow + $telarCount - 1;
+
+        $seriesDefinitions = [
+            ['label' => '% Eficiencia',      'column' => 'B'],
+            ['label' => 'Paros de Rizo',     'column' => 'C'],
+            ['label' => 'Paros de trama',    'column' => 'D'],
+            ['label' => 'Paros de urdimbre', 'column' => 'E'],
+            ['label' => 'Paros Otros',       'column' => 'F'],
+        ];
+
+        $dataSeriesLabels = [];
+        $xAxisTickValues = [];
+        $dataSeriesValues = [];
+
+        foreach ($seriesDefinitions as $s) {
+            $dataSeriesLabels[] = new DataSeriesValues(
+                DataSeriesValues::DATASERIES_TYPE_STRING,
+                null,
+                null,
+                1,
+                [$s['label']]
+            );
+            $xAxisTickValues[] = new DataSeriesValues(
+                DataSeriesValues::DATASERIES_TYPE_STRING,
+                $sheetName,
+                null,
+                $telarCount,
+                ["A{$startRow}:A{$endRow}"]
+            );
+            $dataSeriesValues[] = new DataSeriesValues(
+                DataSeriesValues::DATASERIES_TYPE_NUMBER,
+                $sheetName,
+                null,
+                $telarCount,
+                ["{$s['column']}{$startRow}:{$s['column']}{$endRow}"]
+            );
+        }
+
+        $series = new DataSeries(
+            DataSeries::TYPE_LINECHART,
+            DataSeries::GROUPING_STANDARD,
+            range(0, count($seriesDefinitions) - 1),
+            $dataSeriesLabels,
+            $xAxisTickValues,
+            $dataSeriesValues
+        );
+
+        $chart = new Chart(
+            'chart_'.strtolower(str_replace(['-', ' '], '_', $sheetName)),
+            null,
+            new Legend(Legend::POSITION_RIGHT, null, false),
+            new PlotArea(null, [$series]),
+        );
+
+        $chartTopRow = $endRow + 2;
+        $chart->setTopLeftPosition("A{$chartTopRow}");
+        $chart->setBottomRightPosition('I'.($chartTopRow + 18));
+
+        $sheet->addChart($chart);
     }
 
     private function ensureSummarySheetColumnWidths(Worksheet $sheet): void
