@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\FolioHelper;
+use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
@@ -295,9 +296,9 @@ class LiberarOrdenesController extends Controller
         $data = $request->validate([
             'registros' => 'required|array|min:1',
             'registros.*.id' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
-            'registros.*.prioridad' => 'nullable|string|max:100',
-            'registros.*.bomId' => 'required|string|max:20',
-            'registros.*.bomName' => 'required|string|max:60',
+            'registros.*.prioridad' => 'nullable|string|max:150',
+            'registros.*.bomId' => 'required|string|max:30',
+            'registros.*.bomName' => 'required|string|max:100',
             'registros.*.hiloAX' => 'nullable|string|max:30',
             'registros.*.mtsRollo' => 'nullable|numeric',
             'registros.*.pzasRollo' => 'nullable|numeric',
@@ -306,10 +307,10 @@ class LiberarOrdenesController extends Controller
             'registros.*.repeticiones' => 'nullable|numeric',
             'registros.*.saldoMarbete' => 'nullable|numeric',
             'registros.*.densidad' => 'nullable|numeric',
-            'registros.*.observaciones' => 'nullable|string|max:500',
+            'registros.*.observaciones' => 'nullable|string|max:200',
             'registros.*.cambioRepaso' => ['nullable', 'string', Rule::in(['SI', 'NO', 'Si', 'No', 'si', 'no'])],
-            'registros.*.combinaTram' => 'nullable|string|max:60',
-            'registros.*.noProduccion' => 'nullable|string|max:100',
+            'registros.*.combinaTram' => 'nullable|string|max:80',
+            'registros.*.noProduccion' => 'nullable|string|max:15',
             'registros.*.codigoDibujo' => 'nullable|string|max:500',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
@@ -594,6 +595,7 @@ class LiberarOrdenesController extends Controller
                 // Campos de auditoría usando el helper
                 AuditoriaHelper::aplicarCamposAuditoria($registro);
 
+                StringTruncator::truncateModelAttributes($registro);
                 $registro->save();
 
                 // Actualizar CatCodificados con los mismos campos (incl. CodigoDibujo: lo mostrado en pantalla o resuelto desde catálogo)
@@ -937,6 +939,7 @@ class LiberarOrdenesController extends Controller
                     $registro->{$field} = $value !== null ? (float)$value : null;
                 }
 
+                StringTruncator::truncateModelAttributes($registro);
                 $registro->save();
 
                 // Actualizar CatCodificados si existe

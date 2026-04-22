@@ -2,6 +2,7 @@
 
 namespace App\Models\Planeacion;
 
+use App\Helpers\StringTruncator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -70,7 +71,7 @@ class ReqProgramaTejido extends Model
     protected $casts = [
         'EnProceso' => 'boolean',
         'Ultimo' => 'string',
-        'CambioHilo' => 'string', // NVARCHAR(4)
+        'CambioHilo' => 'string', // NVARCHAR(2)
 
         'CalibreRizo' => 'float',
         'CalibreRizo2' => 'float', // REAL en SQL Server
@@ -103,11 +104,11 @@ class ReqProgramaTejido extends Model
         'PasadasComb5' => 'integer',
         'AnchoToalla' => 'float',
 
-        'CalibreComb1' => 'string', // NVARCHAR(40) en SQL Server
-        'CalibreComb2' => 'string', // NVARCHAR(40) en SQL Server
-        'CalibreComb3' => 'string', // NVARCHAR(40) en SQL Server
-        'CalibreComb4' => 'string', // NVARCHAR(40) en SQL Server
-        'CalibreComb5' => 'string', // NVARCHAR(40) en SQL Server
+        'CalibreComb1' => 'string', // NVARCHAR(20) en SQL Server
+        'CalibreComb2' => 'string', // NVARCHAR(20) en SQL Server
+        'CalibreComb3' => 'string', // NVARCHAR(20) en SQL Server
+        'CalibreComb4' => 'string', // NVARCHAR(20) en SQL Server
+        'CalibreComb5' => 'string', // NVARCHAR(20) en SQL Server
         'CalibreComb12' => 'float',
         'CalibreComb22' => 'float',
         'CalibreComb32' => 'float',
@@ -150,9 +151,9 @@ class ReqProgramaTejido extends Model
         'TotalRollos' => 'float', // REAL en SQL Server
         'TotalPzas' => 'float', // REAL en SQL Server
         'Repeticiones' => 'float', // REAL en SQL Server
-        'CombinaTram' => 'string', // VARCHAR(60) en SQL Server
-        'BomId' => 'string', // VARCHAR(20) en SQL Server
-        'BomName' => 'string', // VARCHAR(60) en SQL Server
+        'CombinaTram' => 'string', // VARCHAR(80) en SQL Server
+        'BomId' => 'string', // VARCHAR(30) en SQL Server
+        'BomName' => 'string', // VARCHAR(100) en SQL Server
         'CreaProd' => 'boolean', // BIT DEFAULT 1 en SQL Server
         'HiloAX' => 'string', // VARCHAR(30) en SQL Server
         'ActualizaLmat' => 'boolean', // BIT DEFAULT 1 en SQL Server
@@ -177,75 +178,13 @@ class ReqProgramaTejido extends Model
      */
     protected static function stringColumnMaxLengths(): array
     {
-        return [
-            'CuentaRizo' => 10,
-            'SalonTejidoId' => 10,
-            'NoTelarId' => 10,
-            'Ultimo' => 2,
-            'CambioHilo' => 4,
-            'Maquina' => 15,
-            'CalendarioId' => 15,
-            'TamanoClave' => 20,
-            'NoExisteBase' => 20,
-            'ItemId' => 20,
-            'InventSizeId' => 10,
-            'Rasurado' => 2,
-            'NombreProducto' => 100,
-            'NoProduccion' => 15,
-            'FlogsId' => 20,
-            'NombreProyecto' => 60,
-            'CustName' => 60,
-            'AplicacionId' => 10,
-            'Observaciones' => 200,
-            'TipoPedido' => 20,
-            'FibraTrama' => 15,
-            'DobladilloId' => 20,
-            'CodColorTrama' => 10,
-            'ColorTrama' => 60,
-            'CodColorComb1' => 10,
-            'CodColorComb2' => 10,
-            'CodColorComb3' => 10,
-            'CodColorComb4' => 10,
-            'CodColorComb5' => 10,
-            'NombreCC1' => 60,
-            'NombreCC2' => 60,
-            'NombreCC3' => 60,
-            'NombreCC4' => 60,
-            'NombreCC5' => 60,
-            'CuentaPie' => 10,
-            'CodColorCtaPie' => 10,
-            'NombreCPie' => 60,
-            'CombinaTram' => 60,
-            'BomId' => 20,
-            'BomName' => 60,
-            'HiloAX' => 30,
-            'UsuarioCrea' => 50,
-            'UsuarioModifica' => 50,
-            'CalibreComb1' => 40,
-            'CalibreComb2' => 40,
-            'CalibreComb3' => 40,
-            'CalibreComb4' => 40,
-            'CalibreComb5' => 40,
-            'FibraComb1' => 15,
-            'FibraComb2' => 15,
-            'FibraComb3' => 15,
-            'FibraComb4' => 15,
-            'FibraComb5' => 15,
-        ];
+        return StringTruncator::getFieldLimits();
     }
 
     protected static function booted(): void
     {
         static::saving(function (self $model) {
-            foreach (self::stringColumnMaxLengths() as $attribute => $max) {
-                $value = $model->getAttribute($attribute);
-                if (! is_string($value) || $value === '') {
-                    continue;
-                }
-                if (mb_strlen($value) > $max) {
-                    $model->setAttribute($attribute, mb_substr($value, 0, $max));
-                }
-            }
+            StringTruncator::truncateModelAttributes($model);
         });
     }
 
