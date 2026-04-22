@@ -99,7 +99,7 @@
         </div>
         <div class="mb-4">
             <label class="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
-                <input type="checkbox" id="filter-solo-mis" class="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500" checked>
+                <input type="checkbox" id="filter-solo-mis" class="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500">
                 <span class="text-sm font-medium text-gray-700">
                     <i class="fa-solid fa-user mr-1"></i>Solo mis solicitudes
                 </span>
@@ -120,9 +120,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Información del usuario en sesión
     const currentUser = {
         numeroEmpleado: '{{ Auth::user()->numero_empleado ?? '' }}',
-        nombre: '{{ Auth::user()->nombre ?? '' }}'
+        nombre: '{{ Auth::user()->nombre ?? '' }}',
+        area: '{{ Auth::user()->area ?? '' }}'
     };
-    let mostrarSoloMisSolicitudes = true;
+    let mostrarSoloMisSolicitudes = false;
 
     // Ocultar botón de "Paro" en la barra de navegación
     const navLinks = document.querySelectorAll('nav a, header a, .nav a, [role="navigation"] a');
@@ -206,6 +207,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 filterDepto.innerHTML = '<option value="">Todos</option>' + deptos.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
                 filterStatus.innerHTML = '<option value="">Todos</option>' + statuses.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
                 filterMaquina.innerHTML = '<option value="">Todos</option>' + maquinas.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+
+                // Preseleccionar el área del usuario en sesión
+                if (currentUser.area) {
+                    const matchOption = [...filterDepto.options].find(o => o.value.toLowerCase() === currentUser.area.toLowerCase());
+                    if (matchOption) filterDepto.value = matchOption.value;
+                }
 
                 allParos.forEach(paro => {
                     const row = document.createElement('tr');
@@ -321,14 +328,23 @@ document.addEventListener('DOMContentLoaded', function() {
         applyFilters();
     });
     document.getElementById('btn-clear-filter')?.addEventListener('click', function() {
-        ['filter-depto', 'filter-status', 'filter-maquina'].forEach(id => {
+        ['filter-status', 'filter-maquina'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
+        const filterDepto = document.getElementById('filter-depto');
+        if (filterDepto) {
+            if (currentUser.area) {
+                const matchOption = [...filterDepto.options].find(o => o.value.toLowerCase() === currentUser.area.toLowerCase());
+                filterDepto.value = matchOption ? matchOption.value : '';
+            } else {
+                filterDepto.value = '';
+            }
+        }
         const checkboxSoloMis = document.getElementById('filter-solo-mis');
         if (checkboxSoloMis) {
-            checkboxSoloMis.checked = true;
-            mostrarSoloMisSolicitudes = true;
+            checkboxSoloMis.checked = false;
+            mostrarSoloMisSolicitudes = false;
         }
         applyFilters();
         closeFiltersModal();
