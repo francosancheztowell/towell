@@ -49,6 +49,8 @@ Towell is a Laravel 12 application.
 - En el modal **Finalizar órdenes** (`planeacion/utileria/finalizar-ordenes`): deshabilitar la confirmación si alguna orden seleccionada tiene `produccion` nula o cero; normalizar IDs (número vs string) en el `Set` de selección para que checkboxes y filas no se desincronicen.
 - En **captura de fórmula** engomado (`modulos/engomado/captura-formula`), el select debe listar **todas** las fórmulas del BOM del folio (misma expectativa que en creación de órdenes / consulta AX), no solo la fórmula ya guardada en el folio.
 - En **Liberar órdenes**, **Prioridad** debe guardarse como el usuario la ve o la edita (texto): en `ReqProgramaTejido` usar cast `string` para `Prioridad` (no `integer`, para que valores no numéricos no se conviertan en 0); al armar el valor inicial en Blade no usar `empty()` sobre la prioridad actual porque `empty('0')` es verdadero en PHP.
+- En el export **Promedio paros y eficiencia** (`PromedioParosEficienciaExport`): en celdas numéricas **no** usar ajuste de texto (`wrapText` false) y mantener **ancho mínimo** en columnas por telar para evitar dígitos apilados; **RPM** y **% eficiencia** como enteros cuando corresponda (p. ej. `ROUND` en la fórmula de eficiencia).
+- En **reporte fallos paros** (`mantenimiento/reporte-fallos-paros/index`): el filtro **Solo mis solicitudes** va **desmarcado** por defecto (`mostrarSoloMisSolicitudes` inicia en `false`); **Limpiar** debe dejar ese checkbox desmarcado (no volver a activar solo mis solicitudes).
 
 ## Learned Workspace Facts
 

@@ -19,19 +19,36 @@ use RuntimeException;
 class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 {
     private const TEMPLATE_FIRST_DAY_TURN_STARTS = [1 => 2, 2 => 13, 3 => 24];
+
     private const TEMPLATE_STANDARD_DAY_START_ROW = 35;
+
     private const TEMPLATE_STANDARD_DAY_BLOCK_HEIGHT = 34;
+
     private const TEMPLATE_STANDARD_DAY_SOURCE_START_ROW = 239;
+
     private const TEMPLATE_STANDARD_DAY_SOURCE_END_ROW = 272;
+
     private const TEMPLATE_VISIBLE_DAYS = 8;
+
     private const TEMPLATE_MAX_COLUMN = 43; // AQ
+
     private const DATE_COLUMNS = ['A', 'L', 'AJ'];
+
     private const TURN_LABEL_OFFSET = 6;
+
     private const COMPACT_SECTION_START_COLUMN = 38; // AL
+
     private const TEMPLATE_PINK_LABEL_FILL = 'FFE59EDE';
+
     private const FORCED_BLUE_LABEL_FILL = 'FFD9E2F3';
+
     private const INTEGER_FORMAT = '0';
+
     private const RPM_FORMAT = '0.##';
+
+    /** Ancho mínimo (unidades Excel) para columnas de datos por telar; evita ajuste de texto que apila dígitos. */
+    private const TELAR_COLUMN_MIN_WIDTH = 10.5;
+
     private const STANDARD_METRIC_ROW_OFFSETS = [
         'paros_trama' => 1,
         'paros_urdimbre' => 3,
@@ -40,6 +57,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
         'marcas' => 9,
         'rpm' => 10,
     ];
+
     private const COMPACT_METRIC_ROW_OFFSETS = [
         'paros_trama' => 1,
         'paros_urdimbre' => 3,
@@ -51,8 +69,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
     public function __construct(
         private readonly array $report
-    ) {
-    }
+    ) {}
 
     public function array(): array
     {
@@ -114,13 +131,15 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
             }
         }
 
+        $this->ensureTelarColumnWidth($sheet, $telarColumns);
+
         $sheet->setSelectedCell('A1');
     }
 
     private function loadTemplateBook(bool $dataOnly): Spreadsheet
     {
         $templatePath = resource_path('templates/PromedioParosMarcas.xlsx');
-        if (!is_file($templatePath)) {
+        if (! is_file($templatePath)) {
             throw new RuntimeException('No se encontro la plantilla PromedioParosMarcas.xlsx en resources/templates/.');
         }
 
@@ -140,7 +159,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
         $version = is_file($templatePath) ? (string) filemtime($templatePath) : 'missing';
 
         return Cache::rememberForever(
-            'promedio_paros_template_metadata_' . $version,
+            'promedio_paros_template_metadata_'.$version,
             function () use ($templateSheet): array {
                 $dataOnlyBook = $this->loadTemplateBook(dataOnly: true);
 
@@ -161,7 +180,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
             $cell = $sheet->getCellByColumnAndRow($column, 1);
             $value = $cell->getValue();
 
-            if (!is_numeric($value) && is_string($value) && str_starts_with($value, '=')) {
+            if (! is_numeric($value) && is_string($value) && str_starts_with($value, '=')) {
                 try {
                     $value = $cell->getCalculatedValue();
                 } catch (\Throwable) {
@@ -184,7 +203,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
         for ($row = 1; $row <= $highestRow; $row++) {
             for ($columnIndex = 1; $columnIndex <= self::TEMPLATE_MAX_COLUMN; $columnIndex++) {
-                $coordinate = Coordinate::stringFromColumnIndex($columnIndex) . $row;
+                $coordinate = Coordinate::stringFromColumnIndex($columnIndex).$row;
                 $fill = $sheet->getStyle($coordinate)->getFill();
                 $startColor = strtoupper((string) $fill->getStartColor()->getARGB());
 
@@ -226,8 +245,8 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
                 ->setRowHeight($sheet->getRowDimension($sourceRow)->getRowHeight());
 
             for ($column = 1; $column <= self::TEMPLATE_MAX_COLUMN; $column++) {
-                $sourceCoordinate = Coordinate::stringFromColumnIndex($column) . $sourceRow;
-                $targetCoordinate = Coordinate::stringFromColumnIndex($column) . $targetRow;
+                $sourceCoordinate = Coordinate::stringFromColumnIndex($column).$sourceRow;
+                $targetCoordinate = Coordinate::stringFromColumnIndex($column).$targetRow;
 
                 $sheet->duplicateStyle($sheet->getStyle($sourceCoordinate), $targetCoordinate);
                 $sheet->setCellValue($targetCoordinate, $sheet->getCell($sourceCoordinate)->getValue());
@@ -235,7 +254,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
         }
 
         foreach ($sheet->getMergeCells() as $range) {
-            if (!$this->rangeFitsRows($range, $sourceStartRow, self::TEMPLATE_STANDARD_DAY_SOURCE_END_ROW)) {
+            if (! $this->rangeFitsRows($range, $sourceStartRow, self::TEMPLATE_STANDARD_DAY_SOURCE_END_ROW)) {
                 continue;
             }
 
@@ -265,13 +284,13 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
             foreach ($telarColumns as $columnIndex) {
                 foreach ($this->resolveMetricRowOffsets($columnIndex) as $offset) {
                     $row = $turnStartRow + $offset;
-                    $coordinate = Coordinate::stringFromColumnIndex($columnIndex) . $row;
+                    $coordinate = Coordinate::stringFromColumnIndex($columnIndex).$row;
                     $this->clearDataCoordinate($sheet, $coordinate, $mergedLookup);
                 }
             }
 
             foreach ($telarColumns as $columnIndex) {
-                $formulaCoordinate = Coordinate::stringFromColumnIndex($columnIndex) . $turnStartRow;
+                $formulaCoordinate = Coordinate::stringFromColumnIndex($columnIndex).$turnStartRow;
                 $this->clearDataCoordinate($sheet, $formulaCoordinate, $mergedLookup);
             }
         }
@@ -304,7 +323,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
             foreach ($telarColumns as $telar => $columnIndex) {
                 $values = $metricsByTurn[$turn][$telar] ?? null;
-                if (!is_array($values)) {
+                if (! is_array($values)) {
                     continue;
                 }
 
@@ -314,17 +333,18 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
                         continue;
                     }
 
-                    $coordinate = Coordinate::stringFromColumnIndex($columnIndex) . ($turnStartRow + $offset);
+                    $coordinate = Coordinate::stringFromColumnIndex($columnIndex).($turnStartRow + $offset);
                     if ($this->canWriteDataCoordinate($coordinate, $mergedLookup)) {
-                        $sheet->setCellValue(
-                            $coordinate,
-                            $metric === 'rpm'
-                                ? $this->normalizeWritableDecimal($value)
-                                : $this->normalizeWritableInteger($value)
-                        );
-                        $sheet->getStyle($coordinate)
-                            ->getNumberFormat()
-                            ->setFormatCode($metric === 'rpm' ? self::RPM_FORMAT : self::INTEGER_FORMAT);
+                        if ($metric === 'rpm') {
+                            $writable = $this->normalizeWritableDecimal($value);
+                            $format = is_int($writable) ? self::INTEGER_FORMAT : self::RPM_FORMAT;
+                        } else {
+                            $writable = $this->normalizeWritableInteger($value);
+                            $format = self::INTEGER_FORMAT;
+                        }
+
+                        $sheet->setCellValue($coordinate, $writable);
+                        $this->applyNumericCellPresentation($sheet, $coordinate, $format);
                     }
                 }
             }
@@ -345,22 +365,40 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
                 $column = Coordinate::stringFromColumnIndex($columnIndex);
                 $coordinate = "{$column}{$turnStartRow}";
 
-                if (!$this->canWriteDataCoordinate($coordinate, $mergedLookup)) {
+                if (! $this->canWriteDataCoordinate($coordinate, $mergedLookup)) {
                     continue;
                 }
 
                 $sheet->setCellValue(
                     $coordinate,
                     sprintf(
-                        '=IF(OR(%1$s%2$d="",%1$s%3$d="",%1$s%3$d=0),"",IFERROR((%1$s%2$d*100000)/(%1$s%3$d*60*8),""))',
+                        '=IF(OR(%1$s%2$d="",%1$s%3$d="",%1$s%3$d=0),"",IFERROR(ROUND((%1$s%2$d*100000)/(%1$s%3$d*60*8),0),""))',
                         $column,
                         $marcasRow,
                         $rpmRow
                     )
                 );
-                $sheet->getStyle($coordinate)
-                    ->getNumberFormat()
-                    ->setFormatCode(self::INTEGER_FORMAT);
+                $this->applyNumericCellPresentation($sheet, $coordinate, self::INTEGER_FORMAT);
+            }
+        }
+    }
+
+    private function applyNumericCellPresentation(Worksheet $sheet, string $coordinate, string $formatCode): void
+    {
+        $style = $sheet->getStyle($coordinate);
+        $style->getAlignment()->setWrapText(false);
+        $style->getNumberFormat()->setFormatCode($formatCode);
+    }
+
+    private function ensureTelarColumnWidth(Worksheet $sheet, array $telarColumns): void
+    {
+        foreach ($telarColumns as $columnIndex) {
+            $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
+            $dimension = $sheet->getColumnDimension($columnLetter);
+            $width = $dimension->getWidth();
+
+            if ($width <= 0 || $width < self::TELAR_COLUMN_MIN_WIDTH) {
+                $dimension->setWidth(self::TELAR_COLUMN_MIN_WIDTH);
             }
         }
     }
@@ -405,7 +443,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
     private function clearDataCoordinate(Worksheet $sheet, string $coordinate, array $mergedLookup): void
     {
-        if (!isset($mergedLookup[$coordinate])) {
+        if (! isset($mergedLookup[$coordinate])) {
             $sheet->setCellValue($coordinate, null);
 
             return;
@@ -418,12 +456,12 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
     private function canWriteDataCoordinate(string $coordinate, array $mergedLookup): bool
     {
-        return !isset($mergedLookup[$coordinate]);
+        return ! isset($mergedLookup[$coordinate]);
     }
 
     private function normalizeWritableInteger(mixed $value): mixed
     {
-        if ($value === null || $value === '' || !is_numeric($value)) {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
             return $value;
         }
 
@@ -432,11 +470,14 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
     private function normalizeWritableDecimal(mixed $value): mixed
     {
-        if ($value === null || $value === '' || !is_numeric($value)) {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
             return $value;
         }
 
-        return round((float) $value, 2);
+        $rounded = round((float) $value, 2);
+        $asInteger = (int) round($rounded, 0);
+
+        return abs($rounded - $asInteger) < 0.0000001 ? $asInteger : $rounded;
     }
 
     private function buildMergedLookup(Worksheet $sheet): array
@@ -453,7 +494,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
             for ($columnIndex = $startColumnIndex; $columnIndex <= $endColumnIndex; $columnIndex++) {
                 for ($row = $startRow; $row <= $endRow; $row++) {
-                    $coordinate = Coordinate::stringFromColumnIndex($columnIndex) . $row;
+                    $coordinate = Coordinate::stringFromColumnIndex($columnIndex).$row;
                     $lookup[$coordinate] = [
                         'top_left' => $coordinate === $start,
                     ];

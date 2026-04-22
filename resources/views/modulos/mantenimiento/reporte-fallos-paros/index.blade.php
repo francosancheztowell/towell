@@ -99,7 +99,7 @@
         </div>
         <div class="mb-4">
             <label class="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
-                <input type="checkbox" id="filter-solo-mis" class="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500" checked>
+                <input type="checkbox" id="filter-solo-mis" class="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500">
                 <span class="text-sm font-medium text-gray-700">
                     <i class="fa-solid fa-user mr-1"></i>Solo mis solicitudes
                 </span>
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         numeroEmpleado: '{{ Auth::user()->numero_empleado ?? '' }}',
         nombre: '{{ Auth::user()->nombre ?? '' }}'
     };
-    let mostrarSoloMisSolicitudes = true;
+    let mostrarSoloMisSolicitudes = false;
 
     // Ocultar botón de "Paro" en la barra de navegación
     const navLinks = document.querySelectorAll('nav a, header a, .nav a, [role="navigation"] a');
@@ -327,8 +327,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         const checkboxSoloMis = document.getElementById('filter-solo-mis');
         if (checkboxSoloMis) {
-            checkboxSoloMis.checked = true;
-            mostrarSoloMisSolicitudes = true;
+            checkboxSoloMis.checked = false;
+            mostrarSoloMisSolicitudes = false;
         }
         applyFilters();
         closeFiltersModal();
