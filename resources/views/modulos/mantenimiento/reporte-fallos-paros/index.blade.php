@@ -122,6 +122,8 @@ document.addEventListener('DOMContentLoaded', function() {
         numeroEmpleado: '{{ Auth::user()->numero_empleado ?? '' }}',
         nombre: '{{ Auth::user()->nombre ?? '' }}'
     };
+    /** Área del usuario (SYSUsuario.area); debe coincidir con ManFallasParos.Depto para filtrar por defecto. */
+    const defaultAreaFilter = @json(trim((string) (Auth::user()->area ?? '')));
     let mostrarSoloMisSolicitudes = false;
 
     // Ocultar botón de "Paro" en la barra de navegación
@@ -206,6 +208,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 filterDepto.innerHTML = '<option value="">Todos</option>' + deptos.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
                 filterStatus.innerHTML = '<option value="">Todos</option>' + statuses.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
                 filterMaquina.innerHTML = '<option value="">Todos</option>' + maquinas.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+
+                if (defaultAreaFilter && deptos.includes(defaultAreaFilter)) {
+                    filterDepto.value = defaultAreaFilter;
+                }
 
                 allParos.forEach(paro => {
                     const row = document.createElement('tr');
@@ -321,10 +327,19 @@ document.addEventListener('DOMContentLoaded', function() {
         applyFilters();
     });
     document.getElementById('btn-clear-filter')?.addEventListener('click', function() {
-        ['filter-depto', 'filter-status', 'filter-maquina'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        });
+        const filterDepto = document.getElementById('filter-depto');
+        const filterStatus = document.getElementById('filter-status');
+        const filterMaquina = document.getElementById('filter-maquina');
+        if (filterStatus) {
+            filterStatus.value = '';
+        }
+        if (filterMaquina) {
+            filterMaquina.value = '';
+        }
+        if (filterDepto) {
+            const hasAreaOption = defaultAreaFilter && [...filterDepto.options].some(o => o.value === defaultAreaFilter);
+            filterDepto.value = hasAreaOption ? defaultAreaFilter : '';
+        }
         const checkboxSoloMis = document.getElementById('filter-solo-mis');
         if (checkboxSoloMis) {
             checkboxSoloMis.checked = false;
