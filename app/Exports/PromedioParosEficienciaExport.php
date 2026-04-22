@@ -30,8 +30,6 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
     private const TEMPLATE_VISIBLE_DAYS = 8;
 
-    private const TEMPLATE_MAX_COLUMN = 43; // AQ
-
     private const DATE_COLUMNS = ['A', 'L', 'AJ'];
 
     private const TURN_LABEL_OFFSET = 6;
@@ -46,8 +44,8 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
     private const RPM_FORMAT = '0.##';
 
-    /** Ancho mínimo (unidades Excel) para columnas de datos por telar; evita ajuste de texto que apila dígitos. */
-    private const TELAR_COLUMN_MIN_WIDTH = 10.5;
+    // Excel width units for telar columns; avoids stacked digits with wrap disabled.
+    private const TELAR_COLUMN_MIN_WIDTH = 13.0;
 
     private const STANDARD_METRIC_ROW_OFFSETS = [
         'paros_trama' => 1,
@@ -67,6 +65,36 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
         'rpm' => 9,
     ];
 
+    private const SUMMARY_SHEET_LAYOUTS = [
+        'JACQ' => [
+            'detail_start_row' => 3,
+            'telars' => ['201', '202', '203', '204', '205', '206', '213', '214', '215'],
+        ],
+        'JACQ-SULZ' => [
+            'detail_start_row' => 3,
+            'telars' => ['207', '208', '209', '210', '211', '212'],
+        ],
+        'SMIT' => [
+            'detail_start_row' => 3,
+            'telars' => ['305', '306', '307', '308', '309', '310', '311', '312', '313', '314', '315', '316'],
+        ],
+        'ITEMA' => [
+            'detail_start_row' => 3,
+            'telars' => ['299', '300', '301', '302', '303', '304', '317', '318', '319', '320'],
+        ],
+    ];
+
+    private const SUMMARY_METRIC_COLUMNS = [
+        'eficiencia' => 'B',
+        'paros_rizo' => 'C',
+        'paros_trama' => 'D',
+        'paros_urdimbre' => 'E',
+        'paros_otros' => 'F',
+        'total_general' => 'G',
+    ];
+
+    private const SUMMARY_DATA_COLUMN_WIDTH = 13.0;
+
     public function __construct(
         private readonly array $report
     ) {}
@@ -78,7 +106,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
     public function title(): string
     {
-        return 'Promedio Paros y Eficiencia';
+        return 'SEMANA';
     }
 
     public function registerEvents(): array
@@ -90,22 +118,24 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
                 $sheetIndex = $book->getIndex($initialSheet);
 
                 $templateBook = $this->loadTemplateBook(dataOnly: false);
-                $templateSheet = $templateBook->getSheet(0);
-                $templateSheet->setTitle($this->title());
-                $metadata = $this->loadTemplateMetadata($templateSheet);
-                $this->normalizeLabelBandColors($templateSheet, $metadata['pink_coordinates']);
+                $weekTemplateSheet = $templateBook->getSheet(0);
+                $metadata = $this->loadTemplateMetadata($weekTemplateSheet);
+                $this->normalizeLabelBandColors($weekTemplateSheet, $metadata['pink_coordinates']);
                 $this->copyWorkbookTheme($templateBook, $book);
 
                 $book->removeSheetByIndex($sheetIndex);
-                $book->addExternalSheet($templateSheet, $sheetIndex);
 
-                $sheet = $book->getSheet($sheetIndex);
-                $this->fillSheet($sheet, $metadata['telar_columns']);
+                foreach ($templateBook->getAllSheets() as $offset => $templateSheet) {
+                    $book->addExternalSheet($templateSheet, $sheetIndex + $offset);
+                }
+
+                $this->fillWeekSheet($book->getSheet($sheetIndex), $metadata['telar_columns']);
+                $this->fillSummarySheets($book);
             },
         ];
     }
 
-    private function fillSheet(Worksheet $sheet, array $telarColumns): void
+    private function fillWeekSheet(Worksheet $sheet, array $telarColumns): void
     {
         $days = array_values($this->report['days'] ?? []);
         $metrics = $this->report['metrics'] ?? [];
@@ -136,6 +166,66 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
         $sheet->setSelectedCell('A1');
     }
 
+    private function fillSummarySheets(Spreadsheet $book): void
+    {
+        $summaries = $this->report['summaries'] ?? [];
+
+        foreach (self::SUMMARY_SHEET_LAYOUTS as $sheetName => $layout) {
+            $sheet = $book->getSheetByName($sheetName);
+            if (! $sheet instanceof Worksheet) {
+                continue;
+            }
+
+            $this->fillSummarySheet($sheet, $layout, $summaries[$sheetName] ?? []);
+        }
+    }
+
+    private function fillSummarySheet(Worksheet $sheet, array $layout, array $summaryRows): void
+    {
+        $detailStartRow = (int) $layout['detail_start_row'];
+        $telars = $layout['telars'];
+
+        $this->ensureSummarySheetColumnWidths($sheet);
+
+        foreach ($telars as $offset => $telar) {
+            $row = $detailStartRow + $offset;
+            $this->clearSummaryDetailRow($sheet, $row);
+            $sheet->setCellValue("A{$row}", "Promedio de {$telar}");
+
+            foreach (self::SUMMARY_METRIC_COLUMNS as $metric => $column) {
+                $coordinate = "{$column}{$row}";
+                $value = $summaryRows[$telar][$metric] ?? null;
+
+                if ($value === null) {
+                    $sheet->setCellValue($coordinate, null);
+
+                    continue;
+                }
+
+                $sheet->setCellValue($coordinate, $this->normalizeWritableSummaryValue($value));
+                $this->applyNumericCellPresentation($sheet, $coordinate, self::INTEGER_FORMAT);
+            }
+        }
+    }
+
+    private function ensureSummarySheetColumnWidths(Worksheet $sheet): void
+    {
+        foreach (self::SUMMARY_METRIC_COLUMNS as $column) {
+            $dimension = $sheet->getColumnDimension($column);
+
+            if ($dimension->getWidth() <= 0 || $dimension->getWidth() < self::SUMMARY_DATA_COLUMN_WIDTH) {
+                $dimension->setWidth(self::SUMMARY_DATA_COLUMN_WIDTH);
+            }
+        }
+    }
+
+    private function clearSummaryDetailRow(Worksheet $sheet, int $row): void
+    {
+        foreach (range('A', 'G') as $column) {
+            $sheet->setCellValue("{$column}{$row}", null);
+        }
+    }
+
     private function loadTemplateBook(bool $dataOnly): Spreadsheet
     {
         $templatePath = resource_path('templates/PromedioParosMarcas.xlsx');
@@ -153,19 +243,19 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
         return IOFactory::load($templatePath);
     }
 
-    private function loadTemplateMetadata(Worksheet $templateSheet): array
+    private function loadTemplateMetadata(Worksheet $weekTemplateSheet): array
     {
         $templatePath = resource_path('templates/PromedioParosMarcas.xlsx');
         $version = is_file($templatePath) ? (string) filemtime($templatePath) : 'missing';
 
         return Cache::rememberForever(
             'promedio_paros_template_metadata_'.$version,
-            function () use ($templateSheet): array {
+            function () use ($weekTemplateSheet): array {
                 $dataOnlyBook = $this->loadTemplateBook(dataOnly: true);
 
                 return [
                     'telar_columns' => $this->extractTelarColumns($dataOnlyBook->getSheet(0)),
-                    'pink_coordinates' => $this->extractPinkCoordinates($templateSheet),
+                    'pink_coordinates' => $this->extractPinkCoordinates($weekTemplateSheet),
                 ];
             }
         );
@@ -200,9 +290,10 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
     {
         $coordinates = [];
         $highestRow = $sheet->getHighestRow();
+        $highestColumn = $this->getTemplateMaxColumnIndex($sheet);
 
         for ($row = 1; $row <= $highestRow; $row++) {
-            for ($columnIndex = 1; $columnIndex <= self::TEMPLATE_MAX_COLUMN; $columnIndex++) {
+            for ($columnIndex = 1; $columnIndex <= $highestColumn; $columnIndex++) {
                 $coordinate = Coordinate::stringFromColumnIndex($columnIndex).$row;
                 $fill = $sheet->getStyle($coordinate)->getFill();
                 $startColor = strtoupper((string) $fill->getStartColor()->getARGB());
@@ -236,6 +327,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
     {
         $sourceStartRow = self::TEMPLATE_STANDARD_DAY_SOURCE_START_ROW;
         $rowOffset = $targetStartRow - $sourceStartRow;
+        $highestColumn = $this->getTemplateMaxColumnIndex($sheet);
 
         for ($offset = 0; $offset < self::TEMPLATE_STANDARD_DAY_BLOCK_HEIGHT; $offset++) {
             $sourceRow = $sourceStartRow + $offset;
@@ -244,7 +336,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
             $sheet->getRowDimension($targetRow)
                 ->setRowHeight($sheet->getRowDimension($sourceRow)->getRowHeight());
 
-            for ($column = 1; $column <= self::TEMPLATE_MAX_COLUMN; $column++) {
+            for ($column = 1; $column <= $highestColumn; $column++) {
                 $sourceCoordinate = Coordinate::stringFromColumnIndex($column).$sourceRow;
                 $targetCoordinate = Coordinate::stringFromColumnIndex($column).$targetRow;
 
@@ -386,7 +478,12 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
     private function applyNumericCellPresentation(Worksheet $sheet, string $coordinate, string $formatCode): void
     {
         $style = $sheet->getStyle($coordinate);
-        $style->getAlignment()->setWrapText(false);
+        $style->getAlignment()
+            ->setWrapText(false)
+            ->setTextRotation(0)
+            ->setShrinkToFit(false)
+            ->setHorizontal('center')
+            ->setVertical('center');
         $style->getNumberFormat()->setFormatCode($formatCode);
     }
 
@@ -480,6 +577,15 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
         return abs($rounded - $asInteger) < 0.0000001 ? $asInteger : $rounded;
     }
 
+    private function normalizeWritableSummaryValue(mixed $value): mixed
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return $value;
+        }
+
+        return (float) $value;
+    }
+
     private function buildMergedLookup(Worksheet $sheet): array
     {
         $lookup = [];
@@ -570,5 +676,10 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
             $endColumn,
             $endRow + $rowOffset
         );
+    }
+
+    private function getTemplateMaxColumnIndex(Worksheet $sheet): int
+    {
+        return Coordinate::columnIndexFromString($sheet->getHighestColumn());
     }
 }

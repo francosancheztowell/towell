@@ -11,6 +11,21 @@ use Carbon\CarbonPeriod;
 
 class PromedioParosEficienciaReportService
 {
+    private const SUMMARY_GROUPS = [
+        'JACQ' => ['201', '202', '203', '204', '205', '206', '213', '214', '215'],
+        'JACQ-SULZ' => ['207', '208', '209', '210', '211', '212'],
+        'SMIT' => ['305', '306', '307', '308', '309', '310', '311', '312', '313', '314', '315', '316'],
+        'ITEMA' => ['299', '300', '301', '302', '303', '304', '317', '318', '319', '320'],
+    ];
+
+    private const SUMMARY_VISIBLE_METRICS = [
+        'eficiencia',
+        'paros_rizo',
+        'paros_trama',
+        'paros_urdimbre',
+        'paros_otros',
+    ];
+
     public function build(string $fechaIni, string $fechaFin): array
     {
         $days = $this->buildDays($fechaIni, $fechaFin);
@@ -20,10 +35,12 @@ class PromedioParosEficienciaReportService
 
         $marcasMetrics = $this->fetchMarcasMetrics($marcasHeaders);
         $cortesMetrics = $this->fetchCortesMetrics($cortesHeaders);
+        $metrics = $this->mergeMetrics($marcasMetrics, $cortesMetrics);
 
         return [
             'days' => $days,
-            'metrics' => $this->mergeMetrics($marcasMetrics, $cortesMetrics),
+            'metrics' => $metrics,
+            'summaries' => $this->buildSummaries($metrics),
         ];
     }
 
@@ -248,6 +265,53 @@ class PromedioParosEficienciaReportService
         return $metrics;
     }
 
+    private function buildSummaries(array $metrics): array
+    {
+        $summaryTelars = $this->summaryTelarLookup();
+        $samples = [];
+
+        foreach ($metrics as $turns) {
+            foreach ($turns as $telares) {
+                foreach ($telares as $telar => $values) {
+                    if (! isset($summaryTelars[$telar]) || ! is_array($values)) {
+                        continue;
+                    }
+
+                    $this->collectSummarySample($samples, $telar, 'paros_rizo', $values['paros_rizo'] ?? null);
+                    $this->collectSummarySample($samples, $telar, 'paros_trama', $values['paros_trama'] ?? null);
+                    $this->collectSummarySample($samples, $telar, 'paros_urdimbre', $values['paros_urdimbre'] ?? null);
+                    $this->collectSummarySample($samples, $telar, 'paros_otros', $values['paros_otros'] ?? null);
+
+                    $efficiency = $this->calculateSummaryEfficiency($values);
+                    if ($efficiency !== null) {
+                        $samples[$telar]['eficiencia'][] = $efficiency;
+                    }
+                }
+            }
+        }
+
+        $summaries = [];
+
+        foreach (self::SUMMARY_GROUPS as $group => $telars) {
+            foreach ($telars as $telar) {
+                $summary = [];
+
+                foreach (self::SUMMARY_VISIBLE_METRICS as $metric) {
+                    $summary[$metric] = $this->averageSummaryValues($samples[$telar][$metric] ?? []);
+                }
+
+                $summary['total_general'] = $this->averageSummaryValues(array_values(array_filter(
+                    $summary,
+                    static fn (?float $value): bool => $value !== null
+                )));
+
+                $summaries[$group][$telar] = $summary;
+            }
+        }
+
+        return $summaries;
+    }
+
     /**
      * @param TejEficienciaLine|object $line
      */
@@ -282,6 +346,45 @@ class PromedioParosEficienciaReportService
         }
 
         return round(array_sum($capturedValues) / count($capturedValues), 2);
+    }
+
+    private function collectSummarySample(array &$samples, string $telar, string $metric, mixed $value): void
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return;
+        }
+
+        $samples[$telar][$metric][] = (float) $value;
+    }
+
+    private function calculateSummaryEfficiency(array $values): ?float
+    {
+        $marcas = $values['marcas'] ?? null;
+        $rpm = $values['rpm'] ?? null;
+
+        if ($marcas === null || $marcas === '' || ! is_numeric($marcas)) {
+            return null;
+        }
+
+        if ($rpm === null || $rpm === '' || ! is_numeric($rpm)) {
+            return null;
+        }
+
+        $numericRpm = (float) $rpm;
+        if (abs($numericRpm) < 0.0000001) {
+            return null;
+        }
+
+        return ((float) $marcas * 100000) / ($numericRpm * 60 * 8);
+    }
+
+    private function averageSummaryValues(array $values): ?float
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        return array_sum($values) / count($values);
     }
 
     private function normalizeNumericValue(mixed $value): ?int
@@ -320,6 +423,19 @@ class PromedioParosEficienciaReportService
     private function normalizeTelar(mixed $value): string
     {
         return trim((string) $value);
+    }
+
+    private function summaryTelarLookup(): array
+    {
+        $lookup = [];
+
+        foreach (self::SUMMARY_GROUPS as $telars) {
+            foreach ($telars as $telar) {
+                $lookup[$telar] = true;
+            }
+        }
+
+        return $lookup;
     }
 
     private function resolveDayCode(Carbon $date): string

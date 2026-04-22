@@ -171,6 +171,84 @@ class ReqProgramaTejido extends Model
         'Prioridad' => 'string',
     ];
 
+    /**
+     * Límites de columnas de texto (SQL Server / migración local) para evitar
+     * SQLSTATE[22001] "String or binary data would be truncated" al guardar.
+     */
+    protected static function stringColumnMaxLengths(): array
+    {
+        return [
+            'CuentaRizo' => 10,
+            'SalonTejidoId' => 10,
+            'NoTelarId' => 10,
+            'Ultimo' => 2,
+            'CambioHilo' => 4,
+            'Maquina' => 15,
+            'CalendarioId' => 15,
+            'TamanoClave' => 20,
+            'NoExisteBase' => 20,
+            'ItemId' => 20,
+            'InventSizeId' => 10,
+            'Rasurado' => 2,
+            'NombreProducto' => 100,
+            'NoProduccion' => 15,
+            'FlogsId' => 20,
+            'NombreProyecto' => 60,
+            'CustName' => 60,
+            'AplicacionId' => 10,
+            'Observaciones' => 200,
+            'TipoPedido' => 20,
+            'FibraTrama' => 15,
+            'DobladilloId' => 20,
+            'CodColorTrama' => 10,
+            'ColorTrama' => 60,
+            'CodColorComb1' => 10,
+            'CodColorComb2' => 10,
+            'CodColorComb3' => 10,
+            'CodColorComb4' => 10,
+            'CodColorComb5' => 10,
+            'NombreCC1' => 60,
+            'NombreCC2' => 60,
+            'NombreCC3' => 60,
+            'NombreCC4' => 60,
+            'NombreCC5' => 60,
+            'CuentaPie' => 10,
+            'CodColorCtaPie' => 10,
+            'NombreCPie' => 60,
+            'CombinaTram' => 60,
+            'BomId' => 20,
+            'BomName' => 60,
+            'HiloAX' => 30,
+            'UsuarioCrea' => 50,
+            'UsuarioModifica' => 50,
+            'CalibreComb1' => 40,
+            'CalibreComb2' => 40,
+            'CalibreComb3' => 40,
+            'CalibreComb4' => 40,
+            'CalibreComb5' => 40,
+            'FibraComb1' => 15,
+            'FibraComb2' => 15,
+            'FibraComb3' => 15,
+            'FibraComb4' => 15,
+            'FibraComb5' => 15,
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $model) {
+            foreach (self::stringColumnMaxLengths() as $attribute => $max) {
+                $value = $model->getAttribute($attribute);
+                if (! is_string($value) || $value === '') {
+                    continue;
+                }
+                if (mb_strlen($value) > $max) {
+                    $model->setAttribute($attribute, mb_substr($value, 0, $max));
+                }
+            }
+        });
+    }
+
     /* ===========================
      |  Scopes reutilizables
      |===========================*/

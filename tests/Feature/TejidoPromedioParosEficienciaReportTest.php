@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use Illuminate\Testing\TestResponse;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -72,5 +75,29 @@ class TejidoPromedioParosEficienciaReportTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $workbook = $this->loadWorkbookFromDownload($response);
+        $this->assertSame(['SEMANA', 'JACQ', 'JACQ-SULZ', 'SMIT', 'ITEMA'], $workbook->getSheetNames());
+    }
+
+    private function loadWorkbookFromDownload(TestResponse $response): Spreadsheet
+    {
+        $baseResponse = $response->baseResponse;
+
+        if (method_exists($baseResponse, 'getFile')) {
+            return IOFactory::load($baseResponse->getFile()->getPathname());
+        }
+
+        $binary = method_exists($response, 'streamedContent')
+            ? $response->streamedContent()
+            : $response->getContent();
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'promedio-paros-feature-');
+        file_put_contents($tempFile, $binary);
+
+        $spreadsheet = IOFactory::load($tempFile);
+        @unlink($tempFile);
+
+        return $spreadsheet;
     }
 }

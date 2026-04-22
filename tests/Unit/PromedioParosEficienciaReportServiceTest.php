@@ -178,6 +178,32 @@ class PromedioParosEficienciaReportServiceTest extends TestCase
         $this->assertNull($metrics299['paros_trama']);
         $this->assertNull($metrics299['eficiencia']);
         $this->assertSame(280.0, $metrics299['rpm']);
+
+        $summary201 = $report['summaries']['JACQ']['201'];
+        $this->assertEqualsWithDelta((120 * 100000) / (315 * 60 * 8), $summary201['eficiencia'], 0.0000001);
+        $this->assertSame(5.0, $summary201['paros_rizo']);
+        $this->assertSame(12.0, $summary201['paros_trama']);
+        $this->assertSame(3.0, $summary201['paros_urdimbre']);
+        $this->assertSame(7.0, $summary201['paros_otros']);
+        $this->assertEqualsWithDelta(
+            (
+                ((120 * 100000) / (315 * 60 * 8))
+                + 5
+                + 12
+                + 3
+                + 7
+            ) / 5,
+            $summary201['total_general'],
+            0.0000001
+        );
+
+        $summary299 = $report['summaries']['ITEMA']['299'];
+        $this->assertNull($summary299['eficiencia']);
+        $this->assertNull($summary299['paros_rizo']);
+        $this->assertNull($summary299['paros_trama']);
+        $this->assertNull($summary299['paros_urdimbre']);
+        $this->assertNull($summary299['paros_otros']);
+        $this->assertNull($summary299['total_general']);
     }
 
     public function test_build_averages_rpm_only_with_captured_values_and_leaves_efficiency_empty_without_marcas(): void
@@ -246,5 +272,119 @@ class PromedioParosEficienciaReportServiceTest extends TestCase
         $this->assertNull($metrics['203']['eficiencia']);
         $this->assertNull($metrics['204']['rpm']);
         $this->assertNull($metrics['204']['eficiencia']);
+    }
+
+    public function test_build_summaries_average_visible_metrics_and_ignore_missing_values(): void
+    {
+        TejMarcas::create([
+            'Folio' => 'M-207-T1',
+            'Date' => '2026-03-04',
+            'Turno' => 1,
+            'Status' => 'Finalizado',
+            'updated_at' => '2026-03-04 08:00:00',
+            'created_at' => '2026-03-04 08:00:00',
+        ]);
+
+        TejMarcas::create([
+            'Folio' => 'M-207-T2',
+            'Date' => '2026-03-04',
+            'Turno' => 2,
+            'Status' => 'Finalizado',
+            'updated_at' => '2026-03-04 16:00:00',
+            'created_at' => '2026-03-04 16:00:00',
+        ]);
+
+        TejMarcasLine::create([
+            'Folio' => 'M-207-T1',
+            'Date' => '2026-03-04',
+            'Turno' => 1,
+            'NoTelarId' => '207',
+            'Eficiencia' => 80,
+            'Trama' => 10,
+            'Pie' => 2,
+            'Rizo' => 4,
+            'Otros' => 6,
+            'Marcas' => 96,
+            'updated_at' => '2026-03-04 08:00:00',
+            'created_at' => '2026-03-04 08:00:00',
+        ]);
+
+        TejMarcasLine::create([
+            'Folio' => 'M-207-T2',
+            'Date' => '2026-03-04',
+            'Turno' => 2,
+            'NoTelarId' => '207',
+            'Eficiencia' => 83,
+            'Trama' => 20,
+            'Pie' => 4,
+            'Rizo' => 8,
+            'Otros' => null,
+            'Marcas' => 120,
+            'updated_at' => '2026-03-04 16:00:00',
+            'created_at' => '2026-03-04 16:00:00',
+        ]);
+
+        TejEficiencia::create([
+            'Folio' => 'C-207-T1',
+            'Date' => '2026-03-04',
+            'Turno' => 1,
+            'Status' => 'Finalizado',
+            'updated_at' => '2026-03-04 08:05:00',
+            'created_at' => '2026-03-04 08:05:00',
+        ]);
+
+        TejEficiencia::create([
+            'Folio' => 'C-207-T2',
+            'Date' => '2026-03-04',
+            'Turno' => 2,
+            'Status' => 'Finalizado',
+            'updated_at' => '2026-03-04 16:05:00',
+            'created_at' => '2026-03-04 16:05:00',
+        ]);
+
+        TejEficienciaLine::create([
+            'Folio' => 'C-207-T1',
+            'Date' => '2026-03-04',
+            'Turno' => 1,
+            'NoTelarId' => '207',
+            'RpmR1' => 240,
+            'RpmR2' => 260,
+            'updated_at' => '2026-03-04 08:05:00',
+            'created_at' => '2026-03-04 08:05:00',
+        ]);
+
+        TejEficienciaLine::create([
+            'Folio' => 'C-207-T2',
+            'Date' => '2026-03-04',
+            'Turno' => 2,
+            'NoTelarId' => '207',
+            'RpmR1' => 300,
+            'updated_at' => '2026-03-04 16:05:00',
+            'created_at' => '2026-03-04 16:05:00',
+        ]);
+
+        $report = $this->service->build('2026-03-04', '2026-03-04');
+
+        $summary207 = $report['summaries']['JACQ-SULZ']['207'];
+        $expectedEfficiency = (80 + ((120 * 100000) / (300 * 60 * 8))) / 2;
+
+        $this->assertEqualsWithDelta($expectedEfficiency, $summary207['eficiencia'], 0.0000001);
+        $this->assertSame(6.0, $summary207['paros_rizo']);
+        $this->assertSame(15.0, $summary207['paros_trama']);
+        $this->assertSame(3.0, $summary207['paros_urdimbre']);
+        $this->assertSame(6.0, $summary207['paros_otros']);
+        $this->assertEqualsWithDelta(
+            ($expectedEfficiency + 6 + 15 + 3 + 6) / 5,
+            $summary207['total_general'],
+            0.0000001
+        );
+
+        $summary212 = $report['summaries']['JACQ-SULZ']['212'];
+        $this->assertNull($summary212['eficiencia']);
+        $this->assertNull($summary212['paros_rizo']);
+        $this->assertNull($summary212['paros_trama']);
+        $this->assertNull($summary212['paros_urdimbre']);
+        $this->assertNull($summary212['paros_otros']);
+        $this->assertNull($summary212['total_general']);
     }
 }
