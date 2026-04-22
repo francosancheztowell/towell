@@ -171,6 +171,36 @@ class CatCodificadosDesarrolladorServiceTest extends TestCase
         $this->assertSame('OLD-1', $sinTocar->CodigoDibujo);
     }
 
+    public function test_actualizar_cat_codificados_no_guarda_fecha_finaliza_cuando_accion_no_es_finalizar(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-19 08:15:00'));
+
+        $registro = $this->invokeActualizarCatCodificados([
+            'NoProduccion' => 'ORD-REP',
+            'accion' => 'reprogramar_siguiente',
+            'NumeroJulioRizo' => 'JR-R',
+            'NumeroJulioPie' => 'JP-R',
+            'TotalPasadasDibujo' => 50,
+            'Desarrollador' => 'FER',
+            'HoraInicio' => '07:30',
+            'HoraFinal' => '08:15',
+            'TramaAnchoPeine' => 55,
+            'EficienciaInicio' => 70,
+            'EficienciaFinal' => 75,
+            'DesperdicioTrama' => 1.0,
+        ], [
+            'salonDestino' => 'JAC',
+            'telarDestino' => '120',
+        ], 'COD-REP.JC1', 45, 100);
+
+        $this->assertNotNull($registro);
+
+        $guardado = CatCodificados::query()->where('OrdenTejido', 'ORD-REP')->firstOrFail();
+
+        $this->assertSame('2026-03-19 07:30:00', optional($guardado->FechaArranque)->format('Y-m-d H:i:s'));
+        $this->assertNull($guardado->FechaFinaliza);
+    }
+
     public function test_actualizar_cat_codificados_ajusta_fecha_finaliza_al_siguiente_dia_si_la_hora_final_es_menor(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-03-19 23:50:00'));

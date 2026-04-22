@@ -48,7 +48,7 @@ class MovimientoDesarrolladorService
                     $reprogramar = $registroEnProceso->Reprogramar;
 
                     if (!empty($reprogramar) && ($reprogramar == '1' || $reprogramar == '2')) {
-                        $this->actualizarFechasArranqueFinaliza($registroEnProceso, null, 'now');
+                        $this->actualizarFechasArranqueFinaliza($registroEnProceso, null, null, false);
                         $this->actualizarReqModelosDesdePrograma($registroEnProceso);
 
                         $todosLosRegistros = ReqProgramaTejido::query()
@@ -93,7 +93,7 @@ class MovimientoDesarrolladorService
                             }
                         }
 
-                        $this->actualizarFechasArranqueFinaliza($registroEnProceso, null, 'now');
+                        $this->actualizarFechasArranqueFinaliza($registroEnProceso, null, null, false);
                         $this->actualizarReqModelosDesdePrograma($registroEnProceso);
                         $registroEnProceso->delete();
                     }
@@ -500,8 +500,15 @@ class MovimientoDesarrolladorService
         return $idsAfectados;
     }
 
-    public function actualizarFechasArranqueFinaliza(ReqProgramaTejido $programa, $fechaArranque = null, $fechaFinaliza = null): bool
-    {
+    /**
+     * @param  bool  $actualizarFechaFinaliza  Si es false, no modifica FechaFinaliza en programa ni CatCodificados (p. ej. al mover/reprogramar sin finalizar la orden).
+     */
+    public function actualizarFechasArranqueFinaliza(
+        ReqProgramaTejido $programa,
+        $fechaArranque = null,
+        $fechaFinaliza = null,
+        bool $actualizarFechaFinaliza = true
+    ): bool {
         $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
         $noTelarId = trim((string) ($programa->NoTelarId ?? ''));
 
@@ -517,21 +524,34 @@ class MovimientoDesarrolladorService
             try { Carbon::parse($fechaArranque); } catch (Exception $e) { $fechaArranque = null; }
         }
 
-        if ($fechaFinaliza === null) {
-            $fechaFinaliza = null;
-        } elseif ($fechaFinaliza === 'now' || $fechaFinaliza === true) {
-            $fechaFinaliza = now()->format('Y-m-d H:i:s');
-        } elseif ($fechaFinaliza instanceof \DateTime || $fechaFinaliza instanceof Carbon) {
-            $fechaFinaliza = $fechaFinaliza->format('Y-m-d H:i:s');
-        } elseif (is_string($fechaFinaliza)) {
-            try { Carbon::parse($fechaFinaliza); } catch (Exception $e) { $fechaFinaliza = null; }
+        $fechaFinalizaEfectiva = null;
+        if ($actualizarFechaFinaliza) {
+            if ($fechaFinaliza === null) {
+                $fechaFinalizaEfectiva = null;
+            } elseif ($fechaFinaliza === 'now' || $fechaFinaliza === true) {
+                $fechaFinalizaEfectiva = now()->format('Y-m-d H:i:s');
+            } elseif ($fechaFinaliza instanceof \DateTime || $fechaFinaliza instanceof Carbon) {
+                $fechaFinalizaEfectiva = $fechaFinaliza->format('Y-m-d H:i:s');
+            } elseif (is_string($fechaFinaliza)) {
+                try {
+                    $fechaFinalizaEfectiva = Carbon::parse($fechaFinaliza)->format('Y-m-d H:i:s');
+                } catch (Exception $e) {
+                    $fechaFinalizaEfectiva = null;
+                }
+            }
         }
 
         $programaActualizado = false;
         if ($programa->exists) {
             $programa->FechaArranque = $fechaArranque;
-            $programa->FechaFinaliza = $fechaFinaliza;
-            if ($programa->isDirty(['FechaArranque', 'FechaFinaliza'])) {
+            if ($actualizarFechaFinaliza) {
+                $programa->FechaFinaliza = $fechaFinalizaEfectiva;
+            }
+            $attrs = ['FechaArranque'];
+            if ($actualizarFechaFinaliza) {
+                $attrs[] = 'FechaFinaliza';
+            }
+            if ($programa->isDirty($attrs)) {
                 $programa->save();
                 $programaActualizado = true;
             }
@@ -551,9 +571,15 @@ class MovimientoDesarrolladorService
         }
 
         $registroCodificado->FechaArranque = $fechaArranque;
-        $registroCodificado->FechaFinaliza = $fechaFinaliza;
+        if ($actualizarFechaFinaliza) {
+            $registroCodificado->FechaFinaliza = $fechaFinalizaEfectiva;
+        }
+        $attrsCat = ['FechaArranque'];
+        if ($actualizarFechaFinaliza) {
+            $attrsCat[] = 'FechaFinaliza';
+        }
 
-        if ($registroCodificado->isDirty(['FechaArranque', 'FechaFinaliza'])) {
+        if ($registroCodificado->isDirty($attrsCat)) {
             $registroCodificado->save();
             return true;
         }

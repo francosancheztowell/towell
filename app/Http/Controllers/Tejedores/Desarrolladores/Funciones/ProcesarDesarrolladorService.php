@@ -379,6 +379,9 @@ class ProcesarDesarrolladorService
             $validated['HoraInicio'] ?? null,
             $validated['HoraFinal'] ?? null
         );
+        if (($validated['accion'] ?? 'finalizar') !== 'finalizar') {
+            $fechasArranqueFinaliza['FechaFinaliza'] = null;
+        }
 
         $esNuevo = false;
         if (!$registro) {

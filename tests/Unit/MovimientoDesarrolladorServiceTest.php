@@ -165,6 +165,36 @@ class MovimientoDesarrolladorServiceTest extends TestCase
         $this->assertNull($registro->FechaFinaliza);
     }
 
+    public function test_actualizar_fechas_arranque_finaliza_sin_tocar_fecha_finaliza_cuando_se_indica(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-18 20:00:00'));
+
+        $programa = $this->createPrograma([
+            'NoProduccion' => 'ORD-PRES',
+            'NoTelarId' => '404',
+            'FechaInicio' => '2026-03-18 10:00:00',
+            'FechaFinaliza' => '2026-03-18 16:00:00',
+        ]);
+
+        CatCodificados::query()->create([
+            'OrdenTejido' => 'ORD-PRES',
+            'TelarId' => '404',
+            'FechaFinaliza' => '2026-03-18 16:00:00',
+        ]);
+
+        $resultado = $this->service->actualizarFechasArranqueFinaliza($programa, 'now', 'now', false);
+
+        $this->assertTrue($resultado);
+
+        $programa->refresh();
+        $registro = CatCodificados::query()->first();
+
+        $this->assertSame('2026-03-18 20:00:00', optional($programa->FechaArranque)->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-03-18 16:00:00', optional($programa->FechaFinaliza)->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-03-18 20:00:00', optional($registro->FechaArranque)->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-03-18 16:00:00', optional($registro->FechaFinaliza)->format('Y-m-d H:i:s'));
+    }
+
     public function test_actualizar_fechas_arranque_finaliza_actualiza_cat_codificados_por_orden_aunque_no_coincida_telar(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-03-18 20:00:00'));
@@ -229,7 +259,7 @@ class MovimientoDesarrolladorServiceTest extends TestCase
         $this->assertNull($actual->Reprogramar);
         $this->assertSame(2, (int) $actual->Posicion);
         $this->assertSame('2026-03-18 08:00:00', optional($actual->FechaArranque)->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-03-18 21:00:00', optional($actual->FechaFinaliza)->format('Y-m-d H:i:s'));
+        $this->assertNull($actual->FechaFinaliza);
 
         $this->assertTrue((bool) $nuevo->EnProceso);
         $this->assertSame(1, (int) $nuevo->Posicion);
@@ -244,7 +274,7 @@ class MovimientoDesarrolladorServiceTest extends TestCase
         $catActualCanonicoSinTocar = CatCodificados::query()->whereKey($catActualCanonico->Id)->firstOrFail();
         $catNuevoCanonicoSinTocar = CatCodificados::query()->whereKey($catNuevoCanonico->Id)->firstOrFail();
 
-        $this->assertSame('2026-03-18 21:00:00', optional($catActualTelar->FechaFinaliza)->format('Y-m-d H:i:s'));
+        $this->assertNull($catActualTelar->FechaFinaliza);
         $this->assertSame('2026-03-18 21:00:00', optional($catNuevoTelar->FechaArranque)->format('Y-m-d H:i:s'));
         $this->assertNull($catNuevoTelar->FechaFinaliza);
         $this->assertNull($catActualCanonicoSinTocar->FechaFinaliza);
@@ -295,7 +325,7 @@ class MovimientoDesarrolladorServiceTest extends TestCase
 
         $this->assertSame(3, (int) $actual->Posicion);
         $this->assertFalse((bool) $actual->EnProceso);
-        $this->assertSame('2026-03-18 21:30:00', optional($actual->FechaFinaliza)->format('Y-m-d H:i:s'));
+        $this->assertNull($actual->FechaFinaliza);
 
         $this->assertSame(1, (int) $nuevo->Posicion);
         $this->assertTrue((bool) $nuevo->EnProceso);
@@ -357,11 +387,11 @@ class MovimientoDesarrolladorServiceTest extends TestCase
 
         $this->assertFalse((bool) $actualDestino->EnProceso);
         $this->assertSame(3, (int) $actualDestino->Posicion);
-        $this->assertSame('2026-03-18 22:00:00', optional($actualDestino->FechaFinaliza)->format('Y-m-d H:i:s'));
+        $this->assertNull($actualDestino->FechaFinaliza);
 
         $catDestinoTelar->refresh();
         $catDestinoCanonico->refresh();
-        $this->assertSame('2026-03-18 22:00:00', optional($catDestinoTelar->FechaFinaliza)->format('Y-m-d H:i:s'));
+        $this->assertNull($catDestinoTelar->FechaFinaliza);
         $this->assertNull($catDestinoCanonico->FechaFinaliza);
 
         $this->assertSame(2, (int) $colaDestino->Posicion);
