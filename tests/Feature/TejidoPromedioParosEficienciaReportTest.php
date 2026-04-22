@@ -51,7 +51,7 @@ class TejidoPromedioParosEficienciaReportTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Promedio Paros y Eficiencia');
-        $response->assertSee('Seleccione un rango de fechas para generar el reporte en Excel.');
+        $response->assertSee('Seleccione un rango de fechas para generar el reporte en Excel (incluye gráficas de líneas en JACQ, JACQ-SULZ, SMIT e ITEMA).');
     }
 
     public function test_excel_route_requires_complete_date_range(): void

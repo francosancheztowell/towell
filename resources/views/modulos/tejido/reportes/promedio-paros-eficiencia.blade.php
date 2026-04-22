@@ -37,13 +37,13 @@
                 <div class="border border-dashed border-gray-300 rounded-xl p-8 text-center">
                     <i class="fas fa-chart-line text-5xl text-blue-200 mb-4"></i>
                     @if (empty($fechaIni) || empty($fechaFin))
-                        <p class="text-gray-600 text-lg">Seleccione un rango de fechas para generar el reporte en Excel.</p>
+                        <p class="text-gray-600 text-lg">Seleccione un rango de fechas para generar el reporte en Excel (incluye gráficas de líneas en JACQ, JACQ-SULZ, SMIT e ITEMA).</p>
                         <button type="button" onclick="mostrarModalPromedioParosEficiencia()"
                             class="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
                             <i class="fas fa-search mr-2"></i> Seleccionar fechas
                         </button>
                     @else
-                        <p class="text-gray-700 text-lg">El reporte esta listo para descargarse con el template de promedio de paros y eficiencia.</p>
+                        <p class="text-gray-700 text-lg">El reporte Excel incluye las tablas de promedio y gráficas dinámicas por sala (misma fuente que las tablas dinámicas).</p>
                         <p class="text-sm text-gray-500 mt-2">Se combinan Marcas Finales y Cortes de Eficiencia por fecha, turno y telar.</p>
                         <a href="{{ route('tejido.reportes.promedio-paros-eficiencia.excel', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
                             class="inline-flex mt-5 items-center gap-2 px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors">

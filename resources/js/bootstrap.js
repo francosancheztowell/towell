@@ -23,3 +23,7 @@ import 'select2';
 // Configurar Toastr global
 import toastr from 'toastr';
 window.toastr = toastr;
+
+// Chart.js (reportes con canvas en Blade, p. ej. engomado / promedio paros)
+import Chart from 'chart.js/auto';
+window.Chart = Chart;

@@ -5,18 +5,28 @@ namespace App\Exports;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithCharts;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Chart\Axis;
+use PhpOffice\PhpSpreadsheet\Chart\Chart as ExcelChart;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
+use PhpOffice\PhpSpreadsheet\Chart\Layout;
+use PhpOffice\PhpSpreadsheet\Chart\Legend;
+use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
+use PhpOffice\PhpSpreadsheet\Chart\Title;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
 
-class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
+class PromedioParosEficienciaExport implements FromArray, WithCharts, WithEvents, WithTitle
 {
     private const TEMPLATE_FIRST_DAY_TURN_STARTS = [1 => 2, 2 => 13, 3 => 24];
 
@@ -109,6 +119,16 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
         return 'SEMANA';
     }
 
+    /**
+     * Fuerza que el writer XLSX incluya definiciones de gráficas; las series se agregan en AfterSheet.
+     *
+     * @return array<int, ExcelChart>
+     */
+    public function charts(): array
+    {
+        return [];
+    }
+
     public function registerEvents(): array
     {
         return [
@@ -131,6 +151,7 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
                 $this->fillWeekSheet($book->getSheet($sheetIndex), $metadata['telar_columns']);
                 $this->fillSummarySheets($book);
+                $this->attachSummaryLineCharts($book);
             },
         ];
     }
@@ -178,6 +199,128 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
             $this->fillSummarySheet($sheet, $layout, $summaries[$sheetName] ?? []);
         }
+    }
+
+    /**
+     * Gráficas de líneas por hoja de resumen (JACQ, SMIT, etc.), enlazadas a los mismos rangos que la tabla.
+     */
+    private function attachSummaryLineCharts(Spreadsheet $book): void
+    {
+        foreach (self::SUMMARY_SHEET_LAYOUTS as $sheetName => $layout) {
+            $sheet = $book->getSheetByName($sheetName);
+            if (! $sheet instanceof Worksheet) {
+                continue;
+            }
+
+            $chart = $this->buildSummaryLineChart($sheet, $layout);
+            if ($chart instanceof ExcelChart) {
+                $sheet->addChart($chart);
+            }
+        }
+    }
+
+    private function buildSummaryLineChart(Worksheet $sheet, array $layout): ?ExcelChart
+    {
+        $telars = $layout['telars'];
+        $detailStartRow = (int) $layout['detail_start_row'];
+        if ($telars === []) {
+            return null;
+        }
+
+        $n = count($telars);
+        $firstDataRow = $detailStartRow;
+        $lastDataRow = $detailStartRow + $n - 1;
+        $sheetTitle = $sheet->getTitle();
+        $q = fn (string $range): string => $this->quotedSheetExcelRange($sheetTitle, $range);
+
+        $sheet->setCellValue('B2', '% Eficiencia');
+        $sheet->setCellValue('C2', 'Paros de Rizo');
+        $sheet->setCellValue('D2', 'Paros de trama');
+        $sheet->setCellValue('E2', 'Paros de urdimbre');
+        $sheet->setCellValue('F2', 'Paros Otros');
+
+        $categoriesRange = '$A$'.$firstDataRow.':$A$'.$lastDataRow;
+        $pointCount = $n;
+
+        $plotLabels = [
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $q('$B$2'), null, 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $q('$C$2'), null, 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $q('$D$2'), null, 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $q('$E$2'), null, 1),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $q('$F$2'), null, 1),
+        ];
+
+        $plotCategory = [
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $q($categoriesRange), null, $pointCount),
+        ];
+
+        $valueColumns = ['B', 'C', 'D', 'E', 'F'];
+        $valueDataLabels = $this->summaryChartIntegerValueDataLabels();
+        $plotValues = [];
+        foreach ($valueColumns as $col) {
+            $valueRange = '$'.$col.'$'.$firstDataRow.':$'.$col.'$'.$lastDataRow;
+            $seriesValues = new DataSeriesValues(
+                DataSeriesValues::DATASERIES_TYPE_NUMBER,
+                $q($valueRange),
+                '0',
+                $pointCount
+            );
+            $seriesValues->setLabelLayout($valueDataLabels);
+            $plotValues[] = $seriesValues;
+        }
+
+        $series = new DataSeries(
+            DataSeries::TYPE_LINECHART,
+            DataSeries::GROUPING_STANDARD,
+            range(0, count($plotValues) - 1),
+            $plotLabels,
+            $plotCategory,
+            $plotValues,
+            null,
+            false,
+            DataSeries::STYLE_MARKER
+        );
+
+        $plotArea = new PlotArea(null, [$series]);
+        $legend = new Legend(Legend::POSITION_BOTTOM, null, false);
+        $chartTitle = new Title('Promedio paros y eficiencia');
+
+        $chart = new ExcelChart(
+            'chart_'.preg_replace('/[^a-zA-Z0-9_]+/', '_', $sheetTitle),
+            $chartTitle,
+            $legend,
+            $plotArea,
+            true,
+            DataSeries::EMPTY_AS_GAP,
+            null,
+            null,
+            new Axis(),
+            new Axis()
+        );
+
+        $chartTopRow = $lastDataRow + 3;
+        $chart->setTopLeftPosition('I'.$chartTopRow);
+        $chart->setBottomRightPosition('AD'.($chartTopRow + 15));
+
+        return $chart;
+    }
+
+    private function quotedSheetExcelRange(string $sheetTitle, string $cellRange): string
+    {
+        $safe = str_replace("'", "''", $sheetTitle);
+
+        return "'{$safe}'!{$cellRange}";
+    }
+
+    /** Etiquetas de datos en cada punto, valores como enteros (formato Excel 0). */
+    private function summaryChartIntegerValueDataLabels(): Layout
+    {
+        return new Layout([
+            'showVal' => true,
+            'numFmtCode' => '0',
+            'numFmtLinked' => false,
+            'dLblPos' => 't',
+        ]);
     }
 
     private function fillSummarySheet(Worksheet $sheet, array $layout, array $summaryRows): void
@@ -477,14 +620,19 @@ class PromedioParosEficienciaExport implements FromArray, WithEvents, WithTitle
 
     private function applyNumericCellPresentation(Worksheet $sheet, string $coordinate, string $formatCode): void
     {
-        $style = $sheet->getStyle($coordinate);
-        $style->getAlignment()
-            ->setWrapText(false)
-            ->setTextRotation(0)
-            ->setShrinkToFit(false)
-            ->setHorizontal('center')
-            ->setVertical('center');
-        $style->getNumberFormat()->setFormatCode($formatCode);
+        // Un solo applyFromArray reduce trabajo frente a encadenar setters de alineación (miles de celdas).
+        $sheet->getStyle($coordinate)->applyFromArray([
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => false,
+                'textRotation' => 0,
+                'shrinkToFit' => false,
+            ],
+            'numberFormat' => [
+                'formatCode' => $formatCode,
+            ],
+        ]);
     }
 
     private function ensureTelarColumnWidth(Worksheet $sheet, array $telarColumns): void

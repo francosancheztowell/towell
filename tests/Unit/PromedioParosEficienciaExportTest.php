@@ -185,6 +185,10 @@ class PromedioParosEficienciaExportTest extends TestCase
         $this->assertNull($itemaSheet->getCell('B4')->getValue());
         $this->assertSame('=AVERAGE(B3:B12)', $itemaSheet->getCell('B13')->getValue());
         $this->assertSame('=SUM(G3:G12)', $itemaSheet->getCell('G14')->getValue());
+
+        foreach ([$jacqSheet, $jacqSulzSheet, $smitSheet, $itemaSheet] as $summarySheet) {
+            $this->assertGreaterThan(0, $summarySheet->getChartCount(), 'Cada hoja resumen debe incluir gráfica embebida.');
+        }
     }
 
     public function test_export_duplicates_standard_day_structure_when_range_exceeds_template_capacity(): void
@@ -365,7 +369,9 @@ class PromedioParosEficienciaExportTest extends TestCase
 
         file_put_contents($tempFile, $binary);
 
-        $spreadsheet = IOFactory::load($tempFile);
+        $reader = IOFactory::createReader('Xlsx');
+        $reader->setIncludeCharts(true);
+        $spreadsheet = $reader->load($tempFile);
         @unlink($tempFile);
 
         return $spreadsheet;

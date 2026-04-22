@@ -35,6 +35,9 @@ class PromedioParosEficienciaController extends Controller
             return $resolved;
         }
 
+        // Generar el XLSX recorre miles de celdas con PhpSpreadsheet; el límite por defecto (60s) no alcanza en producción.
+        set_time_limit(300);
+
         $report = $service->build($resolved['fecha_ini'], $resolved['fecha_fin']);
 
         $fileName = 'promedio_paros_eficiencia_'
