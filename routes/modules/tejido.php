@@ -59,6 +59,7 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::get('/reportes/promedio-paros-eficiencia', [PromedioParosEficienciaController::class, 'index'])->name('reportes.promedio-paros-eficiencia');
     Route::get('/reportes/promedio-paros-eficiencia/excel', [PromedioParosEficienciaController::class, 'exportarExcel'])->name('reportes.promedio-paros-eficiencia.excel');
     Route::get('/reportes/marcas-finales', [ReporteMarcasFinalesController::class, 'index'])->name('reportes.marcas-finales');
+    Route::get('/reportes/marcas-finales/excel', [ReporteMarcasFinalesController::class, 'exportarExcel'])->name('reportes.marcas-finales.export');
 
     Route::get('/reportes/saldos-2026', [SaldosController::class, 'index'])->name('reportes.saldos-2026');
     Route::get('/reportes/saldos-2026/excel', [SaldosController::class, 'exportarExcel'])->name('reportes.saldos-2026.excel');
