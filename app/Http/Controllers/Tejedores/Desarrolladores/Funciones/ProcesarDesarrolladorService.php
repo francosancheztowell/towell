@@ -6,6 +6,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\OrdenFinalizadaAuditoria;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
 use Carbon\Carbon;
@@ -13,6 +14,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -148,10 +150,42 @@ class ProcesarDesarrolladorService
                 return [
                     'programa' => $programaFinal ?: ReqProgramaTejido::query()->where('Id', $programaObjetivo->Id)->first(),
                     'contexto' => $contextoDestino,
+                    'contextoOrigenInicial' => [
+                        'salonOrigen' => $contextoOrigen['salonOrigen'],
+                        'telarOrigen' => $contextoOrigen['telarOrigen'],
+                    ],
                     'codigoDibujo' => $codigoDibujo,
                     'codigoDibujoAnterior' => $codigoDibujoAnterior,
                 ];
             });
+
+            $accion = $validated['accion'] ?? 'finalizar';
+            if ($accion === 'finalizar' && !empty($resultado['programa'])) {
+                /** @var ReqProgramaTejido $prog */
+                $prog = $resultado['programa'];
+                $ctx = $resultado['contexto'];
+                $orig = $resultado['contextoOrigenInicial'] ?? ['salonOrigen' => null, 'telarOrigen' => null];
+                try {
+                    OrdenFinalizadaAuditoria::registrarDesarrolladorFinalizar(
+                        (int) $prog->Id,
+                        (string) $validated['NoProduccion'],
+                        $orig['salonOrigen'] ?? null,
+                        $orig['telarOrigen'] ?? null,
+                        $ctx['salonDestino'] ?? null,
+                        $ctx['telarDestino'] ?? null,
+                        isset($validated['Desarrollador']) ? trim((string) $validated['Desarrollador']) : null,
+                        [
+                            'es_cambio_telar' => (bool) ($ctx['esCambioTelar'] ?? false),
+                            'cambio_telar_activo' => (bool) ($validated['CambioTelarActivo'] ?? false),
+                        ]
+                    );
+                } catch (\Throwable $e) {
+                    Log::warning('Auditoria desarrollador finalizar: no se pudo registrar', [
+                        'no_produccion' => $validated['NoProduccion'] ?? null,
+                        'message' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             if (!empty($resultado['programa'])) {
                 $this->enviarNotificacion(
