@@ -5,15 +5,16 @@ namespace App\Http\Controllers\Tejedores\BPMTejedores;
 use App\Http\Controllers\Controller;
 use App\Models\Tejedores\TelBpmModel;
 use App\Models\Sistema\SSYSFoliosSecuencia;
+use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Helpers\TurnoHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use App\Models\Tejedores\TelActividadesBPM;
-use Illuminate\Support\Facades\Cache;
 
 class TelBpmController extends Controller
 {
@@ -67,12 +68,14 @@ class TelBpmController extends Controller
         $user = Auth::user();
 
         // Obtener datos del operador y operadores de entrega
-        $cacheKey = 'tel_bpm_operador_ctx_' . (string) ($user->idusuario ?? $user->id ?? $user->numero_empleado ?? 'anon');
-        [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega] = Cache::remember(
-            $cacheKey,
-            now()->addMinutes(5),
-            fn() => $this->obtenerDatosOperador($user)
-        );
+        [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega] = $this->obtenerDatosOperador($user);
+        $this->logTurnoDebug('index.modal_recibe', [
+            'user_idusuario' => $user->idusuario ?? null,
+            'user_numero_empleado' => $user->numero_empleado ?? null,
+            'operador_numero_empleado' => $operadorUsuario->numero_empleado ?? null,
+            'operador_turno' => $operadorUsuario->Turno ?? null,
+            'usuario_es_operador' => $usuarioEsOperador,
+        ]);
 
         return view('modulos.bpm-tejedores.tel-bpm.index', [
             'items'   => $items,
@@ -133,7 +136,20 @@ class TelBpmController extends Controller
             // Valores por defecto cuando no vienen en el request (usuario autenticado)
             $data['CveEmplRec']    = $data['CveEmplRec']    ?? (string) ($user->cve ?? $user->numero_empleado ?? '');
             $data['NombreEmplRec'] = $data['NombreEmplRec'] ?? (string) ($user->name ?? $user->nombre ?? '');
-            $data['TurnoRecibe']   = $data['TurnoRecibe']   ?? (string) request()->get('turno_actual', '1');
+            $turnoRecibeResuelto = $this->resolverTurnoEmpleado($data['CveEmplRec'], $user, false);
+            $data['TurnoRecibe'] = $turnoRecibeResuelto
+                ?? $data['TurnoRecibe']
+                ?? (string) TurnoHelper::getTurnoActual();
+            $turnoEntregaResuelto = $this->resolverTurnoEmpleado($data['CveEmplEnt'], $user);
+            if ($turnoEntregaResuelto !== null && $turnoEntregaResuelto !== '') {
+                $data['TurnoEntrega'] = $turnoEntregaResuelto;
+            }
+            $this->logTurnoDebug('store.resuelto', [
+                'cve_empl_rec' => $data['CveEmplRec'] ?? null,
+                'turno_recibe_final' => $data['TurnoRecibe'] ?? null,
+                'cve_empl_ent' => $data['CveEmplEnt'] ?? null,
+                'turno_entrega_final' => $data['TurnoEntrega'] ?? null,
+            ]);
 
             // Validar: Entrega y Recibe no pueden ser el mismo operador
             if (!empty($data['CveEmplRec']) && !empty($data['CveEmplEnt']) && $data['CveEmplRec'] === $data['CveEmplEnt']) {
@@ -275,6 +291,8 @@ class TelBpmController extends Controller
                 $operadorUsuario = TelTelaresOperador::where('nombreEmpl', 'like', "%{$userName}%")->first();
             }
 
+            $operadorUsuario = $this->completarTurnoOperador($operadorUsuario, $user);
+
             $usuarioEsOperador = (bool) $operadorUsuario;
 
             if ($usuarioEsOperador) {
@@ -286,20 +304,41 @@ class TelBpmController extends Controller
                     ->values();
 
                 if ($telaresUsuario->isNotEmpty()) {
-                    $operadoresEntrega = TelTelaresOperador::query()
+                    $operadoresRaw = TelTelaresOperador::query()
                         ->whereIn('NoTelarId', $telaresUsuario)
                         ->where(function($query) {
                             $query->where('Supervisor', '!=', 1)
                                   ->orWhereNull('Supervisor');
                         }) // Excluir supervisores (Supervisor = 1)
-                        ->select([
-                            'numero_empleado',
-                            DB::raw('MAX(nombreEmpl) as nombreEmpl'),
-                            DB::raw('MAX(Turno) as Turno'),
-                        ])
-                        ->groupBy('numero_empleado')
-                        ->orderBy('numero_empleado')
+                        ->select(['numero_empleado', 'nombreEmpl', 'Turno', 'Id'])
+                        ->orderByDesc('Id')
                         ->get();
+
+                    $sysUsuarios = SYSUsuario::query()
+                        ->whereIn('numero_empleado', $operadoresRaw->pluck('numero_empleado')->filter()->unique()->values())
+                        ->get(['numero_empleado', 'nombre', 'turno'])
+                        ->keyBy('numero_empleado');
+
+                    $operadoresEntrega = $operadoresRaw
+                        ->groupBy('numero_empleado')
+                        ->map(function ($rows, $numeroEmpleado) use ($sysUsuarios) {
+                            $base = $rows->first();
+                            $sysUsuario = $sysUsuarios->get((string) $numeroEmpleado);
+                            $nombre = trim((string) ($sysUsuario->nombre ?? '')) !== ''
+                                ? (string) $sysUsuario->nombre
+                                : (string) ($base->nombreEmpl ?? '');
+                            $turno = trim((string) ($sysUsuario->turno ?? '')) !== ''
+                                ? (string) $sysUsuario->turno
+                                : (string) ($base->Turno ?? '');
+
+                            return (object) [
+                                'numero_empleado' => (string) $numeroEmpleado,
+                                'nombreEmpl' => $nombre,
+                                'Turno' => $turno,
+                            ];
+                        })
+                        ->sortBy('numero_empleado', SORT_NATURAL)
+                        ->values();
                 }
             }
         } catch (\Throwable $e) {
@@ -386,5 +425,131 @@ class TelBpmController extends Controller
                     $q->orWhere('nombreEmpl', 'like', "%{$userName}%");
                 }
             });
+    }
+
+    private function completarTurnoOperador($operadorUsuario, $user)
+    {
+        if (!$operadorUsuario) {
+            return $operadorUsuario;
+        }
+
+        $numeroEmpleado = (string) ($operadorUsuario->numero_empleado ?? '');
+        $turno = $this->resolverTurnoEmpleado($numeroEmpleado, $user, false);
+        if ($turno !== null && $turno !== '') {
+            $operadorUsuario->Turno = (string) $turno;
+        }
+
+        return $operadorUsuario;
+    }
+
+    private function resolverTurnoEmpleado(?string $numeroEmpleado, $user, bool $priorizarUsuarioAutenticado = false): ?string
+    {
+        $numeroEmpleado = trim((string) $numeroEmpleado);
+        if ($numeroEmpleado === '' && $user) {
+            $numeroEmpleado = trim((string) ($user->numero_empleado ?? $user->cve ?? ''));
+        }
+
+        if ($priorizarUsuarioAutenticado && $numeroEmpleado === '' && $user && isset($user->idusuario)) {
+            $sysUsuarioAuth = SYSUsuario::query()
+                ->where('idusuario', $user->idusuario)
+                ->first(['turno']);
+            if ($sysUsuarioAuth && trim((string) ($sysUsuarioAuth->turno ?? '')) !== '') {
+                $this->logTurnoDebug('resolver_turno.sysusuario_auth', [
+                    'idusuario' => $user->idusuario,
+                    'numero_empleado_input' => $numeroEmpleado,
+                    'turno' => (string) $sysUsuarioAuth->turno,
+                ]);
+                return (string) $sysUsuarioAuth->turno;
+            }
+        }
+
+        if ($numeroEmpleado !== '') {
+            $numeroEmpleadoNumerico = ctype_digit($numeroEmpleado)
+                ? (int) $numeroEmpleado
+                : null;
+
+            $sysUsuarioExacto = SYSUsuario::query()
+                ->where(function ($q) use ($numeroEmpleado) {
+                    $q->where('numero_empleado', $numeroEmpleado)
+                        ->orWhereRaw('LTRIM(RTRIM(numero_empleado)) = ?', [$numeroEmpleado]);
+                })
+                ->orderByDesc('Productivo')
+                ->orderByDesc('idusuario')
+                ->first(['turno']);
+            if ($sysUsuarioExacto && trim((string) ($sysUsuarioExacto->turno ?? '')) !== '') {
+                $this->logTurnoDebug('resolver_turno.sysusuario_exacto', [
+                    'numero_empleado_input' => $numeroEmpleado,
+                    'numero_empleado_numeric' => $numeroEmpleadoNumerico,
+                    'turno' => (string) $sysUsuarioExacto->turno,
+                ]);
+                return (string) $sysUsuarioExacto->turno;
+            }
+
+            if ($numeroEmpleadoNumerico !== null) {
+                $sysUsuarioNumerico = SYSUsuario::query()
+                    ->whereRaw('TRY_CONVERT(INT, LTRIM(RTRIM(numero_empleado))) = ?', [$numeroEmpleadoNumerico])
+                    ->orderByDesc('Productivo')
+                    ->orderByDesc('idusuario')
+                    ->first(['turno', 'numero_empleado']);
+                if ($sysUsuarioNumerico && trim((string) ($sysUsuarioNumerico->turno ?? '')) !== '') {
+                    $this->logTurnoDebug('resolver_turno.sysusuario_numerico', [
+                        'numero_empleado_input' => $numeroEmpleado,
+                        'numero_empleado_numeric' => $numeroEmpleadoNumerico,
+                        'numero_empleado_match' => $sysUsuarioNumerico->numero_empleado ?? null,
+                        'turno' => (string) $sysUsuarioNumerico->turno,
+                    ]);
+                    return (string) $sysUsuarioNumerico->turno;
+                }
+            }
+
+            $telarOperadorExacto = TelTelaresOperador::query()
+                ->where(function ($q) use ($numeroEmpleado) {
+                    $q->where('numero_empleado', $numeroEmpleado)
+                        ->orWhereRaw('LTRIM(RTRIM(numero_empleado)) = ?', [$numeroEmpleado]);
+                })
+                ->orderByDesc('Id')
+                ->first(['Turno']);
+            if ($telarOperadorExacto && trim((string) ($telarOperadorExacto->Turno ?? '')) !== '') {
+                $this->logTurnoDebug('resolver_turno.telar_exacto', [
+                    'numero_empleado_input' => $numeroEmpleado,
+                    'numero_empleado_numeric' => $numeroEmpleadoNumerico,
+                    'turno' => (string) $telarOperadorExacto->Turno,
+                ]);
+                return (string) $telarOperadorExacto->Turno;
+            }
+
+            if ($numeroEmpleadoNumerico !== null) {
+                $telarOperadorNumerico = TelTelaresOperador::query()
+                    ->whereRaw('TRY_CONVERT(INT, LTRIM(RTRIM(numero_empleado))) = ?', [$numeroEmpleadoNumerico])
+                    ->orderByDesc('Id')
+                    ->first(['Turno', 'numero_empleado']);
+                if ($telarOperadorNumerico && trim((string) ($telarOperadorNumerico->Turno ?? '')) !== '') {
+                    $this->logTurnoDebug('resolver_turno.telar_numerico', [
+                        'numero_empleado_input' => $numeroEmpleado,
+                        'numero_empleado_numeric' => $numeroEmpleadoNumerico,
+                        'numero_empleado_match' => $telarOperadorNumerico->numero_empleado ?? null,
+                        'turno' => (string) $telarOperadorNumerico->Turno,
+                    ]);
+                    return (string) $telarOperadorNumerico->Turno;
+                }
+            }
+        }
+
+        $this->logTurnoDebug('resolver_turno.sin_resultado', [
+            'numero_empleado_input' => $numeroEmpleado,
+            'priorizar_usuario_autenticado' => $priorizarUsuarioAutenticado,
+            'user_idusuario' => $user->idusuario ?? null,
+            'user_numero_empleado' => $user->numero_empleado ?? null,
+        ]);
+
+        return null;
+    }
+
+    private function logTurnoDebug(string $evento, array $context = []): void
+    {
+        try {
+            Log::warning('[TEL-BPM TURNO] ' . $evento, $context);
+        } catch (\Throwable $e) {
+        }
     }
 }
