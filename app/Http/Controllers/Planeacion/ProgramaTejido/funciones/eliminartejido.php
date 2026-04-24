@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\ProgramaTejidoSecuenciaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
@@ -69,6 +70,7 @@ class EliminarTejido
             $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
 
             // Eliminar registro (las líneas se eliminan por ON DELETE CASCADE en BD)
+            self::registrarAuditoriaDeletePrograma($registro, 'eliminar');
             $registro->delete();
 
             // Optimizado: usar Posicion primero para aprovechar índices
@@ -197,6 +199,7 @@ class EliminarTejido
             }
 
             // Eliminar el registro en proceso (líneas se eliminan por ON DELETE CASCADE)
+            self::registrarAuditoriaDeletePrograma($registro, 'eliminar_en_proceso');
             $registro->delete();
 
             // Obtener los registros restantes
@@ -391,6 +394,7 @@ class EliminarTejido
                 $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
 
                 // Eliminar registro
+                self::registrarAuditoriaDeletePrograma($registro, 'eliminar_ord_compartida_unico');
                 $registro->delete();
 
                 $restantes = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio','asc')->get();
@@ -520,6 +524,7 @@ class EliminarTejido
             $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
 
             // Eliminar registro
+            self::registrarAuditoriaDeletePrograma($registro, 'eliminar_ord_compartida');
             $registro->delete();
 
             // Recalcular posiciones del telar eliminado solo si NO tenía Ultimo = 1
@@ -614,6 +619,25 @@ class EliminarTejido
         ProgramaTejidoSecuenciaHelper::aplicarUpdatesDesdeRecalculo($updates);
 
         ProgramaTejidoSecuenciaHelper::regenerarLineasDesdeDetalles($detalles);
+    }
+
+    private static function registrarAuditoriaDeletePrograma(ReqProgramaTejido $registro, string $contexto): void
+    {
+        $salon = trim((string) ($registro->SalonTejidoId ?? ''));
+        $telar = trim((string) ($registro->NoTelarId ?? ''));
+        $noOrden = trim((string) ($registro->NoProduccion ?? ''));
+
+        $detalle = sprintf(
+            'Id=%d | NoOrden=%s | NoTelar=%s | Salon=%s | EnProceso=%s | Contexto=%s',
+            (int) ($registro->Id ?? 0),
+            $noOrden !== '' ? $noOrden : 'N/A',
+            $telar !== '' ? $telar : 'N/A',
+            $salon !== '' ? $salon : 'N/A',
+            (string) ((int) ($registro->EnProceso ? 1 : 0)),
+            $contexto
+        );
+
+        AuditoriaHelper::logEvento('ReqProgramaTejido', 'DELETE', $detalle);
     }
 
 }
