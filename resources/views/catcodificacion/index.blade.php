@@ -35,6 +35,16 @@
             <i class="fas fa-print"></i>
             <span>Reimprimir Orden</span>
         </button>
+        <button id="btn-revivir-programa"
+            type="button"
+            onclick="revivirOrdenAlPrograma()"
+            class="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            disabled
+            title="Limpia FechaFinaliza en cat y crea la orden en programa de tejido"
+        >
+            <i class="fas fa-undo"></i>
+            <span>Revivir a programa</span>
+        </button>
     </div>
 @endsection
 
@@ -1101,6 +1111,7 @@
                     renderPage();
                     updateFilterCount();
                     actualizarEstadoBotonReimprimir();
+                    actualizarEstadoBotonRevivir();
 
                     setLoading(false);
                 } catch (error) {
@@ -1186,6 +1197,7 @@
                                 td.classList.add('text-gray-700');
                             });
                             actualizarEstadoBotonReimprimir();
+                            actualizarEstadoBotonRevivir();
                         } else {
                             // Deseleccionar fila anterior si existe
                             const prevSelected = tbody.querySelector('tr.codificacion-row-selected');
@@ -1209,6 +1221,7 @@
                             });
                             state.selectedRowIndex = globalIndex;
                             actualizarEstadoBotonReimprimir();
+                            actualizarEstadoBotonRevivir();
                         }
                     });
 
@@ -1237,6 +1250,7 @@
                 }
                 updatePagination();
                 actualizarEstadoBotonReimprimir();
+                actualizarEstadoBotonRevivir();
             }
 
             function updatePagination() {
@@ -1399,6 +1413,7 @@
                 renderPage();
                 updateFilterCount();
                 actualizarEstadoBotonReimprimir();
+                actualizarEstadoBotonRevivir();
             }
 
             function updateFilterCount() {
@@ -1437,6 +1452,7 @@
                 updatePagination();
                 updateFilterCount();
                 actualizarEstadoBotonReimprimir();
+                actualizarEstadoBotonRevivir();
 
                 showToast(
                     state.filtered.length
@@ -1941,6 +1957,107 @@
                 btnBalancear.disabled = !tieneOrdCompartida;
             }
 
+            function actualizarEstadoBotonRevivir() {
+                const btn = document.getElementById('btn-revivir-programa');
+                if (!btn) return;
+
+                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
+                    btn.disabled = true;
+                    return;
+                }
+
+                const r = state.filtered[state.selectedRowIndex];
+                if (!r || !r.Id) {
+                    btn.disabled = true;
+                    return;
+                }
+
+                const orden = String(r.OrdenTejido ?? '').trim();
+                const depto = String(r.Departamento ?? '').trim();
+                const telar = String(r.TelarId ?? '').trim();
+
+                btn.disabled = !(orden !== '' && depto !== '' && telar !== '');
+            }
+
+            // =========================
+            //   REVIVIR ORDEN A PROGRAMA DE TEJIDO
+            // =========================
+            async function revivirOrdenAlPrograma() {
+                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
+                    showToast('Selecciona un registro primero', 'warning');
+                    return;
+                }
+
+                const r = state.filtered[state.selectedRowIndex];
+                if (!r || !r.Id) {
+                    showToast('No se pudo obtener el registro seleccionado', 'error');
+                    return;
+                }
+
+                const orden = String(r.OrdenTejido ?? '').trim();
+                const depto = String(r.Departamento ?? '').trim();
+                const telar = String(r.TelarId ?? '').trim();
+                if (!orden || !depto || !telar) {
+                    showToast('El registro debe tener OrdenTejido, Departamento y TelarId', 'warning');
+                    return;
+                }
+
+                const confirm = await Swal.fire({
+                    title: 'Revivir a programa de tejido',
+                    html: 'Se pondrá <strong>FechaFinaliza</strong> en <em>null</em> en codificación y se creará la orden en el programa (telar ' + escapeHtml(telar) + ').',
+                    icon: 'question',
+                    showCancelButton: true,
+                    showDenyButton: true,
+                    confirmButtonText: 'Al final de cola',
+                    denyButtonText: 'Poner en proceso',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#d97706',
+                    denyButtonColor: '#2563eb',
+                });
+
+                if (confirm.isDismissed) return;
+
+                const enProceso = confirm.isDenied === true;
+
+                try {
+                    Swal.fire({
+                        title: 'Procesando...',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading(),
+                    });
+
+                    const resp = await fetch('/planeacion/codificacion/api/revivir-programa', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': getCsrf(),
+                        },
+                        body: JSON.stringify({
+                            cat_id: parseInt(r.Id, 10),
+                            en_proceso: enProceso,
+                        }),
+                    });
+
+                    const json = await resp.json().catch(() => ({}));
+                    Swal.close();
+
+                    if (!json.s) {
+                        const msg = json.e || json.message || 'Error al revivir la orden';
+                        const errDetail = json.errors && typeof json.errors === 'object'
+                            ? Object.values(json.errors).flat().join(' ')
+                            : '';
+                        showToast(errDetail || msg, 'error');
+                        return;
+                    }
+
+                    showToast('Orden creada en programa (Id ' + (json.d && json.d.programa_id ? json.d.programa_id : '') + ')', 'success');
+                } catch (e) {
+                    Swal.close();
+                    showToast(e.message || 'Error de red', 'error');
+                }
+            }
+
             // =========================
             //   BALANCEAR - VER REGISTROS COMPARTIDOS
             // =========================
@@ -2137,6 +2254,7 @@
             window.removeFilterPorColumna      = removeFilterPorColumna;
             window.loadData                    = loadData;
             window.reimprimirOrden              = reimprimirOrden;
+            window.revivirOrdenAlPrograma     = revivirOrdenAlPrograma;
             window.reimprimirOrdenSeleccionada  = reimprimirOrdenSeleccionada;
             window.abrirModalBalancear          = abrirModalBalancear;
         })();

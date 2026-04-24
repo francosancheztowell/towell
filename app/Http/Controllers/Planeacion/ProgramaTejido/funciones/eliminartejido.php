@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\ProgramaTejidoSecuenciaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
+use App\Models\Planeacion\OrdenFinalizadaAuditoria;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -152,6 +155,45 @@ class EliminarTejido
             $idx = $registros->search(fn($r) => $r->Id === $registro->Id);
             if ($idx === false) {
                 throw new \RuntimeException('No se encontró el registro dentro del telar.');
+            }
+
+            $ahora = Carbon::now();
+            $registro->FechaFinaliza = $ahora;
+
+            // Mantener consistencia con utilería: persistir FechaFinaliza y sincronizar a CatCodificados cuando aplique.
+            try {
+                $actualizoFechas = (new MovimientoDesarrolladorService())
+                    ->actualizarFechasArranqueFinaliza($registro, null, $ahora);
+
+                if (!$actualizoFechas && $registro->exists && $registro->isDirty('FechaFinaliza')) {
+                    $registro->saveQuietly();
+                }
+            } catch (\Throwable $e) {
+                if ($registro->exists && $registro->isDirty('FechaFinaliza')) {
+                    $registro->saveQuietly();
+                }
+
+                Log::warning('eliminarEnProceso: no se pudo sincronizar FechaFinaliza antes de eliminar', [
+                    'id' => $registro->Id ?? null,
+                    'msg' => $e->getMessage(),
+                ]);
+            }
+
+            $salonAuditoria = TelarSalonResolver::normalizeSalon($salon, $telar);
+            $telarAuditoria = TelarSalonResolver::normalizeTelar($telar);
+            try {
+                OrdenFinalizadaAuditoria::registrarUtileriaFinalizar(
+                    (int) $registro->Id,
+                    trim((string) ($registro->NoProduccion ?? '')),
+                    $salonAuditoria,
+                    $telarAuditoria,
+                    ['en_proceso' => true, 'origen' => 'programa_destroy_en_proceso']
+                );
+            } catch (\Throwable $e) {
+                Log::warning('eliminarEnProceso: no se pudo registrar auditoría', [
+                    'id' => $registro->Id ?? null,
+                    'msg' => $e->getMessage(),
+                ]);
             }
 
             // Eliminar el registro en proceso (líneas se eliminan por ON DELETE CASCADE)

@@ -10,12 +10,14 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
+use App\Services\Planeacion\RevivirOrdenProgramaDesdeCatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
@@ -26,8 +28,7 @@ class CatCodificacionController extends Controller
 
     public function __construct(
         private readonly CatCodificadosExcelHeaderMapper $headerMapper,
-    ) {
-    }
+    ) {}
 
     /**
      * Mostrar la vista principal del catálogo de codificación.
@@ -43,9 +44,9 @@ class CatCodificacionController extends Controller
             );
 
             return view('catcodificacion.index', [
-                'columnas'       => $columnas,
+                'columnas' => $columnas,
                 'totalRegistros' => $total,
-                'apiUrl'         => '/planeacion/codificacion/api/all-fast',
+                'apiUrl' => '/planeacion/codificacion/api/all-fast',
             ]);
         } catch (\Throwable $e) {
             Log::error('CatCodificacionController::index', [
@@ -53,10 +54,10 @@ class CatCodificacionController extends Controller
             ]);
 
             return view('catcodificacion.index', [
-                'columnas'       => CatCodificados::COLUMNS,
+                'columnas' => CatCodificados::COLUMNS,
                 'totalRegistros' => 0,
-                'apiUrl'         => '/planeacion/codificacion/api/all-fast',
-                'error'          => 'Error al cargar: ' . $e->getMessage(),
+                'apiUrl' => '/planeacion/codificacion/api/all-fast',
+                'error' => 'Error al cargar: '.$e->getMessage(),
             ]);
         }
     }
@@ -108,7 +109,7 @@ class CatCodificacionController extends Controller
                 Excel::queueImport($import, $file);
             }
 
-            $state = Cache::get('excel_import_progress:' . $importId, []);
+            $state = Cache::get('excel_import_progress:'.$importId, []);
 
             return response()->json([
                 'success' => true,
@@ -119,17 +120,17 @@ class CatCodificacionController extends Controller
                     'import_id' => $importId,
                     'total_rows' => $totalRows,
                     'completed' => $processedInline,
-                    'queued' => !$processedInline,
+                    'queued' => ! $processedInline,
                     'summary' => $processedInline ? $this->buildImportSummary($state) : null,
-                    'poll_url' => url('/planeacion/codificacion/excel-progress/' . $importId),
-                    'cancel_url' => url('/planeacion/codificacion/excel-cancel/' . $importId),
+                    'poll_url' => url('/planeacion/codificacion/excel-progress/'.$importId),
+                    'cancel_url' => url('/planeacion/codificacion/excel-cancel/'.$importId),
                 ],
             ], 202);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validación fallida',
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('CatCodificacionController::procesarExcel', [
@@ -138,7 +139,7 @@ class CatCodificacionController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
+                'message' => 'Error al procesar el archivo: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -173,6 +174,45 @@ class CatCodificacionController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error('CatCodificacionController::ordenesEnProceso', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                's' => false,
+                'e' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * API: pone FechaFinaliza en null en CatCodificados y crea la orden en ReqProgramaTejido (final de cola o en proceso).
+     */
+    public function revivirProgramaDesdeCat(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'cat_id' => 'required|integer|min:1',
+                'en_proceso' => 'nullable|boolean',
+            ]);
+
+            $resultado = app(RevivirOrdenProgramaDesdeCatService::class)->ejecutar(
+                (int) $validated['cat_id'],
+                (bool) ($validated['en_proceso'] ?? false)
+            );
+
+            return response()->json([
+                's' => true,
+                'd' => $resultado,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                's' => false,
+                'e' => 'Validación fallida',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('CatCodificacionController::revivirProgramaDesdeCat', [
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 's' => false,
                 'e' => $e->getMessage(),
@@ -196,7 +236,7 @@ class CatCodificacionController extends Controller
                 ->where('OrdenTejido', $ordenTejido)
                 ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'BomId', 'BomName']);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json([
                     's' => true,
                     'd' => null,
@@ -231,22 +271,23 @@ class CatCodificacionController extends Controller
             return response()->json([
                 's' => true,
                 'd' => [
-                    'ordenTejido'   => (string) $registro->OrdenTejido,
-                    'telarId'       => $registro->TelarId !== null ? (string) $registro->TelarId : '',
-                    'itemId'        => $registro->ItemId !== null ? (string) $registro->ItemId : '',
-                    'nombre'        => $registro->Nombre ?? $registro->ClaveModelo ?? '',
+                    'ordenTejido' => (string) $registro->OrdenTejido,
+                    'telarId' => $registro->TelarId !== null ? (string) $registro->TelarId : '',
+                    'itemId' => $registro->ItemId !== null ? (string) $registro->ItemId : '',
+                    'nombre' => $registro->Nombre ?? $registro->ClaveModelo ?? '',
                     'actualizaLmat' => $actualizaLmat,
-                    'pesoMuestra'   => $pesoMuestra,
-                    'bomId'         => $bomId,
-                    'bomName'       => $bomName,
-                    'listaLmat'     => $listaLmat,
+                    'pesoMuestra' => $pesoMuestra,
+                    'bomId' => $bomId,
+                    'bomName' => $bomName,
+                    'listaLmat' => $listaLmat,
                 ],
             ]);
         } catch (\Throwable $e) {
             Log::error('CatCodificacionController::getCatCodificadosPorOrden', [
                 'ordenTejido' => $ordenTejido ?? '',
-                'error'       => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 's' => false,
                 'e' => $e->getMessage(),
@@ -261,14 +302,14 @@ class CatCodificacionController extends Controller
     {
         try {
             $validated = $request->validate([
-                'ordenTejido'   => 'required|string',
-                'pesoMuestra'   => 'nullable|numeric|min:0',
+                'ordenTejido' => 'required|string',
+                'pesoMuestra' => 'nullable|numeric|min:0',
                 'actualizaLmat' => 'required|boolean',
-                'bomId'         => 'nullable|string|max:20',
+                'bomId' => 'nullable|string|max:20',
             ]);
 
-            $ordenTejido   = trim((string) $validated['ordenTejido']);
-            $pesoMuestra   = isset($validated['pesoMuestra']) && $validated['pesoMuestra'] !== null ? (float) $validated['pesoMuestra'] : null;
+            $ordenTejido = trim((string) $validated['ordenTejido']);
+            $pesoMuestra = isset($validated['pesoMuestra']) && $validated['pesoMuestra'] !== null ? (float) $validated['pesoMuestra'] : null;
             $actualizaLmat = (bool) $validated['actualizaLmat'];
             // Si Act Lmat está desactivado, forzar BomId y BomName a null
             $bomId = $actualizaLmat
@@ -301,16 +342,16 @@ class CatCodificacionController extends Controller
                 ->where('OrdenTejido', $ordenTejido)
                 ->first();
             if ($catCod) {
-                $catCod->PesoMuestra   = $pesoMuestra;
-                $catCod->ActualizaLmat  = $actualizaLmat;
+                $catCod->PesoMuestra = $pesoMuestra;
+                $catCod->ActualizaLmat = $actualizaLmat;
                 if ($bomId !== null) {
                     $catCod->BomId = $bomId;
                     if ($bomName !== null) {
                         $catCod->BomName = $bomName;
                     }
                 } else {
-                    $catCod->BomId     = null;
-                    $catCod->BomName   = null;
+                    $catCod->BomId = null;
+                    $catCod->BomName = null;
                 }
                 $catCod->save();
                 $actualizados[] = 'CatCodificados';
@@ -321,7 +362,7 @@ class CatCodificacionController extends Controller
                 ->where('NoProduccion', $ordenTejido)
                 ->get();
             foreach ($reqProg as $prog) {
-                $prog->PesoMuestra  = $pesoMuestra;
+                $prog->PesoMuestra = $pesoMuestra;
                 $prog->ActualizaLmat = $actualizaLmat;
                 if ($bomId !== null) {
                     $prog->BomId = $bomId;
@@ -329,13 +370,13 @@ class CatCodificacionController extends Controller
                         $prog->BomName = $bomName;
                     }
                 } else {
-                    $prog->BomId   = null;
+                    $prog->BomId = null;
                     $prog->BomName = null;
                 }
                 $prog->save();
             }
             if ($reqProg->count() > 0) {
-                $actualizados[] = 'ReqProgramaTejido (' . $reqProg->count() . ' registro(s))';
+                $actualizados[] = 'ReqProgramaTejido ('.$reqProg->count().' registro(s))';
             }
 
             // 3. Actualizar ReqModelosCodificados (buscar por OrdenTejido)
@@ -347,7 +388,7 @@ class CatCodificacionController extends Controller
                 $modelo->save();
             }
             if ($reqModelos->count() > 0) {
-                $actualizados[] = 'ReqModelosCodificados (' . $reqModelos->count() . ' registro(s))';
+                $actualizados[] = 'ReqModelosCodificados ('.$reqModelos->count().' registro(s))';
             }
 
             // Limpiar caché para que la siguiente recarga de la tabla traiga datos actualizados
@@ -361,13 +402,14 @@ class CatCodificacionController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 's' => false,
-                'e' => 'Validación fallida: ' . implode(', ', $e->errors()),
+                'e' => 'Validación fallida: '.implode(', ', $e->errors()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('CatCodificacionController::actualizarPesoMuestraLmat', [
                 'ordenTejido' => $request->input('ordenTejido', ''),
-                'error'       => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 's' => false,
                 'e' => $e->getMessage(),
@@ -390,7 +432,7 @@ class CatCodificacionController extends Controller
                 return [];
             }
 
-            $itemIdWithSuffix = $itemId . '-1';
+            $itemIdWithSuffix = $itemId.'-1';
             $query = DB::connection('sqlsrv_ti')
                 ->table('BOMTABLE as BT')
                 ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
@@ -409,15 +451,16 @@ class CatCodificacionController extends Controller
             }
 
             return $results->map(fn ($r) => [
-                'bomId'   => $r->bomId !== null ? (string) $r->bomId : '',
+                'bomId' => $r->bomId !== null ? (string) $r->bomId : '',
                 'bomName' => $r->bomName !== null ? (string) $r->bomName : '',
             ])->values()->all();
         } catch (\Throwable $e) {
             Log::warning('CatCodificacionController::queryLmatDesdeTi', [
-                'itemId'       => $itemId,
+                'itemId' => $itemId,
                 'inventSizeId' => $inventSizeId ?? '',
-                'error'        => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return [];
         }
     }
@@ -426,7 +469,7 @@ class CatCodificacionController extends Controller
      * API: datos compactos para carga rápida en tabla (getAllFast).
      * Optimizado para máxima velocidad: cache, cursor, sin query log.
      */
-/**
+    /**
      * API: Optimización Extrema con PDO puro.
      * Salta la hidratación de Eloquent/QueryBuilder.
      */
@@ -442,7 +485,7 @@ class CatCodificacionController extends Controller
                 : 'catcodificacion_fast_all';
 
             // 1. CACHE HIT
-            if (!$skipCache && ($cached = Cache::get($cacheKey))) {
+            if (! $skipCache && ($cached = Cache::get($cacheKey))) {
                 return response()->json($cached)
                     ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
                     ->header('Pragma', 'no-cache')
@@ -463,6 +506,7 @@ class CatCodificacionController extends Controller
                 foreach ($columnas as $col) {
                     $arr[] = $row->getAttribute($col);
                 }
+
                 return $arr;
             })->all();
 
@@ -474,7 +518,7 @@ class CatCodificacionController extends Controller
             ];
 
             // 3. CACHE MISS
-            if (!$skipCache) {
+            if (! $skipCache) {
                 Cache::put($cacheKey, $response, 60);
             }
 
@@ -602,9 +646,10 @@ class CatCodificacionController extends Controller
                 'ordCompartida' => $ordCompartida ?? '',
                 'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener registros compartidos: ' . $e->getMessage(),
+                'message' => 'Error al obtener registros compartidos: '.$e->getMessage(),
                 'registros' => [],
             ], 500);
         }
@@ -625,12 +670,12 @@ class CatCodificacionController extends Controller
 
     public static function progressCacheKey(string $id): string
     {
-        return 'excel_import_progress:' . $id;
+        return 'excel_import_progress:'.$id;
     }
 
     public static function cancellationCacheKey(string $id): string
     {
-        return 'excel_import_cancelled:' . $id;
+        return 'excel_import_cancelled:'.$id;
     }
 
     /**
@@ -640,7 +685,7 @@ class CatCodificacionController extends Controller
     {
         $state = Cache::get(self::progressCacheKey($id));
 
-        if (!$state) {
+        if (! $state) {
             return response()->json([
                 'success' => false,
                 'message' => 'Progreso no encontrado',
@@ -659,18 +704,18 @@ class CatCodificacionController extends Controller
         if (is_array($rawErrors)) {
             foreach ($rawErrors as $err) {
                 $errors[] = [
-                    'fila'  => $err['fila']  ?? 'N/A',
+                    'fila' => $err['fila'] ?? 'N/A',
                     'error' => mb_substr($err['error'] ?? 'Error desconocido', 0, 150),
                 ];
             }
         }
 
         return response()->json([
-            'success'   => true,
-            'data'      => $state,
-            'percent'   => $percent,
-            'errors'    => $errors,
-            'has_errors'=> !empty($errors),
+            'success' => true,
+            'data' => $state,
+            'percent' => $percent,
+            'errors' => $errors,
+            'has_errors' => ! empty($errors),
         ]);
     }
 
@@ -679,7 +724,7 @@ class CatCodificacionController extends Controller
         $key = self::progressCacheKey($id);
         $state = Cache::get($key);
 
-        if (!$state) {
+        if (! $state) {
             return response()->json([
                 'success' => false,
                 'message' => 'Importacion no encontrada',
@@ -697,7 +742,7 @@ class CatCodificacionController extends Controller
 
         $state['status'] = 'cancelled';
         $state['cancelled'] = true;
-        $state['has_errors'] = !empty($state['errors'] ?? []);
+        $state['has_errors'] = ! empty($state['errors'] ?? []);
         Cache::put($key, $state, 3600);
 
         $deletedJobs = $this->deletePendingQueuedImportJobs($id);
@@ -783,8 +828,8 @@ class CatCodificacionController extends Controller
     private function makeSpreadsheetReader(string $extension): XlsReader|XlsxReader
     {
         return $extension === 'xls'
-            ? new XlsReader()
-            : new XlsxReader();
+            ? new XlsReader
+            : new XlsxReader;
     }
 
     private function shouldProcessInline(?int $totalRows): bool
@@ -832,7 +877,7 @@ class CatCodificacionController extends Controller
         try {
             return DB::connection($connection)
                 ->table($table)
-                ->where('payload', 'like', '%' . $importId . '%')
+                ->where('payload', 'like', '%'.$importId.'%')
                 ->delete();
         } catch (\Throwable $e) {
             Log::warning('CatCodificacionController::cancelImport delete jobs', [
@@ -850,7 +895,7 @@ class CatCodificacionController extends Controller
     private function rowHasMeaningfulData(array $values): bool
     {
         foreach ($values as $value) {
-            if (!$this->isNullLikeSpreadsheetValue($value)) {
+            if (! $this->isNullLikeSpreadsheetValue($value)) {
                 return true;
             }
         }
