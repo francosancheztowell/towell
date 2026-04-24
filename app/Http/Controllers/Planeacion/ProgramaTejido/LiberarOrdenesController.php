@@ -1418,7 +1418,7 @@ class LiberarOrdenesController extends Controller
 
     /**
      * Obtiene el peso del rollo desde la tabla ReqPesosRolloTejido.
-     * Orden de búsqueda: 1) ItemId + InventSizeId exactos del registro; 2) FEL (si aplica); 3) DEF.
+     * Orden de búsqueda: 1) InventSizeId exacto del registro; 2) FEL (si aplica); 3) DEF.
      * Si no encuentra nada, retorna null (para usar 41.5 como default).
      *
      * @param ReqProgramaTejido $registro
@@ -1427,21 +1427,14 @@ class LiberarOrdenesController extends Controller
     private function obtenerPesoRollo(ReqProgramaTejido $registro): ?float
     {
         try {
-            $itemId = trim((string)($registro->ItemId ?? ''));
             $inventSizeId = trim((string)($registro->InventSizeId ?? ''));
 
-            if (empty($itemId)) {
-                return null;
-            }
-
-            // 1) Primero buscar por coincidencia exacta (ItemId + InventSizeId del registro)
+            // 1) Primero buscar por coincidencia exacta de InventSizeId
             if (!empty($inventSizeId)) {
-                $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
-                    ->where('InventSizeId', $inventSizeId)
-                    ->first();
+                $pesoRollo = $this->obtenerPesoRolloPorInventSizeId($inventSizeId);
 
-                if ($pesoRollo && $pesoRollo->PesoRollo !== null) {
-                    return (float) $pesoRollo->PesoRollo;
+                if ($pesoRollo !== null) {
+                    return $pesoRollo;
                 }
             }
 
@@ -1449,28 +1442,38 @@ class LiberarOrdenesController extends Controller
             $buscarFel = !empty($inventSizeId) && (stripos($inventSizeId, 'FEL') !== false);
 
             if ($buscarFel) {
-                $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
-                    ->where('InventSizeId', 'FEL')
-                    ->first();
+                $pesoRollo = $this->obtenerPesoRolloPorInventSizeId('FEL');
 
-                if ($pesoRollo && $pesoRollo->PesoRollo !== null) {
-                    return (float) $pesoRollo->PesoRollo;
+                if ($pesoRollo !== null) {
+                    return $pesoRollo;
                 }
             }
 
             // 3) Buscar por DEF (default)
-            $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
-                ->where('InventSizeId', 'DEF')
-                ->first();
+            $pesoRollo = $this->obtenerPesoRolloPorInventSizeId('DEF');
 
-            if ($pesoRollo && $pesoRollo->PesoRollo !== null) {
-                return (float) $pesoRollo->PesoRollo;
+            if ($pesoRollo !== null) {
+                return $pesoRollo;
             }
 
             return null;
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    private function obtenerPesoRolloPorInventSizeId(string $inventSizeId): ?float
+    {
+        $pesoRollo = ReqPesosRollosTejido::where('InventSizeId', trim($inventSizeId))
+            ->whereNotNull('PesoRollo')
+            ->orderByDesc('FechaModificacion')
+            ->orderByDesc('FechaCreacion')
+            ->orderByDesc('Id')
+            ->first();
+
+        return $pesoRollo && $pesoRollo->PesoRollo !== null
+            ? (float) $pesoRollo->PesoRollo
+            : null;
     }
 
     /**
