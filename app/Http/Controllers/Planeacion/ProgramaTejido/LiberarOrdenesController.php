@@ -537,7 +537,7 @@ class LiberarOrdenesController extends Controller
                             $result = DB::connection('sqlsrv_ti')
                                 ->table('BOMTABLE as BT')
                                 ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+                                ->select('BT.BOMID as bomId', 'BT.BARNAME as bomName')
                                 ->where('BT.BOMID', $registro->BomId)
                                 ->where('BV.ITEMID', $itemIdWithSuffix)
                                 ->where('BT.TWINVENTSIZEID', $inventSizeId)
