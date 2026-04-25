@@ -542,7 +542,7 @@ class LiberarOrdenesController extends Controller
                             $result = DB::connection('sqlsrv_ti')
                                 ->table('BOMTABLE as BT')
                                 ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                                ->select('BT.BOMID as bomId', 'BT.BARNAME as bomName')
+                                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
                                 ->where('BT.BOMID', $registro->BomId)
                                 ->where('BV.ITEMID', $itemIdWithSuffix)
                                 ->where('BT.TWINVENTSIZEID', $inventSizeId)
@@ -682,7 +682,6 @@ class LiberarOrdenesController extends Controller
         $combinationsParam = trim((string) $request->query('combinations', ''));
         $itemId = trim((string) $request->query('itemId', ''));
         $inventSizeId = trim((string) $request->query('inventSizeId', ''));
-        $salonTejidoId = trim((string) $request->query('salonTejidoId', ''));
         $term = trim((string) $request->query('term', ''));
         $allowFallback = filter_var($request->query('fallback', false), FILTER_VALIDATE_BOOLEAN);
         $freeMode = filter_var($request->query('freeMode', false), FILTER_VALIDATE_BOOLEAN);
@@ -692,7 +691,7 @@ class LiberarOrdenesController extends Controller
             if ($freeMode) {
                 return response()->json([
                     'success' => true,
-                    'data' => $this->queryBomFallback($term, null, null),
+                    'data' => $this->queryBomFallback($term, null),
                 ]);
             }
 
@@ -707,19 +706,17 @@ class LiberarOrdenesController extends Controller
                     ]);
                 }
 
-                // Parsear combinaciones:
-                // - Preferido: "itemId::inventSizeId::salonTejidoId" (misma convención que código dibujo; salón opcional).
-                // - Legado: "itemId:inventSizeId" (sin filtro TwSalon).
+                // Parsear combinaciones: "itemId::inventSizeId" o "itemId::inventSizeId::..." (tercer segmento ignorado:
+                // en AX, listas CRUDO de tejido usan TwSalon = 'SalonTejido', no SalonTejidoId del programa).
+                // Legado: "itemId:inventSizeId".
                 $pairs = [];
                 foreach ($combinations as $combo) {
                     $itemIdCombo = '';
                     $inventSizeIdCombo = '';
-                    $salonCombo = '';
                     if (str_contains($combo, '::')) {
                         $parts = array_map('trim', explode('::', $combo, 3));
                         $itemIdCombo = $parts[0] ?? '';
                         $inventSizeIdCombo = $parts[1] ?? '';
-                        $salonCombo = $parts[2] ?? '';
                     } else {
                         $parts = array_map('trim', explode(':', $combo, 2));
                         if (count($parts) === 2) {
@@ -733,7 +730,6 @@ class LiberarOrdenesController extends Controller
                     $pairs[] = [
                         'itemIdWithSuffix' => $itemIdCombo.'-1',
                         'inventSizeId' => $inventSizeIdCombo,
-                        'salonTejidoId' => $salonCombo,
                     ];
                 }
 
@@ -748,41 +744,31 @@ class LiberarOrdenesController extends Controller
                 $results = DB::connection('sqlsrv_ti')
                     ->table('BOMTABLE as BT')
                     ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                    ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.TwSalon', 'BT.BOMID as bomId', 'BT.NAME as bomName')
+                    ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
                     ->where('BT.ITEMGROUPID', 'CRUDO')
+                    ->where('BT.TwSalon', 'SalonTejido')
                     ->where(function ($query) use ($pairs) {
                         foreach ($pairs as $pair) {
                             $query->orWhere(function ($q) use ($pair) {
                                 $q->where('BV.ITEMID', $pair['itemIdWithSuffix'])
                                     ->where('BT.TWINVENTSIZEID', $pair['inventSizeId']);
-                                if (($pair['salonTejidoId'] ?? '') !== '') {
-                                    $q->where('BT.TwSalon', $pair['salonTejidoId']);
-                                }
                             });
                         }
                     })
+                    ->orderByRaw("CASE WHEN BT.BOMID LIKE 'TEJ%' THEN 0 ELSE 1 END")
                     ->orderBy('BT.BOMID')
                     ->get();
 
-                // Clave alineada con el front: item|talla|salonTejidoId (tercero vacío si no se filtró salón).
+                // Clave: item|talla (mismo criterio que el autofill en Blade).
                 $map = [];
                 foreach ($results as $result) {
                     $itemIdOriginal = str_replace('-1', '', (string) $result->ITEMID);
                     $size = (string) $result->TWINVENTSIZEID;
-                    $salonDb = trim((string) ($result->TwSalon ?? ''));
 
                     $matchingPairs = array_values(array_filter(
                         $pairs,
-                        static function (array $p) use ($result, $salonDb): bool {
-                            if ($p['itemIdWithSuffix'] !== $result->ITEMID || $p['inventSizeId'] !== $result->TWINVENTSIZEID) {
-                                return false;
-                            }
-                            $ps = $p['salonTejidoId'] ?? '';
-                            if ($ps !== '' && $ps !== $salonDb) {
-                                return false;
-                            }
-
-                            return true;
+                        static function (array $p) use ($result): bool {
+                            return $p['itemIdWithSuffix'] === $result->ITEMID && $p['inventSizeId'] === $result->TWINVENTSIZEID;
                         }
                     ));
 
@@ -790,8 +776,7 @@ class LiberarOrdenesController extends Controller
                         continue;
                     }
 
-                    $pairSalon = trim((string) ($matchingPairs[0]['salonTejidoId'] ?? ''));
-                    $key = $itemIdOriginal.'|'.$size.'|'.$pairSalon;
+                    $key = $itemIdOriginal.'|'.$size;
 
                     if (! isset($map[$key])) {
                         $map[$key] = [
@@ -814,7 +799,7 @@ class LiberarOrdenesController extends Controller
                 if ($allowFallback && $term !== '') {
                     return response()->json([
                         'success' => true,
-                        'data' => $this->queryBomFallback($term, $inventSizeId, $salonTejidoId),
+                        'data' => $this->queryBomFallback($term, $inventSizeId),
                     ]);
                 }
 
@@ -831,11 +816,8 @@ class LiberarOrdenesController extends Controller
                 ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
                 ->where('BV.ITEMID', $itemIdWithSuffix)
                 ->where('BT.ITEMGROUPID', 'CRUDO')
-                ->where('BT.TWINVENTSIZEID', $inventSizeId);
-
-            if ($salonTejidoId !== '') {
-                $query->where('BT.TwSalon', $salonTejidoId);
-            }
+                ->where('BT.TWINVENTSIZEID', $inventSizeId)
+                ->where('BT.TwSalon', 'SalonTejido');
 
             if ($term !== '') {
                 $query->where(function ($q) use ($term) {
@@ -844,9 +826,12 @@ class LiberarOrdenesController extends Controller
                 });
             }
 
-            $results = $query->orderBy('BT.BOMID')->limit(20)->get();
+            $results = $query->orderByRaw("CASE WHEN BT.BOMID LIKE 'TEJ%' THEN 0 ELSE 1 END")
+                ->orderBy('BT.BOMID')
+                ->limit(20)
+                ->get();
             if ($results->isEmpty() && $allowFallback && $term !== '') {
-                $results = $this->queryBomFallback($term, $inventSizeId, $salonTejidoId);
+                $results = $this->queryBomFallback($term, $inventSizeId);
             }
 
             return response()->json([
@@ -868,21 +853,17 @@ class LiberarOrdenesController extends Controller
         }
     }
 
-    private function queryBomFallback(string $term, ?string $inventSizeId = null, ?string $salonTejidoId = null, int $limit = 50)
+    private function queryBomFallback(string $term, ?string $inventSizeId = null, int $limit = 50)
     {
         $query = DB::connection('sqlsrv_ti')
             ->table('BOMTABLE as BT')
             ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-            ->where('BT.ITEMGROUPID', 'CRUDO');
+            ->where('BT.ITEMGROUPID', 'CRUDO')
+            ->where('BT.TwSalon', 'SalonTejido');
 
         // Filtrar por tamaño si está disponible
         if ($inventSizeId !== null && $inventSizeId !== '') {
             $query->where('BT.TWINVENTSIZEID', $inventSizeId);
-        }
-
-        // Filtrar por salón si está disponible
-        if ($salonTejidoId !== null && $salonTejidoId !== '') {
-            $query->where('BT.TwSalon', $salonTejidoId);
         }
 
         if ($term !== '') {
@@ -892,7 +873,10 @@ class LiberarOrdenesController extends Controller
             });
         }
 
-        return $query->orderBy('BT.BOMID')->limit($limit)->get();
+        return $query->orderByRaw("CASE WHEN BT.BOMID LIKE 'TEJ%' THEN 0 ELSE 1 END")
+            ->orderBy('BT.BOMID')
+            ->limit($limit)
+            ->get();
     }
 
     /**
