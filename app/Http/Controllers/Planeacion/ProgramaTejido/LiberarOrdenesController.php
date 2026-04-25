@@ -152,12 +152,9 @@ class LiberarOrdenesController extends Controller
             $registros->each(function ($registro) {
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
+                $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
                 $repeticiones = null;
-                if (isset($registro->Repeticiones) && is_numeric($registro->Repeticiones)) {
-                    $repeticiones = (int) ceil((float) $registro->Repeticiones);
-                } elseif ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    // Obtener peso rollo desde BD (buscar FEL primero, luego DEF, default 41.5)
-                    $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
+                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
                     $repeticiones = (int) ceil((($pesoRollo / (float) $pCrudo) / (float) $tiras) * 1000);
                 }
 
@@ -233,6 +230,7 @@ class LiberarOrdenesController extends Controller
                 }
 
                 $registro->Repeticiones = $repeticiones;
+                $registro->PesoRollo = $pesoRollo;
                 $registro->SaldoMarbete = $saldoMarbeteInt;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
@@ -261,10 +259,12 @@ class LiberarOrdenesController extends Controller
                 }
                 $registro->Densidad = $densidad;
 
-                $bomCrudo = $this->resolverBomCrudoExacto($registro);
-                if ($bomCrudo !== null) {
-                    $registro->BomId = trim((string) $bomCrudo->bomId);
-                    $registro->BomName = trim((string) $bomCrudo->bomName);
+                $bomOpciones = $this->resolverBomCrudoOpciones($registro);
+                $registro->BomOpciones = $bomOpciones;
+                $sinBom = trim((string) ($registro->BomId ?? '')) === '' || trim((string) ($registro->BomName ?? '')) === '';
+                if ($sinBom && count($bomOpciones) === 1) {
+                    $registro->BomId = trim((string) $bomOpciones[0]['bomId']);
+                    $registro->BomName = trim((string) $bomOpciones[0]['bomName']);
                 }
             });
 
@@ -311,6 +311,7 @@ class LiberarOrdenesController extends Controller
             'registros.*.bomId' => 'required|string|max:30',
             'registros.*.bomName' => 'required|string|max:100',
             'registros.*.hiloAX' => 'nullable|string|max:30',
+            'registros.*.pesoRollo' => 'nullable|numeric|min:0',
             'registros.*.mtsRollo' => 'nullable|numeric',
             'registros.*.pzasRollo' => 'nullable|numeric',
             'registros.*.totalRollos' => 'nullable|numeric',
@@ -411,13 +412,13 @@ class LiberarOrdenesController extends Controller
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
 
-                // Repeticiones: usar del request, existente o calcular
-                $repeticiones = $item['repeticiones'] ?? $registro->Repeticiones;
-                if ($repeticiones !== null && is_numeric($repeticiones)) {
-                    $repeticiones = (int) ceil((float) $repeticiones);
-                } elseif ($repeticiones === null && $pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    // Obtener peso rollo desde BD (buscar FEL primero, luego DEF, default 41.5)
+                // Repeticiones siempre se calcula con formula; no se toma de ReqProgramaTejido.
+                $repeticiones = null;
+                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
                     $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
+                    if (isset($item['pesoRollo']) && $item['pesoRollo'] !== null && $item['pesoRollo'] !== '' && is_numeric($item['pesoRollo'])) {
+                        $pesoRollo = (float) $item['pesoRollo'];
+                    }
                     $repeticiones = (int) ceil((($pesoRollo / (float) $pCrudo) / (float) $tiras) * 1000);
                 }
 
@@ -1489,11 +1490,23 @@ class LiberarOrdenesController extends Controller
 
     private function resolverBomCrudoExacto(ReqProgramaTejido $registro): ?object
     {
+        $opciones = $this->resolverBomCrudoOpciones($registro);
+
+        return $opciones !== []
+            ? (object) $opciones[0]
+            : null;
+    }
+
+    /**
+     * @return array<int, array{bomId: string, bomName: string}>
+     */
+    private function resolverBomCrudoOpciones(ReqProgramaTejido $registro): array
+    {
         $itemId = trim((string) ($registro->ItemId ?? ''));
         $inventSizeId = trim((string) ($registro->InventSizeId ?? ''));
 
         if ($itemId === '' || $inventSizeId === '') {
-            return null;
+            return [];
         }
 
         return DB::connection('sqlsrv_ti')
@@ -1505,7 +1518,14 @@ class LiberarOrdenesController extends Controller
             ->where('BT.ITEMGROUPID', 'CRUDO')
             ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
             ->orderBy('BT.BOMID')
-            ->first();
+            ->get()
+            ->map(fn ($row) => [
+                'bomId' => trim((string) ($row->bomId ?? '')),
+                'bomName' => trim((string) ($row->bomName ?? '')),
+            ])
+            ->filter(fn (array $row) => $row['bomId'] !== '')
+            ->values()
+            ->all();
     }
 
     /**

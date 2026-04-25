@@ -61,6 +61,7 @@
             ['field' => 'EntregaPT', 'label' => 'Fecha Compromiso'],
             ['field' => 'EntregaCte', 'label' => 'Entrega'],
             ['field' => 'PTvsCte', 'label' => 'Dif vs Compromiso'],
+            ['field' => 'PesoRollo', 'label' => 'Peso x Rollo'],
             ['field' => 'MtsRollo', 'label' => 'Metros x Rollo'],
             ['field' => 'PzasRollo', 'label' => 'Pzas x Rollo'],
             ['field' => 'TotalRollos', 'label' => 'Total Rollos'],
@@ -113,6 +114,25 @@
                 $rowId = $registro->Id ?? uniqid('row_');
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = htmlspecialchars((string) ($registro->BomId ?? ''), ENT_QUOTES, 'UTF-8');
+                $bomOpciones = is_array($registro->BomOpciones ?? null) ? $registro->BomOpciones : [];
+
+                if ($value === '' && !empty($bomOpciones)) {
+                    $optionsHtml = '<option value="">Seleccionar...</option>';
+                    foreach ($bomOpciones as $opcion) {
+                        $bomId = htmlspecialchars((string) ($opcion['bomId'] ?? ''), ENT_QUOTES, 'UTF-8');
+                        $bomName = htmlspecialchars((string) ($opcion['bomName'] ?? ''), ENT_QUOTES, 'UTF-8');
+                        if ($bomId === '') {
+                            continue;
+                        }
+                        $optionsHtml .= '<option value="' . $bomId . '" data-bom-name="' . $bomName . '">' . $bomId . '</option>';
+                    }
+
+                    return '<select id="bom-id-input-' . $rowId . '"
+                                  class="bom-id-input bom-select w-full min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded bg-white"
+                                  data-row-id="' . $rowId . '"
+                                  data-bom-select="1"
+                                  placeholder="L.Mat">' . $optionsHtml . '</select>';
+                }
 
                 return '<div class="relative">
                             <input type="text"
@@ -131,6 +151,26 @@
                 $rowId = $registro->Id ?? uniqid('row_');
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = htmlspecialchars((string) ($registro->BomName ?? ''), ENT_QUOTES, 'UTF-8');
+                $bomOpciones = is_array($registro->BomOpciones ?? null) ? $registro->BomOpciones : [];
+
+                if ($value === '' && !empty($bomOpciones)) {
+                    $optionsHtml = '<option value="">Seleccionar...</option>';
+                    foreach ($bomOpciones as $opcion) {
+                        $bomId = htmlspecialchars((string) ($opcion['bomId'] ?? ''), ENT_QUOTES, 'UTF-8');
+                        $bomName = htmlspecialchars((string) ($opcion['bomName'] ?? ''), ENT_QUOTES, 'UTF-8');
+                        if ($bomId === '') {
+                            continue;
+                        }
+                        $label = $bomName !== '' ? $bomName : $bomId;
+                        $optionsHtml .= '<option value="' . $label . '" data-bom-id="' . $bomId . '">' . $label . '</option>';
+                    }
+
+                    return '<select id="bom-name-input-' . $rowId . '"
+                                class="bom-name-input bom-select w-full min-w-[150px] px-3 py-2 text-sm border border-gray-300 rounded bg-white"
+                                data-row-id="' . $rowId . '"
+                                data-bom-select="1"
+                                placeholder="Nombre L.Mat">' . $optionsHtml . '</select>';
+                }
 
                 return '<div class="relative">
                             <input type="text"
@@ -185,6 +225,21 @@
             }
 
             // Solo TotalRollos es editable, los demás son texto plano
+            if ($field === 'PesoRollo') {
+                $rowId = $registro->Id ?? uniqid('row_');
+                $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
+                $value = $registro->{$field} ?? null;
+                $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 2, '.', '') : '') : '';
+
+                return '<input type="number"
+                              step="0.01"
+                              min="0"
+                              class="editable-field peso-rollo-input w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
+                              data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
+                              data-row-id="' . htmlspecialchars($rowId, ENT_QUOTES, 'UTF-8') . '">';
+            }
+
             $camposNumericosSoloLectura = ['MtsRollo', 'PzasRollo', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'Densidad'];
             if (in_array($field, $camposNumericosSoloLectura, true)) {
                 $value = $registro->{$field} ?? null;
@@ -193,7 +248,7 @@
                 if ($field === 'Densidad') {
                     $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 4, '.', ',') : '') : '';
                 } elseif ($field === 'MtsRollo') {
-                    // MtsRollo se mantiene como decimal sin redondear, con separador de miles
+                    // MtsRollo se muestra con decimales y separador de miles
                     $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 2, '.', ',') : '') : '';
                 } else {
                     // TotalPzas, PzasRollo, Repeticiones, SaldoMarbete: números enteros con separador de miles
@@ -407,7 +462,14 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
                             @foreach($registros as $index => $registro)
-                            <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}" data-id="{{ $registro->Id ?? '' }}" data-salon-tejido-id="{{ $registro->SalonTejidoId ?? '' }}" title="Clic en la fila para marcar como referencia visual (azul)">
+                            <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}"
+                                data-id="{{ $registro->Id ?? '' }}"
+                                data-salon-tejido-id="{{ $registro->SalonTejidoId ?? '' }}"
+                                data-peso-crudo="{{ $registro->PesoCrudo ?? '' }}"
+                                data-no-tiras="{{ $registro->NoTiras ?? '' }}"
+                                data-largo-crudo="{{ $registro->LargoCrudo ?? '' }}"
+                                data-saldo-pedido="{{ $registro->SaldoPedido ?? '' }}"
+                                title="Clic en la fila para marcar como referencia visual (azul)">
                                 @foreach($columns as $colIndex => $col)
                                 <td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }} {{ $col['field'] === 'select' ? 'text-center' : '' }} {{ $col['field'] === 'prioridad' ? 'px-4 py-3' : '' }}"
                                     data-column="{{ $col['field'] }}">
@@ -539,6 +601,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const editableFields = document.querySelectorAll('.editable-field');
     editableFields.forEach(field => {
         const fieldName = field.getAttribute('data-field');
+        if (fieldName === 'PesoRollo') {
+            field.addEventListener('keydown', bloquearNegativoEnNumero);
+            field.addEventListener('input', function() {
+                normalizarNumeroNoNegativo(this);
+                recalcularPorPesoRollo(this);
+            });
+            field.addEventListener('blur', function() {
+                normalizarNumeroNoNegativo(this);
+                recalcularPorPesoRollo(this);
+            });
+        }
 
         // Event listeners para TotalRollos - calcular TotalPzas automáticamente (sin guardar)
         if (fieldName === 'TotalRollos') {
@@ -564,6 +637,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Habilitar autocompletado para L.Mat y Nombre L.Mat
     setupBomAutocomplete();
+    setupBomSelects();
 });
 
 function autoFillAllHiloAX() {
@@ -826,6 +900,27 @@ function convertirHiloAXaSelect(row, valorHiloAX = null) {
 
 const bomOptionsByRow = new Map();
 
+function setupBomSelects() {
+    document.querySelectorAll('.row-data').forEach(row => {
+        const bomIdSelect = row.querySelector('select.bom-id-input[data-bom-select="1"]');
+        const bomNameSelect = row.querySelector('select.bom-name-input[data-bom-select="1"]');
+
+        if (!bomIdSelect || !bomNameSelect) return;
+
+        bomIdSelect.addEventListener('change', () => {
+            const selected = bomIdSelect.selectedOptions[0];
+            const bomName = selected ? (selected.dataset.bomName || '') : '';
+            bomNameSelect.value = bomName;
+        });
+
+        bomNameSelect.addEventListener('change', () => {
+            const selected = bomNameSelect.selectedOptions[0];
+            const bomId = selected ? (selected.dataset.bomId || '') : '';
+            bomIdSelect.value = bomId;
+        });
+    });
+}
+
 function setupBomAutocomplete() {
     const rows = document.querySelectorAll('.row-data');
 
@@ -834,6 +929,7 @@ function setupBomAutocomplete() {
         const bomNameInput = row.querySelector('.bom-name-input');
 
         if (!bomIdInput || !bomNameInput) return;
+        if (bomIdInput.tagName === 'SELECT' || bomNameInput.tagName === 'SELECT') return;
 
         const itemId = (row.querySelector('[data-column="ItemId"]')?.textContent || '').trim();
         const inventSizeId = (row.querySelector('[data-column="InventSizeId"]')?.textContent || '').trim();
@@ -1831,6 +1927,7 @@ function obtenerRegistrosSeleccionados() {
             bomId: getCellValue('BomId'),
             bomName: getCellValue('BomName'),
             hiloAX: getCellValue('HiloAX'),
+            pesoRollo: getNumericValue('PesoRollo'),
             mtsRollo: getNumericValue('MtsRollo'),
             pzasRollo: getNumericValue('PzasRollo'),
             totalRollos: getNumericValue('TotalRollos'),
@@ -1954,6 +2051,93 @@ function liberarOrdenes() {
 // Los checkboxes no cambian el estilo visual de las filas
 
 // Función para calcular TotalPzas automáticamente cuando cambia TotalRollos
+function parseNumeroGrid(value) {
+    if (value === null || value === undefined) return 0;
+    const cleaned = String(value).replace(/,/g, '').trim();
+    return cleaned === '' ? 0 : (parseFloat(cleaned) || 0);
+}
+
+function bloquearNegativoEnNumero(event) {
+    if (event.key === '-' || event.key === 'Minus') {
+        event.preventDefault();
+    }
+}
+
+function normalizarNumeroNoNegativo(input) {
+    if (!input) return;
+    const value = parseNumeroGrid(input.value);
+    if (value < 0) {
+        input.value = '';
+    }
+}
+
+function actualizarSpanNumerico(row, columnName, value, decimals = 0) {
+    const cell = row.querySelector(`td[data-column="${columnName}"]`);
+    const span = cell ? cell.querySelector('span') : null;
+    if (!span) return;
+
+    if (value !== null && value !== undefined && Number.isFinite(value) && value > 0) {
+        const rounded = decimals > 0 ? Number(value.toFixed(decimals)) : Math.round(value);
+        span.textContent = rounded.toLocaleString('es-MX', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+        });
+        span.setAttribute('data-calculated-value', String(rounded));
+    } else {
+        span.textContent = '';
+        span.removeAttribute('data-calculated-value');
+    }
+}
+
+function recalcularPorPesoRollo(pesoInput) {
+    const row = pesoInput.closest('.row-data');
+    if (!row) return;
+
+    const pesoRollo = parseNumeroGrid(pesoInput.value);
+    const pesoCrudo = parseNumeroGrid(row.dataset.pesoCrudo);
+    const noTiras = parseNumeroGrid(row.dataset.noTiras);
+    const largoCrudo = parseNumeroGrid(row.dataset.largoCrudo);
+    const saldoPedido = parseNumeroGrid(row.dataset.saldoPedido);
+
+    if (pesoRollo <= 0 || pesoCrudo <= 0 || noTiras <= 0) {
+        actualizarSpanNumerico(row, 'Repeticiones', null);
+        actualizarSpanNumerico(row, 'SaldoMarbete', null);
+        actualizarSpanNumerico(row, 'MtsRollo', null, 2);
+        actualizarSpanNumerico(row, 'PzasRollo', null);
+        actualizarTotalRollosYTotalPzas(row, null);
+        return;
+    }
+
+    const repeticiones = Math.ceil(((pesoRollo / pesoCrudo) / noTiras) * 1000);
+    const saldoMarbete = saldoPedido > 0 && repeticiones > 0
+        ? Math.ceil((saldoPedido / noTiras) / repeticiones)
+        : null;
+    const mtsRollo = largoCrudo > 0 && repeticiones > 0
+        ? (largoCrudo * repeticiones) / 100
+        : null;
+    const pzasRollo = repeticiones > 0 ? Math.round(repeticiones * noTiras) : null;
+
+    actualizarSpanNumerico(row, 'Repeticiones', repeticiones);
+    actualizarSpanNumerico(row, 'SaldoMarbete', saldoMarbete);
+    actualizarSpanNumerico(row, 'MtsRollo', mtsRollo, 2);
+    actualizarSpanNumerico(row, 'PzasRollo', pzasRollo);
+    actualizarTotalRollosYTotalPzas(row, pzasRollo);
+}
+
+function actualizarTotalRollosYTotalPzas(row, pzasRollo) {
+    const totalRollosInput = row.querySelector('input[data-field="TotalRollos"]');
+    if (!totalRollosInput) return;
+
+    const saldoPedido = parseNumeroGrid(row.dataset.saldoPedido);
+    const totalRollos = pzasRollo && pzasRollo > 0 && saldoPedido > 0
+        ? Math.ceil(saldoPedido / pzasRollo)
+        : null;
+
+    totalRollosInput.value = totalRollos !== null ? String(totalRollos) : '';
+    totalRollosInput.setAttribute('data-pzas-rollo', pzasRollo && pzasRollo > 0 ? String(pzasRollo) : '0');
+    calcularTotalPzas(totalRollosInput);
+}
+
 function calcularTotalPzas(changedInput) {
     const rowId = changedInput.getAttribute('data-row-id');
     if (!rowId) return;
