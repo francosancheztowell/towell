@@ -21,6 +21,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LiberarOrdenesController extends Controller
 {
+    /** TwSalon en AX para BOM CRUDO de tejido (solo SMIT / Jacquard). */
+    private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD', 'JACUARD'];
+
     /**
      * Muestra los registros de ReqProgramaTejido que no tienen orden de producción
      *
@@ -547,7 +550,7 @@ class LiberarOrdenesController extends Controller
                                 ->where('BV.ITEMID', $itemIdWithSuffix)
                                 ->where('BT.TWINVENTSIZEID', $inventSizeId)
                                 ->where('BT.ITEMGROUPID', 'CRUDO')
-                                ->where('BT.TwSalon', 'SalonTejido')
+                                ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
                                 ->first();
                         } else {
                             $result = DB::connection('sqlsrv_ti')
@@ -555,7 +558,7 @@ class LiberarOrdenesController extends Controller
                                 ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
                                 ->where('BT.BOMID', $registro->BomId)
                                 ->where('BT.ITEMGROUPID', 'CRUDO')
-                                ->where('BT.TwSalon', 'SalonTejido')
+                                ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
                                 ->first();
                         }
 
@@ -706,9 +709,9 @@ class LiberarOrdenesController extends Controller
                     ]);
                 }
 
-                // Parsear combinaciones: "itemId::inventSizeId" o "itemId::inventSizeId::..." (tercer segmento ignorado:
-                // en AX, listas CRUDO de tejido usan TwSalon = 'SalonTejido', no SalonTejidoId del programa).
+                // Parsear combinaciones: "itemId::inventSizeId" o "itemId::inventSizeId::..." (tercer segmento ignorado).
                 // Legado: "itemId:inventSizeId".
+                // BT+BV, ITEMID (-1), TWINVENTSIZEID, ITEMGROUPID = CRUDO, TwSalon ∈ SMIT/JACQUARD (±JACUARD en AX).
                 $pairs = [];
                 foreach ($combinations as $combo) {
                     $itemIdCombo = '';
@@ -746,7 +749,7 @@ class LiberarOrdenesController extends Controller
                     ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
                     ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
                     ->where('BT.ITEMGROUPID', 'CRUDO')
-                    ->where('BT.TwSalon', 'SalonTejido')
+                    ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
                     ->where(function ($query) use ($pairs) {
                         foreach ($pairs as $pair) {
                             $query->orWhere(function ($q) use ($pair) {
@@ -755,7 +758,6 @@ class LiberarOrdenesController extends Controller
                             });
                         }
                     })
-                    ->orderByRaw("CASE WHEN BT.BOMID LIKE 'TEJ%' THEN 0 ELSE 1 END")
                     ->orderBy('BT.BOMID')
                     ->get();
 
@@ -817,7 +819,7 @@ class LiberarOrdenesController extends Controller
                 ->where('BV.ITEMID', $itemIdWithSuffix)
                 ->where('BT.ITEMGROUPID', 'CRUDO')
                 ->where('BT.TWINVENTSIZEID', $inventSizeId)
-                ->where('BT.TwSalon', 'SalonTejido');
+                ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES);
 
             if ($term !== '') {
                 $query->where(function ($q) use ($term) {
@@ -826,10 +828,7 @@ class LiberarOrdenesController extends Controller
                 });
             }
 
-            $results = $query->orderByRaw("CASE WHEN BT.BOMID LIKE 'TEJ%' THEN 0 ELSE 1 END")
-                ->orderBy('BT.BOMID')
-                ->limit(20)
-                ->get();
+            $results = $query->orderBy('BT.BOMID')->limit(20)->get();
             if ($results->isEmpty() && $allowFallback && $term !== '') {
                 $results = $this->queryBomFallback($term, $inventSizeId);
             }
@@ -859,7 +858,7 @@ class LiberarOrdenesController extends Controller
             ->table('BOMTABLE as BT')
             ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
             ->where('BT.ITEMGROUPID', 'CRUDO')
-            ->where('BT.TwSalon', 'SalonTejido');
+            ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES);
 
         // Filtrar por tamaño si está disponible
         if ($inventSizeId !== null && $inventSizeId !== '') {
@@ -873,10 +872,7 @@ class LiberarOrdenesController extends Controller
             });
         }
 
-        return $query->orderByRaw("CASE WHEN BT.BOMID LIKE 'TEJ%' THEN 0 ELSE 1 END")
-            ->orderBy('BT.BOMID')
-            ->limit($limit)
-            ->get();
+        return $query->orderBy('BT.BOMID')->limit($limit)->get();
     }
 
     /**
