@@ -260,6 +260,12 @@ class LiberarOrdenesController extends Controller
                     }
                 }
                 $registro->Densidad = $densidad;
+
+                $bomCrudo = $this->resolverBomCrudoExacto($registro);
+                if ($bomCrudo !== null) {
+                    $registro->BomId = trim((string) $bomCrudo->bomId);
+                    $registro->BomName = trim((string) $bomCrudo->bomName);
+                }
             });
 
             // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
@@ -536,31 +542,8 @@ class LiberarOrdenesController extends Controller
                 $bomNameIngresadoManual = isset($item['bomName']) && $item['bomName'] !== null && $item['bomName'] !== '';
 
                 if (empty($registro->BomName) && ! empty($registro->BomId) && ! $bomNameIngresadoManual) {
-                    $itemId = $registro->ItemId ?? null;
-                    $inventSizeId = $registro->InventSizeId ?? null;
-
                     try {
-                        if ($itemId && $inventSizeId) {
-                            $itemIdWithSuffix = $itemId.'-1';
-                            $result = DB::connection('sqlsrv_ti')
-                                ->table('BOMTABLE as BT')
-                                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-                                ->where('BT.BOMID', $registro->BomId)
-                                ->where('BV.ITEMID', $itemIdWithSuffix)
-                                ->where('BT.TWINVENTSIZEID', $inventSizeId)
-                                ->where('BT.ITEMGROUPID', 'CRUDO')
-                                ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
-                                ->first();
-                        } else {
-                            $result = DB::connection('sqlsrv_ti')
-                                ->table('BOMTABLE as BT')
-                                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-                                ->where('BT.BOMID', $registro->BomId)
-                                ->where('BT.ITEMGROUPID', 'CRUDO')
-                                ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
-                                ->first();
-                        }
+                        $result = $this->resolverBomCrudoExacto($registro);
 
                         if ($result && ! empty($result->bomName)) {
                             if (! empty($result->bomId)) {
@@ -1502,6 +1485,27 @@ class LiberarOrdenesController extends Controller
         return $pesoRollo && $pesoRollo->PesoRollo !== null
             ? (float) $pesoRollo->PesoRollo
             : null;
+    }
+
+    private function resolverBomCrudoExacto(ReqProgramaTejido $registro): ?object
+    {
+        $itemId = trim((string) ($registro->ItemId ?? ''));
+        $inventSizeId = trim((string) ($registro->InventSizeId ?? ''));
+
+        if ($itemId === '' || $inventSizeId === '') {
+            return null;
+        }
+
+        return DB::connection('sqlsrv_ti')
+            ->table('BOMTABLE as BT')
+            ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+            ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+            ->where('BV.ITEMID', $itemId.'-1')
+            ->where('BT.TWINVENTSIZEID', $inventSizeId)
+            ->where('BT.ITEMGROUPID', 'CRUDO')
+            ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
+            ->orderBy('BT.BOMID')
+            ->first();
     }
 
     /**
