@@ -541,6 +541,7 @@ class LiberarOrdenesController extends Controller
                                 ->where('BT.BOMID', $registro->BomId)
                                 ->where('BV.ITEMID', $itemIdWithSuffix)
                                 ->where('BT.TWINVENTSIZEID', $inventSizeId)
+                                ->where('BT.ITEMGROUPID', 'CRUDO')
                                 ->where('BT.TwSalon', 'SalonTejido')
                                 ->first();
                         } else {
@@ -548,6 +549,7 @@ class LiberarOrdenesController extends Controller
                                 ->table('BOMTABLE as BT')
                                 ->select('BT.NAME as bomName')
                                 ->where('BT.BOMID', $registro->BomId)
+                                ->where('BT.ITEMGROUPID', 'CRUDO')
                                 ->where('BT.TwSalon', 'SalonTejido')
                                 ->first();
                         }
@@ -725,6 +727,7 @@ class LiberarOrdenesController extends Controller
                     ->table('BOMTABLE as BT')
                     ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
                     ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
+                    ->where('BT.ITEMGROUPID', 'CRUDO')
                     ->where(function($query) use ($pairs) {
                         foreach ($pairs as $pair) {
                             $query->orWhere(function($q) use ($pair) {
@@ -779,6 +782,7 @@ class LiberarOrdenesController extends Controller
                 ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
                 ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
                 ->where('BV.ITEMID', $itemIdWithSuffix)
+                ->where('BT.ITEMGROUPID', 'CRUDO')
                 ->where('BT.TWINVENTSIZEID', $inventSizeId);
 
             if ($term !== '') {
@@ -817,7 +821,7 @@ class LiberarOrdenesController extends Controller
         $query = DB::connection('sqlsrv_ti')
             ->table('BOMTABLE as BT')
             ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-            ->where('BT.ITEMGROUPID', 'LIKE', '%CRUDO%');
+            ->where('BT.ITEMGROUPID', 'CRUDO');
 
         // Filtrar por tamaño si está disponible
         if ($inventSizeId !== null && $inventSizeId !== '') {
