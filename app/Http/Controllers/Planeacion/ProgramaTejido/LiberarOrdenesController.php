@@ -537,7 +537,7 @@ class LiberarOrdenesController extends Controller
                             $result = DB::connection('sqlsrv_ti')
                                 ->table('BOMTABLE as BT')
                                 ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                                ->select('BT.NAME as bomName')
+                                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
                                 ->where('BT.BOMID', $registro->BomId)
                                 ->where('BV.ITEMID', $itemIdWithSuffix)
                                 ->where('BT.TWINVENTSIZEID', $inventSizeId)
@@ -547,7 +547,7 @@ class LiberarOrdenesController extends Controller
                         } else {
                             $result = DB::connection('sqlsrv_ti')
                                 ->table('BOMTABLE as BT')
-                                ->select('BT.NAME as bomName')
+                                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
                                 ->where('BT.BOMID', $registro->BomId)
                                 ->where('BT.ITEMGROUPID', 'CRUDO')
                                 ->where('BT.TwSalon', 'SalonTejido')
@@ -555,6 +555,9 @@ class LiberarOrdenesController extends Controller
                         }
 
                         if ($result && !empty($result->bomName)) {
+                            if (!empty($result->bomId)) {
+                                $registro->BomId = trim((string) $result->bomId);
+                            }
                             $registro->BomName = trim($result->bomName);
                         }
                     } catch (\Exception $e) {
