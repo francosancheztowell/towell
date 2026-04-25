@@ -261,10 +261,13 @@ class LiberarOrdenesController extends Controller
 
                 $bomOpciones = $this->resolverBomCrudoOpciones($registro);
                 $registro->BomOpciones = $bomOpciones;
-                $sinBom = trim((string) ($registro->BomId ?? '')) === '' || trim((string) ($registro->BomName ?? '')) === '';
-                if ($sinBom && count($bomOpciones) === 1) {
+
+                if (count($bomOpciones) === 1) {
                     $registro->BomId = trim((string) $bomOpciones[0]['bomId']);
                     $registro->BomName = trim((string) $bomOpciones[0]['bomName']);
+                } else {
+                    $registro->BomId = null;
+                    $registro->BomName = null;
                 }
             });
 
@@ -1504,8 +1507,9 @@ class LiberarOrdenesController extends Controller
     {
         $itemId = trim((string) ($registro->ItemId ?? ''));
         $inventSizeId = trim((string) ($registro->InventSizeId ?? ''));
+        $salon = $this->normalizarSalonBomCrudo($registro);
 
-        if ($itemId === '' || $inventSizeId === '') {
+        if ($itemId === '' || $inventSizeId === '' || $salon === '') {
             return [];
         }
 
@@ -1516,7 +1520,7 @@ class LiberarOrdenesController extends Controller
             ->where('BV.ITEMID', $itemId.'-1')
             ->where('BT.TWINVENTSIZEID', $inventSizeId)
             ->where('BT.ITEMGROUPID', 'CRUDO')
-            ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
+            ->where('BT.TWSALON', $salon)
             ->orderBy('BT.BOMID')
             ->get()
             ->map(fn ($row) => [
@@ -1526,6 +1530,17 @@ class LiberarOrdenesController extends Controller
             ->filter(fn (array $row) => $row['bomId'] !== '')
             ->values()
             ->all();
+    }
+
+    private function normalizarSalonBomCrudo(ReqProgramaTejido $registro): string
+    {
+        $salon = strtoupper(trim((string) ($registro->SalonTejidoId ?? '')));
+
+        return match ($salon) {
+            'JACUARD' => 'JACQUARD',
+            'JACQUARD', 'SMIT' => $salon,
+            default => $salon,
+        };
     }
 
     /**

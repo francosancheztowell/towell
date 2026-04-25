@@ -124,7 +124,8 @@
                         if ($bomId === '') {
                             continue;
                         }
-                        $optionsHtml .= '<option value="' . $bomId . '" data-bom-name="' . $bomName . '">' . $bomId . '</option>';
+                        $label = $bomName !== '' ? $bomId . ' - ' . $bomName : $bomId;
+                        $optionsHtml .= '<option value="' . $bomId . '" data-bom-name="' . $bomName . '">' . $label . '</option>';
                     }
 
                     return '<select id="bom-id-input-' . $rowId . '"
@@ -161,8 +162,9 @@
                         if ($bomId === '') {
                             continue;
                         }
-                        $label = $bomName !== '' ? $bomName : $bomId;
-                        $optionsHtml .= '<option value="' . $label . '" data-bom-id="' . $bomId . '">' . $label . '</option>';
+                        $valueName = $bomName !== '' ? $bomName : $bomId;
+                        $label = $bomName !== '' ? $bomName . ' - ' . $bomId : $bomId;
+                        $optionsHtml .= '<option value="' . $valueName . '" data-bom-id="' . $bomId . '">' . $label . '</option>';
                     }
 
                     return '<select id="bom-name-input-' . $rowId . '"
