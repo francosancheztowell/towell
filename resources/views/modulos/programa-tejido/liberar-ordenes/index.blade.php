@@ -666,11 +666,12 @@ function autoFillAllBomFields() {
         const userEdited = bomIdInput.dataset.userEdited === 'true' || bomNameInput.dataset.userEdited === 'true';
 
         if (!currentBomId && itemId && inventSizeId && !userEdited) {
-            const cacheKey = `${itemId}|${inventSizeId}`;
+            const salon = (row.getAttribute('data-salon-tejido-id') || '').trim();
+            const cacheKey = `${itemId}|${inventSizeId}|${salon}`;
 
             if (!cellsByKey.has(cacheKey)) {
                 cellsByKey.set(cacheKey, []);
-                combinations.push(`${itemId}:${inventSizeId}`);
+                combinations.push([itemId, inventSizeId, salon].join('::'));
             }
             cellsByKey.get(cacheKey).push({ bomIdInput, bomNameInput });
         }
@@ -838,11 +839,14 @@ function setupBomAutocomplete() {
         const itemId = (row.querySelector('[data-column="ItemId"]')?.textContent || '').trim();
         const inventSizeId = (row.querySelector('[data-column="InventSizeId"]')?.textContent || '').trim();
         const rowId = row.getAttribute('data-id') || bomIdInput.dataset.rowId || '';
+        const salonTejidoId = (row.getAttribute('data-salon-tejido-id') || '').trim();
 
         bomIdInput.dataset.itemId = itemId;
         bomIdInput.dataset.inventSizeId = inventSizeId;
+        bomIdInput.dataset.salonTejidoId = salonTejidoId;
         bomNameInput.dataset.itemId = itemId;
         bomNameInput.dataset.inventSizeId = inventSizeId;
+        bomNameInput.dataset.salonTejidoId = salonTejidoId;
 
         // Función para cargar opciones disponibles
         // Si el usuario editó el campo, usar modo libre (fallback) para mostrar más opciones
@@ -859,6 +863,7 @@ function setupBomAutocomplete() {
             const options = await fetchBomOptions(
                 sourceInput.dataset.itemId,
                 sourceInput.dataset.inventSizeId,
+                sourceInput.dataset.salonTejidoId || '',
                 '',
                 true,
                 freeMode
@@ -887,6 +892,7 @@ function setupBomAutocomplete() {
             const options = await fetchBomOptions(
                 sourceInput.dataset.itemId,
                 sourceInput.dataset.inventSizeId,
+                sourceInput.dataset.salonTejidoId || '',
                 term,
                 true,
                 freeMode
@@ -956,13 +962,14 @@ function debounce(fn, wait) {
     };
 }
 
-async function fetchBomOptions(itemId, inventSizeId, term, allowFallback, freeMode = false) {
+async function fetchBomOptions(itemId, inventSizeId, salonTejidoId, term, allowFallback, freeMode = false) {
     const params = new URLSearchParams();
 
     // Si freeMode está activo, NO enviar itemId ni inventSizeId - búsqueda completamente libre
     if (!freeMode) {
         if (itemId) params.set('itemId', itemId);
         if (inventSizeId) params.set('inventSizeId', inventSizeId);
+        if (salonTejidoId) params.set('salonTejidoId', salonTejidoId);
     }
     if (term) params.set('term', term);
     if (allowFallback || freeMode) params.set('fallback', '1');
