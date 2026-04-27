@@ -51,11 +51,7 @@
                         $chartDataReal = array_map(static fn (array $r) => $r['rpm_real'], $filasOrdenTelar);
                         $chartDataIdeal = array_map(static fn (array $r) => $r['rpm_ideal'], $filasOrdenTelar);
                     @endphp
-                    <div class="mb-8 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-                      <div class="w-full h-[22rem] min-w-[min(100%,48rem)]">
-                            <canvas id="chartRpmSemanal" aria-label="Gráfico RPM real e ideal por telar"></canvas>
-                        </div>
-                    </div>
+
                     <div class="rounded-lg border border-slate-300 overflow-hidden bg-white">
                         <table class="w-full min-w-[640px] border-collapse text-sm tabular-nums">
                             <caption class="sr-only">
