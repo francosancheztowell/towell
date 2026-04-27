@@ -1,8 +1,8 @@
 <?php
 
+use App\Http\Controllers\Tejido\Configuracion\SecuenciaCorteEficiencia\SecuenciaCorteEficienciaController;
 use App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTelas\SecuenciaInvTelasController;
 use App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTrama\SecuenciaInvTramaController;
-use App\Http\Controllers\Tejido\Configuracion\SecuenciaCorteEficiencia\SecuenciaCorteEficienciaController;
 use App\Http\Controllers\Tejido\Configuracion\SecuenciaMarcasFinales\SecuenciaMarcasFinalesController;
 use App\Http\Controllers\Tejido\CortesEficiencia\CortesEficienciaController;
 use App\Http\Controllers\Tejido\InventarioTelas\TelaresController;
@@ -11,8 +11,9 @@ use App\Http\Controllers\Tejido\InventarioTrama\NuevoRequerimientoController;
 use App\Http\Controllers\Tejido\MarcasFinales\MarcasController;
 use App\Http\Controllers\Tejido\ProduccionReenconado\ProduccionReenconadoCabezuelaController;
 use App\Http\Controllers\Tejido\Reportes\PromedioParosEficienciaController;
-use App\Http\Controllers\Tejido\Reportes\ReporteMarcasFinalesController;
 use App\Http\Controllers\Tejido\Reportes\ReporteInvTelasController;
+use App\Http\Controllers\Tejido\Reportes\ReporteMarcasFinalesController;
+use App\Http\Controllers\Tejido\Reportes\ReporteRpmSemanalController;
 use App\Http\Controllers\Tejido\Reportes\SaldosController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -49,7 +50,14 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
                 'url' => route('tejido.reportes.saldos-2026'),
                 'disponible' => true,
             ],
+            [
+                'nombre' => 'Reporte RPM Sem',
+                'accion' => 'Elegir semana (lunes a domingo)',
+                'url' => route('tejido.reportes.inv-trama'),
+                'disponible' => true,
+            ],
         ];
+
         return view('modulos.tejido.reportes.index', ['reportes' => $reportes]);
     })->name('reportes.index');
 
@@ -63,6 +71,9 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
 
     Route::get('/reportes/saldos-2026', [SaldosController::class, 'index'])->name('reportes.saldos-2026');
     Route::get('/reportes/saldos-2026/excel', [SaldosController::class, 'exportarExcel'])->name('reportes.saldos-2026.excel');
+
+    Route::get('/reportes/rpm-semanal', [ReporteRpmSemanalController::class, 'index'])->name('reportes.inv-trama');
+    Route::get('/reportes/rpm-semanal/excel', [ReporteRpmSemanalController::class, 'exportarExcel'])->name('reportes.inv-trama.excel');
 
     Route::get('/configurar/{serie?}', [UsuarioController::class, 'showSubModulosConfiguracion'])
         ->defaults('serie', '205')
