@@ -155,24 +155,10 @@ class LiberarOrdenesController extends Controller
                 $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
                 $repeticiones = null;
                 if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    $repeticiones = (int) ceil((($pesoRollo / (float) $pCrudo) / (float) $tiras) * 1000);
+                    $repeticiones = $this->repeticionesDesdePesoRollo($pesoRollo, $pCrudo, $tiras);
                 }
 
-                $saldoMarbeteInt = 0;
-                if (isset($registro->SaldoMarbete) && is_numeric($registro->SaldoMarbete)) {
-                    $saldoMarbeteInt = (int) ceil((float) $registro->SaldoMarbete);
-                } else {
-                    $cantidadProducir = $registro->SaldoPedido ?? null;
-                    $saldoMarbete = 0;
-                    if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
-                        is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
-                        $tiras > 0 && $repeticiones > 0) {
-                        $saldoMarbete = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
-                    }
-                    if (is_numeric($saldoMarbete)) {
-                        $saldoMarbeteInt = (int) ceil((float) $saldoMarbete);
-                    }
-                }
+                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
                 // MtsRollo: fórmula = medida de largo * repeticiones (convertir cm a metros)
                 // MtsRollo se mantiene como decimal sin redondear
                 $mtsRollo = null;
@@ -215,8 +201,8 @@ class LiberarOrdenesController extends Controller
                     if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos) && $registro->TotalRollos > 0) {
                         $totalRollos = (float) ceil((float) $registro->TotalRollos);
                     } else {
-                        // Fallback a saldoMarbeteInt si no hay datos
-                        $totalRollos = $saldoMarbeteInt > 0 ? (float) $saldoMarbeteInt : null;
+                        // Fallback: aproximar rollos a partir del no. marbetes (fórmula); entero hacia arriba
+                        $totalRollos = $saldoMarbeteValor > 0 ? (float) ceil($saldoMarbeteValor) : null;
                     }
                 }
 
@@ -231,7 +217,7 @@ class LiberarOrdenesController extends Controller
 
                 $registro->Repeticiones = $repeticiones;
                 $registro->PesoRollo = $pesoRollo;
-                $registro->SaldoMarbete = $saldoMarbeteInt;
+                $registro->SaldoMarbete = $saldoMarbeteValor;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
@@ -319,8 +305,6 @@ class LiberarOrdenesController extends Controller
             'registros.*.pzasRollo' => 'nullable|numeric',
             'registros.*.totalRollos' => 'nullable|numeric',
             'registros.*.totalPzas' => 'nullable|numeric',
-            'registros.*.repeticiones' => 'nullable|numeric',
-            'registros.*.saldoMarbete' => 'nullable|numeric',
             'registros.*.densidad' => 'nullable|numeric',
             'registros.*.observaciones' => 'nullable|string|max:200',
             'registros.*.cambioRepaso' => ['nullable', 'string', Rule::in(['SI', 'NO', 'Si', 'No', 'si', 'no'])],
@@ -415,32 +399,17 @@ class LiberarOrdenesController extends Controller
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
 
-                // Repeticiones siempre se calcula con formula; no se toma de ReqProgramaTejido.
+                // Repeticiones y no. marbetes: solo fórmula Excel; no se toman de ReqProgramaTejido ni del request.
                 $repeticiones = null;
                 if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
                     $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
                     if (isset($item['pesoRollo']) && $item['pesoRollo'] !== null && $item['pesoRollo'] !== '' && is_numeric($item['pesoRollo'])) {
                         $pesoRollo = (float) $item['pesoRollo'];
                     }
-                    $repeticiones = (int) ceil((($pesoRollo / (float) $pCrudo) / (float) $tiras) * 1000);
+                    $repeticiones = $this->repeticionesDesdePesoRollo($pesoRollo, $pCrudo, $tiras);
                 }
 
-                // SaldoMarbete: usar del request, existente o calcular
-                $saldoMarbeteInt = $item['saldoMarbete'] ?? $registro->SaldoMarbete;
-                if ($saldoMarbeteInt !== null && is_numeric($saldoMarbeteInt)) {
-                    $saldoMarbeteInt = (int) ceil((float) $saldoMarbeteInt);
-                } elseif ($saldoMarbeteInt === null) {
-                    $cantidadProducir = $registro->SaldoPedido ?? null;
-                    $saldoMarbeteCalc = 0;
-                    if ($cantidadProducir !== null && $tiras && $repeticiones !== null &&
-                        is_numeric($cantidadProducir) && is_numeric($tiras) && is_numeric($repeticiones) &&
-                        $tiras > 0 && $repeticiones > 0) {
-                        $saldoMarbeteCalc = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
-                    }
-                    if (is_numeric($saldoMarbeteCalc)) {
-                        $saldoMarbeteInt = (int) ceil((float) $saldoMarbeteCalc);
-                    }
-                }
+                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
 
                 // MtsRollo: usar del request, existente o calcular
                 // MtsRollo se mantiene como decimal sin redondear
@@ -484,8 +453,8 @@ class LiberarOrdenesController extends Controller
                         // Si no se puede calcular, usar el valor existente redondeado hacia arriba
                         $totalRollos = (float) ceil((float) $registro->TotalRollos);
                     } else {
-                        // Fallback a saldoMarbeteInt
-                        $totalRollos = $saldoMarbeteInt > 0 ? (float) $saldoMarbeteInt : null;
+                        // Fallback: aproximar rollos a partir del no. marbetes (fórmula); entero hacia arriba
+                        $totalRollos = $saldoMarbeteValor > 0 ? (float) ceil($saldoMarbeteValor) : null;
                     }
                 }
 
@@ -498,7 +467,7 @@ class LiberarOrdenesController extends Controller
 
                 // Asignar campos calculados
                 $registro->Repeticiones = $repeticiones;
-                $registro->SaldoMarbete = $saldoMarbeteInt ?? 0;
+                $registro->SaldoMarbete = $saldoMarbeteValor;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
@@ -945,11 +914,9 @@ class LiberarOrdenesController extends Controller
                     // Campo string
                     $registro->CombinaTram = $value !== null ? trim((string) $value) : null;
                 } elseif ($field === 'SaldoMarbete') {
-                    // SaldoMarbete es entero, redondear hacia arriba si hay decimal
-                    $registro->SaldoMarbete = $value !== null ? (int) ceil((float) $value) : null;
+                    $registro->SaldoMarbete = $value !== null && $value !== '' ? (int) round((float) $value) : null;
                 } elseif ($field === 'Repeticiones') {
-                    // Repeticiones es entero, redondear hacia arriba si hay decimal
-                    $registro->Repeticiones = $value !== null ? (int) ceil((float) $value) : null;
+                    $registro->Repeticiones = $value !== null && $value !== '' ? (int) (float) $value : null;
                 } elseif ($field === 'Densidad') {
                     // Densidad es float con 4 decimales
                     $registro->Densidad = $value !== null ? round((float) $value, 4) : null;
@@ -1152,11 +1119,9 @@ class LiberarOrdenesController extends Controller
 
             // Asignar el valor según el tipo de campo
             if ($campoCatCodificados === 'NoMarbete') {
-                // NoMarbete (SaldoMarbete), redondear hacia arriba si hay decimal
-                $registroCodificado->NoMarbete = $value !== null ? (float) ceil((float) $value) : null;
+                $registroCodificado->NoMarbete = $value !== null && $value !== '' ? (float) round((float) $value, 0) : null;
             } elseif ($campoCatCodificados === 'Repeticiones') {
-                // Repeticiones, redondear hacia arriba si hay decimal
-                $registroCodificado->Repeticiones = $value !== null ? (int) ceil((float) $value) : null;
+                $registroCodificado->Repeticiones = $value !== null && $value !== '' ? (int) (float) $value : null;
             } elseif ($campoCatCodificados === 'Densidad') {
                 $registroCodificado->Densidad = $value !== null ? round((float) $value, 4) : null;
             } elseif ($campoCatCodificados === 'CombinaTram') {
@@ -1244,9 +1209,7 @@ class LiberarOrdenesController extends Controller
                 }
             }
 
-            // Campos a actualizar desde ReqProgramaTejido
-            // Convertir valores null a 0 para campos numéricos si es necesario
-            // Aplicar ceil() a Repeticiones, SaldoMarbete y TotalRollos
+            // Valores alineados a fórmulas Excel (repeticiones = TRUNCAR; no. marbetes = float sin forzar techo)
             $payload = [
                 'BomId' => $registro->BomId,
                 'BomName' => $registro->BomName,
@@ -1255,8 +1218,8 @@ class LiberarOrdenesController extends Controller
                 'PzasRollo' => $registro->PzasRollo,
                 'TotalRollos' => $registro->TotalRollos !== null ? (float) ceil((float) $registro->TotalRollos) : null,
                 'TotalPzas' => $registro->TotalPzas,
-                'Repeticiones' => $registro->Repeticiones !== null ? (int) ceil((float) $registro->Repeticiones) : null,
-                'NoMarbete' => $registro->SaldoMarbete !== null ? (float) ceil((float) $registro->SaldoMarbete) : null, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
+                'Repeticiones' => $registro->Repeticiones !== null ? (int) (float) $registro->Repeticiones : null,
+                'NoMarbete' => $registro->SaldoMarbete !== null ? (float) round((float) $registro->SaldoMarbete, 0) : null, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
                 'CombinaTram' => $registro->CombinaTram,
                 'CambioRepaso' => $registro->CambioHilo,
                 'Densidad' => $registro->Densidad !== null ? (float) $registro->Densidad : null,
@@ -1432,6 +1395,43 @@ class LiberarOrdenesController extends Controller
             }
         } catch (\Throwable $e) {
         }
+    }
+
+    /**
+     * =TRUNCAR((peso_rollo / peso_crudo) / tiras * 1000) en Excel.
+     */
+    private function repeticionesDesdePesoRollo(float $pesoRollo, $pCrudo, $tiras): ?int
+    {
+        if ($pCrudo === null || $tiras === null
+            || ! is_numeric($pCrudo) || ! is_numeric($tiras)
+            || (float) $pCrudo <= 0.0 || (float) $tiras <= 0.0) {
+            return null;
+        }
+
+        $v = (($pesoRollo / (float) $pCrudo) / (float) $tiras) * 1000.0;
+
+        // TRUNCAR hacia cero; para cantidades no negativas coincide con (int)
+        return (int) $v;
+    }
+
+    /**
+     * =SI(ESERROR((cantidad a producir / tiras) / repeticiones), 0, REDONDEAR(..., 0)) — resultado entero.
+     */
+    private function saldoMarbeteDesdeFormula($cantidadProducir, $tiras, $repeticiones): int
+    {
+        if ($repeticiones === null || $tiras === null || $cantidadProducir === null) {
+            return 0;
+        }
+        if (! is_numeric($cantidadProducir) || ! is_numeric($tiras) || ! is_numeric($repeticiones)) {
+            return 0;
+        }
+        if ((float) $tiras == 0.0 || (float) $repeticiones == 0.0) {
+            return 0;
+        }
+
+        $raw = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
+
+        return (int) round($raw, 0);
     }
 
     /**

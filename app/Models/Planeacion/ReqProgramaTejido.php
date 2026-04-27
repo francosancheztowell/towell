@@ -35,7 +35,7 @@ class ReqProgramaTejido extends Model
 
     public static function tableName(): string
     {
-        return (new static())->getTable();
+        return (new static)->getTable();
     }
 
     /**
@@ -43,25 +43,25 @@ class ReqProgramaTejido extends Model
      * Mantengo el listado original (menos 'Id') para compatibilidad.
      */
     protected $fillable = [
-        'EnProceso','CuentaRizo','CalibreRizo','SalonTejidoId','NoTelarId','Ultimo','CambioHilo','Maquina','Ancho',
-        'EficienciaSTD','VelocidadSTD','FibraRizo','CalibrePie','CalendarioId','TamanoClave','NoExisteBase',
-        'ItemId','InventSizeId','Rasurado','NombreProducto','TotalPedido','Produccion','SaldoPedido','SaldoMarbete',
-        'ProgramarProd','NoProduccion','Programado','FlogsId','NombreProyecto','CustName','AplicacionId','Observaciones',
-        'TipoPedido','NoTiras','Peine','Luchaje','PesoCrudo','CalibreTrama','FibraTrama','DobladilloId',
-        'PasadasTrama','PasadasComb1','PasadasComb2','PasadasComb3','PasadasComb4','PasadasComb5','AnchoToalla',
-        'CodColorTrama','ColorTrama','CalibreComb12','FibraComb1','CodColorComb1','NombreCC1',
-        'CalibreComb22','FibraComb2','CodColorComb2','NombreCC2','CalibreComb32','FibraComb3','CodColorComb3','NombreCC3',
-        'CalibreComb42','FibraComb4','CodColorComb4','NombreCC4','CalibreComb52','FibraComb5','CodColorComb5','NombreCC5',
-        'MedidaPlano','CuentaPie','CodColorCtaPie','NombreCPie','PesoGRM2','DiasEficiencia','ProdKgDia','StdDia',
-        'ProdKgDia2','StdToaHra','DiasJornada','HorasProd','StdHrsEfect','Calc4','Calc5','Calc6',
-        'EntregaProduc','EntregaPT','EntregaCte','PTvsCte','CreatedAt','UpdatedAt','FibraPie','FechaInicio','FechaFinal',
-        'CalibreRizo2','CalibrePie2','CalibreTrama2','CalibreComb1','CalibreComb2','CalibreComb3','CalibreComb4','CalibreComb5',
-        'Prioridad','LargoCrudo','OrdCompartida','CategoriaCalidad','PorcentajeSegundos','PedidoTempo','OrdCompartidaLider','Reprogramar','Posicion',
-        'MtsRollo','PzasRollo','TotalRollos','TotalPzas','Repeticiones','CombinaTram','BomId','BomName','CreaProd',
-        'Densidad','HiloAX','ActualizaLmat','PesoMuestra',
-        'FechaCreacion','HoraCreacion','UsuarioCrea','FechaModificacion','HoraModificacion','UsuarioModifica',
+        'EnProceso', 'CuentaRizo', 'CalibreRizo', 'SalonTejidoId', 'NoTelarId', 'Ultimo', 'CambioHilo', 'Maquina', 'Ancho',
+        'EficienciaSTD', 'VelocidadSTD', 'FibraRizo', 'CalibrePie', 'CalendarioId', 'TamanoClave', 'NoExisteBase',
+        'ItemId', 'InventSizeId', 'Rasurado', 'NombreProducto', 'TotalPedido', 'Produccion', 'SaldoPedido', 'SaldoMarbete',
+        'ProgramarProd', 'NoProduccion', 'Programado', 'FlogsId', 'NombreProyecto', 'CustName', 'AplicacionId', 'Observaciones',
+        'TipoPedido', 'NoTiras', 'Peine', 'Luchaje', 'PesoCrudo', 'CalibreTrama', 'FibraTrama', 'DobladilloId',
+        'PasadasTrama', 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5', 'AnchoToalla',
+        'CodColorTrama', 'ColorTrama', 'CalibreComb12', 'FibraComb1', 'CodColorComb1', 'NombreCC1',
+        'CalibreComb22', 'FibraComb2', 'CodColorComb2', 'NombreCC2', 'CalibreComb32', 'FibraComb3', 'CodColorComb3', 'NombreCC3',
+        'CalibreComb42', 'FibraComb4', 'CodColorComb4', 'NombreCC4', 'CalibreComb52', 'FibraComb5', 'CodColorComb5', 'NombreCC5',
+        'MedidaPlano', 'CuentaPie', 'CodColorCtaPie', 'NombreCPie', 'PesoGRM2', 'DiasEficiencia', 'ProdKgDia', 'StdDia',
+        'ProdKgDia2', 'StdToaHra', 'DiasJornada', 'HorasProd', 'StdHrsEfect', 'Calc4', 'Calc5', 'Calc6',
+        'EntregaProduc', 'EntregaPT', 'EntregaCte', 'PTvsCte', 'CreatedAt', 'UpdatedAt', 'FibraPie', 'FechaInicio', 'FechaFinal',
+        'CalibreRizo2', 'CalibrePie2', 'CalibreTrama2', 'CalibreComb1', 'CalibreComb2', 'CalibreComb3', 'CalibreComb4', 'CalibreComb5',
+        'Prioridad', 'LargoCrudo', 'OrdCompartida', 'CategoriaCalidad', 'PorcentajeSegundos', 'PedidoTempo', 'OrdCompartidaLider', 'Reprogramar', 'Posicion',
+        'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Repeticiones', 'CombinaTram', 'BomId', 'BomName', 'CreaProd',
+        'Densidad', 'HiloAX', 'ActualizaLmat', 'PesoMuestra',
+        'FechaCreacion', 'HoraCreacion', 'UsuarioCrea', 'FechaModificacion', 'HoraModificacion', 'UsuarioModifica',
         'OrdPrincipal',
-        'FechaArranque','FechaFinaliza'
+        'FechaArranque', 'FechaFinaliza',
     ];
 
     /**
@@ -284,6 +284,7 @@ class ReqProgramaTejido extends Model
     {
         $dispatcher = static::getEventDispatcher();
         static::unsetEventDispatcher();
+
         return $dispatcher;
     }
 
@@ -313,7 +314,7 @@ class ReqProgramaTejido extends Model
      */
     public static function regenerarLineas(iterable $registros): void
     {
-        $observer = new \App\Observers\ReqProgramaTejidoObserver();
+        $observer = new \App\Observers\ReqProgramaTejidoObserver;
         foreach ($registros as $registro) {
             if ($registro instanceof static && $registro->Id) {
                 $observer->regenerateLinesFor($registro);

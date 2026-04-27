@@ -252,8 +252,10 @@
                 } elseif ($field === 'MtsRollo') {
                     // MtsRollo se muestra con decimales y separador de miles
                     $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 2, '.', ',') : '') : '';
+                } elseif ($field === 'SaldoMarbete') {
+                    $valueFormatted = $value !== null ? (is_numeric($value) ? number_format(round((float) $value, 0), 0, '.', ',') : '') : '';
                 } else {
-                    // TotalPzas, PzasRollo, Repeticiones, SaldoMarbete: números enteros con separador de miles
+                    // TotalPzas, PzasRollo, Repeticiones: números enteros con separador de miles
                     $valueFormatted = $value !== null ? (is_numeric($value) ? number_format((float)$value, 0, '.', ',') : '') : '';
                 }
 
@@ -1934,8 +1936,6 @@ function obtenerRegistrosSeleccionados() {
             pzasRollo: getNumericValue('PzasRollo'),
             totalRollos: getNumericValue('TotalRollos'),
             totalPzas: getNumericValue('TotalPzas'),
-            repeticiones: getNumericValue('Repeticiones'),
-            saldoMarbete: getNumericValue('SaldoMarbete'),
             densidad: getNumericValue('Densidad'),
             observaciones: getCellValue('Observaciones'),
             cambioRepaso: getCellValue('CambioRepaso'),
@@ -2073,12 +2073,18 @@ function normalizarNumeroNoNegativo(input) {
     }
 }
 
-function actualizarSpanNumerico(row, columnName, value, decimals = 0) {
+function actualizarSpanNumerico(row, columnName, value, decimals = 0, includeZero = false) {
     const cell = row.querySelector(`td[data-column="${columnName}"]`);
     const span = cell ? cell.querySelector('span') : null;
     if (!span) return;
 
-    if (value !== null && value !== undefined && Number.isFinite(value) && value > 0) {
+    const allow =
+        value !== null &&
+        value !== undefined &&
+        Number.isFinite(value) &&
+        (includeZero ? value >= 0 : value > 0);
+
+    if (allow) {
         const rounded = decimals > 0 ? Number(value.toFixed(decimals)) : Math.round(value);
         span.textContent = rounded.toLocaleString('es-MX', {
             minimumFractionDigits: decimals,
@@ -2110,17 +2116,18 @@ function recalcularPorPesoRollo(pesoInput) {
         return;
     }
 
-    const repeticiones = Math.ceil(((pesoRollo / pesoCrudo) / noTiras) * 1000);
-    const saldoMarbete = saldoPedido > 0 && repeticiones > 0
-        ? Math.ceil((saldoPedido / noTiras) / repeticiones)
-        : null;
+    const repeticiones = Math.trunc(((pesoRollo / pesoCrudo) / noTiras) * 1000);
+    const saldoMarbete =
+        noTiras > 0 && repeticiones > 0
+            ? Math.round((saldoPedido / noTiras) / repeticiones)
+            : 0;
     const mtsRollo = largoCrudo > 0 && repeticiones > 0
         ? (largoCrudo * repeticiones) / 100
         : null;
     const pzasRollo = repeticiones > 0 ? Math.round(repeticiones * noTiras) : null;
 
-    actualizarSpanNumerico(row, 'Repeticiones', repeticiones);
-    actualizarSpanNumerico(row, 'SaldoMarbete', saldoMarbete);
+    actualizarSpanNumerico(row, 'Repeticiones', repeticiones, 0, true);
+    actualizarSpanNumerico(row, 'SaldoMarbete', saldoMarbete, 0, true);
     actualizarSpanNumerico(row, 'MtsRollo', mtsRollo, 2);
     actualizarSpanNumerico(row, 'PzasRollo', pzasRollo);
     actualizarTotalRollosYTotalPzas(row, pzasRollo);
