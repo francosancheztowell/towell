@@ -156,17 +156,16 @@
                                                                         @php
                                                                             $horas = (float) ($registro->horas ?? 0);
                                                                             $marcas = (int) ($registro->marcas ?? 0);
+                                                                            $velocidad = (float) ($velocidadesPorTelar[$registro->telar] ?? 0);
+                                                                            $eficiencia = ($velocidad > 0 && $horas > 0)
+                                                                                ? ($marcas / ($velocidad * 60 * $horas)) * 100000
+                                                                                : 0;
                                                                         @endphp
-                                                                        <td class="px-3 py-2 text-center bg-amber-50">
-                                                                            <input type="number" step="0.01" min="0" value="0"
-                                                                                class="velocidad-input w-16 px-1 py-1 text-center text-sm border border-amber-300 rounded focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
-                                                                                data-telar="{{ $registro->telar }}"
-                                                                                data-marcas="{{ $marcas }}"
-                                                                                data-horas="{{ $horas }}"
-                                                                                onchange="calcularEficiencia(this)" oninput="calcularEficiencia(this)">
+                                                                        <td class="px-3 py-2 text-center tabular-nums font-semibold bg-amber-50 {{ $velocidad == 0 ? 'text-red-600' : 'text-amber-800' }}">
+                                                                            {{ number_format($velocidad, 2) }}
                                                                         </td>
-                                                                        <td class="px-3 py-2 text-right tabular-nums font-bold bg-rose-50 text-rose-700 eficiencia-cell" data-telar="{{ $registro->telar }}">
-                                                                            0.00</td>
+                                                                        <td class="px-3 py-2 text-right tabular-nums font-bold bg-rose-50 text-rose-700">
+                                                                            {{ number_format($eficiencia, 2) }}</td>
                                                                     @endif
                                                                 </tr>
                                                             @empty
@@ -242,23 +241,6 @@
                     window.location.href = '{{ route('tejido.reportes.marcas-finales') }}?' + params.toString();
                 }
             });
-        }
-
-        function calcularEficiencia(input) {
-            const marcas = parseFloat(input.dataset.marcas) || 0;
-            const horas = parseFloat(input.dataset.horas) || 0;
-            const velocidad = parseFloat(input.value) || 0;
-
-            let eficiencia = 0;
-            if (velocidad > 0 && horas > 0) {
-                eficiencia = (marcas / (velocidad * 60 * horas)) * 100000;
-            }
-
-            const row = input.closest('tr');
-            const eficienciaCell = row.querySelector('.eficiencia-cell');
-            if (eficienciaCell) {
-                eficienciaCell.textContent = eficiencia.toFixed(2);
-            }
         }
 
         document.addEventListener('DOMContentLoaded', function () {
