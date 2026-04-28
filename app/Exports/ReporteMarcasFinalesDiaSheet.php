@@ -200,15 +200,11 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
         $row++;
         $row++; // Fila vacía
 
-        // Fila encabezados de columnas
-        $sheet->setCellValue("F{$row}", 'Marcador');
+        // Fila encabezados de columnas (fila superior con "Marcador" sobre Inicial/Final)
+        // Columnas: A-E (Obs,R,P,L,tiempo) | F-G (vel,telar) | H (Marc.Inicial) | I (Marc.Final) | J (espacio) | K (Marcas) | L (espacio) | M (Horas) | N (Eficiencia) | O (Temp)
+        $sheet->setCellValue("H{$row}", 'Marcador');
         $sheet->setCellValue("I{$row}", 'Marcador');
-        $sheet->getStyle("F{$row}")->applyFromArray([
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-        ]);
-        $sheet->getStyle("I{$row}")->applyFromArray([
+        $sheet->getStyle("H{$row}:I{$row}")->applyFromArray([
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
@@ -219,14 +215,14 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
-        $sheet->setCellValue("L{$row}", 'Horas');
-        $sheet->getStyle("L{$row}")->applyFromArray([
+        $sheet->setCellValue("M{$row}", 'Horas');
+        $sheet->getStyle("M{$row}")->applyFromArray([
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '92D050']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
-        $sheet->setCellValue("M{$row}", 'Eficiencia');
-        $sheet->getStyle("M{$row}")->applyFromArray([
+        $sheet->setCellValue("N{$row}", 'Eficiencia');
+        $sheet->getStyle("N{$row}")->applyFromArray([
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
@@ -238,24 +234,20 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
         $sheet->setCellValue("C{$row}", 'P');
         $sheet->setCellValue("D{$row}", 'L');
         $sheet->setCellValue("E{$row}", 'tiempo');
-        $sheet->setCellValue("F{$row}", 'Inicial');
-        $sheet->setCellValue("G{$row}", 'vel');
-        $sheet->setCellValue("H{$row}", 'telar');
+        $sheet->setCellValue("F{$row}", 'vel');
+        $sheet->setCellValue("G{$row}", 'telar');
+        $sheet->setCellValue("H{$row}", 'Inicial');
         $sheet->setCellValue("I{$row}", 'Final');
-        // K, L, M ya tienen encabezados arriba
-        $sheet->setCellValue("N{$row}", 'Temp.');
+        // J = espacio, K = Marcas (encabezado arriba), L = espacio, M = Horas (encabezado arriba)
+        $sheet->setCellValue("O{$row}", 'Temp.');
 
-        // Estilos para encabezados
-        $sheet->getStyle("F{$row}")->applyFromArray([
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-        ]);
-        $sheet->getStyle("G{$row}:H{$row}")->applyFromArray([
+        // Estilos para encabezados vel y telar (amarillo)
+        $sheet->getStyle("F{$row}:G{$row}")->applyFromArray([
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
         ]);
-        $sheet->getStyle("I{$row}")->applyFromArray([
+        // Estilos para Inicial y Final (amarillo con borde)
+        $sheet->getStyle("H{$row}:I{$row}")->applyFromArray([
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
@@ -263,6 +255,7 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
         $row++;
 
         // Datos de telares
+        // Columnas: A(Obs) B(R) C(P) D(L) E(tiempo) | F(vel) G(telar) | H(Marc.Inicial) I(Marc.Final) | J(espacio) | K(Marcas) | L(espacio) | M(Horas) | N(Eficiencia) | O(Temp)
         $primeraFilaDatos = $row;
         foreach ($telares as $registro) {
             $telar = $registro->telar;
@@ -275,36 +268,38 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
                 ? round(($marcas / ($velocidad * 60 * $horas)) * 100000, 0)
                 : 0;
 
-            // Columna A-E: Observaciones, R, P, L, tiempo (vacías con fondo rojo para observaciones)
+            // A: Observaciones (fondo rojo)
             $sheet->getStyle("A{$row}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FF0000']],
             ]);
 
-            // F: Marcador Inicial (vacío, fondo amarillo)
+            // F: vel (velocidad de ReqTelares, fondo amarillo)
+            $sheet->setCellValue("F{$row}", $velocidad > 0 ? $velocidad : '');
             $sheet->getStyle("F{$row}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
-                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ]);
 
-            // G: vel (velocidad de ReqTelares, fondo amarillo)
-            $sheet->setCellValue("G{$row}", $velocidad > 0 ? $velocidad : '');
+            // G: telar (fondo amarillo)
+            $sheet->setCellValue("G{$row}", $telar);
             $sheet->getStyle("G{$row}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ]);
 
-            // H: telar (fondo amarillo)
-            $sheet->setCellValue("H{$row}", $telar);
+            // H: Marcador Inicial (vacío, fondo amarillo con borde)
             $sheet->getStyle("H{$row}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
             ]);
 
-            // I: Marcador Final (vacío, fondo amarillo)
+            // I: Marcador Final (vacío, fondo amarillo con borde)
             $sheet->getStyle("I{$row}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
             ]);
+
+            // J: espacio (vacío)
 
             // K: Marcas
             $sheet->setCellValue("K{$row}", $marcas);
@@ -313,16 +308,18 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
             ]);
 
-            // L: Horas (fondo verde)
-            $sheet->setCellValue("L{$row}", $horas);
-            $sheet->getStyle("L{$row}")->applyFromArray([
+            // L: espacio (vacío)
+
+            // M: Horas (fondo verde)
+            $sheet->setCellValue("M{$row}", $horas);
+            $sheet->getStyle("M{$row}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '92D050']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
             ]);
 
-            // M: Eficiencia (fondo rojo si < 80, naranja si < 90, verde si >= 90)
-            $sheet->setCellValue("M{$row}", $eficiencia > 0 ? $eficiencia : '');
+            // N: Eficiencia (color según valor)
+            $sheet->setCellValue("N{$row}", $eficiencia > 0 ? $eficiencia : '');
             $eficienciaColor = 'FF0000'; // Rojo por defecto
             if ($eficiencia >= 90) {
                 $eficienciaColor = '92D050'; // Verde
@@ -331,11 +328,13 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
             } elseif ($eficiencia >= 70) {
                 $eficienciaColor = 'FFFF00'; // Amarillo
             }
-            $sheet->getStyle("M{$row}")->applyFromArray([
+            $sheet->getStyle("N{$row}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $eficienciaColor]],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 'font' => ['bold' => true],
             ]);
+
+            // O: Temp (vacío)
 
             $row++;
         }
@@ -344,13 +343,13 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
         // Fila de promedio de eficiencia
         $row++;
         if ($ultimaFilaDatos >= $primeraFilaDatos) {
-            $sheet->setCellValue("L{$row}", 'Promedio:');
-            $sheet->getStyle("L{$row}")->applyFromArray([
+            $sheet->setCellValue("M{$row}", 'Promedio:');
+            $sheet->getStyle("M{$row}")->applyFromArray([
                 'font' => ['bold' => true],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
             ]);
-            $sheet->setCellValue("M{$row}", "=IFERROR(AVERAGE(M{$primeraFilaDatos}:M{$ultimaFilaDatos}),\"\")");
-            $sheet->getStyle("M{$row}")->applyFromArray([
+            $sheet->setCellValue("N{$row}", "=IFERROR(AVERAGE(N{$primeraFilaDatos}:N{$ultimaFilaDatos}),\"\")");
+            $sheet->getStyle("N{$row}")->applyFromArray([
                 'font' => ['bold' => true, 'size' => 11],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
@@ -364,20 +363,21 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
 
     private function ajustarAnchoColumnas(Worksheet $sheet): void
     {
-        $sheet->getColumnDimension('A')->setWidth(18);
-        $sheet->getColumnDimension('B')->setWidth(12);
-        $sheet->getColumnDimension('C')->setWidth(8);
-        $sheet->getColumnDimension('D')->setWidth(8);
-        $sheet->getColumnDimension('E')->setWidth(8);
-        $sheet->getColumnDimension('F')->setWidth(12);
-        $sheet->getColumnDimension('G')->setWidth(6);
-        $sheet->getColumnDimension('H')->setWidth(6);
-        $sheet->getColumnDimension('I')->setWidth(12);
-        $sheet->getColumnDimension('J')->setWidth(10);
-        $sheet->getColumnDimension('K')->setWidth(10);
-        $sheet->getColumnDimension('L')->setWidth(8);
-        $sheet->getColumnDimension('M')->setWidth(10);
-        $sheet->getColumnDimension('N')->setWidth(22);
-        $sheet->getColumnDimension('O')->setWidth(6);
+        // A(Obs) B(R) C(P) D(L) E(tiempo) | F(vel) G(telar) | H(Marc.Inicial) I(Marc.Final) | J(espacio) | K(Marcas) | L(espacio) | M(Horas) | N(Eficiencia) | O(Temp)
+        $sheet->getColumnDimension('A')->setWidth(18);  // Observaciones
+        $sheet->getColumnDimension('B')->setWidth(4);   // R
+        $sheet->getColumnDimension('C')->setWidth(4);   // P
+        $sheet->getColumnDimension('D')->setWidth(4);   // L
+        $sheet->getColumnDimension('E')->setWidth(8);   // tiempo
+        $sheet->getColumnDimension('F')->setWidth(6);   // vel
+        $sheet->getColumnDimension('G')->setWidth(6);   // telar
+        $sheet->getColumnDimension('H')->setWidth(12);  // Marcador Inicial
+        $sheet->getColumnDimension('I')->setWidth(12);  // Marcador Final
+        $sheet->getColumnDimension('J')->setWidth(3);   // espacio
+        $sheet->getColumnDimension('K')->setWidth(10);  // Marcas
+        $sheet->getColumnDimension('L')->setWidth(5);   // espacio grande
+        $sheet->getColumnDimension('M')->setWidth(8);   // Horas
+        $sheet->getColumnDimension('N')->setWidth(10);  // Eficiencia
+        $sheet->getColumnDimension('O')->setWidth(8);   // Temp
     }
 }
