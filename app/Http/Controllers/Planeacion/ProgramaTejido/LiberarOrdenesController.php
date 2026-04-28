@@ -24,6 +24,9 @@ class LiberarOrdenesController extends Controller
     /** TwSalon en AX para BOM CRUDO de tejido (solo SMIT / Jacquard). */
     private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD', 'JACUARD'];
 
+    /** Peso estándar rodillo cuando TamanoClave / producto son Felpa (FELPA…). Metros/Pzas÷2 y marbetes×2 con mismo formato que tamaño FEL. */
+    private const PESO_ROLLO_KG_FELPA = 90.0;
+
     /**
      * Muestra los registros de ReqProgramaTejido que no tienen orden de producción
      *
@@ -185,12 +188,12 @@ class LiberarOrdenesController extends Controller
                     }
                 }
 
-                $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo);
+                $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo, $registro);
 
                 $totalRollos = null;
-                // Nueva fórmula: TotalRollos = ceil(totalPedido / pzasRollo)
+                // Nueva fórmula: TotalRollos = ceil(totalPedido / pzasRrollo)
                 // Esto calcula cuántos rollos se necesitan para cumplir el pedido
-                $totalPedido = $regist0ro->SaldoPedido ?? null;
+                $totalPedido = $registro->SaldoPedido ?? null;
 
                 // Siempre intentar calcular con la fórmula si hay datos disponibles
                 if ($pzasRollo !== null && $totalPedido !== null &&
@@ -405,7 +408,8 @@ class LiberarOrdenesController extends Controller
                 $repeticiones = null;
                 if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
                     $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
-                    if (isset($item['pesoRollo']) && $item['pesoRollo'] !== null && $item['pesoRollo'] !== '' && is_numeric($item['pesoRollo'])) {
+                    if (! $this->esTamanoFelpa($registro)
+                        && isset($item['pesoRollo']) && $item['pesoRollo'] !== null && $item['pesoRollo'] !== '' && is_numeric($item['pesoRollo'])) {
                         $pesoRollo = (float) $item['pesoRollo'];
                     }
                     $repeticiones = $this->repeticionesDesdePesoRollo($pesoRollo, $pCrudo, $tiras);
@@ -437,9 +441,9 @@ class LiberarOrdenesController extends Controller
                     $pzasRollo = round($repeticiones * $tiras, 0);
                 }
 
-                $this->aplicarAjusteFelSaldoMarbete($registro->InventSizeId ?? null, $saldoMarbeteValor);
+                $this->aplicarAjusteFelSaldoMarbete($registro->InventSizeId ?? null, $saldoMarbeteValor, $registro);
                 if (! $this->requestTieneMtsPzasRolloDesdeCliente($item)) {
-                    $this->aplicarAjusteFelMtsYpzas($registro->InventSizeId ?? null, $mtsRollo, $pzasRollo);
+                    $this->aplicarAjusteFelMtsYpzas($registro->InventSizeId ?? null, $mtsRollo, $pzasRollo, $registro);
                 }
 
                 // TotalRollos: priorizar valor del request, sino calcular con nueva fórmula
@@ -568,17 +572,37 @@ class LiberarOrdenesController extends Controller
                 }
                 $registro->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
+                $errorMetricas = $this->validarMetricasProduccionParaLiberacion($registro);
+                if ($errorMetricas !== null) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMetricas,
+                    ], 422);
+                }
+
+                $itemIdTrim = trim((string) ($registro->ItemId ?? ''));
+                $codigoDibujoParaCat = $this->resolverCodigoDibujoParaLiberacion($item, $registro);
+                if ($itemIdTrim !== '' && $codigoDibujoParaCat === '') {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No hay código de dibujo: complete la columna o registre el último código en Cat. codificados para el ítem '.$itemIdTrim.' y el salón.'.$this->referenciaCortaRegistro($registro),
+                    ], 422);
+                }
+
                 // Campos de auditoría usando el helper
                 AuditoriaHelper::aplicarCamposAuditoria($registro);
 
                 StringTruncator::truncateModelAttributes($registro);
                 $registro->save();
 
-                // Actualizar CatCodificados con los mismos campos (incl. CodigoDibujo: lo mostrado en pantalla o resuelto desde catálogo)
-                $codigoDibujoLiberacion = trim((string) ($item['codigoDibujo'] ?? ''));
+                // Actualizar CatCodificados con los mismos campos (código de dibujo: grilla o último catálogo Item+salón)
                 $this->actualizarCatCodificados(
                     $registro,
-                    $codigoDibujoLiberacion !== '' ? $codigoDibujoLiberacion : null
+                    $codigoDibujoParaCat !== '' ? $codigoDibujoParaCat : null
                 );
 
                 // Actualizar ReqModelosCodificados con OrdPrincipal y PesoMuestra
@@ -1405,6 +1429,119 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
+     * ¿Peso, ancho y largo presentes para poder exigir densidad mayor a cero?
+     */
+    private function registroTieneDatosParaCalcularDensidad(ReqProgramaTejido $registro): bool
+    {
+        $peso = $registro->PesoCrudo ?? null;
+        $ancho = $registro->Ancho ?? null;
+        $largo = $registro->LargoCrudo ?? null;
+        if ($peso === null || $ancho === null || $largo === null) {
+            return false;
+        }
+        if (! is_numeric($peso) || ! is_numeric($ancho)) {
+            return false;
+        }
+        if ((float) $ancho <= 0.0) {
+            return false;
+        }
+        $largoNum = is_numeric($largo)
+            ? (float) $largo
+            : (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string) $largo);
+
+        return $largoNum > 0.0;
+    }
+
+    private function referenciaCortaRegistro(ReqProgramaTejido $registro): string
+    {
+        $partes = array_filter([
+            $registro->NombreProducto !== null ? trim((string) $registro->NombreProducto) : '',
+            $registro->ItemId !== null ? trim((string) $registro->ItemId) : '',
+        ], static fn (string $s): bool => $s !== '');
+
+        $extra = $partes !== [] ? ' — '.implode(' / ', $partes) : '';
+
+        return ' (Id '.$registro->Id.$extra.')';
+    }
+
+    /**
+     * Pantalla tiene prioridad; si no, último código en CatCodificados (Item + salón, etc.).
+     */
+    private function resolverCodigoDibujoParaLiberacion(array $item, ReqProgramaTejido $registro): string
+    {
+        $explicit = trim((string) ($item['codigoDibujo'] ?? ''));
+        if ($explicit !== '') {
+            return $explicit;
+        }
+
+        $res = $this->resolverCodigoDibujoCatCodificados(
+            trim((string) ($registro->ItemId ?? '')),
+            trim((string) ($registro->InventSizeId ?? '')),
+            trim((string) ($registro->SalonTejidoId ?? ''))
+        );
+
+        return ($res !== null && $res !== '') ? trim((string) $res) : '';
+    }
+
+    /**
+     * Tiras, saldo en toallas (SaldoPedido), marbetes, metros x rollo y resto de métricas no pueden ser cero ni nulos al liberar.
+     * Combina trama y observaciones opcionales.
+     */
+    private function validarMetricasProduccionParaLiberacion(ReqProgramaTejido $registro): ?string
+    {
+        $ref = $this->referenciaCortaRegistro($registro);
+
+        $tiras = $registro->NoTiras;
+        if ($tiras === null || ! is_numeric($tiras) || (int) $tiras <= 0) {
+            return 'Las tiras deben ser mayores a cero (no se puede liberar con tiras vacías o en cero).'.$ref;
+        }
+
+        $saldoToallas = $registro->SaldoPedido;
+        if ($saldoToallas === null || ! is_numeric($saldoToallas) || (float) $saldoToallas <= 0.0) {
+            return 'El saldo pedido en toallas debe ser mayor a cero.'.$ref;
+        }
+
+        $rep = $registro->Repeticiones;
+        if ($rep === null || ! is_numeric($rep) || (int) $rep <= 0) {
+            return 'Repeticiones deben ser mayores a cero según la fórmula (revisa peso de rollo, peso crudo y tiras).'.$ref;
+        }
+
+        $sm = $registro->SaldoMarbete;
+        if ($sm === null || ! is_numeric($sm) || (float) $sm <= 0.0) {
+            return 'No marbetes no puede ser cero ni vacío; debe coincidir con la fórmula.'.$ref;
+        }
+
+        $mts = $registro->MtsRollo;
+        if ($mts === null || ! is_numeric($mts) || (float) $mts <= 0.0) {
+            return 'Metros x rollo deben ser mayores a cero (no pueden quedar vacíos o en cero).'.$ref;
+        }
+
+        $pzas = $registro->PzasRollo;
+        if ($pzas === null || ! is_numeric($pzas) || (float) $pzas <= 0.0) {
+            return 'Pzas x rollo deben ser mayores a cero según la fórmula.'.$ref;
+        }
+
+        $tr = $registro->TotalRollos;
+        if ($tr === null || ! is_numeric($tr) || (float) $tr <= 0.0) {
+            return 'Total rollos debe ser mayor a cero.'.$ref;
+        }
+
+        $tp = $registro->TotalPzas;
+        if ($tp === null || ! is_numeric($tp) || (float) $tp <= 0.0) {
+            return 'Total piezas (toallas) debe ser mayor a cero.'.$ref;
+        }
+
+        if ($this->registroTieneDatosParaCalcularDensidad($registro)) {
+            $den = $registro->Densidad;
+            if ($den === null || ! is_numeric($den) || (float) $den <= 0.0) {
+                return 'Densidad debe ser mayor a cero (revisa ancho, largo y peso crudo).'.$ref;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Tamaños cuyo InventSizeId contiene "FEL": duplicar no. marbetes (SaldoMarbete) y usar la mitad en MtsRollo y PzasRollo (negocio / Excel).
      */
     private function esInventSizeFel(?string $inventSizeId): bool
@@ -1412,6 +1549,30 @@ class LiberarOrdenesController extends Controller
         $s = trim((string) ($inventSizeId ?? ''));
 
         return $s !== '' && stripos($s, 'FEL') !== false;
+    }
+
+    /** TamanoClave tipo FELPA… o nombre de producto FELPA: peso rodillo fijo {@see self::PESO_ROLLO_KG_FELPA} y mismo ajuste m/marbetes que FEL en rollo. */
+    private function esTamanoFelpa(ReqProgramaTejido $registro): bool
+    {
+        $tk = trim((string) ($registro->TamanoClave ?? ''));
+        if ($tk !== '' && stripos($tk, 'FELPA') !== false) {
+            return true;
+        }
+        $nombre = trim((string) ($registro->NombreProducto ?? ''));
+
+        return $nombre !== '' && stripos($nombre, 'FELPA') !== false;
+    }
+
+    /**
+     * FEL en InventSizeId o Felpa por tamano/nombre: duplicar marbetes y mitad en Mts/Pzas x rollo.
+     */
+    private function debeAplicarAjusteFormatoFelRollo(?string $inventSizeId, ?ReqProgramaTejido $registro = null): bool
+    {
+        if ($registro !== null && $this->esTamanoFelpa($registro)) {
+            return true;
+        }
+
+        return $this->esInventSizeFel($inventSizeId);
     }
 
     private function valorRequestNumericoPresente(mixed $value): bool
@@ -1440,9 +1601,9 @@ class LiberarOrdenesController extends Controller
     /**
      * @param  int  $saldoMarbeteValor  por referencia: resultado de saldoMarbeteDesdeFormula
      */
-    private function aplicarAjusteFelSaldoMarbete(?string $inventSizeId, int &$saldoMarbeteValor): void
+    private function aplicarAjusteFelSaldoMarbete(?string $inventSizeId, int &$saldoMarbeteValor, ?ReqProgramaTejido $registro = null): void
     {
-        if (! $this->esInventSizeFel($inventSizeId)) {
+        if (! $this->debeAplicarAjusteFormatoFelRollo($inventSizeId, $registro)) {
             return;
         }
         $saldoMarbeteValor = (int) round($saldoMarbeteValor * 2);
@@ -1452,9 +1613,9 @@ class LiberarOrdenesController extends Controller
      * @param  float|null  $mtsRollo  por referencia
      * @param  float|null  $pzasRollo  por referencia
      */
-    private function aplicarAjusteFelMtsYpzas(?string $inventSizeId, ?float &$mtsRollo, ?float &$pzasRollo): void
+    private function aplicarAjusteFelMtsYpzas(?string $inventSizeId, ?float &$mtsRollo, ?float &$pzasRollo, ?ReqProgramaTejido $registro = null): void
     {
-        if (! $this->esInventSizeFel($inventSizeId)) {
+        if (! $this->debeAplicarAjusteFormatoFelRollo($inventSizeId, $registro)) {
             return;
         }
         if ($mtsRollo !== null && is_numeric($mtsRollo)) {
@@ -1466,16 +1627,16 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Ajuste FEL completo (carga index): marbetes x2, MtsRollo y PzasRollo ÷2.
+     * Ajuste FEL/Felpa (carga index): marbetes x2, MtsRollo y PzasRollo ÷2.
      *
      * @param  int  $saldoMarbeteValor  por referencia
      * @param  float|null  $mtsRollo  por referencia
      * @param  float|null  $pzasRollo  por referencia
      */
-    private function aplicarAjusteFelTamanho(?string $inventSizeId, int &$saldoMarbeteValor, ?float &$mtsRollo, ?float &$pzasRollo): void
+    private function aplicarAjusteFelTamanho(?string $inventSizeId, int &$saldoMarbeteValor, ?float &$mtsRollo, ?float &$pzasRollo, ?ReqProgramaTejido $registro = null): void
     {
-        $this->aplicarAjusteFelSaldoMarbete($inventSizeId, $saldoMarbeteValor);
-        $this->aplicarAjusteFelMtsYpzas($inventSizeId, $mtsRollo, $pzasRollo);
+        $this->aplicarAjusteFelSaldoMarbete($inventSizeId, $saldoMarbeteValor, $registro);
+        $this->aplicarAjusteFelMtsYpzas($inventSizeId, $mtsRollo, $pzasRollo, $registro);
     }
 
     /**
@@ -1517,11 +1678,15 @@ class LiberarOrdenesController extends Controller
 
     /**
      * Obtiene el peso del rollo desde la tabla ReqPesosRolloTejido.
+     * Felpa (TamanoClave / nombre con FELPA): siempre {@see self::PESO_ROLLO_KG_FELPA} kg.
      * Orden de búsqueda: 1) InventSizeId exacto del registro; 2) FEL (si aplica); 3) DEF.
      * Si no encuentra nada, retorna null (para usar 41.5 como default).
      */
     private function obtenerPesoRollo(ReqProgramaTejido $registro): ?float
     {
+        if ($this->esTamanoFelpa($registro)) {
+            return self::PESO_ROLLO_KG_FELPA;
+        }
         try {
             $inventSizeId = trim((string) ($registro->InventSizeId ?? ''));
 
@@ -1644,10 +1809,10 @@ class LiberarOrdenesController extends Controller
      * Obtiene el código de dibujo (CodigoDibujo) desde CatCodificados.
      * Parámetro combinations: valores separados por coma; cada valor es
      *   itemId::inventSizeId::salonTejidoId (salon = Departamento en CatCodificados), o legado itemId:inventSizeId.
-     * Orden de búsqueda por combinación (primer CodigoDibujo no vacío con Id más alto en cada intento):
-     *   1) ItemId + InventSizeId + Departamento (si hay invent y salón)
-     *   2) ItemId + Departamento (si hay salón; cubre cuando InventSizeId del programa no coincide con CatCodificados)
-     *   3) ItemId + InventSizeId (sin filtrar departamento)
+     * Orden de búsqueda (último Id con CodigoDibujo no vacío; coincide con resolverCodigoDibujoCatCodificados):
+     *   1) ItemId + Departamento (salón tejido)
+     *   2) ItemId + InventSizeId + Departamento
+     *   3) ItemId + InventSizeId (sin salón)
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -1734,7 +1899,10 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * @return string|null Primer CodigoDibujo no vacío con Id más alto por cada criterio aplicado
+     * Último CodigoDibujo no vacío en CatCodificados (Id descendente), priorizando Item + salón (Departamento).
+     * Fallback: Item+InventSize+Departamento; Item+InventSize sin salón.
+     *
+     * @return string|null Primer CodigoDibujo no vacío con Id más alto en cada consulta filtrada
      */
     private function resolverCodigoDibujoCatCodificados(string $itemId, string $inventSizeId, string $departamento): ?string
     {
@@ -1749,13 +1917,7 @@ class LiberarOrdenesController extends Controller
             return null;
         };
 
-        if ($itemId !== '' && $inventSizeId !== '' && $departamento !== '') {
-            $c = $try(CatCodificados::query()->where('ItemId', $itemId)->where('InventSizeId', $inventSizeId)->where('Departamento', $departamento));
-            if ($c !== null) {
-                return $c;
-            }
-        }
-
+        // 1) Item + Departamento (= Salón tejido): último con código (regla de negocio principal)
         if ($itemId !== '' && $departamento !== '') {
             $c = $try(CatCodificados::query()->where('ItemId', $itemId)->where('Departamento', $departamento));
             if ($c !== null) {
@@ -1763,6 +1925,15 @@ class LiberarOrdenesController extends Controller
             }
         }
 
+        // 2) Item + InventSizeId + Departamento (cuando hace falta acotar por tamaño en AX)
+        if ($itemId !== '' && $inventSizeId !== '' && $departamento !== '') {
+            $c = $try(CatCodificados::query()->where('ItemId', $itemId)->where('InventSizeId', $inventSizeId)->where('Departamento', $departamento));
+            if ($c !== null) {
+                return $c;
+            }
+        }
+
+        // 3) Sin salón conocido: por Item + InventSizeId únicamente
         if ($itemId !== '' && $inventSizeId !== '') {
             return $try(CatCodificados::query()->where('ItemId', $itemId)->where('InventSizeId', $inventSizeId));
         }

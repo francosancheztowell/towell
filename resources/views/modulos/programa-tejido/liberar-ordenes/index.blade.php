@@ -467,6 +467,12 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
                             @foreach($registros as $index => $registro)
+                            @php
+                                $__tcFel = (string) ($registro->TamanoClave ?? '');
+                                $__nomFel = (string) ($registro->NombreProducto ?? '');
+                                $__esFelpa = ($__tcFel !== '' && stripos($__tcFel, 'FELPA') !== false)
+                                    || ($__nomFel !== '' && stripos($__nomFel, 'FELPA') !== false);
+                            @endphp
                             <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}"
                                 data-id="{{ $registro->Id ?? '' }}"
                                 data-salon-tejido-id="{{ $registro->SalonTejidoId ?? '' }}"
@@ -475,6 +481,7 @@
                                 data-largo-crudo="{{ $registro->LargoCrudo ?? '' }}"
                                 data-saldo-pedido="{{ $registro->SaldoPedido ?? '' }}"
                                 data-invent-size-id="{{ $registro->InventSizeId ?? '' }}"
+                                data-es-felpa="{{ $__esFelpa ? '1' : '0' }}"
                                 title="Clic en la fila para marcar como referencia visual (azul)">
                                 @foreach($columns as $colIndex => $col)
                                 <td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }} {{ $col['field'] === 'select' ? 'text-center' : '' }} {{ $col['field'] === 'prioridad' ? 'px-4 py-3' : '' }}"
@@ -631,6 +638,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // Los demás campos no tienen cálculos automáticos ni guardado automático
     });
+
+    // Felpa: peso rodillo forzado a 90 kg y recálculo derivado al cargar
+    document.querySelectorAll('tr.row-data[data-es-felpa="1"] .peso-rollo-input').forEach(inp => recalcularPorPesoRollo(inp));
 
     // Rellenar automáticamente el campo Hilo AX al cargar
     autoFillAllHiloAX();
@@ -805,10 +815,9 @@ function autoFillAllCodigoDibujo() {
         const itemId = (itemIdCell.textContent || '').trim();
         const inventSizeId = (inventSizeIdCell.textContent || '').trim();
         const salon = (row.getAttribute('data-salon-tejido-id') || '').trim();
-        const currentCodigoDibujo = (codigoDibujoCell.textContent || '').trim();
 
-        // CatCodificados suele ligar por ItemId + Departamento (= SalonTejidoId); InventSizeId puede no coincidir
-        if (!currentCodigoDibujo && itemId && (inventSizeId || salon)) {
+        // Siempre último código desde catálogo (Item + salón) al cargar, alineado con servidor
+        if (itemId && (inventSizeId || salon)) {
             const cacheKey = `${itemId}|${inventSizeId}|${salon}`;
             const comboParam = [itemId, inventSizeId, salon].join('::');
 
@@ -1891,6 +1900,15 @@ function obtenerRegistrosSeleccionados() {
             const cell = row ? row.querySelector(`[data-column="${columnName}"]`) : null;
             if (!cell) return null;
 
+            // Span con valor calculado (read-only numéricos)
+            const spanCalcColumns = ['Repeticiones', 'SaldoMarbete', 'MtsRollo', 'PzasRollo', 'TotalPzas', 'NoTiras'];
+            if (spanCalcColumns.includes(columnName)) {
+                const span = cell.querySelector('span');
+                if (span && span.hasAttribute('data-calculated-value')) {
+                    return span.getAttribute('data-calculated-value');
+                }
+            }
+
             // Buscar select primero (para HiloAX)
             const select = cell.querySelector('select');
             if (select) {
@@ -1905,15 +1923,6 @@ function obtenerRegistrosSeleccionados() {
                 return value === '' ? null : value;
             }
 
-            // Para TotalPzas, priorizar el valor calculado si existe
-            if (columnName === 'TotalPzas') {
-                const span = cell.querySelector('span');
-                if (span && span.hasAttribute('data-calculated-value')) {
-                    return span.getAttribute('data-calculated-value');
-                }
-            }
-
-            // Si no hay input ni select, usar textContent
             const text = cell.textContent ? cell.textContent.trim() : '';
             return text === '' ? null : text;
         };
@@ -1929,11 +1938,19 @@ function obtenerRegistrosSeleccionados() {
         return {
             id: cb.getAttribute('data-id'),
             prioridad: prioridadInput ? prioridadInput.value.trim() : '',
+            saldoPedido: row && row.dataset.saldoPedido != null && String(row.dataset.saldoPedido).trim() !== ''
+                ? String(row.dataset.saldoPedido).replace(/,/g, '').trim()
+                : null,
+            noTiras: row && row.dataset.noTiras != null && String(row.dataset.noTiras).trim() !== ''
+                ? String(row.dataset.noTiras).replace(/,/g, '').trim()
+                : getNumericValue('NoTiras'),
             codigoDibujo: getCellValue('CodigoDibujo'),
             bomId: getCellValue('BomId'),
             bomName: getCellValue('BomName'),
             hiloAX: getCellValue('HiloAX'),
             pesoRollo: getNumericValue('PesoRollo'),
+            repeticiones: getNumericValue('Repeticiones'),
+            saldoMarbete: getNumericValue('SaldoMarbete'),
             mtsRollo: getNumericValue('MtsRollo'),
             pzasRollo: getNumericValue('PzasRollo'),
             totalRollos: getNumericValue('TotalRollos'),
@@ -1945,6 +1962,48 @@ function obtenerRegistrosSeleccionados() {
             noProduccion: getCellValue('no_produccion')
         };
     });
+}
+
+/** Comb Trama opcional. Tiras, saldo/toallas y métricas no pueden estar en cero o vacíos. */
+function validarMetricasProduccionParaLiberar(registros) {
+    for (let i = 0; i < registros.length; i++) {
+        const reg = registros[i];
+        const idx = ` Registro ${i + 1}.`;
+
+        const tiras = parseNumeroGrid(reg.noTiras);
+        if (tiras <= 0) {
+            return 'Las tiras deben ser mayores a cero (no se puede liberar con tiras vacías o en cero).' + idx;
+        }
+
+        const pedido = parseNumeroGrid(reg.saldoPedido);
+        if (pedido <= 0) {
+            return 'El saldo pedido en toallas debe ser mayor a cero.' + idx;
+        }
+
+        if (parseNumeroGrid(reg.repeticiones) <= 0) {
+            return 'Repeticiones deben ser mayores a cero según la fórmula (revisa peso de rollo, peso crudo y tiras).' + idx;
+        }
+        if (parseNumeroGrid(reg.saldoMarbete) <= 0) {
+            return 'No marbetes no puede ser cero ni vacío; debe coincidir con la fórmula.' + idx;
+        }
+        if (parseNumeroGrid(reg.mtsRollo) <= 0) {
+            return 'Metros x rollo deben ser mayores a cero.' + idx;
+        }
+        if (parseNumeroGrid(reg.pzasRollo) <= 0) {
+            return 'Pzas x rollo deben ser mayores a cero según la fórmula.' + idx;
+        }
+        if (parseNumeroGrid(reg.totalRollos) <= 0) {
+            return 'Total rollos debe ser mayor a cero.' + idx;
+        }
+        if (parseNumeroGrid(reg.totalPzas) <= 0) {
+            return 'Total piezas (toallas) debe ser mayor a cero.' + idx;
+        }
+        const codigoDibujo = (reg.codigoDibujo != null ? String(reg.codigoDibujo) : '').replace(/,/g, '').trim();
+        if (!codigoDibujo) {
+            return 'Código de dibujo es obligatorio (se rellena solo con el último de Cat. codificados por ítem y salón o escríbalo).' + idx;
+        }
+    }
+    return null;
 }
 
 function descargarExcelBase64(data, fileName) {
@@ -1991,6 +2050,16 @@ function liberarOrdenes() {
             icon: 'warning',
             title: 'L.Mat obligatorio',
             text: 'Cada registro seleccionado debe tener L.Mat y Nombre L.Mat antes de liberar.',
+        });
+        return;
+    }
+
+    const errMetricas = validarMetricasProduccionParaLiberar(registros);
+    if (errMetricas) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Datos de producción incompletos',
+            text: errMetricas,
         });
         return;
     }
@@ -2104,17 +2173,29 @@ function esFilaInventSizeFel(row) {
     return v !== '' && v.toUpperCase().includes('FEL');
 }
 
+/** FEL en AX o Felpa (tamano/nombre FELPA): marbetes ×2, mts y pzas por rollo ÷2. */
+function esFilaAjusteFelRollo(row) {
+    if (!row) return false;
+    if (row.dataset.esFelpa === '1') return true;
+    return esFilaInventSizeFel(row);
+}
+
 function recalcularPorPesoRollo(pesoInput) {
     const row = pesoInput.closest('.row-data');
     if (!row) return;
 
-    const pesoRollo = parseNumeroGrid(pesoInput.value);
+    const esFelpa = row.dataset.esFelpa === '1';
+    if (esFelpa) {
+        pesoInput.value = '90';
+    }
+
+    const pesoRollo = esFelpa ? 90 : parseNumeroGrid(pesoInput.value);
     const pesoCrudo = parseNumeroGrid(row.dataset.pesoCrudo);
     const noTiras = parseNumeroGrid(row.dataset.noTiras);
     const largoCrudo = parseNumeroGrid(row.dataset.largoCrudo);
     const saldoPedido = parseNumeroGrid(row.dataset.saldoPedido);
 
-    if (pesoRollo <= 0 || pesoCrudo <= 0 || noTiras <= 0) {
+    if ((!esFelpa && pesoRollo <= 0) || pesoCrudo <= 0 || noTiras <= 0) {
         actualizarSpanNumerico(row, 'Repeticiones', null);
         actualizarSpanNumerico(row, 'SaldoMarbete', null);
         actualizarSpanNumerico(row, 'MtsRollo', null, 2);
@@ -2133,7 +2214,7 @@ function recalcularPorPesoRollo(pesoInput) {
         : null;
     let pzasRollo = repeticiones > 0 ? Math.round(repeticiones * noTiras) : null;
 
-    if (esFilaInventSizeFel(row)) {
+    if (esFilaAjusteFelRollo(row)) {
         saldoMarbete = Math.round(saldoMarbete * 2);
         if (mtsRollo !== null && Number.isFinite(mtsRollo)) mtsRollo = mtsRollo / 2;
         if (pzasRollo !== null && Number.isFinite(pzasRollo)) pzasRollo = Math.round(pzasRollo / 2);
