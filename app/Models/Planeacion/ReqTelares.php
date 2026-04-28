@@ -23,7 +23,8 @@ class ReqTelares extends Model
         'SalonTejidoId',  // Mapeo de columna "Salon"
         'NoTelarId',      // Mapeo de columna "Telar"
         'Nombre',         // Mapeo de columna "Nombre"
-        'Grupo'           // Mapeo de columna "Grupo"
+        'Grupo',           // Mapeo de columna "Grupo"
+        'VelocidadSTD'    // Mapeo de columna "VelocidadSTD"
     ];
 
     /**

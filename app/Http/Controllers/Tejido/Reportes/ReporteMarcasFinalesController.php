@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tejido\Reportes;
 
 use App\Http\Controllers\Controller;
+use App\Models\Planeacion\ReqTelares;
 use App\Models\Tejido\TejMarcasLine;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class ReporteMarcasFinalesController extends Controller
                 'preview' => collect(),
                 'diasDisponibles' => collect(),
                 'diaActual' => null,
+                'velocidadesPorTelar' => collect(),
             ]);
         }
 
@@ -50,6 +52,7 @@ class ReporteMarcasFinalesController extends Controller
                 'preview' => collect(),
                 'diasDisponibles' => collect(),
                 'diaActual' => null,
+                'velocidadesPorTelar' => collect(),
             ]);
         }
 
@@ -58,6 +61,7 @@ class ReporteMarcasFinalesController extends Controller
             : $diasDisponibles->first();
 
         $preview = $this->obtenerPreviewPorDia($diaActual);
+        $velocidadesPorTelar = $this->obtenerVelocidadesPorTelar();
 
         return view('modulos.tejido.reportes.reporte-marcas-finales', [
             'fechaIni' => $fechaIniFormateada,
@@ -65,7 +69,16 @@ class ReporteMarcasFinalesController extends Controller
             'preview' => $preview,
             'diasDisponibles' => $diasDisponibles,
             'diaActual' => $diaActual,
+            'velocidadesPorTelar' => $velocidadesPorTelar,
         ]);
+    }
+
+    private function obtenerVelocidadesPorTelar(): Collection
+    {
+        return ReqTelares::query()
+            ->whereNotNull('NoTelarId')
+            ->pluck('VelocidadSTD', 'NoTelarId')
+            ->map(fn($vel) => (float) ($vel ?? 0));
     }
 
     private function obtenerPreview(string $fechaIni, string $fechaFin): Collection
@@ -318,10 +331,11 @@ class ReporteMarcasFinalesController extends Controller
         $fechaFinFormateada = Carbon::parse($fechaFin)->format('Y-m-d');
 
         $datosPorDia = $this->obtenerDatosPorDia($fechaIniFormateada, $fechaFinFormateada);
+        $velocidadesPorTelar = $this->obtenerVelocidadesPorTelar();
 
-        $export = new \App\Exports\ReporteMarcasFinalesExport($datosPorDia);
+        $export = new \App\Exports\ReporteMarcasFinalesExport($datosPorDia, $velocidadesPorTelar);
 
-        $filename = 'marcas_finales_' . $fechaIniFormateada . '_' . $fechaFinFormateada . '.xlsx';
+        $filename = 'EFICIENCIAS_' . $fechaIniFormateada . '_' . $fechaFinFormateada . '.xlsx';
 
         return Excel::download($export, $filename);
     }
