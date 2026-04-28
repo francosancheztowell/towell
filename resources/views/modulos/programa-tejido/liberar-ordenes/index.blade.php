@@ -68,6 +68,7 @@
             ['field' => 'TotalPzas', 'label' => 'Total Pzas'],
             ['field' => 'Repeticiones', 'label' => 'Repeticiones'],
             ['field' => 'SaldoMarbete', 'label' => 'No Marbetes'],
+            ['field' => 'NoTiras', 'label' => 'Tiras'],
             ['field' => 'Densidad', 'label' => 'Densidad'],
             ['field' => 'Observaciones', 'label' => 'Observaciones'],
             ['field' => 'CambioRepaso', 'label' => 'Cambio Repaso'],
@@ -242,7 +243,7 @@
                               data-row-id="' . htmlspecialchars($rowId, ENT_QUOTES, 'UTF-8') . '">';
             }
 
-            $camposNumericosSoloLectura = ['MtsRollo', 'PzasRollo', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'Densidad'];
+            $camposNumericosSoloLectura = ['MtsRollo', 'PzasRollo', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'NoTiras', 'Densidad'];
             if (in_array($field, $camposNumericosSoloLectura, true)) {
                 $value = $registro->{$field} ?? null;
 
@@ -473,6 +474,7 @@
                                 data-no-tiras="{{ $registro->NoTiras ?? '' }}"
                                 data-largo-crudo="{{ $registro->LargoCrudo ?? '' }}"
                                 data-saldo-pedido="{{ $registro->SaldoPedido ?? '' }}"
+                                data-invent-size-id="{{ $registro->InventSizeId ?? '' }}"
                                 title="Clic en la fila para marcar como referencia visual (azul)">
                                 @foreach($columns as $colIndex => $col)
                                 <td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }} {{ $col['field'] === 'select' ? 'text-center' : '' }} {{ $col['field'] === 'prioridad' ? 'px-4 py-3' : '' }}"
@@ -2097,6 +2099,11 @@ function actualizarSpanNumerico(row, columnName, value, decimals = 0, includeZer
     }
 }
 
+function esFilaInventSizeFel(row) {
+    const v = (row.dataset.inventSizeId || '').trim();
+    return v !== '' && v.toUpperCase().includes('FEL');
+}
+
 function recalcularPorPesoRollo(pesoInput) {
     const row = pesoInput.closest('.row-data');
     if (!row) return;
@@ -2117,14 +2124,20 @@ function recalcularPorPesoRollo(pesoInput) {
     }
 
     const repeticiones = Math.trunc(((pesoRollo / pesoCrudo) / noTiras) * 1000);
-    const saldoMarbete =
+    let saldoMarbete =
         noTiras > 0 && repeticiones > 0
             ? Math.round((saldoPedido / noTiras) / repeticiones)
             : 0;
-    const mtsRollo = largoCrudo > 0 && repeticiones > 0
+    let mtsRollo = largoCrudo > 0 && repeticiones > 0
         ? (largoCrudo * repeticiones) / 100
         : null;
-    const pzasRollo = repeticiones > 0 ? Math.round(repeticiones * noTiras) : null;
+    let pzasRollo = repeticiones > 0 ? Math.round(repeticiones * noTiras) : null;
+
+    if (esFilaInventSizeFel(row)) {
+        saldoMarbete = Math.round(saldoMarbete * 2);
+        if (mtsRollo !== null && Number.isFinite(mtsRollo)) mtsRollo = mtsRollo / 2;
+        if (pzasRollo !== null && Number.isFinite(pzasRollo)) pzasRollo = Math.round(pzasRollo / 2);
+    }
 
     actualizarSpanNumerico(row, 'Repeticiones', repeticiones, 0, true);
     actualizarSpanNumerico(row, 'SaldoMarbete', saldoMarbete, 0, true);

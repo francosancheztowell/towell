@@ -185,10 +185,12 @@ class LiberarOrdenesController extends Controller
                     }
                 }
 
+                $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo);
+
                 $totalRollos = null;
                 // Nueva fórmula: TotalRollos = ceil(totalPedido / pzasRollo)
                 // Esto calcula cuántos rollos se necesitan para cumplir el pedido
-                $totalPedido = $registro->SaldoPedido ?? null;
+                $totalPedido = $regist0ro->SaldoPedido ?? null;
 
                 // Siempre intentar calcular con la fórmula si hay datos disponibles
                 if ($pzasRollo !== null && $totalPedido !== null &&
@@ -433,6 +435,11 @@ class LiberarOrdenesController extends Controller
                 if ($pzasRollo === null && $repeticiones !== null && $tiras &&
                     is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
                     $pzasRollo = round($repeticiones * $tiras, 0);
+                }
+
+                $this->aplicarAjusteFelSaldoMarbete($registro->InventSizeId ?? null, $saldoMarbeteValor);
+                if (! $this->requestTieneMtsPzasRolloDesdeCliente($item)) {
+                    $this->aplicarAjusteFelMtsYpzas($registro->InventSizeId ?? null, $mtsRollo, $pzasRollo);
                 }
 
                 // TotalRollos: priorizar valor del request, sino calcular con nueva fórmula
@@ -1395,6 +1402,80 @@ class LiberarOrdenesController extends Controller
             }
         } catch (\Throwable $e) {
         }
+    }
+
+    /**
+     * Tamaños cuyo InventSizeId contiene "FEL": duplicar no. marbetes (SaldoMarbete) y usar la mitad en MtsRollo y PzasRollo (negocio / Excel).
+     */
+    private function esInventSizeFel(?string $inventSizeId): bool
+    {
+        $s = trim((string) ($inventSizeId ?? ''));
+
+        return $s !== '' && stripos($s, 'FEL') !== false;
+    }
+
+    private function valorRequestNumericoPresente(mixed $value): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+
+        return true;
+    }
+
+    /**
+     * En liberar, la grilla ya envía MtsRollo/PzasRollo con ajuste FEL; no volver a dividir en servidor.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function requestTieneMtsPzasRolloDesdeCliente(array $item): bool
+    {
+        return $this->valorRequestNumericoPresente($item['mtsRollo'] ?? null)
+            || $this->valorRequestNumericoPresente($item['pzasRollo'] ?? null);
+    }
+
+    /**
+     * @param  int  $saldoMarbeteValor  por referencia: resultado de saldoMarbeteDesdeFormula
+     */
+    private function aplicarAjusteFelSaldoMarbete(?string $inventSizeId, int &$saldoMarbeteValor): void
+    {
+        if (! $this->esInventSizeFel($inventSizeId)) {
+            return;
+        }
+        $saldoMarbeteValor = (int) round($saldoMarbeteValor * 2);
+    }
+
+    /**
+     * @param  float|null  $mtsRollo  por referencia
+     * @param  float|null  $pzasRollo  por referencia
+     */
+    private function aplicarAjusteFelMtsYpzas(?string $inventSizeId, ?float &$mtsRollo, ?float &$pzasRollo): void
+    {
+        if (! $this->esInventSizeFel($inventSizeId)) {
+            return;
+        }
+        if ($mtsRollo !== null && is_numeric($mtsRollo)) {
+            $mtsRollo = (float) $mtsRollo / 2.0;
+        }
+        if ($pzasRollo !== null && is_numeric($pzasRollo)) {
+            $pzasRollo = (float) round((float) $pzasRollo / 2.0, 0);
+        }
+    }
+
+    /**
+     * Ajuste FEL completo (carga index): marbetes x2, MtsRollo y PzasRollo ÷2.
+     *
+     * @param  int  $saldoMarbeteValor  por referencia
+     * @param  float|null  $mtsRollo  por referencia
+     * @param  float|null  $pzasRollo  por referencia
+     */
+    private function aplicarAjusteFelTamanho(?string $inventSizeId, int &$saldoMarbeteValor, ?float &$mtsRollo, ?float &$pzasRollo): void
+    {
+        $this->aplicarAjusteFelSaldoMarbete($inventSizeId, $saldoMarbeteValor);
+        $this->aplicarAjusteFelMtsYpzas($inventSizeId, $mtsRollo, $pzasRollo);
     }
 
     /**

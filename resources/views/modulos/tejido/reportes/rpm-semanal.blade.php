@@ -39,7 +39,6 @@
                 @if (empty($lunes) || ! isset($filasOrdenTelar) || count($filasOrdenTelar) === 0)
                     <div class="text-center py-12">
                         <i class="fas fa-calendar-week text-6xl text-gray-300 mb-4"></i>
-                        <p class="text-gray-500 text-lg">Elija una semana. Puede indicar <strong>cualquier fecha</strong> de esa semana; el sistema usa el lunes al domingo.</p>
                         <button type="button" onclick="mostrarModalSemanaRpm()"
                             class="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
                             <i class="fas fa-search mr-2"></i> Seleccionar semana
