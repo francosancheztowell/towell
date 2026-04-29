@@ -11,6 +11,7 @@ use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
 use App\Services\Planeacion\RevivirOrdenProgramaDesdeCatService;
+use App\Services\Planeacion\SaldoMarbeteCodificacionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -28,6 +29,7 @@ class CatCodificacionController extends Controller
 
     public function __construct(
         private readonly CatCodificadosExcelHeaderMapper $headerMapper,
+        private readonly SaldoMarbeteCodificacionService $saldoMarbeteCodificacion,
     ) {}
 
     /**
@@ -210,6 +212,90 @@ class CatCodificacionController extends Controller
             ], 422);
         } catch (\Throwable $e) {
             Log::error('CatCodificacionController::revivirProgramaDesdeCat', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                's' => false,
+                'e' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * API: recalcula NoMarbete con la misma fórmula que Liberar órdenes + ajuste FEL/Felpa según tamaño/clave nominal.
+     *
+     * @return JsonResponse
+     */
+    public function recalcularMarbete(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'ids' => 'required|array|min:1',
+                'ids.*' => 'integer|min:1',
+            ]);
+
+            /** @var list<int> $ids */
+            $ids = array_values(array_unique(array_map('intval', $validated['ids'])));
+            $resultados = [];
+            foreach ($ids as $id) {
+                $cat = CatCodificados::query()->find($id);
+                if (! $cat) {
+                    $resultados[] = ['id' => $id, 'ok' => false, 'error' => 'Registro no encontrado'];
+
+                    continue;
+                }
+
+                $anterior = $cat->NoMarbete !== null ? (float) $cat->NoMarbete : null;
+                $calc = $this->saldoMarbeteCodificacion->calcularParaCatCodificados($cat);
+                if (! $calc['ok']) {
+                    $resultados[] = [
+                        'id' => $id,
+                        'ok' => false,
+                        'error' => $calc['message'] ?? 'No se pudo calcular',
+                    ];
+
+                    continue;
+                }
+
+                $nuevo = (float) round((float) ($calc['valor'] ?? 0), 0);
+                $cat->NoMarbete = $nuevo;
+                $cat->save();
+                $resultados[] = [
+                    'id' => $id,
+                    'ok' => true,
+                    'anterior' => $anterior,
+                    'nuevo' => $nuevo,
+                ];
+            }
+
+            $exitosos = array_values(array_filter($resultados, static fn ($r): bool => ! empty($r['ok'])));
+
+            if ($exitosos === []) {
+                $primer = $resultados[0]['error'] ?? 'No fue posible recalcular marbetes para los registros indicados';
+
+                return response()->json([
+                    's' => false,
+                    'e' => $primer,
+                    'd' => ['resultados' => $resultados],
+                ], 422);
+            }
+
+            self::clearCache();
+
+            return response()->json([
+                's' => true,
+                'd' => ['resultados' => $resultados],
+                'message' => count($exitosos).' registro(s) actualizado(s).',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                's' => false,
+                'e' => 'Validación fallida',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('CatCodificacionController::recalcularMarbete', [
                 'error' => $e->getMessage(),
             ]);
 

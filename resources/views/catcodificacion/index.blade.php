@@ -45,6 +45,16 @@
             <i class="fas fa-undo"></i>
             <span>Revivir a programa</span>
         </button>
+        <button id="btn-recalcular-marbetes"
+            type="button"
+            onclick="recalcularMarbetesCodificacion()"
+            class="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            disabled
+            title="Recalcular No. marbetes (fórmula Liberar órdenes + ajuste FEL/Felpa)"
+        >
+            <i class="fas fa-calculator"></i>
+            <span>Recalc. marbetes</span>
+        </button>
     </div>
 @endsection
 
@@ -1112,6 +1122,7 @@
                     updateFilterCount();
                     actualizarEstadoBotonReimprimir();
                     actualizarEstadoBotonRevivir();
+                    actualizarEstadoBotonRecalcMarbete();
 
                     setLoading(false);
                 } catch (error) {
@@ -1198,6 +1209,7 @@
                             });
                             actualizarEstadoBotonReimprimir();
                             actualizarEstadoBotonRevivir();
+                            actualizarEstadoBotonRecalcMarbete();
                         } else {
                             // Deseleccionar fila anterior si existe
                             const prevSelected = tbody.querySelector('tr.codificacion-row-selected');
@@ -1222,6 +1234,7 @@
                             state.selectedRowIndex = globalIndex;
                             actualizarEstadoBotonReimprimir();
                             actualizarEstadoBotonRevivir();
+                            actualizarEstadoBotonRecalcMarbete();
                         }
                     });
 
@@ -1251,6 +1264,7 @@
                 updatePagination();
                 actualizarEstadoBotonReimprimir();
                 actualizarEstadoBotonRevivir();
+                actualizarEstadoBotonRecalcMarbete();
             }
 
             function updatePagination() {
@@ -1414,6 +1428,7 @@
                 updateFilterCount();
                 actualizarEstadoBotonReimprimir();
                 actualizarEstadoBotonRevivir();
+                actualizarEstadoBotonRecalcMarbete();
             }
 
             function updateFilterCount() {
@@ -1453,6 +1468,7 @@
                 updateFilterCount();
                 actualizarEstadoBotonReimprimir();
                 actualizarEstadoBotonRevivir();
+                actualizarEstadoBotonRecalcMarbete();
 
                 showToast(
                     state.filtered.length
@@ -1979,6 +1995,17 @@
                 btn.disabled = !(orden !== '' && depto !== '' && telar !== '');
             }
 
+            function actualizarEstadoBotonRecalcMarbete() {
+                const btn = document.getElementById('btn-recalcular-marbetes');
+                if (!btn) return;
+                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
+                    btn.disabled = true;
+                    return;
+                }
+                const r = state.filtered[state.selectedRowIndex];
+                btn.disabled = !r || !r.Id;
+            }
+
             // =========================
             //   REVIVIR ORDEN A PROGRAMA DE TEJIDO
             // =========================
@@ -2052,6 +2079,81 @@
                     }
 
                     showToast('Orden creada en programa (Id ' + (json.d && json.d.programa_id ? json.d.programa_id : '') + ')', 'success');
+                } catch (e) {
+                    Swal.close();
+                    showToast(e.message || 'Error de red', 'error');
+                }
+            }
+
+            async function recalcularMarbetesCodificacion() {
+                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
+                    showToast('Selecciona un registro primero', 'warning');
+                    return;
+                }
+                const r = state.filtered[state.selectedRowIndex];
+                if (!r || !r.Id) {
+                    showToast('No se pudo obtener el registro seleccionado', 'error');
+                    return;
+                }
+
+                const ok = await Swal.fire({
+                    title: 'Recalcular marbetes',
+                    html:
+                        '<p class="text-left text-sm text-gray-700">Se calcularán los <strong>No. marbetes</strong> igual que en <strong>Liberar órdenes</strong>: fórmula por pedido, tiras y repeticiones, y si aplica tamaño <strong>FEL</strong>/<strong>FELPA</strong> se duplican (ajuste formato rollo).</p>' +
+                        '<p class="text-left text-sm text-gray-600 mt-2">Requiere <strong>Pedido</strong> (o Cantidad), <strong>NoTiras</strong> y <strong>P_crudo</strong> válidos.</p>',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Recalcular',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#3b82f6',
+                });
+
+                if (!ok.isConfirmed) {
+                    return;
+                }
+
+                try {
+                    Swal.fire({
+                        title: 'Calculando…',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading(),
+                    });
+
+                    const resp = await fetch('/planeacion/codificacion/api/recalcular-marbetes', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': getCsrf(),
+                        },
+                        body: JSON.stringify({
+                            ids: [parseInt(r.Id, 10)],
+                        }),
+                    });
+
+                    const json = await resp.json().catch(() => ({}));
+                    Swal.close();
+
+                    if (!json.s) {
+                        const msg = json.e || json.message || 'No se pudieron actualizar los marbetes';
+                        showToast(msg, 'error');
+                        return;
+                    }
+
+                    const resList = json.d && json.d.resultados ? json.d.resultados : [];
+                    const primera = resList[0];
+                    if (primera && primera.ok) {
+                        showToast(
+                            'NoMarbete: '
+                                + (primera.anterior != null ? String(primera.anterior) : '—')
+                                + ' → '
+                                + String(primera.nuevo),
+                            'success'
+                        );
+                    } else if (json.message) {
+                        showToast(json.message, 'success');
+                    }
+                    await loadData(true);
                 } catch (e) {
                     Swal.close();
                     showToast(e.message || 'Error de red', 'error');
@@ -2254,7 +2356,8 @@
             window.removeFilterPorColumna      = removeFilterPorColumna;
             window.loadData                    = loadData;
             window.reimprimirOrden              = reimprimirOrden;
-            window.revivirOrdenAlPrograma     = revivirOrdenAlPrograma;
+            window.revivirOrdenAlPrograma       = revivirOrdenAlPrograma;
+            window.recalcularMarbetesCodificacion = recalcularMarbetesCodificacion;
             window.reimprimirOrdenSeleccionada  = reimprimirOrdenSeleccionada;
             window.abrirModalBalancear          = abrirModalBalancear;
         })();
