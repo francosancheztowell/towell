@@ -128,7 +128,7 @@
                                             <input type="number"
                                                 class="valor-input rpm-input w-full px-2 py-1 border border-gray-200 rounded text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                                                 data-telar="{{ $telar }}" data-horario="{{ $h }}" data-type="rpm" value="0" min="0"
-                                                max="500" placeholder="0">
+                                                max="{{ in_array($telar, [401, 402]) ? 650 : 500 }}" placeholder="0">
                                         </td>
                                         <!-- EF -->
                                         <td class="border border-gray-300 px-1 py-2">
@@ -359,7 +359,9 @@
                     input.addEventListener('input', () => {
                         if (PAGE_MODE.soloLectura) return;
                         const tipo = input.dataset.type;
-                        const max = tipo === 'rpm' ? 500 : 100;
+                        const telar = parseInt(input.dataset.telar, 10);
+                        const maxRpm = [401, 402].includes(telar) ? 650 : 500;
+                        const max = tipo === 'rpm' ? maxRpm : 100;
                         let val = parseInt(input.value, 10) || 0;
                         if (val < 0) val = 0;
                         if (val > max) val = max;
