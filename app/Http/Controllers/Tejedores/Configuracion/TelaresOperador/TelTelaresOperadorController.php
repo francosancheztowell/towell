@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tejedores\Configuracion\TelaresOperador;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSUsuario;
+use App\Models\Tejedores\TelTelaresOperador;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -24,19 +24,20 @@ class TelTelaresOperadorController extends Controller
             ->when($q !== '', function ($qry) use ($q) {
                 $qry->where(function ($w) use ($q) {
                     $w->where('numero_empleado', 'like', "%{$q}%")
-                      ->orWhere('nombreEmpl', 'like', "%{$q}%")
-                      ->orWhere('NoTelarId', 'like', "%{$q}%");
+                        ->orWhere('nombreEmpl', 'like', "%{$q}%")
+                        ->orWhere('NoTelarId', 'like', "%{$q}%");
                 });
             })
-            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
+            ->orderByRaw('CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC')
             ->orderBy('NoTelarId')
             ->get();
 
         $telares = ReqTelares::obtenerTodos();
-        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
-            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
+        $usuarios = SYSUsuario::select('numero_empleado', 'nombre', 'turno')
+            ->orderByRaw('CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC')
             ->get();
-        return view('modulos.tel-telares-operador.index', compact('items', 'q', 'telares','usuarios'));
+
+        return view('modulos.tel-telares-operador.index', compact('items', 'q', 'telares', 'usuarios'));
     }
 
     /**
@@ -45,10 +46,11 @@ class TelTelaresOperadorController extends Controller
     public function create()
     {
         $telares = ReqTelares::obtenerTodos();
-        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
-            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
+        $usuarios = SYSUsuario::select('numero_empleado', 'nombre', 'turno')
+            ->orderByRaw('CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC')
             ->get();
-        return view('modulos.tel-telares-operador.create', compact('telares','usuarios'));
+
+        return view('modulos.tel-telares-operador.create', compact('telares', 'usuarios'));
     }
 
     /**
@@ -59,12 +61,12 @@ class TelTelaresOperadorController extends Controller
     {
         $data = $request->validate([
             'numero_empleado' => ['required', 'string', 'max:30', 'exists:SYSUsuario,numero_empleado'],
-            'nombreEmpl'      => ['required', 'string', 'max:100'],
-            'Turno'           => ['required', 'string', 'max:10'],
-            'SalonTejidoId'   => ['required', 'string', 'max:10'],
-            'telares'         => ['required', 'array', 'min:1'],
-            'telares.*'       => ['required', 'string', 'max:10'],
-            'Supervisor'      => ['nullable', 'boolean'],
+            'nombreEmpl' => ['required', 'string', 'max:100'],
+            'Turno' => ['required', 'string', 'max:10'],
+            'SalonTejidoId' => ['required', 'string', 'max:10'],
+            'telares' => ['required', 'array', 'min:1'],
+            'telares.*' => ['required', 'string', 'max:10'],
+            'Supervisor' => ['nullable', 'boolean'],
         ]);
 
         $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
@@ -83,16 +85,17 @@ class TelTelaresOperadorController extends Controller
 
                 if ($yaExiste) {
                     $duplicados[] = $telar;
+
                     continue;
                 }
 
                 $payload = [
                     'numero_empleado' => $data['numero_empleado'],
-                    'nombreEmpl'      => $data['nombreEmpl'] ?? ($usuario->nombre ?? ''),
-                    'NoTelarId'       => $telar,
-                    'Turno'           => $data['Turno'] ?? (string)($usuario->turno ?? ''),
-                    'SalonTejidoId'   => $data['SalonTejidoId'],
-                    'Supervisor'      => $request->boolean('Supervisor', false),
+                    'nombreEmpl' => $data['nombreEmpl'] ?? ($usuario->nombre ?? ''),
+                    'NoTelarId' => $telar,
+                    'Turno' => $data['Turno'] ?? (string) ($usuario->turno ?? ''),
+                    'SalonTejidoId' => $data['SalonTejidoId'],
+                    'Supervisor' => $request->boolean('Supervisor', false),
                 ];
 
                 TelTelaresOperador::create($payload);
@@ -103,7 +106,7 @@ class TelTelaresOperadorController extends Controller
 
             $mensaje = "Se crearon {$creados} registro(s) correctamente.";
             if (count($duplicados) > 0) {
-                $mensaje .= " Los telares " . implode(', ', $duplicados) . " ya estaban asignados.";
+                $mensaje .= ' Los telares '.implode(', ', $duplicados).' ya estaban asignados.';
             }
 
             // Obtener los registros recién creados para devolverlos
@@ -120,7 +123,7 @@ class TelTelaresOperadorController extends Controller
                     'message' => $mensaje,
                     'creados' => $creados,
                     'duplicados' => count($duplicados),
-                    'data' => $registrosCreados->map(function($item) {
+                    'data' => $registrosCreados->map(function ($item) {
                         return [
                             'Id' => $item->Id,
                             'numero_empleado' => $item->numero_empleado,
@@ -128,9 +131,9 @@ class TelTelaresOperadorController extends Controller
                             'NoTelarId' => $item->NoTelarId,
                             'Turno' => $item->Turno,
                             'SalonTejidoId' => $item->SalonTejidoId,
-                            'Supervisor' => (bool)($item->Supervisor ?? false),
+                            'Supervisor' => (bool) ($item->Supervisor ?? false),
                         ];
-                    })
+                    }),
                 ]);
             }
 
@@ -143,12 +146,12 @@ class TelTelaresOperadorController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al crear los registros: ' . $e->getMessage()
+                    'message' => 'Error al crear los registros: '.$e->getMessage(),
                 ], 500);
             }
 
             return back()
-                ->withErrors('Error al crear los registros: ' . $e->getMessage())
+                ->withErrors('Error al crear los registros: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -160,9 +163,10 @@ class TelTelaresOperadorController extends Controller
     public function edit(TelTelaresOperador $telTelaresOperador)
     {
         $telares = ReqTelares::obtenerTodos();
-        $usuarios = SYSUsuario::select('numero_empleado','nombre','turno')
-            ->orderByRaw("CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC")
+        $usuarios = SYSUsuario::select('numero_empleado', 'nombre', 'turno')
+            ->orderByRaw('CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC')
             ->get();
+
         return view('modulos.tel-telares-operador.edit', [
             'item' => $telTelaresOperador,
             'telares' => $telares,
@@ -177,9 +181,9 @@ class TelTelaresOperadorController extends Controller
     {
         $data = $request->validate([
             'numero_empleado' => ['required', 'string', 'max:30', 'exists:SYSUsuario,numero_empleado'],
-            'telares'         => ['nullable', 'array'],
-            'telares.*'       => ['required', 'string', 'max:10'],
-            'Supervisor'      => ['nullable', 'boolean'],
+            'telares' => ['nullable', 'array'],
+            'telares.*' => ['required', 'string', 'max:10'],
+            'Supervisor' => ['nullable', 'boolean'],
         ]);
 
         $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
@@ -195,7 +199,7 @@ class TelTelaresOperadorController extends Controller
             ->all();
 
         if (! empty($telaresInvalidos)) {
-            $message = 'Los telares ' . implode(', ', $telaresInvalidos) . ' no existen en el catalogo.';
+            $message = 'Los telares '.implode(', ', $telaresInvalidos).' no existen en el catalogo.';
 
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => $message], 422);
@@ -235,9 +239,10 @@ class TelTelaresOperadorController extends Controller
                 ->get();
         } catch (\Throwable $e) {
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Error al actualizar: ' . $e->getMessage()], 422);
+                return response()->json(['success' => false, 'message' => 'Error al actualizar: '.$e->getMessage()], 422);
             }
-            return back()->withErrors('Error al actualizar: ' . $e->getMessage())->withInput();
+
+            return back()->withErrors('Error al actualizar: '.$e->getMessage())->withInput();
         }
 
         if ($request->expectsJson() || $request->ajax()) {
@@ -252,7 +257,7 @@ class TelTelaresOperadorController extends Controller
                         'NoTelarId' => $item->NoTelarId,
                         'Turno' => $item->Turno,
                         'SalonTejidoId' => $item->SalonTejidoId,
-                        'Supervisor' => (bool)($item->Supervisor ?? false),
+                        'Supervisor' => (bool) ($item->Supervisor ?? false),
                     ];
                 })->values(),
             ]);
@@ -267,28 +272,32 @@ class TelTelaresOperadorController extends Controller
      */
     public function destroy(Request $request, TelTelaresOperador $telTelaresOperador)
     {
-        $id = $telTelaresOperador->Id;
+        $numeroEmpleado = $telTelaresOperador->numero_empleado;
+        $eliminados = 0;
+
         try {
-            $telTelaresOperador->delete();
+            $eliminados = TelTelaresOperador::where('numero_empleado', $numeroEmpleado)->delete();
         } catch (\Throwable $e) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede eliminar el operador: ' . $e->getMessage()
+                    'message' => 'No se puede eliminar el operador: '.$e->getMessage(),
                 ], 500);
             }
-            return back()->withErrors('No se puede eliminar el operador: ' . $e->getMessage());
+
+            return back()->withErrors('No se puede eliminar el operador: '.$e->getMessage());
         }
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Operador eliminado correctamente.',
-                'id' => $id
+                'message' => "Operador {$numeroEmpleado} eliminado correctamente ({$eliminados} telar(es)).",
+                'id' => $telTelaresOperador->Id,
+                'numero_empleado' => $numeroEmpleado,
             ]);
         }
 
         return redirect()->route('tel-telares-operador.index')
-            ->with('success', 'Operador eliminado correctamente.');
+            ->with('success', "Operador {$numeroEmpleado} eliminado correctamente.");
     }
 }

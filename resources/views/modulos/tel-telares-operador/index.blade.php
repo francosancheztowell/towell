@@ -38,6 +38,7 @@ Telares por Operador
     @endif
 
     @php
+        $items = $items instanceof \Illuminate\Support\Collection ? $items : collect($items);
         $salonesUnique = $items->pluck('SalonTejidoId')->unique()->filter()->sort()->values();
     @endphp
 
@@ -55,23 +56,31 @@ Telares por Operador
                     </tr>
                 </thead>
                 <tbody>
-                @forelse($items as $it)
+                @php
+                    $itemsAgrupados = $items->groupBy('numero_empleado');
+                @endphp
+                @forelse($itemsAgrupados as $numero => $registros)
+                    @php
+                        $primer = $registros->first();
+                        $telares = $registros->pluck('NoTelarId')->filter()->unique()->sort()->implode(', ');
+                        $salones = $registros->pluck('SalonTejidoId')->filter()->unique()->sort()->implode(', ');
+                    @endphp
                     <tr class="odd:bg-gray-100 even:bg-white cursor-pointer transition-colors duration-150 hover:bg-blue-50 row-selectable"
-                        data-key="{{ $it->getRouteKey() }}"
-                        data-numero="{{ e($it->numero_empleado) }}"
-                        data-nombre="{{ e($it->nombreEmpl) }}"
-                        data-telar="{{ e($it->NoTelarId) }}"
-                        data-turno="{{ e($it->Turno) }}"
-                        data-salon="{{ e($it->SalonTejidoId) }}"
-                        data-supervisor="{{ $it->Supervisor ? '1' : '0' }}"
+                        data-key="{{ $primer->getRouteKey() }}"
+                        data-numero="{{ e($numero) }}"
+                        data-nombre="{{ e($primer->nombreEmpl) }}"
+                        data-telar="{{ e($telares) }}"
+                        data-turno="{{ e($primer->Turno) }}"
+                        data-salon="{{ e($salones) }}"
+                        data-supervisor="{{ $primer->Supervisor ? '1' : '0' }}"
                         aria-selected="false">
-                        <td class="px-6 py-4 align-middle font-medium text-gray-700">{{ $it->numero_empleado }}</td>
-                        <td class="px-6 py-4 align-middle text-gray-800">{{ $it->nombreEmpl }}</td>
-                        <td class="px-6 py-4 align-middle text-gray-800">{{ $it->NoTelarId }}</td>
-                        <td class="px-6 py-4 align-middle text-gray-800">{{ $it->Turno }}</td>
-                        <td class="px-6 py-4 align-middle text-gray-800">{{ $it->SalonTejidoId }}</td>
+                        <td class="px-6 py-4 align-middle font-medium text-gray-700">{{ $numero }}</td>
+                        <td class="px-6 py-4 align-middle text-gray-800">{{ $primer->nombreEmpl }}</td>
+                        <td class="px-6 py-4 align-middle text-gray-800 font-semibold text-blue-700">{{ $telares }}</td>
+                        <td class="px-6 py-4 align-middle text-gray-800">{{ $primer->Turno }}</td>
+                        <td class="px-6 py-4 align-middle text-gray-800">{{ $salones }}</td>
                         <td class="px-6 py-4 align-middle text-center">
-                            @if($it->Supervisor)
+                            @if($primer->Supervisor)
                                 <i class="fa-solid fa-check text-green-600" title="Sí"></i>
                             @else
                                 <span class="text-gray-400">—</span>
@@ -156,7 +165,7 @@ Telares por Operador
                             <select id="createSalon" class="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm hover:shadow-md" required>
                                 <option value="" disabled selected>Selecciona salón primero</option>
                                 @php
-                                    $salonesDisponibles = $telares->pluck('SalonTejidoId')->unique()->filter()->sort()->values();
+                                    $salonesDisponibles = collect($telares)->pluck('SalonTejidoId')->unique()->filter()->sort()->values();
                                 @endphp
                                 @foreach($salonesDisponibles as $salon)
                                     <option value="{{ $salon }}">{{ $salon }}</option>
@@ -295,7 +304,7 @@ Telares por Operador
                     <select id="filter-empleado" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
                         <option value="">Todos</option>
                         @php
-                            $empleadosUnique = $items->pluck('numero_empleado')->unique()->filter()->sort()->values();
+                            $empleadosUnique = collect($items)->pluck('numero_empleado')->unique()->filter()->sort()->values();
                         @endphp
                         @foreach($empleadosUnique as $emp)
                             <option value="{{ $emp }}">{{ $emp }}</option>
@@ -500,8 +509,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Eliminar la fila de la tabla
-                    if (selectedRow) {
+                    const numeroEmpleado = data.numero_empleado || (selectedRow ? selectedRow.dataset.numero : null);
+                    const tbody = document.querySelector('tbody');
+                    
+                    if (numeroEmpleado && tbody) {
+                        const rowsToRemove = Array.from(tbody.querySelectorAll('.row-selectable'))
+                            .filter(row => String(row.dataset.numero || '').trim() === String(numeroEmpleado).trim());
+                        rowsToRemove.forEach(row => row.remove());
+                    } else if (selectedRow) {
                         selectedRow.remove();
                     }
                     clearSelection();
@@ -970,19 +985,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Agregar las nuevas filas a la tabla
                     if (result.data && result.data.length > 0) {
                         const tbody = document.querySelector('tbody');
-                        // Eliminar mensaje "Sin registros" si existe
                         const emptyRow = tbody.querySelector('tr:not(.row-selectable)');
                         if (emptyRow) emptyRow.remove();
                         
-                        result.data.forEach(item => {
-                            const newRow = createTableRow(item);
-                            tbody.insertBefore(newRow, tbody.firstChild);
+                        const groupedByEmpleado = result.data.reduce((acc, item) => {
+                            const num = item.numero_empleado || '';
+                            if (!acc[num]) acc[num] = [];
+                            acc[num].push(item);
+                            return acc;
+                        }, {});
+                        
+                        Object.values(groupedByEmpleado).forEach(registros => {
+                            const primero = registros[0];
+                            const telares = registros.map(r => r.NoTelarId).filter(Boolean).sort().join(', ');
+                            const salones = [...new Set(registros.map(r => r.SalonTejidoId).filter(Boolean))].sort().join(', ');
+                            
+                            const tr = document.createElement('tr');
+                            tr.className = 'odd:bg-gray-100 even:bg-white cursor-pointer transition-colors duration-150 hover:bg-blue-50 row-selectable';
+                            tr.setAttribute('data-key', primero.Id);
+                            tr.setAttribute('data-numero', primero.numero_empleado || '');
+                            tr.setAttribute('data-nombre', primero.nombreEmpl || '');
+                            tr.setAttribute('data-telar', telares);
+                            tr.setAttribute('data-turno', primero.Turno || '');
+                            tr.setAttribute('data-salon', salones);
+                            tr.setAttribute('data-supervisor', primero.Supervisor ? '1' : '0');
+                            tr.setAttribute('aria-selected', 'false');
+                            
+                            const supervisorCell = primero.Supervisor 
+                                ? '<i class="fa-solid fa-check text-green-600" title="Sí"></i>' 
+                                : '<span class="text-gray-400">—</span>';
+                            
+                            tr.innerHTML = `
+                                <td class="px-6 py-4 align-middle font-medium text-gray-700">${escapeHtml(primero.numero_empleado || '')}</td>
+                                <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(primero.nombreEmpl || '')}</td>
+                                <td class="px-6 py-4 align-middle text-gray-800 font-semibold text-blue-700">${escapeHtml(telares)}</td>
+                                <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(primero.Turno || '')}</td>
+                                <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(salones)}</td>
+                                <td class="px-6 py-4 align-middle text-center">${supervisorCell}</td>
+                            `;
+                            
+                            tr.addEventListener('click', function() { selectRow(this); });
+                            tbody.insertBefore(tr, tbody.firstChild);
                         });
                         
-                        // Aplicar filtros activos a las nuevas filas
                         applyFilters();
                     }
                     
@@ -1059,9 +1106,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (Array.isArray(result.data) && result.data.length > 0) {
                         const emptyRow = tbody.querySelector('tr:not(.row-selectable)');
                         if (emptyRow) emptyRow.remove();
-
-                        result.data.forEach(item => {
-                            tbody.appendChild(createTableRow(item));
+                        
+                        const groupedByEmpleado = result.data.reduce((acc, item) => {
+                            const num = item.numero_empleado || '';
+                            if (!acc[num]) acc[num] = [];
+                            acc[num].push(item);
+                            return acc;
+                        }, {});
+                        
+                        Object.values(groupedByEmpleado).forEach(registros => {
+                            const primero = registros[0];
+                            const telares = registros.map(r => r.NoTelarId).filter(Boolean).sort().join(', ');
+                            const salones = [...new Set(registros.map(r => r.SalonTejidoId).filter(Boolean))].sort().join(', ');
+                            
+                            const tr = document.createElement('tr');
+                            tr.className = 'odd:bg-gray-100 even:bg-white cursor-pointer transition-colors duration-150 hover:bg-blue-50 row-selectable';
+                            tr.setAttribute('data-key', primero.Id);
+                            tr.setAttribute('data-numero', primero.numero_empleado || '');
+                            tr.setAttribute('data-nombre', primero.nombreEmpl || '');
+                            tr.setAttribute('data-telar', telares);
+                            tr.setAttribute('data-turno', primero.Turno || '');
+                            tr.setAttribute('data-salon', salones);
+                            tr.setAttribute('data-supervisor', primero.Supervisor ? '1' : '0');
+                            tr.setAttribute('aria-selected', 'false');
+                            
+                            const supervisorCell = primero.Supervisor 
+                                ? '<i class="fa-solid fa-check text-green-600" title="Sí"></i>' 
+                                : '<span class="text-gray-400">—</span>';
+                            
+                            tr.innerHTML = `
+                                <td class="px-6 py-4 align-middle font-medium text-gray-700">${escapeHtml(primero.numero_empleado || '')}</td>
+                                <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(primero.nombreEmpl || '')}</td>
+                                <td class="px-6 py-4 align-middle text-gray-800 font-semibold text-blue-700">${escapeHtml(telares)}</td>
+                                <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(primero.Turno || '')}</td>
+                                <td class="px-6 py-4 align-middle text-gray-800">${escapeHtml(salones)}</td>
+                                <td class="px-6 py-4 align-middle text-center">${supervisorCell}</td>
+                            `;
+                            
+                            tr.addEventListener('click', function() { selectRow(this); });
+                            tbody.appendChild(tr);
                         });
                     }
 
