@@ -242,30 +242,21 @@ Telares por Operador
                         </div>
                         <div>
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                                <i class="fa-solid fa-gear text-yellow-600"></i>
-                                No. Telar <span class="text-red-500">*</span>
-                            </label>
-                            <select id="editTelar" name="NoTelarId" class="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm hover:shadow-md" required>
-                                @foreach(($telares ?? []) as $tel)
-                                    <option value="{{ $tel->NoTelarId }}" data-salon="{{ $tel->SalonTejidoId }}">
-                                        {{ $tel->NoTelarId }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
                                 <i class="fa-solid fa-clock text-yellow-600"></i>
                                 Turno
                             </label>
                             <input type="text" id="editTurno" name="Turno" class="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg bg-gray-50 shadow-sm" readonly>
                         </div>
-                        <div>
+                        <div class="md:col-span-3">
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                                <i class="fa-solid fa-door-open text-yellow-600"></i>
-                                Salón Tejido <span class="text-red-500">*</span>
+                                <i class="fa-solid fa-list-check text-yellow-600"></i>
+                                Telares asignados
                             </label>
-                            <input type="text" id="editSalon" name="SalonTejidoId" class="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all shadow-sm hover:shadow-md" required>
+                            <div id="editTelaresList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 max-h-[350px] overflow-y-auto p-4 border-2 border-gray-200 rounded-lg bg-gray-50 shadow-inner"></div>
+                            <p class="mt-3 text-xs text-gray-500 flex items-center gap-2">
+                                <i class="fa-solid fa-info-circle"></i>
+                                Los telares marcados quedan asignados; al desmarcarlos se eliminan de este operador.
+                            </p>
                         </div>
                         <div class="md:col-span-3 flex items-center gap-3">
                             <input type="checkbox" id="editSupervisor" name="Supervisor" value="1" class="w-5 h-5 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500">
@@ -595,16 +586,11 @@ document.addEventListener('DOMContentLoaded', function() {
             editEmpSel.value = String(numero || '');
         }
         document.getElementById('editNombre').value = nombre;
-        const editTelarSel = document.getElementById('editTelar');
-        if (editTelarSel) {
-            editTelarSel.value = String(telar || '');
-        }
         const turnoInput = document.getElementById('editTurno');
         if (turnoInput) turnoInput.value = String(turno || '');
-        const salonInput = document.getElementById('editSalon');
-        if (salonInput) salonInput.value = salon || '';
         const editSupervisor = document.getElementById('editSupervisor');
         if (editSupervisor) editSupervisor.checked = (supervisor === '1' || supervisor === 'true');
+        renderEditTelares(numero);
         document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(key));
         openModal('editModal');
     }
@@ -739,6 +725,36 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const telaresData = @json($telares ?? []);
 
+    function getTelaresAsignadosPorEmpleado(numeroEmpleado) {
+        const numero = String(numeroEmpleado || '').trim();
+        return new Set(Array.from(document.querySelectorAll('.row-selectable'))
+            .filter(row => String(row.dataset.numero || '').trim() === numero)
+            .map(row => String(row.dataset.telar || '').trim())
+            .filter(Boolean));
+    }
+
+    function renderEditTelares(numeroEmpleado) {
+        const list = document.getElementById('editTelaresList');
+        if (!list) return;
+
+        const asignados = getTelaresAsignadosPorEmpleado(numeroEmpleado);
+        list.innerHTML = telaresData.map(telar => {
+            const telarId = String(telar.NoTelarId || '').trim();
+            const salon = String(telar.SalonTejidoId || '').trim();
+            const checked = asignados.has(telarId) ? 'checked' : '';
+
+            return `
+                <label class="flex items-center justify-between gap-2 p-3 border border-gray-300 rounded-lg hover:bg-yellow-50 cursor-pointer transition-colors">
+                    <span class="flex items-center min-w-0">
+                        <input type="checkbox" name="telares[]" value="${escapeHtml(telarId)}" ${checked} class="edit-telar-checkbox h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded">
+                        <span class="ml-2 text-sm font-medium text-gray-700">${escapeHtml(telarId)}</span>
+                    </span>
+                    <span class="text-[11px] text-gray-500 truncate">${escapeHtml(salon)}</span>
+                </label>
+            `;
+        }).join('');
+    }
+
     function cargarTelaresPorSalon(salon) {
         if (!salon || salon === '') {
             telaresContainer.classList.add('hidden');
@@ -790,19 +806,6 @@ document.addEventListener('DOMContentLoaded', function() {
         cargarTelaresPorSalon(this.value);
     });
     
-    // Vincular select de telar con salón (modal editar - mantener funcionalidad existente)
-    function wireTelarSalon(selectId, salonInputId) {
-        const sel = document.getElementById(selectId);
-        const salon = document.getElementById(salonInputId);
-        if (!sel || !salon) return;
-        sel.addEventListener('change', () => {
-            const opt = sel.options[sel.selectedIndex];
-            const salonVal = opt ? (opt.getAttribute('data-salon') || '') : '';
-            salon.value = salonVal;
-        });
-    }
-    wireTelarSalon('editTelar', 'editSalon');
-
     // Vincular empleados -> nombre y turno (modales)
     function wireEmpleado(selectId, nombreId, turnoId) {
         const sel = document.getElementById(selectId);
@@ -818,6 +821,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             nombre.value = op.getAttribute('data-nombre') || '';
             turno.value = op.getAttribute('data-turno') || '';
+            if (selectId === 'editEmpleado') {
+                renderEditTelares(sel.value);
+            }
         };
         sel.addEventListener('change', sync);
         // Solo sincronizar al inicio si ya hay un valor válido seleccionado
@@ -1043,11 +1049,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Actualizar la fila en la tabla
-                    if (selectedRow && result.data) {
-                        updateTableRow(selectedRow, result.data);
-                        clearSelection();
+                    const numeroActual = String(document.getElementById('editEmpleado')?.value || '').trim();
+                    const tbody = document.querySelector('tbody');
+
+                    Array.from(tbody.querySelectorAll('.row-selectable'))
+                        .filter(row => String(row.dataset.numero || '').trim() === numeroActual)
+                        .forEach(row => row.remove());
+
+                    if (Array.isArray(result.data) && result.data.length > 0) {
+                        const emptyRow = tbody.querySelector('tr:not(.row-selectable)');
+                        if (emptyRow) emptyRow.remove();
+
+                        result.data.forEach(item => {
+                            tbody.appendChild(createTableRow(item));
+                        });
                     }
+
+                    clearSelection();
+                    applyFilters();
                     
                     // Cerrar modal
                     closeModal('editModal');
