@@ -654,6 +654,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Habilitar autocompletado para L.Mat y Nombre L.Mat
     setupBomAutocomplete();
     setupBomSelects();
+
+    // Alinear Total Pzas con Pzas x Rollo × Total Rollos al cargar (la BD puede traer totales viejos).
+    document.querySelectorAll('tr.row-data input[data-field="TotalRollos"]').forEach((inp) => {
+        calcularTotalPzas(inp);
+    });
 });
 
 function autoFillAllHiloAX() {
@@ -2237,6 +2242,20 @@ function actualizarTotalRollosYTotalPzas(row, pzasRollo) {
     calcularTotalPzas(totalRollosInput);
 }
 
+/** Piezas por rollo visibles en la grilla (prioridad sobre data-pzas-rollo del input). */
+function leerPzasRolloDesdeFila(row) {
+    if (!row) return 0;
+    const cell = row.querySelector('td[data-column="PzasRollo"]');
+    if (!cell) return 0;
+    const span = cell.querySelector('span');
+    if (span && span.hasAttribute('data-calculated-value')) {
+        return parseNumeroGrid(span.getAttribute('data-calculated-value'));
+    }
+    const raw = span ? span.textContent : cell.textContent;
+
+    return parseNumeroGrid(raw);
+}
+
 function calcularTotalPzas(changedInput) {
     const rowId = changedInput.getAttribute('data-row-id');
     if (!rowId) return;
@@ -2252,8 +2271,12 @@ function calcularTotalPzas(changedInput) {
     const totalPzasCell = row.querySelector('td[data-column="TotalPzas"]');
     const totalPzasSpan = totalPzasCell ? totalPzasCell.querySelector('span') : null;
 
-    // Obtener PzasRollo del atributo data-pzas-rollo del input TotalRollos
-    const pzasRollo = parseFloat(changedInput.getAttribute('data-pzas-rollo')) || 0;
+    const pzasRolloDesdeCelda = leerPzasRolloDesdeFila(row);
+    const pzasRolloAttr = parseFloat(changedInput.getAttribute('data-pzas-rollo')) || 0;
+    const pzasRollo = pzasRolloDesdeCelda > 0 ? pzasRolloDesdeCelda : pzasRolloAttr;
+    if (pzasRollo > 0 && totalRollosInput) {
+        totalRollosInput.setAttribute('data-pzas-rollo', String(pzasRollo));
+    }
 
     if (!totalRollosInput || !totalPzasSpan) return;
 
