@@ -582,16 +582,7 @@ class LiberarOrdenesController extends Controller
                     ], 422);
                 }
 
-                $itemIdTrim = trim((string) ($registro->ItemId ?? ''));
                 $codigoDibujoParaCat = $this->resolverCodigoDibujoParaLiberacion($item, $registro);
-                if ($itemIdTrim !== '' && $codigoDibujoParaCat === '') {
-                    DB::rollBack();
-
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'No hay código de dibujo: complete la columna o registre el último código en Cat. codificados para el ítem '.$itemIdTrim.' y el salón.'.$this->referenciaCortaRegistro($registro),
-                    ], 422);
-                }
 
                 // Campos de auditoría usando el helper
                 AuditoriaHelper::aplicarCamposAuditoria($registro);

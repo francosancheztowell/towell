@@ -1998,10 +1998,6 @@ function validarMetricasProduccionParaLiberar(registros) {
         if (parseNumeroGrid(reg.totalPzas) <= 0) {
             return 'Total piezas (toallas) debe ser mayor a cero.' + idx;
         }
-        const codigoDibujo = (reg.codigoDibujo != null ? String(reg.codigoDibujo) : '').replace(/,/g, '').trim();
-        if (!codigoDibujo) {
-            return 'Código de dibujo es obligatorio (se rellena solo con el último de Cat. codificados por ítem y salón o escríbalo).' + idx;
-        }
     }
     return null;
 }
