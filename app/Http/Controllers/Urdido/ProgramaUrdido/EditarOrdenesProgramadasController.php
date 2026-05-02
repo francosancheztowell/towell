@@ -150,6 +150,7 @@ class EditarOrdenesProgramadasController extends Controller
             $registro = UrdProduccionUrdido::create($data);
             $creados[] = [
                 'id' => (int) $registro->Id,
+                'fecha' => $registro->Fecha ?? now()->format('Y-m-d'),
                 'hilos' => (int) ($registro->Hilos ?? $hilos),
                 'metros' => (float) (($registro->Metros1 ?? 0) + ($registro->Metros2 ?? 0) + ($registro->Metros3 ?? 0)),
             ];

@@ -124,6 +124,7 @@ class EditarOrdenesEngomadoController extends Controller
             $registro = EngProduccionEngomado::create($data);
             $creados[] = [
                 'id' => (int) $registro->Id,
+                'fecha' => $registro->Fecha ?? now()->format('Y-m-d'),
                 'metros' => (float) (($registro->Metros1 ?? 0) + ($registro->Metros2 ?? 0) + ($registro->Metros3 ?? 0)),
                 'solidos' => $registro->Solidos !== null ? (float) $registro->Solidos : null,
             ];

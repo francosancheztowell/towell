@@ -148,6 +148,7 @@
                     <table class="min-w-full text-sm" id="tabla-produccion">
                         <thead class="bg-blue-500 text-white">
                             <tr>
+                                <th class="px-1 py-1 text-center font-semibold text-sm">Fecha</th>
                                 <th class="px-1 py-1 text-left font-semibold text-sm">No. Empleado</th>
                                 <th class="px-1 py-1 text-center font-semibold text-sm">H. Inicio</th>
                                 <th class="px-1 py-1 text-center font-semibold text-sm">H. Fin</th>
@@ -188,7 +189,24 @@
                                     $horaInicio = $reg->HoraInicial ? substr((string)$reg->HoraInicial, 0, 5) : '';
                                     $horaFin = $reg->HoraFinal ? substr((string)$reg->HoraFinal, 0, 5) : '';
                                 @endphp
+                                @php
+                                    $axValor = (int)($reg->AX ?? 0);
+                                    $fechaValor = $reg->Fecha ? (\Illuminate\Support\Facades\Date::parse($reg->Fecha)->format('Y-m-d')) : '';
+                                    $fechaObj = $reg->Fecha ? \Illuminate\Support\Facades\Date::parse($reg->Fecha) : now();
+                                    $primerDiaMes = $fechaObj->copy()->startOfMonth()->format('Y-m-d');
+                                    $ultimoDiaMes = $fechaObj->copy()->endOfMonth()->format('Y-m-d');
+                                    $esMesActual = $fechaObj->format('Y-m') === now()->format('Y-m');
+                                    $puedeEditarFecha = $esMesActual && $axValor === 0;
+                                @endphp
                                 <tr class="hover:bg-gray-50" data-registro-id="{{ $reg->Id ?? '' }}">
+                                    <td class="px-1 py-1 text-center">
+                                        <input type="date" data-field="fecha" data-registro-id="{{ $reg->Id ?? '' }}"
+                                            value="{{ $fechaValor }}"
+                                            min="{{ $primerDiaMes }}" max="{{ $ultimoDiaMes }}"
+                                            {{ $puedeEditarFecha ? '' : 'disabled' }}
+                                            class="produccion-input w-28 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 {{ $puedeEditarFecha ? '' : 'bg-gray-100 text-gray-600 cursor-not-allowed' }}"
+                                            title="{{ $puedeEditarFecha ? 'Cambiar fecha' : ($axValor !== 0 ? 'Fecha bloqueada (AX procesado)' : 'Solo editable en el mes actual') }}">
+                                    </td>
                                     <td class="px-1 py-0.5 text-left align-top max-w-[180px]">
                                         <div class="flex items-start justify-between gap-1">
                                             <div class="text-sm leading-tight flex-1 min-w-0" data-empleados-info>
@@ -237,7 +255,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="13" class="px-2 py-3 text-center text-gray-500 italic">No hay registros de producción</td>
+                                    <td colspan="14" class="px-2 py-3 text-center text-gray-500 italic">No hay registros de producción</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -536,7 +554,7 @@
                 const restantes = tbody.querySelectorAll('tr[data-registro-id]').length;
                 if (restantes === 0) {
                     const trVacio = document.createElement('tr');
-                    trVacio.innerHTML = '<td colspan="13" class="px-2 py-3 text-center text-gray-500 italic">No hay registros de produccion</td>';
+                    trVacio.innerHTML = '<td colspan="14" class="px-2 py-3 text-center text-gray-500 italic">No hay registros de produccion</td>';
                     tbody.appendChild(trVacio);
                 }
             };
@@ -547,7 +565,7 @@
                 const tbody = document.querySelector('#tabla-produccion tbody');
                 if (!tbody) return;
 
-                const filaVacia = tbody.querySelector('tr td[colspan="13"]');
+                const filaVacia = tbody.querySelector('tr td[colspan="14"]');
                 if (filaVacia) filaVacia.closest('tr')?.remove();
 
                 const ubicacionOptions = (() => {
@@ -561,11 +579,27 @@
 
                     const metrosTxt = formatearMetrosTabla(r?.metros ?? 0);
                     const solidosVal = r?.solidos !== null && r?.solidos !== undefined ? r.solidos : '';
+                    const fechaVal = r?.fecha || '';
+                    let minFecha = '', maxFecha = '';
+                    if (fechaVal) {
+                        const d = new Date(fechaVal + 'T00:00:00');
+                        const y = d.getFullYear(), m = d.getMonth();
+                        const primer = new Date(y, m, 1);
+                        const ultimo = new Date(y, m + 1, 0);
+                        minFecha = `${y}-${String(m+1).padStart(2,'0')}-01`;
+                        maxFecha = `${y}-${String(m+1).padStart(2,'0')}-${ultimo.getDate()}`;
+                    }
 
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-gray-50';
                     tr.dataset.registroId = String(rid);
                     tr.innerHTML = `
+                        <td class="px-1 py-1 text-center">
+                            <input type="date" data-field="fecha" data-registro-id="${rid}"
+                                value="${fechaVal}"
+                                min="${minFecha}" max="${maxFecha}"
+                                class="produccion-input w-28 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                        </td>
                         <td class="px-1 py-0.5 text-left align-top max-w-[180px]">
                             <div class="flex items-start justify-between gap-1">
                                 <div class="text-sm leading-tight flex-1 min-w-0" data-empleados-info>
@@ -623,6 +657,11 @@
                         fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.horas') }}', {
                             method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken},
                             body: JSON.stringify({ registro_id: regId, campo: field==='h_inicio'?'HoraInicial':'HoraFinal', valor: val })
+                        }).then(r=>r.json()).then(j=>{ if(j.success) showToast('success','Actualizado'); else showError(j.error||'Error'); }).catch(e=>showError(e.message));
+                    } else if (field === 'fecha') {
+                        fetch('{{ route('engomado.modulo.produccion.engomado.actualizar.fecha') }}', {
+                            method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken},
+                            body: JSON.stringify({ registro_id: regId, fecha: val })
                         }).then(r=>r.json()).then(j=>{ if(j.success) showToast('success','Actualizado'); else showError(j.error||'Error'); }).catch(e=>showError(e.message));
                     } else {
                         const campoMap = { canoa1:'Canoa1', canoa2:'Canoa2', solidos:'Solidos', roturas:'Roturas', ubicacion:'Ubicacion' };
