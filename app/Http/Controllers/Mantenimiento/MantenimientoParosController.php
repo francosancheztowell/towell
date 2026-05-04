@@ -713,13 +713,41 @@ class MantenimientoParosController extends Controller
     }
 
     /**
-     * Obtener lista de paros/fallas para el reporte.
-     * Muestra todos los paros sin filtros.
+     * Área (departamento) del usuario en sesión; debe coincidir con ManFallasParos.Depto.
+     */
+    private function areaUsuarioAutenticado(): string
+    {
+        $usuario = Auth::user();
+        if (! $usuario) {
+            return '';
+        }
+
+        $area = trim((string) ($usuario->area ?? ''));
+        if ($area !== '') {
+            return $area;
+        }
+
+        if ($usuario->idusuario) {
+            $desdeSys = SYSUsuario::where('idusuario', $usuario->idusuario)->value('area');
+
+            return trim((string) ($desdeSys ?? ''));
+        }
+
+        return '';
+    }
+
+    /**
+     * Obtener lista de paros/fallas para el reporte de solicitudes.
+     * Solo incluye paros del departamento del usuario autenticado.
      */
     public function index(Request $request): JsonResponse
     {
         try {
+            $areaUsuario = $this->areaUsuarioAutenticado();
+
             $query = ManFallasParos::query()
+                ->when($areaUsuario !== '', fn ($q) => $q->where('Depto', $areaUsuario))
+                ->when($areaUsuario === '', fn ($q) => $q->whereRaw('1 = 0'))
                 ->orderByDesc('Fecha')
                 ->orderByDesc('Hora');
 

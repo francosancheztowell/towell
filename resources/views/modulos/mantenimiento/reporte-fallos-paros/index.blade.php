@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Cargar todos los paros (sin filtro backend)
+    // Cargar paros del departamento del usuario (filtro en backend)
     async function cargarParos() {
         try {
             const response = await fetch('{{ route('api.mantenimiento.paros.index') }}');
