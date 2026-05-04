@@ -136,6 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     let allParos = [];
+    let catalogDeptosCache = [];
 
     const escHtml = (s) => (s ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -152,11 +153,16 @@ document.addEventListener('DOMContentLoaded', function() {
         return [];
     }
 
-    function poblarSelectDepartamentos(deptos) {
+    /** @param {string[]} deptos @param {string|undefined} valorForzado Si está definido (incluye ''), fija el valor del combo tras poblar. */
+    function poblarSelectDepartamentos(deptos, valorForzado) {
         const filterDepto = document.getElementById('filter-depto');
         if (!filterDepto) return;
         filterDepto.innerHTML = '<option value="">Todos</option>' +
             deptos.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join('');
+        if (valorForzado !== undefined) {
+            filterDepto.value = valorForzado;
+            return;
+        }
         if (defaultAreaFilter && deptos.includes(defaultAreaFilter)) {
             filterDepto.value = defaultAreaFilter;
         }
@@ -197,13 +203,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Paros filtrados por área en backend; combo Área usa catálogo completo de departamentos.
-    async function cargarParos() {
+    /**
+     * Carga paros desde API según alcance.
+     * @param {'default'|'todos'|'depto'} apiModo default = área del usuario; todos = alcance=todos; depto = query depto
+     * @param {string|undefined} valorDeptoCombo Valor a mantener en el combo Área (ej. área elegida); undefined = regla defaultAreaFilter
+     */
+    async function cargarParos(apiModo = 'default', valorDeptoCombo) {
         try {
-            const [catalogDeptos, response] = await Promise.all([
-                obtenerDepartamentosCatalogo(),
-                fetch('{{ route('api.mantenimiento.paros.index') }}'),
-            ]);
+            let catalogDeptos = catalogDeptosCache.length ? catalogDeptosCache : await obtenerDepartamentosCatalogo();
+            if (!catalogDeptosCache.length && catalogDeptos.length) {
+                catalogDeptosCache = catalogDeptos;
+            }
+
+            let url = '{{ route('api.mantenimiento.paros.index') }}';
+            if (apiModo === 'todos') {
+                url += '?alcance=todos';
+            } else if (apiModo === 'depto' && valorDeptoCombo) {
+                url += '?depto=' + encodeURIComponent(valorDeptoCombo);
+            }
+
+            const response = await fetch(url);
             const result = await response.json();
 
             if (result.success && Array.isArray(result.data)) {
@@ -218,7 +237,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             </td>
                         </tr>
                     `;
-                    poblarSelectDepartamentos(catalogDeptos);
+                    const deptosParaComboVacío = [...catalogDeptos].sort();
+                    poblarSelectDepartamentos(deptosParaComboVacío, valorDeptoCombo);
                     const filterStatus = document.getElementById('filter-status');
                     const filterMaquina = document.getElementById('filter-maquina');
                     if (filterStatus) filterStatus.innerHTML = '<option value="">Todos</option>';
@@ -235,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const filterStatus = document.getElementById('filter-status');
                 const filterMaquina = document.getElementById('filter-maquina');
-                poblarSelectDepartamentos(deptosParaCombo);
+                poblarSelectDepartamentos(deptosParaCombo, valorDeptoCombo);
                 filterStatus.innerHTML = '<option value="">Todos</option>' + statuses.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
                 filterMaquina.innerHTML = '<option value="">Todos</option>' + maquinas.map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
 
@@ -345,14 +365,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === modalFilters) closeFiltersModal();
     });
 
-    document.getElementById('filter-depto')?.addEventListener('change', applyFilters);
+    document.getElementById('filter-depto')?.addEventListener('change', function() {
+        const v = (this.value || '').trim();
+        if (v === '') {
+            cargarParos('todos', '');
+        } else {
+            cargarParos('depto', v);
+        }
+    });
     document.getElementById('filter-status')?.addEventListener('change', applyFilters);
     document.getElementById('filter-maquina')?.addEventListener('change', applyFilters);
     document.getElementById('filter-solo-mis')?.addEventListener('change', function() {
         mostrarSoloMisSolicitudes = this.checked;
         applyFilters();
     });
-    document.getElementById('btn-clear-filter')?.addEventListener('click', function() {
+    document.getElementById('btn-clear-filter')?.addEventListener('click', async function() {
         const filterDepto = document.getElementById('filter-depto');
         const filterStatus = document.getElementById('filter-status');
         const filterMaquina = document.getElementById('filter-maquina');
@@ -362,16 +389,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (filterMaquina) {
             filterMaquina.value = '';
         }
+        let deptVal = '';
         if (filterDepto) {
             const hasAreaOption = defaultAreaFilter && [...filterDepto.options].some(o => o.value === defaultAreaFilter);
-            filterDepto.value = hasAreaOption ? defaultAreaFilter : '';
+            deptVal = hasAreaOption ? defaultAreaFilter : '';
         }
         const checkboxSoloMis = document.getElementById('filter-solo-mis');
         if (checkboxSoloMis) {
             checkboxSoloMis.checked = false;
             mostrarSoloMisSolicitudes = false;
         }
-        applyFilters();
+        await cargarParos('default', deptVal);
         closeFiltersModal();
     });
 

@@ -769,19 +769,42 @@ class MantenimientoParosController extends Controller
     }
 
     /**
-     * Obtener lista de paros/fallas para el reporte de solicitudes.
-     * Solo incluye paros del departamento del usuario autenticado.
+     * Lista de paros para el reporte de solicitudes.
+     *
+     * Sin query: solo paros del departamento del usuario (`area`).
+     * `alcance=todos`: todos los departamentos.
+     * `depto={nombre}`: solo ese departamento (debe existir en SysDepartamentos).
      */
     public function index(Request $request): JsonResponse
     {
         try {
-            $areaUsuario = $this->areaUsuarioAutenticado();
-
             $query = ManFallasParos::query()
-                ->when($areaUsuario !== '', fn ($q) => $q->where('Depto', $areaUsuario))
-                ->when($areaUsuario === '', fn ($q) => $q->whereRaw('1 = 0'))
                 ->orderByDesc('Fecha')
                 ->orderByDesc('Hora');
+
+            $alcance = trim((string) $request->query('alcance', ''));
+            $deptoReq = trim((string) $request->query('depto', ''));
+
+            if ($alcance === 'todos') {
+                // Sin filtro por departamento
+            } elseif ($deptoReq !== '') {
+                $departamentoValido = SysDepartamento::query()
+                    ->where('Depto', $deptoReq)
+                    ->exists();
+
+                if ($departamentoValido) {
+                    $query->where('Depto', $deptoReq);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            } else {
+                $areaUsuario = $this->areaUsuarioAutenticado();
+                if ($areaUsuario !== '') {
+                    $query->where('Depto', $areaUsuario);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            }
 
             $paros = $query->get([
                 'Id',
