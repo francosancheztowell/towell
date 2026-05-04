@@ -71,6 +71,38 @@ class MantenimientoParosController extends Controller
     }
 
     /**
+     * Todos los departamentos del catálogo (SysDepartamentos) para filtros en reportes de paros.
+     * Sin restricción por usuario (p. ej. id 6): el combo Área debe listar todas las áreas aunque los datos vengan filtrados por backend.
+     */
+    public function departamentosCatalogoFiltros(): JsonResponse
+    {
+        try {
+            $departamentos = SysDepartamento::query()
+                ->orderBy('Depto')
+                ->pluck('Depto')
+                ->map(fn ($d) => trim((string) $d))
+                ->filter(fn ($d) => $d !== '')
+                ->values()
+                ->all();
+
+            return response()->json([
+                'success' => true,
+                'data' => $departamentos,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al obtener catálogo de departamentos para filtros', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'data' => [],
+            ], 500);
+        }
+    }
+
+    /**
      * Máquinas por departamento.
      *
      * - Para Urdido / Engomado: catálogo URDCatalogoMaquina (todas las máquinas del depto).

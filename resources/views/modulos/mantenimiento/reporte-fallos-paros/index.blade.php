@@ -137,6 +137,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let allParos = [];
 
+    const escHtml = (s) => (s ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    async function obtenerDepartamentosCatalogo() {
+        try {
+            const r = await fetch('{{ route('api.mantenimiento.departamentos.catalogo-filtros') }}');
+            const j = await r.json();
+            if (j.success && Array.isArray(j.data)) {
+                return [...new Set(j.data.map(d => String(d).trim()).filter(Boolean))].sort();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        return [];
+    }
+
+    function poblarSelectDepartamentos(deptos) {
+        const filterDepto = document.getElementById('filter-depto');
+        if (!filterDepto) return;
+        filterDepto.innerHTML = '<option value="">Todos</option>' +
+            deptos.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join('');
+        if (defaultAreaFilter && deptos.includes(defaultAreaFilter)) {
+            filterDepto.value = defaultAreaFilter;
+        }
+    }
+
     function applyFilters() {
         const depto = (document.getElementById('filter-depto')?.value || '').trim();
         const status = (document.getElementById('filter-status')?.value || '').trim();
@@ -172,10 +197,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Cargar paros del departamento del usuario (filtro en backend)
+    // Paros filtrados por área en backend; combo Área usa catálogo completo de departamentos.
     async function cargarParos() {
         try {
-            const response = await fetch('{{ route('api.mantenimiento.paros.index') }}');
+            const [catalogDeptos, response] = await Promise.all([
+                obtenerDepartamentosCatalogo(),
+                fetch('{{ route('api.mantenimiento.paros.index') }}'),
+            ]);
             const result = await response.json();
 
             if (result.success && Array.isArray(result.data)) {
@@ -190,28 +218,26 @@ document.addEventListener('DOMContentLoaded', function() {
                             </td>
                         </tr>
                     `;
-                    ['filter-depto', 'filter-status', 'filter-maquina'].forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el) el.innerHTML = '<option value="">Todos</option>';
-                    });
+                    poblarSelectDepartamentos(catalogDeptos);
+                    const filterStatus = document.getElementById('filter-status');
+                    const filterMaquina = document.getElementById('filter-maquina');
+                    if (filterStatus) filterStatus.innerHTML = '<option value="">Todos</option>';
+                    if (filterMaquina) filterMaquina.innerHTML = '<option value="">Todos</option>';
+                    applyFilters();
                     return;
                 }
 
-                const esc = (s) => (s ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                const deptos = [...new Set(allParos.map(p => (p.Depto || '').toString().trim()).filter(Boolean))].sort();
+                const deptosDesdeParos = [...new Set(allParos.map(p => (p.Depto || '').toString().trim()).filter(Boolean))];
+                const deptosParaCombo = [...new Set([...catalogDeptos, ...deptosDesdeParos])].sort();
+
                 const statuses = [...new Set(allParos.map(p => (p.Estatus || '').toString().trim()).filter(Boolean))].sort();
                 const maquinas = [...new Set(allParos.map(p => (p.MaquinaId || '').toString().trim()).filter(Boolean))].sort();
 
-                const filterDepto = document.getElementById('filter-depto');
                 const filterStatus = document.getElementById('filter-status');
                 const filterMaquina = document.getElementById('filter-maquina');
-                filterDepto.innerHTML = '<option value="">Todos</option>' + deptos.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
-                filterStatus.innerHTML = '<option value="">Todos</option>' + statuses.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
-                filterMaquina.innerHTML = '<option value="">Todos</option>' + maquinas.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
-
-                if (defaultAreaFilter && deptos.includes(defaultAreaFilter)) {
-                    filterDepto.value = defaultAreaFilter;
-                }
+                poblarSelectDepartamentos(deptosParaCombo);
+                filterStatus.innerHTML = '<option value="">Todos</option>' + statuses.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+                filterMaquina.innerHTML = '<option value="">Todos</option>' + maquinas.map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
 
                 allParos.forEach(paro => {
                     const row = document.createElement('tr');
@@ -232,19 +258,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     const est = (paro.Estatus || '').toString().trim();
                     const badgeActivo = 'inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium';
                     const badgeEstatus = est.toLowerCase() === 'activo'
-                        ? `<span class="${badgeActivo} bg-blue-100 text-blue-800">${esc(est || '—')}</span>`
-                        : `<span class="${badgeActivo} bg-gray-100 text-gray-800">${esc(est || '—')}</span>`;
+                        ? `<span class="${badgeActivo} bg-blue-100 text-blue-800">${escHtml(est || '—')}</span>`
+                        : `<span class="${badgeActivo} bg-gray-100 text-gray-800">${escHtml(est || '—')}</span>`;
 
                     row.innerHTML = `
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${esc(paro.Folio)}</td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Folio)}</td>
                         <td class="px-2 py-2 text-lg text-center">${badgeEstatus}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${esc(fecha)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${esc(paro.Hora)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${esc(paro.Depto)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${esc(paro.MaquinaId)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${esc(paro.TipoFallaId)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${esc(paro.Falla)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${esc(paro.NomEmpl)}</td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(fecha)}</td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Hora)}</td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Depto)}</td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.MaquinaId)}</td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.TipoFallaId)}</td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Falla)}</td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.NomEmpl)}</td>
                     `;
 
                     row.addEventListener('click', function() {

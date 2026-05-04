@@ -36,6 +36,8 @@ Route::delete('/mantenimiento/operadores-mantenimiento/{operador}', [ManOperador
 
 Route::get('/api/mantenimiento/departamentos', [MantenimientoParosController::class, 'departamentos'])
     ->name('api.mantenimiento.departamentos');
+Route::get('/api/mantenimiento/departamentos/catalogo-filtros', [MantenimientoParosController::class, 'departamentosCatalogoFiltros'])
+    ->name('api.mantenimiento.departamentos.catalogo-filtros');
 Route::get('/api/mantenimiento/maquinas/{departamento}', [MantenimientoParosController::class, 'maquinas'])
     ->name('api.mantenimiento.maquinas');
 Route::get('/api/mantenimiento/tipos-falla', [MantenimientoParosController::class, 'tiposFalla'])
