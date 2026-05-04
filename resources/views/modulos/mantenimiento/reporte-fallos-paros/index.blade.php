@@ -97,7 +97,13 @@
                 </select>
             </div>
         </div>
-        <div class="mb-4">
+        <div class="mb-4 space-y-3">
+            <label class="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition" title="En sistema los paros cerrados tienen estatus Terminado">
+                <input type="checkbox" id="filter-incluir-terminados" class="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500">
+                <span class="text-sm font-medium text-gray-700">
+                    <i class="fa-solid fa-flag-checkered mr-1"></i>Incluir paros terminados (finalizados)
+                </span>
+            </label>
             <label class="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
                 <input type="checkbox" id="filter-solo-mis" class="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500">
                 <span class="text-sm font-medium text-gray-700">
@@ -125,6 +131,9 @@ document.addEventListener('DOMContentLoaded', function() {
     /** Área del usuario (SYSUsuario.area); debe coincidir con ManFallasParos.Depto para filtrar por defecto. */
     const defaultAreaFilter = @json(trim((string) (Auth::user()->area ?? '')));
     let mostrarSoloMisSolicitudes = false;
+    let incluirTerminados = false;
+    let ultimoModoCarga = 'default';
+    let ultimoValorDeptoCombo = undefined;
 
     // Ocultar botón de "Paro" en la barra de navegación
     const navLinks = document.querySelectorAll('nav a, header a, .nav a, [role="navigation"] a');
@@ -203,24 +212,54 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    /** Consistencia del combo Status tras recargar datos (solo Activos en API salvo que incluya terminados). */
+    function aplicarValorStatusTrasCarga(filterStatusEl, prevStatus, opts = {}) {
+        if (!filterStatusEl) return;
+        const valores = [...filterStatusEl.options].map(o => o.value).filter(Boolean);
+
+        if (!incluirTerminados) {
+            filterStatusEl.value = '';
+            return;
+        }
+
+        if (opts.forzarStatusActivo && valores.includes('Activo')) {
+            filterStatusEl.value = 'Activo';
+            return;
+        }
+
+        if (prevStatus && valores.includes(prevStatus)) {
+            filterStatusEl.value = prevStatus;
+            return;
+        }
+
+        filterStatusEl.value = valores.includes('Activo') ? 'Activo' : '';
+    }
+
     /**
      * Carga paros desde API según alcance.
      * @param {'default'|'todos'|'depto'} apiModo default = área del usuario; todos = alcance=todos; depto = query depto
      * @param {string|undefined} valorDeptoCombo Valor a mantener en el combo Área (ej. área elegida); undefined = regla defaultAreaFilter
+     * @param {object} opts Opciones; si opts.forzarStatusActivo es true y hay terminados cargados, preselecciona Status Activo.
      */
-    async function cargarParos(apiModo = 'default', valorDeptoCombo) {
+    async function cargarParos(apiModo = 'default', valorDeptoCombo, opts = {}) {
         try {
+            const prevStatus = (document.getElementById('filter-status')?.value || '').trim();
             let catalogDeptos = catalogDeptosCache.length ? catalogDeptosCache : await obtenerDepartamentosCatalogo();
             if (!catalogDeptosCache.length && catalogDeptos.length) {
                 catalogDeptosCache = catalogDeptos;
             }
 
-            let url = '{{ route('api.mantenimiento.paros.index') }}';
+            const params = new URLSearchParams();
             if (apiModo === 'todos') {
-                url += '?alcance=todos';
+                params.set('alcance', 'todos');
             } else if (apiModo === 'depto' && valorDeptoCombo) {
-                url += '?depto=' + encodeURIComponent(valorDeptoCombo);
+                params.set('depto', valorDeptoCombo);
             }
+            if (incluirTerminados) {
+                params.set('incluir_finalizados', '1');
+            }
+            const qs = params.toString();
+            let url = '{{ route('api.mantenimiento.paros.index') }}' + (qs ? '?' + qs : '');
 
             const response = await fetch(url);
             const result = await response.json();
@@ -243,6 +282,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const filterMaquina = document.getElementById('filter-maquina');
                     if (filterStatus) filterStatus.innerHTML = '<option value="">Todos</option>';
                     if (filterMaquina) filterMaquina.innerHTML = '<option value="">Todos</option>';
+                    aplicarValorStatusTrasCarga(filterStatus, prevStatus, opts);
+                    ultimoModoCarga = apiModo;
+                    ultimoValorDeptoCombo = valorDeptoCombo;
                     applyFilters();
                     return;
                 }
@@ -258,6 +300,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 poblarSelectDepartamentos(deptosParaCombo, valorDeptoCombo);
                 filterStatus.innerHTML = '<option value="">Todos</option>' + statuses.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
                 filterMaquina.innerHTML = '<option value="">Todos</option>' + maquinas.map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
+                aplicarValorStatusTrasCarga(filterStatus, prevStatus, opts);
 
                 allParos.forEach(paro => {
                     const row = document.createElement('tr');
@@ -320,6 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 noRow.innerHTML = '<td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-gray-500">No hay paros con el filtro aplicado</td>';
                 tbodyParos.appendChild(noRow);
 
+                ultimoModoCarga = apiModo;
+                ultimoValorDeptoCombo = valorDeptoCombo;
                 applyFilters();
             } else {
                 tbodyParos.innerHTML = `
@@ -368,10 +413,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('filter-depto')?.addEventListener('change', function() {
         const v = (this.value || '').trim();
         if (v === '') {
-            cargarParos('todos', '');
+            cargarParos('todos', '', {});
         } else {
-            cargarParos('depto', v);
+            cargarParos('depto', v, {});
         }
+    });
+    document.getElementById('filter-incluir-terminados')?.addEventListener('change', function() {
+        incluirTerminados = this.checked;
+        cargarParos(ultimoModoCarga, ultimoValorDeptoCombo, { forzarStatusActivo: incluirTerminados });
     });
     document.getElementById('filter-status')?.addEventListener('change', applyFilters);
     document.getElementById('filter-maquina')?.addEventListener('change', applyFilters);
@@ -399,7 +448,12 @@ document.addEventListener('DOMContentLoaded', function() {
             checkboxSoloMis.checked = false;
             mostrarSoloMisSolicitudes = false;
         }
-        await cargarParos('default', deptVal);
+        const checkboxIncluirTerm = document.getElementById('filter-incluir-terminados');
+        if (checkboxIncluirTerm) {
+            checkboxIncluirTerm.checked = false;
+            incluirTerminados = false;
+        }
+        await cargarParos('default', deptVal, {});
         closeFiltersModal();
     });
 

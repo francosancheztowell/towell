@@ -769,11 +769,97 @@ class MantenimientoParosController extends Controller
     }
 
     /**
+     * Usuario del área Tejedores: en reporte de paros solo deben verse solicitudes de sus telares (TelTelaresOperador).
+     */
+    private function usuarioEsAreaTejedores(): bool
+    {
+        return strcasecmp(trim($this->areaUsuarioAutenticado()), 'Tejedores') === 0;
+    }
+
+    /**
+     * Telares (NoTelarId) asignados al usuario actual en TelTelaresOperador.
+     *
+     * @return list<string|int>
+     */
+    private function idsTelaresAsignadosOperadorActual(): array
+    {
+        $numeroEmpleado = Auth::user()?->numero_empleado;
+        if ($numeroEmpleado === null || trim((string) $numeroEmpleado) === '') {
+            return [];
+        }
+
+        return TelTelaresOperador::query()
+            ->where('numero_empleado', $numeroEmpleado)
+            ->whereNotNull('NoTelarId')
+            ->distinct()
+            ->pluck('NoTelarId')
+            ->map(fn ($id) => is_string($id) ? trim($id) : $id)
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Si el usuario es de Tejedores, limita ManFallasParos.MaquinaId a los NoTelarId asignados en TelTelaresOperador.
+     *
+     * No aplica cuando elige otro departamento en el filtro. Con alcance=todos solo acota filas con Depto Tejedores.
+     */
+    private function aplicarRestriccionTelaresOperadorSiCorresponde(
+        $query,
+        string $alcance,
+        string $deptoReq
+    ): void {
+        if (! $this->usuarioEsAreaTejedores()) {
+            return;
+        }
+
+        $telares = $this->idsTelaresAsignadosOperadorActual();
+
+        if ($alcance === 'todos') {
+            if ($telares === []) {
+                $query->whereRaw('UPPER(LTRIM(RTRIM(Depto))) <> ?', ['TEJEDORES']);
+
+                return;
+            }
+
+            $query->where(function ($q) use ($telares) {
+                $q->whereRaw('UPPER(LTRIM(RTRIM(Depto))) <> ?', ['TEJEDORES'])
+                    ->orWhereIn('MaquinaId', $telares);
+            });
+
+            return;
+        }
+
+        $consultaSoloTejedores = false;
+        if ($deptoReq !== '') {
+            $consultaSoloTejedores = strcasecmp(trim($deptoReq), 'Tejedores') === 0;
+        } else {
+            $consultaSoloTejedores = true;
+        }
+
+        if (! $consultaSoloTejedores) {
+            return;
+        }
+
+        if ($telares === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereIn('MaquinaId', $telares);
+    }
+
+    /**
      * Lista de paros para el reporte de solicitudes.
      *
      * Sin query: solo paros del departamento del usuario (`area`).
      * `alcance=todos`: todos los departamentos.
      * `depto={nombre}`: solo ese departamento (debe existir en SysDepartamentos).
+     * `incluir_finalizados=1`: incluye paros ya cerrados (`Terminado`). Por defecto solo `Activo`.
+     * Usuarios con área Tejedores: además solo ven paros cuyo `MaquinaId` está en `TelTelaresOperador` para su `numero_empleado`
+     * (salvo que filtren explícitamente otro departamento; con `alcance=todos` solo se acotan filas `Depto` Tejedores).
      */
     public function index(Request $request): JsonResponse
     {
@@ -784,6 +870,10 @@ class MantenimientoParosController extends Controller
 
             $alcance = trim((string) $request->query('alcance', ''));
             $deptoReq = trim((string) $request->query('depto', ''));
+
+            if (! $request->boolean('incluir_finalizados')) {
+                $query->where('Estatus', 'Activo');
+            }
 
             if ($alcance === 'todos') {
                 // Sin filtro por departamento
@@ -805,6 +895,8 @@ class MantenimientoParosController extends Controller
                     $query->whereRaw('1 = 0');
                 }
             }
+
+            $this->aplicarRestriccionTelaresOperadorSiCorresponde($query, $alcance, $deptoReq);
 
             $paros = $query->get([
                 'Id',
