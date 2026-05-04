@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tejedores\Configuracion\TelaresOperador;
 
 use App\Http\Controllers\Controller;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelTelaresOperador;
@@ -12,6 +13,41 @@ use Illuminate\Support\Facades\DB;
 class TelTelaresOperadorController extends Controller
 {
     //
+
+    /**
+     * Obtener salones y telares desde ReqProgramaTejido (fuente correcta de datos)
+     */
+    public function getSalonesYTelares()
+    {
+        $salones = ReqProgramaTejido::query()
+            ->select('SalonTejidoId')
+            ->whereNotNull('SalonTejidoId')
+            ->where('SalonTejidoId', '!=', '')
+            ->distinct()
+            ->orderBy('SalonTejidoId')
+            ->pluck('SalonTejidoId')
+            ->values();
+
+        $telares = ReqProgramaTejido::query()
+            ->select('SalonTejidoId', 'NoTelarId')
+            ->whereNotNull('SalonTejidoId')
+            ->where('SalonTejidoId', '!=', '')
+            ->whereNotNull('NoTelarId')
+            ->where('NoTelarId', '!=', '')
+            ->distinct()
+            ->orderBy('SalonTejidoId')
+            ->orderBy('NoTelarId')
+            ->get()
+            ->map(fn($t) => [
+                'SalonTejidoId' => $t->SalonTejidoId,
+                'NoTelarId' => $t->NoTelarId,
+            ]);
+
+        return response()->json([
+            'salones' => $salones,
+            'telares' => $telares,
+        ]);
+    }
 
     /**
      * Listado + búsqueda por número, nombre o telar
@@ -32,7 +68,26 @@ class TelTelaresOperadorController extends Controller
             ->orderBy('NoTelarId')
             ->get();
 
-        $telares = ReqTelares::obtenerTodos();
+        // Usar ReqProgramaTejido como fuente principal (tiene los salones SMIT/JACQUARD reales)
+        $telaresPrograma = ReqProgramaTejido::query()
+            ->select('SalonTejidoId', 'NoTelarId')
+            ->whereNotNull('SalonTejidoId')
+            ->where('SalonTejidoId', '!=', '')
+            ->whereNotNull('NoTelarId')
+            ->where('NoTelarId', '!=', '')
+            ->distinct()
+            ->get()
+            ->map(fn($t) => (object) [
+                'SalonTejidoId' => $t->SalonTejidoId,
+                'NoTelarId' => $t->NoTelarId,
+                'Nombre' => $t->NoTelarId,
+                'Grupo' => null,
+                'VelocidadSTD' => null,
+            ]);
+
+        // Fallback a ReqTelares si el programa está vacío
+        $telares = $telaresPrograma->isNotEmpty() ? $telaresPrograma : ReqTelares::obtenerTodos();
+
         $usuarios = SYSUsuario::select('numero_empleado', 'nombre', 'turno')
             ->orderByRaw('CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC')
             ->get();

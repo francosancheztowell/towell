@@ -90,6 +90,9 @@ Route::resource('tel-telares-operador', TelTelaresOperadorController::class)
     ->parameters(['tel-telares-operador' => 'telTelaresOperador'])
     ->names('tel-telares-operador');
 
+Route::get('/tel-telares-operador/api/salones-y-telares', [TelTelaresOperadorController::class, 'getSalonesYTelares'])
+    ->name('tel-telares-operador.api.salones-y-telares');
+
 Route::get('/telaresPorOperador', [TelTelaresOperadorController::class, 'index'])->name('telaresPorOperador');
 Route::get('/ActividadesBPM', [TelActividadesBPMController::class, 'index'])->name('ActividadesBPM');
 

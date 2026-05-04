@@ -164,12 +164,6 @@ Telares por Operador
                             </label>
                             <select id="createSalon" class="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm hover:shadow-md" required>
                                 <option value="" disabled selected>Selecciona salón primero</option>
-                                @php
-                                    $salonesDisponibles = collect($telares)->pluck('SalonTejidoId')->unique()->filter()->sort()->values();
-                                @endphp
-                                @foreach($salonesDisponibles as $salon)
-                                    <option value="{{ $salon }}">{{ $salon }}</option>
-                                @endforeach
                             </select>
                         </div>
                         <div class="md:col-span-3 flex items-center gap-3">
@@ -561,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const salon = document.getElementById('createSalon');
             if (nombre) nombre.value = '';
             if (turno) turno.value = '';
-            if (salon) salon.value = '';
+            if (salon) salon.selectedIndex = 0;
             // Reset telares container
             if (telaresContainer) {
                 telaresContainer.classList.add('hidden');
@@ -571,6 +565,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnGuardar.disabled = true;
                 btnGuardar.innerHTML = '<i class="fa-solid fa-save"></i> <span>Guardar Registros</span>';
             }
+            // Cargar catálogos desde API
+            cargarCatalogos();
         }
 
         modal.classList.remove('hidden');
@@ -738,7 +734,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const telaresList = document.getElementById('telaresList');
     const btnGuardar = document.getElementById('btnGuardar');
     
-    const telaresData = @json($telares ?? []);
+    let telaresData = @json($telares ?? []);
+    let salonesData = [];
+    let catalogosCargados = false;
+
+    async function cargarCatalogos() {
+        if (catalogosCargados) return;
+        try {
+            const response = await fetch('{{ route("tel-telares-operador.api.salones-y-telares") }}', {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                salonesData = data.salones || [];
+                telaresData = data.telares || [];
+                populateSalonesSelect();
+                catalogosCargados = true;
+            }
+        } catch (e) {
+            console.error('Error cargando catálogos:', e);
+        }
+    }
+
+    function populateSalonesSelect() {
+        if (!createSalon) return;
+        const currentValue = createSalon.value;
+        createSalon.innerHTML = '<option value="" disabled selected>Selecciona salón</option>';
+        salonesData.forEach(salon => {
+            const option = document.createElement('option');
+            option.value = salon;
+            option.textContent = salon;
+            if (salon === currentValue) option.selected = true;
+            createSalon.appendChild(option);
+        });
+    }
 
     function getTelaresAsignadosPorEmpleado(numeroEmpleado) {
         const numero = String(numeroEmpleado || '').trim();
@@ -752,6 +781,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const list = document.getElementById('editTelaresList');
         if (!list) return;
 
+        if (telaresData.length === 0) {
+            cargarCatalogos().then(() => {
+                renderEditTelaresInternal(numeroEmpleado, list);
+            });
+        } else {
+            renderEditTelaresInternal(numeroEmpleado, list);
+        }
+    }
+
+    function renderEditTelaresInternal(numeroEmpleado, list) {
         const asignados = getTelaresAsignadosPorEmpleado(numeroEmpleado);
         list.innerHTML = telaresData.map(telar => {
             const telarId = String(telar.NoTelarId || '').trim();
@@ -775,6 +814,13 @@ document.addEventListener('DOMContentLoaded', function() {
             telaresContainer.classList.add('hidden');
             btnGuardar.disabled = true;
             telaresList.innerHTML = '';
+            return;
+        }
+
+        if (telaresData.length === 0) {
+            cargarCatalogos().then(() => {
+                cargarTelaresPorSalon(salon);
+            });
             return;
         }
 
