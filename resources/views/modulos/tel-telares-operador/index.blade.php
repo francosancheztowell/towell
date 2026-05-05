@@ -734,7 +734,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const telaresList = document.getElementById('telaresList');
     const btnGuardar = document.getElementById('btnGuardar');
     
-    let telaresData = @json($telares ?? []);
+    let telaresData = Array.isArray(@json($telares ?? [])) ? @json($telares ?? []) : [];
     let salonesData = [];
     let catalogosCargados = false;
 
@@ -746,8 +746,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             if (response.ok) {
                 const data = await response.json();
-                salonesData = data.salones || [];
-                telaresData = data.telares || [];
+                salonesData = Array.isArray(data.salones) ? data.salones : [];
+                telaresData = Array.isArray(data.telares) ? data.telares : [];
                 populateSalonesSelect();
                 catalogosCargados = true;
             }
@@ -887,8 +887,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
         sel.addEventListener('change', sync);
-        // Solo sincronizar al inicio si ya hay un valor válido seleccionado
-        if (sel.value) sync();
     }
     wireEmpleado('createEmpleado','createNombre','createTurno');
     wireEmpleado('editEmpleado','editNombre','editTurno');
