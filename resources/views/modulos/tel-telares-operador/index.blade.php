@@ -771,10 +771,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getTelaresAsignadosPorEmpleado(numeroEmpleado) {
         const numero = String(numeroEmpleado || '').trim();
-        return new Set(Array.from(document.querySelectorAll('.row-selectable'))
+        const asignados = new Set();
+        Array.from(document.querySelectorAll('.row-selectable'))
             .filter(row => String(row.dataset.numero || '').trim() === numero)
-            .map(row => String(row.dataset.telar || '').trim())
-            .filter(Boolean));
+            .forEach(row => {
+                const telares = String(row.dataset.telar || '').trim();
+                if (telares) {
+                    telares.split(',').map(t => t.trim()).filter(Boolean).forEach(t => asignados.add(t));
+                }
+            });
+        return asignados;
     }
 
     function renderEditTelares(numeroEmpleado) {
