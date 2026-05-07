@@ -425,8 +425,14 @@ class ModuloProduccionUrdidoController extends Controller
     public function getUsuariosUrdido(): JsonResponse
     {
         try {
+            // Incluye usuarios con área Urdido y el idusuario indicado (p. ej. oficial que en prod no tiene área Urdido).
+            $idUsuarioExtraOficiales = 22;
+
             $usuarios = SYSUsuario::select(['idusuario', 'numero_empleado', 'nombre', 'turno'])
-                ->where('area', 'Urdido')
+                ->where(function ($q) use ($idUsuarioExtraOficiales) {
+                    $q->where('area', 'Urdido')
+                        ->orWhere('idusuario', $idUsuarioExtraOficiales);
+                })
                 ->whereNotNull('numero_empleado')
                 ->orderBy('nombre')
                 ->get()
