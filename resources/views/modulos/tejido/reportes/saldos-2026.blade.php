@@ -58,7 +58,7 @@
                             <th rowspan="2" class="saldos-th saldos-h-toallas" style="min-width:100px;">Toallas Tejidas</th>
                             <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:100px;">Faltan</th>
                             <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:64px;">Avance</th>
-                            <th rowspan="2" class="saldos-th saldos-h-rollos-tejer" style="min-width:92px;">Rollos por Tejer</th>
+                            <th rowspan="2" class="saldos-th saldos-h-rollos-tejer" style="min-width:92px;">Rollos Tejidos</th>
                             <th rowspan="2" class="saldos-th saldos-h-obs" style="min-width:200px;">Observaciones</th>
                             {{-- Columnas adicionales (ocultas por defecto; botón «Más columnas») --}}
                             <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:90px;">Orden Vinculada</th>
@@ -143,9 +143,10 @@
                                 $avance            = $solicitado > 0
                                     ? round(min(100, max(0, $produccionVal / $solicitado * 100)), 1)
                                     : 0;
-                                $tiras             = (float) ($r->NoTiras ?? 0);
-                                $reps              = (float) ($r->Repeticiones ?? 0);
-                                $rollosXTejer      = ($tiras > 0 && $reps > 0) ? ceil($faltan / ($tiras * $reps)) : '—';
+                                $pzasRollo         = (float) ($r->PzasRollo ?? 0);
+                                $pzasProgramadas   = (float) ($r->_sumTotalPzasProgramadas ?? ($pzasRollo * (float) ($r->TotalRollos ?? 0)));
+                                $pzasTejidas       = max(0, $pzasProgramadas - $saldo);
+                                $rollosTejidos     = $pzasRollo > 0 ? ceil($pzasTejidas / $pzasRollo) : '—';
                                 $razuradoNorm      = mb_strtolower(trim((string) ($r->Rasurado ?? '')), 'UTF-8');
                                 $esRasurada        = in_array($razuradoNorm, ['si', 'sí', 'yes'], true);
                                 $salonTelarTipo    = \App\Support\Planeacion\TelarSalonResolver::normalizeSalon($r->SalonTejidoId ?? null, $r->NoTelarId ?? null);
@@ -229,7 +230,7 @@
                                     @endif
                                 </td>
                                 <td class="saldos-td text-right tabular-nums {{ $avance >= 100 ? 'text-green-600 font-semibold' : 'text-blue-600' }}">{{ $solicitado > 0 ? $avance . '%' : '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="background:#bbf7d0;border-color:#4ade80;">{{ is_numeric($rollosXTejer) ? number_format($rollosXTejer, 0) : $rollosXTejer }}</td>
+                                <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="background:#bbf7d0;border-color:#4ade80;">{{ is_numeric($rollosTejidos) ? number_format($rollosTejidos, 0) : $rollosTejidos }}</td>
                                 <td class="saldos-td saldos-td-obs text-gray-800 truncate" style="max-width:220px;" title="{{ $r->Observaciones }}">{{ $r->Observaciones ?? '' }}</td>
                                 {{-- Columnas extra --}}
                                 <td class="saldos-td saldos-col-extra text-center font-mono text-gray-700">{{ $r->OrdCompartida ?? '—' }}</td>

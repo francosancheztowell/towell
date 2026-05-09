@@ -100,6 +100,7 @@ final class Saldos2026Export
     private function fillSaldosSheet(Worksheet $sheet): void
     {
         $lastCol = 'BK';
+        $sheet->setCellValue('BH3', 'Rollos Tejidos');
         $outputRows = $this->countOutputRows();
         $clearEnd = max(self::TEMPLATE_SAMPLE_LAST_ROW, self::DATA_START_ROW + $outputRows + 10);
         $this->clearDataArea($sheet, self::DATA_START_ROW, $clearEnd, $lastCol);
@@ -179,15 +180,15 @@ final class Saldos2026Export
 
         $faltan = null;
         $avance = null;
-        $rollosXTejer = null;
+        $rollosTejidos = null;
         if ($esLider) {
             $faltan = $solicitado - $saldo;
             $avance = $solicitado > 0 ? min(1.0, max(0.0, $produccion / $solicitado)) : null;
-            $tiras = (float) ($r->NoTiras ?? 0);
-            $reps = (float) ($r->Repeticiones ?? 0);
-            $f = (float) $faltan;
-            $rollosXTejer = ($tiras > 0 && $reps > 0 && $f > 0)
-                ? (int) ceil($f / ($tiras * $reps))
+            $pzasRollo = (float) ($r->PzasRollo ?? 0);
+            $pzasProgramadas = (float) ($r->_sumTotalPzasProgramadas ?? ($pzasRollo * (float) ($r->TotalRollos ?? 0)));
+            $pzasTejidas = max(0.0, $pzasProgramadas - $saldo);
+            $rollosTejidos = $pzasRollo > 0
+                ? (int) ceil($pzasTejidas / $pzasRollo)
                 : null;
         }
 
@@ -284,8 +285,8 @@ final class Saldos2026Export
             } else {
                 $sheet->setCellValue("BG{$row}", '');
             }
-            if ($rollosXTejer !== null) {
-                $sheet->setCellValueExplicit("BH{$row}", (float) $rollosXTejer, DataType::TYPE_NUMERIC);
+            if ($rollosTejidos !== null) {
+                $sheet->setCellValueExplicit("BH{$row}", (float) $rollosTejidos, DataType::TYPE_NUMERIC);
             } else {
                 $sheet->setCellValue("BH{$row}", '');
             }

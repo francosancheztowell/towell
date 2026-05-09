@@ -46,6 +46,9 @@ class SaldosController extends Controller
                 $sumSaldoPedido = $grupo->sum('SaldoPedido');
                 $sumProduccion = $grupo->sum('Produccion');
                 $sumTotalRollos = $grupo->sum('TotalRollos');
+                $sumTotalPzasProgramadas = $grupo->sum(function ($r) {
+                    return (float) ($r->PzasRollo ?? 0) * (float) ($r->TotalRollos ?? 0);
+                });
 
                 foreach ($grupo as $r) {
                     $r->_esLider = ($r->Id === $lider->Id); // líder = el primero del grupo
@@ -56,11 +59,13 @@ class SaldosController extends Controller
                         $r->_sumSaldoPedido = $sumSaldoPedido;
                         $r->_sumProduccion = $sumProduccion;
                         $r->_sumTotalRollos = $sumTotalRollos;
+                        $r->_sumTotalPzasProgramadas = $sumTotalPzasProgramadas;
                     } else {
                         $r->_sumTotalPedido = null;
                         $r->_sumSaldoPedido = null;
                         $r->_sumProduccion = null;
                         $r->_sumTotalRollos = null;
+                        $r->_sumTotalPzasProgramadas = null;
                     }
                 }
             } else {
@@ -72,6 +77,7 @@ class SaldosController extends Controller
                     $r->_sumSaldoPedido = $r->SaldoPedido;
                     $r->_sumProduccion = $r->Produccion;
                     $r->_sumTotalRollos = $r->TotalRollos;
+                    $r->_sumTotalPzasProgramadas = (float) ($r->PzasRollo ?? 0) * (float) ($r->TotalRollos ?? 0);
                 }
             }
 
@@ -114,7 +120,7 @@ class SaldosController extends Controller
                 'CalibreTrama2', 'FibraTrama', 'MedidaPlano', 'VelocidadSTD',
                 'CuentaRizo', 'CalibreRizo2', 'FibraRizo',
                 'CuentaPie', 'CalibrePie2', 'FibraPie',
-                'Rasurado', 'NoTiras', 'Repeticiones',
+                'Rasurado', 'NoTiras', 'PzasRollo', 'Repeticiones',
                 'TotalRollos', 'Produccion', 'SaldoPedido',
                 'ReqProgramaTejido.Observaciones',
                 // Campos de ReqModelosCodificados
