@@ -57,7 +57,7 @@ class ReqProgramaTejido extends Model
         'EntregaProduc', 'EntregaPT', 'EntregaCte', 'PTvsCte', 'CreatedAt', 'UpdatedAt', 'FibraPie', 'FechaInicio', 'FechaFinal',
         'CalibreRizo2', 'CalibrePie2', 'CalibreTrama2', 'CalibreComb1', 'CalibreComb2', 'CalibreComb3', 'CalibreComb4', 'CalibreComb5',
         'Prioridad', 'LargoCrudo', 'OrdCompartida', 'CategoriaCalidad', 'PorcentajeSegundos', 'PedidoTempo', 'OrdCompartidaLider', 'Reprogramar', 'Posicion',
-        'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Repeticiones', 'CombinaTram', 'BomId', 'BomName', 'CreaProd',
+        'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Repeticiones', 'CombinaTram', 'BomId', 'BomName', 'CreaProd', 'ProdId',
         'Densidad', 'HiloAX', 'ActualizaLmat', 'PesoMuestra',
         'FechaCreacion', 'HoraCreacion', 'UsuarioCrea', 'FechaModificacion', 'HoraModificacion', 'UsuarioModifica',
         'OrdPrincipal',
