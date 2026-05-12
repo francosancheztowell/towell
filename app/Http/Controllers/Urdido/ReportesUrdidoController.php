@@ -252,6 +252,36 @@ class ReportesUrdidoController extends Controller
     }
 
     /**
+     * Calcular tiempo de producción en minutos entre HoraInicial y HoraFinal.
+     * Maneja cruce de medianoche (Turno 3): si hora_final < hora_inicial,
+     * se asume que cruzó medianoche y se suman 1440 minutos (24h).
+     */
+    private function calcularTiempoProduccionMin(?string $horaInicial, ?string $horaFinal): ?int
+    {
+        if (empty($horaInicial) || empty($horaFinal)) {
+            return null;
+        }
+
+        // Extraer horas y minutos (formato esperado: "HH:MM" o "HH:MM:SS")
+        $partsIni = explode(':', trim($horaInicial));
+        $partsFin = explode(':', trim($horaFinal));
+
+        if (count($partsIni) < 2 || count($partsFin) < 2) {
+            return null;
+        }
+
+        $minInicio = ((int) $partsIni[0]) * 60 + (int) $partsIni[1];
+        $minFinal = ((int) $partsFin[0]) * 60 + (int) $partsFin[1];
+
+        // Si hora final < hora inicial → cruzó medianoche (Turno 3)
+        if ($minFinal < $minInicio) {
+            $minFinal += 1440; // sumar 24 horas
+        }
+
+        return $minFinal - $minInicio;
+    }
+
+    /**
      * Obtener datos para reporte Kaizen (AX ENGOMADO y AX URDIDO).
      */
     private function obtenerDatosKaizen(string $fechaIni, string $fechaFin, bool $soloFinalizados): array
@@ -274,6 +304,8 @@ class ReportesUrdidoController extends Controller
                 'EngProduccionEngomado.Id',
                 'EngProduccionEngomado.Folio',
                 'EngProduccionEngomado.Fecha',
+                'EngProduccionEngomado.HoraInicial',
+                'EngProduccionEngomado.HoraFinal',
                 'EngProduccionEngomado.NoJulio',
                 'EngProduccionEngomado.KgNeto',
                 'EngProduccionEngomado.Metros1',
@@ -319,6 +351,7 @@ class ReportesUrdidoController extends Controller
 
             $calibre = $r->Calibre ?? '';
             $oficialesData = $this->obtenerOficialesKaizen($r);
+            $tiempoMin = $this->calcularTiempoProduccionMin($r->HoraInicial ?? null, $r->HoraFinal ?? null);
 
             $filasEngomado[] = [
                 'fecha_mod' => $carbon->format('d/m/Y'),
@@ -338,6 +371,9 @@ class ReportesUrdidoController extends Controller
                 'julios' => $r->NoJulio ?? '',
                 'oficiales' => $oficialesData['oficiales'],
                 'no_oficiales' => $oficialesData['no_oficiales'],
+                'hora_inicio' => $r->HoraInicial ? substr(trim($r->HoraInicial), 0, 5) : '',
+                'hora_final' => $r->HoraFinal ? substr(trim($r->HoraFinal), 0, 5) : '',
+                'tiempo_produccion_min' => $tiempoMin,
             ];
         }
 
@@ -356,6 +392,8 @@ class ReportesUrdidoController extends Controller
                 'UrdProduccionUrdido.Id',
                 'UrdProduccionUrdido.Folio',
                 'UrdProduccionUrdido.Fecha',
+                'UrdProduccionUrdido.HoraInicial',
+                'UrdProduccionUrdido.HoraFinal',
                 'UrdProduccionUrdido.NoJulio',
                 'UrdProduccionUrdido.KgNeto',
                 'UrdProduccionUrdido.Metros1',
@@ -400,6 +438,7 @@ class ReportesUrdidoController extends Controller
                 $calibre = (string) $calibre;
             }
             $oficialesData = $this->obtenerOficialesKaizen($r);
+            $tiempoMin = $this->calcularTiempoProduccionMin($r->HoraInicial ?? null, $r->HoraFinal ?? null);
 
             $filasUrdido[] = [
                 'fecha_mod' => $carbon->format('d/m/Y'),
@@ -417,6 +456,9 @@ class ReportesUrdidoController extends Controller
                 'julios' => $r->NoJulio ?? '',
                 'oficiales' => $oficialesData['oficiales'],
                 'no_oficiales' => $oficialesData['no_oficiales'],
+                'hora_inicio' => $r->HoraInicial ? substr(trim($r->HoraInicial), 0, 5) : '',
+                'hora_final' => $r->HoraFinal ? substr(trim($r->HoraFinal), 0, 5) : '',
+                'tiempo_produccion_min' => $tiempoMin,
             ];
         }
 
