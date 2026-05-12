@@ -278,26 +278,50 @@ class NotificarMontRollosController extends Controller
                 return response()->json(['error' => 'Faltan parámetros requeridos (no_produccion, no_telar)'], 400);
             }
 
-            // Consultar TOW_PRO con el INNER JOIN correcto
-            $datosProduccion = DB::connection('sqlsrv_ti')
-                ->table('ProdTable as P')
-                ->join('InventDim as I', 'P.InventDimId', '=', 'I.InventDimId')
-                ->select(
-                    'P.PurchBarCode',
-                    'P.ItemId',
-                    'P.QtySched',
-                    'P.CUANTAS',
-                    'I.InventSizeId',
-                    'I.InventBatchId',
-                    'I.WMSLocationId'
-                )
-                ->where('P.impreso', 'SI')
-                ->where('P.ProdStatus', 0)
-                ->where('P.DATAAREAID', 'PRO')
-                ->where('I.InventBatchId', $noProduccion)
-                ->where('I.WMSLocationId', $noTelar)
-                ->where('I.DATAAREAID', 'PRO')
-                ->get();
+            // 1. Buscar ProdId en la tabla local ReqProgramaTejido
+            $ordenLocal = ReqProgramaTejido::where('NoProduccion', $noProduccion)
+                ->where('NoTelarId', $noTelar)
+                ->select('ProdId')
+                ->first();
+
+            $datosProduccion = collect();
+            $fuente = 'ProdTable/InventDim';
+
+            // 2. Intentar buscar primero en TWMarbetes (Prioridad) si existe ProdId
+            if ($ordenLocal && $ordenLocal->ProdId) {
+                $datosProduccion = DB::connection('sqlsrv_ti')
+                    ->table('TWMarbetes')
+                    ->where('prodId', $ordenLocal->ProdId)
+                    ->where('StatusMarebete', 0)
+                    ->get();
+                
+                if ($datosProduccion->isNotEmpty()) {
+                    $fuente = 'TWMarbetes';
+                }
+            }
+
+            // 3. Si no se encontró en TWMarbetes, usar la lógica original (fallback)
+            if ($datosProduccion->isEmpty()) {
+                $datosProduccion = DB::connection('sqlsrv_ti')
+                    ->table('ProdTable as P')
+                    ->join('InventDim as I', 'P.InventDimId', '=', 'I.InventDimId')
+                    ->select(
+                        'P.PurchBarCode',
+                        'P.ItemId',
+                        'P.QtySched',
+                        'P.CUANTAS',
+                        'I.InventSizeId',
+                        'I.InventBatchId',
+                        'I.WMSLocationId'
+                    )
+                    ->where('P.impreso', 'SI')
+                    ->where('P.ProdStatus', 0)
+                    ->where('P.DATAAREAID', 'PRO')
+                    ->where('I.InventBatchId', $noProduccion)
+                    ->where('I.WMSLocationId', $noTelar)
+                    ->where('I.DATAAREAID', 'PRO')
+                    ->get();
+            }
 
             if ($datosProduccion->isEmpty()) {
                 return response()->json([
@@ -305,7 +329,8 @@ class NotificarMontRollosController extends Controller
                     'debug' => [
                         'no_produccion' => $noProduccion,
                         'no_telar' => $noTelar,
-                        'query' => 'ProdTable INNER JOIN InventDim con filtros: impreso=SI, ProdStatus=0'
+                        'prod_id' => $ordenLocal->ProdId ?? 'N/A',
+                        'fuente_intentada' => $fuente
                     ]
                 ], 404);
             }
@@ -313,25 +338,28 @@ class NotificarMontRollosController extends Controller
             // Obtener los PurchBarCode que ya están liberados en TelMarbeteLiberado
             $marbetesLiberados = TelMarbeteLiberadoModel::pluck('PurchBarCode')->toArray();
 
-            // Formatear datos para el modal, excluyendo los ya liberados
+            // Formatear datos para el modal
             $datosFormateados = [];
             $excluidos = 0;
             foreach ($datosProduccion as $dato) {
+                // Mapeo flexible para soportar TWMarbetes (asumiendo nombres similares o fallback a los de ProdTable)
+                $barCode = $dato->PurchBarCode ?? ($dato->Marbete ?? null);
+                
                 // Saltar este registro si ya fue liberado
-                if (in_array($dato->PurchBarCode, $marbetesLiberados)) {
+                if ($barCode && in_array($barCode, $marbetesLiberados)) {
                     $excluidos++;
                     continue;
                 }
 
                 $datosFormateados[] = [
-                    'PurchBarCode' => $dato->PurchBarCode,
-                    'ItemId' => $dato->ItemId,
-                    'QtySched' => $dato->QtySched,
-                    'CUANTAS' => $dato->CUANTAS,
-                    'InventSizeId' => $dato->InventSizeId,
-                    'InventBatchId' => $dato->InventBatchId,
-                    'WMSLocationId' => $dato->WMSLocationId,
-                    'Salon' => $salon
+                    'PurchBarCode' => $barCode,
+                    'ItemId'       => $dato->ItemId ?? null,
+                    'QtySched'     => $dato->QtySched ?? ($dato->Metros ?? ($dato->Cantidad ?? 0)),
+                    'CUANTAS'      => $dato->CUANTAS ?? ($dato->Cuantas ?? null),
+                    'InventSizeId' => $dato->InventSizeId ?? ($dato->Size ?? null),
+                    'InventBatchId'=> $dato->InventBatchId ?? ($dato->Orden ?? $noProduccion),
+                    'WMSLocationId'=> $dato->WMSLocationId ?? ($dato->Telar ?? $noTelar),
+                    'Salon'        => $salon
                 ];
             }
 
@@ -340,10 +368,11 @@ class NotificarMontRollosController extends Controller
                 return response()->json([
                     'success' => false,
                     'error' => 'Todos los marbetes ya han sido liberados',
-                    'mensaje' => "Se encontraron {$datosProduccion->count()} registros, pero todos ya fueron liberados anteriormente.",
+                    'mensaje' => "Se encontraron {$datosProduccion->count()} registros en {$fuente}, pero todos ya fueron liberados anteriormente.",
                     'debug' => [
                         'total_encontrados' => $datosProduccion->count(),
-                        'excluidos' => $excluidos
+                        'excluidos' => $excluidos,
+                        'fuente' => $fuente
                     ]
                 ]);
             }
@@ -352,7 +381,8 @@ class NotificarMontRollosController extends Controller
                 'success' => true,
                 'datos' => $datosFormateados,
                 'total' => count($datosFormateados),
-                'mensaje' => "Se encontraron " . count($datosFormateados) . " marbetes disponibles" . ($excluidos > 0 ? " ({$excluidos} ya liberados)" : "")
+                'fuente' => $fuente,
+                'mensaje' => "Se encontraron " . count($datosFormateados) . " marbetes disponibles en " . $fuente . ($excluidos > 0 ? " ({$excluidos} ya liberados)" : "")
             ]);
         } catch (\Exception $e) {
             return response()->json([
