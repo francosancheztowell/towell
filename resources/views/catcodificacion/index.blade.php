@@ -807,9 +807,15 @@
                                     opt.label = (item.bomName != null) ? String(item.bomName) : opt.value;
                                     if (opt.value) listaMatOptions.appendChild(opt);
                                 });
+                                if (listaMatMessage) {
+                                    listaMatMessage.textContent = opciones.length + ' L.Mat encontrado' + (opciones.length > 1 ? 's' : '') + '.';
+                                    listaMatMessage.classList.remove('hidden');
+                                    listaMatMessage.className = 'text-xs text-green-600 mt-1';
+                                }
                             } else if (listaMatMessage && (mostrarMensajeSinResultados === undefined || mostrarMensajeSinResultados)) {
-                                listaMatMessage.textContent = 'Sin resultados. Escriba para buscar L.Mat (búsqueda libre sin filtro de tamaño).';
+                                listaMatMessage.textContent = 'No se encontró L.Mat. Escriba para buscar libremente.';
                                 listaMatMessage.classList.remove('hidden');
+                                listaMatMessage.className = 'text-xs text-gray-500 mt-1';
                             }
                         }
 
@@ -838,7 +844,7 @@
                                 if (val.length < 2) {
                                     actualizarDatalistLmat([], false);
                                     if (listaMatMessage) {
-                                        listaMatMessage.textContent = val.length > 0 ? 'Escriba al menos 2 caracteres para buscar.' : 'Escriba para buscar L.Mat (búsqueda libre sin filtro de tamaño).';
+                                        listaMatMessage.textContent = val.length > 0 ? 'Mínimo 2 caracteres para buscar.' : 'Escriba para buscar L.Mat libremente.';
                                         listaMatMessage.classList.remove('hidden');
                                     }
                                     return;
