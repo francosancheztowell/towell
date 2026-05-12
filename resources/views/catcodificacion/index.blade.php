@@ -777,10 +777,26 @@
                             inp.classList.toggle('cursor-not-allowed', !activo);
                             if (reqSpan) reqSpan.classList.toggle('hidden', !activo);
                             if (!activo) inp.value = '';
+                            actualizarBotonGuardar();
+                        }
+
+                        function actualizarBotonGuardar() {
+                            const confirmBtn = Swal.getConfirmButton();
+                            if (!confirmBtn) return;
+                            const actLmatChecked = actLmatCheckbox && actLmatCheckbox.checked;
+                            const bomIdVal = listaMatInput && listaMatInput.value ? listaMatInput.value.trim() : '';
+                            const debeBloquear = actLmatChecked && (!bomIdVal || bomIdVal === '');
+                            confirmBtn.disabled = debeBloquear;
+                            if (debeBloquear) {
+                                confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                            } else {
+                                confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                            }
                         }
 
                         if (actLmatCheckbox && listaMatInputRef) {
                             actLmatCheckbox.addEventListener('change', actualizarEstadoListaMat);
+                            listaMatInputRef.addEventListener('input', actualizarBotonGuardar);
                             actualizarEstadoListaMat();
                         }
 

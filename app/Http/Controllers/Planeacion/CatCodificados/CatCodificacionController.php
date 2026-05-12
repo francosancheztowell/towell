@@ -523,7 +523,9 @@ class CatCodificacionController extends Controller
                 ->table('BOMTABLE as BT')
                 ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
                 ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-                ->where('BV.ITEMID', $itemIdWithSuffix);
+                ->where('BV.ITEMID', $itemIdWithSuffix)
+                ->where('BT.ITEMGROUPID', 'CRUDO')
+                ->whereIn('BT.TwSalon', ['SMIT', 'JACQUARD']);
 
             // Solo filtrar por tamaño si viene informado (igual que LiberarOrdenesController)
             if ($inventSizeId !== null && trim((string) $inventSizeId) !== '') {

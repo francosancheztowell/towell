@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class LiberarOrdenesController extends Controller
 {
     /** TwSalon en AX para BOM CRUDO de tejido (solo SMIT / Jacquard). */
-    private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD', 'JACUARD'];
+    private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD'];
 
     /** Peso estándar rodillo cuando TamanoClave / producto son Felpa (FELPA…). Metros/Pzas÷2 y marbetes×2 con mismo formato que tamaño FEL. */
     private const PESO_ROLLO_KG_FELPA = 90.0;
