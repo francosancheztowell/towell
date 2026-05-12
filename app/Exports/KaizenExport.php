@@ -96,14 +96,14 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             'Configuración',
             'Tamaño',
             'Mts',
-            'H.Inicio',
-            'H.Final',
-            'T.Prod(min)',
             'MermaGoma',
             'Merma',
             'Julios',
             'Oficiales',
             'No. Oficiales',
+            'H.Inicio',
+            'H.Final',
+            'T.Prod(min)',
         ];
         foreach ($headers as $col => $val) {
             $sheet->setCellValueByColumnAndRow($col + 1, 1, $val);
@@ -125,12 +125,12 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             'Configuración',
             'Tamaño',
             'Mts',
-            'H.Inicio',
-            'H.Final',
-            'T.Prod(min)',
             'Julios',
             'Oficiales',
             'No. Oficiales',
+            'H.Inicio',
+            'H.Final',
+            'T.Prod(min)',
         ];
         foreach ($headers as $col => $val) {
             $sheet->setCellValueByColumnAndRow($col + 1, 1, $val);
@@ -154,12 +154,12 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow(10, $row, $f['configuracion'] ?? '');
             $sheet->setCellValueByColumnAndRow(11, $row, $f['tamano'] ?? '');
             $sheet->setCellValueByColumnAndRow(12, $row, $f['mts'] ?? '');
-            $sheet->setCellValueByColumnAndRow(13, $row, $f['hora_inicio'] ?? '');
-            $sheet->setCellValueByColumnAndRow(14, $row, $f['hora_final'] ?? '');
-            $sheet->setCellValueByColumnAndRow(15, $row, $f['tiempo_produccion_min'] ?? '');
-            $sheet->setCellValueByColumnAndRow(16, $row, $f['julios'] ?? '');
-            $sheet->setCellValueByColumnAndRow(17, $row, $f['oficiales'] ?? '');
-            $sheet->setCellValueByColumnAndRow(18, $row, $f['no_oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(13, $row, $f['julios'] ?? '');
+            $sheet->setCellValueByColumnAndRow(14, $row, $f['oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(15, $row, $f['no_oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(16, $row, $f['hora_inicio'] ?? '');
+            $sheet->setCellValueByColumnAndRow(17, $row, $f['hora_final'] ?? '');
+            $sheet->setCellValueByColumnAndRow(18, $row, $f['tiempo_produccion_min'] ?? '');
         }
     }
 
@@ -180,14 +180,14 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow(10, $row, $f['configuracion'] ?? '');
             $sheet->setCellValueByColumnAndRow(11, $row, $f['tamano'] ?? '');
             $sheet->setCellValueByColumnAndRow(12, $row, $f['mts'] ?? '');
-            $sheet->setCellValueByColumnAndRow(13, $row, $f['hora_inicio'] ?? '');
-            $sheet->setCellValueByColumnAndRow(14, $row, $f['hora_final'] ?? '');
-            $sheet->setCellValueByColumnAndRow(15, $row, $f['tiempo_produccion_min'] ?? '');
-            $sheet->setCellValueByColumnAndRow(16, $row, $f['merma_goma'] ?? '');
-            $sheet->setCellValueByColumnAndRow(17, $row, $f['merma'] ?? '');
-            $sheet->setCellValueByColumnAndRow(18, $row, $f['julios'] ?? '');
-            $sheet->setCellValueByColumnAndRow(19, $row, $f['oficiales'] ?? '');
-            $sheet->setCellValueByColumnAndRow(20, $row, $f['no_oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(13, $row, $f['merma_goma'] ?? '');
+            $sheet->setCellValueByColumnAndRow(14, $row, $f['merma'] ?? '');
+            $sheet->setCellValueByColumnAndRow(15, $row, $f['julios'] ?? '');
+            $sheet->setCellValueByColumnAndRow(16, $row, $f['oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(17, $row, $f['no_oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(18, $row, $f['hora_inicio'] ?? '');
+            $sheet->setCellValueByColumnAndRow(19, $row, $f['hora_final'] ?? '');
+            $sheet->setCellValueByColumnAndRow(20, $row, $f['tiempo_produccion_min'] ?? '');
         }
     }
 }
