@@ -765,6 +765,12 @@
                         // Habilitar/bloquear campo Lista Mat según checkbox Act Lmat (siempre visible)
                         const actLmatCheckbox = document.getElementById('swal-act-lmat');
                         const listaMatInputRef = document.getElementById('swal-lista-mat');
+                        const selectOrden = document.getElementById('swal-orden-tejido');
+                        const telarInput = document.getElementById('swal-telar');
+                        const articuloInput = document.getElementById('swal-articulo');
+                        const pesoMuestraInput = document.getElementById('swal-peso-muestra');
+                        const listaMatOptions = document.getElementById('swal-lista-mat-options');
+                        const listaMatMessage = document.getElementById('swal-lista-mat-message');
 
                         function actualizarEstadoListaMat() {
                             const inp = document.getElementById('swal-lista-mat');
@@ -784,7 +790,7 @@
                             const confirmBtn = Swal.getConfirmButton();
                             if (!confirmBtn) return;
                             const actLmatChecked = actLmatCheckbox && actLmatCheckbox.checked;
-                            const bomIdVal = listaMatInput && listaMatInput.value ? listaMatInput.value.trim() : '';
+                            const bomIdVal = listaMatInputRef && listaMatInputRef.value ? listaMatInputRef.value.trim() : '';
                             const debeBloquear = actLmatChecked && (!bomIdVal || bomIdVal === '');
                             confirmBtn.disabled = debeBloquear;
                             if (debeBloquear) {
@@ -801,13 +807,6 @@
                         }
 
                         // GET órdenes en proceso (ReqProgramaTejido) y rellenar select
-                        const selectOrden = document.getElementById('swal-orden-tejido');
-                        const telarInput = document.getElementById('swal-telar');
-                        const articuloInput = document.getElementById('swal-articulo');
-                        const pesoMuestraInput = document.getElementById('swal-peso-muestra');
-                        const listaMatInput = document.getElementById('swal-lista-mat');
-                        const listaMatOptions = document.getElementById('swal-lista-mat-options');
-                        const listaMatMessage = document.getElementById('swal-lista-mat-message');
 
                         function actualizarDatalistLmat(opciones, mostrarMensajeSinResultados) {
                             if (!listaMatOptions) return;
@@ -853,8 +852,8 @@
                         }
 
                         var debounceBuscarBom = null;
-                        if (listaMatInput) {
-                            listaMatInput.addEventListener('input', function() {
+                        if (listaMatInputRef) {
+                            listaMatInputRef.addEventListener('input', function() {
                                 const val = this.value.trim();
                                 clearTimeout(debounceBuscarBom);
                                 if (val.length < 2) {
@@ -871,7 +870,7 @@
                                     });
                                 }, 300);
                             });
-                            listaMatInput.addEventListener('focus', function() {
+                            listaMatInputRef.addEventListener('focus', function() {
                                 const val = this.value.trim();
                                 if (val.length >= 2) buscarBomLibre(val, function(opciones) { actualizarDatalistLmat(opciones, false); });
                             });
@@ -882,7 +881,7 @@
                             if (!ord) {
                                 if (pesoMuestraInput) pesoMuestraInput.value = '';
                                 if (actLmatCheckbox) actLmatCheckbox.checked = false;
-                                if (listaMatInput) listaMatInput.value = '';
+                                if (listaMatInputRef) listaMatInputRef.value = '';
                                 if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
                                 actualizarDatalistLmat([]);
                                 return;
@@ -895,14 +894,14 @@
                                     if (!d) {
                                         if (pesoMuestraInput) pesoMuestraInput.value = '';
                                         if (actLmatCheckbox) actLmatCheckbox.checked = false;
-                                        if (listaMatInput) listaMatInput.value = '';
+                                        if (listaMatInputRef) listaMatInputRef.value = '';
                                         if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
                                         actualizarDatalistLmat([]);
                                         return;
                                     }
                                     if (pesoMuestraInput) pesoMuestraInput.value = (d.pesoMuestra != null && d.pesoMuestra !== '') ? Number(d.pesoMuestra) : '';
                                     if (actLmatCheckbox) actLmatCheckbox.checked = d.actualizaLmat === true || d.actualizaLmat === 1;
-                                    if (listaMatInput) listaMatInput.value = d.bomId != null ? String(d.bomId) : '';
+                                    if (listaMatInputRef) listaMatInputRef.value = d.bomId != null ? String(d.bomId) : '';
                                     if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
                                     actualizarDatalistLmat(d.listaLmat || []);
                                     if (telarInput && (d.telarId != null && d.telarId !== '')) telarInput.value = String(d.telarId);

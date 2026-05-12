@@ -154,7 +154,6 @@ class CatCodificacionController extends Controller
     {
         try {
             $ordenes = ReqProgramaTejido::query()
-                ->enProceso(true)
                 ->ordenado()
                 ->get(['Id', 'NoProduccion', 'NoTelarId', 'SalonTejidoId', 'ItemId', 'NombreProducto'])
                 ->map(function ($r) {
