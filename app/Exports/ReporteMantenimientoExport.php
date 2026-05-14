@@ -40,6 +40,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
         'CveAtendio',
         'NomAtendio',
         'ObsCierre',
+        'OrdenTrabajo',
     ];
 
     protected Collection $registros;
@@ -108,8 +109,8 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow($col + 1, 1, $val);
         }
 
-        // Limpia columna heredada del template (HoraFin2) cuando exista.
-        $sheet->setCellValueByColumnAndRow(19, 1, '');
+        // Limpia columna heredada del template si existe más allá de las 19 columnas actuales.
+        $sheet->setCellValueByColumnAndRow(20, 1, '');
     }
 
     private function syncTableFormat(Worksheet $sheet, int $dataRowCount): void
@@ -161,6 +162,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
                 $r->CveAtendio ?? '',
                 $r->NomAtendio ?? '',
                 $r->ObsCierre ?? '',
+                $r->OrdenTrabajo ?? '',
             ];
 
             foreach ($cols as $col => $val) {
@@ -204,6 +206,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
             'A' => 12, 'B' => 14, 'C' => 12, 'D' => 12, 'E' => 11, 'F' => 11,
             'G' => 14, 'H' => 14, 'I' => 12, 'J' => 12, 'K' => 24, 'L' => 14,
             'M' => 20, 'N' => 8, 'O' => 28, 'P' => 12, 'Q' => 20, 'R' => 28,
+            'S' => 20,
         ];
         foreach ($widths as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
