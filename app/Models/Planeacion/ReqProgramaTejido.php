@@ -58,7 +58,7 @@ class ReqProgramaTejido extends Model
         'CalibreRizo2', 'CalibrePie2', 'CalibreTrama2', 'CalibreComb1', 'CalibreComb2', 'CalibreComb3', 'CalibreComb4', 'CalibreComb5',
         'Prioridad', 'LargoCrudo', 'OrdCompartida', 'CategoriaCalidad', 'PorcentajeSegundos', 'PedidoTempo', 'OrdCompartidaLider', 'Reprogramar', 'Posicion',
         'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Repeticiones', 'CombinaTram', 'BomId', 'BomName', 'CreaProd', 'ProdId',
-        'Densidad', 'HiloAX', 'ActualizaLmat', 'PesoMuestra',
+        'Densidad', 'HiloAX', 'ActualizaLmat', 'PesoMuestra', 'NoMarbete', 'RollosProgramados',
         'FechaCreacion', 'HoraCreacion', 'UsuarioCrea', 'FechaModificacion', 'HoraModificacion', 'UsuarioModifica',
         'OrdPrincipal',
         'FechaArranque', 'FechaFinaliza',
@@ -150,6 +150,8 @@ class ReqProgramaTejido extends Model
         'PzasRollo' => 'float', // REAL en SQL Server
         'TotalRollos' => 'float', // REAL en SQL Server
         'TotalPzas' => 'float', // REAL en SQL Server
+        'NoMarbete' => 'float',
+        'RollosProgramados' => 'float',
         'Repeticiones' => 'float', // REAL en SQL Server
         'CombinaTram' => 'string', // VARCHAR(80) en SQL Server
         'BomId' => 'string', // VARCHAR(30) en SQL Server

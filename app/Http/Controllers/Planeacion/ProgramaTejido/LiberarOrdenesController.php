@@ -222,7 +222,9 @@ class LiberarOrdenesController extends Controller
 
                 $registro->Repeticiones = $repeticiones;
                 $registro->PesoRollo = $pesoRollo;
-                $registro->SaldoMarbete = $saldoMarbeteValor;
+                $registro->SaldoMarbete = $totalRollos;
+                $registro->NoMarbete = $totalRollos;
+                $registro->RollosProgramados = $totalRollos;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
@@ -478,7 +480,9 @@ class LiberarOrdenesController extends Controller
 
                 // Asignar campos calculados
                 $registro->Repeticiones = $repeticiones;
-                $registro->SaldoMarbete = $saldoMarbeteValor;
+                $registro->SaldoMarbete = $totalRollos;
+                $registro->NoMarbete = $totalRollos;
+                $registro->RollosProgramados = $totalRollos;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
                 $registro->TotalRollos = $totalRollos;
