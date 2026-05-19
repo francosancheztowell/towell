@@ -14,7 +14,7 @@ class SaldosController extends Controller
     public function index()
     {
         $registros = $this->query()->get();
-        $registros = $registros->merge($this->fetchFinalizadosEnGrupos($registros));
+        $registros = $registros->concat($this->fetchFinalizadosEnGrupos($registros));
         $registros = $this->preprocesarGrupos($registros);
 
         return view('modulos.tejido.reportes.saldos-2026', compact('registros'));
@@ -23,7 +23,7 @@ class SaldosController extends Controller
     public function exportarExcel()
     {
         $registros = $this->query()->get();
-        $registros = $registros->merge($this->fetchFinalizadosEnGrupos($registros));
+        $registros = $registros->concat($this->fetchFinalizadosEnGrupos($registros));
         $registros = $this->preprocesarGrupos($registros);
 
         return (new Saldos2026Export($registros))->downloadResponse('saldos-2026.xlsx');
