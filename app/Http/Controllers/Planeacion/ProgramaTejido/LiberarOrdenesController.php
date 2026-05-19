@@ -1329,6 +1329,24 @@ class LiberarOrdenesController extends Controller
                 $updated = true;
             }
 
+            // FORZAR OrdCompartida y OrdCompartidaLider siempre (incluso si son null) para mantener
+            // el seguimiento de órdenes compartidas en CatCodificados sincronizado con ReqProgramaTejido.
+            if (in_array('OrdCompartida', $columns, true)) {
+                $ordCompartidaRaw = $registro->OrdCompartida;
+                $registroCodificado->OrdCompartida = ($ordCompartidaRaw !== null && trim((string) $ordCompartidaRaw) !== '')
+                    ? (int) trim((string) $ordCompartidaRaw)
+                    : null;
+                $updated = true;
+            }
+
+            if (in_array('OrdCompartidaLider', $columns, true)) {
+                $esLider = $registro->OrdCompartidaLider === 1
+                    || $registro->OrdCompartidaLider === true
+                    || $registro->OrdCompartidaLider === '1';
+                $registroCodificado->OrdCompartidaLider = $esLider ? 1 : null;
+                $updated = true;
+            }
+
             // Aplicar campos de auditoría: primero creación si no existen, luego modificación
             // Usar false para aplicar ambos (creación y modificación)
             AuditoriaHelper::aplicarCamposAuditoria($registroCodificado, false);

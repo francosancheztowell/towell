@@ -3,24 +3,23 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
-use App\Models\Planeacion\ReqProgramaTejido;
 use Tests\TestCase;
 
 class OrdCompartidaHelperTest extends TestCase
 {
-    public function test_obtener_nuevo_ord_compartida_disponible_retorna_entero_positivo(): void
+    public function test_obtener_ord_compartida_desde_registro_array_retorna_int(): void
     {
-        $resultado = OrdCompartidaHelper::obtenerNuevoOrdCompartidaDisponible();
+        $resultado = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => '12345']);
 
-        $this->assertIsInt($resultado);
-        $this->assertGreaterThanOrEqual(1, $resultado);
+        $this->assertSame(12345, $resultado);
     }
 
-    public function test_obtener_nuevo_ord_compartida_disponible_retorna_valor_no_en_uso(): void
+    public function test_obtener_ord_compartida_desde_registro_sin_no_produccion_retorna_null(): void
     {
-        $resultado = OrdCompartidaHelper::obtenerNuevoOrdCompartidaDisponible();
-
-        $existe = ReqProgramaTejido::where('OrdCompartida', $resultado)->exists();
-        $this->assertFalse($existe, 'El OrdCompartida retornado no debe existir en BD');
+        $this->assertNull(OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => null]));
+        $this->assertNull(OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => '']));
+        $this->assertNull(OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => '   ']));
+        $this->assertNull(OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => 'abc']));
+        $this->assertNull(OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro(null));
     }
 }

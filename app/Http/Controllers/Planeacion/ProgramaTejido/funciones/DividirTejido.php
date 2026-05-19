@@ -90,8 +90,16 @@ class DividirTejido
                 ], 404);
             }
 
-            // Obtener el siguiente OrdCompartida disponible
-            $nuevoOrdCompartida = OrdCompartidaHelper::obtenerNuevoOrdCompartidaDisponible();
+            // OrdCompartida = NoProduccion del registro original (líder natural del grupo dividido)
+            $nuevoOrdCompartida = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($registroOriginal);
+            if ($nuevoOrdCompartida === null) {
+                DBFacade::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede dividir: el registro origen no tiene NoProduccion (orden de tejido) válido.',
+                ], 422);
+            }
 
             // El primer destino es el registro original (ya viene bloqueado en el modal)
             // Los dem├ís destinos son los telares donde se dividir├í

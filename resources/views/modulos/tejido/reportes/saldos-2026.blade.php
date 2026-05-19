@@ -156,11 +156,13 @@
                                     default => 'saldos-td-telar-neutral',
                                 };
                             @endphp
+                            @php $esFinalizado = $r->_finalizado ?? false; @endphp
                             <tr class="saldos-row {{ $rowClass }}{{ $grupoClass }}{{ $liderClass }}"
                                 style="{{ $esGrupoVinculado ? 'background:#f0fdf4;' : '' }}{{ $esLider && $esGrupoVinculado ? 'border-left:3px solid #16a34a;' : '' }}"
                                 data-search="{{ $searchFull }}"
                                 data-es-grupo="{{ $esGrupoVinculado ? '1' : '0' }}"
                                 data-lider="{{ $esLider ? '1' : '0' }}"
+                                data-finalizado="{{ $esFinalizado ? '1' : '0' }}"
                                 data-no-telar="{{ e(trim((string) ($r->NoTelarId ?? ''))) }}"
                                 data-ord-compartida="{{ e(trim((string) ($r->OrdCompartida ?? ''))) }}">
                                 {{-- 24 columnas principales --}}
@@ -168,6 +170,9 @@
                                     {{ $r->NoTelarId }}
                                     @if ($r->EnProceso)
                                         <span title="En proceso" class="saldos-telar-en-proceso-dot"></span>
+                                    @endif
+                                    @if ($esFinalizado)
+                                        <span title="Finalizado (CatCodificados)" class="saldos-telar-finalizado-dot"></span>
                                     @endif
                                 </td>
                                 <td class="saldos-td font-mono font-medium text-gray-800">{{ $r->NoProduccion }}</td>
@@ -379,6 +384,16 @@
     margin-left: 4px;
     vertical-align: middle;
     box-shadow: 0 0 0 2px #bbf7d0;
+}
+.saldos-telar-finalizado-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #dc2626;
+    margin-left: 4px;
+    vertical-align: middle;
+    box-shadow: 0 0 0 2px #fecaca;
 }
 .saldos-h-orden { background: #fef08a !important; color: #111827 !important; border-color: #eab308 !important; }
 .saldos-h-white { background: #ffffff !important; color: #111827 !important; border-color: #d1d5db !important; }

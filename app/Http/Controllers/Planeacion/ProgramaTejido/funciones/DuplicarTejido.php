@@ -44,6 +44,27 @@ class DuplicarTejido
         DBFacade::beginTransaction();
 
         try {
+            // Obtener registro específico o fallback al último del telar
+            $original = null;
+            if (! empty($registroIdOriginal)) {
+                $original = ReqProgramaTejido::find($registroIdOriginal);
+                if ($original && ($original->SalonTejidoId !== $salonOrigen || $original->NoTelarId !== $telarOrigen)) {
+                    $original = null;
+                }
+            }
+            if (! $original) {
+                $original = self::obtenerUltimoRegistroTelar($salonOrigen, $telarOrigen);
+            }
+
+            if (! $original) {
+                DBFacade::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron registros para duplicar',
+                ], 404);
+            }
+
             // Determinar el OrdCompartida a usar (solo si vincular está activo)
             $ordCompartidaAVincular = null;
             if ($vincular) {
@@ -66,30 +87,17 @@ class DuplicarTejido
                     // Usar OrdCompartida existente
                     $ordCompartidaAVincular = (int) $ordCompartidaExistente;
                 } else {
-                    // Crear un nuevo OrdCompartida verificando que no esté en uso
-                    $ordCompartidaAVincular = OrdCompartidaHelper::obtenerNuevoOrdCompartidaDisponible();
+                    // OrdCompartida = NoProduccion del registro origen (líder natural)
+                    $ordCompartidaAVincular = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($original);
+                    if ($ordCompartidaAVincular === null) {
+                        DBFacade::rollBack();
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'No se puede duplicar con vincular: el registro origen no tiene NoProduccion (orden de tejido) válido.',
+                        ], 422);
+                    }
                 }
-            }
-
-            // Obtener registro específico o fallback al último del telar
-            $original = null;
-            if (! empty($registroIdOriginal)) {
-                $original = ReqProgramaTejido::find($registroIdOriginal);
-                if ($original && ($original->SalonTejidoId !== $salonOrigen || $original->NoTelarId !== $telarOrigen)) {
-                    $original = null;
-                }
-            }
-            if (! $original) {
-                $original = self::obtenerUltimoRegistroTelar($salonOrigen, $telarOrigen);
-            }
-
-            if (! $original) {
-                DBFacade::rollBack();
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se encontraron registros para duplicar',
-                ], 404);
             }
 
             $idsParaObserver = [];

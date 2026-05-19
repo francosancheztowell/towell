@@ -6,56 +6,66 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log as LogFacade;
 
 /**
  * @file OrdCompartidaHelper.php
- * @description Helper para operaciones con OrdCompartida. Proporciona métodos para obtener
- *              nuevos OrdCompartida disponibles verificando que no estén en uso.
+ * @description Helper para operaciones con OrdCompartida. El valor de OrdCompartida se deriva
+ *              del NoProduccion del registro líder del grupo (no es un contador sintético).
  * @dependencies ReqProgramaTejido
  * @relatedFiles DuplicarTejido.php, VincularTejido.php, DividirTejido.php
  */
 class OrdCompartidaHelper
 {
     /**
-     * Obtiene un nuevo OrdCompartida disponible verificando que no esté en uso.
-     * Útil al crear grupos de registros vinculados (duplicar con vincular, vincular existentes).
+     * Deriva el OrdCompartida desde el NoProduccion del registro líder propuesto.
+     * Retorna null si el registro no tiene NoProduccion válido (no puede ser líder).
      *
-     * @return int Siguiente OrdCompartida disponible
+     * @param  ReqProgramaTejido|array|null  $lider
      */
-    public static function obtenerNuevoOrdCompartidaDisponible(): int
+    public static function obtenerOrdCompartidaDesdeRegistro($lider): ?int
     {
-        $maxOrdCompartida = ReqProgramaTejido::max('OrdCompartida') ?? 0;
-        $candidato = $maxOrdCompartida + 1;
-
-        $intentos = 0;
-        $maxIntentos = 1000;
-
-        while ($intentos < $maxIntentos) {
-            $existe = ReqProgramaTejido::where('OrdCompartida', $candidato)->exists();
-
-            if (!$existe) {
-                return $candidato;
-            }
-
-            $candidato++;
-            $intentos++;
+        if ($lider === null) {
+            return null;
         }
 
-        return $candidato;
+        $noProduccion = is_array($lider)
+            ? ($lider['NoProduccion'] ?? null)
+            : ($lider->NoProduccion ?? null);
+
+        if ($noProduccion === null) {
+            return null;
+        }
+
+        $limpio = trim((string) $noProduccion);
+        if ($limpio === '' || !is_numeric($limpio)) {
+            return null;
+        }
+
+        return (int) $limpio;
     }
 
     public static function seleccionarLider(Collection $registros): ?ReqProgramaTejido
     {
-        if ($registros->isEmpty()) {
+        $elegibles = $registros->filter(function ($registro) {
+            $np = $registro->NoProduccion ?? null;
+            if ($np === null) {
+                return false;
+            }
+            $limpio = trim((string) $np);
+            return $limpio !== '' && is_numeric($limpio);
+        });
+
+        if ($elegibles->isEmpty()) {
             return null;
         }
 
-        $todosMismaFechaInicio = $registros
+        $todosMismaFechaInicio = $elegibles
             ->map(fn($registro) => self::normalizarFechaInicioDia($registro))
             ->uniqueStrict()
             ->count() <= 1;
 
-        return $registros->sort(function ($a, $b) use ($todosMismaFechaInicio) {
+        return $elegibles->sort(function ($a, $b) use ($todosMismaFechaInicio) {
             if (!$todosMismaFechaInicio) {
                 return self::compararPorFechaInicio($a, $b);
             }
@@ -92,6 +102,7 @@ class OrdCompartidaHelper
                 'OrdCompartida',
                 'OrdCompartidaLider',
                 'ItemId',
+                'NoProduccion',
                 'TotalPedido',
                 'FechaInicio',
                 'FechaCreacion',
@@ -105,6 +116,10 @@ class OrdCompartidaHelper
 
         $lider = self::seleccionarLider($registros);
         if (!$lider) {
+            LogFacade::warning('recalcularLiderYOrdPrincipalPorOrdCompartida: ningún registro del grupo tiene NoProduccion válido para ser líder', [
+                'OrdCompartida' => $ordCompartida,
+                'ids' => $registros->pluck('Id')->all(),
+            ]);
             return null;
         }
 

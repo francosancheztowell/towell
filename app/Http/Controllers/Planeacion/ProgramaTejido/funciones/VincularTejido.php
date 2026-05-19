@@ -49,45 +49,15 @@ class VincularTejido
             ], 404);
         }
 
-        // Determinar el OrdCompartida a usar
-        $ordCompartidaAVincular = null;
-        $primerOrdCompartidaRaw = $primerRegistro->OrdCompartida;
-        $primerTieneOrdCompartida = ! empty($primerOrdCompartidaRaw) && trim((string) $primerOrdCompartidaRaw) !== '';
-
-        if ($primerTieneOrdCompartida) {
-            // Si el primer registro ya tiene OrdCompartida, usar ese
-            $ordCompartidaAVincular = (int) trim((string) $primerOrdCompartidaRaw);
-
-            // Validar que los demás registros no tengan un OrdCompartida diferente
-            $otrosRegistros = $registros->reject(fn ($r) => $r->Id === $primerId);
-            $conOrdCompartidaDiferente = $otrosRegistros->filter(function ($registro) use ($ordCompartidaAVincular) {
-                $ordRegistro = ! empty($registro->OrdCompartida) ? (int) trim((string) $registro->OrdCompartida) : null;
-
-                return $ordRegistro !== null && $ordRegistro !== $ordCompartidaAVincular;
-            });
-
-            if ($conOrdCompartidaDiferente->count() > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pueden vincular: El primer registro seleccionado tiene OrdCompartida '.$ordCompartidaAVincular.', pero algunos registros tienen un OrdCompartida diferente. Registros con OrdCompartida diferente: '.$conOrdCompartidaDiferente->pluck('Id')->implode(', '),
-                ], 422);
-            }
-        } else {
-            // Si el primer registro NO tiene OrdCompartida, validar que ninguno de los otros tenga
-            $otrosRegistros = $registros->reject(fn ($r) => $r->Id === $primerId);
-            $conOrdCompartida = $otrosRegistros->filter(function ($registro) {
-                return ! empty($registro->OrdCompartida) && trim((string) $registro->OrdCompartida) !== '';
-            });
-
-            if ($conOrdCompartida->count() > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pueden vincular: El primer registro seleccionado (ID: '.$primerId.') no tiene OrdCompartida, pero los siguientes registros sí lo tienen: '.$conOrdCompartida->pluck('Id')->implode(', ').'. Por favor, selecciona primero un registro que ya tenga OrdCompartida si deseas vincular con otros que también lo tengan.',
-                ], 422);
-            }
-
-            // Crear un nuevo OrdCompartida disponible
-            $ordCompartidaAVincular = OrdCompartidaHelper::obtenerNuevoOrdCompartidaDisponible();
+        // OrdCompartida = NoProduccion del primer registro seleccionado (líder propuesto).
+        // El líder DEBE tener NoProduccion; los demás registros pueden o no tenerlo
+        // y conservan su propio NoProduccion (solo se sobrescribe OrdCompartida).
+        $ordCompartidaAVincular = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($primerRegistro);
+        if ($ordCompartidaAVincular === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El primer registro seleccionado (ID: '.$primerId.') debe tener NoProduccion para ser líder del grupo.',
+            ], 422);
         }
 
         DBFacade::beginTransaction();
@@ -541,9 +511,10 @@ class VincularTejido
                     'UpdatedAt' => now(),
                 ]);
 
-            // También actualizar en CatCodificados para todos los registros con este OrdCompartida
+            // También actualizar en CatCodificados para todos los registros con este OrdCompartida.
+            // Incluir OrdCompartidaLider para saber cuál es el líder en cada iteración.
             $registrosCompartidos = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
-                ->get(['Id', 'NoProduccion', 'NoTelarId']);
+                ->get(['Id', 'NoProduccion', 'NoTelarId', 'OrdCompartidaLider']);
 
             foreach ($registrosCompartidos as $registro) {
                 if ($registro && $registro->NoProduccion) {
@@ -553,10 +524,26 @@ class VincularTejido
                     if ($noProduccion !== '') {
                         [$query, $table, $columns] = self::buildCatCodificadosQueryOrdenTelar($noProduccion, $noTelarId, true);
                         $registroCodificado = $query->first();
-                        if ($registroCodificado && in_array('OrdPrincipal', $columns, true)) {
-                            DBFacade::table($table)
-                                ->where('Id', $registroCodificado->Id)
-                                ->update(['OrdPrincipal' => $itemIdLider]);
+                        if ($registroCodificado) {
+                            $updateData = [];
+                            if (in_array('OrdPrincipal', $columns, true)) {
+                                $updateData['OrdPrincipal'] = $itemIdLider;
+                            }
+                            // Sincronizar OrdCompartida y OrdCompartidaLider para no perder el seguimiento.
+                            if (in_array('OrdCompartida', $columns, true)) {
+                                $updateData['OrdCompartida'] = $ordCompartida;
+                            }
+                            if (in_array('OrdCompartidaLider', $columns, true)) {
+                                $esLider = $registro->OrdCompartidaLider === 1
+                                    || $registro->OrdCompartidaLider === true
+                                    || $registro->OrdCompartidaLider === '1';
+                                $updateData['OrdCompartidaLider'] = $esLider ? 1 : null;
+                            }
+                            if (! empty($updateData)) {
+                                DBFacade::table($table)
+                                    ->where('Id', $registroCodificado->Id)
+                                    ->update($updateData);
+                            }
                         }
                     }
                 }

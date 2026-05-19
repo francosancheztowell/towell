@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Tejido\Reportes;
 
 use App\Exports\Saldos2026Export;
 use App\Http\Controllers\Controller;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class SaldosController extends Controller
@@ -12,6 +14,7 @@ class SaldosController extends Controller
     public function index()
     {
         $registros = $this->query()->get();
+        $registros = $registros->merge($this->fetchFinalizadosEnGrupos($registros));
         $registros = $this->preprocesarGrupos($registros);
 
         return view('modulos.tejido.reportes.saldos-2026', compact('registros'));
@@ -20,9 +23,126 @@ class SaldosController extends Controller
     public function exportarExcel()
     {
         $registros = $this->query()->get();
+        $registros = $registros->merge($this->fetchFinalizadosEnGrupos($registros));
         $registros = $this->preprocesarGrupos($registros);
 
         return (new Saldos2026Export($registros))->downloadResponse('saldos-2026.xlsx');
+    }
+
+    /**
+     * Busca en CatCodificados los registros que ya finalizaron pero pertenecen a un
+     * OrdCompartida que aún tiene miembros activos en ReqProgramaTejido.
+     * Los retorna como objetos planos con los campos esperados por la vista,
+     * marcados con _finalizado = true para mostrar el punto rojo.
+     */
+    private function fetchFinalizadosEnGrupos(Collection $registros): Collection
+    {
+        $ordCompartidas = $registros
+            ->pluck('OrdCompartida')
+            ->filter(fn ($v) => $v !== null && trim((string) $v) !== '')
+            ->map(fn ($v) => (int) $v)
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (empty($ordCompartidas)) {
+            return collect();
+        }
+
+        // OrdenTejido que ya están en los activos — excluirlos para no duplicar
+        $noProduccionesActivas = $registros
+            ->pluck('NoProduccion')
+            ->filter(fn ($v) => $v !== null && trim((string) $v) !== '')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $finalizados = CatCodificados::whereIn('OrdCompartida', $ordCompartidas)
+            ->whereNotNull('OrdenTejido')
+            ->where('OrdenTejido', '!=', '')
+            ->when(! empty($noProduccionesActivas), fn ($q) => $q->whereNotIn('OrdenTejido', $noProduccionesActivas))
+            ->get([
+                'Id', 'OrdenTejido', 'TelarId', 'Nombre',
+                'Pedido', 'Produccion', 'Saldos',
+                'OrdCompartida', 'OrdCompartidaLider',
+                'FechaTejido', 'Departamento',
+                'TotalRollos', 'PzasRollo',
+                'ItemId', 'Prioridad',
+            ]);
+
+        return $finalizados->map(function ($cat) {
+            $obj = new \stdClass;
+
+            // Campos mapeados desde CatCodificados
+            $obj->Id                = 'cat_'.$cat->Id;
+            $obj->NoProduccion      = $cat->OrdenTejido;
+            $obj->NoTelarId         = $cat->TelarId;
+            $obj->SalonTejidoId     = $cat->Departamento;
+            $obj->NombreProducto    = $cat->Nombre;
+            $obj->TotalPedido       = $cat->Pedido;
+            $obj->Produccion        = $cat->Produccion;
+            $obj->SaldoPedido       = $cat->Saldos;
+            $obj->OrdCompartida     = $cat->OrdCompartida;
+            $obj->OrdCompartidaLider = $cat->OrdCompartidaLider;
+            $obj->FechaInicio       = $cat->FechaTejido;
+            $obj->TotalRollos       = $cat->TotalRollos;
+            $obj->PzasRollo         = $cat->PzasRollo;
+            $obj->ItemId            = $cat->ItemId;
+            $obj->Prioridad         = $cat->Prioridad;
+
+            // Campos sin equivalente en CatCodificados
+            $obj->Posicion          = null;
+            $obj->EnProceso         = null;
+            $obj->NoExisteBase      = null;
+            $obj->FechaCreacion     = null;
+            $obj->EntregaCte        = null;
+            $obj->Programado        = null;
+            $obj->FlogsId           = null;
+            $obj->EntregaProduc     = null;
+            $obj->TamanoClave       = null;
+            $obj->Peine             = null;
+            $obj->Ancho             = null;
+            $obj->LargoCrudo        = null;
+            $obj->PesoCrudo         = null;
+            $obj->Luchaje           = null;
+            $obj->CalibreTrama2     = null;
+            $obj->FibraTrama        = null;
+            $obj->MedidaPlano       = null;
+            $obj->VelocidadSTD      = null;
+            $obj->CuentaRizo        = null;
+            $obj->CalibreRizo2      = null;
+            $obj->FibraRizo         = null;
+            $obj->CuentaPie         = null;
+            $obj->CalibrePie2       = null;
+            $obj->FibraPie          = null;
+            $obj->Rasurado          = null;
+            $obj->NoTiras           = null;
+            $obj->Repeticiones      = null;
+            $obj->Observaciones     = null;
+            $obj->OrdenLider        = null;
+            // Campos de ReqModelosCodificados (no disponibles)
+            $obj->Tolerancia        = null;
+            $obj->CodigoDibujo      = null;
+            $obj->FlogsIdRmc        = null;
+            $obj->Clave             = null;
+            $obj->ObsModelo         = null;
+            $obj->TipoRizo          = null;
+            $obj->AlturaRizo        = null;
+            $obj->C1                = null;
+            $obj->ObsC1             = null;
+            $obj->C2                = null;
+            $obj->ObsC2             = null;
+            $obj->C3                = null;
+            $obj->ObsC3             = null;
+            $obj->C4                = null;
+            $obj->ObsC4             = null;
+            $obj->MedidaCenefa      = null;
+            $obj->MedIniRizoCenefa  = null;
+
+            $obj->_finalizado = true;
+
+            return $obj;
+        });
     }
 
     private function preprocesarGrupos($registros)
