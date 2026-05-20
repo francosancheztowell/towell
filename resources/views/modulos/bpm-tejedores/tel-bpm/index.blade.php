@@ -269,14 +269,14 @@
 
         {{-- Mis Folios --}}
         <button type="button" id="btn-filter-my-folios"
-                class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-blue-100 border-blue-400 text-blue-800">
+                class="filter-btn p-4 rounded-lg border-2 transition-all text-center {{ ($esSupervisor ?? false) ? 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100' : 'bg-blue-100 border-blue-400 text-blue-800' }}">
             <i class="fa-solid fa-user text-2xl mb-2 block"></i>
             <div class="font-semibold text-sm">Mis Folios</div>
         </button>
 
         {{-- Mostrar Todos --}}
         <button type="button" id="btn-filter-all"
-                class="filter-btn p-4 rounded-lg border-2 transition-all text-center {{ request('show_all') ? 'bg-green-100 border-green-400 text-green-800' : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100' }}">
+                class="filter-btn p-4 rounded-lg border-2 transition-all text-center {{ ($esSupervisor ?? false) ? 'bg-green-100 border-green-400 text-green-800' : (request('show_all') ? 'bg-green-100 border-green-400 text-green-800' : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100') }}">
             <i class="fa-solid fa-list text-2xl mb-2 block"></i>
             <div class="font-semibold text-sm">Todos</div>
         </button>
@@ -359,16 +359,18 @@
     const btnFilterMyFolios = qs('#btn-filter-my-folios');
     const btnFilterAll = qs('#btn-filter-all');
 
+    // Obtener nombre del usuario actual y verificar si es supervisor
+    const userName = @json(auth()->user()->nombre ?? '');
+    const esSupervisor = @json($esSupervisor ?? false);
+
     // Estado de filtros - Por defecto mostrar solo mis folios y ocultar Autorizados
+    // Para supervisores: mostrar Todos (incluye Terminado) en lugar de Mis Folios
     let filterState = {
         showAuthorized: false,  // Por defecto ocultar Autorizados
-        myFolios: true,  // Por defecto activo
-        showAll: false,
+        myFolios: esSupervisor ? false : true,  // Supervisores ven todos, no solo los suyos
+        showAll: esSupervisor ? true : false,   // Supervisores ven todos los folios
         turno: ''
     };
-
-    // Obtener nombre del usuario actual
-    const userName = @json(auth()->user()->nombre ?? '');
 
     // Obtener tbody una vez al inicio
     const tbody = qs('#tb-body');
