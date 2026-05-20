@@ -20,6 +20,7 @@ class UrdActividadesBpmModel extends Model
     protected $fillable = [
         'Orden',
         'Actividad',
+        'Maquina',
     ];
 
     protected $casts = [

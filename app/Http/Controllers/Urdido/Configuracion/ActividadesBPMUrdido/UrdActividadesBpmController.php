@@ -19,10 +19,10 @@ class UrdActividadesBpmController extends Controller
                 $qry->where('Actividad', 'like', "%{$q}%")
                     ->orWhere('Orden', 'like', "%{$q}%")
             )
-            ->orderBy('Orden')     // primero por Orden...
-            ->orderBy('Id')        // ...y luego por Id
-            ->paginate($perPage)
-            ->withQueryString();
+            ->orderByRaw("CASE WHEN Maquina = 'MC' THEN 0 ELSE 1 END")
+            ->orderBy('Orden')
+            ->orderBy('Id')
+            ->get();
 
         return view('modulos.urdido.urd-actividades-bpm.index', compact('items', 'q'));
     }
@@ -35,6 +35,7 @@ class UrdActividadesBpmController extends Controller
         $data = $request->validate([
             'Orden'     => ['nullable', 'integer', 'min:1'],
             'Actividad' => ['required', 'string', 'max:100'],
+            'Maquina'   => ['required', 'in:MC,KM'],
         ]);
 
         UrdActividadesBpmModel::create($data);
@@ -50,6 +51,7 @@ class UrdActividadesBpmController extends Controller
         $data = $request->validate([
             'Orden'     => ['nullable', 'integer', 'min:1'],
             'Actividad' => ['required', 'string', 'max:100'],
+            'Maquina'   => ['required', 'in:MC,KM'],
         ]);
 
         $urdActividadesBpm->update($data);
