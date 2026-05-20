@@ -18,7 +18,11 @@ class UrdBpmController extends Controller
         try {
             $items = UrdBpmModel::orderBy('Id', 'desc')->get();
             $usuarios = SYSUsuario::where('area', 'Urdido')->whereNotNull('numero_empleado')->orderBy('nombre','asc')->get();
-            $maquinas = URDCatalogoMaquina::where('Departamento', 'Urdido')
+            $maquinas = URDCatalogoMaquina::where(function ($q) {
+                    $q->where('Departamento', 'Urdido')
+                      ->orWhereIn('MaquinaId', ['401', '402']);
+                })
+                ->where('Nombre', 'not like', '%Karl Mayer%')
                 ->orderBy('Nombre', 'asc')
                 ->get();
             $folioSugerido = FolioHelper::obtenerFolioSugerido('Urdido BPM', 3);

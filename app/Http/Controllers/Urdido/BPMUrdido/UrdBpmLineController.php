@@ -16,7 +16,14 @@ class UrdBpmLineController extends Controller
     public function index(string $folio)
     {
         $header = UrdBpmModel::where('Folio', $folio)->firstOrFail();
-        $actividades = UrdActividadesBpmModel::orderBy('Orden')->get();
+
+        // Obtener MaquinaId de sesión o de líneas existentes para determinar qué actividades cargar
+        $maquinaIdPreview = UrdBpmLineModel::where('Folio', $folio)->value('MaquinaId') ?? session('bpm_maquina_id');
+        $actividades = UrdActividadesBpmModel::when(
+            $maquinaIdPreview === 'KM1',
+            fn($q) => $q->whereBetween('Id', [11, 20]),
+            fn($q) => $q->whereBetween('Id', [1, 10])
+        )->orderBy('Orden')->get();
 
         // Verificar si ya existen registros para este folio
         $existingLines = UrdBpmLineModel::where('Folio', $folio)->count();
