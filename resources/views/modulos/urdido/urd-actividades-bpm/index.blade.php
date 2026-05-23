@@ -65,6 +65,7 @@ Actividades BPM Urdido
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold w-24">Orden</th>
                         <th class="px-4 py-3 text-left font-semibold">Actividad</th>
+                        <th class="px-4 py-3 text-left font-semibold w-40">Máquina</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -73,6 +74,7 @@ Actividades BPM Urdido
                             data-key="{{ $item->Id }}"
                             data-orden="{{ $item->Orden ?? '' }}"
                             data-actividad="{{ e($item->Actividad) }}"
+                            data-maquina="{{ $item->Maquina ?? '' }}"
                             onclick="selectRow(this)"
                             aria-selected="false">
                             <td class="px-4 py-3 align-middle font-medium text-gray-700">
@@ -81,10 +83,17 @@ Actividades BPM Urdido
                             <td class="px-4 py-3 align-middle text-gray-800">
                                 {{ $item->Actividad }}
                             </td>
+                            <td class="px-4 py-3 align-middle">
+                                @if($item->Maquina === 'MC')
+                                    <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">Mc Coy</span>
+                                @elseif($item->Maquina === 'KM')
+                                    <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">Karl Mayer 1</span>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="2" class="px-4 py-8 text-center text-gray-500">
+                            <td colspan="3" class="px-4 py-8 text-center text-gray-500">
                                 <i class="fa-solid fa-inbox text-4xl mb-2 text-gray-300"></i>
                                 <p class="text-lg">No se encontraron actividades</p>
                                 @if($q)
@@ -97,12 +106,6 @@ Actividades BPM Urdido
             </table>
         </div>
 
-        <!-- Paginación -->
-        @if($items->hasPages())
-            <div class="px-4 py-3 border-t border-gray-200 bg-gray-50">
-                {{ $items->links() }}
-            </div>
-        @endif
     </div>
 
     <!-- Formulario oculto para eliminación -->
@@ -147,6 +150,18 @@ Actividades BPM Urdido
                             required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             placeholder="Nombre de la actividad">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Máquina <span class="text-red-500">*</span>
+                        </label>
+                        <select name="Maquina" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition">
+                            <option value="">Seleccione...</option>
+                            <option value="MC">Mc Coy</option>
+                            <option value="KM">Karl Mayer 1</option>
+                        </select>
                     </div>
                 </div>
 
@@ -206,6 +221,18 @@ Actividades BPM Urdido
                             required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition"
                             placeholder="Nombre de la actividad">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Máquina <span class="text-red-500">*</span>
+                        </label>
+                        <select id="editMaquina" name="Maquina" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                            <option value="">Seleccione...</option>
+                            <option value="MC">Mc Coy</option>
+                            <option value="KM">Karl Mayer 1</option>
+                        </select>
                     </div>
                 </div>
 
@@ -315,7 +342,8 @@ Actividades BPM Urdido
         if (!selectedRow || !selectedKey) return;
         const orden = selectedRow.dataset.orden || '';
         const actividad = selectedRow.dataset.actividad || '';
-        openEditModal(selectedKey, orden, actividad);
+        const maquina = selectedRow.dataset.maquina || '';
+        openEditModal(selectedKey, orden, actividad, maquina);
     }
 
     // Eliminar desde botón superior
@@ -337,16 +365,17 @@ Actividades BPM Urdido
     }
 
     // Abrir modal de edición
-    function openEditModal(key, orden, actividad) {
+    function openEditModal(key, orden, actividad, maquina) {
         document.getElementById('editOrden').value = orden || '';
         document.getElementById('editActividad').value = actividad || '';
+        document.getElementById('editMaquina').value = maquina || '';
         document.getElementById('editForm').action = updateUrl.replace('PLACEHOLDER', encodeURIComponent(key));
         openUrdModal('editModal');
     }
 
     // Abrir modal de edición directamente (desde botón de fila)
-    function openEditModalDirect(key, orden, actividad) {
-        openEditModal(key, orden || '', actividad);
+    function openEditModalDirect(key, orden, actividad, maquina) {
+        openEditModal(key, orden || '', actividad, maquina || '');
     }
 
     // Eliminar actividad

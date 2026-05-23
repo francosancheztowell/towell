@@ -69,6 +69,14 @@ class TelBpmController extends Controller
 
         // Obtener datos del operador y operadores de entrega
         [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega] = $this->obtenerDatosOperador($user);
+
+        // Detectar si el usuario es supervisor (por campo Supervisor=1 o por área/puesto 'Supervisor')
+        $esSupervisor = $this->esSupervisor($user);
+        $this->logTurnoDebug('index.es_supervisor', [
+            'user_area'    => $user->area ?? null,
+            'user_puesto'  => $user->puesto ?? null,
+            'es_supervisor' => $esSupervisor,
+        ]);
         $this->logTurnoDebug('index.modal_recibe', [
             'user_idusuario' => $user->idusuario ?? null,
             'user_numero_empleado' => $user->numero_empleado ?? null,
@@ -86,6 +94,7 @@ class TelBpmController extends Controller
             'operadorUsuario' => $operadorUsuario,
             'usuarioEsOperador' => $usuarioEsOperador,
             'operadoresEntrega' => $operadoresEntrega,
+            'esSupervisor' => $esSupervisor,
         ]);
     }
 
@@ -551,5 +560,46 @@ class TelBpmController extends Controller
             Log::warning('[TEL-BPM TURNO] ' . $evento, $context);
         } catch (\Throwable $e) {
         }
+    }
+
+    /** Detecta si el usuario es supervisor por campo Supervisor=1 o área 'Supervisor' */
+    private function esSupervisor($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        try {
+            $userCode = (string) ($user->cve ?? '');
+            $userCodeAlt = (string) ($user->numero_empleado ?? '');
+            $userArea  = trim((string) ($user->area   ?? ''));
+            $userPuesto = trim((string) ($user->puesto ?? ''));
+
+            // Por área o puesto
+            if (strcasecmp($userArea, 'Supervisor') === 0 || strcasecmp($userPuesto, 'Supervisor') === 0) {
+                return true;
+            }
+
+            // Por campo Supervisor en TelTelaresOperador
+            $codes = collect([$userCode, $userCodeAlt])->filter(fn($v) => $v !== '')->unique()->values()->all();
+            if (!empty($codes)) {
+                $esSupervisorPorCampo = TelTelaresOperador::query()
+                    ->where(function ($q) use ($codes) {
+                        foreach ($codes as $code) {
+                            $q->orWhere('numero_empleado', $code)
+                                ->orWhere('numero_empleado', 'like', trim($code));
+                        }
+                    })
+                    ->where('Supervisor', 1)
+                    ->exists();
+
+                if ($esSupervisorPorCampo) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return false;
     }
 }
