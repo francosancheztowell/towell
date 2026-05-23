@@ -88,15 +88,9 @@ class DuplicarTejido
                     $ordCompartidaAVincular = (int) $ordCompartidaExistente;
                 } else {
                     // OrdCompartida = NoProduccion del registro origen (líder natural)
+                    // Si origen no tiene NoProduccion, queda null y los duplicados se crearán sin
+                    // OrdCompartida; el recálculo de líder se omite más abajo.
                     $ordCompartidaAVincular = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($original);
-                    if ($ordCompartidaAVincular === null) {
-                        DBFacade::rollBack();
-
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'No se puede duplicar con vincular: el registro origen no tiene NoProduccion (orden de tejido) válido.',
-                        ], 422);
-                    }
                 }
             }
 
