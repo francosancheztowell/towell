@@ -73,8 +73,12 @@ class ReqProgramaTejidoObserver
     /**
      * Sincroniza campos editados de ReqProgramaTejido hacia CatCodificados (cuando existe la fila).
      * Se busca por OrdenTejido = NoProduccion. Solo escribe los campos que efectivamente cambiaron.
+     *
+     * Público porque algunos flujos (UpdateTejido, importaciones, etc.) usan saveQuietly() que NO
+     * dispara observers — esos pueden llamar este método explícitamente tras el save para mantener
+     * CatCodificados sincronizado.
      */
-    private function sincronizarCatCodificados(ReqProgramaTejido $programa): void
+    public function sincronizarCatCodificados(ReqProgramaTejido $programa): void
     {
         try {
             $noProduccion = trim((string) ($programa->NoProduccion ?? ''));

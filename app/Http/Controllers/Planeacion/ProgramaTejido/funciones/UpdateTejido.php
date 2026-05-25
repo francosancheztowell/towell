@@ -605,6 +605,15 @@ class UpdateTejido
 
         $registro->saveQuietly();
 
+        // Sincronizar campos editables hacia CatCodificados (TamanoClave→ClaveModelo, ItemId, TotalPedido→Pedido,
+        // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
+        // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
+        try {
+            (new \App\Observers\ReqProgramaTejidoObserver())->sincronizarCatCodificados($registro);
+        } catch (\Throwable $e) {
+            LogFacade::warning('UpdateTejido: sincronizarCatCodificados error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
+        }
+
         // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====
         if ($fechaFinalCambiada && (int) ($registro->Ultimo ?? 0) !== 1) {
             try {
