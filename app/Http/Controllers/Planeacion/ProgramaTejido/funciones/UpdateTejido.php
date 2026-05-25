@@ -609,9 +609,25 @@ class UpdateTejido
         // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
         // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
         try {
-            (new \App\Observers\ReqProgramaTejidoObserver())->sincronizarCatCodificados($registro);
+            $observer = new \App\Observers\ReqProgramaTejidoObserver();
+            $observer->sincronizarCatCodificados($registro);
+
+            // Si cambió un input que afecta la cadena de fórmulas (TamanoClave, InventSizeId, PesoCrudo,
+            // NoTiras, LargoCrudo, SaldoPedido), recalcular Repeticiones/PzasRollo/MtsRollo/TotalRollos/
+            // TotalPzas/SaldoMarbete tanto en ReqProgramaTejido como en CatCodificados.
+            $inputsFormula = ['TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido'];
+            $cambioInputFormula = false;
+            foreach ($inputsFormula as $campo) {
+                if ($registro->wasChanged($campo)) {
+                    $cambioInputFormula = true;
+                    break;
+                }
+            }
+            if ($cambioInputFormula) {
+                $observer->recalcularFormulasProduccion($registro);
+            }
         } catch (\Throwable $e) {
-            LogFacade::warning('UpdateTejido: sincronizarCatCodificados error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
+            LogFacade::warning('UpdateTejido: sincronizarCatCodificados/recalc error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
         }
 
         // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====

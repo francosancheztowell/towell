@@ -61,6 +61,21 @@ class ReqProgramaTejidoObserver
         'PesoCrudo'      => 'P_crudo',
     ];
 
+    /**
+     * Campos input cuyo cambio dispara recálculo de las fórmulas de producción
+     * (Repeticiones, PzasRollo, MtsRollo, TotalRollos, TotalPzas, SaldoMarbete, NoMarbete).
+     *
+     * Cadena:
+     *   PesoRollo (maestro o 90 para felpa) ─→ Repeticiones = TRUNC((PesoRollo/PesoCrudo)/NoTiras × 1000)
+     *                                                       ├─→ PzasRollo = Rep × NoTiras  (÷2 si FEL)
+     *                                                       ├─→ MtsRollo  = (LargoCrudo × Rep)/100  (÷2 si FEL)
+     *                                                       └─→ TotalRollos = CEIL(SaldoPedido / PzasRollo)
+     *                                                              └─→ TotalPzas = TotalRollos × PzasRollo
+     */
+    private const CAMPOS_RECALC_FORMULA = [
+        'TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido',
+    ];
+
     public function saved(ReqProgramaTejido $programa): void
     {
         if ($this->shouldRegenerateLines($programa)) {
@@ -68,6 +83,189 @@ class ReqProgramaTejidoObserver
         }
 
         $this->sincronizarCatCodificados($programa);
+
+        // Si cambió algún input que afecta las fórmulas (TamanoClave, InventSizeId, PesoCrudo,
+        // NoTiras, LargoCrudo, SaldoPedido), recalcular toda la cadena Repeticiones → PzasRollo →
+        // MtsRollo → TotalRollos → TotalPzas → SaldoMarbete y propagar a CatCodificados.
+        if ($this->debeRecalcularFormulas($programa)) {
+            $this->recalcularFormulasProduccion($programa);
+        }
+    }
+
+    /**
+     * Determina si el save modificó algún input que dispara recálculo de fórmulas.
+     */
+    private function debeRecalcularFormulas(ReqProgramaTejido $programa): bool
+    {
+        foreach (self::CAMPOS_RECALC_FORMULA as $campo) {
+            if ($programa->wasChanged($campo) || $programa->isDirty($campo)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Recalcula la cadena completa de fórmulas y la persiste tanto en ReqProgramaTejido como en
+     * CatCodificados (si la fila existe). Maneja el ajuste FEL (÷2 en PzasRollo y MtsRollo,
+     * ×2 en SaldoMarbete si aplica).
+     *
+     * Público para poder llamarse desde flujos con saveQuietly() (UpdateTejido, etc.) o desde
+     * scripts de mantenimiento masivo.
+     */
+    public function recalcularFormulasProduccion(ReqProgramaTejido $programa): void
+    {
+        try {
+            $pCrudo = (float) ($programa->PesoCrudo ?? 0);
+            $tiras  = (float) ($programa->NoTiras ?? 0);
+            $largo  = (float) ($programa->LargoCrudo ?? 0);
+            $saldoPedido = (float) ($programa->SaldoPedido ?? $programa->TotalPedido ?? 0);
+
+            if ($pCrudo <= 0 || $tiras <= 0) {
+                Log::info('ReqProgramaTejidoObserver: skip recalc (PesoCrudo o NoTiras invalido)', [
+                    'id' => $programa->Id,
+                    'PesoCrudo' => $pCrudo,
+                    'NoTiras' => $tiras,
+                ]);
+                return;
+            }
+
+            $esFelpa = $this->esFelpaInventSize($programa);
+            $pesoRollo = $this->obtenerPesoRolloMaestro($programa, $esFelpa);
+
+            // === CADENA DE FÓRMULAS ===
+            $repeticiones = (int) ((($pesoRollo / $pCrudo) / $tiras) * 1000); // TRUNC
+            if ($repeticiones <= 0) {
+                Log::info('ReqProgramaTejidoObserver: skip recalc (Repeticiones <= 0)', [
+                    'id' => $programa->Id,
+                    'pesoRollo' => $pesoRollo,
+                    'pCrudo' => $pCrudo,
+                    'tiras' => $tiras,
+                ]);
+                return;
+            }
+
+            $pzasRollo = (float) round($repeticiones * $tiras, 0);
+            $mtsRollo  = $largo > 0 ? (float) (($largo * $repeticiones) / 100) : null;
+
+            // Ajuste FEL: ÷2 en PzasRollo y MtsRollo (igual que LiberarOrdenesController)
+            if ($esFelpa) {
+                $pzasRollo = (float) round($pzasRollo / 2);
+                if ($mtsRollo !== null) {
+                    $mtsRollo = (float) ($mtsRollo / 2);
+                }
+            }
+
+            $totalRollos = ($saldoPedido > 0 && $pzasRollo > 0)
+                ? (float) ceil($saldoPedido / $pzasRollo)
+                : null;
+            $totalPzas = ($totalRollos !== null && $pzasRollo > 0)
+                ? (float) round($totalRollos * $pzasRollo, 0)
+                : null;
+
+            // SaldoMarbete / NoMarbete = TotalRollos (consistente con lo que hace LiberarOrdenes
+            // al guardar; si necesitas la fórmula clásica SaldoPedido/NoTiras/Rep cambia aquí).
+            $saldoMarbete = $totalRollos;
+
+            // === UPDATE directo (evita recursión del observer) ===
+            $tabla = $programa->getTable();
+            $connection = $programa->getConnection();
+            $afectadasRpt = $connection->table($tabla)
+                ->where('Id', $programa->Id)
+                ->update([
+                    'Repeticiones'      => $repeticiones,
+                    'PzasRollo'         => $pzasRollo,
+                    'MtsRollo'          => $mtsRollo,
+                    'TotalRollos'       => $totalRollos,
+                    'TotalPzas'         => $totalPzas,
+                    'SaldoMarbete'      => $saldoMarbete,
+                    'NoMarbete'         => $saldoMarbete,
+                    'RollosProgramados' => $totalRollos,
+                    'UpdatedAt'         => \Carbon\Carbon::now(),
+                ]);
+
+            // Sincronizar las mismas fórmulas a CatCodificados (si existe la fila)
+            $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
+            $afectadasCat = 0;
+            if ($noProduccion !== '') {
+                $tablaCat = (new \App\Models\Planeacion\Catalogos\CatCodificados())->getTable();
+                $afectadasCat = $connection->table($tablaCat)
+                    ->where('OrdenTejido', $noProduccion)
+                    ->update([
+                        'Repeticiones'      => $repeticiones,
+                        'PzasRollo'         => $pzasRollo,
+                        'MtsRollo'          => $mtsRollo,
+                        'TotalRollos'       => $totalRollos,
+                        'TotalPzas'         => $totalPzas,
+                        'NoMarbete'         => $saldoMarbete,
+                        'FechaModificacion' => \Carbon\Carbon::now()->format('Y-m-d'),
+                        'HoraModificacion'  => \Carbon\Carbon::now()->format('H:i:s'),
+                    ]);
+            }
+
+            Log::info('ReqProgramaTejidoObserver: fórmulas recalculadas', [
+                'id' => $programa->Id,
+                'NoProduccion' => $noProduccion ?: null,
+                'esFelpa' => $esFelpa,
+                'pesoRollo_usado' => $pesoRollo,
+                'inputs' => compact('pCrudo', 'tiras', 'largo', 'saldoPedido'),
+                'resultados' => compact('repeticiones', 'pzasRollo', 'mtsRollo', 'totalRollos', 'totalPzas', 'saldoMarbete'),
+                'filas_RPT_afectadas' => $afectadasRpt,
+                'filas_CAT_afectadas' => $afectadasCat,
+            ]);
+        } catch (Throwable $e) {
+            Log::warning('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', [
+                'id' => $programa->Id ?? null,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Determina si el registro corresponde a felpa por su InventSizeId (contiene "FEL").
+     */
+    private function esFelpaInventSize(ReqProgramaTejido $programa): bool
+    {
+        $inv = strtoupper(trim((string) ($programa->InventSizeId ?? '')));
+        return $inv !== '' && strpos($inv, 'FEL') !== false;
+    }
+
+    /**
+     * Obtiene el PesoRollo a usar en la fórmula:
+     *   - Felpa: 90 kg fijo (estándar)
+     *   - Resto: buscar por InventSizeId en ReqPesosRollosTejido; fallback "DEF"; último fallback 41.5
+     */
+    private function obtenerPesoRolloMaestro(ReqProgramaTejido $programa, bool $esFelpa): float
+    {
+        if ($esFelpa) {
+            return 90.0;
+        }
+
+        $inventSizeId = trim((string) ($programa->InventSizeId ?? ''));
+        $connection = $programa->getConnection();
+
+        $buscarPorInventSize = function (string $key) use ($connection): ?float {
+            try {
+                $valor = $connection->table('ReqPesosRollosTejido')
+                    ->where('InventSizeId', trim($key))
+                    ->whereNotNull('PesoRollo')
+                    ->orderByDesc('FechaModificacion')
+                    ->value('PesoRollo');
+                return ($valor !== null && is_numeric($valor)) ? (float) $valor : null;
+            } catch (Throwable) {
+                return null;
+            }
+        };
+
+        if (! empty($inventSizeId)) {
+            $pr = $buscarPorInventSize($inventSizeId);
+            if ($pr !== null) {
+                return $pr;
+            }
+        }
+
+        $pr = $buscarPorInventSize('DEF');
+        return $pr ?? 41.5;
     }
 
     /**
