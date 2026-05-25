@@ -639,7 +639,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Los demás campos no tienen cálculos automáticos ni guardado automático
     });
 
-    // Felpa: peso rodillo forzado a 90 kg y recálculo derivado al cargar
+    // Felpa: peso rodillo forzado a 90 kg como sugerencia y recálculo derivado al cargar.
+    // Para el resto, NO recalcular al cargar (preservar lo que el usuario haya guardado previamente,
+    // ya que el PesoRollo del usuario no se persiste — sería sobreescribir con el maestro).
     document.querySelectorAll('tr.row-data[data-es-felpa="1"] .peso-rollo-input').forEach(inp => recalcularPorPesoRollo(inp));
 
     // Rellenar automáticamente el campo Hilo AX al cargar
@@ -2186,11 +2188,13 @@ function recalcularPorPesoRollo(pesoInput) {
     if (!row) return;
 
     const esFelpa = row.dataset.esFelpa === '1';
-    if (esFelpa) {
+    // Felpa: sugerir 90 kg SOLO si el input viene vacío (carga inicial sin valor capturado).
+    // Si el usuario tipea otro valor, se respeta para CUALQUIER tamaño.
+    if (esFelpa && (pesoInput.value === '' || pesoInput.value === null || parseNumeroGrid(pesoInput.value) <= 0)) {
         pesoInput.value = '90';
     }
 
-    const pesoRollo = esFelpa ? 90 : parseNumeroGrid(pesoInput.value);
+    const pesoRollo = parseNumeroGrid(pesoInput.value);
     const pesoCrudo = parseNumeroGrid(row.dataset.pesoCrudo);
     const noTiras = parseNumeroGrid(row.dataset.noTiras);
     const largoCrudo = parseNumeroGrid(row.dataset.largoCrudo);

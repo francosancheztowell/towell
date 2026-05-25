@@ -51,12 +51,16 @@ class OrdenDeCambioFelpaController extends Controller
                 /** @var ReqProgramaTejido $registro */
                 $datosRegistro = $this->mapearDatosBDaRegistro($registro, $horaActual);
 
-                // Calcular repeticiones y no_marbetes usando las mismas fórmulas que Excel
-                // AX = TRUNCAR((41.5/S)/AW*1000) donde S es p_crudo y AW es tiras
+                // Repeticiones: priorizar el valor que el usuario dejó al liberar (ya está en $registro->Repeticiones
+                // tras el save de LiberarOrdenesController). Solo caer a la fórmula Excel hardcoded (41.5 kg) si
+                // el registro no tiene un valor válido. Esto permite que el usuario edite PesoRollo en liberar y
+                // el Repeticiones derivado se respete en CatCodificados (vía Excel/orden de cambio).
                 $pCrudo = $datosRegistro['p_crudo'] ?? $registro->PesoCrudo ?? null;
                 $tiras = $datosRegistro['tiras'] ?? $registro->NoTiras ?? null;
                 $repeticionesCalculada = '';
-                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                if (isset($registro->Repeticiones) && is_numeric($registro->Repeticiones) && (float) $registro->Repeticiones > 0) {
+                    $repeticionesCalculada = (string) (int) (float) $registro->Repeticiones;
+                } elseif ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
                     $repeticionesCalculada = (string) floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
                 }
 

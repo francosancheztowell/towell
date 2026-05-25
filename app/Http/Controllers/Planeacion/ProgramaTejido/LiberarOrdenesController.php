@@ -308,6 +308,9 @@ class LiberarOrdenesController extends Controller
             'registros.*.bomName' => 'required|string|max:100',
             'registros.*.hiloAX' => 'nullable|string|max:30',
             'registros.*.pesoRollo' => 'nullable|numeric|min:0',
+            'registros.*.repeticiones' => 'nullable|numeric|min:0',
+            'registros.*.noTiras' => 'nullable|numeric|min:0',
+            'registros.*.saldoMarbete' => 'nullable|numeric|min:0',
             'registros.*.mtsRollo' => 'nullable|numeric',
             'registros.*.pzasRollo' => 'nullable|numeric',
             'registros.*.totalRollos' => 'nullable|numeric',
@@ -406,15 +409,26 @@ class LiberarOrdenesController extends Controller
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
 
-                // Repeticiones y no. marbetes: solo fórmula Excel; no se toman de ReqProgramaTejido ni del request.
+                // PesoRollo: se respeta lo que el usuario haya capturado en la grilla para CUALQUIER tamaño (incluida felpa).
+                // Si no viene en el request, se usa el valor maestro de ReqPesosRollosTejido (90 para felpa, lookup por
+                // InventSizeId/DEF para el resto) o 41.5 como último fallback.
+                $pesoRolloFinal = null;
+                if (isset($item['pesoRollo']) && $item['pesoRollo'] !== null && $item['pesoRollo'] !== '' && is_numeric($item['pesoRollo']) && (float) $item['pesoRollo'] > 0) {
+                    $pesoRolloFinal = (float) $item['pesoRollo'];
+                } else {
+                    $pesoRolloFinal = $this->obtenerPesoRollo($registro) ?? 41.5;
+                }
+
+                // Repeticiones: prioriza el valor enviado desde la grilla (resultado final que ve el usuario tras editar
+                // PesoRollo y disparar el recálculo en cascada client-side). Si no viene, cae a la fórmula Excel usando
+                // el PesoRollo final ya resuelto arriba.
+                // Esto permite que el usuario "modifique" indirectamente Repeticiones cambiando PesoRollo y que el valor
+                // final mostrado en pantalla sea exactamente el que se guarda en ReqProgramaTejido y CatCodificados.
                 $repeticiones = null;
-                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
-                    if (! $this->esTamanoFelpa($registro)
-                        && isset($item['pesoRollo']) && $item['pesoRollo'] !== null && $item['pesoRollo'] !== '' && is_numeric($item['pesoRollo'])) {
-                        $pesoRollo = (float) $item['pesoRollo'];
-                    }
-                    $repeticiones = $this->repeticionesDesdePesoRollo($pesoRollo, $pCrudo, $tiras);
+                if (isset($item['repeticiones']) && $item['repeticiones'] !== '' && $item['repeticiones'] !== null && is_numeric($item['repeticiones']) && (float) $item['repeticiones'] > 0) {
+                    $repeticiones = (int) (float) $item['repeticiones'];
+                } elseif ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+                    $repeticiones = $this->repeticionesDesdePesoRollo($pesoRolloFinal, $pCrudo, $tiras);
                 }
 
                 $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
@@ -1245,6 +1259,7 @@ class LiberarOrdenesController extends Controller
                 'TotalRollos' => $registro->TotalRollos !== null ? (float) ceil((float) $registro->TotalRollos) : null,
                 'TotalPzas' => $registro->TotalPzas,
                 'Repeticiones' => $registro->Repeticiones !== null ? (int) (float) $registro->Repeticiones : null,
+                'NoTiras' => $registro->NoTiras !== null && is_numeric($registro->NoTiras) ? (int) $registro->NoTiras : null,
                 'NoMarbete' => $registro->SaldoMarbete !== null ? (float) round((float) $registro->SaldoMarbete, 0) : null, // SaldoMarbete en ReqProgramaTejido = NoMarbete en CatCodificados
                 'CombinaTram' => $registro->CombinaTram,
                 'CambioRepaso' => $registro->CambioHilo,
@@ -1260,19 +1275,29 @@ class LiberarOrdenesController extends Controller
 
             $updated = false;
 
-            // Asignar todos los campos del payload, EXCEPTO TotalRollos y TotalPzas que se manejarán después
+            // Asignar todos los campos del payload, EXCEPTO TotalRollos y TotalPzas que se manejarán después.
+            // Comparación case-insensitive contra los nombres reales de columnas en SQL Server, para evitar
+            // problemas si el casing del payload no coincide exactamente con el de la BD.
             foreach ($payload as $column => $value) {
-                // Saltar TotalRollos y TotalPzas, se manejarán después
                 if ($column === 'TotalRollos' || $column === 'TotalPzas') {
                     continue;
                 }
 
-                if (! in_array($column, $columns, true)) {
+                $existeColumna = false;
+                $columnaReal = $column;
+                foreach ($columns as $colDb) {
+                    if (strcasecmp($colDb, $column) === 0) {
+                        $existeColumna = true;
+                        $columnaReal = $colDb;
+                        break;
+                    }
+                }
+
+                if (! $existeColumna) {
                     continue;
                 }
 
-                // Asignar siempre, sin comparación (para asegurar que se actualicen)
-                $registroCodificado->setAttribute($column, $value);
+                $registroCodificado->setAttribute($columnaReal, $value);
                 $updated = true;
             }
 
@@ -1366,7 +1391,11 @@ class LiberarOrdenesController extends Controller
                 $registroCodificado->refresh();
             }
         } catch (\Throwable $e) {
-
+            Log::warning('LiberarOrdenesController::actualizarCatCodificados error', [
+                'orden' => $registro->NoProduccion ?? null,
+                'telar' => $registro->NoTelarId ?? null,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

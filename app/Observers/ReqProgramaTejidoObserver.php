@@ -41,10 +41,104 @@ class ReqProgramaTejidoObserver
         'PasadasComb5', 'CalibreComb52',
     ];
 
+    /**
+     * Mapeo de campos a sincronizar desde ReqProgramaTejido hacia CatCodificados.
+     * Llave: nombre del campo en ReqProgramaTejido
+     * Valor: nombre de la columna en CatCodificados
+     *
+     * La sincronización ocurre solo cuando el campo cambió (wasChanged/isDirty) y la fila
+     * en CatCodificados existe (busca por OrdenTejido = NoProduccion). Funciona para
+     * cualquier flujo que use Eloquent save() — incluyendo Balanceo, UpdateTejido,
+     * Dividir/Duplicar, etc.
+     */
+    private const CAMPOS_SYNC_CAT_CODIFICADOS = [
+        'TamanoClave'    => 'ClaveModelo',
+        'ItemId'         => 'ItemId',
+        'TotalPedido'    => 'Pedido',
+        'SaldoPedido'    => 'Saldos',
+        'FlogsId'        => 'FlogsId',
+        'NombreProyecto' => 'NombreProyecto',
+        'PesoCrudo'      => 'P_crudo',
+    ];
+
     public function saved(ReqProgramaTejido $programa): void
     {
         if ($this->shouldRegenerateLines($programa)) {
             $this->generarLineasDiarias($programa);
+        }
+
+        $this->sincronizarCatCodificados($programa);
+    }
+
+    /**
+     * Sincroniza campos editados de ReqProgramaTejido hacia CatCodificados (cuando existe la fila).
+     * Se busca por OrdenTejido = NoProduccion. Solo escribe los campos que efectivamente cambiaron.
+     */
+    private function sincronizarCatCodificados(ReqProgramaTejido $programa): void
+    {
+        try {
+            $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
+            if ($noProduccion === '') {
+                return;
+            }
+
+            // Detectar qué campos del mapeo cambiaron en este save.
+            $cambios = [];
+            foreach (self::CAMPOS_SYNC_CAT_CODIFICADOS as $campoRpt => $campoCat) {
+                if ($programa->wasChanged($campoRpt)) {
+                    $cambios[$campoCat] = $programa->{$campoRpt};
+                }
+            }
+
+            if (empty($cambios)) {
+                return;
+            }
+
+            // Aplicar AuditoriaHelper-like: fecha/hora/usuario de modificación si las columnas existen.
+            $now = \Carbon\Carbon::now();
+            $cambios['FechaModificacion'] = $now->format('Y-m-d');
+            $cambios['HoraModificacion']  = $now->format('H:i:s');
+            try {
+                $usuario = \App\Http\Controllers\Planeacion\ProgramaTejido\helper\AuditoriaHelper::obtenerUsuarioActual();
+                if (! empty($usuario)) {
+                    $cambios['UsuarioModifica'] = $usuario;
+                }
+            } catch (Throwable) {
+                // Si el helper no está disponible, omitir UsuarioModifica.
+            }
+
+            $tabla = (new \App\Models\Planeacion\Catalogos\CatCodificados())->getTable();
+            $connection = $programa->getConnection();
+
+            // Filtrar cambios a solo columnas que existen en la tabla CatCodificados
+            // (defensa por si una columna se renombró en SQL Server).
+            $columnasExistentes = \Illuminate\Support\Facades\Schema::getColumnListing($tabla);
+            $cambiosFiltrados = array_intersect_key($cambios, array_flip($columnasExistentes));
+
+            if (empty(array_diff_key($cambiosFiltrados, ['FechaModificacion' => 1, 'HoraModificacion' => 1, 'UsuarioModifica' => 1]))) {
+                // Si quedaron solo los campos de auditoría tras el filtro, no vale la pena actualizar.
+                return;
+            }
+
+            // Update masivo: aplica a TODAS las filas con el mismo OrdenTejido (cubre el caso de
+            // múltiples telares o múltiples filas relacionadas al mismo número de producción —
+            // útil para flujos como Balanceo que actualizan varias órdenes).
+            $afectadas = $connection->table($tabla)
+                ->where('OrdenTejido', $noProduccion)
+                ->update($cambiosFiltrados);
+
+            if ($afectadas > 0) {
+                Log::info('ReqProgramaTejidoObserver: CatCodificados sincronizado', [
+                    'orden' => $noProduccion,
+                    'filas_afectadas' => $afectadas,
+                    'campos_actualizados' => array_keys($cambiosFiltrados),
+                ]);
+            }
+        } catch (Throwable $e) {
+            Log::warning('ReqProgramaTejidoObserver::sincronizarCatCodificados error', [
+                'programa_id' => $programa->Id ?? null,
+                'message' => $e->getMessage(),
+            ]);
         }
     }
 
