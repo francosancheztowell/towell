@@ -130,8 +130,8 @@
         $factorComentariosAncho = $clamp(($longitudComentarioMax - 10) / 20, 0.0, 1.0);
         $efWeight = 1.22 + ($factorComentariosAncho * 0.38) + ($densidadComentarios * 0.14);
         $rpmWeight = 1.02;
-        $telarWeight = 1.95;
-        $totalWeight = $telarWeight + ($turnosActivos * ($rpmWeight + (3 * $efWeight)));
+        $telarWeight = 1.08;
+        $totalWeight = $turnosActivos * ($rpmWeight + $telarWeight + (3 * $efWeight));
 
         $toPct = function (float $weight) use ($totalWeight): string {
             return number_format(($weight / $totalWeight) * 100, 3, '.', '') . '%';
@@ -219,7 +219,7 @@
             font-size: {{ $tdSize }};
         }
 
-        /* ── Cabeceras fijas (Telar / STD / %EF Std) ── */
+        /* ── Cabeceras fijas ── */
         .hdr-fixed {
             background-color: #374151;
             color: #ffffff;
@@ -394,18 +394,18 @@
     <table>
         <thead>
 
-            {{-- ── Fila 1: Telar + Turno N ── --}}
+            {{-- ── Fila 1: Turno N ── --}}
             <tr>
-                <th rowspan="3" class="hdr-fixed col-telar">Telar</th>
                 @for ($t = 1; $t <= ($maxTurno ?? 3); $t++)
-                    <th colspan="4" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}</th>
+                    <th colspan="5" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}</th>
                 @endfor
             </tr>
 
-            {{-- ── Fila 2: RPM + Horarios por turno ── --}}
+            {{-- ── Fila 2: RPM + Telar + Horarios por turno ── --}}
             <tr>
                 @for ($t = 1; $t <= ($maxTurno ?? 3); $t++)
                     <th rowspan="2" class="{{ $hdrH[0] }} col-rpm">RPM</th>
+                    <th rowspan="2" class="hdr-fixed col-telar">Telar</th>
                     <th class="{{ $hdrH[0] }}">{{ $horariosTurno[$t][1] }}</th>
                     <th class="{{ $hdrH[1] }}">{{ $horariosTurno[$t][2] }}</th>
                     <th class="{{ $hdrH[2] }}">{{ $horariosTurno[$t][3] }}</th>
@@ -434,9 +434,6 @@
                     }
                 @endphp
                 <tr>
-                    {{-- Telar --}}
-                    <td class="td-telar">{{ $row['telar'] }}</td>
-
                     {{-- ── Turnos Visibles ── --}}
                     @foreach ($turnos as $tNum => $tx)
                         @php
@@ -445,8 +442,9 @@
                             $h3 = $cellH[2];
                         @endphp
 
-                        {{-- RPM + EFx3 (comentario debajo en cada EF) --}}
+                        {{-- RPM + Telar + EFx3 (comentario debajo en cada EF) --}}
                         <td class="{{ $h1 }} col-rpm">{{ $lastRpmTurno($tx) }}</td>
+                        <td class="td-telar col-telar">{{ $row['telar'] }}</td>
                         <td class="{{ $h1 }} {{ $efiClass($tx, 'EficienciaR1', $tNum) }}">
                             <div class="ef-wrap">
                                 <div class="ef-value">{{ $efi($tx, 'EficienciaR1') }}</div>
@@ -475,7 +473,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="13" style="padding: 8px; color: #6b7280;">
+                    <td colspan="{{ ($maxTurno ?? 3) * 5 }}" style="padding: 8px; color: #6b7280;">
                         Sin datos para la fecha seleccionada.
                     </td>
                 </tr>
