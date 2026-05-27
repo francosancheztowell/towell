@@ -654,7 +654,7 @@ class EngProduccionFormulacionController extends Controller
             $items = DB::connection('sqlsrv_ti')
                 ->table('InventTable')
                 ->select('ItemId', 'ItemName')
-                ->where('ItemGroupId', 'MAT P ENG')
+                ->whereIn('ItemId', ['AE-014', 'AE-021', 'AE-022'])
                 ->where('DATAAREAID', 'PRO')
                 ->orderBy('ItemId')
                 ->distinct()

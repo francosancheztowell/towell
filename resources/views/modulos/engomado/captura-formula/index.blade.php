@@ -3325,6 +3325,25 @@
                     if (method && method.value === 'PUT') {
                         // Los componentes se envían en el payload
                     }
+                    const submitBtnEl = document.getElementById('btn-submit-create');
+                    if (submitBtnEl) {
+                        const isEditMode = method && method.value === 'PUT';
+                        submitBtnEl.disabled = true;
+                        submitBtnEl.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
+                        submitBtnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i><span>' + (isEditMode ? 'Actualizando...' : 'Creando...') + '</span>';
+                    }
+                });
+            }
+
+            const editFormEl = document.getElementById('editForm');
+            if (editFormEl) {
+                editFormEl.addEventListener('submit', function() {
+                    const editSubmitBtn = document.getElementById('btn-edit-submit');
+                    if (editSubmitBtn) {
+                        editSubmitBtn.disabled = true;
+                        editSubmitBtn.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
+                        editSubmitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Actualizando...';
+                    }
                 });
             }
         });
