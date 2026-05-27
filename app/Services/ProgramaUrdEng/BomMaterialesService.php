@@ -609,13 +609,10 @@ class BomMaterialesService
             return [];
         }
 
-        $bomKey = trim((string) $bomEngId);
-
         try {
             $rows = DB::connection(self::CONN)
                 ->table('BOM')
                 ->select('ITEMID')
-                ->whereRaw('RTRIM(BOM.BOMID) = ?', [$bomKey])
                 ->where('DATAAREAID', self::DATAAREA)
                 ->where('ITEMID', 'like', 'TE-PD-ENF%')
                 ->orderBy('ITEMID')
