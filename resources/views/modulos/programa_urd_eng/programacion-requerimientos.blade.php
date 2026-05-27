@@ -527,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let nuevoCalibre = '';
 
         if (tamanoSeleccionado) {
-            const match = tamanoSeleccionado.match(/^([^-]+)-([^/]+)\/1$/);
+            const match = tamanoSeleccionado.match(/^([^-]+)-([^/]+)\/\d+$/);
             if (!match) return;
             nuevaCuenta = match[1].trim();
             nuevoCalibre = match[2].trim();

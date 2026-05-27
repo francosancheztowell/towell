@@ -140,7 +140,7 @@
                 </div>
             </div>
 
-            <div class="mt-1.5 grid gap-1.5" style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr));">
+            <div class="mt-1.5 grid gap-1.5" style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr));">
 
                 <!-- Kilos (solo lectura - NO EDITABLE) -->
                 <div>
@@ -272,6 +272,19 @@
                         value="{{ $orden->BomId ?? '' }}"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                         autocomplete="off"
+                    >
+                </div>
+
+                <!-- Fecha de Requerimiento del Hilo (solo lectura) -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-0.5">Fecha Req. Hilo</label>
+                    <input
+                        type="text"
+                        value="{{ $fechaRequerimientoHilo ? \Carbon\Carbon::parse($fechaRequerimientoHilo)->format('d/m/Y H:i') : '—' }}"
+                        readonly
+                        disabled
+                        class="w-full px-1.5 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed"
+                        title="Fecha en que se requiere el material del hilo"
                     >
                 </div>
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Urdido\URDCatalogoMaquina;
+use App\Models\Urdido\UrdConsumoHilo;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
@@ -260,6 +261,10 @@ class EditarOrdenesProgramadasController extends Controller
         $maquina = trim($orden->MaquinaId ?? '');
         $isKarlMayer = (stripos($destino, 'karl') !== false) && (stripos($maquina, 'karl') !== false);
 
+        $fechaRequerimientoHilo = UrdConsumoHilo::where('Folio', $orden->Folio)
+            ->whereNotNull('FechaRequerimiento')
+            ->value('FechaRequerimiento');
+
         return view('modulos.urdido.editar-orden-programada', [
             'orden' => $orden,
             'metros' => $metros,
@@ -274,6 +279,7 @@ class EditarOrdenesProgramadasController extends Controller
             'fromReimpresion' => $fromReimpresion,
             'isKarlMayer' => $isKarlMayer,
             'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
+            'fechaRequerimientoHilo' => $fechaRequerimientoHilo,
         ]);
     }
 

@@ -1382,24 +1382,27 @@
             };
 
             // Solicitar fecha y hora de requerimiento
-            const ahoraISO = (() => {
-                const d = new Date();
-                d.setSeconds(0, 0);
-                return d.toISOString().slice(0, 16);
-            })();
+            const _toLocalISO = (d) => {
+                const pad = n => String(n).padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            };
+            const _ahoraBase = new Date();
+            _ahoraBase.setSeconds(0, 0);
+            const ahoraMinISO = _toLocalISO(_ahoraBase);
+            const ahoraISO = _toLocalISO(new Date(_ahoraBase.getTime() + 60 * 60 * 1000));
             const { value: fechaRequerimientoRaw, isConfirmed } = await Swal.fire({
                 title: '¿Cuándo se requiere el material?',
                 width: 480,
                 html: `
                     <p style="color:#6b7280;font-size:0.875rem;margin-bottom:12px;">Selecciona la fecha y hora en que se necesita el material.</p>
-                    <input type="datetime-local" id="swal-fecha-req" class="swal2-input" style="width:85%;box-sizing:border-box;" value="${ahoraISO}" min="${ahoraISO}">
+                    <input type="datetime-local" id="swal-fecha-req" class="swal2-input" style="width:85%;box-sizing:border-box;" value="${ahoraISO}" min="${ahoraMinISO}">
                 `,
                 showCancelButton: true,
                 confirmButtonText: 'Confirmar',
                 cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#7c3aed',
                 didOpen: () => {
-                    document.getElementById('swal-fecha-req').min = ahoraISO;
+                    document.getElementById('swal-fecha-req').min = ahoraMinISO;
                 },
                 preConfirm: () => {
                     const input = document.getElementById('swal-fecha-req');
@@ -1408,7 +1411,7 @@
                         Swal.showValidationMessage('Por favor selecciona una fecha y hora de requerimiento.');
                         return;
                     }
-                    if (val < ahoraISO) {
+                    if (val < ahoraMinISO) {
                         Swal.showValidationMessage('La fecha de requerimiento no puede ser anterior a la fecha y hora actual.');
                         return;
                     }
