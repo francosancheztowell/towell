@@ -2813,6 +2813,7 @@
                     consumoTotalInput.parentNode.replaceChild(nuevoInput, consumoTotalInput);
 
                     nuevoInput.addEventListener('input', function() {
+                        if (this.value === '') return;
                         const valorCapturado = parseFloat(this.value) || 0;
                         let nuevoConsumoTotal = valorCapturado;
                         const compData = componentesCreateData[index];
@@ -3207,6 +3208,7 @@
             if (kilosInput) {
                 kilosCreateFormula = parseFloat(kilosInput.value) || 0;
                 kilosInput.addEventListener('input', debounce(function() {
+                    if (this.value === '') return;
                     kilosCreateFormula = parseFloat(this.value) || 0;
                     recalcularYRenderizar();
                 }, 300));
@@ -3219,6 +3221,7 @@
                 litrosInput.addEventListener('input', (function() {
                     let t;
                     return function() {
+                        if (this.value === '') return;
                         let val = parseFloat(this.value) || 0;
                         if (val > LITROS_MAX) {
                             val = LITROS_MAX;
