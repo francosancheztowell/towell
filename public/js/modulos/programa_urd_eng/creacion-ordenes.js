@@ -93,6 +93,8 @@
     const gruposData = Object.create(null); // { filaId: { grupo, bomId, kilos, materialesUrdido } }
     let config = {}; // Configuración con rutas y datos
     let sortState = { column: null, direction: null }; // Estado de ordenamiento: { column: 'itemId', direction: 'asc'|'desc' }
+    const bomFormulasAcumuladas = new Set(); // fórmulas acumuladas de todos los L Mat Engomado seleccionados
+    const bomIdsVistos = new Set();          // BOM IDs ya consultados (evita fetch repetido)
 
     function getDestinoOptions() {
         return Array.isArray(config.destinoOptions) && config.destinoOptions.length
@@ -499,38 +501,50 @@
         });
     }
 
-    /* =================== BomFormula (select) =================== */
+    /* =================== BomFormula (select acumulador) =================== */
     async function cargarBomFormula(bomId) {
         const el = qs('#inputBomFormula');
         if (!el) return;
+
         if (isBlank(bomId)) {
+            bomFormulasAcumuladas.clear();
+            bomIdsVistos.clear();
             el.innerHTML = '<option value="">—</option>';
             el.disabled = true;
             el.classList.add('bg-gray-100', 'text-gray-500');
             return;
         }
+
         const id = String(bomId).trim();
-        el.innerHTML = '<option value="">Cargando...</option>';
-        el.disabled = true;
+
+        // Si ya consultamos este BOM no volvemos a hacer fetch
+        if (bomIdsVistos.has(id)) return;
+
         try {
             const url = new URL(config.routes.bomFormula, window.location.origin);
             url.searchParams.set('bomId', id);
             const res = await fetchJSON(url.toString());
             const formulas = res.success && Array.isArray(res.bomFormulas) ? res.bomFormulas : [];
-            if (formulas.length === 0) {
+
+            bomIdsVistos.add(id);
+            formulas.forEach(f => bomFormulasAcumuladas.add(f));
+
+            const todas = [...bomFormulasAcumuladas].sort();
+
+            if (todas.length === 0) {
                 el.innerHTML = '<option value="">—</option>';
                 el.disabled = true;
                 el.classList.add('bg-gray-100', 'text-gray-500');
             } else {
-                el.innerHTML = formulas.map(f => `<option value="${f}">${f}</option>`).join('');
+                const selActual = el.value;
+                el.innerHTML = todas.map(f => `<option value="${f}">${f}</option>`).join('');
                 el.disabled = false;
                 el.classList.remove('bg-gray-100', 'text-gray-500');
-                el.value = formulas[0];
+                // conservar selección previa si sigue siendo válida, si no pre-seleccionar la primera
+                el.value = todas.includes(selActual) ? selActual : todas[0];
             }
         } catch {
-            el.innerHTML = '<option value="">—</option>';
-            el.disabled = true;
-            el.classList.add('bg-gray-100', 'text-gray-500');
+            // error silencioso: no borrar lo que ya había
         }
     }
 
