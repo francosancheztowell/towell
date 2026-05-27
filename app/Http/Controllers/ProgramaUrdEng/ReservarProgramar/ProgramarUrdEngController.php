@@ -55,6 +55,7 @@ class ProgramarUrdEngController extends Controller
                 'error' => 'La fibra/hilo es obligatoria para crear órdenes. Regrese a Programación de Requerimientos y seleccione la fibra en cada telar.',
             ], 422);
         }
+        $fechaRequerimiento = $request->input('fechaRequerimiento');
         $materialesEngomado = $request->input('materialesEngomado', []);
         $construccionUrdido = $request->input('construccionUrdido', []);
         $datosEngomado = $request->input('datosEngomado', []);
@@ -124,6 +125,8 @@ class ProgramarUrdEngController extends Controller
                     'Conos' => isset($material['conos']) ? (int) $material['conos'] : null,
                     'LoteProv' => $material['loteProv'] ?? null,
                     'NoProv' => $material['noProv'] ?? null,
+                    'FechaRegistro' => now(),
+                    'FechaRequerimiento' => $fechaRequerimiento ?? null,
                 ]);
             }
 

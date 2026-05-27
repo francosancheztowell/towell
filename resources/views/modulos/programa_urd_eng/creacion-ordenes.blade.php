@@ -5,6 +5,7 @@
 @section('navbar-right')
 <div class="flex items-center gap-1">
    <x-navbar.button-create
+   id="btn-crear-ordenes"
    onclick="crearOrdenes()"
    title="Crear Órdenes"
    icon="fa-save"

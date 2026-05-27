@@ -888,9 +888,11 @@
             setTimeout(() => {
                 restaurarSelecciones(LS.getSelecciones(bomId));
                 actualizarTotalesMaterialesEngomado();
+                actualizarEstadoBotonCrear();
             }, 50);
         } else {
             actualizarTotalesMaterialesEngomado();
+            actualizarEstadoBotonCrear();
         }
     }
 
@@ -900,6 +902,7 @@
             chk.addEventListener('change', () => {
                 guardarSeleccionesCheckboxes(bomId);
                 actualizarTotalesMaterialesEngomado();
+                actualizarEstadoBotonCrear();
             });
         });
     }
@@ -957,6 +960,12 @@
         if (!selecciones || !selecciones.length) return;
         const keys = new Set(selecciones.map(s => s.checkboxKey || `${s.materialId}_${s.serialId}`));
         qsa('.checkbox-material').forEach(chk => { if (keys.has(chk.dataset.checkboxKey || '')) chk.checked = true; });
+    }
+
+    function actualizarEstadoBotonCrear() {
+        const btn = document.getElementById('btn-crear-ordenes');
+        if (!btn) return;
+        btn.disabled = qsa('.checkbox-material:checked').length === 0;
     }
 
     /* =================== Anchos Balona & Máquinas Engomado =================== */
@@ -1053,6 +1062,7 @@
         renderTabla();
         renderTablaMaterialesUrdido();
         renderTablaMaterialesEngomado();
+        actualizarEstadoBotonCrear();
 
         setTimeout(() => {
             initAutocompleteBOMUrdido();
@@ -1371,17 +1381,55 @@
                 status: 'Programado'
             };
 
+            // Solicitar fecha y hora de requerimiento
+            const ahoraISO = (() => {
+                const d = new Date();
+                d.setSeconds(0, 0);
+                return d.toISOString().slice(0, 16);
+            })();
+            const { value: fechaRequerimientoRaw, isConfirmed } = await Swal.fire({
+                title: '¿Cuándo se requiere el material?',
+                width: 480,
+                html: `
+                    <p style="color:#6b7280;font-size:0.875rem;margin-bottom:12px;">Selecciona la fecha y hora en que se necesita el material.</p>
+                    <input type="datetime-local" id="swal-fecha-req" class="swal2-input" style="width:85%;box-sizing:border-box;" value="${ahoraISO}" min="${ahoraISO}">
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#7c3aed',
+                didOpen: () => {
+                    document.getElementById('swal-fecha-req').min = ahoraISO;
+                },
+                preConfirm: () => {
+                    const input = document.getElementById('swal-fecha-req');
+                    const val = input.value;
+                    if (!val) {
+                        Swal.showValidationMessage('Por favor selecciona una fecha y hora de requerimiento.');
+                        return;
+                    }
+                    if (val < ahoraISO) {
+                        Swal.showValidationMessage('La fecha de requerimiento no puede ser anterior a la fecha y hora actual.');
+                        return;
+                    }
+                    return val;
+                }
+            });
+
+            if (!isConfirmed || !fechaRequerimientoRaw) return;
+
             // Preparar payload completo
             const payload = {
                 grupo: grupoPayload,
                 materialesEngomado: materialesEngomado,
                 construccionUrdido: construccionUrdido,
-                datosEngomado: datosEngomado
+                datosEngomado: datosEngomado,
+                fechaRequerimiento: fechaRequerimientoRaw
             };
 
             // Mostrar indicador de carga
-            const button = document.querySelector('[onclick="crearOrdenes()"]');
-            const originalText = button?.textContent || 'Crear Órdenes';
+            const button = document.getElementById('btn-crear-ordenes') || document.querySelector('[onclick="crearOrdenes()"]');
+            const originalHTML = button?.innerHTML || 'Crear Órdenes';
             if (button) {
                 button.disabled = true;
                 button.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
@@ -1403,8 +1451,8 @@
 
             // Restaurar botón
             if (button) {
-                button.disabled = false;
-                button.textContent = originalText;
+                button.disabled = qsa('.checkbox-material:checked').length === 0;
+                button.innerHTML = originalHTML;
             }
 
             if (result.success) {
@@ -1441,10 +1489,10 @@
             });
 
             // Restaurar botón en caso de error
-            const button = document.querySelector('[onclick="crearOrdenes()"]');
-            if (button) {
-                button.disabled = false;
-                button.textContent = 'Crear Órdenes';
+            const btnError = document.getElementById('btn-crear-ordenes') || document.querySelector('[onclick="crearOrdenes()"]');
+            if (btnError) {
+                btnError.disabled = qsa('.checkbox-material:checked').length === 0;
+                btnError.innerHTML = '<i class="fa-solid fa-save text-white text-base"></i><span class="text-sm font-medium text-white">Crear Órdenes</span>';
             }
         }
     };

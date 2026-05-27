@@ -61,6 +61,8 @@ class CrearOrdenKarlMayerController extends Controller
             'materiales.*.prodDate' => 'nullable|string|max:50',
         ]);
 
+        $fechaRequerimiento = $request->input('fechaRequerimiento');
+
         $usuario = Auth::user();
         $numeroEmpleado = $usuario->numero_empleado ?? null;
         $nombreEmpleado = $usuario->nombre ?? null;
@@ -136,6 +138,8 @@ class CrearOrdenKarlMayerController extends Controller
                     'Conos' => isset($material['conos']) ? (int) $material['conos'] : 0,
                     'LoteProv' => $material['loteProv'] ?? '',
                     'NoProv' => $material['noProv'] ?? '',
+                    'FechaRegistro' => now(),
+                    'FechaRequerimiento' => $fechaRequerimiento ?? null,
                 ]);
             }
 

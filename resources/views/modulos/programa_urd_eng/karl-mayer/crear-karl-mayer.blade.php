@@ -948,6 +948,51 @@
                 materiales: getMaterialesSeleccionados(),
             };
 
+            // Solicitar fecha y hora de requerimiento
+            const ahoraISO = (() => {
+                const d = new Date();
+                d.setSeconds(0, 0);
+                return d.toISOString().slice(0, 16);
+            })();
+            const { value: fechaRequerimientoKM, isConfirmed: kmConfirmed } = await Swal.fire({
+                title: '¿Cuándo se requiere el material?',
+                width: 480,
+                html: `
+                    <p style="color:#6b7280;font-size:0.875rem;margin-bottom:12px;">Selecciona la fecha y hora en que se necesita el material.</p>
+                    <input type="datetime-local" id="swal-fecha-req-km" class="swal2-input" style="width:85%;box-sizing:border-box;" value="${ahoraISO}" min="${ahoraISO}">
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#7c3aed',
+                didOpen: () => {
+                    document.getElementById('swal-fecha-req-km').min = ahoraISO;
+                },
+                preConfirm: () => {
+                    const input = document.getElementById('swal-fecha-req-km');
+                    const val = input.value;
+                    if (!val) {
+                        Swal.showValidationMessage('Por favor selecciona una fecha y hora de requerimiento.');
+                        return;
+                    }
+                    if (val < ahoraISO) {
+                        Swal.showValidationMessage('La fecha de requerimiento no puede ser anterior a la fecha y hora actual.');
+                        return;
+                    }
+                    return val;
+                }
+            });
+
+            if (!kmConfirmed || !fechaRequerimientoKM) {
+                if (btn) {
+                    btn.disabled = false;
+                    if (btn.querySelector('span')) btn.querySelector('span').textContent = 'Crear Orden';
+                }
+                return;
+            }
+
+            payload.fechaRequerimiento = fechaRequerimientoKM;
+
             try {
                 const response = await fetch(ROUTES.crearOrdenKarlMayer, {
                     method: 'POST',

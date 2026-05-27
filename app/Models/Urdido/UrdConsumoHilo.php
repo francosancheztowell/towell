@@ -35,6 +35,8 @@ class UrdConsumoHilo extends Model
         'LoteProv',
         'NoProv',
         'Registrado',
+        'FechaRegistro',
+        'FechaRequerimiento',
     ];
 
     protected $casts = [
@@ -43,6 +45,8 @@ class UrdConsumoHilo extends Model
         'ProdDate' => 'date',
         'Conos' => 'integer',
         'Registrado' => 'boolean',
+        'FechaRegistro' => 'datetime',
+        'FechaRequerimiento' => 'datetime',
     ];
 
     /**
