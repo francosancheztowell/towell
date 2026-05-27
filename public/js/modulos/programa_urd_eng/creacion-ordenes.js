@@ -499,20 +499,38 @@
         });
     }
 
-    /* =================== BomFormula (solo lectura) =================== */
+    /* =================== BomFormula (select) =================== */
     async function cargarBomFormula(bomId) {
         const el = qs('#inputBomFormula');
         if (!el) return;
-        if (isBlank(bomId)) { el.textContent = '—'; return; }
+        if (isBlank(bomId)) {
+            el.innerHTML = '<option value="">—</option>';
+            el.disabled = true;
+            el.classList.add('bg-gray-100', 'text-gray-500');
+            return;
+        }
         const id = String(bomId).trim();
-        el.textContent = '…';
+        el.innerHTML = '<option value="">Cargando...</option>';
+        el.disabled = true;
         try {
             const url = new URL(config.routes.bomFormula, window.location.origin);
             url.searchParams.set('bomId', id);
             const res = await fetchJSON(url.toString());
-            el.textContent = res.success && res.bomFormula ? String(res.bomFormula) : '—';
+            const formulas = res.success && Array.isArray(res.bomFormulas) ? res.bomFormulas : [];
+            if (formulas.length === 0) {
+                el.innerHTML = '<option value="">—</option>';
+                el.disabled = true;
+                el.classList.add('bg-gray-100', 'text-gray-500');
+            } else {
+                el.innerHTML = formulas.map(f => `<option value="${f}">${f}</option>`).join('');
+                el.disabled = false;
+                el.classList.remove('bg-gray-100', 'text-gray-500');
+                el.value = formulas[0];
+            }
         } catch {
-            el.textContent = '—';
+            el.innerHTML = '<option value="">—</option>';
+            el.disabled = true;
+            el.classList.add('bg-gray-100', 'text-gray-500');
         }
     }
 
@@ -1217,6 +1235,7 @@
 
             // Obtener valores directamente desde los elementos DOM justo antes de validar
             // Leer los valores frescos desde el DOM para evitar problemas de sincronización
+            const inputBomFormula = qs('#inputBomFormula');
             const datosEngomado = {
                 nucleo: inputNucleo ? (inputNucleo.value || '') : '',
                 noTelas: inputNoTelas ? (inputNoTelas.value || '') : '',
@@ -1225,6 +1244,7 @@
                 cuendeadosMin: inputCuendeadosMin ? (inputCuendeadosMin.value || '') : '',
                 maquinaEngomado: inputMaquinaEngomado ? (inputMaquinaEngomado.value || '') : '',
                 lMatEngomado: inputLMatEngomado ? (inputLMatEngomado.value || '').trim() : '',
+                bomFormula: inputBomFormula ? (inputBomFormula.value || '').trim() : '',
                 observaciones: inputObservaciones ? (inputObservaciones.value || '').trim() : ''
             };
 

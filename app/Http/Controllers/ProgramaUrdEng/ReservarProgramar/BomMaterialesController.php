@@ -140,18 +140,18 @@ class BomMaterialesController extends Controller
     {
         try {
             $bomId = trim((string) ($request->query('bomId') ?? $request->input('bomId', '')));
-            $formula = $this->service->getBomFormula($bomId ?: null);
+            $formulas = $this->service->getBomFormulasAggregatedForEngProgram($bomId ?: null);
 
             return response()->json([
                 'success' => true,
-                'bomFormula' => $formula,
+                'bomFormulas' => $formulas,
             ]);
         } catch (\Throwable $e) {
             Log::error('getBomFormula', ['msg' => $e->getMessage()]);
 
             return response()->json([
                 'success' => false,
-                'bomFormula' => null,
+                'bomFormulas' => [],
                 'message' => 'Error al obtener BomFormula',
             ], 500);
         }

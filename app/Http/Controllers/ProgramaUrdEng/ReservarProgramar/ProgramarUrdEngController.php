@@ -72,7 +72,7 @@ class ProgramarUrdEngController extends Controller
             $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
             $tipo = $this->normalizeTipo($grupo['tipo'] ?? null);
 
-            $bomFormula = $this->obtenerBomFormula($datosEngomado['lMatEngomado'] ?? null);
+            $bomFormula = trim($datosEngomado['bomFormula'] ?? '') ?: $this->obtenerBomFormula($datosEngomado['lMatEngomado'] ?? null);
             $tipoAtado = $grupo['tipoAtado'] ?? '';
             $bomUrdId = trim($grupo['bomId'] ?? '');
             $loteProveedor = $this->obtenerLoteProveedor($materialesEngomado);
