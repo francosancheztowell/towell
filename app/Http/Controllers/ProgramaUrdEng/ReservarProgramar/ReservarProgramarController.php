@@ -58,6 +58,7 @@ class ReservarProgramarController extends Controller
         $telares = $this->enriquecerTelaresConId($telares);
 
         $maquinasUrdido = URDCatalogoMaquina::where('Departamento', 'Urdido')
+            ->where('Nombre', '!=', 'KM1')
             ->orderBy('Nombre')->pluck('Nombre')->toArray();
 
         return view('modulos.programa_urd_eng.programacion-requerimientos', [

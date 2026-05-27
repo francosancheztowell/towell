@@ -5,8 +5,8 @@
 @section('navbar-right')
 <div class="flex items-center gap-3">
     <!-- Botón único -->
-    <button id="btnSiguiente" type="button" title="Siguiente"
-        class="px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-2 group">
+    <button id="btnSiguiente" type="button" title="Siguiente" disabled
+        class="px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none">
         <i class="fa-solid fa-arrow-right w-4 h-4 group-hover:translate-x-1 transition-transform duration-200"></i>
     </button>
 </div>
@@ -1258,6 +1258,42 @@ document.addEventListener('DOMContentLoaded', () => {
         return v>0 ? v.toLocaleString('es-MX',{minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
     }
 
+    // Habilitar o deshabilitar btnSiguiente según el estado de los campos requeridos
+    function actualizarEstadoBotonSiguiente() {
+        const btn = document.getElementById('btnSiguiente');
+        if (!btn) return;
+
+        const filas = document.querySelectorAll('#tbodyRequerimientos tr');
+        const filasValidas = Array.from(filas).filter(f => f.querySelector('input[data-field="telar"]')?.value);
+
+        if (!filasValidas.length) {
+            btn.disabled = true;
+            return;
+        }
+
+        const selectores = [
+            'input[data-field="tamano"]',
+            'input[data-field="cuenta"]',
+            'input[data-field="calibre"]',
+            'select[data-field="hilo"]',
+            'input[data-field="metros"]',
+            'input[data-field="kilos"]',
+        ];
+
+        for (const fila of filasValidas) {
+            for (const sel of selectores) {
+                const el = fila.querySelector(sel);
+                if (!el) continue;
+                if (!String(el.value || '').trim()) {
+                    btn.disabled = true;
+                    return;
+                }
+            }
+        }
+
+        btn.disabled = false;
+    }
+
     // Validar que todos los campos requeridos estén llenos antes de continuar
     function validarCamposRequeridos() {
         const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
@@ -1265,6 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { field: 'cuenta', label: 'Cuenta', selector: 'input[data-field="cuenta"]' },
             { field: 'calibre', label: 'Calibre', selector: 'input[data-field="calibre"]' },
             { field: 'tamano', label: 'Tamaño', selector: 'input[data-field="tamano"]' },
+            { field: 'hilo', label: 'Hilo', selector: 'select[data-field="hilo"]' },
             { field: 'urdido', label: 'Urdido', selector: 'select[data-field="urdido"]' },
             { field: 'tipo', label: 'Tipo', selector: 'select[data-field="tipo"]' },
             { field: 'tipo_atado', label: 'Tipo Atado', selector: 'select[data-field="tipo_atado"]' },
@@ -1393,10 +1430,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cargar hilos y tamaños primero, luego renderizar tabla
     Promise.all([cargarHilos(), cargarTamanos()]).then(() => {
         renderTabla();
+        actualizarEstadoBotonSiguiente();
     }).catch(error => {
         console.error('Error al inicializar:', error);
-        renderTabla(); // Renderizar tabla de todas formas aunque falle la carga
+        renderTabla();
+        actualizarEstadoBotonSiguiente();
     });
+
+    // Event delegation: cualquier cambio en la tabla actualiza el estado del botón
+    document.getElementById('tbodyRequerimientos')?.addEventListener('input', actualizarEstadoBotonSiguiente);
+    document.getElementById('tbodyRequerimientos')?.addEventListener('change', actualizarEstadoBotonSiguiente);
 });
 </script>
 @endsection
