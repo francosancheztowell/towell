@@ -486,7 +486,7 @@ class EngProduccionFormulacionController extends Controller
             'Solidos' => 'nullable|numeric|min:0.01',
             'Viscocidad' => 'nullable|numeric|min:0.01',
             'Status' => 'nullable|in:Creado,En Proceso,Terminado',
-            'obs_calidad' => 'nullable|string',
+            'obs_calidad' => 'nullable|string|max:150',
             'ok_tiempo' => 'nullable|in:0,1',
             'ok_viscocidad' => 'nullable|in:0,1',
             'ok_solidos' => 'nullable|in:0,1',

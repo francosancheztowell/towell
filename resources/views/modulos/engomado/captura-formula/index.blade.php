@@ -3424,7 +3424,7 @@
                         </div>
                         <div class="border-t border-gray-200 pt-3 mt-4">
                             <label class="text-gray-500 block mb-1 text-sm font-medium">Observaciones</label>
-                            <input type="text" id="swal-obs-calidad" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Añadir observaciones (opcional)...">
+                            <input type="text" id="swal-obs-calidad" maxlength="150" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Añadir observaciones (opcional)...">
                         </div>
                     </div>
                 `,
@@ -3534,9 +3534,8 @@
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'No se pudieron guardar las observaciones'
+                    text: error.message || 'No se pudieron guardar las observaciones'
                 });
-                // Revertir el estado del icono en caso de error (el usuario puede reintentar)
             }
         }
 
