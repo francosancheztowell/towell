@@ -527,18 +527,6 @@ class EngProduccionFormulacionController extends Controller
             return redirect()->back()->with('error', 'No se puede editar una formulación con AX = 1.');
         }
 
-        if ($request->hasAny(['ok_tiempo', 'ok_viscocidad', 'ok_solidos', 'obs_calidad'])
-            && ! $request->hasAny(['fecha', 'Hora', 'MaquinaId', 'Litros', 'TiempoCocinado'])) {
-            $programa = EngProgramaEngomado::where('Folio', $folio)->first();
-            if ($programa && $programa->Status === 'Finalizado') {
-                if ($request->expectsJson()) {
-                    return response()->json(['success' => false, 'message' => 'No se puede auditar: el programa está Finalizado.'], 403);
-                }
-
-                return redirect()->back()->with('error', 'No se puede auditar: el programa está Finalizado.');
-            }
-        }
-
         try {
             DB::transaction(function () use ($validated, $folio, $request) {
                 $idFromRequest = $request->input('formulacion_id');

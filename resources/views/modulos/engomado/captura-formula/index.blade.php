@@ -3385,13 +3385,11 @@
             const statusLabel = programaStatus || 'Sin status';
 
             // Una sola celda por fila: 1 toque = palomita (✓), 2 toques = equis (✗). Solo dos estados.
-            const cicloState = (name, current, disabled) => {
+            const cicloState = (name, current) => {
                 const v = (current === '1' || current === '0') ? current : '1';
                 const simbolo = v === '1' ? '✓' : '✗';
                 const clase = v === '1' ? 'text-green-600' : 'text-red-600';
-                const disabledAttr = disabled ? 'disabled' : '';
-                const disabledClass = disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 hover:border-blue-400';
-                return `<button type="button" class="calidad-ciclo w-12 h-9 rounded-lg border-2 border-gray-300 bg-gray-50 text-lg font-bold ${clase} ${disabledClass} transition-colors" data-field="${name}" data-value="${v}" title="1 toque ✓, 2 toques ✗" ${disabledAttr}>${simbolo}</button>`;
+                return `<button type="button" class="calidad-ciclo w-12 h-9 rounded-lg border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-blue-400 text-lg font-bold ${clase} transition-colors" data-field="${name}" data-value="${v}" title="1 toque ✓, 2 toques ✗">${simbolo}</button>`;
             };
 
             Swal.fire({
@@ -3405,7 +3403,6 @@
                             <div><span class="text-gray-500">Litros</span> <span class="font-semibold">${litros}</span></div>
                             <div><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusColor}">${statusLabel}</span></div>
                         </div>
-                        ${esFinalizado ? '<div class="mb-3 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700 font-medium">El programa está Finalizado. No se puede modificar la auditoría.</div>' : ''}
                         <div class="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
                             <table class="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
@@ -3419,36 +3416,34 @@
                                     <tr class="hover:bg-blue-50/50">
                                         <td class="px-4 py-2.5 font-medium text-gray-700">Tiempo (Min)</td>
                                         <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${tiempo}</td>
-                                        <td class="px-4 py-2.5 text-center">${cicloState('oktiempo', okTiempoVal, esFinalizado)}</td>
+                                        <td class="px-4 py-2.5 text-center">${cicloState('oktiempo', okTiempoVal)}</td>
                                     </tr>
                                     <tr class="hover:bg-blue-50/50">
                                         <td class="px-4 py-2.5 font-medium text-gray-700">Sólidos (%)</td>
                                         <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${solidos}</td>
-                                        <td class="px-4 py-2.5 text-center">${cicloState('oksolidos', okSolidosVal, esFinalizado)}</td>
+                                        <td class="px-4 py-2.5 text-center">${cicloState('oksolidos', okSolidosVal)}</td>
                                     </tr>
                                     <tr class="hover:bg-blue-50/50">
                                         <td class="px-4 py-2.5 font-medium text-gray-700">Viscosidad</td>
                                         <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${viscocidad}</td>
-                                        <td class="px-4 py-2.5 text-center">${cicloState('okviscocidad', okViscocidadVal, esFinalizado)}</td>
+                                        <td class="px-4 py-2.5 text-center">${cicloState('okviscocidad', okViscocidadVal)}</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                         <div class="border-t border-gray-200 pt-3 mt-4">
                             <label class="text-gray-500 block mb-1 text-sm font-medium">Observaciones</label>
-                            <input type="text" id="swal-obs-calidad" maxlength="150" ${esFinalizado ? 'disabled' : ''} class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${esFinalizado ? 'bg-gray-100 cursor-not-allowed' : ''}" placeholder="Añadir observaciones (opcional)...">
+                            <input type="text" id="swal-obs-calidad" maxlength="150" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Añadir observaciones (opcional)...">
                         </div>
                     </div>
                 `,
                 showCancelButton: true,
                 confirmButtonColor: '#3b82f6',
                 cancelButtonColor: '#6b7280',
-                confirmButtonText: esFinalizado ? 'Cerrar' : 'Guardar',
+                confirmButtonText: 'Guardar',
                 cancelButtonText: 'Cancelar',
-                showConfirmButton: true,
                 focusConfirm: false,
                 preConfirm: () => {
-                    if (esFinalizado) return false;
                     const obs = document.getElementById('swal-obs-calidad').value;
                     const getVal = (field) => {
                         const el = document.querySelector('.calidad-ciclo[data-field="' + field + '"]');
@@ -3461,22 +3456,20 @@
                     const input = document.getElementById('swal-obs-calidad');
                     if (input) {
                         input.value = obsActual || '';
-                        if (!esFinalizado) input.focus();
+                        input.focus();
                     }
-                    if (!esFinalizado) {
-                        document.querySelectorAll('.calidad-ciclo').forEach(btn => {
-                            btn.addEventListener('click', function() {
-                                const next = this.dataset.value === '1' ? '0' : '1';
-                                this.dataset.value = next;
-                                this.textContent = next === '1' ? '✓' : '✗';
-                                this.classList.remove('text-green-600', 'text-red-600');
-                                this.classList.add(next === '1' ? 'text-green-600' : 'text-red-600');
-                            });
+                    document.querySelectorAll('.calidad-ciclo').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const next = this.dataset.value === '1' ? '0' : '1';
+                            this.dataset.value = next;
+                            this.textContent = next === '1' ? '✓' : '✗';
+                            this.classList.remove('text-green-600', 'text-red-600');
+                            this.classList.add(next === '1' ? 'text-green-600' : 'text-red-600');
                         });
-                    }
+                    });
                 }
             }).then((result) => {
-                if (result.isConfirmed && !esFinalizado) {
+                if (result.isConfirmed) {
                     const { obs, okTiempo, okViscocidad, okSolidos } = result.value;
                     guardarObsCalidad(folio, obs, btnCalidad, { okTiempo, okViscocidad, okSolidos });
                 }
