@@ -42,6 +42,13 @@ class EngProduccionFormulacionController extends Controller
 
                 return $item;
             });
+
+            // Adjuntar el Status del programa engomado a cada formulación
+            $foliosEnItems = $items->map(fn ($i) => $i->folio_resuelto)->filter()->unique()->values()->toArray();
+            $programaStatuses = EngProgramaEngomado::whereIn('Folio', $foliosEnItems)->pluck('Status', 'Folio');
+            $items = $items->each(function ($item) use ($programaStatuses) {
+                $item->programa_status = $programaStatuses->get($item->folio_resuelto ?? '');
+            });
             $usuarios = SYSUsuario::orderBy('nombre', 'asc')->get();
             $maquinas = URDCatalogoMaquina::where('Departamento', 'Engomado')
                 ->orderBy('Nombre', 'asc')
@@ -518,6 +525,18 @@ class EngProduccionFormulacionController extends Controller
             }
 
             return redirect()->back()->with('error', 'No se puede editar una formulación con AX = 1.');
+        }
+
+        if ($request->hasAny(['ok_tiempo', 'ok_viscocidad', 'ok_solidos', 'obs_calidad'])
+            && ! $request->hasAny(['fecha', 'Hora', 'MaquinaId', 'Litros', 'TiempoCocinado'])) {
+            $programa = EngProgramaEngomado::where('Folio', $folio)->first();
+            if ($programa && $programa->Status === 'Finalizado') {
+                if ($request->expectsJson()) {
+                    return response()->json(['success' => false, 'message' => 'No se puede auditar: el programa está Finalizado.'], 403);
+                }
+
+                return redirect()->back()->with('error', 'No se puede auditar: el programa está Finalizado.');
+            }
         }
 
         try {
