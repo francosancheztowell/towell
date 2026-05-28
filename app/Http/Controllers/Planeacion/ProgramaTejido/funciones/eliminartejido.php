@@ -69,8 +69,8 @@ class EliminarTejido
             // Guardar valor de Ultimo antes de eliminar
             $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
 
-            // Si tiene producción registrada, sellar FechaFinaliza y sincronizar a CatCodificados
-            if ($registro->Produccion !== null) {
+            // Si tiene NoProduccion asignado, sellar FechaFinaliza y sincronizar a CatCodificados
+            if (trim((string) ($registro->NoProduccion ?? '')) !== '') {
                 $ahora = Carbon::now();
                 $registro->FechaFinaliza = $ahora;
                 try {
