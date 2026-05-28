@@ -519,14 +519,6 @@ class EngProduccionFormulacionController extends Controller
             return redirect()->back()->with('error', 'Formulación no encontrada.');
         }
 
-        if ($item->AX == 1) {
-            if ($request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'No se puede editar una formulación con AX = 1.'], 403);
-            }
-
-            return redirect()->back()->with('error', 'No se puede editar una formulación con AX = 1.');
-        }
-
         try {
             DB::transaction(function () use ($validated, $folio, $request) {
                 $idFromRequest = $request->input('formulacion_id');

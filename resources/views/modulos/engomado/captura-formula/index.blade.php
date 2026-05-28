@@ -1199,11 +1199,6 @@
             const formulacionId = obtenerFormulacionSeleccionadaValida();
             if (!formulacionId) return;
 
-            if (formulacionTieneAX1()) {
-                mostrarBloqueoAX1();
-                return;
-            }
-
             editMode = true;
             viewOnlyMode = false;
             const modal = document.getElementById('createModal');
