@@ -69,6 +69,28 @@ class EliminarTejido
             // Guardar valor de Ultimo antes de eliminar
             $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
 
+            // Si tiene producción registrada, sellar FechaFinaliza y sincronizar a CatCodificados
+            if ($registro->Produccion !== null) {
+                $ahora = Carbon::now();
+                $registro->FechaFinaliza = $ahora;
+                try {
+                    $actualizoFechas = (new MovimientoDesarrolladorService())
+                        ->actualizarFechasArranqueFinaliza($registro, null, $ahora, preservarFechaArranqueCat: true);
+
+                    if (!$actualizoFechas && $registro->exists && $registro->isDirty('FechaFinaliza')) {
+                        $registro->saveQuietly();
+                    }
+                } catch (\Throwable $e) {
+                    if ($registro->exists && $registro->isDirty('FechaFinaliza')) {
+                        $registro->saveQuietly();
+                    }
+                    Log::warning('eliminar: no se pudo sincronizar FechaFinaliza', [
+                        'id' => $registro->Id ?? null,
+                        'msg' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             // Eliminar registro (las líneas se eliminan por ON DELETE CASCADE en BD)
             self::registrarAuditoriaDeletePrograma($registro, 'eliminar');
             $registro->delete();
@@ -165,7 +187,7 @@ class EliminarTejido
             // Mantener consistencia con utilería: persistir FechaFinaliza y sincronizar a CatCodificados cuando aplique.
             try {
                 $actualizoFechas = (new MovimientoDesarrolladorService())
-                    ->actualizarFechasArranqueFinaliza($registro, null, $ahora);
+                    ->actualizarFechasArranqueFinaliza($registro, null, $ahora, preservarFechaArranqueCat: true);
 
                 if (!$actualizoFechas && $registro->exists && $registro->isDirty('FechaFinaliza')) {
                     $registro->saveQuietly();

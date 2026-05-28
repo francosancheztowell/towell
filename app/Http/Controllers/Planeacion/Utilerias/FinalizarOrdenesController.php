@@ -262,7 +262,7 @@ class FinalizarOrdenesController extends Controller
 
                 // 1c) Sincronizar FechaFinaliza a CatCodificados antes de eliminar
                 $registro->FechaFinaliza = $ahora;
-                $movimientoService->actualizarFechasArranqueFinaliza($registro, null, 'now');
+                $movimientoService->actualizarFechasArranqueFinaliza($registro, null, 'now', preservarFechaArranqueCat: true);
 
                 // 1d) Sincronizar Pedido/Produccion/Saldos a CatCodificados
                 $movimientoService->actualizarReqModelosDesdePrograma($registro);

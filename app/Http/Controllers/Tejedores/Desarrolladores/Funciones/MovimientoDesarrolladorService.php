@@ -501,18 +501,21 @@ class MovimientoDesarrolladorService
     }
 
     /**
-     * @param  bool  $actualizarFechaFinaliza  Si es false, no modifica FechaFinaliza en programa ni CatCodificados (p. ej. al mover/reprogramar sin finalizar la orden).
+     * @param  bool  $actualizarFechaFinaliza    Si es false, no modifica FechaFinaliza en programa ni CatCodificados.
+     * @param  bool  $preservarFechaArranqueCat  Si es true, no sobreescribe FechaArranque en CatCodificados.
+     *                                           Usar cuando el intento es solo sellar FechaFinaliza (finalizar/eliminar EnProceso)
+     *                                           para no pisar la hora real que el desarrollador registró.
      */
     public function actualizarFechasArranqueFinaliza(
         ReqProgramaTejido $programa,
         $fechaArranque = null,
         $fechaFinaliza = null,
-        bool $actualizarFechaFinaliza = true
+        bool $actualizarFechaFinaliza = true,
+        bool $preservarFechaArranqueCat = false
     ): bool {
         $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
-        $noTelarId = trim((string) ($programa->NoTelarId ?? ''));
 
-        if ($noProduccion === '' || $noTelarId === '') return false;
+        if ($noProduccion === '') return false;
 
         if ($fechaArranque === null) {
             $fechaArranque = !empty($programa->FechaInicio) ? Carbon::parse($programa->FechaInicio)->format('Y-m-d H:i:s') : null;
@@ -565,16 +568,18 @@ class MovimientoDesarrolladorService
             return $programaActualizado;
         }
 
-        $registroCodificado = $this->catCodificadosService->resolveForRead($noProduccion, $noTelarId);
+        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion);
         if (!$registroCodificado) {
             return $programaActualizado;
         }
 
-        $registroCodificado->FechaArranque = $fechaArranque;
+        if (!$preservarFechaArranqueCat) {
+            $registroCodificado->FechaArranque = $fechaArranque;
+        }
         if ($actualizarFechaFinaliza) {
             $registroCodificado->FechaFinaliza = $fechaFinalizaEfectiva;
         }
-        $attrsCat = ['FechaArranque'];
+        $attrsCat = $preservarFechaArranqueCat ? [] : ['FechaArranque'];
         if ($actualizarFechaFinaliza) {
             $attrsCat[] = 'FechaFinaliza';
         }
