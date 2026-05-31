@@ -110,7 +110,7 @@ Uses `dompdf/dompdf` (v3.1). PDF controllers/views are in `app/Http/Controllers/
 - **Traits**: `HasUserPermissions`, `ProduccionTrait` in `app/Traits/`
 - **Observers**: `ReqProgramaTejidoObserver` (registered in AppServiceProvider), `SimulacionProgramaTejidoObserver`
 - **Artisan Commands**: `OptimizeModuleImagesCommand`, `RecalcularFechasProduccionCommand`
-- **Middleware**: `ForceHttps`, `NoCacheHtmlResponses`, `ProgramaTejidoContext`, `DebugCSRF` (in addition to `SetSqlContextInfo`)
+- **Middleware**: `ForceHttps`, `NoCacheHtmlResponses`, `ProgramaTejidoContext` (in addition to `SetSqlContextInfo`)
 - **MCP**: `laravel/mcp` v0.5.1 — server in `app/Mcp/Servers/`
 - **Redis**: `predis/predis` v3.3 configured as cache/queue driver
 
