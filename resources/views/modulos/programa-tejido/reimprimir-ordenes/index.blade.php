@@ -327,21 +327,7 @@
     elementos.btnSeleccionarTodas.addEventListener('click', seleccionarTodas);
     elementos.btnDeseleccionarTodas.addEventListener('click', deseleccionarTodas);
 
-    // Función helper para mostrar toasts (asumiendo que existe)
-    function showToast(message, type = 'info') {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
-                title: message,
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000
-            });
-        } else {
-            alert(message);
-        }
-    }
+    // showToast(message, type) es global (resources/js/utils/notifications.js → toastr).
 })();
 </script>
 @endpush

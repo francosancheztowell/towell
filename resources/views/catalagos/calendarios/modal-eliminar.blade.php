@@ -1,6 +1,6 @@
 {{-- Modal para Eliminar Calendario o Línea --}}
 <script>
-    function eliminarCalendario() {
+    async function eliminarCalendario() {
         if (!selectedCalendarioTab && !selectedCalendarioLine) {
             Swal.fire({
                 title: 'Error',
@@ -24,10 +24,7 @@
             title = '¿Eliminar calendario?';
             html = `Vas a eliminar el calendario <b>${calendarioId}</b> - ${nombre}.`;
 
-            request = () => fetch(`/planeacion/calendarios/${calendarioId}`, {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': getCsrfToken() }
-            });
+            request = () => http.delete(`/planeacion/calendarios/${calendarioId}`);
         } else {
             const selectedRow = document.querySelector(
                 `${LINE_BODY_SELECTOR} tr[data-linea-id="${selectedCalendarioLine}"]`
@@ -41,41 +38,33 @@
             html = `Vas a eliminar la línea del calendario <b>${calendarioId}</b> turno <b>${turno}</b>.`;
 
             const lineaId = selectedCalendarioLine;
-            request = () => fetch(`/planeacion/calendarios/lineas/${lineaId}`, {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': getCsrfToken() }
-            });
+            request = () => http.delete(`/planeacion/calendarios/lineas/${lineaId}`);
         }
 
-        Swal.fire({
+        const confirmado = await notify.confirm({
             title,
             html,
             icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        }).then(result => {
-            if (!result.isConfirmed) return;
-
-            request()
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast(data.message, 'success');
-                        location.reload();
-                    } else {
-                        showToast(data.message || 'Error al eliminar', 'error');
-                    }
-                })
-                .catch(() => showToast('Error al eliminar', 'error'))
-                .finally(() => {
-                    if (typeof disableButtons === 'function') {
-                        disableButtons();
-                    }
-                });
+            confirmText: 'Sí, eliminar',
+            confirmColor: '#dc2626',
         });
+        if (!confirmado) return;
+
+        try {
+            const data = await request();
+            if (data.success) {
+                showToast(data.message, 'success');
+                location.reload();
+            } else {
+                showToast(data.message || 'Error al eliminar', 'error');
+            }
+        } catch (err) {
+            showToast(err.message || 'Error al eliminar', 'error');
+        } finally {
+            if (typeof disableButtons === 'function') {
+                disableButtons();
+            }
+        }
     }
 </script>
 

@@ -165,16 +165,10 @@
                 const fd = new FormData();
                 fd.append('_token', csrf);
                 fd.append('_method', 'DELETE');
-                const res = await fetch(destroyUrlTpl.replace(':id', id), {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: fd
-                });
-                const data = await res.json().catch(() => ({}));
-                if (res.ok && data.ok) {
+                let data;
+                try { data = await http.post(destroyUrlTpl.replace(':id', id), fd); }
+                catch (e) { if (!e.status) throw e; data = e.data || {}; }
+                if (data.ok) {
                     selectedRow.remove();
                     selectedRow = null;
                     setActionsState(false);
@@ -208,18 +202,11 @@
         submitBtn.disabled = true;
 
         try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrf
-                },
-                body: body
-            });
-            const data = await res.json().catch(() => ({}));
+            let data;
+            try { data = await http.post(url, body); }
+            catch (e) { if (!e.status) throw e; data = e.data || {}; }
 
-            if (res.ok && data.ok) {
+            if (data.ok) {
                 closeModal();
                 const item = data.item || {};
                 if (isPut && selectedRow) {

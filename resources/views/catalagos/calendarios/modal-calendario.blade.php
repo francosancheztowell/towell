@@ -23,16 +23,9 @@
         // Si es modo agregar, obtener la secuencia automática
         if (!esEdicion) {
             try {
-                const response = await fetch('/planeacion/calendarios/json', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken()
-                    }
-                });
+                const result = await http.get('/planeacion/calendarios/json');
 
-                if (response.ok) {
-                    const result = await response.json();
+                {
                     if (result.success && result.data && result.data.length > 0) {
                         // Buscar el último número en los nombres y CalendarioId de calendarios
                         let maxNumero = 0;
@@ -589,31 +582,23 @@
                 ? `/planeacion/calendarios/${encodeURIComponent(result.value.calendarioId)}/masivo`
                 : '/planeacion/calendarios';
 
-            const method = esEdicion ? 'PUT' : 'POST';
-            const body = esEdicion
-                ? JSON.stringify({
+            const payload = esEdicion
+                ? {
                     Nombre: result.value.nombre,
                     FechaInicial: result.value.fechaInicial,
                     FechaFinal: result.value.fechaFinal,
                     Turnos: result.value.turnos
-                })
-                : JSON.stringify({
+                }
+                : {
                     CalendarioId: result.value.calendarioId,
                     Nombre: result.value.nombre,
                     FechaInicial: result.value.fechaInicial,
                     FechaFinal: result.value.fechaFinal,
                     Turnos: result.value.turnos
-                });
+                };
 
-            fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken()
-                },
-                body: body
-            })
-                .then(r => r.json())
+            const peticion = esEdicion ? http.put(url, payload) : http.post(url, payload);
+            peticion
                 .then(data => {
                     if (data.success) {
                         // Aquí crearías las líneas de calendario basadas en los turnos
@@ -624,7 +609,7 @@
                         showToast(data.message || `Error al ${esEdicion ? 'actualizar' : 'crear'} calendario`, 'error');
                     }
                 })
-                .catch(() => showToast(`Error al ${esEdicion ? 'actualizar' : 'crear'} calendario`, 'error'));
+                .catch(err => showToast(err.message || `Error al ${esEdicion ? 'actualizar' : 'crear'} calendario`, 'error'));
         });
     }
 </script>

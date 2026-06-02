@@ -76,11 +76,7 @@
             formData.append('_token', getCsrfToken());
             formData.append('tipo', 'lineas');
 
-            fetch('/planeacion/calendarios/excel', {
-                method: 'POST',
-                body: formData
-            })
-                .then(r => r.json())
+            http.upload('/planeacion/calendarios/excel', formData)
                 .then(data => {
                     Swal.close();
 

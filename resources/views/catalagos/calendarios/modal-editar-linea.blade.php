@@ -105,20 +105,12 @@
 
             const lineaId = selectedCalendarioLine;
 
-            fetch(`/planeacion/calendarios/lineas/${lineaId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken()
-                },
-                body: JSON.stringify({
-                    FechaInicio: result.value.fechaInicio,
-                    FechaFin: result.value.fechaFin,
-                    HorasTurno: result.value.horas,
-                    Turno: result.value.turno
-                })
+            http.put(`/planeacion/calendarios/lineas/${lineaId}`, {
+                FechaInicio: result.value.fechaInicio,
+                FechaFin: result.value.fechaFin,
+                HorasTurno: result.value.horas,
+                Turno: result.value.turno
             })
-                .then(r => r.json())
                 .then(data => {
                     if (data.success) {
                         showToast(data.message, 'success');
@@ -127,7 +119,7 @@
                         showToast(data.message || 'Error al actualizar línea de calendario', 'error');
                     }
                 })
-                .catch(() => showToast('Error al actualizar línea de calendario', 'error'));
+                .catch(err => showToast(err.message || 'Error al actualizar línea de calendario', 'error'));
         });
     }
 </script>

@@ -476,11 +476,7 @@
                 }
             });
 
-            // --- Toast
-            function showToast(message, type = 'success') {
-                const map = { success: 'success', error: 'error', warning: 'warning', info: 'info' };
-                Swal.fire({ toast: true, position: 'top-end', icon: map[type] || 'success', title: message, showConfirmButton: false, timer: 2000, timerProgressBar: true });
-            }
+            // --- Toast: showToast(message, type) es global (utils/notifications.js → toastr).
 
             // --- Modal helpers
             let __telarTarget = null;

@@ -86,21 +86,13 @@
         }).then((result) => {
             if (!result.isConfirmed) return;
 
-            fetch('/planeacion/calendarios/lineas', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken()
-                },
-                body: JSON.stringify({
-                    CalendarioId: result.value.calendarioId,
-                    FechaInicio: result.value.fechaInicio,
-                    FechaFin: result.value.fechaFin,
-                    HorasTurno: result.value.horas,
-                    Turno: result.value.turno
-                })
+            http.post('/planeacion/calendarios/lineas', {
+                CalendarioId: result.value.calendarioId,
+                FechaInicio: result.value.fechaInicio,
+                FechaFin: result.value.fechaFin,
+                HorasTurno: result.value.horas,
+                Turno: result.value.turno
             })
-                .then(r => r.json())
                 .then(data => {
                     if (data.success) {
                         showToast(data.message, 'success');
@@ -109,7 +101,7 @@
                         showToast(data.message || 'Error al crear línea de calendario', 'error');
                     }
                 })
-                .catch(() => showToast('Error al crear línea de calendario', 'error'));
+                .catch(err => showToast(err.message || 'Error al crear línea de calendario', 'error'));
         });
     }
 </script>

@@ -87,21 +87,7 @@
                     console.log('CalendarioId original:', calendarioId);
                     console.log('CalendarioId encoded:', encodeURIComponent(calendarioId));
 
-                    fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': getCsrfToken()
-                        }
-                    })
-                    .then(r => {
-                        if (!r.ok) {
-                            return r.text().then(text => {
-                                throw new Error(`HTTP ${r.status}: ${text || r.statusText}`);
-                            });
-                        }
-                        return r.json();
-                    })
+                    http.post(url)
                     .then(data => {
                         resolve(data);
                     })

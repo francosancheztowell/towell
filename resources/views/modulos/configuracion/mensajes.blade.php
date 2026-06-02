@@ -291,16 +291,10 @@
                 const fd = new FormData();
                 fd.append('_token', csrf);
                 fd.append('_method', 'DELETE');
-                const res = await fetch(destroyUrlTpl.replace(':id', id), {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: fd
-                });
-                const data = await res.json().catch(() => ({}));
-                if (res.ok && data.ok) {
+                let data;
+                try { data = await http.post(destroyUrlTpl.replace(':id', id), fd); }
+                catch (e) { if (!e.status) throw e; data = e.data || {}; }
+                if (data.ok) {
                     selectedRow.remove();
                     selectedRow = null;
                     setActionsState(false);
@@ -337,9 +331,10 @@
     async function cargarChatIds(id) {
         chatIdsList.innerHTML = '<p class="text-sm text-gray-500">Cargando...</p>';
         try {
-            const res = await fetch(obtenerChatIdsUrlTpl.replace(':id', id), { headers: { 'Accept': 'application/json' } });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.ok) {
+            let data;
+            try { data = await http.get(obtenerChatIdsUrlTpl.replace(':id', id)); }
+            catch (e) { if (!e.status) throw e; data = e.data || {}; }
+            if (!data.ok) {
                 chatIdsList.innerHTML = '<p class="text-sm text-red-600">No se pudo obtener la lista.</p>';
                 return;
             }
@@ -362,13 +357,10 @@
                         fd.append('_token', csrf);
                         fd.append('_method', 'PUT');
                         fd.append('ChatId', chatId);
-                        const r = await fetch(actualizarChatIdUrlTpl.replace(':id', id), {
-                            method: 'POST',
-                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf },
-                            body: fd
-                        });
-                        const d = await r.json().catch(() => ({}));
-                        if (r.ok && d.ok && d.item) {
+                        let d;
+                        try { d = await http.post(actualizarChatIdUrlTpl.replace(':id', id), fd); }
+                        catch (e) { if (!e.status) throw e; d = e.data || {}; }
+                        if (d.ok && d.item) {
                             const item = d.item;
                             selectedRow.dataset.token = item.Token || '';
                             selectedRow.cells[3].textContent = item.Token || '';
@@ -413,19 +405,12 @@
         submitBtn.disabled = true;
 
         try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrf
-                },
-                body: body
-            });
-            const data = await res.json().catch(() => ({}));
+            let data;
+            try { data = await http.post(url, body); }
+            catch (e) { if (!e.status) throw e; data = e.data || {}; }
 
             function siNo(v) { return v ? 'Sí' : 'No'; }
-                if (res.ok && data.ok) {
+                if (data.ok) {
                 closeModal();
                 const item = data.item || {};
                 if (isPut && selectedRow) {

@@ -266,14 +266,7 @@
                     didOpen: () => Swal.showLoading()
                 });
 
-                fetch(`/planeacion/calendarios/${encodeURIComponent(calendarioId)}/detalle`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken()
-                    }
-                })
-                    .then(r => r.json())
+                http.get(`/planeacion/calendarios/${encodeURIComponent(calendarioId)}/detalle`)
                     .then(data => {
                         Swal.close();
                         if (data.success) {
