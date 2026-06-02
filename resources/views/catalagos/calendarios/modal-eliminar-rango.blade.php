@@ -136,19 +136,13 @@
                 });
 
                 // Hacer la petición al backend
-                fetch(`/planeacion/calendarios/${encodeURIComponent(result.value.calendarioId)}/lineas/rango`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken()
-                    },
-                    body: JSON.stringify({
+                http.delete(`/planeacion/calendarios/${encodeURIComponent(result.value.calendarioId)}/lineas/rango`, {
+                    data: {
                         fechaInicio: result.value.fechaInicio,
                         fechaFin: result.value.fechaFin,
                         turnos: result.value.turnos
-                    })
+                    }
                 })
-                .then(r => r.json())
                 .then(data => {
                     Swal.close();
                     if (data.success) {

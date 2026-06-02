@@ -38,3 +38,8 @@ gha-creds-*.json
 # Descomprimidos accidentales de plantillas .xlsx
 /resources/templates/_saldos_unzip/
 /resources/templates/*_temp.zip
+
+# Archivos de debug / temporales (no deben versionarse)
+/public/test.php
+/check_cols.php
+/.tmp_route_list.json

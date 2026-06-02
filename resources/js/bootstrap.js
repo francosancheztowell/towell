@@ -27,3 +27,12 @@ window.toastr = toastr;
 // Chart.js (reportes con canvas en Blade, p. ej. engomado / promedio paros)
 import Chart from 'chart.js/auto';
 window.Chart = Chart;
+
+// Cliente HTTP unificado y notificaciones (expuestos para scripts inline de Blade).
+// Ver resources/js/utils/. Reemplazan los fetch() crudos y los showToast() duplicados.
+import http from './utils/http';
+import notify, { showToast } from './utils/notifications';
+window.http = http;
+window.notify = notify;
+// showToast global unificado (firma estándar message, type) → toastr vía notify.
+window.showToast = showToast;

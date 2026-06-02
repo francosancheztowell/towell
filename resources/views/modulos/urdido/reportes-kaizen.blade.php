@@ -41,6 +41,7 @@
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Mes</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Código</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Localidad</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">No. Telar</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Estado</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Lote</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">CALIBRE</th>
@@ -66,6 +67,7 @@
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['mes'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['codigo'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['localidad'] ?? '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['no_telar'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['estado'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['lote'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['calibre'] ?? '' }}</td>
@@ -84,7 +86,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="20" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
+                                    <td colspan="21" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -106,6 +108,7 @@
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">MES</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Código</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Localidad</th>
+                                <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">No. Telar</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Estado</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">Lote</th>
                                 <th class="px-1.5 py-1 text-left font-semibold text-xs border border-gray-300">CALIBRE</th>
@@ -129,6 +132,7 @@
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['mes'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['codigo'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['localidad'] ?? '' }}</td>
+                                    <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['no_telar'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['estado'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['lote'] ?? '' }}</td>
                                     <td class="px-1.5 py-0.5 border border-gray-300">{{ $f['calibre'] ?? '' }}</td>
@@ -145,7 +149,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="18" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
+                                    <td colspan="19" class="px-2 py-3 text-center text-gray-500 text-xs border border-gray-300">Sin datos</td>
                                 </tr>
                             @endforelse
                         </tbody>

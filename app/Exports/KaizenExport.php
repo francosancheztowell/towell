@@ -89,6 +89,7 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             'MES',
             'Código',
             'Localidad',
+            'No. Telar',
             'Estado',
             'Lote',
             'CALIBRE',
@@ -118,6 +119,7 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             'MES',
             'Código',
             'Localidad',
+            'No. Telar',
             'Estado',
             'Lote',
             'CALIBRE',
@@ -147,19 +149,20 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow(3, $row, $f['mes'] ?? '');
             $sheet->setCellValueByColumnAndRow(4, $row, $f['codigo'] ?? '');
             $sheet->setCellValueByColumnAndRow(5, $row, $f['localidad'] ?? '');
-            $sheet->setCellValueByColumnAndRow(6, $row, $f['estado'] ?? 'Terminado');
-            $sheet->setCellValueByColumnAndRow(7, $row, $f['lote'] ?? '');
-            $sheet->setCellValueByColumnAndRow(8, $row, $f['calibre'] ?? '');
-            $sheet->setCellValueByColumnAndRow(9, $row, $f['cantidad'] ?? '');
-            $sheet->setCellValueByColumnAndRow(10, $row, $f['configuracion'] ?? '');
-            $sheet->setCellValueByColumnAndRow(11, $row, $f['tamano'] ?? '');
-            $sheet->setCellValueByColumnAndRow(12, $row, $f['mts'] ?? '');
-            $sheet->setCellValueByColumnAndRow(13, $row, $f['julios'] ?? '');
-            $sheet->setCellValueByColumnAndRow(14, $row, $f['oficiales'] ?? '');
-            $sheet->setCellValueByColumnAndRow(15, $row, $f['no_oficiales'] ?? '');
-            $sheet->setCellValueByColumnAndRow(16, $row, $f['hora_inicio'] ?? '');
-            $sheet->setCellValueByColumnAndRow(17, $row, $f['hora_final'] ?? '');
-            $sheet->setCellValueByColumnAndRow(18, $row, $f['tiempo_produccion_min'] ?? '');
+            $sheet->setCellValueByColumnAndRow(6, $row, $f['no_telar'] ?? '');
+            $sheet->setCellValueByColumnAndRow(7, $row, $f['estado'] ?? 'Terminado');
+            $sheet->setCellValueByColumnAndRow(8, $row, $f['lote'] ?? '');
+            $sheet->setCellValueByColumnAndRow(9, $row, $f['calibre'] ?? '');
+            $sheet->setCellValueByColumnAndRow(10, $row, $f['cantidad'] ?? '');
+            $sheet->setCellValueByColumnAndRow(11, $row, $f['configuracion'] ?? '');
+            $sheet->setCellValueByColumnAndRow(12, $row, $f['tamano'] ?? '');
+            $sheet->setCellValueByColumnAndRow(13, $row, $f['mts'] ?? '');
+            $sheet->setCellValueByColumnAndRow(14, $row, $f['julios'] ?? '');
+            $sheet->setCellValueByColumnAndRow(15, $row, $f['oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(16, $row, $f['no_oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(17, $row, $f['hora_inicio'] ?? '');
+            $sheet->setCellValueByColumnAndRow(18, $row, $f['hora_final'] ?? '');
+            $sheet->setCellValueByColumnAndRow(19, $row, $f['tiempo_produccion_min'] ?? '');
         }
     }
 
@@ -173,21 +176,22 @@ class KaizenExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow(3, $row, $f['mes'] ?? '');
             $sheet->setCellValueByColumnAndRow(4, $row, $f['codigo'] ?? '');
             $sheet->setCellValueByColumnAndRow(5, $row, $f['localidad'] ?? '');
-            $sheet->setCellValueByColumnAndRow(6, $row, $f['estado'] ?? 'Terminado');
-            $sheet->setCellValueByColumnAndRow(7, $row, $f['lote'] ?? '');
-            $sheet->setCellValueByColumnAndRow(8, $row, $f['calibre'] ?? '');
-            $sheet->setCellValueByColumnAndRow(9, $row, $f['cantidad'] ?? '');
-            $sheet->setCellValueByColumnAndRow(10, $row, $f['configuracion'] ?? '');
-            $sheet->setCellValueByColumnAndRow(11, $row, $f['tamano'] ?? '');
-            $sheet->setCellValueByColumnAndRow(12, $row, $f['mts'] ?? '');
-            $sheet->setCellValueByColumnAndRow(13, $row, $f['merma_goma'] ?? '');
-            $sheet->setCellValueByColumnAndRow(14, $row, $f['merma'] ?? '');
-            $sheet->setCellValueByColumnAndRow(15, $row, $f['julios'] ?? '');
-            $sheet->setCellValueByColumnAndRow(16, $row, $f['oficiales'] ?? '');
-            $sheet->setCellValueByColumnAndRow(17, $row, $f['no_oficiales'] ?? '');
-            $sheet->setCellValueByColumnAndRow(18, $row, $f['hora_inicio'] ?? '');
-            $sheet->setCellValueByColumnAndRow(19, $row, $f['hora_final'] ?? '');
-            $sheet->setCellValueByColumnAndRow(20, $row, $f['tiempo_produccion_min'] ?? '');
+            $sheet->setCellValueByColumnAndRow(6, $row, $f['no_telar'] ?? '');
+            $sheet->setCellValueByColumnAndRow(7, $row, $f['estado'] ?? 'Terminado');
+            $sheet->setCellValueByColumnAndRow(8, $row, $f['lote'] ?? '');
+            $sheet->setCellValueByColumnAndRow(9, $row, $f['calibre'] ?? '');
+            $sheet->setCellValueByColumnAndRow(10, $row, $f['cantidad'] ?? '');
+            $sheet->setCellValueByColumnAndRow(11, $row, $f['configuracion'] ?? '');
+            $sheet->setCellValueByColumnAndRow(12, $row, $f['tamano'] ?? '');
+            $sheet->setCellValueByColumnAndRow(13, $row, $f['mts'] ?? '');
+            $sheet->setCellValueByColumnAndRow(14, $row, $f['merma_goma'] ?? '');
+            $sheet->setCellValueByColumnAndRow(15, $row, $f['merma'] ?? '');
+            $sheet->setCellValueByColumnAndRow(16, $row, $f['julios'] ?? '');
+            $sheet->setCellValueByColumnAndRow(17, $row, $f['oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(18, $row, $f['no_oficiales'] ?? '');
+            $sheet->setCellValueByColumnAndRow(19, $row, $f['hora_inicio'] ?? '');
+            $sheet->setCellValueByColumnAndRow(20, $row, $f['hora_final'] ?? '');
+            $sheet->setCellValueByColumnAndRow(21, $row, $f['tiempo_produccion_min'] ?? '');
         }
     }
 }

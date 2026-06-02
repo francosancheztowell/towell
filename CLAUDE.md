@@ -90,9 +90,16 @@ Controllers follow the same subdirectory pattern under `app/Http/Controllers/`.
 ### Frontend
 - Tailwind CSS v4 via `@tailwindcss/vite` plugin
 - jQuery v4, Select2, SweetAlert2, Toastr, Chart.js, SortableJS, Font Awesome
-- Three JS entry points: `app.js` (main), `app-core.js`, `app-filters.js`
+- Three JS entry points: `app.js` (main), `app-core.js`, `app-filters.js`. The layout component `<x-layout-scripts>` loads `app.js` (which imports `bootstrap.js`); `app.blade.php` additionally loads `app-core.js` + `app-filters.js`.
 - Blade layouts in `resources/views/layouts/`: `app.blade.php` (main), `simple.blade.php`, `globalLoader.blade.php`
 - Module images stored in `public/images/fotos_modulos/`; user photos in `public/images/fotos_usuarios/` (WebP preferred)
+
+#### HTTP & notificaciones (preferir sobre `fetch` crudo)
+`bootstrap.js` expone dos utilidades globales (también importables como ESM desde `resources/js/utils/`), disponibles en cualquier `<script>` de Blade:
+- **`window.http`** (`resources/js/utils/http.js`) — cliente HTTP único sobre axios. Métodos `http.get/post/put/patch/delete(url, data?, config?)` y `http.upload(url, formData)`. Devuelve directamente el JSON (`response.data`), añade el CSRF automáticamente, y **lanza** en errores HTTP con un `Error` normalizado (`err.status`, `err.data`, `err.errors` para validación 422). No escribir `fetch(...).then(r => r.json())` nuevo.
+- **`window.notify`** (`resources/js/utils/notifications.js`) — `notify.success/error/warning/info(msg)`, `notify.confirm({...}) → Promise<boolean>`, `notify.validation(err.errors)`, `notify.loading()/close()`. Escapa HTML para evitar XSS.
+
+Migración en curso (ver plan de auditoría): los `fetch` inline y los `showToast()` duplicados se reemplazan módulo por módulo. Módulo piloto migrado: `resources/views/catalagos/calendarios/`.
 
 ### Excel Import/Export
 Uses `maatwebsite/excel` (v3.1). Import classes are in `app/Imports/` (11 files). Export classes in `app/Exports/` (17 files) for generating downloadable reports per module.
@@ -110,7 +117,7 @@ Uses `dompdf/dompdf` (v3.1). PDF controllers/views are in `app/Http/Controllers/
 - **Traits**: `HasUserPermissions`, `ProduccionTrait` in `app/Traits/`
 - **Observers**: `ReqProgramaTejidoObserver` (registered in AppServiceProvider), `SimulacionProgramaTejidoObserver`
 - **Artisan Commands**: `OptimizeModuleImagesCommand`, `RecalcularFechasProduccionCommand`
-- **Middleware**: `ForceHttps`, `NoCacheHtmlResponses`, `ProgramaTejidoContext`, `DebugCSRF` (in addition to `SetSqlContextInfo`)
+- **Middleware**: `ForceHttps`, `NoCacheHtmlResponses`, `ProgramaTejidoContext` (in addition to `SetSqlContextInfo`)
 - **MCP**: `laravel/mcp` v0.5.1 — server in `app/Mcp/Servers/`
 - **Redis**: `predis/predis` v3.3 configured as cache/queue driver
 

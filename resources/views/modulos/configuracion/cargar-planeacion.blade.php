@@ -211,6 +211,8 @@ document.addEventListener('DOMContentLoaded', function() {
             ? '/configuracion/utileria/cargarplaneacion/upload-update'
             : '/configuracion/cargar-planeacion/upload';
 
+        // NOTA: se mantiene fetch (no http) a propósito: este handler parsea la
+        // respuesta como texto crudo y tolera respuestas no-JSON (ver abajo).
         fetch(ruta, {
             method: 'POST',
             body: formData

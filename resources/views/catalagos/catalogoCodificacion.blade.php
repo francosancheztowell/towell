@@ -654,40 +654,7 @@ const utils = {
     // ============================================
     //  TOAST NOTIFICATIONS
     // ============================================
-function showToast(message, type = 'info') {
-    let toast = $('#toast-notification');
-
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'toast-notification';
-            toast.className = 'fixed top-4 right-4 z-[9999] max-w-sm w-full';
-        document.body.appendChild(toast);
-    }
-
-        const colors = {
-            success: 'bg-green-600',
-            error:   'bg-red-600',
-            warning: 'bg-yellow-600',
-            info:    'bg-blue-600'
-        };
-
-    toast.innerHTML = `
-            <div class="${colors[type] || colors.info} text-white px-4 py-3 rounded-lg shadow-lg">
-            <div class="flex items-center justify-between gap-4">
-                    <span class="text-sm">${message}</span>
-                    <button
-                        type="button"
-                        class="opacity-80 hover:opacity-100"
-                        onclick="this.closest('#toast-notification')?.remove()"
-                    >
-                        &times;
-                </button>
-            </div>
-            </div>
-        `;
-
-    setTimeout(() => toast?.remove(), 3500);
-}
+// showToast(message, type) es global (resources/js/utils/notifications.js → toastr).
 
     // ============================================
     //  LOADING TABLA
