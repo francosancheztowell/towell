@@ -649,30 +649,49 @@ class AtadoresController extends Controller
                 // Commit de la transacción SQL Server
                 DB::connection('sqlsrv')->commit();
 
-                // 4. Eliminar el registro original de tej_inventario_telares (MySQL)
-                // Esto se hace fuera de la transacción SQL Server ya que es otra conexión
-                if ($registroOriginal) {
-                    $registroOriginal->delete();
-                }
-
-                // 5. NO eliminar las tablas de montado - mantener los registros autorizados
-                // Los registros en AtaMontadoTelas, AtaMontadoMaquinas y AtaMontadoActividades
-                // se conservan como registro histórico del proceso autorizado
-                return response()->json([
-                    'ok' => true,
-                    'message' => 'Proceso autorizado completamente',
-                    'redirect' => route('atadores.programa'),
-                    'supervisor' => [
-                        'cve' => $user->numero_empleado,
-                        'nombre' => $user->nombre
-                    ]
-                ]);
-
             } catch (\Exception $e) {
                 DB::connection('sqlsrv')->rollBack();
 
                 return response()->json(['ok' => false, 'message' => 'Error al autorizar: ' . $e->getMessage()]);
             }
+
+            // 4. Eliminar el registro original de tej_inventario_telares (MySQL)
+            // IMPORTANTE: se hace FUERA del try-catch de SQL Server. El commit de SQL Server ya
+            // ocurrió, así que un fallo aquí NO debe disparar un rollBack inútil ni devolver ok=false
+            // dejando el registro huérfano (Autorizado en SQL Server pero presente en MySQL).
+            // Se reintenta por id y si aun así falla, se registra en log para limpieza posterior.
+            if ($registroOriginal) {
+                try {
+                    $eliminado = TejInventarioTelares::where('no_julio', $montado->NoJulio)
+                        ->where('no_orden', $montado->NoProduccion)
+                        ->delete();
+
+                    if (!$eliminado) {
+                        // Fallback por id directo
+                        TejInventarioTelares::whereKey($registroOriginal->getKey())->delete();
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Atadores: registro autorizado pero no se pudo eliminar de tej_inventario_telares', [
+                        'id' => $registroOriginal->getKey(),
+                        'no_julio' => $montado->NoJulio,
+                        'no_orden' => $montado->NoProduccion,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // 5. NO eliminar las tablas de montado - mantener los registros autorizados
+            // Los registros en AtaMontadoTelas, AtaMontadoMaquinas y AtaMontadoActividades
+            // se conservan como registro histórico del proceso autorizado
+            return response()->json([
+                'ok' => true,
+                'message' => 'Proceso autorizado completamente',
+                'redirect' => route('atadores.programa'),
+                'supervisor' => [
+                    'cve' => $user->numero_empleado,
+                    'nombre' => $user->nombre
+                ]
+            ]);
         }
 
         if ($action === 'calificacion') {
