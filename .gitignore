@@ -10,6 +10,7 @@
 .env
 .env.backup
 .env.production
+/config/database.php
 /bootstrap/cache
 .phpactor.json
 .phpunit.result.cache

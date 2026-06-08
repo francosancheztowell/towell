@@ -167,6 +167,9 @@ class SaldosController extends Controller
                 $sumSaldoPedido = $grupo->sum('SaldoPedido');
                 $sumProduccion = $grupo->sum('Produccion');
                 $sumTotalRollos = $grupo->sum('TotalRollos');
+                $sumRollosPorTejer = $grupo->sum(function ($r) {
+                    return is_numeric($r->NoMarbete ?? null) ? (float) $r->NoMarbete : 0;
+                });
                 $sumTotalPzasProgramadas = $grupo->sum(function ($r) {
                     return (float) ($r->PzasRollo ?? 0) * (float) ($r->TotalRollos ?? 0);
                 });
@@ -180,12 +183,14 @@ class SaldosController extends Controller
                         $r->_sumSaldoPedido = $sumSaldoPedido;
                         $r->_sumProduccion = $sumProduccion;
                         $r->_sumTotalRollos = $sumTotalRollos;
+                        $r->_sumRollosPorTejer = $sumRollosPorTejer;
                         $r->_sumTotalPzasProgramadas = $sumTotalPzasProgramadas;
                     } else {
                         $r->_sumTotalPedido = null;
                         $r->_sumSaldoPedido = null;
                         $r->_sumProduccion = null;
                         $r->_sumTotalRollos = null;
+                        $r->_sumRollosPorTejer = null;
                         $r->_sumTotalPzasProgramadas = null;
                     }
                 }
@@ -198,6 +203,7 @@ class SaldosController extends Controller
                     $r->_sumSaldoPedido = $r->SaldoPedido;
                     $r->_sumProduccion = $r->Produccion;
                     $r->_sumTotalRollos = $r->TotalRollos;
+                    $r->_sumRollosPorTejer = is_numeric($r->NoMarbete ?? null) ? (float) $r->NoMarbete : $r->NoMarbete;
                     $r->_sumTotalPzasProgramadas = (float) ($r->PzasRollo ?? 0) * (float) ($r->TotalRollos ?? 0);
                 }
             }

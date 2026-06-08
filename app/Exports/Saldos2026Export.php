@@ -184,7 +184,7 @@ final class Saldos2026Export
             $faltan = $solicitado - $saldo;
             $avance = $solicitado > 0 ? min(1.0, max(0.0, $produccion / $solicitado)) : null;
         }
-        $rollosPorTejer = $r->NoMarbete ?? null;
+        $rollosPorTejer = $esLider ? ($r->_sumRollosPorTejer ?? $r->NoMarbete ?? null) : null;
 
         $raz = $r->Rasurado ?? '';
         $razNorm = mb_strtolower(trim((string) $raz), 'UTF-8');
@@ -284,7 +284,11 @@ final class Saldos2026Export
             $this->writeString($sheet, "BG{$row}", '—');
         }
 
-        $this->writeMaybeNumeric($sheet, "BH{$row}", $rollosPorTejer);
+        if ($esLider) {
+            $this->writeMaybeNumeric($sheet, "BH{$row}", $rollosPorTejer);
+        } else {
+            $this->writeString($sheet, "BH{$row}", 'ABIERTO');
+        }
 
         $this->writeString($sheet, "BJ{$row}", $r->Observaciones ?? '');
 

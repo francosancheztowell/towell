@@ -143,7 +143,7 @@
                                 $avance            = $solicitado > 0
                                     ? round(min(100, max(0, $produccionVal / $solicitado * 100)), 1)
                                     : 0;
-                                $rollosPorTejer    = $r->NoMarbete ?? null;
+                                $rollosPorTejer    = $r->_sumRollosPorTejer ?? $r->NoMarbete ?? null;
                                 // Semáforo: ≤1 verde, 2-10 naranja, ≥11 rojo
                                 $rollosPorTejerStyle = 'background:#bbf7d0;border-color:#4ade80;';
                                 if (is_numeric($rollosPorTejer)) {
@@ -244,7 +244,13 @@
                                     @endif
                                 </td>
                                 <td class="saldos-td text-right tabular-nums {{ $avance >= 100 ? 'text-green-600 font-semibold' : 'text-blue-600' }}">{{ $solicitado > 0 ? $avance . '%' : '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="{{ $rollosPorTejerStyle }}">{{ is_numeric($rollosPorTejer) ? number_format($rollosPorTejer, 0) : ($rollosPorTejer ?? '—') }}</td>
+                                <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="{{ $esLider ? $rollosPorTejerStyle : '' }}">
+                                    @if ($esLider)
+                                        {{ is_numeric($rollosPorTejer) ? number_format($rollosPorTejer, 0) : ($rollosPorTejer ?? '—') }}
+                                    @else
+                                        <span class="saldos-abierto-badge">ABIERTO</span>
+                                    @endif
+                                </td>
                                 <td class="saldos-td saldos-td-obs text-gray-800 truncate" style="max-width:220px;" title="{{ $r->Observaciones }}">{{ $r->Observaciones ?? '' }}</td>
                                 {{-- Columnas extra --}}
                                 <td class="saldos-td saldos-col-extra text-center font-mono text-gray-700">{{ $r->OrdCompartida ?? '—' }}</td>
