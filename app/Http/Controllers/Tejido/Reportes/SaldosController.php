@@ -67,7 +67,7 @@ class SaldosController extends Controller
                 'OrdCompartida', 'OrdCompartidaLider',
                 'FechaTejido', 'Departamento',
                 'TotalRollos', 'PzasRollo',
-                'ItemId', 'Prioridad',
+                'ItemId', 'Prioridad', 'NoMarbete',
             ]);
 
         return $finalizados->map(function ($cat) {
@@ -89,6 +89,7 @@ class SaldosController extends Controller
             $obj->PzasRollo         = $cat->PzasRollo;
             $obj->ItemId            = $cat->ItemId;
             $obj->Prioridad         = $cat->Prioridad;
+            $obj->NoMarbete         = $cat->NoMarbete;
 
             // Campos sin equivalente en CatCodificados
             $obj->Posicion          = null;
@@ -234,6 +235,7 @@ class SaldosController extends Controller
                 'ReqProgramaTejido.Id', 'SalonTejidoId', 'NoTelarId', 'FechaInicio', 'NoExisteBase', 'NoProduccion',
                 'EnProceso', 'OrdCompartida', 'OrdCompartidaLider',
                 DB::raw('(SELECT TOP 1 r2.NoProduccion FROM dbo.ReqProgramaTejido r2 WHERE r2.OrdCompartida = ReqProgramaTejido.OrdCompartida AND r2.OrdCompartidaLider = 1) AS OrdenLider'),
+                DB::raw('(SELECT TOP 1 cc.NoMarbete FROM dbo.CatCodificados cc WHERE cc.OrdenTejido = ReqProgramaTejido.NoProduccion ORDER BY cc.Id DESC) AS NoMarbete'),
                 'FechaCreacion', 'EntregaCte',
                 'Programado', 'Prioridad', 'NombreProducto', 'ReqProgramaTejido.TamanoClave',
                 'ItemId', 'ReqProgramaTejido.FlogsId', 'EntregaProduc', 'TotalPedido', 'Peine', 'Ancho', 'LargoCrudo', 'PesoCrudo', 'Luchaje',

@@ -14,9 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
-use RuntimeException;
 
 class ReportesAtadoresController extends Controller
 {
@@ -108,58 +106,6 @@ class ReportesAtadoresController extends Controller
             'lunesIni' => $lunesInicio?->toDateString(),
             'domingoFin' => $domingoFin?->toDateString(),
         ]);
-    }
-
-    public function exportarReporteAtadoresExcel(Request $request)
-    {
-        @set_time_limit(300);
-
-        [$fechaInicio, $fechaFin, $lunesInicio, $lunesFin] = $this->resolverRangoFechasAtadoresDesdeRequest($request);
-
-        if (! $fechaInicio || ! $fechaFin || ! $lunesInicio || ! $lunesFin) {
-            return redirect()
-                ->route('atadores.reportes.atadores')
-                ->with('error', 'Debe seleccionar una fecha inicial y final validas para exportar el OEE Atadores.');
-        }
-
-        if ($fechaInicio->year !== $fechaFin->year) {
-            return redirect()
-                ->route('atadores.reportes.atadores', [
-                    'fecha_ini' => $fechaInicio->toDateString(),
-                    'fecha_fin' => $fechaFin->toDateString(),
-                ])
-                ->with('error', 'Para guardar el archivo anual del OEE Atadores, selecciona un rango dentro del mismo año.');
-        }
-
-        [$inicioAnual, $finAnual, $year] = $this->resolverRangoAnualAtadores($fechaFin);
-        $nombreArchivo = "OEE Atadores {$year}.xlsx";
-
-        try {
-            $rutaGuardado = $this->guardarReporteAtadoresEnRuta(
-                new Reporte00EAtadoresRangoExport($inicioAnual, $finAnual),
-                $nombreArchivo
-            );
-        } catch (\Throwable $e) {
-            Log::error('No se pudo guardar el reporte anual OEE Atadores', [
-                'fecha_inicio' => $fechaInicio->toDateString(),
-                'fecha_fin' => $fechaFin->toDateString(),
-                'error' => $e->getMessage(),
-            ]);
-
-            return redirect()
-                ->route('atadores.reportes.atadores', [
-                    'fecha_ini' => $fechaInicio->toDateString(),
-                    'fecha_fin' => $fechaFin->toDateString(),
-                ])
-                ->with('error', 'No se pudo guardar el archivo anual OEE Atadores. '.$e->getMessage());
-        }
-
-        return redirect()
-            ->route('atadores.reportes.atadores', [
-                'fecha_ini' => $fechaInicio->toDateString(),
-                'fecha_fin' => $fechaFin->toDateString(),
-            ])
-            ->with('success', "Archivo anual actualizado correctamente en {$rutaGuardado}");
     }
 
     /**
@@ -380,52 +326,6 @@ class ReportesAtadoresController extends Controller
             ->startOfDay();
     }
 
-    private function resolverRangoAnualAtadores(CarbonImmutable $fechaReferencia): array
-    {
-        $year = $fechaReferencia->year;
-        $inicioAnual = $fechaReferencia->startOfYear()->startOfWeek(CarbonInterface::MONDAY);
-        $finAnual = $fechaReferencia->endOfYear()->startOfWeek(CarbonInterface::MONDAY);
-
-        return [$inicioAnual, $finAnual, $year];
-    }
-
-    private function guardarReporteAtadoresEnRuta(Reporte00EAtadoresRangoExport $export, string $nombreArchivo): string
-    {
-        $rutaRed = config('filesystems.disks.reports_atadores.root') ?: '\\\\192.168.2.11\\ti-system';
-        $sep = PHP_OS_FAMILY === 'Windows' ? '\\' : '/';
-        $rutaNormalizada = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep);
-
-        if ($rutaNormalizada === '') {
-            throw new RuntimeException('La ruta configurada para reportes de atadores es invalida.');
-        }
-
-        $rutaArchivo = $rutaNormalizada.$sep.$nombreArchivo;
-        $directorio = dirname($rutaArchivo);
-
-        if (! is_dir($directorio) && ! @mkdir($directorio, 0777, true) && ! is_dir($directorio)) {
-            throw new RuntimeException("No se pudo preparar la ruta destino: {$directorio}");
-        }
-
-        $contenido = Excel::raw($export, ExcelFormat::XLSX);
-        if (! is_string($contenido) || $contenido === '') {
-            throw new RuntimeException('No se pudo generar el contenido del archivo Excel.');
-        }
-
-        $bytes = @file_put_contents($rutaArchivo, $contenido);
-        if ($bytes === false) {
-            $lastError = error_get_last();
-            $message = $lastError['message'] ?? 'Error desconocido al escribir el archivo.';
-            throw new RuntimeException($message);
-        }
-
-        Log::info('Reporte anual OEE Atadores guardado en ruta configurada', [
-            'archivo' => $nombreArchivo,
-            'ruta' => $rutaArchivo,
-            'bytes' => $bytes,
-        ]);
-
-        return $rutaArchivo;
-    }
 
     private function bootOeeQueueWorker(): void
     {

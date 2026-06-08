@@ -1,5 +1,4 @@
 @extends('layouts.app')
-@php use Illuminate\Support\Str; @endphp
 
 @section('page-title', 'Editar Usuario')
 
@@ -169,29 +168,8 @@
                                             onchange="previewImage(event)">
                                     </div>
 
-                                    <!-- Preview -->
-                                    <div class="flex-shrink-0">
-                                        @php
-                                            $fotoUrl = null;
-                                            if ($isEdit && !empty($usuario->foto)) {
-                                                if (!Str::startsWith($usuario->foto, ['http://', 'https://', '/'])) {
-                                                    $relativeStoragePath = 'storage/usuarios/' . $usuario->foto;
-                                                    $storagePath = public_path($relativeStoragePath);
-                                                    $fotoUrl = asset($relativeStoragePath) . (file_exists($storagePath) ? ('?v=' . filemtime($storagePath)) : '');
-                                                } else {
-                                                    if (Str::startsWith($usuario->foto, ['http://', 'https://'])) {
-                                                        $fotoUrl = $usuario->foto;
-                                                    } else {
-                                                        $relativeStoragePath = 'storage/' . ltrim($usuario->foto, '/');
-                                                        $storagePath = public_path($relativeStoragePath);
-                                                        $fotoUrl = asset($relativeStoragePath) . (file_exists($storagePath) ? ('?v=' . filemtime($storagePath)) : '');
-                                                    }
-                                                }
-                                            }
-                                        @endphp
-
-
-                                    </div>
+                                    <!-- Preview (la imagen la inyecta previewImage(); la foto guardada se resuelve con getFotoUsuarioUrl()) -->
+                                    <div class="flex-shrink-0"></div>
                                 </div>
                             </div>
                         </div>

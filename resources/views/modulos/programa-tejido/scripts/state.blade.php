@@ -1,6 +1,5 @@
 // ===== PTStore — cache espejo centralizado =====
-// Definido aquí porque state.blade.php se carga dentro del <script> principal.
-// store.js en resources/js/ es la fuente canónica (misma implementación).
+// Definición canónica (única): se carga inline dentro del <script> principal vía main.blade.php.
 class PTStore {
 	constructor() {
 		this.registros = new Map();

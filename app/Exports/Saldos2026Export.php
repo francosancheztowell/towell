@@ -100,7 +100,7 @@ final class Saldos2026Export
     private function fillSaldosSheet(Worksheet $sheet): void
     {
         $lastCol = 'BK';
-        $sheet->setCellValue('BH3', 'Rollos Tejidos');
+        $sheet->setCellValue('BH3', 'Rollos por Tejer');
         $outputRows = $this->countOutputRows();
         $clearEnd = max(self::TEMPLATE_SAMPLE_LAST_ROW, self::DATA_START_ROW + $outputRows + 10);
         $this->clearDataArea($sheet, self::DATA_START_ROW, $clearEnd, $lastCol);
@@ -180,17 +180,11 @@ final class Saldos2026Export
 
         $faltan = null;
         $avance = null;
-        $rollosTejidos = null;
         if ($esLider) {
             $faltan = $solicitado - $saldo;
             $avance = $solicitado > 0 ? min(1.0, max(0.0, $produccion / $solicitado)) : null;
-            $pzasRollo = (float) ($r->PzasRollo ?? 0);
-            $pzasProgramadas = (float) ($r->_sumTotalPzasProgramadas ?? ($pzasRollo * (float) ($r->TotalRollos ?? 0)));
-            $pzasTejidas = max(0.0, $pzasProgramadas - $saldo);
-            $rollosTejidos = $pzasRollo > 0
-                ? (int) ceil($pzasTejidas / $pzasRollo)
-                : null;
         }
+        $rollosPorTejer = $r->NoMarbete ?? null;
 
         $raz = $r->Rasurado ?? '';
         $razNorm = mb_strtolower(trim((string) $raz), 'UTF-8');
@@ -285,16 +279,12 @@ final class Saldos2026Export
             } else {
                 $sheet->setCellValue("BG{$row}", '');
             }
-            if ($rollosTejidos !== null) {
-                $sheet->setCellValueExplicit("BH{$row}", (float) $rollosTejidos, DataType::TYPE_NUMERIC);
-            } else {
-                $sheet->setCellValue("BH{$row}", '');
-            }
         } else {
             $this->writeString($sheet, "BF{$row}", '—');
             $this->writeString($sheet, "BG{$row}", '—');
-            $this->writeString($sheet, "BH{$row}", '—');
         }
+
+        $this->writeMaybeNumeric($sheet, "BH{$row}", $rollosPorTejer);
 
         $this->writeString($sheet, "BJ{$row}", $r->Observaciones ?? '');
 

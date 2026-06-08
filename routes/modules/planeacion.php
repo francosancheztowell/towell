@@ -46,7 +46,6 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
         Route::redirect('/codificacionmodelos', '/planeacion/catalogos/codificacion-modelos', 301);
 
         Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares');
-        Route::get('/telares/falla', [CatalagoTelarController::class, 'falla'])->name('telares.falla');
         Route::get('/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia');
         Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad');
         Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios');
@@ -88,7 +87,6 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::post('/codificacion/excel', [CatCodificacionController::class, 'procesarExcel'])->name('codificacion.excel');
     Route::get('/codificacion/excel-progress/{id}', [CatCodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
     Route::post('/codificacion/excel-cancel/{id}', [CatCodificacionController::class, 'cancelImport'])->name('codificacion.excel.cancel');
-    Route::get('/codificacion/orden-cambio-pdf', [OrdenDeCambioFelpaController::class, 'generarPDF'])->name('codificacion.orden-cambio-pdf');
     Route::get('/codificacion/orden-cambio-excel', [OrdenDeCambioFelpaController::class, 'generarExcel'])->name('codificacion.orden-cambio-excel');
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');
@@ -110,7 +108,6 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     });
 
     Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
-    Route::get('/telares/falla', [CatalagoTelarController::class, 'falla'])->name('telares.falla');
     Route::get('/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia.index');
     Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad.index');
     Route::get('/calendarios', [CalendarioController::class, 'index'])->name('calendarios.index');

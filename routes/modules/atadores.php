@@ -30,14 +30,10 @@ Route::prefix('atadores')->name('atadores.')->group(function () {
 
     Route::get('/iniciar', [AtadoresController::class, 'iniciarAtado'])->name('iniciar');
     Route::get('/calificar', [AtadoresController::class, 'calificarAtadores'])->name('calificar');
-    Route::get('/julios-atados', [AtadoresController::class, 'cargarDatosUrdEngAtador'])->name('datosAtadores.Atador');
     Route::post('/save', [AtadoresController::class, 'save'])->name('save');
-    Route::get('/show', [AtadoresController::class, 'show'])->name('show');
 });
 
 Route::get('/produccionProceso/atadores', [AtadoresController::class, 'index'])->name('atadores.produccion');
-
-Route::post('/tejedores/validar', [AtadoresController::class, 'validarTejedor'])->name('tejedor.validar');
 
 Route::get('/atadores/catalogos/actividades', [AtaActividadesController::class, 'index'])->name('atadores.catalogos.actividades');
 Route::post('/atadores/catalogos/actividades', [AtaActividadesController::class, 'store'])->name('atadores.catalogos.actividades.store');

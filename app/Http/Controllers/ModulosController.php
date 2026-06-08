@@ -42,20 +42,6 @@ class ModulosController extends Controller
     }
 
     /**
-     * Mostrar el formulario para crear un nuevo mÃ³dulo
-     */
-    public function create()
-    {
-        // Obtener mÃ³dulos principales para usar como dependencias
-        $modulosPrincipales = SYSRoles::where('Nivel', 1)
-            ->whereNull('Dependencia')
-            ->orderBy('orden')
-            ->get();
-
-        return view('modulos.gestion-modulos.create', compact('modulosPrincipales'));
-    }
-
-    /**
      * Almacenar un nuevo mÃ³dulo
      *
      * LÃ“GICA DE CREACIÃ“N DE MÃ“DULOS:
@@ -223,61 +209,6 @@ class ModulosController extends Controller
             return back()
                 ->with('error', 'Error al crear el mÃ³dulo: ' . $e->getMessage())
                 ->withInput();
-        }
-    }
-
-    /**
-     * Mostrar el formulario para editar un mÃ³dulo
-     */
-    public function edit($id)
-    {
-        try {
-
-            $modulo = SYSRoles::findOrFail($id);
-
-            // Obtener mÃ³dulos principales para usar como dependencias
-            $modulosPrincipales = SYSRoles::where('Nivel', 1)
-                ->whereNull('Dependencia')
-                ->where('idrol', '!=', $modulo->idrol) // Excluir el mÃ³dulo actual
-                ->orderBy('orden')
-                ->get();
-
-            return view('modulos.gestion-modulos.edit', compact('modulo', 'modulosPrincipales'));
-
-        } catch (\Exception $e) {
-            return redirect()->route($this->getModulosIndexRoute())
-                ->with('error', 'Error al cargar el mÃ³dulo para editar: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Mostrar el formulario simplificado para editar un mÃ³dulo
-     */
-    public function editSimple($id)
-    {
-        try {
-            $modulo = SYSRoles::findOrFail($id);
-
-            // Obtener mÃ³dulos principales para usar como dependencias
-            $modulosPrincipales = SYSRoles::where('Nivel', 1)
-                ->whereNull('Dependencia')
-                ->where('idrol', '!=', $modulo->idrol) // Excluir el mÃ³dulo actual
-                ->orderBy('orden')
-                ->get();
-
-            return view('modulos.gestion-modulos.edit-simple', compact('modulo', 'modulosPrincipales'));
-
-        } catch (\Exception $e) {
-            Log::error('Error in editSimple method', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id(),
-                'user_authenticated' => Auth::check()
-            ]);
-
-            return redirect()->route($this->getModulosIndexRoute())
-                ->with('error', 'Error al cargar el mÃ³dulo para editar: ' . $e->getMessage());
         }
     }
 

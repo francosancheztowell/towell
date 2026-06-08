@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\StorageController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,5 +10,3 @@ Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showS
     ->name('submodulos.nivel3');
 Route::get('/api/submodulos/{moduloPrincipal}', [UsuarioController::class, 'getSubModulosAPI'])->name('api.submodulos');
 Route::get('/api/modulo-padre', [UsuarioController::class, 'getModuloPadre'])->name('api.modulo.padre');
-
-Route::get('/storage/usuarios/{filename}', [StorageController::class, 'usuarioFoto'])->name('storage.usuarios');
