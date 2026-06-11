@@ -559,7 +559,7 @@ class LiberarOrdenesController extends Controller
                 }
 
                 // Configurar campos adicionales
-                $registro->CreaProd = $registro->CreaProd ?? 1;
+                $registro->CreaProd = 1;
                 $registro->EficienciaSTD = $registro->EficienciaSTD ?? null;
 
                 // Densidad: usar del request si viene, sino calcular
@@ -1265,7 +1265,7 @@ class LiberarOrdenesController extends Controller
                 'CambioRepaso' => $registro->CambioHilo,
                 'Densidad' => $registro->Densidad !== null ? (float) $registro->Densidad : null,
                 'Obs5' => $registro->Observaciones,
-                'CreaProd' => $registro->CreaProd ?? 1,
+                'CreaProd' => 1,
                 'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
                 'CategoriaCalidad' => $registro->CategoriaCalidad,
                 'CustName' => $registro->CustName,
