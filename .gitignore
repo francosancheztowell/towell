@@ -44,8 +44,3 @@ gha-creds-*.json
 /public/test.php
 /check_cols.php
 /.tmp_route_list.json
-<<<<<<< HEAD
-=======
-
-/config/database.php
->>>>>>> 9963dbbb (Added config/database.php to .gitignore to prevent versioning of local database configuration)
