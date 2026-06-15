@@ -14,7 +14,8 @@
       "Bash(grep -n \"new ReqProgramaTejidoObserver\\\\|observer->saved\\\\|observer->saved\" app/Http/Controllers/Planeacion/ProgramaTejido/funciones/*.php)",
       "Bash(grep:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "PowerShell(cd C:\\\\xampp\\\\htdocs\\\\Towell; php artisan tinker --no-ansi --execute=\"try { \\\\$r = DB::connection\\('sqlsrv_ti'\\)->select\\('SELECT TOP 1 ItemId FROM InventTable WHERE ItemGroupId = ? AND DATAAREAID = ?', ['HILO DIREC','PRO']\\); echo json_encode\\(\\\\$r\\); } catch\\(\\\\Exception \\\\$e\\) { echo 'ERROR: '.\\\\$e->getMessage\\(\\); }\" 2>&1)"
     ]
   }
 }

@@ -2,9 +2,9 @@
 document.addEventListener('DOMContentLoaded', function () {
     const DETALLE_EMPTY_MSG = 'Selecciona una producción para ver los detalles';
     const MATERIAL_ROUTES = {
-        calibres: "{{ route('tejido.produccion.reenconado.calibres') }}",
-        fibras: "{{ route('tejido.produccion.reenconado.fibras') }}",
-        colores: "{{ route('tejido.produccion.reenconado.colores') }}"
+        calibres: "<?= route('tejido.produccion.reenconado.calibres') ?>",
+        fibras: "<?= route('tejido.produccion.reenconado.fibras') ?>",
+        colores: "<?= route('tejido.produccion.reenconado.colores') ?>"
     };
 
     // ── Refs DOM ──────────────────────────────────────────────────────────
