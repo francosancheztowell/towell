@@ -683,8 +683,28 @@
                         getColores(itemId)
                     ]);
 
-                    setSelectOptions(fibraSelect, fibras, 'Selecciona fibra');
-                    setSelectOptions(codColorSelect, colores, 'Selecciona color');
+                    setSelectOptions(
+                        fibraSelect,
+                        fibras,
+                        fibras.length ? 'Selecciona fibra' : 'Sin existencia para este calibre'
+                    );
+                    setSelectOptions(
+                        codColorSelect,
+                        colores,
+                        colores.length ? 'Selecciona color' : 'Sin existencia para este calibre'
+                    );
+
+                    if (!fibras.length || !colores.length) {
+                        const faltantes = [];
+                        if (!fibras.length) faltantes.push('fibras');
+                        if (!colores.length) faltantes.push('colores');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Sin existencia',
+                            text: `El calibre ${itemId} no tiene existencia de ${faltantes.join(' ni ')} en inventario`,
+                            confirmButtonText: 'Aceptar'
+                        });
+                    }
                 };
 
                 // Inicializar calibres al cargar
