@@ -545,17 +545,50 @@ class UsuarioController extends Controller
                     ->first();
             }
 
+            // Si aún no encuentra, derivar el padre quitando el último segmento de la ruta
+            // (p.ej. /tejido/reportes → busca /tejido directamente)
+            if (!$modulo) {
+                $partes = array_filter(array_values(explode('/', trim($rutaActual, '/'))));
+                if (count($partes) >= 2) {
+                    $parentPartes = array_slice($partes, 0, -1);
+                    $rutaPadreDerivada = '/' . implode('/', $parentPartes);
+                    $moduloPadreDerivado = SYSRoles::where('Ruta', $rutaPadreDerivada)
+                        ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
+                        ->first();
+                    if ($moduloPadreDerivado && $moduloPadreDerivado->Ruta) {
+                        return response()->json([
+                            'success' => true,
+                            'rutaPadre' => $moduloPadreDerivado->Ruta
+                        ]);
+                    }
+                }
+            }
+
             // Si aún no encuentra, intentar buscar por partes de la ruta
             // NOTA: LIKE '%texto%' no puede usar índices eficientemente, pero es necesario como fallback
             if (!$modulo) {
-                $partes = array_filter(explode('/', trim($rutaActual, '/')));
+                $partes = array_filter(array_values(explode('/', trim($rutaActual, '/'))));
                 if (count($partes) > 0) {
                     $ultimaParte = end($partes);
-                    $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
-                        ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                        ->orderByRaw('LEN(Ruta) DESC')
-                        ->orderBy('Nivel', 'desc')
-                        ->first();
+                    // Primero intentar con el mismo prefijo de módulo base para evitar falsos positivos
+                    // (p.ej. /tejido/reportes no debe resolverse con /tejedores/reportes-tejedores)
+                    if (count($partes) >= 2) {
+                        $prefijoPrincipal = '/' . $partes[0] . '/';
+                        $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
+                            ->where('Ruta', 'LIKE', $prefijoPrincipal . '%')
+                            ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
+                            ->orderByRaw('LEN(Ruta) DESC')
+                            ->orderBy('Nivel', 'desc')
+                            ->first();
+                    }
+                    // Fallback sin restricción de prefijo
+                    if (!$modulo) {
+                        $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
+                            ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
+                            ->orderByRaw('LEN(Ruta) DESC')
+                            ->orderBy('Nivel', 'desc')
+                            ->first();
+                    }
                 }
             }
 
