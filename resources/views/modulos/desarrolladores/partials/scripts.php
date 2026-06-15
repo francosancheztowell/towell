@@ -786,14 +786,14 @@ document.addEventListener('DOMContentLoaded', function () {
         var selCls = usarSelects ? (inp + ' bg-gray-50 detalle-color') : inp;
         var selRdonly = usarSelects ? ' readonly' : '';
         var claveCell = usarSelects
-            ? '<td class="px-4 py-2"><select name="detalle_calibre[]" class="' + inp + '"><option value="">Cargando...</option></select></td>'
+            ? '<td class="px-4 py-2"><select name="detalle_calibre[]" class="detalle-calibre ' + inp + '"><option value="">Cargando...</option></select></td>'
             : '<td class="px-4 py-2"><input type="text" name="detalle_calibre[]" value="' + calibre + '" class="' + inp + '" placeholder="Calibre"></td>';
         var hiloCell = '<td class="px-4 py-2"><input type="number" name="detalle_hilo[]" value="' + hilo + '" step="0.1" min="0" class="' + inp + '" placeholder="Hilo"></td>';
         var fibraCell = usarSelects
-            ? '<td class="px-4 py-2"><select name="detalle_fibra[]" class="' + inp + '" disabled><option value="">Selecciona calibre</option></select></td>'
+            ? '<td class="px-4 py-2"><select name="detalle_fibra[]" class="detalle-fibra ' + inp + '" disabled><option value="">Selecciona calibre</option></select></td>'
             : '<td class="px-4 py-2"><input type="text" name="detalle_fibra[]" value="' + fibra + '" class="' + inp + '" placeholder="Fibra"></td>';
         var codColorCell = usarSelects
-            ? '<td class="px-4 py-2"><select name="detalle_codcolor[]" class="' + inp + '" disabled><option value="">Selecciona calibre</option></select></td>'
+            ? '<td class="px-4 py-2"><select name="detalle_codcolor[]" class="detalle-codcolor ' + inp + '" disabled><option value="">Selecciona calibre</option></select></td>'
             : '<td class="px-4 py-2"><input type="text" name="detalle_codcolor[]" value="' + codColor + '" class="' + inp + '" placeholder="Cod Color"></td>';
         var nombreColorCell = '<td class="px-4 py-2"><input type="text" name="detalle_nombrecolor[]" value="' + nombreColor + '" class="' + selCls + '" placeholder="Nombre Color"' + selRdonly + '></td>';
         var pasadasCell = '<td class="px-4 py-2"><input type="number" name="pasadas[' + pasadasKey + ']" value="' + pasadas + '" min="1" step="1" required class="w-20 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0"></td>';
