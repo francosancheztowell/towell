@@ -415,6 +415,8 @@ class EliminarTejido
                 // Guardar valor de Ultimo antes de eliminar
                 $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
 
+                self::sellarFechaFinaliza($registro);
+
                 // Eliminar registro
                 self::registrarAuditoriaDeletePrograma($registro, 'eliminar_ord_compartida_unico');
                 $registro->delete();
@@ -545,6 +547,8 @@ class EliminarTejido
             // Guardar valor de Ultimo antes de eliminar
             $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
 
+            self::sellarFechaFinaliza($registro);
+
             // Eliminar registro
             self::registrarAuditoriaDeletePrograma($registro, 'eliminar_ord_compartida');
             $registro->delete();
@@ -641,6 +645,33 @@ class EliminarTejido
         ProgramaTejidoSecuenciaHelper::aplicarUpdatesDesdeRecalculo($updates);
 
         ProgramaTejidoSecuenciaHelper::regenerarLineasDesdeDetalles($detalles);
+    }
+
+    private static function sellarFechaFinaliza(ReqProgramaTejido $registro): void
+    {
+        if (trim((string) ($registro->NoProduccion ?? '')) === '') {
+            return;
+        }
+
+        $ahora = Carbon::now();
+        $registro->FechaFinaliza = $ahora;
+
+        try {
+            $actualizo = (new MovimientoDesarrolladorService())
+                ->actualizarFechasArranqueFinaliza($registro, null, $ahora, preservarFechaArranqueCat: true);
+
+            if (!$actualizo && $registro->exists && $registro->isDirty('FechaFinaliza')) {
+                $registro->saveQuietly();
+            }
+        } catch (\Throwable $e) {
+            if ($registro->exists && $registro->isDirty('FechaFinaliza')) {
+                $registro->saveQuietly();
+            }
+            Log::warning('eliminarConOrdCompartida: no se pudo sincronizar FechaFinaliza', [
+                'id'  => $registro->Id ?? null,
+                'msg' => $e->getMessage(),
+            ]);
+        }
     }
 
     private static function registrarAuditoriaDeletePrograma(ReqProgramaTejido $registro, string $contexto): void

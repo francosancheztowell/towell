@@ -335,6 +335,52 @@ class MovimientoDesarrolladorServiceTest extends TestCase
         $this->assertFalse((bool) $tercero->EnProceso);
     }
 
+    public function test_mover_registro_en_proceso_sin_reprogramar_sella_fecha_finaliza_al_eliminar(): void
+    {
+        // Regresión: cuando la orden EnProceso NO se reprograma, se elimina al ser
+        // reemplazada. Antes pasaba false a actualizarFechasArranqueFinaliza y dejaba
+        // CatCodificados huérfano sin FechaFinaliza. Ahora debe sellarse con now().
+        Carbon::setTestNow(Carbon::parse('2026-03-18 23:15:00'));
+
+        $actual = $this->createPrograma([
+            'NoProduccion' => 'ORD-DEL',
+            'NoTelarId' => '101',
+            'SalonTejidoId' => 'JAC',
+            'EnProceso' => true,
+            'Reprogramar' => null, // sin reprogramar -> se elimina
+            'Posicion' => 1,
+            'FechaInicio' => '2026-03-18 08:00:00',
+            'FechaFinal' => '2026-03-18 10:00:00',
+        ]);
+
+        $nuevo = $this->createPrograma([
+            'NoProduccion' => 'ORD-NEXT',
+            'NoTelarId' => '101',
+            'SalonTejidoId' => 'JAC',
+            'EnProceso' => false,
+            'Posicion' => 2,
+            'FechaInicio' => '2026-03-18 10:00:00',
+            'FechaFinal' => '2026-03-18 12:00:00',
+        ]);
+
+        $catActual = CatCodificados::query()->create(['OrdenTejido' => 'ORD-DEL', 'TelarId' => '101']);
+        CatCodificados::query()->create(['OrdenTejido' => 'ORD-NEXT', 'TelarId' => '101']);
+
+        $this->service->moverRegistroEnProceso($nuevo, true);
+
+        // La orden actual fue eliminada físicamente
+        $this->assertNull(ReqProgramaTejido::query()->whereKey($actual->Id)->first());
+
+        // CatCodificados de la orden eliminada quedó sellado con FechaFinaliza = now()
+        $catActual->refresh();
+        $this->assertSame('2026-03-18 23:15:00', optional($catActual->FechaFinaliza)->format('Y-m-d H:i:s'));
+
+        // El nuevo registro tomó EnProceso
+        $nuevo->refresh();
+        $this->assertTrue((bool) $nuevo->EnProceso);
+        $this->assertSame(1, (int) $nuevo->Posicion);
+    }
+
     public function test_mover_registro_con_cambio_telar_reprogramar_final_arranca_nuevo_en_destino(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-03-18 22:00:00'));

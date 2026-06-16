@@ -93,7 +93,10 @@ class MovimientoDesarrolladorService
                             }
                         }
 
-                        $this->actualizarFechasArranqueFinaliza($registroEnProceso, null, null, false);
+                        // Al eliminar (la orden NO se reprograma, se finaliza), sellar FechaFinaliza
+                        // en CatCodificados igual que FinalizarOrdenesController/eliminarEnProceso.
+                        // Antes pasaba false y dejaba CatCodificados huérfano sin FechaFinaliza.
+                        $this->actualizarFechasArranqueFinaliza($registroEnProceso, null, 'now', true, preservarFechaArranqueCat: true);
                         $this->actualizarReqModelosDesdePrograma($registroEnProceso);
                         $registroEnProceso->delete();
                     }
