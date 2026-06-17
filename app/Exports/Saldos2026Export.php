@@ -101,6 +101,7 @@ final class Saldos2026Export
     {
         $lastCol = 'BK';
         $sheet->setCellValue('BH3', 'Rollos por Tejer');
+        $sheet->setCellValue('BI3', 'Rollos por Tejer Fórmula');
         $outputRows = $this->countOutputRows();
         $clearEnd = max(self::TEMPLATE_SAMPLE_LAST_ROW, self::DATA_START_ROW + $outputRows + 10);
         $this->clearDataArea($sheet, self::DATA_START_ROW, $clearEnd, $lastCol);
@@ -185,6 +186,13 @@ final class Saldos2026Export
             $avance = $solicitado > 0 ? min(1.0, max(0.0, $produccion / $solicitado)) : null;
         }
         $rollosPorTejer = $esLider ? ($r->_sumRollosPorTejer ?? $r->NoMarbete ?? null) : null;
+
+        $tiras          = (float) ($r->NoTiras ?? 0);
+        $repeticiones   = (float) ($r->Repeticiones ?? 0);
+        $divisorFormula = $tiras * $repeticiones;
+        $rollosPorTejerFormula = ($esLider && $divisorFormula > 0)
+            ? ($solicitado - $produccion) / $divisorFormula
+            : null;
 
         $raz = $r->Rasurado ?? '';
         $razNorm = mb_strtolower(trim((string) $raz), 'UTF-8');
@@ -290,6 +298,12 @@ final class Saldos2026Export
             $this->writeString($sheet, "BH{$row}", 'ABIERTO');
         }
 
+        if ($esLider && $rollosPorTejerFormula !== null) {
+            $sheet->setCellValueExplicit("BI{$row}", $rollosPorTejerFormula, DataType::TYPE_NUMERIC);
+        } else {
+            $this->writeString($sheet, "BI{$row}", $esLider ? '' : 'ABIERTO');
+        }
+
         $this->writeString($sheet, "BJ{$row}", $r->Observaciones ?? '');
 
         $this->applyTelarFill($sheet, $row, $r);
@@ -380,6 +394,8 @@ final class Saldos2026Export
         foreach (['BA', 'BB', 'BD', 'BF', 'BH'] as $col) {
             $sheet->getStyle("{$col}{$firstRow}:{$col}{$lastRow}")->getNumberFormat()->setFormatCode($fmtInt);
         }
+
+        $sheet->getStyle("BI{$firstRow}:BI{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.0');
 
         $sheet->getStyle("BG{$firstRow}:BG{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_GENERAL);
     }

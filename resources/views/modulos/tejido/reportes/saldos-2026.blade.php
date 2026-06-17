@@ -59,6 +59,7 @@
                             <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:100px;">Faltan</th>
                             <th rowspan="2" class="saldos-th saldos-h-white" style="min-width:64px;">Avance</th>
                             <th rowspan="2" class="saldos-th saldos-h-rollos-tejer" style="min-width:92px;">Rollos por Tejer</th>
+                            <th rowspan="2" class="saldos-th saldos-h-rollos-formula" style="min-width:96px;">Rollos por Tejer<br>Fórmula</th>
                             <th rowspan="2" class="saldos-th saldos-h-obs" style="min-width:200px;">Observaciones</th>
                             {{-- Columnas adicionales (ocultas por defecto; botón «Más columnas») --}}
                             <th rowspan="2" class="saldos-th saldos-th-main saldos-col-extra" style="min-width:90px;">Orden Vinculada</th>
@@ -123,8 +124,8 @@
                                     $insertTelarSep = ! ($sameTelar || $sameShared);
                                 @endphp
                                 @if ($insertTelarSep)
-                                    {{-- colspan = 24 columnas principales + 57 extra (mantener alineado con <td> por fila) --}}
-                                    <tr class="saldos-telar-sep" aria-hidden="true"><td colspan="81">&nbsp;</td></tr>
+                                    {{-- colspan = 25 columnas principales + 57 extra (mantener alineado con <td> por fila) --}}
+                                    <tr class="saldos-telar-sep" aria-hidden="true"><td colspan="82">&nbsp;</td></tr>
                                 @endif
                             @endif
                             @php
@@ -154,6 +155,23 @@
                                         $rollosPorTejerStyle = 'background:#fed7aa;border-color:#fb923c;'; // naranja
                                     } else {
                                         $rollosPorTejerStyle = 'background:#fecaca;border-color:#f87171;'; // rojo
+                                    }
+                                }
+                                $tiras          = (float) ($r->NoTiras ?? 0);
+                                $repeticiones   = (float) ($r->Repeticiones ?? 0);
+                                $divisorFormula = $tiras * $repeticiones;
+                                $rollosPorTejerFormula = ($esLider && $divisorFormula > 0)
+                                    ? ($solicitado - $produccionVal) / $divisorFormula
+                                    : null;
+                                $rptFormulaStyle = 'background:#bbf7d0;border-color:#4ade80;';
+                                if ($rollosPorTejerFormula !== null) {
+                                    $rptf = (float) $rollosPorTejerFormula;
+                                    if ($rptf <= 1) {
+                                        $rptFormulaStyle = 'background:#bbf7d0;border-color:#4ade80;';
+                                    } elseif ($rptf <= 10) {
+                                        $rptFormulaStyle = 'background:#fed7aa;border-color:#fb923c;';
+                                    } else {
+                                        $rptFormulaStyle = 'background:#fecaca;border-color:#f87171;';
                                     }
                                 }
                                 $razuradoNorm      = mb_strtolower(trim((string) ($r->Rasurado ?? '')), 'UTF-8');
@@ -247,6 +265,13 @@
                                 <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="{{ $esLider ? $rollosPorTejerStyle : '' }}">
                                     @if ($esLider)
                                         {{ is_numeric($rollosPorTejer) ? number_format($rollosPorTejer, 0) : ($rollosPorTejer ?? '—') }}
+                                    @else
+                                        <span class="saldos-abierto-badge">ABIERTO</span>
+                                    @endif
+                                </td>
+                                <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="{{ $esLider && $rollosPorTejerFormula !== null ? $rptFormulaStyle : '' }}">
+                                    @if ($esLider)
+                                        {{ $rollosPorTejerFormula !== null ? number_format($rollosPorTejerFormula, 1) : '—' }}
                                     @else
                                         <span class="saldos-abierto-badge">ABIERTO</span>
                                     @endif
@@ -545,6 +570,7 @@
     letter-spacing: 0.03em;
 }
 .saldos-h-rollos-tejer { background: #4ade80 !important; color: #111827 !important; border-color: #22c55e !important; }
+.saldos-h-rollos-formula { background: #a7f3d0 !important; color: #111827 !important; border-color: #34d399 !important; white-space: normal !important; line-height: 1.2; }
 .saldos-h-obs {
     background: #fef08a !important;
     color: #111827 !important;
