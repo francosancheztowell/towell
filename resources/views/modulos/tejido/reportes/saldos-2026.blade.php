@@ -161,7 +161,7 @@
                                 $repeticiones   = (float) ($r->Repeticiones ?? 0);
                                 $divisorFormula = $tiras * $repeticiones;
                                 $rollosPorTejerFormula = ($esLider && $divisorFormula > 0)
-                                    ? ($solicitado - $produccionVal) / $divisorFormula
+                                    ? (int) ceil(($solicitado - $produccionVal) / $divisorFormula)
                                     : null;
                                 $rptFormulaStyle = 'background:#bbf7d0;border-color:#4ade80;';
                                 if ($rollosPorTejerFormula !== null) {
@@ -271,7 +271,7 @@
                                 </td>
                                 <td class="saldos-td text-right tabular-nums text-gray-800 font-medium" style="{{ $esLider && $rollosPorTejerFormula !== null ? $rptFormulaStyle : '' }}">
                                     @if ($esLider)
-                                        {{ $rollosPorTejerFormula !== null ? number_format($rollosPorTejerFormula, 1) : '—' }}
+                                        {{ $rollosPorTejerFormula !== null ? number_format($rollosPorTejerFormula, 0) : '—' }}
                                     @else
                                         <span class="saldos-abierto-badge">ABIERTO</span>
                                     @endif

@@ -191,7 +191,7 @@ final class Saldos2026Export
         $repeticiones   = (float) ($r->Repeticiones ?? 0);
         $divisorFormula = $tiras * $repeticiones;
         $rollosPorTejerFormula = ($esLider && $divisorFormula > 0)
-            ? ($solicitado - $produccion) / $divisorFormula
+            ? (int) ceil(($solicitado - $produccion) / $divisorFormula)
             : null;
 
         $raz = $r->Rasurado ?? '';
@@ -395,7 +395,7 @@ final class Saldos2026Export
             $sheet->getStyle("{$col}{$firstRow}:{$col}{$lastRow}")->getNumberFormat()->setFormatCode($fmtInt);
         }
 
-        $sheet->getStyle("BI{$firstRow}:BI{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.0');
+        $sheet->getStyle("BI{$firstRow}:BI{$lastRow}")->getNumberFormat()->setFormatCode($fmtInt);
 
         $sheet->getStyle("BG{$firstRow}:BG{$lastRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_GENERAL);
     }
