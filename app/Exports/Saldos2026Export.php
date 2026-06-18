@@ -187,9 +187,17 @@ final class Saldos2026Export
         }
         $rollosPorTejer = $esLider ? ($r->_sumRollosPorTejer ?? $r->NoMarbete ?? null) : null;
 
-        $tiras          = (float) ($r->NoTiras ?? 0);
-        $repeticiones   = (float) ($r->Repeticiones ?? 0);
+        $tiras = (float) ($r->NoTiras ?? 0);
+        $repeticiones = (float) ($r->Repeticiones ?? 0);
         $divisorFormula = $tiras * $repeticiones;
+        // Validación de tamaño: FEL/Felpa usan medio rollo (PzasRollo = tiras*reps/2),
+        // igual que el ajuste de Liberar Órdenes. Sin esto la fórmula subcuenta la felpa a la mitad.
+        $esFelpaFormula = (stripos((string) ($r->InventSizeId ?? ''), 'FEL') !== false)
+            || (stripos((string) ($r->TamanoClave ?? ''), 'FELPA') !== false)
+            || (stripos((string) ($r->NombreProducto ?? ''), 'FELPA') !== false);
+        if ($esFelpaFormula) {
+            $divisorFormula = $divisorFormula / 2;
+        }
         $rollosPorTejerFormula = ($esLider && $divisorFormula > 0)
             ? (int) ceil(($solicitado - $produccion) / $divisorFormula)
             : null;

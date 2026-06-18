@@ -164,28 +164,31 @@ class LiberarOrdenesController extends Controller
                 $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
                 // MtsRollo: fórmula = medida de largo * repeticiones (convertir cm a metros)
                 // MtsRollo se mantiene como decimal sin redondear
+                // MtsRollo: RECALCULAR SIEMPRE desde Repeticiones (el valor guardado puede estar
+                // desfasado si se creó/importó con otro peso de rollo). Solo se conserva el valor
+                // almacenado como último recurso cuando no es posible calcular (sin largo o reps).
+                // Se mantiene como decimal sin redondear.
                 $mtsRollo = null;
-                if (isset($registro->MtsRollo) && is_numeric($registro->MtsRollo)) {
-                    $mtsRollo = (float) $registro->MtsRollo;
-                } else {
-                    $largo = $registro->LargoCrudo ?? null;
-                    if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
-                        $largoNum = is_numeric($largo) ? (float) $largo : (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string) $largo);
-                        if ($largoNum > 0 && $repeticiones > 0) {
-                            // Fórmula: metros = (medida de largo * repeticiones) / 100 (convertir cm a metros)
-                            // Sin redondear para mantener todos los decimales
-                            $mtsRollo = (float) (($largoNum * $repeticiones) / 100);
-                        }
+                $largo = $registro->LargoCrudo ?? null;
+                if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
+                    $largoNum = is_numeric($largo) ? (float) $largo : (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string) $largo);
+                    if ($largoNum > 0 && $repeticiones > 0) {
+                        // Fórmula: metros = (medida de largo * repeticiones) / 100 (convertir cm a metros)
+                        // Sin redondear para mantener todos los decimales
+                        $mtsRollo = (float) (($largoNum * $repeticiones) / 100);
                     }
                 }
+                if ($mtsRollo === null && isset($registro->MtsRollo) && is_numeric($registro->MtsRollo)) {
+                    $mtsRollo = (float) $registro->MtsRollo;
+                }
 
+                // PzasRollo: RECALCULAR SIEMPRE desde Repeticiones; conservar el guardado solo si no se puede calcular.
                 $pzasRollo = null;
-                if (isset($registro->PzasRollo) && is_numeric($registro->PzasRollo)) {
+                if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
+                    $pzasRollo = round($repeticiones * $tiras, 0);
+                }
+                if ($pzasRollo === null && isset($registro->PzasRollo) && is_numeric($registro->PzasRollo)) {
                     $pzasRollo = (float) $registro->PzasRollo;
-                } else {
-                    if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
-                        $pzasRollo = round($repeticiones * $tiras, 0);
-                    }
                 }
 
                 $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo, $registro);
@@ -433,9 +436,11 @@ class LiberarOrdenesController extends Controller
 
                 $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
 
-                // MtsRollo: usar del request, existente o calcular
-                // MtsRollo se mantiene como decimal sin redondear
-                $mtsRollo = $item['mtsRollo'] ?? $registro->MtsRollo;
+                // MtsRollo: si el usuario lo editó en la grilla (request) se respeta; de lo contrario
+                // se RECALCULA desde Repeticiones (no se hereda el valor guardado, que puede estar desfasado).
+                // Se conserva el almacenado solo como último recurso cuando no se puede calcular.
+                // MtsRollo se mantiene como decimal sin redondear.
+                $mtsRollo = $item['mtsRollo'] ?? null;
                 if ($mtsRollo === null) {
                     $largo = $registro->LargoCrudo ?? null;
                     if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
@@ -448,13 +453,20 @@ class LiberarOrdenesController extends Controller
                             $mtsRollo = (float) (($largoNum * $repeticiones) / 100);
                         }
                     }
+                    if ($mtsRollo === null && isset($registro->MtsRollo) && is_numeric($registro->MtsRollo)) {
+                        $mtsRollo = (float) $registro->MtsRollo;
+                    }
                 }
 
-                // PzasRollo: usar del request, existente o calcular
-                $pzasRollo = $item['pzasRollo'] ?? $registro->PzasRollo;
+                // PzasRollo: si el usuario lo editó en la grilla (request) se respeta; de lo contrario
+                // se RECALCULA desde Repeticiones (no se hereda el valor guardado).
+                $pzasRollo = $item['pzasRollo'] ?? null;
                 if ($pzasRollo === null && $repeticiones !== null && $tiras &&
                     is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
                     $pzasRollo = round($repeticiones * $tiras, 0);
+                }
+                if ($pzasRollo === null && isset($registro->PzasRollo) && is_numeric($registro->PzasRollo)) {
+                    $pzasRollo = (float) $registro->PzasRollo;
                 }
 
                 $this->aplicarAjusteFelSaldoMarbete($registro->InventSizeId ?? null, $saldoMarbeteValor, $registro);

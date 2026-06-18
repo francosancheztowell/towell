@@ -15,7 +15,9 @@
       "Bash(grep:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "PowerShell(cd C:\\\\xampp\\\\htdocs\\\\Towell; php artisan tinker --no-ansi --execute=\"try { \\\\$r = DB::connection\\('sqlsrv_ti'\\)->select\\('SELECT TOP 1 ItemId FROM InventTable WHERE ItemGroupId = ? AND DATAAREAID = ?', ['HILO DIREC','PRO']\\); echo json_encode\\(\\\\$r\\); } catch\\(\\\\Exception \\\\$e\\) { echo 'ERROR: '.\\\\$e->getMessage\\(\\); }\" 2>&1)"
+      "PowerShell(cd C:\\\\xampp\\\\htdocs\\\\Towell; php artisan tinker --no-ansi --execute=\"try { \\\\$r = DB::connection\\('sqlsrv_ti'\\)->select\\('SELECT TOP 1 ItemId FROM InventTable WHERE ItemGroupId = ? AND DATAAREAID = ?', ['HILO DIREC','PRO']\\); echo json_encode\\(\\\\$r\\); } catch\\(\\\\Exception \\\\$e\\) { echo 'ERROR: '.\\\\$e->getMessage\\(\\); }\" 2>&1)",
+      "Bash(php -l \"app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php\")",
+      "Bash(./vendor/bin/pint \"app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php\")"
     ]
   }
 }

@@ -74,71 +74,72 @@ class SaldosController extends Controller
             $obj = new \stdClass;
 
             // Campos mapeados desde CatCodificados
-            $obj->Id                = 'cat_'.$cat->Id;
-            $obj->NoProduccion      = $cat->OrdenTejido;
-            $obj->NoTelarId         = $cat->TelarId;
-            $obj->SalonTejidoId     = $cat->Departamento;
-            $obj->NombreProducto    = $cat->Nombre;
-            $obj->TotalPedido       = $cat->Pedido;
-            $obj->Produccion        = $cat->Produccion;
-            $obj->SaldoPedido       = $cat->Saldos;
-            $obj->OrdCompartida     = $cat->OrdCompartida;
+            $obj->Id = 'cat_'.$cat->Id;
+            $obj->NoProduccion = $cat->OrdenTejido;
+            $obj->NoTelarId = $cat->TelarId;
+            $obj->SalonTejidoId = $cat->Departamento;
+            $obj->NombreProducto = $cat->Nombre;
+            $obj->TotalPedido = $cat->Pedido;
+            $obj->Produccion = $cat->Produccion;
+            $obj->SaldoPedido = $cat->Saldos;
+            $obj->OrdCompartida = $cat->OrdCompartida;
             $obj->OrdCompartidaLider = $cat->OrdCompartidaLider;
-            $obj->FechaInicio       = $cat->FechaTejido;
-            $obj->TotalRollos       = $cat->TotalRollos;
-            $obj->PzasRollo         = $cat->PzasRollo;
-            $obj->ItemId            = $cat->ItemId;
-            $obj->Prioridad         = $cat->Prioridad;
-            $obj->NoMarbete         = $cat->NoMarbete;
+            $obj->FechaInicio = $cat->FechaTejido;
+            $obj->TotalRollos = $cat->TotalRollos;
+            $obj->PzasRollo = $cat->PzasRollo;
+            $obj->ItemId = $cat->ItemId;
+            $obj->Prioridad = $cat->Prioridad;
+            $obj->NoMarbete = $cat->NoMarbete;
 
             // Campos sin equivalente en CatCodificados
-            $obj->Posicion          = null;
-            $obj->EnProceso         = null;
-            $obj->NoExisteBase      = null;
-            $obj->FechaCreacion     = null;
-            $obj->EntregaCte        = null;
-            $obj->Programado        = null;
-            $obj->FlogsId           = null;
-            $obj->EntregaProduc     = null;
-            $obj->TamanoClave       = null;
-            $obj->Peine             = null;
-            $obj->Ancho             = null;
-            $obj->LargoCrudo        = null;
-            $obj->PesoCrudo         = null;
-            $obj->Luchaje           = null;
-            $obj->CalibreTrama2     = null;
-            $obj->FibraTrama        = null;
-            $obj->MedidaPlano       = null;
-            $obj->VelocidadSTD      = null;
-            $obj->CuentaRizo        = null;
-            $obj->CalibreRizo2      = null;
-            $obj->FibraRizo         = null;
-            $obj->CuentaPie         = null;
-            $obj->CalibrePie2       = null;
-            $obj->FibraPie          = null;
-            $obj->Rasurado          = null;
-            $obj->NoTiras           = null;
-            $obj->Repeticiones      = null;
-            $obj->Observaciones     = null;
-            $obj->OrdenLider        = null;
+            $obj->Posicion = null;
+            $obj->EnProceso = null;
+            $obj->NoExisteBase = null;
+            $obj->FechaCreacion = null;
+            $obj->EntregaCte = null;
+            $obj->Programado = null;
+            $obj->FlogsId = null;
+            $obj->EntregaProduc = null;
+            $obj->TamanoClave = null;
+            $obj->InventSizeId = null;
+            $obj->Peine = null;
+            $obj->Ancho = null;
+            $obj->LargoCrudo = null;
+            $obj->PesoCrudo = null;
+            $obj->Luchaje = null;
+            $obj->CalibreTrama2 = null;
+            $obj->FibraTrama = null;
+            $obj->MedidaPlano = null;
+            $obj->VelocidadSTD = null;
+            $obj->CuentaRizo = null;
+            $obj->CalibreRizo2 = null;
+            $obj->FibraRizo = null;
+            $obj->CuentaPie = null;
+            $obj->CalibrePie2 = null;
+            $obj->FibraPie = null;
+            $obj->Rasurado = null;
+            $obj->NoTiras = null;
+            $obj->Repeticiones = null;
+            $obj->Observaciones = null;
+            $obj->OrdenLider = null;
             // Campos de ReqModelosCodificados (no disponibles)
-            $obj->Tolerancia        = null;
-            $obj->CodigoDibujo      = null;
-            $obj->FlogsIdRmc        = null;
-            $obj->Clave             = null;
-            $obj->ObsModelo         = null;
-            $obj->TipoRizo          = null;
-            $obj->AlturaRizo        = null;
-            $obj->C1                = null;
-            $obj->ObsC1             = null;
-            $obj->C2                = null;
-            $obj->ObsC2             = null;
-            $obj->C3                = null;
-            $obj->ObsC3             = null;
-            $obj->C4                = null;
-            $obj->ObsC4             = null;
-            $obj->MedidaCenefa      = null;
-            $obj->MedIniRizoCenefa  = null;
+            $obj->Tolerancia = null;
+            $obj->CodigoDibujo = null;
+            $obj->FlogsIdRmc = null;
+            $obj->Clave = null;
+            $obj->ObsModelo = null;
+            $obj->TipoRizo = null;
+            $obj->AlturaRizo = null;
+            $obj->C1 = null;
+            $obj->ObsC1 = null;
+            $obj->C2 = null;
+            $obj->ObsC2 = null;
+            $obj->C3 = null;
+            $obj->ObsC3 = null;
+            $obj->C4 = null;
+            $obj->ObsC4 = null;
+            $obj->MedidaCenefa = null;
+            $obj->MedIniRizoCenefa = null;
 
             $obj->_finalizado = true;
 
@@ -243,7 +244,7 @@ class SaldosController extends Controller
                 DB::raw('(SELECT TOP 1 r2.NoProduccion FROM dbo.ReqProgramaTejido r2 WHERE r2.OrdCompartida = ReqProgramaTejido.OrdCompartida AND r2.OrdCompartidaLider = 1) AS OrdenLider'),
                 DB::raw('(SELECT TOP 1 cc.NoMarbete FROM dbo.CatCodificados cc WHERE cc.OrdenTejido = ReqProgramaTejido.NoProduccion ORDER BY cc.Id DESC) AS NoMarbete'),
                 'FechaCreacion', 'EntregaCte',
-                'Programado', 'Prioridad', 'NombreProducto', 'ReqProgramaTejido.TamanoClave',
+                'Programado', 'Prioridad', 'NombreProducto', 'ReqProgramaTejido.TamanoClave', 'ReqProgramaTejido.InventSizeId',
                 'ItemId', 'ReqProgramaTejido.FlogsId', 'EntregaProduc', 'TotalPedido', 'Peine', 'Ancho', 'LargoCrudo', 'PesoCrudo', 'Luchaje',
                 'CalibreTrama2', 'FibraTrama', 'MedidaPlano', 'VelocidadSTD',
                 'CuentaRizo', 'CalibreRizo2', 'FibraRizo',
