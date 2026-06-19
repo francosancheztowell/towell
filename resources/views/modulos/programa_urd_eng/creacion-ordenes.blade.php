@@ -263,8 +263,13 @@
                                 <input type="text" id="inputLMatEngomado" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar lista..." data-bom-engomado-input="true" autocomplete="off" required>
                             </td>
                             <td class="px-2 py-2">
-                                <select id="inputBomFormula" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100 text-gray-500" disabled>
-                                    <option value="">—</option>
+                                <select id="inputBomFormula" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                    <option value="">Seleccione</option>
+                                    <option value="TE-PD-ENF-0025">TE-PD-ENF-0025</option>
+                                    <option value="TE-PD-ENF-0032">TE-PD-ENF-0032</option>
+                                    <option value="TE-PD-ENF-0062">TE-PD-ENF-0062</option>
+                                    <option value="TE-PD-ENF-0014">TE-PD-ENF-0014</option>
+                                    <option value="TE-PD-ENF-0063">TE-PD-ENF-0063</option>
                                 </select>
                             </td>
                             <td class="px-2 py-2">
