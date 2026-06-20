@@ -182,43 +182,25 @@ class LiberarOrdenesController extends Controller
                     $mtsRollo = (float) $registro->MtsRollo;
                 }
 
-                // PzasRollo: RECALCULAR SIEMPRE desde Repeticiones; conservar el guardado solo si no se puede calcular.
-                $pzasRollo = null;
-                if ($repeticiones !== null && $tiras && is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
-                    $pzasRollo = round($repeticiones * $tiras, 0);
-                }
-                if ($pzasRollo === null && isset($registro->PzasRollo) && is_numeric($registro->PzasRollo)) {
-                    $pzasRollo = (float) $registro->PzasRollo;
-                }
+                // PzasRollo = Repeticiones × NoTiras SIEMPRE (piezas por rollo por definición).
+                // NO se hereda el valor almacenado: queda desfasado si cambió el peso crudo y corrompe TotalRollos/TotalPzas.
+                $pzasRollo = $this->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
 
                 $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo, $registro);
 
-                $totalRollos = null;
-                // Nueva fórmula: TotalRollos = ceil(totalPedido / pzasRrollo)
-                // Esto calcula cuántos rollos se necesitan para cumplir el pedido
+                // TotalRollos = ceil(SaldoPedido / PzasRollo); TotalPzas = PzasRollo × TotalRollos.
                 $totalPedido = $registro->SaldoPedido ?? null;
+                ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
+                    $this->derivarTotalRollosTotalPzas($pzasRollo, $totalPedido);
 
-                // Siempre intentar calcular con la fórmula si hay datos disponibles
-                if ($pzasRollo !== null && $totalPedido !== null &&
-                    is_numeric($pzasRollo) && is_numeric($totalPedido) &&
-                    $pzasRollo > 0 && $totalPedido > 0) {
-                    // Calcular con la nueva fórmula: totalPedido / pzasRollo
-                    $totalRollos = (float) ceil((float) $totalPedido / (float) $pzasRollo);
-                } else {
-                    // Si no se puede calcular, usar el valor existente o fallback
+                if ($totalRollos === null) {
+                    // Fallbacks solo si no se pudo derivar desde PzasRollo/SaldoPedido.
                     if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos) && $registro->TotalRollos > 0) {
                         $totalRollos = (float) ceil((float) $registro->TotalRollos);
-                    } else {
-                        // Fallback: aproximar rollos a partir del no. marbetes (fórmula); entero hacia arriba
-                        $totalRollos = $saldoMarbeteValor > 0 ? (float) ceil($saldoMarbeteValor) : null;
+                    } elseif ($saldoMarbeteValor > 0) {
+                        $totalRollos = (float) ceil($saldoMarbeteValor);
                     }
-                }
-
-                $totalPzas = null;
-                if (isset($registro->TotalPzas) && is_numeric($registro->TotalPzas)) {
-                    $totalPzas = (float) $registro->TotalPzas;
-                } else {
-                    if ($totalRollos !== null && $pzasRollo !== null && is_numeric($totalRollos) && is_numeric($pzasRollo)) {
+                    if ($totalRollos !== null && $pzasRollo !== null && is_numeric($pzasRollo)) {
                         $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
                     }
                 }
@@ -458,50 +440,30 @@ class LiberarOrdenesController extends Controller
                     }
                 }
 
-                // PzasRollo: si el usuario lo editó en la grilla (request) se respeta; de lo contrario
-                // se RECALCULA desde Repeticiones (no se hereda el valor guardado).
-                $pzasRollo = $item['pzasRollo'] ?? null;
-                if ($pzasRollo === null && $repeticiones !== null && $tiras &&
-                    is_numeric($repeticiones) && is_numeric($tiras) && $repeticiones > 0 && $tiras > 0) {
-                    $pzasRollo = round($repeticiones * $tiras, 0);
-                }
-                if ($pzasRollo === null && isset($registro->PzasRollo) && is_numeric($registro->PzasRollo)) {
-                    $pzasRollo = (float) $registro->PzasRollo;
-                }
+                // PzasRollo = Repeticiones × NoTiras SIEMPRE (campo de solo lectura: piezas por rollo por definición).
+                // NO se respeta el valor del request ni el almacenado: quedan desfasados si cambió el peso crudo
+                // y arrastran el error a TotalRollos y TotalPzas.
+                $pzasRollo = $this->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
 
                 $this->aplicarAjusteFelSaldoMarbete($registro->InventSizeId ?? null, $saldoMarbeteValor, $registro);
                 if (! $this->requestTieneMtsPzasRolloDesdeCliente($item)) {
                     $this->aplicarAjusteFelMtsYpzas($registro->InventSizeId ?? null, $mtsRollo, $pzasRollo, $registro);
                 }
 
-                // TotalRollos: priorizar valor del request, sino calcular con nueva fórmula
-                $totalRollos = $item['totalRollos'] ?? null;
-                if ($totalRollos !== null && is_numeric($totalRollos) && $totalRollos > 0) {
-                    // Si viene del request, usar ese valor redondeado hacia arriba
-                    $totalRollos = (float) ceil((float) $totalRollos);
-                } else {
-                    // Nueva fórmula: TotalRollos = ceil(totalPedido / pzasRollo)
-                    // Esto calcula cuántos rollos se necesitan para cumplir el pedido
-                    $totalPedido = $registro->SaldoPedido ?? null;
-                    if ($pzasRollo !== null && $totalPedido !== null &&
-                        is_numeric($pzasRollo) && is_numeric($totalPedido) &&
-                        $pzasRollo > 0 && $totalPedido > 0) {
-                        // Calcular con la nueva fórmula: totalPedido / pzasRollo
-                        $totalRollos = (float) ceil((float) $totalPedido / (float) $pzasRollo);
-                    } elseif (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos) && $registro->TotalRollos > 0) {
-                        // Si no se puede calcular, usar el valor existente redondeado hacia arriba
-                        $totalRollos = (float) ceil((float) $registro->TotalRollos);
-                    } else {
-                        // Fallback: aproximar rollos a partir del no. marbetes (fórmula); entero hacia arriba
-                        $totalRollos = $saldoMarbeteValor > 0 ? (float) ceil($saldoMarbeteValor) : null;
-                    }
-                }
+                // TotalRollos: override del usuario (techo) o ceil(SaldoPedido / PzasRollo). TotalPzas = PzasRollo × TotalRollos.
+                ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
+                    $this->derivarTotalRollosTotalPzas($pzasRollo, $registro->SaldoPedido ?? null, $item['totalRollos'] ?? null);
 
-                // TotalPzas: usar del request, existente o calcular
-                $totalPzas = $item['totalPzas'] ?? $registro->TotalPzas;
-                if ($totalPzas === null && $totalRollos !== null && $pzasRollo !== null &&
-                    is_numeric($totalRollos) && is_numeric($pzasRollo)) {
-                    $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
+                if ($totalRollos === null) {
+                    // Fallbacks solo si no se pudo derivar desde PzasRollo/SaldoPedido.
+                    if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos) && $registro->TotalRollos > 0) {
+                        $totalRollos = (float) ceil((float) $registro->TotalRollos);
+                    } elseif ($saldoMarbeteValor > 0) {
+                        $totalRollos = (float) ceil($saldoMarbeteValor);
+                    }
+                    if ($totalRollos !== null && $pzasRollo !== null && is_numeric($pzasRollo)) {
+                        $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
+                    }
                 }
 
                 // Asignar campos calculados
@@ -537,18 +499,17 @@ class LiberarOrdenesController extends Controller
                     }
                 }
 
-                // Campos numéricos
+                // Campos numéricos editables por el usuario (MtsRollo y TotalRollos).
+                // PzasRollo y TotalPzas NO se sobreescriben con el request: ya quedaron forzados arriba como
+                // Repeticiones×NoTiras y PzasRollo×TotalRollos. Si el usuario edita TotalRollos, se recalcula TotalPzas.
                 if (isset($item['mtsRollo']) && $item['mtsRollo'] !== null && $item['mtsRollo'] !== '') {
                     $registro->MtsRollo = (float) $item['mtsRollo'];
                 }
-                if (isset($item['pzasRollo']) && $item['pzasRollo'] !== null && $item['pzasRollo'] !== '') {
-                    $registro->PzasRollo = (float) $item['pzasRollo'];
-                }
                 if (isset($item['totalRollos']) && $item['totalRollos'] !== null && $item['totalRollos'] !== '') {
-                    $registro->TotalRollos = (float) $item['totalRollos'];
-                }
-                if (isset($item['totalPzas']) && $item['totalPzas'] !== null && $item['totalPzas'] !== '') {
-                    $registro->TotalPzas = (float) $item['totalPzas'];
+                    $registro->TotalRollos = (float) ceil((float) $item['totalRollos']);
+                    if ($registro->PzasRollo !== null && is_numeric($registro->PzasRollo)) {
+                        $registro->TotalPzas = round((float) $registro->TotalRollos * (float) $registro->PzasRollo, 0);
+                    }
                 }
 
                 // Asegurar que BomName se guarde correctamente si hay BomId pero no BomName
@@ -1728,6 +1689,50 @@ class LiberarOrdenesController extends Controller
         $raw = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
 
         return (int) round($raw, 0);
+    }
+
+    /**
+     * PzasRollo = round(Repeticiones × NoTiras). Piezas por rollo por definición.
+     * Devuelve null si no hay datos válidos. NO considera valores almacenados ni del request:
+     * un PzasRollo previo queda desfasado si cambió el peso crudo y corrompe TotalRollos/TotalPzas.
+     */
+    private function pzasRolloDesdeRepeticiones($repeticiones, $tiras): ?float
+    {
+        if ($repeticiones === null || $tiras === null
+            || ! is_numeric($repeticiones) || ! is_numeric($tiras)
+            || (float) $repeticiones <= 0.0 || (float) $tiras <= 0.0) {
+            return null;
+        }
+
+        return round((float) $repeticiones * (float) $tiras, 0);
+    }
+
+    /**
+     * Deriva TotalRollos y TotalPzas a partir del PzasRollo ya resuelto (post-ajuste FEL).
+     * TotalRollos = ceil(SaldoPedido / PzasRollo), salvo override del usuario (techo).
+     * TotalPzas   = round(PzasRollo × TotalRollos).
+     * Cualquier valor previo de TotalRollos/TotalPzas se ignora para que nunca quede desfasado.
+     *
+     * @return array{totalRollos: float|null, totalPzas: float|null}
+     */
+    private function derivarTotalRollosTotalPzas(?float $pzasRollo, $saldoPedido, $totalRollosOverride = null): array
+    {
+        $totalRollos = null;
+
+        if ($totalRollosOverride !== null && $totalRollosOverride !== ''
+            && is_numeric($totalRollosOverride) && (float) $totalRollosOverride > 0.0) {
+            $totalRollos = (float) ceil((float) $totalRollosOverride);
+        } elseif ($pzasRollo !== null && (float) $pzasRollo > 0.0
+            && $saldoPedido !== null && is_numeric($saldoPedido) && (float) $saldoPedido > 0.0) {
+            $totalRollos = (float) ceil((float) $saldoPedido / (float) $pzasRollo);
+        }
+
+        $totalPzas = null;
+        if ($totalRollos !== null && $pzasRollo !== null && is_numeric($pzasRollo)) {
+            $totalPzas = round((float) $pzasRollo * (float) $totalRollos, 0);
+        }
+
+        return ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas];
     }
 
     /**
