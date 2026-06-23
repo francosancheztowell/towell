@@ -271,17 +271,6 @@ final class Saldos2026Export
 
         if ($esLider) {
             $sheet->setCellValueExplicit("BC{$row}", (float) $rollosProg, DataType::TYPE_NUMERIC);
-            // Inconsistencia de rollos (TotalRollos != ceil(TotalPedido / PzasRollo)): resaltar en rojo.
-            $rollosEsp = $r->_rollosEsperados ?? null;
-            if (($r->_rollosInconsistente ?? false) && $rollosEsp !== null) {
-                $sheet->getStyle("BC{$row}")->getFill()
-                    ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB('FECACA');
-                $sheet->getComment("BC{$row}")->getText()->createTextRun(
-                    'Inconsistente: programados '.(int) $rollosProg.' vs esperado '.(int) $rollosEsp
-                    .' = ceil(Cantidad solicitada / Pzas x rollo). Revisar liberación.'
-                );
-            }
         } else {
             $this->writeString($sheet, "BC{$row}", 'ABIERTO');
         }
