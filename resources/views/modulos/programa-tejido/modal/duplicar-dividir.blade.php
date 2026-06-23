@@ -1359,7 +1359,23 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		}
 
 		// Buscar en TODOS los salones disponibles, no solo JACQUARD y SMIT
-		const candidatos = salonesDisponibles;
+		// Excepción KM: el salón KM no comparte telares con Smith/Jacquard, así que solo se
+		// ofrecen los telares de KM. Además, salonesDisponibles puede traer varios alias que
+		// resuelven a KM (p.ej. "KM" y "KARL MAYER"); como comparten los mismos telares, se
+		// colapsan a UN solo salón para no duplicar las opciones (401,402,401,402).
+		const salonSeleccionadoClave = document.getElementById('swal-salon')?.value || '';
+		const esSalonKM = typeof resolverSalonProgramaTejido === 'function'
+			&& resolverSalonProgramaTejido(salonSeleccionadoClave) === 'KM';
+		let candidatos;
+		if (esSalonKM) {
+			const kmSalones = salonesDisponibles.filter(s => resolverSalonProgramaTejido(s) === 'KM');
+			const canonicalKM = kmSalones.includes(salonSeleccionadoClave)
+				? salonSeleccionadoClave
+				: (kmSalones[0] || salonSeleccionadoClave);
+			candidatos = canonicalKM ? [canonicalKM] : [];
+		} else {
+			candidatos = salonesDisponibles;
+		}
 
 		if (candidatos.length === 0) {
 			return;
