@@ -3,21 +3,25 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
-use App\Models\Planeacion\ReqAplicaciones;
-use App\Models\Planeacion\ReqModelosCodificados;
-use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Planeacion\ReqCalendarioLine;
-use App\Models\Planeacion\ReqMatrizHilos;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Models\Planeacion\ReqAplicaciones;
+use App\Models\Planeacion\ReqCalendarioLine;
+use App\Models\Planeacion\ReqMatrizHilos;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqTelares;
+use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 
 /**
  * @file ProgramaTejidoCatalogosController.php
+ *
  * @description Controlador de catálogos para Programa Tejido. Endpoints de opciones (salón, telar,
  *              calendario, aplicación, hilos), búsquedas (FlogsId, tamano_clave) y datos relacionados.
+ *
  * @dependencies ReqProgramaTejido, ReqModelosCodificados, ReqAplicaciones, ReqCalendarioLine, QueryHelpers
  */
 class ProgramaTejidoCatalogosController extends Controller
@@ -30,7 +34,7 @@ class ProgramaTejidoCatalogosController extends Controller
             ->distinct()
             ->pluck('SalonTejidoId');
 
-        $modelos  = ReqModelosCodificados::query()
+        $modelos = ReqModelosCodificados::query()
             ->select('SalonTejidoId')
             ->whereNotNull('SalonTejidoId')
             ->distinct()
@@ -43,7 +47,7 @@ class ProgramaTejidoCatalogosController extends Controller
 
     public function getTamanoClaveBySalon(Request $request)
     {
-        $salon  = $request->input('salon_tejido_id');
+        $salon = $request->input('salon_tejido_id');
         $search = $request->input('search', '');
 
         $q = ReqModelosCodificados::query()
@@ -59,6 +63,7 @@ class ProgramaTejidoCatalogosController extends Controller
         }
 
         $op = $q->distinct()->limit(50)->pluck('TamanoClave')->filter()->values();
+
         return response()->json($op);
     }
 
@@ -97,7 +102,7 @@ class ProgramaTejidoCatalogosController extends Controller
 
             return response()->json($op);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al cargar opciones de FlogsId: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al cargar opciones de FlogsId: '.$e->getMessage()], 500);
         }
     }
 
@@ -107,18 +112,19 @@ class ProgramaTejidoCatalogosController extends Controller
             $row = DBFacade::connection('sqlsrv_ti')
                 ->table('dbo.TwFlogsTable as ft')
                 ->select('ft.NAMEPROYECT as NombreProyecto', 'ft.CUSTNAME as CustName')
-                ->where('ft.IDFLOG', trim((string)$idflog))
+                ->where('ft.IDFLOG', trim((string) $idflog))
                 ->first();
 
-            $nombreProyecto = $row ? trim((string)($row->NombreProyecto ?? '')) : '';
-            $custName = $row ? trim((string)($row->CustName ?? '')) : '';
+            $nombreProyecto = $row ? trim((string) ($row->NombreProyecto ?? '')) : '';
+            $custName = $row ? trim((string) ($row->CustName ?? '')) : '';
 
             return response()->json([
                 'nombreProyecto' => $nombreProyecto,
-                'custName' => $custName
+                'custName' => $custName,
             ]);
         } catch (\Throwable $e) {
             LogFacade::error('getDescripcionByIdFlog', ['idflog' => $idflog, 'msg' => $e->getMessage()]);
+
             return response()->json(['nombreProyecto' => ''], 500);
         }
     }
@@ -128,9 +134,9 @@ class ProgramaTejidoCatalogosController extends Controller
         $hasItemId = $request->has('item_id') && $request->has('invent_size_id');
         $hasTamanoClave = $request->has('tamano_clave') && $request->has('salon_tejido_id');
 
-        if (!$hasItemId && !$hasTamanoClave) {
+        if (! $hasItemId && ! $hasTamanoClave) {
             return response()->json([
-                'error' => 'Se requiere item_id e invent_size_id, o tamano_clave y salon_tejido_id'
+                'error' => 'Se requiere item_id e invent_size_id, o tamano_clave y salon_tejido_id',
             ], 400);
         }
 
@@ -146,9 +152,9 @@ class ProgramaTejidoCatalogosController extends Controller
                 ->select('ItemId', 'InventSizeId')
                 ->first();
 
-            if (!$modelo) {
+            if (! $modelo) {
                 $modelo = ReqModelosCodificados::where('SalonTejidoId', $salonTejidoId)
-                    ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tamanoClave) . '%'])
+                    ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tamanoClave).'%'])
                     ->select('ItemId', 'InventSizeId')
                     ->first();
             }
@@ -160,7 +166,7 @@ class ProgramaTejidoCatalogosController extends Controller
                 return response()->json([
                     'idflog' => null,
                     'nombreProyecto' => '',
-                    'error' => 'No se encontró ItemId e InventSizeId para la clave modelo proporcionada'
+                    'error' => 'No se encontró ItemId e InventSizeId para la clave modelo proporcionada',
                 ]);
             }
         } else {
@@ -180,16 +186,17 @@ class ProgramaTejidoCatalogosController extends Controller
                 ->get();
 
             $row = $rows->sortByDesc(function ($item) {
-                $idflog = trim((string)($item->IdFlog ?? ''));
+                $idflog = trim((string) ($item->IdFlog ?? ''));
                 if (preg_match('/(\d+)$/', $idflog, $matches)) {
-                    return (int)$matches[1];
+                    return (int) $matches[1];
                 }
+
                 return 0;
             })->first();
 
-            $idflog = $row ? trim((string)($row->IdFlog ?? '')) : null;
-            $nombreProyecto = $row ? trim((string)($row->NombreProyecto ?? '')) : '';
-            $custName = $row ? trim((string)($row->CustName ?? '')) : '';
+            $idflog = $row ? trim((string) ($row->IdFlog ?? '')) : null;
+            $nombreProyecto = $row ? trim((string) ($row->NombreProyecto ?? '')) : '';
+            $custName = $row ? trim((string) ($row->CustName ?? '')) : '';
 
             return response()->json([
                 'idflog' => $idflog,
@@ -225,7 +232,7 @@ class ProgramaTejidoCatalogosController extends Controller
             $modelos = $query->get();
 
             if ($modelos->isEmpty()) {
-                $queryLike = ReqModelosCodificados::whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tamanoClave) . '%'])
+                $queryLike = ReqModelosCodificados::whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tamanoClave).'%'])
                     ->select('ItemId', 'InventSizeId', 'SalonTejidoId')
                     ->whereNotNull('ItemId')
                     ->whereNotNull('InventSizeId')
@@ -249,7 +256,7 @@ class ProgramaTejidoCatalogosController extends Controller
                     'inventSizeId' => trim((string) $m->InventSizeId),
                 ];
             })->unique(function ($item) {
-                return $item['itemId'] . '|' . $item['inventSizeId'];
+                return $item['itemId'].'|'.$item['inventSizeId'];
             })->values();
 
             $allFlogs = collect();
@@ -276,7 +283,7 @@ class ProgramaTejidoCatalogosController extends Controller
                     ];
                 })
                 ->filter(function ($item) {
-                    return !empty($item['idflog']);
+                    return ! empty($item['idflog']);
                 })
                 ->sortByDesc('idflog')
                 ->values();
@@ -286,8 +293,9 @@ class ProgramaTejidoCatalogosController extends Controller
             LogFacade::error('getFlogsByTamanoClave', [
                 'tamano_clave' => $tamanoClave,
                 'salon_tejido_id' => $salonTejidoId,
-                'msg' => $e->getMessage()
+                'msg' => $e->getMessage(),
             ]);
+
             return response()->json([], 500);
         }
     }
@@ -295,6 +303,7 @@ class ProgramaTejidoCatalogosController extends Controller
     public function getCalendarioIdOptions()
     {
         $op = QueryHelpers::pluckDistinctNonEmpty('ReqCalendarioTab', 'CalendarioId');
+
         return response()->json($op);
     }
 
@@ -312,13 +321,13 @@ class ProgramaTejidoCatalogosController extends Controller
                         'FechaInicio' => $linea->FechaInicio ? $linea->FechaInicio->format('Y-m-d H:i:s') : null,
                         'FechaFin' => $linea->FechaFin ? $linea->FechaFin->format('Y-m-d H:i:s') : null,
                         'HorasTurno' => $linea->HorasTurno,
-                        'Turno' => $linea->Turno
+                        'Turno' => $linea->Turno,
                     ];
                 });
 
             return response()->json([
                 'success' => true,
-                'lineas' => $lineas
+                'lineas' => $lineas,
             ]);
         } catch (\Throwable $e) {
             return response()->json(['error' => 'Error al obtener líneas del calendario'], 500);
@@ -343,7 +352,7 @@ class ProgramaTejidoCatalogosController extends Controller
 
             return response()->json($op);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al cargar opciones de aplicación: ' . $e->getMessage()]);
+            return response()->json(['error' => 'Error al cargar opciones de aplicación: '.$e->getMessage()]);
         }
     }
 
@@ -352,12 +361,12 @@ class ProgramaTejidoCatalogosController extends Controller
         try {
             $salon = $request->input('salon_tejido_id');
             $tamRaw = $request->input('tamano_clave');
-            $tam   = $tamRaw ? trim($tamRaw) : null;
+            $tam = $tamRaw ? trim($tamRaw) : null;
             if ($tam) {
                 $tam = preg_replace('/\s+/', ' ', $tam);
             }
 
-            if (!$salon) {
+            if (! $salon) {
                 return response()->json(['error' => 'SalonTejidoId es requerido'], 400);
             }
 
@@ -423,7 +432,7 @@ class ProgramaTejidoCatalogosController extends Controller
                 'CalibreComb52',
                 'FibraComb5',
                 'CodColorC5',
-                'NomColorC5'
+                'NomColorC5',
             ];
 
             if ($tam) {
@@ -432,7 +441,7 @@ class ProgramaTejidoCatalogosController extends Controller
                 $datos = ReqModelosCodificados::where('SalonTejidoId', $salon)->select($selectCols)->first();
             }
 
-            if (!$datos) {
+            if (! $datos) {
                 return response()->json(['datos' => null]);
             }
 
@@ -515,23 +524,23 @@ class ProgramaTejidoCatalogosController extends Controller
                     'Peine' => $datosMapeados['Peine'] ?? null,
                     'Luchaje' => $datosMapeados['Luchaje'] ?? null,
                     'PesoCrudo' => $datosMapeados['PesoCrudo'] ?? null,
-                    'TipoPedido' => $datosMapeados['TipoPedido'] ?? null
-                ]
+                    'TipoPedido' => $datosMapeados['TipoPedido'] ?? null,
+                ],
             ]);
 
-            return response()->json(['datos' => (object)$datosMapeados]);
+            return response()->json(['datos' => (object) $datosMapeados]);
         } catch (\Throwable $e) {
             LogFacade::error('Error en getDatosRelacionados', [
                 'salon' => $salon,
                 'tamano_clave' => $tam,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
-                'error' => 'Error al obtener datos: ' . $e->getMessage(),
+                'error' => 'Error al obtener datos: '.$e->getMessage(),
                 'salon' => $salon,
-                'tamano_clave' => $tam
+                'tamano_clave' => $tam,
             ], 500);
         }
     }
@@ -556,19 +565,21 @@ class ProgramaTejidoCatalogosController extends Controller
             return response()->json([
                 'eficiencia' => null,
                 'velocidad' => null,
-                'error' => 'Faltan parámetros requeridos'
+                'error' => 'Faltan parámetros requeridos',
             ], 400);
         }
 
         try {
             $result = QueryHelpers::getEficienciaVelocidadStd($fibraId, $noTelar, (float) $calTra);
+
             return response()->json($result);
         } catch (\Throwable $e) {
             LogFacade::error('getEficienciaVelocidadStd error', ['msg' => $e->getMessage()]);
+
             return response()->json([
                 'eficiencia' => null,
                 'velocidad' => null,
-                'error' => 'Error al obtener eficiencia y velocidad estándar'
+                'error' => 'Error al obtener eficiencia y velocidad estándar',
             ], 500);
         }
     }
@@ -577,22 +588,31 @@ class ProgramaTejidoCatalogosController extends Controller
     {
         try {
             $salon = $request->input('salon_tejido_id');
-            if (!$salon) {
+            if (! $salon) {
                 return response()->json(['error' => 'SalonTejidoId es requerido'], 400);
             }
 
-            $telares = ReqProgramaTejido::query()
-                ->salon($salon)
+            $aliases = TelarSalonResolver::salonAliases($salon);
+
+            $query = ReqTelares::query()
                 ->whereNotNull('NoTelarId')
-                ->distinct()
-                ->orderBy('NoTelarId')
-                ->pluck('NoTelarId')
+                ->where('NoTelarId', '!=', '');
+
+            if (! empty($aliases)) {
+                $query->whereRaw('LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($aliases), '?')).')', $aliases);
+            }
+
+            $telares = $query->pluck('NoTelarId')
+                ->map(fn ($t) => trim((string) $t))
+                ->filter(fn ($t) => $t !== '')
+                ->unique()
+                ->sortBy(fn ($t) => TelarSalonResolver::telarSortKey($t))
                 ->values()
                 ->toArray();
 
             return response()->json($telares);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al obtener telares: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener telares: '.$e->getMessage()], 500);
         }
     }
 
@@ -610,13 +630,13 @@ class ProgramaTejidoCatalogosController extends Controller
                 ->get();
 
             $result = $pares->map(fn ($p) => [
-                'value' => trim($p->SalonTejidoId) . '|' . trim($p->NoTelarId),
+                'value' => trim($p->SalonTejidoId).'|'.trim($p->NoTelarId),
                 'label' => trim($p->NoTelarId),
             ])->values()->toArray();
 
             return response()->json($result);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al obtener telares: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener telares: '.$e->getMessage()], 500);
         }
     }
 
@@ -625,7 +645,7 @@ class ProgramaTejidoCatalogosController extends Controller
         try {
             $salon = $request->input('salon_tejido_id');
             $telar = $request->input('no_telar_id');
-            if (!$salon || !$telar) {
+            if (! $salon || ! $telar) {
                 return response()->json(['error' => 'SalonTejidoId y NoTelarId son requeridos'], 400);
             }
 
@@ -644,7 +664,7 @@ class ProgramaTejidoCatalogosController extends Controller
                 'ancho' => $ultimo->Ancho ?? null,
             ]);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al obtener última fecha final: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener última fecha final: '.$e->getMessage()], 500);
         }
     }
 
@@ -662,7 +682,7 @@ class ProgramaTejidoCatalogosController extends Controller
 
             return response()->json($op);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al cargar opciones de hilos: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al cargar opciones de hilos: '.$e->getMessage()], 500);
         }
     }
 }
