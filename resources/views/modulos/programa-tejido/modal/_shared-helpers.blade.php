@@ -102,12 +102,40 @@ function estaVincularActivado() {
 	return checkbox && checkbox.checked;
 }
 
+function notificarProgramaTejido(message, type = 'info') {
+	if (typeof window.showToast === 'function') {
+		window.showToast(message, type);
+		return;
+	}
+	if (typeof showToast === 'function') {
+		showToast(message, type);
+		return;
+	}
+	if (typeof window.toast === 'function') {
+		window.toast(message, type);
+		return;
+	}
+	if (typeof Swal !== 'undefined' && Swal.fire) {
+		Swal.fire({
+			text: message,
+			icon: type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info'),
+			toast: true,
+			position: 'top-end',
+			timer: 3000,
+			showConfirmButton: false
+		});
+		return;
+	}
+	console[type === 'error' ? 'error' : 'log'](message);
+}
+
 // Helpers para obtener datos de la fila
 function getRowCellText(row, column, fallback = '') {
 	if (!row) return fallback;
 	const cell = row.querySelector(`[data-column="${column}"]`);
 	const text = cell?.textContent?.trim();
-	return text || fallback;
+	const rawValue = cell?.dataset?.value?.trim();
+	return text || rawValue || fallback;
 }
 
 function getRowTelar(row) {

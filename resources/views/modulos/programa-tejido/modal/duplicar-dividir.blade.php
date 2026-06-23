@@ -62,6 +62,7 @@ async function obtenerDetalleBalanceo(registroId) {
 
 // ===== Función principal para duplicar y dividir telar =====
 async function duplicarTelar(row) {
+	row = row?.closest?.('tr.selectable-row') || row;
 	const telarRaw = getRowTelar(row);
 	const salonRaw = getRowSalon(row);
 	const maquinaRaw = getRowCellText(row, 'Maquina', '');
@@ -73,7 +74,7 @@ async function duplicarTelar(row) {
 		: salonRaw;
 
 	if (!telar || !salon) {
-		showToast('No se pudo obtener la información del telar', 'error');
+		notificarProgramaTejido('No se pudo obtener la información del telar', 'error');
 		return;
 	}
 
@@ -277,7 +278,7 @@ async function duplicarTelar(row) {
 			}
 		});
 	} else {
-		showToast(data.message || mensajeExito, 'success');
+		notificarProgramaTejido(data.message || mensajeExito, 'success');
 
 		await redirectToRegistro(data);
 		if (datos.modo === 'dividir') {
@@ -3319,4 +3320,3 @@ function validarYCapturarDatosDuplicar() {
 		registro_id_original: registroIdOriginal
 	};
 }
-
