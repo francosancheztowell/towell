@@ -17,6 +17,7 @@ use App\Models\Planeacion\ReqEficienciaStd;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqVelocidadStd;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -649,7 +650,13 @@ class TejidoHelpers
         $qBase = ReqModelosCodificados::query();
 
         if ($salonTejidoId !== null && $salonTejidoId !== '') {
-            $qBase->where('SalonTejidoId', $salonTejidoId);
+            $salones = TelarSalonResolver::salonAliases($salonTejidoId);
+            if (! empty($salones)) {
+                $qBase->whereRaw(
+                    'LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($salones), '?')).')',
+                    $salones
+                );
+            }
         }
 
         $modelo = (clone $qBase)
@@ -819,7 +826,16 @@ class TejidoHelpers
             $tam = preg_replace('/\s+/', ' ', $tam);
         }
 
-        $qBase = ReqModelosCodificados::where('SalonTejidoId', $salon);
+        $qBase = ReqModelosCodificados::query();
+        $salones = TelarSalonResolver::salonAliases($salon);
+        if (! empty($salones)) {
+            $qBase->whereRaw(
+                'LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($salones), '?')).')',
+                $salones
+            );
+        } else {
+            $qBase->where('SalonTejidoId', $salon);
+        }
 
         $datos = (clone $qBase)
             ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])

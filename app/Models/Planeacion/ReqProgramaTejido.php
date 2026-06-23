@@ -210,11 +210,18 @@ class ReqProgramaTejido extends Model
 
     public function scopeOrdenado(Builder $q): Builder
     {
-        // Ordenar por salón y telar primero, luego por Posicion dentro de cada telar
+        // Ordenar por numero fisico de telar primero, luego por Posicion dentro de cada telar
         // Cada telar tiene su propia secuencia de Posicion (1, 2, 3...)
         // FechaInicio como fallback para registros sin Posicion
-        return $q->orderBy('SalonTejidoId')
+        return $q->orderByRaw("
+                CASE
+                    WHEN LTRIM(RTRIM(NoTelarId)) <> '' AND LTRIM(RTRIM(NoTelarId)) NOT LIKE '%[^0-9]%'
+                    THEN CAST(LTRIM(RTRIM(NoTelarId)) AS int)
+                    ELSE 2147483647
+                END ASC
+            ")
             ->orderBy('NoTelarId')
+            ->orderBy('SalonTejidoId')
             ->orderBy('Posicion', 'asc') // Posicion es específica por telar (1, 2, 3... en cada telar)
             ->orderBy('FechaInicio', 'asc'); // Fallback para registros sin Posicion
     }

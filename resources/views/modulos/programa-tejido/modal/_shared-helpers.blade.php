@@ -118,6 +118,37 @@ function getRowSalon(row) {
 	return getRowCellText(row, 'SalonTejidoId', null);
 }
 
+function normalizarTelarProgramaTejido(telar) {
+	const raw = String(telar || '').trim();
+	if (!raw) return raw;
+
+	const kmMatch = raw.match(/^(?:KM|KARL\s*MAYER)\s*-?\s*(\d+)$/i);
+	if (kmMatch) {
+		return kmMatch[1];
+	}
+
+	return raw;
+}
+
+function resolverSalonProgramaTejido(salon, telar = '', maquina = '') {
+	const salonRaw = String(salon || '').trim();
+	const telarRaw = String(telar || '').trim();
+	const maquinaRaw = String(maquina || '').trim();
+	const combinado = `${salonRaw} ${telarRaw} ${maquinaRaw}`.toUpperCase();
+	const compacto = combinado.replace(/\s+/g, '');
+
+	if (
+		/\bKM\b/.test(combinado)
+		|| combinado.includes('KARL MAYER')
+		|| compacto.includes('KARLMAYER')
+		|| /^KM\d+/.test(compacto)
+	) {
+		return 'KM';
+	}
+
+	return salonRaw;
+}
+
 function getCsrfToken() {
 	return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }

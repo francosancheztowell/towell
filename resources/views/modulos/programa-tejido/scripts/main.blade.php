@@ -347,13 +347,13 @@
 
       const rows = Array.from(tb.querySelectorAll('.selectable-row'));
       rows.sort((a, b) => {
-        const salonA = (a.querySelector('[data-column="SalonTejidoId"]')?.textContent || '').trim().toUpperCase();
-        const salonB = (b.querySelector('[data-column="SalonTejidoId"]')?.textContent || '').trim().toUpperCase();
-        if (salonA !== salonB) return salonA.localeCompare(salonB);
-
         const telarA = normalizeTelarValue(a.querySelector('[data-column="NoTelarId"]')?.textContent || '');
         const telarB = normalizeTelarValue(b.querySelector('[data-column="NoTelarId"]')?.textContent || '');
         if (telarA !== telarB) return telarA.localeCompare(telarB, undefined, { numeric: true, sensitivity: 'base' });
+
+        const salonA = (a.querySelector('[data-column="SalonTejidoId"]')?.textContent || '').trim().toUpperCase();
+        const salonB = (b.querySelector('[data-column="SalonTejidoId"]')?.textContent || '').trim().toUpperCase();
+        if (salonA !== salonB) return salonA.localeCompare(salonB);
 
         const posA = parseInt(a.getAttribute('data-posicion') || '0', 10);
         const posB = parseInt(b.getAttribute('data-posicion') || '0', 10);

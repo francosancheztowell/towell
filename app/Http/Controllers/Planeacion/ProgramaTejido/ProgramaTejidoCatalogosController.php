@@ -56,7 +56,12 @@ class ProgramaTejidoCatalogosController extends Controller
             ->where('TamanoClave', '!=', '');
 
         if ($salon) {
-            $q->where('SalonTejidoId', $salon);
+            $aliases = TelarSalonResolver::salonAliases($salon);
+            if (! empty($aliases)) {
+                $q->whereRaw('LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($aliases), '?')).')', $aliases);
+            } else {
+                $q->where('SalonTejidoId', $salon);
+            }
         }
         if ($search) {
             $q->where('TamanoClave', 'LIKE', "%{$search}%");
@@ -147,13 +152,22 @@ class ProgramaTejidoCatalogosController extends Controller
             $tamanoClave = trim((string) $request->input('tamano_clave'));
             $salonTejidoId = trim((string) $request->input('salon_tejido_id'));
 
-            $modelo = ReqModelosCodificados::where('SalonTejidoId', $salonTejidoId)
+            $aliases = TelarSalonResolver::salonAliases($salonTejidoId);
+
+            $modeloQuery = ReqModelosCodificados::query();
+            if (! empty($aliases)) {
+                $modeloQuery->whereRaw('LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($aliases), '?')).')', $aliases);
+            } else {
+                $modeloQuery->where('SalonTejidoId', $salonTejidoId);
+            }
+
+            $modelo = (clone $modeloQuery)
                 ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tamanoClave)])
                 ->select('ItemId', 'InventSizeId')
                 ->first();
 
             if (! $modelo) {
-                $modelo = ReqModelosCodificados::where('SalonTejidoId', $salonTejidoId)
+                $modelo = (clone $modeloQuery)
                     ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tamanoClave).'%'])
                     ->select('ItemId', 'InventSizeId')
                     ->first();
@@ -226,7 +240,12 @@ class ProgramaTejidoCatalogosController extends Controller
                 ->where('InventSizeId', '!=', '');
 
             if ($salonTejidoId) {
-                $query->where('SalonTejidoId', trim((string) $salonTejidoId));
+                $aliases = TelarSalonResolver::salonAliases(trim((string) $salonTejidoId));
+                if (! empty($aliases)) {
+                    $query->whereRaw('LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($aliases), '?')).')', $aliases);
+                } else {
+                    $query->where('SalonTejidoId', trim((string) $salonTejidoId));
+                }
             }
 
             $modelos = $query->get();
@@ -240,7 +259,12 @@ class ProgramaTejidoCatalogosController extends Controller
                     ->where('InventSizeId', '!=', '');
 
                 if ($salonTejidoId) {
-                    $queryLike->where('SalonTejidoId', trim((string) $salonTejidoId));
+                    $aliases = TelarSalonResolver::salonAliases(trim((string) $salonTejidoId));
+                    if (! empty($aliases)) {
+                        $queryLike->whereRaw('LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($aliases), '?')).')', $aliases);
+                    } else {
+                        $queryLike->where('SalonTejidoId', trim((string) $salonTejidoId));
+                    }
                 }
 
                 $modelos = $queryLike->get();
