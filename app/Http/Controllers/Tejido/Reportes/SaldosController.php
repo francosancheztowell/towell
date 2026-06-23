@@ -174,6 +174,12 @@ class SaldosController extends Controller
                 $sumTotalPzasProgramadas = $grupo->sum(function ($r) {
                     return (float) ($r->PzasRollo ?? 0) * (float) ($r->TotalRollos ?? 0);
                 });
+                // Validación: el TotalRollos almacenado (frozen al liberar) debe seguir siendo
+                // ceil(TotalPedido / PzasRollo). Si no coincide, la orden quedó desincronizada
+                // (pedido editado a la baja sin recalcular, o ajuste FEL a medias).
+                $rollosEsperadosGrupo = $this->rollosEsperadosGrupo($grupo);
+                $rollosInconsistenteGrupo = $rollosEsperadosGrupo !== null
+                    && abs((float) $sumTotalRollos - (float) $rollosEsperadosGrupo) >= 0.5;
 
                 foreach ($grupo as $r) {
                     $r->_esLider = ($r->Id === $lider->Id); // líder = el primero del grupo
@@ -186,6 +192,8 @@ class SaldosController extends Controller
                         $r->_sumTotalRollos = $sumTotalRollos;
                         $r->_sumRollosPorTejer = $sumRollosPorTejer;
                         $r->_sumTotalPzasProgramadas = $sumTotalPzasProgramadas;
+                        $r->_rollosEsperados = $rollosEsperadosGrupo;
+                        $r->_rollosInconsistente = $rollosInconsistenteGrupo;
                     } else {
                         $r->_sumTotalPedido = null;
                         $r->_sumSaldoPedido = null;
@@ -193,6 +201,8 @@ class SaldosController extends Controller
                         $r->_sumTotalRollos = null;
                         $r->_sumRollosPorTejer = null;
                         $r->_sumTotalPzasProgramadas = null;
+                        $r->_rollosEsperados = null;
+                        $r->_rollosInconsistente = false;
                     }
                 }
             } else {
@@ -206,6 +216,10 @@ class SaldosController extends Controller
                     $r->_sumTotalRollos = $r->TotalRollos;
                     $r->_sumRollosPorTejer = is_numeric($r->NoMarbete ?? null) ? (float) $r->NoMarbete : $r->NoMarbete;
                     $r->_sumTotalPzasProgramadas = (float) ($r->PzasRollo ?? 0) * (float) ($r->TotalRollos ?? 0);
+                    $esp = $this->rollosEsperadosRegistro($r);
+                    $r->_rollosEsperados = $esp;
+                    $r->_rollosInconsistente = $esp !== null
+                        && abs((float) ($r->TotalRollos ?? 0) - (float) $esp) >= 0.5;
                 }
             }
 
@@ -213,6 +227,42 @@ class SaldosController extends Controller
         }
 
         return $processed;
+    }
+
+    /**
+     * Rollos que DEBERÍA tener la orden según la fórmula de liberación:
+     * ceil(TotalPedido / PzasRollo). Usa TotalPedido (cantidad original, estática) y NO
+     * SaldoPedido, que disminuye con la producción y daría falsos positivos.
+     * Devuelve null si faltan datos (PzasRollo o pedido en cero) para no marcar de más.
+     */
+    private function rollosEsperadosRegistro(object $r): ?int
+    {
+        $pzas = is_numeric($r->PzasRollo ?? null) ? (float) $r->PzasRollo : 0.0;
+        $pedido = is_numeric($r->TotalPedido ?? null) ? (float) $r->TotalPedido : 0.0;
+        if ($pzas <= 0.0 || $pedido <= 0.0) {
+            return null;
+        }
+
+        return (int) ceil($pedido / $pzas);
+    }
+
+    /**
+     * Rollos esperados de un grupo vinculado = suma de los esperados por miembro.
+     * Si algún miembro carece de datos válidos retorna null (grupo no evaluable),
+     * para evitar comparar una suma incompleta contra el total programado.
+     */
+    private function rollosEsperadosGrupo($grupo): ?int
+    {
+        $total = 0;
+        foreach ($grupo as $r) {
+            $esp = $this->rollosEsperadosRegistro($r);
+            if ($esp === null) {
+                return null;
+            }
+            $total += $esp;
+        }
+
+        return $total;
     }
 
     private function query()

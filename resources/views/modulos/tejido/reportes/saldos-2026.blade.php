@@ -248,9 +248,24 @@
                                 <td class="saldos-td saldos-td-rasurada text-center text-[0.65rem] font-semibold {{ $esRasurada ? 'saldos-td-rasurada-si' : 'text-gray-700' }}">{{ $r->Rasurado ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums text-[0.65rem]">{{ $r->NoTiras ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums text-[0.65rem]">{{ $r->Repeticiones !== null ? number_format((float)$r->Repeticiones, 0) : '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums text-[0.65rem]" style="background:#d1fae5;border-color:#6ee7b7;">
+                                @php
+                                    $rollosProg     = (float) ($r->_sumTotalRollos ?? $r->TotalRollos ?? 0);
+                                    $rollosEsp      = $r->_rollosEsperados ?? null;
+                                    $rollosInc      = ($r->_rollosInconsistente ?? false) && $rollosEsp !== null;
+                                    $rollosCeldaBg  = $rollosInc ? 'background:#fecaca;border-color:#f87171;' : 'background:#d1fae5;border-color:#6ee7b7;';
+                                    $rollosTitle    = $rollosInc
+                                        ? 'Inconsistente: programados ' . number_format($rollosProg, 0) . ' vs esperado ' . number_format((float) $rollosEsp, 0)
+                                            . ' = ceil(Cantidad solicitada / Pzas x rollo). '
+                                            . ($rollosProg > $rollosEsp ? 'Sobreproduce' : 'Faltan rollos') . ' — revisar liberación.'
+                                        : '';
+                                @endphp
+                                <td class="saldos-td text-right tabular-nums text-[0.65rem]" style="{{ $rollosCeldaBg }}" @if($rollosInc) title="{{ $rollosTitle }}" @endif>
                                     @if ($esLider)
-                                        {{ number_format((float) ($r->_sumTotalRollos ?? $r->TotalRollos ?? 0), 0) }}
+                                        @if ($rollosInc)
+                                            <span class="font-bold text-red-700">⚠ {{ number_format($rollosProg, 0) }}</span>
+                                        @else
+                                            {{ number_format($rollosProg, 0) }}
+                                        @endif
                                     @else
                                         <span class="saldos-abierto-badge">ABIERTO</span>
                                     @endif
