@@ -250,7 +250,9 @@ class SaldosController extends Controller
                 'CuentaRizo', 'CalibreRizo2', 'FibraRizo',
                 'CuentaPie', 'CalibrePie2', 'FibraPie',
                 'Rasurado', 'NoTiras', 'PzasRollo', 'Repeticiones',
-                'TotalRollos', 'Produccion', 'SaldoPedido',
+                // Rollos programados: se jala de CatCodificados (último por OrdenTejido), no de ReqProgramaTejido.
+                DB::raw('(SELECT TOP 1 cc.TotalRollos FROM dbo.CatCodificados cc WHERE cc.OrdenTejido = ReqProgramaTejido.NoProduccion ORDER BY cc.Id DESC) AS TotalRollos'),
+                'Produccion', 'SaldoPedido',
                 'ReqProgramaTejido.Observaciones',
                 // Campos de ReqModelosCodificados
                 DB::raw('rmc.Tolerancia         AS Tolerancia'),
