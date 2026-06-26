@@ -69,7 +69,8 @@
                         </th>
                         @foreach ($fechas as $fecha)
                             <th class="px-2 py-1.5 text-center border-b border-r border-slate-200 min-w-[56px]
-                                       {{ $fecha['destacada'] ? 'font-extrabold text-blue-600' : 'font-semibold text-slate-500' }}">
+                                       {{ $fecha['destacada'] ? 'font-extrabold text-blue-600' : 'font-semibold text-slate-500' }}"
+                                @if (!empty($fecha['nuevoMes'])) style="border-left:3px solid #94a3b8;" @endif>
                                 {{ $fecha['label'] }}
                             </th>
                         @endforeach
@@ -98,14 +99,18 @@
 
                             {{-- Celdas de valores --}}
                             @foreach ($fechas as $i => $fecha)
-                                @php $valor = $area['valores'][$i] ?? null; @endphp
+                                @php
+                                    $valor = $area['valores'][$i] ?? null;
+                                    $bordeMes = !empty($fecha['nuevoMes']) ? 'border-left:3px solid #94a3b8;' : '';
+                                @endphp
                                 @if (!is_null($valor))
                                     <td class="px-2 py-3 text-center font-semibold border-b border-r border-slate-200 tabular-nums"
-                                        style="background-color: {{ $area['bgs'][$i] ?? $area['tint'] }}; color: {{ $area['text'] }};">
+                                        style="background-color: {{ $area['bgs'][$i] ?? $area['tint'] }}; color: {{ $area['text'] }};{{ $bordeMes }}">
                                         {{ number_format($valor, $decimales) }}
                                     </td>
                                 @else
-                                    <td class="px-2 py-3 text-center text-slate-300 border-b border-r border-slate-200 select-none">
+                                    <td class="px-2 py-3 text-center text-slate-300 border-b border-r border-slate-200 select-none"
+                                        style="{{ $bordeMes }}">
                                         —
                                     </td>
                                 @endif
@@ -129,7 +134,8 @@
                             Total
                         </td>
                         @foreach ($fechas as $i => $fecha)
-                            <td class="px-2 py-1.5 text-center font-bold text-blue-800 border-r border-slate-200 tabular-nums">
+                            <td class="px-2 py-1.5 text-center font-bold text-blue-800 border-r border-slate-200 tabular-nums"
+                                @if (!empty($fecha['nuevoMes'])) style="border-left:3px solid #94a3b8;" @endif>
                                 {{ !is_null($totales[$i]) ? number_format($totales[$i], $decimales) : '—' }}
                             </td>
                         @endforeach

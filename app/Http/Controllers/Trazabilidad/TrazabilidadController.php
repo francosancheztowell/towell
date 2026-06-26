@@ -44,27 +44,9 @@ class TrazabilidadController extends Controller
             ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
         $filtros['mes'] = implode(',', $mesesSel); // CSV normalizado para la vista.
 
-        // Por defecto, al seleccionar Flog/Artículo/Tamaño/Color (sin haber elegido mes),
-        // se preselecciona el ÚLTIMO mes disponible para esos filtros. El usuario puede
-        // luego agregar otro mes o ambos desde los badges.
-        $hayFiltroNoMes = filled($filtros['flog']) || filled($filtros['articulo'])
-            || filled($filtros['tamano']) || filled($filtros['color']);
-
-        if (empty($mesesSel) && $hayFiltroNoMes) {
-            $ultimoMes = (int) TrazaProduccion::query()
-                ->when($filtros['flog'], fn ($q, $v) => $q->where('Flogs', $v))
-                ->when($filtros['articulo'], fn ($q, $v) => $q->where('Articulo', $v))
-                ->when($filtros['tamano'], fn ($q, $v) => $q->where('Tamano', $v))
-                ->when($filtros['color'], fn ($q, $v) => $q->where('Color', $v))
-                ->whereNotNull('Fecha')
-                ->selectRaw('MAX(MONTH(Fecha)) as m')
-                ->value('m');
-
-            if ($ultimoMes) {
-                $mesesSel = [$ultimoMes];
-                $filtros['mes'] = (string) $ultimoMes;
-            }
-        }
+        // Al seleccionar Flog/Artículo/Tamaño/Color sin elegir mes, NO se preselecciona
+        // ningún mes: se muestran TODOS los meses disponibles para esos filtros. El
+        // usuario puede luego acotar a uno o varios meses desde los badges.
 
         // La tabla se muestra con CUALQUIER filtro. El Flog es opcional; solo cuando hay
         // un Flog específico se muestran los datos de Tipo/Cliente/Agente.

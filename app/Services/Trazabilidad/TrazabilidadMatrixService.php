@@ -80,12 +80,20 @@ class TrazabilidadMatrixService
             ->sort()
             ->values();
 
-        $fechas = $clavesFechas->map(function ($clave) {
+        $mesAnterior = null;
+        $fechas = $clavesFechas->map(function ($clave) use (&$mesAnterior) {
             $c = Carbon::parse($clave);
+            $mesActual = $c->format('Y-m');
+
+            // Marca la primera columna de cada mes (salvo la primera de todas) para
+            // dibujar un separador más grueso entre meses distintos.
+            $nuevoMes = $mesAnterior !== null && $mesActual !== $mesAnterior;
+            $mesAnterior = $mesActual;
 
             return [
                 'label'     => $c->format('d/m'),
                 'destacada' => $c->isWeekend(),
+                'nuevoMes'  => $nuevoMes,
             ];
         })->all();
 
