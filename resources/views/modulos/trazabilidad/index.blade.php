@@ -5,11 +5,18 @@
 @endsection
 
 @section('navbar-right')
-    <button type="button" id="btn-restablecer"
-            class="flex items-center gap-2 px-4 py-3 text-md font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-        <i class="fas fa-rotate-left"></i>
-        Restablecer
-    </button>
+    <div class="flex items-center gap-2">
+        <button type="button" id="btn-exportar"
+                class="flex items-center gap-2 px-4 py-3 text-md font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+            <i class="fas fa-file-excel"></i>
+            Exportar a Excel
+        </button>
+        <button type="button" id="btn-restablecer"
+                class="flex items-center gap-2 px-4 py-3 text-md font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+            <i class="fas fa-rotate-left"></i>
+            Restablecer
+        </button>
+    </div>
 @endsection
 
 @section('content')
@@ -326,6 +333,19 @@
             $(this).removeClass('bg-white text-slate-600 hover:bg-slate-50')
                    .addClass('bg-blue-600 text-white hover:bg-blue-700');
             aplicar(valoresActuales());
+        });
+
+        // Botón Exportar a Excel: descarga la matriz con los filtros activos.
+        const RUTA_EXPORT = @json(route('trazabilidad.exportar'));
+        $('#btn-exportar').on('click', function () {
+            const v = valoresActuales();
+            const hayFiltro = v.flog || v.articulo || v.tamano || v.color || v.mes;
+            if (!hayFiltro) {
+                window.notify?.warning('Selecciona al menos un filtro antes de exportar.');
+                return;
+            }
+            const qs = new URLSearchParams(v).toString();
+            window.location.href = RUTA_EXPORT + '?' + qs;
         });
 
         // Botón Restablecer del navbar: limpia todos los filtros (sin recargar).

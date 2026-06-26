@@ -1,0 +1,159 @@
+<?php
+
+namespace App\Services\Trazabilidad;
+
+use App\Models\Trazabilidad\TrazaProduccion;
+use Carbon\Carbon;
+
+/**
+ * Construye la matriz "Producción por día y área" de Trazabilidad
+ * (columnas = fechas, filas = áreas fijas, celdas = suma de la métrica).
+ *
+ * Lógica compartida por el controlador (vista web) y la exportación a Excel,
+ * para que ambos muestren exactamente lo mismo (mismas áreas, colores y heatmap).
+ */
+class TrazabilidadMatrixService
+{
+    /**
+     * Áreas FIJAS de la matriz (filas), en orden. Colores pastel por área.
+     * text = color de texto/valor, dot = punto indicador, tint = fondo base de celda.
+     */
+    public array $areasFijas = [
+        ['nombre' => 'Crudo',              'text' => '#475569', 'dot' => '#94a3b8', 'tint' => '#eef2f7'],
+        ['nombre' => 'Rollos Teñido',      'text' => '#1e40af', 'dot' => '#60a5fa', 'tint' => '#dbeafe'],
+        ['nombre' => 'Acabado',            'text' => '#0d9488', 'dot' => '#2dd4bf', 'tint' => '#d3f5ee'],
+        ['nombre' => 'Desengome',          'text' => '#155e75', 'dot' => '#22d3ee', 'tint' => '#cffafe'],
+        ['nombre' => 'Felpa Cortada',      'text' => '#3730a3', 'dot' => '#818cf8', 'tint' => '#e0e7ff'],
+        ['nombre' => 'Piezas Cortadas',    'text' => '#6b21a8', 'dot' => '#a78bfa', 'tint' => '#ede9fe'],
+        ['nombre' => 'Ent Taller',         'label' => 'Entrada Taller', 'text' => '#86198f', 'dot' => '#e879f9', 'tint' => '#fae8ff'],
+        ['nombre' => 'Costura Manual',     'text' => '#166534', 'dot' => '#4ade80', 'tint' => '#dcfce7'],
+        ['nombre' => 'Taller 1ras',        'text' => '#3f6212', 'dot' => '#a3e635', 'tint' => '#ecfccb'],
+        ['nombre' => 'Recep Maq Toalla',   'text' => '#92400e', 'dot' => '#fbbf24', 'tint' => '#fef3c7'],
+        ['nombre' => 'Recep Maq Bata',     'text' => '#9a3412', 'dot' => '#fb923c', 'tint' => '#ffedd5'],
+        ['nombre' => 'Recep Maq Bordado',  'text' => '#9f1239', 'dot' => '#fb7185', 'tint' => '#ffe4e6'],
+        ['nombre' => 'Segundas',           'text' => '#9d174d', 'dot' => '#f472b6', 'tint' => '#fce7f3'],
+        ['nombre' => 'Felpas Prod Term', 'label' => 'Felpas Prod Term', 'text' => '#854d0e', 'dot' => '#eab308', 'tint' => '#fef9c3'],
+        ['nombre' => 'Ent Prod Term',      'label' => 'Entrada Prod Term', 'text' => '#065f46', 'dot' => '#34d399', 'tint' => '#d1fae5'],
+    ];
+
+    /**
+     * Construye la matriz a partir de los filtros activos y la métrica elegida.
+     *
+     * @param  array  $filtros  ['flog','articulo','tamano','color','mes'(CSV de meses)]
+     * @param  string $metrica  'cantidad' (Material) o 'peso' (Kilos)
+     * @return array{fechas:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool}
+     */
+    public function build(array $filtros, string $metrica = 'cantidad'): array
+    {
+        $metrica = $metrica === 'peso' ? 'peso' : 'cantidad';
+        $columnaMetrica = $metrica === 'peso' ? 'Peso' : 'Cantidad';
+        $decimales = $metrica === 'peso' ? 1 : 0;
+
+        $mesesSel = collect(explode(',', (string) ($filtros['mes'] ?? '')))
+            ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
+
+        $hayFlog = filled($filtros['flog'] ?? null);
+
+        // Query base con los filtros presentes (todos opcionales).
+        $base = fn () => TrazaProduccion::query()
+            ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
+            ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
+            ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
+            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
+            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN (' . implode(',', $mesesSel) . ')'));
+
+        // Tipo / Cliente / Agente: solo cuando hay un Flog específico.
+        $info = $hayFlog ? $base()->select('Tipo', 'Cliente', 'Agente')->first() : null;
+
+        // Agregación en SQL: una fila por (Fecha, NombreAlmacen) con la suma de la métrica.
+        $datos = $base()
+            ->selectRaw("Fecha, NombreAlmacen, SUM($columnaMetrica) as total")
+            ->whereNotNull('Fecha')
+            ->groupBy('Fecha', 'NombreAlmacen')
+            ->orderBy('Fecha')
+            ->get();
+
+        // --- Columnas (fechas distintas, ordenadas) ---
+        $clavesFechas = $datos->pluck('Fecha')
+            ->map(fn ($f) => Carbon::parse($f)->format('Y-m-d'))
+            ->unique()
+            ->sort()
+            ->values();
+
+        $fechas = $clavesFechas->map(function ($clave) {
+            $c = Carbon::parse($clave);
+
+            return [
+                'label'     => $c->format('d/m'),
+                'destacada' => $c->isWeekend(),
+            ];
+        })->all();
+
+        $posFecha = $clavesFechas->flip();
+
+        // Mapa [NombreAlmacen][posFecha] => total.
+        $valoresPorArea = [];
+        foreach ($datos as $fila) {
+            $area = $fila->NombreAlmacen ?? '';
+            $clave = Carbon::parse($fila->Fecha)->format('Y-m-d');
+            $pos = $posFecha[$clave];
+            $valoresPorArea[$area][$pos] = ($valoresPorArea[$area][$pos] ?? 0) + (float) $fila->total;
+        }
+
+        $numCols = count($fechas);
+        $areas = collect($this->areasFijas)->map(function ($area) use ($valoresPorArea, $numCols, $decimales) {
+            $valores = [];
+            for ($c = 0; $c < $numCols; $c++) {
+                $valores[$c] = isset($valoresPorArea[$area['nombre']][$c])
+                    ? round($valoresPorArea[$area['nombre']][$c], $decimales)
+                    : null;
+            }
+
+            // Heatmap: alpha 0.10 (poco) → 0.60 (máximo de la fila).
+            $maxFila = 0;
+            foreach ($valores as $v) {
+                if ($v !== null && $v > $maxFila) {
+                    $maxFila = $v;
+                }
+            }
+            [$r, $g, $b] = sscanf($area['dot'], '#%02x%02x%02x');
+            $bgs = [];
+            for ($c = 0; $c < $numCols; $c++) {
+                $v = $valores[$c];
+                if ($v === null || $maxFila <= 0) {
+                    $bgs[$c] = null;
+
+                    continue;
+                }
+                $alpha = round(0.10 + 0.50 * ($v / $maxFila), 3);
+                $bgs[$c] = "rgba($r,$g,$b,$alpha)";
+            }
+
+            return array_merge($area, ['valores' => $valores, 'bgs' => $bgs]);
+        })
+        // Ocultar áreas completamente vacías/en cero para el filtro actual.
+        ->filter(function ($area) {
+            foreach ($area['valores'] as $v) {
+                if ($v !== null && (float) $v != 0.0) {
+                    return true;
+                }
+            }
+
+            return false;
+        })
+        ->values()
+        ->all();
+
+        // --- Totales por columna ---
+        $totales = [];
+        foreach ($fechas as $i => $fecha) {
+            $suma = 0;
+            foreach ($areas as $area) {
+                $suma += (float) ($area['valores'][$i] ?? 0);
+            }
+            $totales[$i] = $suma ? round($suma, $decimales) : null;
+        }
+
+        return compact('fechas', 'areas', 'totales', 'info', 'metrica', 'decimales', 'hayFlog');
+    }
+}

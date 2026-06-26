@@ -2,37 +2,20 @@
 
 namespace App\Http\Controllers\Trazabilidad;
 
+use App\Exports\TrazabilidadExport;
 use App\Http\Controllers\Controller;
 use App\Models\Trazabilidad\TrazaProduccion;
+use App\Services\Trazabilidad\TrazabilidadMatrixService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TrazabilidadController extends Controller
 {
-    /**
-     * Áreas FIJAS de la matriz (filas), en orden. Siempre se muestran todas, aunque
-     * no tengan producción para el Flog/mes elegido. Solo se agregan filas cuyo
-     * NombreAlmacen coincida con estos nombres. Colores pastel por área.
-     * text = color de texto/valor, dot = punto indicador, tint = fondo de celda con valor.
-     */
-    private array $areasFijas = [
-        ['nombre' => 'Crudo',              'text' => '#475569', 'dot' => '#94a3b8', 'tint' => '#eef2f7'],
-        ['nombre' => 'Rollos Teñido',      'text' => '#1e40af', 'dot' => '#60a5fa', 'tint' => '#dbeafe'],
-        ['nombre' => 'Acabado',            'text' => '#0d9488', 'dot' => '#2dd4bf', 'tint' => '#d3f5ee'],
-        ['nombre' => 'Desengome',          'text' => '#155e75', 'dot' => '#22d3ee', 'tint' => '#cffafe'],
-        ['nombre' => 'Felpa Cortada',      'text' => '#3730a3', 'dot' => '#818cf8', 'tint' => '#e0e7ff'],
-        ['nombre' => 'Piezas Cortadas',    'text' => '#6b21a8', 'dot' => '#a78bfa', 'tint' => '#ede9fe'],
-        ['nombre' => 'Ent Taller',         'label' => 'Entrada Taller', 'text' => '#86198f', 'dot' => '#e879f9', 'tint' => '#fae8ff'],
-        ['nombre' => 'Costura Manual',     'text' => '#166534', 'dot' => '#4ade80', 'tint' => '#dcfce7'],
-        ['nombre' => 'Taller 1ras',        'text' => '#3f6212', 'dot' => '#a3e635', 'tint' => '#ecfccb'],
-        ['nombre' => 'Recep Maq Toalla',   'text' => '#92400e', 'dot' => '#fbbf24', 'tint' => '#fef3c7'],
-        ['nombre' => 'Recep Maq Bata',     'text' => '#9a3412', 'dot' => '#fb923c', 'tint' => '#ffedd5'],
-        ['nombre' => 'Recep Maq Bordado',  'text' => '#9f1239', 'dot' => '#fb7185', 'tint' => '#ffe4e6'],
-        ['nombre' => 'Segundas',           'text' => '#9d174d', 'dot' => '#f472b6', 'tint' => '#fce7f3'],
-        ['nombre' => 'Felpas Prod Term', 'label' => 'Felpas Prod Term', 'text' => '#854d0e', 'dot' => '#eab308', 'tint' => '#fef9c3'],
-        ['nombre' => 'Ent Prod Term',      'label' => 'Entrada Prod Term', 'text' => '#065f46', 'dot' => '#34d399', 'tint' => '#d1fae5'],
-    ];
+    public function __construct(private TrazabilidadMatrixService $matriz)
+    {
+    }
 
     /**
      * Página principal del módulo de Trazabilidad.
@@ -167,108 +150,14 @@ class TrazabilidadController extends Controller
         $totales = [];
         $info = null; // Tipo / Cliente / Agente (solo con un Flog específico).
 
-        // La matriz se calcula con CUALQUIER filtro activo.
+        // La matriz se calcula con CUALQUIER filtro activo. La lógica vive en el
+        // servicio compartido para que la web y la exportación a Excel coincidan.
         if ($hayFiltro) {
-            // Query base con los filtros presentes (todos opcionales).
-            $base = fn () => TrazaProduccion::query()
-                ->when($filtros['flog'], fn ($q, $v) => $q->where('Flogs', $v))
-                ->when($filtros['articulo'], fn ($q, $v) => $q->where('Articulo', $v))
-                ->when($filtros['tamano'], fn ($q, $v) => $q->where('Tamano', $v))
-                ->when($filtros['color'], fn ($q, $v) => $q->where('Color', $v))
-                ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN (' . implode(',', $mesesSel) . ')'));
-
-            // Tipo / Cliente / Agente: solo cuando hay un Flog específico.
-            $info = $hayFlog ? $base()->select('Tipo', 'Cliente', 'Agente')->first() : null;
-
-            // Agregación en SQL: una fila por (Fecha, NombreAlmacen) con la suma de la
-            // métrica elegida (Cantidad = Material, Peso = Kilos).
-            $datos = $base()
-                ->selectRaw("Fecha, NombreAlmacen, SUM($columnaMetrica) as total")
-                ->whereNotNull('Fecha')
-                ->groupBy('Fecha', 'NombreAlmacen')
-                ->orderBy('Fecha')
-                ->get();
-
-            // --- Construir columnas (fechas distintas, ordenadas) ---
-            $clavesFechas = $datos->pluck('Fecha')
-                ->map(fn ($f) => Carbon::parse($f)->format('Y-m-d'))
-                ->unique()
-                ->sort()
-                ->values();
-
-            $fechas = $clavesFechas->map(function ($clave) {
-                $c = Carbon::parse($clave);
-                return [
-                    'label'     => $c->format('d/m'),
-                    'destacada' => $c->isWeekend(), // sábado y domingo resaltados
-                ];
-            })->all();
-
-            // Índice clave-fecha => posición de columna.
-            $posFecha = $clavesFechas->flip();
-
-            // --- Filas FIJAS (áreas predefinidas), match por NombreAlmacen ---
-            // Mapa [NombreAlmacen][posFecha] => total.
-            $valoresPorArea = [];
-            foreach ($datos as $fila) {
-                $area = $fila->NombreAlmacen ?? '';
-                $clave = Carbon::parse($fila->Fecha)->format('Y-m-d');
-                $pos = $posFecha[$clave];
-                $valoresPorArea[$area][$pos] = ($valoresPorArea[$area][$pos] ?? 0) + (float) $fila->total;
-            }
-
-            $numCols = count($fechas);
-            $areas = collect($this->areasFijas)->map(function ($area) use ($valoresPorArea, $numCols, $decimales) {
-                $valores = [];
-                for ($c = 0; $c < $numCols; $c++) {
-                    $valores[$c] = isset($valoresPorArea[$area['nombre']][$c])
-                        ? round($valoresPorArea[$area['nombre']][$c], $decimales)
-                        : null;
-                }
-
-                // Heatmap: color más fuerte/claro según el valor vs el máximo de la fila.
-                $maxFila = 0;
-                foreach ($valores as $v) {
-                    if ($v !== null && $v > $maxFila) {
-                        $maxFila = $v;
-                    }
-                }
-                [$r, $g, $b] = sscanf($area['dot'], '#%02x%02x%02x');
-                $bgs = [];
-                for ($c = 0; $c < $numCols; $c++) {
-                    $v = $valores[$c];
-                    if ($v === null || $maxFila <= 0) {
-                        $bgs[$c] = null;
-                        continue;
-                    }
-                    $alpha = round(0.10 + 0.50 * ($v / $maxFila), 3); // 0.10 (poco) → 0.60 (máximo), pastel
-                    $bgs[$c] = "rgba($r,$g,$b,$alpha)";
-                }
-
-                return array_merge($area, ['valores' => $valores, 'bgs' => $bgs]);
-            })
-            // Ocultar áreas completamente vacías/en cero para el filtro actual:
-            // si todos sus valores son null o 0, no se muestra la fila.
-            ->filter(function ($area) {
-                foreach ($area['valores'] as $v) {
-                    if ($v !== null && (float) $v != 0.0) {
-                        return true;
-                    }
-                }
-
-                return false;
-            })
-            ->values()
-            ->all();
-
-            // --- Totales por columna ---
-            foreach ($fechas as $i => $fecha) {
-                $suma = 0;
-                foreach ($areas as $area) {
-                    $suma += (float) ($area['valores'][$i] ?? 0);
-                }
-                $totales[$i] = $suma ? round($suma, $decimales) : null;
-            }
+            $matriz = $this->matriz->build($filtros, $metrica);
+            $fechas = $matriz['fechas'];
+            $areas = $matriz['areas'];
+            $totales = $matriz['totales'];
+            $info = $matriz['info'];
         }
 
         $datosVista = compact(
@@ -295,5 +184,40 @@ class TrazabilidadController extends Controller
         }
 
         return view('modulos.trazabilidad.index', $datosVista);
+    }
+
+    /**
+     * Exporta la matriz de Trazabilidad (con los filtros activos) a un Excel
+     * con logo de Towell, resumen de filtros y la tabla con colores por área.
+     */
+    public function exportar(Request $request)
+    {
+        abort_unless(userCan('acceso', 'Trazabilidad'), 403, 'No tienes acceso al módulo de Trazabilidad.');
+
+        $filtros = [
+            'flog'     => $request->query('flog'),
+            'articulo' => $request->query('articulo'),
+            'tamano'   => $request->query('tamano'),
+            'color'    => $request->query('color'),
+            'mes'      => $request->query('mes'),
+        ];
+
+        $metrica = $request->query('metrica') === 'peso' ? 'peso' : 'cantidad';
+
+        // Normaliza el CSV de meses (igual que en index).
+        $mesesSel = collect(explode(',', (string) $filtros['mes']))
+            ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
+        $filtros['mes'] = implode(',', $mesesSel);
+
+        $hayFiltro = filled($filtros['flog']) || filled($filtros['articulo'])
+            || filled($filtros['tamano']) || filled($filtros['color']) || ! empty($mesesSel);
+
+        abort_unless($hayFiltro, 422, 'Selecciona al menos un filtro antes de exportar.');
+
+        $matriz = $this->matriz->build($filtros, $metrica);
+
+        $nombreArchivo = 'Trazabilidad_' . now()->format('Ymd_His') . '.xlsx';
+
+        return Excel::download(new TrazabilidadExport($matriz, $filtros), $nombreArchivo);
     }
 }
