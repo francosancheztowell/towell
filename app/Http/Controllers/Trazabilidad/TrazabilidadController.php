@@ -6,16 +6,13 @@ use App\Exports\TrazabilidadExport;
 use App\Http\Controllers\Controller;
 use App\Models\Trazabilidad\TrazaProduccion;
 use App\Services\Trazabilidad\TrazabilidadMatrixService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 
 class TrazabilidadController extends Controller
 {
-    public function __construct(private TrazabilidadMatrixService $matriz)
-    {
-    }
+    public function __construct(private TrazabilidadMatrixService $matriz) {}
 
     /**
      * Página principal del módulo de Trazabilidad.
@@ -29,11 +26,11 @@ class TrazabilidadController extends Controller
         // Filtros activos (querystring sobre la misma ruta).
         // 'articulo' guarda el código; el select combinado muestra "código / nombre".
         $filtros = [
-            'flog'     => $request->query('flog'),
+            'flog' => $request->query('flog'),
             'articulo' => $request->query('articulo'),
-            'tamano'   => $request->query('tamano'),
-            'color'    => $request->query('color'),
-            'mes'      => $request->query('mes'),
+            'tamano' => $request->query('tamano'),
+            'color' => $request->query('color'),
+            'mes' => $request->query('mes'),
         ];
 
         // Métrica de la matriz: 'peso' (Kilos) o 'cantidad' (Material). No es un filtro
@@ -91,7 +88,7 @@ class TrazabilidadController extends Controller
                 $query->where('Color', $filtros['color']);
             }
             if ($excepto !== 'mes' && ! empty($mesesSel)) {
-                $query->whereRaw('MONTH(Fecha) IN (' . implode(',', $mesesSel) . ')');
+                $query->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')');
             }
 
             return $query;
@@ -112,19 +109,19 @@ class TrazabilidadController extends Controller
             ->select($colCod, $colNom)->distinct()->orderBy($colCod)->get()
             ->map(fn ($r) => [
                 'codigo' => $r->{$colCod},
-                'label'  => trim($r->{$colCod} . (filled($r->{$colNom}) ? ' / ' . $r->{$colNom} : '')),
+                'label' => trim($r->{$colCod}.(filled($r->{$colNom}) ? ' / '.$r->{$colNom} : '')),
             ])->values();
 
         if ($sinFiltros) {
-            $opcionesFlog     = Cache::remember('traza_opt_flog', 3600, fn () => $opcionFacet('Flogs', 'flog'));
+            $opcionesFlog = Cache::remember('traza_opt_flog', 3600, fn () => $opcionFacet('Flogs', 'flog'));
             $opcionesArticulo = Cache::remember('traza_opt_articulo_combo', 3600, fn () => $opcionCombo('Articulo', 'NombreArticulo', 'articulo'));
-            $opcionesTamano   = Cache::remember('traza_opt_tamano', 3600, fn () => $opcionFacet('Tamano', 'tamano'));
-            $opcionesColor    = Cache::remember('traza_opt_color_combo', 3600, fn () => $opcionCombo('Color', 'NombreColor', 'color'));
+            $opcionesTamano = Cache::remember('traza_opt_tamano', 3600, fn () => $opcionFacet('Tamano', 'tamano'));
+            $opcionesColor = Cache::remember('traza_opt_color_combo', 3600, fn () => $opcionCombo('Color', 'NombreColor', 'color'));
         } else {
-            $opcionesFlog     = $opcionFacet('Flogs', 'flog');
+            $opcionesFlog = $opcionFacet('Flogs', 'flog');
             $opcionesArticulo = $opcionCombo('Articulo', 'NombreArticulo', 'articulo');
-            $opcionesTamano   = $opcionFacet('Tamano', 'tamano');
-            $opcionesColor    = $opcionCombo('Color', 'NombreColor', 'color');
+            $opcionesTamano = $opcionFacet('Tamano', 'tamano');
+            $opcionesColor = $opcionCombo('Color', 'NombreColor', 'color');
         }
 
         // Meses disponibles (con nº de registros) según los filtros activos, menos Mes.
@@ -139,8 +136,8 @@ class TrazabilidadController extends Controller
             ->orderByRaw('MONTH(Fecha)')
             ->get()
             ->map(fn ($r) => [
-                'mes'       => (int) $r->mes,
-                'nombre'    => $nombresMeses[(int) $r->mes] ?? (string) $r->mes,
+                'mes' => (int) $r->mes,
+                'nombre' => $nombresMeses[(int) $r->mes] ?? (string) $r->mes,
                 'registros' => (int) $r->registros,
             ]);
 
@@ -172,12 +169,12 @@ class TrazabilidadController extends Controller
         if ($request->ajax()) {
             return response()->json([
                 'resultado' => view('modulos.trazabilidad._resultado', $datosVista)->render(),
-                'opciones'  => [
-                    'flog'     => $opcionesFlog->values(),
+                'opciones' => [
+                    'flog' => $opcionesFlog->values(),
                     'articulo' => $opcionesArticulo->values(), // [{codigo, label}]
-                    'tamano'   => $opcionesTamano->values(),
-                    'color'    => $opcionesColor->values(),     // [{codigo, label}]
-                    'mes'      => $mesesDisponibles->values(),
+                    'tamano' => $opcionesTamano->values(),
+                    'color' => $opcionesColor->values(),     // [{codigo, label}]
+                    'mes' => $mesesDisponibles->values(),
                 ],
                 'filtros' => $filtros,
             ]);
@@ -195,14 +192,12 @@ class TrazabilidadController extends Controller
         abort_unless(userCan('acceso', 'Trazabilidad'), 403, 'No tienes acceso al módulo de Trazabilidad.');
 
         $filtros = [
-            'flog'     => $request->query('flog'),
+            'flog' => $request->query('flog'),
             'articulo' => $request->query('articulo'),
-            'tamano'   => $request->query('tamano'),
-            'color'    => $request->query('color'),
-            'mes'      => $request->query('mes'),
+            'tamano' => $request->query('tamano'),
+            'color' => $request->query('color'),
+            'mes' => $request->query('mes'),
         ];
-
-        $metrica = $request->query('metrica') === 'peso' ? 'peso' : 'cantidad';
 
         // Normaliza el CSV de meses (igual que en index).
         $mesesSel = collect(explode(',', (string) $filtros['mes']))
@@ -214,10 +209,18 @@ class TrazabilidadController extends Controller
 
         abort_unless($hayFiltro, 422, 'Selecciona al menos un filtro antes de exportar.');
 
-        $matriz = $this->matriz->build($filtros, $metrica);
+        // El reporte para contabilidad incluye SIEMPRE las dos métricas: una tabla
+        // en Cantidad (piezas/material) y otra en Kilos (peso).
+        $matrices = [
+            'cantidad' => $this->matriz->build($filtros, 'cantidad'),
+            'peso' => $this->matriz->build($filtros, 'peso'),
+        ];
 
-        $nombreArchivo = 'Trazabilidad_' . now()->format('Ymd_His') . '.xlsx';
+        // Nombre de archivo legible (se envía a contabilidad). Incluye el Flog si
+        // hay uno específico y la fecha en formato día-mes-año.
+        $sufijo = filled($filtros['flog']) ? ' - Flog '.$filtros['flog'] : '';
+        $nombreArchivo = 'Reporte Trazabilidad Produccion'.$sufijo.' - '.now()->format('d-m-Y').'.xlsx';
 
-        return Excel::download(new TrazabilidadExport($matriz, $filtros), $nombreArchivo);
+        return Excel::download(new TrazabilidadExport($matrices, $filtros), $nombreArchivo);
     }
 }

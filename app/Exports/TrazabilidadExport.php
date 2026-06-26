@@ -3,7 +3,6 @@
 namespace App\Exports;
 
 use App\Models\Trazabilidad\TrazaProduccion;
-use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -17,49 +16,56 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * Exporta la matriz "Producción por día y área" de Trazabilidad a Excel:
- * logo de Towell, resumen de filtros aplicados y la tabla con colores por área
- * (mismo heatmap que la web). La matriz llega ya construida por
- * TrazabilidadMatrixService para no duplicar la lógica de negocio.
+ * Exporta el reporte de Trazabilidad de producción a Excel (pensado para enviar
+ * a contabilidad). Incluye:
+ *   - Encabezado de marca en BLANCO para que el logo azul de Towell sea visible.
+ *   - Resumen de los filtros aplicados.
+ *   - DOS tablas con el mismo heatmap que la web: una en Cantidad (piezas /
+ *     material) y otra en Kilos (peso).
+ *
+ * Las matrices llegan ya construidas por TrazabilidadMatrixService para no
+ * duplicar la lógica de negocio.
  */
 class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, WithTitle
 {
-    private const AZUL = '1E40AF';        // encabezado de la tabla
+    private const AZUL = '4F86C6';        // azul de marca Towell (acentos / encabezados)
+
+    private const AZUL_TEXTO = '2F5C9E';  // azul más oscuro para títulos sobre blanco
 
     private const AZUL_CLARO = 'DBEAFE';  // fila de totales
 
     private const GRIS_BORDE = 'D1D5DB';
 
-    private array $fechas;
+    private array $matrizCantidad;
 
-    private array $areas;
-
-    private array $totales;
+    private array $matrizPeso;
 
     private ?object $info;
 
-    private string $metrica;
+    private int $numFechas;        // nº de columnas de fecha (máximo entre ambas tablas)
 
-    private int $decimales;
-
-    private int $numFechas;
-
-    private int $ultimaCol;        // índice 1-based de la última columna (Total)
+    private int $ultimaCol;        // índice 1-based de la última columna global
 
     private string $ultimaColLetra;
 
-    public function __construct(array $matriz, private array $filtros)
+    /**
+     * @param  array  $matrices  ['cantidad' => matriz, 'peso' => matriz]
+     * @param  array  $filtros  filtros activos para el resumen
+     */
+    public function __construct(array $matrices, private array $filtros)
     {
-        $this->fechas = $matriz['fechas'];
-        $this->areas = $matriz['areas'];
-        $this->totales = $matriz['totales'];
-        $this->info = $matriz['info'];
-        $this->metrica = $matriz['metrica'];
-        $this->decimales = $matriz['decimales'];
+        $this->matrizCantidad = $matrices['cantidad'];
+        $this->matrizPeso = $matrices['peso'];
 
-        $this->numFechas = count($this->fechas);
+        // Tipo/Cliente/Agente es igual en ambas (mismo Flog) → tomamos el de Cantidad.
+        $this->info = $this->matrizCantidad['info'] ?? null;
+
+        $this->numFechas = max(
+            count($this->matrizCantidad['fechas']),
+            count($this->matrizPeso['fechas'])
+        );
         $this->ultimaCol = 2 + $this->numFechas; // A = Área, fechas, última = Total
-        $this->ultimaColLetra = Coordinate::stringFromColumnIndex($this->ultimaCol);
+        $this->ultimaColLetra = Coordinate::stringFromColumnIndex(max($this->ultimaCol, 2));
     }
 
     public function title(): string
@@ -68,7 +74,8 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
     }
 
     /**
-     * Logo de Towell flotando arriba a la izquierda.
+     * Logo de Towell arriba a la izquierda. El encabezado va en blanco para que
+     * el logo (azul) no se pierda.
      */
     public function drawings()
     {
@@ -80,10 +87,10 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
         $logo = new Drawing;
         $logo->setName('Towell');
         $logo->setPath($ruta);
-        $logo->setHeight(46);
+        $logo->setHeight(50);
         $logo->setCoordinates('A1');
-        $logo->setOffsetX(8);
-        $logo->setOffsetY(8);
+        $logo->setOffsetX(10);
+        $logo->setOffsetY(10);
 
         return $logo;
     }
@@ -94,7 +101,7 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
         for ($i = 2; $i <= $this->ultimaCol - 1; $i++) {
             $widths[Coordinate::stringFromColumnIndex($i)] = 9; // fechas
         }
-        $widths[$this->ultimaColLetra] = 12; // Total
+        $widths[Coordinate::stringFromColumnIndex($this->ultimaCol)] = 12; // Total
 
         return $widths;
     }
@@ -103,8 +110,7 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
     {
         return [
             AfterSheet::class => function (AfterSheet $event) {
-                $sheet = $event->sheet->getDelegate();
-                $this->construirHoja($sheet);
+                $this->construirHoja($event->sheet->getDelegate());
             },
         ];
     }
@@ -113,77 +119,120 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
     {
         $last = $this->ultimaColLetra;
 
-        // ===== Banner de título (fila 1) =====
+        // ===== Encabezado de marca (filas 1-2) — fondo BLANCO para el logo azul =====
         $sheet->mergeCells("A1:{$last}1");
-        $sheet->setCellValue('A1', '          TRAZABILIDAD');
-        $sheet->getRowDimension(1)->setRowHeight(40);
+        $sheet->setCellValue('A1', '                    Reporte de Trazabilidad de Producción');
+        $sheet->getRowDimension(1)->setRowHeight(54);
         $sheet->getStyle("A1:{$last}1")->applyFromArray([
-            'font' => ['bold' => true, 'size' => 18, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::AZUL]],
+            'font' => ['bold' => true, 'size' => 18, 'color' => ['rgb' => self::AZUL_TEXTO]],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
 
-        // Subtítulo (fila 2)
-        $metricaTxt = $this->metrica === 'peso' ? 'Kilos (Peso)' : 'Cantidad (Material)';
+        // Subtítulo (fila 2) — también sobre blanco, con una línea azul de separación.
         $sheet->mergeCells("A2:{$last}2");
-        $sheet->setCellValue('A2', 'Producción por día y área  ·  Métrica: ' . $metricaTxt . '  ·  Generado: ' . now()->format('d/m/Y H:i'));
+        $sheet->setCellValue('A2', '                    Producción por día y área  ·  Generado: '.now()->format('d/m/Y H:i'));
         $sheet->getStyle("A2:{$last}2")->applyFromArray([
-            'font' => ['italic' => true, 'size' => 10, 'color' => ['rgb' => '475569']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F1F5F9']],
-            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            'font' => ['italic' => true, 'size' => 10, 'color' => ['rgb' => '64748B']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => [
+                'bottom' => ['borderStyle' => Border::BORDER_THICK, 'color' => ['rgb' => self::AZUL]],
+            ],
         ]);
         $sheet->getRowDimension(2)->setRowHeight(20);
 
         // ===== Resumen de filtros =====
         $fila = 4;
         $sheet->setCellValue("A{$fila}", 'FILTROS APLICADOS');
-        $sheet->getStyle("A{$fila}")->getFont()->setBold(true)->setSize(11)->getColor()->setRGB(self::AZUL);
+        $sheet->getStyle("A{$fila}")->getFont()->setBold(true)->setSize(11)->getColor()->setRGB(self::AZUL_TEXTO);
         $fila++;
 
         foreach ($this->resumenFiltros() as $etiqueta => $valor) {
-            $sheet->setCellValue("A{$fila}", $etiqueta . ':');
-            $sheet->mergeCells('B' . $fila . ':' . $last . $fila);
+            $sheet->setCellValue("A{$fila}", $etiqueta.':');
+            $sheet->mergeCells('B'.$fila.':'.$last.$fila);
             $sheet->setCellValue("B{$fila}", $valor);
             $sheet->getStyle("A{$fila}")->getFont()->setBold(true)->getColor()->setRGB('334155');
             $sheet->getStyle("A{$fila}:{$last}{$fila}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
             $fila++;
         }
 
-        // ===== Tabla =====
-        $filaHeader = $fila + 1;
-        $this->escribirTabla($sheet, $filaHeader);
+        // ===== Tabla 1: Cantidad (piezas / material) =====
+        $fila++; // espacio
+        $fila = $this->bandaSeccion($sheet, $fila, 'CANTIDAD  ·  Piezas / Material', $this->matrizCantidad);
+        $fila = $this->escribirTabla($sheet, $this->matrizCantidad, $fila) + 2; // espacio
 
-        // Congelar la primera columna (Área) y el encabezado de la tabla.
-        $sheet->freezePane('B' . ($filaHeader + 1));
+        // ===== Tabla 2: Kilos (peso) =====
+        $fila = $this->bandaSeccion($sheet, $fila, 'KILOS  ·  Peso', $this->matrizPeso);
+        $this->escribirTabla($sheet, $this->matrizPeso, $fila);
     }
 
-    private function escribirTabla(Worksheet $sheet, int $filaHeader): void
+    /**
+     * Banda de sección azul (título de cada tabla). Devuelve la fila siguiente.
+     */
+    private function bandaSeccion(Worksheet $sheet, int $fila, string $texto, array $matriz): int
     {
-        $last = $this->ultimaColLetra;
+        $last = $this->lastCol($matriz);
+
+        $sheet->mergeCells("A{$fila}:{$last}{$fila}");
+        $sheet->setCellValue("A{$fila}", '  '.$texto);
+        $sheet->getRowDimension($fila)->setRowHeight(24);
+        $sheet->getStyle("A{$fila}:{$last}{$fila}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::AZUL]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+
+        return $fila + 1;
+    }
+
+    /**
+     * Escribe una tabla (Área | fechas | Total) a partir de su matriz.
+     * Devuelve el índice de la última fila escrita.
+     */
+    private function escribirTabla(Worksheet $sheet, array $matriz, int $filaHeader): int
+    {
+        $fechas = $matriz['fechas'];
+        $areas = $matriz['areas'];
+        $totales = $matriz['totales'];
+        $decimales = $matriz['decimales'];
+
+        $numFechas = count($fechas);
+        $ultimaCol = 2 + $numFechas;
+        $ultimaColLetra = Coordinate::stringFromColumnIndex($ultimaCol);
+        $last = $ultimaColLetra;
+
+        // Sin datos para esta métrica con los filtros aplicados.
+        if ($numFechas === 0 || empty($areas)) {
+            $sheet->setCellValue("A{$filaHeader}", 'Sin datos para esta métrica con los filtros aplicados.');
+            $sheet->getStyle("A{$filaHeader}")->getFont()->setItalic(true)->getColor()->setRGB('64748B');
+
+            return $filaHeader;
+        }
 
         // --- Encabezado: Área | fechas | Total ---
         $sheet->setCellValue("A{$filaHeader}", 'Área');
         $col = 2;
-        foreach ($this->fechas as $fecha) {
+        foreach ($fechas as $fecha) {
             $letra = Coordinate::stringFromColumnIndex($col);
             $sheet->setCellValue("{$letra}{$filaHeader}", $fecha['label']);
             $col++;
         }
-        $sheet->setCellValue("{$this->ultimaColLetra}{$filaHeader}", 'Total');
+        $sheet->setCellValue("{$ultimaColLetra}{$filaHeader}", 'Total');
 
         $sheet->getStyle("A{$filaHeader}:{$last}{$filaHeader}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::AZUL]],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::AZUL_TEXTO]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
         $sheet->getStyle("A{$filaHeader}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $sheet->getRowDimension($filaHeader)->setRowHeight(22);
 
-        $formato = $this->decimales > 0 ? '#,##0.0' : '#,##0';
+        $formato = $decimales > 0 ? '#,##0.0' : '#,##0';
 
         // --- Filas de áreas ---
         $fila = $filaHeader + 1;
-        foreach ($this->areas as $area) {
+        foreach ($areas as $area) {
             $textHex = ltrim($area['text'], '#');
             $tintHex = ltrim($area['tint'], '#');
 
@@ -197,7 +246,7 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
 
             // Valores por fecha (con heatmap).
             $col = 2;
-            foreach ($this->fechas as $i => $fecha) {
+            foreach ($fechas as $i => $fecha) {
                 $letra = Coordinate::stringFromColumnIndex($col);
                 $valor = $area['valores'][$i] ?? null;
                 if ($valor !== null) {
@@ -214,9 +263,9 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
 
             // Total de la fila.
             $totalArea = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $area['valores']));
-            $sheet->setCellValue("{$this->ultimaColLetra}{$fila}", round($totalArea, $this->decimales));
-            $sheet->getStyle("{$this->ultimaColLetra}{$fila}")->getNumberFormat()->setFormatCode($formato);
-            $sheet->getStyle("{$this->ultimaColLetra}{$fila}")->applyFromArray([
+            $sheet->setCellValue("{$ultimaColLetra}{$fila}", round($totalArea, $decimales));
+            $sheet->getStyle("{$ultimaColLetra}{$fila}")->getNumberFormat()->setFormatCode($formato);
+            $sheet->getStyle("{$ultimaColLetra}{$fila}")->applyFromArray([
                 'font' => ['bold' => true, 'color' => ['rgb' => $textHex]],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EFF6FF']],
             ]);
@@ -227,27 +276,27 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
         // --- Pie: totales por columna ---
         $sheet->setCellValue("A{$fila}", 'Total');
         $col = 2;
-        foreach ($this->fechas as $i => $fecha) {
+        foreach ($fechas as $i => $fecha) {
             $letra = Coordinate::stringFromColumnIndex($col);
-            if (! is_null($this->totales[$i] ?? null)) {
-                $sheet->setCellValue("{$letra}{$fila}", $this->totales[$i]);
+            if (! is_null($totales[$i] ?? null)) {
+                $sheet->setCellValue("{$letra}{$fila}", $totales[$i]);
                 $sheet->getStyle("{$letra}{$fila}")->getNumberFormat()->setFormatCode($formato);
             }
             $col++;
         }
-        $granTotal = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $this->totales));
-        $sheet->setCellValue("{$this->ultimaColLetra}{$fila}", round($granTotal, $this->decimales));
-        $sheet->getStyle("{$this->ultimaColLetra}{$fila}")->getNumberFormat()->setFormatCode($formato);
+        $granTotal = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $totales));
+        $sheet->setCellValue("{$ultimaColLetra}{$fila}", round($granTotal, $decimales));
+        $sheet->getStyle("{$ultimaColLetra}{$fila}")->getNumberFormat()->setFormatCode($formato);
 
         $sheet->getStyle("A{$fila}:{$last}{$fila}")->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['rgb' => self::AZUL]],
+            'font' => ['bold' => true, 'color' => ['rgb' => self::AZUL_TEXTO]],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::AZUL_CLARO]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
         $sheet->getStyle("A{$fila}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
-        // Alineación centrada para todas las celdas numéricas del cuerpo.
-        $sheet->getStyle('B' . ($filaHeader + 1) . ":{$last}{$fila}")
+        // Alineación centrada para las celdas numéricas del cuerpo.
+        $sheet->getStyle('B'.($filaHeader + 1).":{$last}{$fila}")
             ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
 
         // Bordes finos a toda la tabla.
@@ -256,6 +305,18 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
                 'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => self::GRIS_BORDE]],
             ],
         ]);
+
+        return $fila;
+    }
+
+    /**
+     * Letra de la última columna (Total) para una matriz concreta.
+     */
+    private function lastCol(array $matriz): string
+    {
+        $num = count($matriz['fechas']);
+
+        return Coordinate::stringFromColumnIndex(max(2 + $num, 2));
     }
 
     /**
@@ -311,7 +372,7 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
             ->whereNotNull($colNom)->where($colNom, '<>', '')
             ->value($colNom);
 
-        return trim($codigo . (filled($nombre) ? ' / ' . $nombre : ''));
+        return trim($codigo.(filled($nombre) ? ' / '.$nombre : ''));
     }
 
     /**
