@@ -246,7 +246,20 @@ class TrazabilidadController extends Controller
                 }
 
                 return array_merge($area, ['valores' => $valores, 'bgs' => $bgs]);
-            })->all();
+            })
+            // Ocultar áreas completamente vacías/en cero para el filtro actual:
+            // si todos sus valores son null o 0, no se muestra la fila.
+            ->filter(function ($area) {
+                foreach ($area['valores'] as $v) {
+                    if ($v !== null && (float) $v != 0.0) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->values()
+            ->all();
 
             // --- Totales por columna ---
             foreach ($fechas as $i => $fecha) {

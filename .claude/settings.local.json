@@ -20,7 +20,9 @@
       "Bash(./vendor/bin/pint \"app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php\")",
       "Bash(php -l app/Traits/ProduccionTrait.php)",
       "Bash(php -l app/Http/Controllers/Urdido/Configuracion/ModuloProduccionUrdidoController.php)",
-      "Bash(php -l app/Http/Controllers/Urdido/ProgramaUrdido/EditarOrdenesProgramadasController.php)"
+      "Bash(php -l app/Http/Controllers/Urdido/ProgramaUrdido/EditarOrdenesProgramadasController.php)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('jquery:', \\(p.dependencies&&p.dependencies.jquery\\)||\\(p.devDependencies&&p.devDependencies.jquery\\)\\); console.log\\('select2:', \\(p.dependencies&&p.dependencies.select2\\)||\\(p.devDependencies&&p.devDependencies.select2\\)\\);\")",
+      "Bash(npm run *)"
     ]
   }
 }
