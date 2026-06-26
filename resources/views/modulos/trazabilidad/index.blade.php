@@ -267,13 +267,18 @@
             };
         }
 
-        let cargando = false;
+        // Secuencia de peticiones: cada llamada incrementa el contador y solo la
+        // respuesta de la ÚLTIMA petición se aplica. Así nunca se descarta el cambio
+        // del usuario (problema del antiguo guard `cargando`, que tragaba la llamada
+        // buena cuando select2/allowClear emitía `change` más de una vez) ni se pinta
+        // una respuesta obsoleta si llegan fuera de orden.
+        let reqSeq = 0;
         async function aplicar(params) {
-            if (cargando) return;
-            cargando = true;
+            const seq = ++reqSeq;
             $resultado.css('opacity', 0.5);
             try {
                 const data = await window.http.get(RUTA, { params });
+                if (seq !== reqSeq) return; // llegó una petición más nueva; ignorar esta
                 $resultado.html(data.resultado);
                 rebuildSelect('#filtro-flog', data.opciones.flog, data.filtros.flog);
                 rebuildCombo('#filtro-articulo', data.opciones.articulo, data.filtros.articulo);
@@ -289,16 +294,22 @@
                 // URL limpia (siempre /trazabilidad) — sin recargar.
                 window.history.replaceState(null, '', RUTA);
             } catch (err) {
-                window.notify?.error(err.message || 'Error al cargar la trazabilidad');
+                if (seq === reqSeq) window.notify?.error(err.message || 'Error al cargar la trazabilidad');
             } finally {
-                $resultado.css('opacity', '');
-                cargando = false;
+                if (seq === reqSeq) $resultado.css('opacity', '');
             }
         }
 
         // Cambio en cualquier filtro (incluido Flog) → AJAX con la combinación actual.
+        // Se "desbota" (debounce) porque select2 con allowClear puede emitir el evento
+        // `change` más de una vez al seleccionar: así se hace UNA sola petición con el
+        // valor final, en lugar de disparar dos y depender de cuál gana.
+        let debounceFiltro = null;
         $('.filtro-select').on('change', function () {
-            aplicar(valoresActuales());
+            clearTimeout(debounceFiltro);
+            debounceFiltro = setTimeout(function () {
+                aplicar(valoresActuales());
+            }, 80);
         });
 
         // Click en un badge de mes (multi-select: agrega/quita ese mes).
