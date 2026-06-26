@@ -17,8 +17,11 @@ window.$ = window.jQuery = $;
 import Swal from 'sweetalert2';
 window.Swal = Swal;
 
-// Configurar Select2 global
-import 'select2';
+// Configurar Select2 global.
+// El paquete exporta una función factory (module.exports = function(root, jQuery){...})
+// que DEBE invocarse para registrar $.fn.select2; un `import 'select2'` solo no basta.
+import select2 from 'select2';
+select2();
 
 // Configurar Toastr global
 import toastr from 'toastr';

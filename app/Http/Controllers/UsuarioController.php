@@ -446,6 +446,21 @@ class UsuarioController extends Controller
             $moduloPadre
         );
 
+        // Si el módulo no tiene submódulos pero sí una Ruta propia (página directa),
+        // redirigir a esa página en lugar de mostrar un grid vacío. Esto permite que
+        // enlaces antiguos tipo /submodulos/{orden} apunten a la Ruta real del módulo
+        // (p. ej. /submodulos/1000 → /trazabilidad).
+        if (count($subModulos) === 0) {
+            $rutaPropia = trim((string) ($moduloPadre->Ruta ?? ''));
+            if ($rutaPropia !== '' && !str_starts_with($rutaPropia, '/submodulos')) {
+                $rutaNormalizada = '/' . ltrim(str_replace('\\', '/', $rutaPropia), '/');
+                // Evitar bucle si justamente se llegó por la propia Ruta del módulo
+                if ($rutaNormalizada !== '/' . ltrim($moduloPrincipal, '/')) {
+                    return redirect($rutaNormalizada);
+                }
+            }
+        }
+
         // Permitir mostrar la vista aunque no haya submódulos (pueden haberse eliminado)
         return view('modulos.submodulos', [
             'moduloPrincipal' => $moduloPadre->modulo,

@@ -33,6 +33,10 @@
             $bloquearTamanoPorParcial = ($statusActual === 'Parcial');
             $esEnProcesoOProgramadoOFinalizado = in_array($statusActual, ['En Proceso', 'Programado', 'Finalizado'], true);
             $esEnProcesoOProgramado = in_array($statusActual, ['En Proceso', 'Programado'], true);
+            // AX de la orden (UrdProgramaUrdido) en 1 → bloquear Folio Consumo, No. Telar y tabla de julios
+            $bloqueoOrdenAx = (bool) ($bloqueaUrdido ?? false);
+            $claseBloqueoOrdenAx = $bloqueoOrdenAx ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : '';
+            $tituloBloqueoOrdenAx = $bloqueoOrdenAx ? 'Bloqueado: Urdido ya está en AX' : '';
         @endphp
 
         <!-- Información de la Orden -->
@@ -60,8 +64,8 @@
                         id="campo_FolioConsumo"
                         data-campo="FolioConsumo"
                         value="{{ $orden->FolioConsumo ?? '' }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-
+                        @disabled($bloqueoOrdenAx) title="{{ $tituloBloqueoOrdenAx }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 {{ $claseBloqueoOrdenAx }}"
                     >
                 </div>
 
@@ -73,7 +77,8 @@
                         id="campo_NoTelarId"
                         data-campo="NoTelarId"
                         value="{{ $orden->NoTelarId ?? '' }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        @disabled($bloqueoOrdenAx) title="{{ $tituloBloqueoOrdenAx }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 {{ $claseBloqueoOrdenAx }}"
                     >
                 </div>
 
@@ -134,8 +139,8 @@
                         id="campo_Metros"
                         data-campo="Metros"
                         value="{{ $orden->Metros ?? '' }}"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-
+                        @disabled($bloqueoOrdenAx) title="{{ $tituloBloqueoOrdenAx }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 {{ $claseBloqueoOrdenAx }}"
                     >
                 </div>
             </div>
@@ -236,8 +241,8 @@
                     <select
                         id="campo_TipoAtado"
                         data-campo="TipoAtado"
-                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-
+                        @disabled($bloqueoOrdenAx) title="{{ $tituloBloqueoOrdenAx }}"
+                        class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 {{ $claseBloqueoOrdenAx }}"
                     >
                         <option value="">Seleccionar...</option>
                         @php
@@ -335,11 +340,13 @@
                                     <tr data-julio-row="{{ $i }}" data-julio-id="{{ $row->Id ?? '' }}">
                                         <td class="{{ $mostrarTablaProduccion ? 'px-1 py-0.5' : 'px-2 py-1.5' }} text-center">
                                             <input type="number" min="1" step="1" data-field="no_julio" value="{{ $row->Julios ?? '' }}"
-                                                class="campo-julio w-full {{ $mostrarTablaProduccion ? 'px-1 py-0.5 text-sm' : 'px-2 py-1.5' }} border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                @disabled($bloqueoOrdenAx) title="{{ $tituloBloqueoOrdenAx }}"
+                                                class="campo-julio w-full {{ $mostrarTablaProduccion ? 'px-1 py-0.5 text-sm' : 'px-2 py-1.5' }} border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $claseBloqueoOrdenAx }}">
                                         </td>
                                         <td class="{{ $mostrarTablaProduccion ? 'px-1 py-0.5' : 'px-2 py-1.5' }} text-center">
                                             <input type="number" min="1" step="1" data-field="hilos" value="{{ $row->Hilos ?? '' }}"
-                                                class="campo-julio w-full {{ $mostrarTablaProduccion ? 'px-1 py-0.5 text-sm' : 'px-2 py-1.5' }} border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                @disabled($bloqueoOrdenAx) title="{{ $tituloBloqueoOrdenAx }}"
+                                                class="campo-julio w-full {{ $mostrarTablaProduccion ? 'px-1 py-0.5 text-sm' : 'px-2 py-1.5' }} border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $claseBloqueoOrdenAx }}">
                                         </td>
                                     </tr>
                                 @endfor
@@ -421,8 +428,12 @@
                                     $ultimoDiaMes = $fechaObj->copy()->endOfMonth()->format('Y-m-d');
                                     $esMesActual = $fechaObj->format('Y-m') === now()->format('Y-m');
                                     $puedeEditarFecha = $esMesActual && $axValor === 0;
+                                    // Fila bloqueada totalmente cuando su AX ya fue procesado (AX = 1)
+                                    $filaBloqueadaAx = $axValor === 1;
+                                    $claseBloqueoAx = $filaBloqueadaAx ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : '';
+                                    $tituloBloqueoAx = $filaBloqueadaAx ? 'Fila bloqueada (AX procesado)' : '';
                                 @endphp
-                                <tr class="hover:bg-gray-50" data-registro-id="{{ $reg->Id ?? '' }}" data-no-julio="{{ trim((string)($reg->NoJulio ?? '')) }}">
+                                <tr class="hover:bg-gray-50 {{ $filaBloqueadaAx ? 'bg-gray-50 opacity-90' : '' }}" data-registro-id="{{ $reg->Id ?? '' }}" data-no-julio="{{ trim((string)($reg->NoJulio ?? '')) }}" data-ax="{{ $axValor }}" @if($filaBloqueadaAx) title="{{ $tituloBloqueoAx }}" @endif>
                                     <td class="px-1 py-1 text-center">
                                         <input type="date" data-field="fecha" data-registro-id="{{ $reg->Id ?? '' }}"
                                             value="{{ $fechaValor }}"
@@ -443,10 +454,11 @@
                                             </div>
                                             <button
                                                 type="button"
-                                                class="btn-editar-empleados shrink-0 p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                                                class="btn-editar-empleados shrink-0 p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded {{ $filaBloqueadaAx ? 'opacity-40 cursor-not-allowed pointer-events-none' : '' }}"
                                                 data-registro-id="{{ $reg->Id ?? '' }}"
                                                 data-oficiales='@json($oficialesEdicion)'
-                                                title="Editar empleados"
+                                                @disabled($filaBloqueadaAx)
+                                                title="{{ $filaBloqueadaAx ? $tituloBloqueoAx : 'Editar empleados' }}"
                                             >
                                                 <i class="fa-solid fa-pen"></i>
                                             </button>
@@ -454,11 +466,13 @@
                                     </td>
                                     <td class="px-0.5 py-0.5 text-center">
                                         <input type="time" data-field="h_inicio" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $horaInicio }}"
-                                            class="produccion-input w-24 max-w-24 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                            @disabled($filaBloqueadaAx) title="{{ $tituloBloqueoAx }}"
+                                            class="produccion-input w-24 max-w-24 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 {{ $claseBloqueoAx }}">
                                     </td>
                                     <td class="px-0.5 py-0.5 text-center">
                                         <input type="time" data-field="h_fin" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $horaFin }}"
-                                            class="produccion-input w-24 max-w-24 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                            @disabled($filaBloqueadaAx) title="{{ $tituloBloqueoAx }}"
+                                            class="produccion-input w-24 max-w-24 px-0.5 py-0 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 {{ $claseBloqueoAx }}">
                                     </td>
                                     <td class="px-1 py-1 text-center">{{ $reg->NoJulio ?? '-' }}</td>
                                     <td class="px-1 py-1 text-center">
@@ -467,7 +481,8 @@
                                             $hilosVal = ($mapaJuliosHilos ?? [])[$noJulioKey] ?? $reg->Hilos ?? '';
                                         @endphp
                                         <input type="number" min="0" data-field="hilos" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $hilosVal }}"
-                                            class="produccion-input w-16 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                            @disabled($filaBloqueadaAx) title="{{ $tituloBloqueoAx }}"
+                                            class="produccion-input w-16 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 {{ $claseBloqueoAx }}">
                                     </td>
                                     <td class="px-1 py-1 text-center">{{ ($reg->KgBruto ?? null) !== null && ($reg->KgBruto ?? '') !== '' ? number_format((float)($reg->KgBruto ?? 0), 2) : '-' }}</td>
                                     <td class="px-1 py-1 text-center">{{ ($reg->Tara ?? null) !== null && ($reg->Tara ?? '') !== '' ? number_format((float)($reg->Tara ?? 0), 2) : '-' }}</td>
@@ -475,19 +490,23 @@
                                     <td class="px-1 py-1 text-center" data-cell="metros">{{ $metros > 0 ? number_format($metros, 0) : '-' }}</td>
                                     <td class="px-1 py-1 text-center bg-blue-50">
                                         <input type="number" min="0" data-field="hilatura" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $reg->Hilatura ?? 0 }}"
-                                            class="produccion-input w-12 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                            @disabled($filaBloqueadaAx) title="{{ $tituloBloqueoAx }}"
+                                            class="produccion-input w-12 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 {{ $claseBloqueoAx }}">
                                     </td>
                                     <td class="px-1 py-1 text-center bg-blue-50">
                                         <input type="number" min="0" data-field="maquina" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $reg->Maquina ?? 0 }}"
-                                            class="produccion-input w-12 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                            @disabled($filaBloqueadaAx) title="{{ $tituloBloqueoAx }}"
+                                            class="produccion-input w-12 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 {{ $claseBloqueoAx }}">
                                     </td>
                                     <td class="px-1 py-1 text-center bg-blue-50">
                                         <input type="number" min="0" data-field="operac" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $reg->Operac ?? 0 }}"
-                                            class="produccion-input w-12 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                            @disabled($filaBloqueadaAx) title="{{ $tituloBloqueoAx }}"
+                                            class="produccion-input w-12 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 {{ $claseBloqueoAx }}">
                                     </td>
                                     <td class="px-1 py-1 text-center bg-blue-50">
                                         <input type="number" min="0" data-field="transf" data-registro-id="{{ $reg->Id ?? '' }}" value="{{ $reg->Transf ?? 0 }}"
-                                            class="produccion-input w-12 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500">
+                                            @disabled($filaBloqueadaAx) title="{{ $tituloBloqueoAx }}"
+                                            class="produccion-input w-12 px-1 py-0.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 {{ $claseBloqueoAx }}">
                                     </td>
                                 </tr>
                             @empty
@@ -1536,7 +1555,7 @@
                 const camposEditables = document.querySelectorAll('.campo-editable');
                 const juliosRows = document.querySelectorAll('[data-julio-row]');
                 const juliosTimeouts = new Map();
-                // NoTelarId, RizoPie, Metros, FolioConsumo, TipoAtado (Tipo) se pueden editar incluso con AX=1
+                // Solo RizoPie (Tipo) se puede editar con AX=1
                 const camposBloqueadosPorAx = [
                     'campo_Cuenta',
                     'campo_Calibre',
@@ -1548,6 +1567,10 @@
                     'campo_FechaProg',
                     'campo_LoteProveedor',
                     'campo_Observaciones',
+                    'campo_FolioConsumo',
+                    'campo_NoTelarId',
+                    'campo_Metros',
+                    'campo_TipoAtado',
                 ];
                 const bloquearCampos = (ids) => {
                     ids.forEach(id => {
@@ -1776,8 +1799,8 @@
 
                 if (bloqueaUrdido) {
                     bloquearCampos(camposBloqueadosPorAx);
+                    // Con AX=1 se bloquea toda la tabla de julios (incluido Hilos).
                     document.querySelectorAll('.campo-julio').forEach(input => {
-                        if (esFinalizado && input.dataset.field === 'hilos') return; // Hilos editable cuando Finalizado (sincroniza UrdProduccionUrdido)
                         input.disabled = true;
                         input.classList.add('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
                     });

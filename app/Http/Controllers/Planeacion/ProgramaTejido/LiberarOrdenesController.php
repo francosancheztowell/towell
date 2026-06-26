@@ -56,7 +56,13 @@ class LiberarOrdenesController extends Controller
                     $query->whereNull('NoProduccion')
                         ->orWhere('NoProduccion', '');
                 })
-                ->orderBy('SalonTejidoId')
+                ->orderByRaw("
+                    CASE
+                        WHEN LTRIM(RTRIM(NoTelarId)) <> '' AND LTRIM(RTRIM(NoTelarId)) NOT LIKE '%[^0-9]%'
+                        THEN CAST(LTRIM(RTRIM(NoTelarId)) AS int)
+                        ELSE 2147483647
+                    END ASC
+                ")
                 ->orderBy('NoTelarId')
                 ->orderBy('FechaInicio')
                 ->get();

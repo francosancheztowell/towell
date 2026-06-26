@@ -400,6 +400,10 @@ class ModuloProduccionUrdidoController extends Controller
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
+            }
+
             $campo = $request->campo;
             $floatCampos = ['Vueltas', 'Diametro'];
             $registro->$campo = $request->valor !== null

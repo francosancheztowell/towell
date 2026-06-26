@@ -61,6 +61,30 @@ trait ProduccionTrait
     }
 
     /**
+     * Una fila de producción con AX = 1 ya fue procesada/contabilizada en AX
+     * y queda totalmente bloqueada para edición.
+     */
+    protected function registroBloqueadoPorAx($registro): bool
+    {
+        return (int) ($registro->AX ?? 0) === 1;
+    }
+
+    /**
+     * @return JsonResponse|null Respuesta 403 si la fila está bloqueada por AX; null si OK.
+     */
+    protected function jsonIfRegistroBloqueadoPorAx($registro): ?JsonResponse
+    {
+        if ($this->registroBloqueadoPorAx($registro)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Registro bloqueado: ya fue procesado en AX. No se puede editar.',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    /**
      * Límite superior de Kg. Bruto en producción.
      * null = sin límite (valor por defecto; Engomado p. ej. 2000).
      */
@@ -268,6 +292,10 @@ trait ProduccionTrait
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
+            }
+
             $numeroOficial = (int) $request->numero_oficial;
             $folio = $registro->Folio;
 
@@ -414,6 +442,10 @@ trait ProduccionTrait
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
+            }
+
             $n = (int) $request->numero_oficial;
             $registro->{"CveEmpl{$n}"} = null;
             $registro->{"NomEmpl{$n}"} = null;
@@ -444,6 +476,10 @@ trait ProduccionTrait
 
             if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
+            }
+
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
             }
 
             $n = $request->numero_oficial;
@@ -489,6 +525,10 @@ trait ProduccionTrait
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
             }
 
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
+            }
+
             $registro->Fecha = $request->fecha;
             $registro->save();
 
@@ -520,6 +560,10 @@ trait ProduccionTrait
 
             if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
+            }
+
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
             }
 
             $this->ensureUserCanEdit();
@@ -581,6 +625,10 @@ trait ProduccionTrait
 
             if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
+            }
+
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
             }
 
             $kgBrutoValue = null;
@@ -655,6 +703,10 @@ trait ProduccionTrait
 
             if (! $registro) {
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado'], 404);
+            }
+
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
             }
 
             $campo = $request->campo;

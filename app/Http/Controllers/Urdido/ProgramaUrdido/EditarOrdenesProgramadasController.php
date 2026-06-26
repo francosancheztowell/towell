@@ -86,7 +86,11 @@ class EditarOrdenesProgramadasController extends Controller
 
     private function sincronizarMetrosProduccion(UrdProgramaUrdido $orden, ?float $metros, string $accionMetros): int
     {
-        $query = UrdProduccionUrdido::where('Folio', $orden->Folio);
+        $query = UrdProduccionUrdido::where('Folio', $orden->Folio)
+            // No tocar filas ya procesadas en AX (AX = 1): están bloqueadas totalmente.
+            ->where(function ($q) {
+                $q->whereNull('AX')->orWhere('AX', '!=', 1);
+            });
 
         if ($accionMetros === self::ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO) {
             $query->where(function ($q) {
@@ -109,8 +113,12 @@ class EditarOrdenesProgramadasController extends Controller
             return 0;
         }
 
+        // No tocar filas ya procesadas en AX (AX = 1): están bloqueadas totalmente.
         return UrdProduccionUrdido::where('Folio', $orden->Folio)
             ->where('Hilos', $hilosAnterior)
+            ->where(function ($q) {
+                $q->whereNull('AX')->orWhere('AX', '!=', 1);
+            })
             ->update(['Hilos' => $hilosNuevo]);
     }
 
@@ -368,7 +376,7 @@ class EditarOrdenesProgramadasController extends Controller
             }
             $bloqueaUrdido = $axUrdido === 1;
 
-            // Campos que se bloquean con AX=1. NoTelarId, RizoPie, Metros, FolioConsumo, TipoAtado (Tipo) siempre se pueden editar
+            // Campos que se bloquean con AX=1. Solo RizoPie (Tipo) sigue siendo editable
             $camposBloqueadosPorAx = [
                 'Cuenta',
                 'Calibre',
@@ -380,6 +388,10 @@ class EditarOrdenesProgramadasController extends Controller
                 'FechaProg',
                 'LoteProveedor',
                 'Observaciones',
+                'FolioConsumo',
+                'NoTelarId',
+                'Metros',
+                'TipoAtado',
             ];
 
             if ($bloqueaUrdido && in_array($campo, $camposBloqueadosPorAx, true)) {
@@ -605,6 +617,19 @@ class EditarOrdenesProgramadasController extends Controller
                 'hilos' => 'required',
             ]);
             $orden = UrdProgramaUrdido::findOrFail($request->orden_id);
+
+            // Con AX=1 la tabla de julios queda bloqueada (No. Julio e Hilos).
+            $axUrdido = (int) ($orden->AX ?? $orden->Ax ?? $orden->getAttribute('ax') ?? 0);
+            if ($axUrdido === 0) {
+                $axUrdido = (int) (DB::table('UrdProgramaUrdido')->where('Id', $orden->Id)->value('ax') ?? 0);
+            }
+            if ($axUrdido === 1) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Urdido ya está en AX. No se pueden editar los hilos de los julios.',
+                ], 403);
+            }
+
             $noJulio = $request->input('no_julio');
             $hilos = (int) $request->input('hilos');
             $hilosAnterior = null;
@@ -682,7 +707,8 @@ class EditarOrdenesProgramadasController extends Controller
             }
             $bloqueaUrdido = $axUrdido === 1;
 
-            if ($bloqueaUrdido && ! $esSoloActualizarHilos) {
+            // Con AX=1 se bloquea toda la tabla de julios (No. Julio e Hilos incluidos).
+            if ($bloqueaUrdido) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Urdido ya está en AX. No se pueden editar julios.',
