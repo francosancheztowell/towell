@@ -56,7 +56,7 @@ class TrazabilidadProduccionService
             ->get();
 
         if ($rows->isEmpty()) {
-            return ['telares' => [], 'resumen' => $this->resumenVacio()];
+            return ['telares' => [], 'noEncontradas' => [], 'resumen' => $this->resumenVacio()];
         }
 
         // --- Mapa Orden => datos del programa de tejido, en lote ---
@@ -83,12 +83,15 @@ class TrazabilidadProduccionService
         $soloDigitos = fn ($t) => preg_replace('/\D/', '', (string) $t);
 
         // --- Agregar por telar (Localidad) ---
+        // Solo las órdenes localizadas en ReqProgramaTejido / CatCodificados generan
+        // tarjeta. Las que no se encuentran en ninguna tabla se acumulan aparte para
+        // mostrarlas en un mensaje (no como card).
         $porTelar = [];
+        $noEncontradas = [];
         foreach ($rows as $r) {
             $orden = trim((string) $r->Orden);
             $localidad = trim((string) ($r->Localidad ?? ''));
             $numLoc = $soloDigitos($localidad);
-            $clave = $numLoc !== '' ? $numLoc : ($localidad !== '' ? $localidad : 'sin_telar');
 
             // Resolver telar / programadas / std-día de la orden.
             $telarOrden = null;
@@ -111,15 +114,19 @@ class TrazabilidadProduccionService
                 $programadas = (float) ($c->TotalPzas ?: $c->Pedido ?: $c->Total ?: 0);
             }
 
-            $numOrden = $soloDigitos($telarOrden);
-            $coincide = $telarOrden !== null && $numOrden !== '' && $numOrden === $numLoc;
-
-            $alertaOrden = null;
+            // No localizada en ninguna tabla → fuera de las tarjetas, va al mensaje.
             if ($telarOrden === null || $telarOrden === '') {
-                $alertaOrden = 'no_encontrado';
-            } elseif (! $coincide) {
-                $alertaOrden = 'no_coincide';
+                if (! isset($noEncontradas[$orden])) {
+                    $noEncontradas[$orden] = ['orden' => $orden, 'localidad' => $localidad];
+                }
+
+                continue;
             }
+
+            $clave = $numLoc !== '' ? $numLoc : ($localidad !== '' ? $localidad : 'sin_telar');
+            $numOrden = $soloDigitos($telarOrden);
+            // Alerta de discrepancia: el telar de la orden no coincide con la Localidad.
+            $coincide = $numOrden !== '' && $numOrden === $numLoc;
 
             if (! isset($porTelar[$clave])) {
                 $porTelar[$clave] = [
@@ -132,7 +139,6 @@ class TrazabilidadProduccionService
                     'pzasDia' => null,
                     'enProceso' => false,
                     'alerta' => false,
-                    'ordenes' => [],
                 ];
             }
 
@@ -145,15 +151,9 @@ class TrazabilidadProduccionService
                 $t['pzasDia'] = max((float) ($t['pzasDia'] ?? 0), $stdDia);
             }
             $t['enProceso'] = $t['enProceso'] || $enProceso;
-            if ($alertaOrden !== null) {
+            if (! $coincide) {
                 $t['alerta'] = true;
             }
-            $t['ordenes'][] = [
-                'orden' => $orden,
-                'telarOrden' => $telarOrden,
-                'fuente' => $fuente,
-                'alerta' => $alertaOrden,
-            ];
             unset($t);
         }
 
@@ -169,20 +169,17 @@ class TrazabilidadProduccionService
             ->values()
             ->all();
 
+        $noEncontradas = array_values($noEncontradas);
+
         $col = collect($telares);
-        $totalProg = (float) $col->sum('programadas');
-        $totalProd = (float) $col->sum('producidas');
         $resumen = [
             'telares' => $col->count(),
             'activos' => $col->filter(fn ($t) => $t['enProceso'])->count(),
-            'programadas' => $totalProg,
-            'producidas' => $totalProd,
-            'kg' => (float) $col->sum('kg'),
-            'avance' => $totalProg > 0 ? round($totalProd / $totalProg * 100, 1) : 0.0,
             'alertas' => $col->filter(fn ($t) => $t['alerta'])->count(),
+            'noEncontradas' => count($noEncontradas),
         ];
 
-        return ['telares' => $telares, 'resumen' => $resumen];
+        return ['telares' => $telares, 'noEncontradas' => $noEncontradas, 'resumen' => $resumen];
     }
 
     /**
@@ -202,9 +199,6 @@ class TrazabilidadProduccionService
 
     private function resumenVacio(): array
     {
-        return [
-            'telares' => 0, 'activos' => 0, 'programadas' => 0, 'producidas' => 0,
-            'kg' => 0, 'avance' => 0, 'alertas' => 0,
-        ];
+        return ['telares' => 0, 'activos' => 0, 'alertas' => 0, 'noEncontradas' => 0];
     }
 }
