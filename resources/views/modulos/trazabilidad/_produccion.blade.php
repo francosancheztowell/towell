@@ -37,24 +37,28 @@
                 </span>
             @endif
             @if (($resumen['alertas'] ?? 0) > 0)
-                <span class="text-[11px] bg-amber-50 text-amber-700 rounded-full px-2 py-0.5 font-medium">
-                    {{ $resumen['alertas'] }} alertas
+                <span class="text-[11px] bg-amber-50 text-amber-700 rounded-full px-2 py-0.5 font-medium"
+                      title="La trazabilidad registra piezas de esa orden en un telar distinto al del programa">
+                    {{ $resumen['alertas'] }} con prod. en otro telar
                 </span>
             @endif
         </div>
 
-        <div class="prod-switch inline-flex items-center rounded-full bg-slate-100 p-0.5 gap-0.5 select-none shrink-0">
+        <div class="prod-segment select-none shrink-0 self-start sm:self-auto" role="group" aria-label="Filtrar órdenes">
             <button type="button" data-filter="todos"
-                    class="prod-filter-btn rounded-full px-3.5 py-1.5 text-xs font-medium bg-white shadow text-slate-700 transition-all">
-                todos
+                    class="prod-filter-btn prod-segment__btn is-active">
+                <span>todos</span>
+                <span class="prod-segment__count">{{ count($ordenCards) }}</span>
             </button>
             <button type="button" data-filter="activo"
-                    class="prod-filter-btn rounded-full px-3.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-all">
-                activo
+                    class="prod-filter-btn prod-segment__btn prod-segment__btn--activo">
+                <span>activo</span>
+                <span class="prod-segment__count">{{ $resumen['activos'] ?? 0 }}</span>
             </button>
             <button type="button" data-filter="terminado"
-                    class="prod-filter-btn rounded-full px-3.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-all">
-                terminado
+                    class="prod-filter-btn prod-segment__btn prod-segment__btn--terminado">
+                <span>terminado</span>
+                <span class="prod-segment__count">{{ $resumen['terminados'] ?? 0 }}</span>
             </button>
         </div>
     </div>
@@ -70,20 +74,14 @@
                     $programadas = (float) ($o['programa']['totalPedido'] ?? 0);
                     $producidasBd = (float) ($o['programa']['produccion'] ?? 0);
                     $pzasDia = $o['programa']['stdDia'] ?? null;
-                    $saldoLabel = 'saldo pedido';
-                    $saldoValor = (float) ($o['programa']['saldoPedido'] ?? 0);
                 } elseif (!empty($o['codificados'])) {
                     $programadas = (float) ($o['codificados']['pedido'] ?? 0);
                     $producidasBd = (float) ($o['codificados']['produccion'] ?? 0);
                     $pzasDia = null;
-                    $saldoLabel = 'saldos';
-                    $saldoValor = (float) ($o['codificados']['saldos'] ?? 0);
                 } else {
                     $programadas = (float) ($o['programadas'] ?? 0);
                     $producidasBd = (float) ($o['producidas'] ?? 0);
                     $pzasDia = $o['pzasDia'] ?? null;
-                    $saldoLabel = null;
-                    $saldoValor = null;
                 }
 
                 $avanceRef = number_format($producidasBd).' / '.number_format($programadas);
@@ -94,10 +92,14 @@
                     ? 'prod-card-v2__accent--alerta'
                     : ($o['estado'] === 'activo' ? 'prod-card-v2__accent--activo' : 'prod-card-v2__accent--terminado');
 
-                $conflicto = implode(', ', $o['localidadesConflicto'] ?? []);
-                $tituloAlerta = $conflicto !== ''
-                    ? 'Trazabilidad con producción en otro telar: '.$conflicto.'. Telar del programa: '.$o['telar'].'.'
-                    : 'El telar de la orden no coincide con la localidad de trazabilidad.';
+                $conflicto = $o['localidadesConflicto'] ?? [];
+                $conflictoTexto = implode(', ', $conflicto);
+                $tituloAlerta = $conflictoTexto !== ''
+                    ? 'En trazabilidad hay producción de esta orden también en: '.$conflictoTexto.'. En programa/catálogo está en '.$o['telar'].'.'
+                    : 'La localidad en trazabilidad no coincide con el telar del programa.';
+                $etiquetaAlerta = $conflictoTexto !== ''
+                    ? 'prod. en '.$conflicto[0]
+                    : 'otro telar';
             @endphp
 
             <div class="prod-card prod-card-v2 {{ $o['alerta'] ? 'prod-card--alerta' : '' }}"
@@ -105,7 +107,6 @@
                 <div class="prod-card-v2__accent {{ $accentClass }}" aria-hidden="true"></div>
 
                 <div class="flex flex-col flex-1 p-4 min-w-0">
-                    {{-- Telar + estado --}}
                     <div class="flex items-start justify-between gap-2 mb-2.5">
                         <div class="min-w-0">
                             <div class="text-2xl font-extrabold text-slate-800 leading-none tracking-tight">
@@ -115,46 +116,40 @@
                                 orden {{ $o['orden'] }}
                             </div>
                         </div>
-                        <div class="flex flex-col items-end gap-1 shrink-0">
+                        <div class="flex flex-col items-end gap-1 shrink-0 max-w-[48%]">
                             @if ($o['enProceso'])
-                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2.5 py-1">
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2.5 py-1 whitespace-nowrap">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                     en producción
                                 </span>
                             @elseif ($o['fuente'] === 'programa')
-                                <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2.5 py-1">
+                                <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2.5 py-1 whitespace-nowrap">
                                     programado
                                 </span>
                             @else
-                                <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium px-2.5 py-1">
+                                <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium px-2.5 py-1 whitespace-nowrap">
                                     finalizado
                                 </span>
                             @endif
                             @if ($o['alerta'])
-                                <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-700 text-[10px] font-medium px-2 py-0.5"
+                                <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-800 text-[10px] font-medium px-2 py-0.5 whitespace-nowrap"
                                       title="{{ $tituloAlerta }}">
-                                    revisar
+                                    {{ $etiquetaAlerta }}
                                 </span>
                             @endif
                         </div>
                     </div>
 
-                    {{-- Badges: salón, ord. compartida, mes, fechas, saldo --}}
                     @php
                         $fechaInicio = $soloFecha($o['programa']['fechaInicio'] ?? null);
                         $fechaFinal = $soloFecha($o['programa']['fechaFinal'] ?? null);
-                        $hayBadges = !empty($o['programa']['salonTejidoId'])
-                            || !empty($o['programa']['esOrdCompartida'])
+                        $hayBadges = !empty($o['programa']['esOrdCompartida'])
                             || !empty($o['meses'])
                             || filled($fechaInicio)
-                            || filled($fechaFinal)
-                            || $saldoLabel !== null;
+                            || filled($fechaFinal);
                     @endphp
                     @if ($hayBadges)
                         <div class="flex flex-wrap gap-1 mb-2.5">
-                            @if (!empty($o['programa']['salonTejidoId']))
-                                <span class="prod-badge prod-badge--salon">{{ $o['programa']['salonTejidoId'] }}</span>
-                            @endif
                             @if (!empty($o['programa']['esOrdCompartida']))
                                 <span class="prod-badge prod-badge--compartida">
                                     ord. compartida {{ $o['programa']['ordCompartida'] }}
@@ -172,15 +167,9 @@
                             @if (filled($fechaFinal))
                                 <span class="prod-badge prod-badge--fecha">final {{ $fechaFinal }}</span>
                             @endif
-                            @if ($saldoLabel !== null)
-                                <span class="prod-badge {{ $saldoValor < 0 ? 'prod-badge--saldo-neg' : 'prod-badge--saldo' }}">
-                                    {{ $saldoLabel }} {{ number_format($saldoValor) }}
-                                </span>
-                            @endif
                         </div>
                     @endif
 
-                    {{-- Métricas principales --}}
                     <div class="grid grid-cols-2 gap-2 mb-3">
                         <div class="prod-stat-box">
                             <div class="prod-stat-label">programadas</div>
@@ -200,7 +189,6 @@
                         </div>
                     </div>
 
-                    {{-- Avance --}}
                     <div class="mt-auto">
                         <div class="flex items-center justify-between text-[11px] mb-1.5 gap-2">
                             <span class="text-slate-600">

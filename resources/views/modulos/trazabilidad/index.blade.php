@@ -160,11 +160,6 @@
             border: 1px solid transparent;
             white-space: nowrap;
         }
-        .prod-badge--salon {
-            color: #0369a1;
-            background: #e0f2fe;
-            border-color: #7dd3fc;
-        }
         .prod-badge--compartida {
             color: #6d28d9;
             background: #ede9fe;
@@ -180,18 +175,63 @@
             background: #ccfbf1;
             border-color: #5eead4;
         }
-        .prod-badge--saldo {
-            color: #b45309;
-            background: #fef3c7;
-            border-color: #fcd34d;
+        .prod-segment {
+            display: inline-flex;
+            align-items: center;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.2rem;
+            gap: 0.125rem;
         }
-        .prod-badge--saldo-neg {
-            color: #b91c1c;
-            background: #fee2e2;
-            border-color: #fca5a5;
-        }
-        .prod-switch .prod-filter-btn {
+        .prod-segment__btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.45rem 0.85rem;
+            border-radius: 0.55rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
             white-space: nowrap;
+        }
+        .prod-segment__btn:hover {
+            color: #334155;
+            background: rgba(255, 255, 255, 0.55);
+        }
+        .prod-segment__btn.is-active {
+            background: #ffffff;
+            color: #1d4ed8;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+        .prod-segment__count {
+            font-size: 0.625rem;
+            font-weight: 700;
+            line-height: 1;
+            background: #e2e8f0;
+            color: #475569;
+            padding: 0.15rem 0.4rem;
+            border-radius: 9999px;
+            min-width: 1.15rem;
+            text-align: center;
+        }
+        .prod-segment__btn.is-active .prod-segment__count {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .prod-segment__btn--activo.is-active { color: #047857; }
+        .prod-segment__btn--activo.is-active .prod-segment__count {
+            background: #d1fae5;
+            color: #047857;
+        }
+        .prod-segment__btn--terminado.is-active { color: #475569; }
+        .prod-segment__btn--terminado.is-active .prod-segment__count {
+            background: #e2e8f0;
+            color: #334155;
         }
     </style>
 
@@ -400,9 +440,7 @@
             if (!$cont.length) return;
 
             $cont.find('.prod-filter-btn').each(function () {
-                const activo = $(this).data('filter') === prodFiltroActivo;
-                $(this).toggleClass('bg-white shadow text-slate-700', activo)
-                       .toggleClass('text-slate-500', !activo);
+                $(this).toggleClass('is-active', $(this).data('filter') === prodFiltroActivo);
             });
 
             let visibles = 0;
