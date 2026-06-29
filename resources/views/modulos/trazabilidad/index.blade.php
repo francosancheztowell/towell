@@ -298,34 +298,76 @@
             };
         }
 
-        // Secuencia de peticiones: cada llamada incrementa el contador y solo la
-        // respuesta de la ÚLTIMA petición se aplica. Así nunca se descarta el cambio
-        // del usuario (problema del antiguo guard `cargando`, que tragaba la llamada
-        // buena cuando select2/allowClear emitía `change` más de una vez) ni se pinta
-        // una respuesta obsoleta si llegan fuera de orden.
+        // Secuencia de peticiones: matriz primero, producción después. Solo la
+        // respuesta más reciente se aplica (evita condiciones de carrera).
         let reqSeq = 0;
+        let prodSeq = 0;
+
+        function actualizarBadgeProduccion(cantidad) {
+            const $tab = $('#resultado .traza-tab[data-tab="produccion"]');
+            $tab.find('.prod-alert-badge').remove();
+            if (cantidad > 0) {
+                $tab.append(
+                    '<span class="prod-alert-badge inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold min-w-4 h-4 px-1"'
+                    + ' title="' + cantidad + ' orden(es) con producción en otro telar">' + cantidad + '</span>'
+                );
+            }
+        }
+
+        async function cargarProduccion(params, seqMatriz) {
+            const seq = ++prodSeq;
+            try {
+                const data = await window.http.get(RUTA, { params: { ...params, part: 'produccion' } });
+                if (seq !== prodSeq || seqMatriz !== reqSeq) return;
+                const $cont = $('#produccion-contenido');
+                if ($cont.length) {
+                    $cont.html(data.produccionHtml);
+                }
+                actualizarBadgeProduccion(data.prodAlertas || 0);
+            } catch (err) {
+                if (seq === prodSeq && seqMatriz === reqSeq) {
+                    const $cont = $('#produccion-contenido');
+                    if ($cont.length) {
+                        $cont.html(
+                            '<div class="bg-white border border-red-200 rounded-2xl p-8 text-center">'
+                            + '<p class="text-red-600 font-semibold">No se pudo cargar la producción.</p>'
+                            + '<p class="text-slate-400 text-sm mt-1">' + (err.message || '') + '</p></div>'
+                        );
+                    }
+                }
+            }
+        }
+
         async function aplicar(params) {
             const seq = ++reqSeq;
+            prodSeq++; // invalida producción en curso al cambiar filtros
             $resultado.css('opacity', 0.5);
             try {
-                const data = await window.http.get(RUTA, { params });
-                if (seq !== reqSeq) return; // llegó una petición más nueva; ignorar esta
+                const data = await window.http.get(RUTA, { params: { ...params, part: 'matriz' } });
+                if (seq !== reqSeq) return;
                 $resultado.html(data.resultado);
-                aplicarTab(tabActivo); // reaplica la pestaña activa tras re-renderizar
+                aplicarTab(tabActivo);
 
                 rebuildSelect('#filtro-flog', data.opciones.flog, data.filtros.flog);
                 rebuildCombo('#filtro-articulo', data.opciones.articulo, data.filtros.articulo);
                 rebuildSelect('#filtro-tamano', data.opciones.tamano, data.filtros.tamano);
                 rebuildCombo('#filtro-color', data.opciones.color, data.filtros.color);
-                $('#filtro-mes').val(data.filtros.mes || ''); // sincroniza los meses activos (CSV)
+                $('#filtro-mes').val(data.filtros.mes || '');
                 rebuildMeses(data.opciones.mes);
                 rebuildResumen({
                     articulo: (data.opciones.articulo || []).length,
                     tamano:   (data.opciones.tamano || []).length,
                     color:    (data.opciones.color || []).length,
                 }, !!data.filtros.flog);
-                // URL limpia (siempre /trazabilidad) — sin recargar.
                 window.history.replaceState(null, '', RUTA);
+
+                const hayFiltro = data.filtros.flog || data.filtros.articulo
+                    || data.filtros.tamano || data.filtros.color || data.filtros.mes;
+                if (hayFiltro) {
+                    cargarProduccion(params, seq);
+                } else {
+                    actualizarBadgeProduccion(0);
+                }
             } catch (err) {
                 if (seq === reqSeq) window.notify?.error(err.message || 'Error al cargar la trazabilidad');
             } finally {
@@ -371,6 +413,11 @@
 
         // Estilo inicial de la pestaña activa (las pestañas existen si hay filtro).
         aplicarTab(tabActivo);
+
+        // Carga diferida de producción en la primera pintura (matriz ya renderizada).
+        @if ($hayFiltro && ($produccionCargando ?? false))
+            cargarProduccion(valoresActuales(), 0);
+        @endif
 
         // Render inicial del resumen de conteos.
         @php $conteosIniciales = [

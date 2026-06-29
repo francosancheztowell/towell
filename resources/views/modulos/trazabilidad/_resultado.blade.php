@@ -27,8 +27,8 @@
             <span>🧶</span> Producción
             @php $prodIssues = (int) ($produccion['resumen']['alertas'] ?? 0); @endphp
             @if ($prodIssues > 0)
-                <span class="inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold min-w-4 h-4 px-1"
-                      title="{{ $prodIssues }} telar(es) con discrepancia de telar">
+                <span class="prod-alert-badge inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold min-w-4 h-4 px-1"
+                      title="{{ $prodIssues }} orden(es) con producción en otro telar">
                     {{ $prodIssues }}
                 </span>
             @endif
@@ -240,6 +240,12 @@
             </h2>
             <span class="flex-1 h-px bg-slate-200"></span>
         </div>
-        @include('modulos.trazabilidad._produccion')
+        <div id="produccion-contenido">
+            @if ($produccionCargando ?? false)
+                @include('modulos.trazabilidad._produccion_loading')
+            @else
+                @include('modulos.trazabilidad._produccion')
+            @endif
+        </div>
     </div>
 @endunless

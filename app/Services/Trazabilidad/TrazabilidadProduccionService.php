@@ -17,8 +17,8 @@ use App\Models\Trazabilidad\TrazaProduccion;
  *    (NoTelarId) y, si no está, en CatCodificados por OrdenTejido (TelarId). De esas
  *    tablas también salen las piezas Programadas y el estándar de Pzas/Día.
  *
- * Cuando el telar de la orden no coincide con la Localidad —o la orden no se
- * localiza en ninguna de las dos tablas— se marca una alerta en esa tarjeta.
+ * Cuando TrazaProduccion registra la misma Orden en otra Localidad distinta al
+ * telar del programa, se marca alerta en la tarjeta única (sin duplicar la orden).
  *
  * Producidas/KG provienen de la propia trazabilidad (área "Crudo": lo que el telar
  * tejió); Programadas/Pzas-Día provienen del programa de tejido.
@@ -76,9 +76,13 @@ class TrazabilidadProduccionService
         $ordenes = $rows->pluck('Orden')->map(fn ($o) => trim((string) $o))
             ->filter()->unique()->values();
 
+        // Si hay más de un registro por NoProduccion, priorizar EnProceso y el Id más reciente.
         $programa = ReqProgramaTejido::query()
             ->whereIn('NoProduccion', $ordenes->all())
+            ->orderByDesc('EnProceso')
+            ->orderByDesc('Id')
             ->get(['NoProduccion', 'NoTelarId', 'TotalPzas', 'TotalPedido', 'StdDia', 'EnProceso'])
+            ->unique(fn ($r) => trim((string) $r->NoProduccion))
             ->keyBy(fn ($r) => trim((string) $r->NoProduccion));
 
         // Las órdenes que no están en el programa se buscan en CatCodificados.
@@ -95,16 +99,16 @@ class TrazabilidadProduccionService
         // la orden como "202". Comparamos por el número para no marcar falsos positivos.
         $soloDigitos = fn ($t) => preg_replace('/\D/', '', (string) $t);
 
-        // --- Construir tarjeta por orden ---
-        // Una tarjeta por cada (Orden, Localidad) localizada en ReqProgramaTejido o
-        // CatCodificados. Las que no se encuentran en ninguna tabla van a noEncontradas.
+        // --- Una tarjeta por orden (telar canónico desde programa / cat) ---
+        // TrazaProduccion puede repetir la misma Orden en varias Localidades (p. ej.
+        // movimientos históricos en otro telar). Solo mostramos el telar del programa;
+        // las piezas/KG son las del área Crudo en ese telar. Si hay producción en
+        // otras localidades, se marca alerta sin duplicar la tarjeta.
+        $porOrden = $rows->groupBy(fn ($r) => trim((string) $r->Orden));
         $ordenCards = [];
         $noEncontradas = [];
-        foreach ($rows as $r) {
-            $orden = trim((string) $r->Orden);
-            $localidad = trim((string) ($r->Localidad ?? ''));
-            $numLoc = $soloDigitos($localidad);
 
+        foreach ($porOrden as $orden => $filasLocalidad) {
             $telarOrden = null;
             $fuente = null;
             $programadas = 0.0;
@@ -126,37 +130,55 @@ class TrazabilidadProduccionService
             }
 
             if ($telarOrden === null || $telarOrden === '') {
+                $primeraLoc = trim((string) ($filasLocalidad->first()->Localidad ?? ''));
                 if (! isset($noEncontradas[$orden])) {
-                    $noEncontradas[$orden] = ['orden' => $orden, 'localidad' => $localidad];
+                    $noEncontradas[$orden] = ['orden' => $orden, 'localidad' => $primeraLoc];
                 }
 
                 continue;
             }
 
             $numOrden = $soloDigitos($telarOrden);
-            $coincide = $numOrden !== '' && $numOrden === $numLoc;
-            $producidas = (float) $r->cantidad_crudo;
+            $producidas = 0.0;
+            $kg = 0.0;
+            $localidadesExtra = [];
+
+            foreach ($filasLocalidad as $r) {
+                $localidad = trim((string) ($r->Localidad ?? ''));
+                $numLoc = $soloDigitos($localidad);
+                $coincideLoc = $numOrden !== '' && $numOrden === $numLoc;
+
+                if ($coincideLoc) {
+                    $producidas += (float) $r->cantidad_crudo;
+                    $kg += (float) $r->peso_crudo;
+                } elseif ((float) $r->cantidad_crudo > 0 || (float) $r->peso_crudo > 0) {
+                    $localidadesExtra[] = $this->formatearTelar($localidad, $numLoc);
+                }
+            }
+
+            $localidadesExtra = array_values(array_unique($localidadesExtra));
             $avance = $programadas > 0 ? round($producidas / $programadas * 100, 1) : 0.0;
 
             $ordenCards[] = [
                 'orden' => $orden,
-                'telar' => $this->formatearTelar($localidad, $numLoc),
-                'localidad' => $localidad,
+                'telar' => $this->formatearTelar($telarOrden, $numOrden),
+                'localidad' => $telarOrden,
                 'fuente' => $fuente,
                 'estado' => $fuente === 'programa' ? 'activo' : 'terminado',
                 'enProceso' => $enProceso,
-                'coincide' => $coincide,
-                'alerta' => ! $coincide,
+                'coincide' => empty($localidadesExtra),
+                'alerta' => ! empty($localidadesExtra),
+                'localidadesConflicto' => $localidadesExtra,
                 'meses' => $mesesPorOrden[$orden] ?? [],
                 'programadas' => $programadas,
                 'producidas' => $producidas,
-                'kg' => (float) $r->peso_crudo,
+                'kg' => $kg,
                 'pzasDia' => $stdDia,
                 'avance' => $avance,
             ];
         }
 
-        // Ordenar por número de telar (Localidad numérica).
+        // Ordenar por número de telar (canónico del programa / cat).
         usort($ordenCards, function ($a, $b) use ($soloDigitos) {
             $na = ($nA = $soloDigitos($a['localidad'])) !== '' ? (int) $nA : PHP_INT_MAX;
             $nb = ($nB = $soloDigitos($b['localidad'])) !== '' ? (int) $nB : PHP_INT_MAX;

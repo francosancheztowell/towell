@@ -134,25 +134,35 @@ class TrazabilidadController extends Controller
         $info = null; // Tipo / Cliente / Agente (solo con un Flog específico).
         $dropdown = false; // Áreas expandibles (Flog con +2 artículos).
         $produccion = null; // Sección "Producción": telares del flog (Orden/Localidad).
+        $produccionCargando = false;
+
+        // part=matriz (default) | produccion | all. La matriz se pinta primero;
+        // producción llega en una segunda petición AJAX.
+        $part = $request->query('part', 'matriz');
+        if (! in_array($part, ['matriz', 'produccion', 'all'], true)) {
+            $part = 'matriz';
+        }
 
         // La matriz se calcula con CUALQUIER filtro activo. La lógica vive en el
         // servicio compartido para que la web y la exportación a Excel coincidan.
-        if ($hayFiltro) {
+        if ($hayFiltro && $part !== 'produccion') {
             $matriz = $this->matriz->build($filtros, $metrica);
             $fechas = $matriz['fechas'];
             $areas = $matriz['areas'];
             $totales = $matriz['totales'];
             $info = $matriz['info'];
             $dropdown = $matriz['dropdown'];
+        }
 
-            // Sección "Producción": telares en el flog con su tamaño/color, mapeados
-            // desde la Orden (ReqProgramaTejido / CatCodificados) vs la Localidad.
+        $produccionCargando = $hayFiltro && $part === 'matriz';
+
+        if ($hayFiltro && $part !== 'matriz') {
             $produccion = $this->produccionSrv->build($filtros);
         }
 
         $datosVista = compact(
             'fechas', 'areas', 'totales', 'filtros', 'hayFlog', 'hayFiltro', 'info',
-            'metrica', 'decimales', 'dropdown', 'produccion',
+            'metrica', 'decimales', 'dropdown', 'produccion', 'produccionCargando',
             'opcionesFlog', 'opcionesArticulo', 'opcionesTamano', 'opcionesColor',
             'mesesDisponibles'
         );
@@ -160,6 +170,16 @@ class TrazabilidadController extends Controller
         // Respuesta AJAX: solo el bloque de resultado + las opciones de los selects
         // (para refrescar la cascada sin recargar la página).
         if ($request->ajax()) {
+            if ($part === 'produccion') {
+                return response()->json([
+                    'produccionHtml' => view('modulos.trazabilidad._produccion', [
+                        'produccion' => $produccion ?? ['ordenes' => [], 'noEncontradas' => [], 'resumen' => []],
+                    ])->render(),
+                    'prodAlertas' => (int) ($produccion['resumen']['alertas'] ?? 0),
+                    'filtros' => $filtros,
+                ]);
+            }
+
             return response()->json([
                 'resultado' => view('modulos.trazabilidad._resultado', $datosVista)->render(),
                 'opciones' => [

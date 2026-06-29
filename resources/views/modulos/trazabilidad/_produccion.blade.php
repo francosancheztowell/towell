@@ -1,7 +1,6 @@
 {{-- ============ Sección "Producción": tarjetas por orden ============
-     Una tarjeta por cada (Orden, Localidad) localizada en ReqProgramaTejido o
-     CatCodificados. Switch JS (Todos / Activo / Terminado) filtra las cards
-     sin recargar. Las órdenes no encontradas en ninguna tabla no generan tarjeta. --}}
+     Una tarjeta por orden (telar canónico en ReqProgramaTejido / CatCodificados).
+     Switch JS (Todos / Activo / Terminado) filtra las cards sin recargar. --}}
 
 @php
     $prod       = $produccion ?? ['ordenes' => [], 'noEncontradas' => []];
@@ -79,8 +78,14 @@
                         </div>
                         <div class="flex flex-col items-end gap-1 pt-0.5">
                             @if ($o['alerta'])
+                                @php
+                                    $conflicto = implode(', ', $o['localidadesConflicto'] ?? []);
+                                    $tituloAlerta = $conflicto !== ''
+                                        ? 'Trazabilidad con producción en otro telar: '.$conflicto.'. Telar del programa: '.$o['telar'].'.'
+                                        : 'El telar de la orden no coincide con la Localidad de trazabilidad.';
+                                @endphp
                                 <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5"
-                                      title="El telar de la orden no coincide con la Localidad de trazabilidad.">
+                                      title="{{ $tituloAlerta }}">
                                     <i class="fa-solid fa-triangle-exclamation"></i> Revisar
                                 </span>
                             @endif
