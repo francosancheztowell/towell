@@ -110,44 +110,54 @@
             display: flex;
             flex-direction: row;
             align-items: stretch;
-            background: #f8fafc;
+            background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 1rem;
             overflow: hidden;
             min-height: 100%;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
         .prod-card-v2.prod-card--alerta {
-            border-color: #fcd34d;
-            box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.25);
+            border-color: #fbbf24;
+            box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35);
         }
         .prod-card-v2__accent {
-            width: 5px;
+            width: 4px;
             flex-shrink: 0;
         }
         .prod-card-v2__accent--activo { background: #22c55e; }
         .prod-card-v2__accent--terminado { background: #94a3b8; }
         .prod-card-v2__accent--alerta { background: #f59e0b; }
         .prod-stat-box {
-            background: #fff;
+            background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 0.65rem;
-            padding: 0.65rem 0.75rem;
+            border-radius: 0.5rem;
+            padding: 0.6rem 0.7rem;
             min-width: 0;
         }
         .prod-stat-label {
-            font-size: 0.7rem;
+            font-size: 0.6875rem;
             color: #94a3b8;
             font-weight: 500;
             line-height: 1.2;
         }
         .prod-stat-value {
-            font-size: 1.05rem;
+            font-size: 1.125rem;
             font-weight: 700;
-            color: #1e293b;
+            color: #0f172a;
             font-variant-numeric: tabular-nums;
-            line-height: 1.25;
-            margin-top: 0.15rem;
-            word-break: break-word;
+            line-height: 1.2;
+            margin-top: 0.2rem;
+        }
+        .prod-tag {
+            font-size: 0.625rem;
+            font-weight: 500;
+            color: #475569;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.25rem;
+            padding: 0.125rem 0.375rem;
+            line-height: 1.3;
         }
         .prod-switch .prod-filter-btn {
             white-space: nowrap;
