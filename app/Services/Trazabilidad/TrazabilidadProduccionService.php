@@ -139,6 +139,7 @@ class TrazabilidadProduccionService
                     'pzasDia' => null,
                     'enProceso' => false,
                     'alerta' => false,
+                    'ordenes' => [],
                 ];
             }
 
@@ -154,6 +155,13 @@ class TrazabilidadProduccionService
             if (! $coincide) {
                 $t['alerta'] = true;
             }
+            // Órdenes del telar con su fuente: 'programa' (ReqProgramaTejido →
+            // "Programado") o 'codificados' (CatCodificados → "Finalizado").
+            $t['ordenes'][] = [
+                'orden' => $orden,
+                'fuente' => $fuente,
+                'coincide' => $coincide,
+            ];
             unset($t);
         }
 

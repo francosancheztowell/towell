@@ -83,6 +83,31 @@
                         </span>
                     </div>
 
+                    {{-- Órdenes del telar + badge de fuente (Programado / Finalizado) --}}
+                    <div class="px-4 py-2 border-b border-slate-100 flex flex-wrap gap-1.5">
+                        @foreach ($t['ordenes'] as $o)
+                            <span class="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 pl-2 pr-1 py-0.5">
+                                <span class="text-[11px] text-slate-500">Orden</span>
+                                <span class="font-mono text-[12px] font-semibold text-slate-700">{{ $o['orden'] }}</span>
+                                @if (!$o['coincide'])
+                                    <i class="fa-solid fa-triangle-exclamation text-amber-500 text-[10px]"
+                                       title="El telar de esta orden no coincide con la Localidad de trazabilidad."></i>
+                                @endif
+                                @if ($o['fuente'] === 'programa')
+                                    <span class="inline-flex items-center gap-1 rounded-md bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5"
+                                          title="Encontrada en ReqProgramaTejido">
+                                        <i class="fa-solid fa-gears"></i> Programado
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 rounded-md bg-slate-200 text-slate-600 text-[10px] font-bold px-1.5 py-0.5"
+                                          title="Encontrada en CatCodificados">
+                                        <i class="fa-solid fa-flag-checkered"></i> Finalizado
+                                    </span>
+                                @endif
+                            </span>
+                        @endforeach
+                    </div>
+
                     {{-- Stats 2x2 --}}
                     <div class="grid grid-cols-2 gap-px bg-slate-100">
                         <div class="bg-white px-4 py-2.5">
