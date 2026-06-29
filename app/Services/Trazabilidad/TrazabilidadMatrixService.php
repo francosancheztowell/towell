@@ -41,7 +41,7 @@ class TrazabilidadMatrixService
      *
      * @param  array  $filtros  ['flog','articulo','tamano','color','mes'(CSV de meses)]
      * @param  string $metrica  'cantidad' (Material) o 'peso' (Kilos)
-     * @return array{fechas:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool}
+     * @return array{fechas:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool, dropdown:bool}
      */
     public function build(array $filtros, string $metrica = 'cantidad'): array
     {
@@ -64,6 +64,17 @@ class TrazabilidadMatrixService
 
         // Tipo / Cliente / Agente: solo cuando hay un Flog específico.
         $info = $hayFlog ? $base()->select('Tipo', 'Cliente', 'Agente')->first() : null;
+
+        // Nº de artículos distintos del filtro actual (solo importa con un Flog elegido).
+        // El desglose por artículo/color (áreas expandibles) se activa cuando hay un Flog
+        // con DOS O MÁS artículos: ahí tiene sentido detallar qué hay dentro de cada área.
+        $numArticulos = 0;
+        if ($hayFlog) {
+            $numArticulos = (int) $base()
+                ->whereNotNull('Articulo')->where('Articulo', '<>', '')
+                ->distinct()->count('Articulo');
+        }
+        $dropdown = $hayFlog && $numArticulos >= 2;
 
         // Agregación en SQL: una fila por (Fecha, NombreAlmacen) con la suma de la métrica.
         $datos = $base()
@@ -108,8 +119,41 @@ class TrazabilidadMatrixService
             $valoresPorArea[$area][$pos] = ($valoresPorArea[$area][$pos] ?? 0) + (float) $fila->total;
         }
 
+        // Desglose por artículo+color dentro de cada área (solo cuando aplica el dropdown).
+        // Mapa [NombreAlmacen][articulo|color] => ['articulo','nombreArticulo','color','nombreColor','valores'=>[pos=>total]].
+        $detallePorArea = [];
+        if ($dropdown) {
+            $detalleRaw = $base()
+                ->selectRaw("Fecha, NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor, SUM($columnaMetrica) as total")
+                ->whereNotNull('Fecha')
+                ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
+                ->orderBy('Fecha')
+                ->get();
+
+            foreach ($detalleRaw as $fila) {
+                $area = $fila->NombreAlmacen ?? '';
+                $clave = Carbon::parse($fila->Fecha)->format('Y-m-d');
+                $pos = $posFecha[$clave] ?? null;
+                if ($pos === null) {
+                    continue;
+                }
+                $ac = ($fila->Articulo ?? '').'|'.($fila->Color ?? '');
+                if (! isset($detallePorArea[$area][$ac])) {
+                    $detallePorArea[$area][$ac] = [
+                        'articulo' => $fila->Articulo,
+                        'nombreArticulo' => $fila->NombreArticulo,
+                        'color' => $fila->Color,
+                        'nombreColor' => $fila->NombreColor,
+                        'valores' => [],
+                    ];
+                }
+                $detallePorArea[$area][$ac]['valores'][$pos] =
+                    ($detallePorArea[$area][$ac]['valores'][$pos] ?? 0) + (float) $fila->total;
+            }
+        }
+
         $numCols = count($fechas);
-        $areas = collect($this->areasFijas)->map(function ($area) use ($valoresPorArea, $numCols, $decimales) {
+        $areas = collect($this->areasFijas)->map(function ($area) use ($valoresPorArea, $detallePorArea, $dropdown, $numCols, $decimales) {
             $valores = [];
             for ($c = 0; $c < $numCols; $c++) {
                 $valores[$c] = isset($valoresPorArea[$area['nombre']][$c])
@@ -137,7 +181,31 @@ class TrazabilidadMatrixService
                 $bgs[$c] = "rgba($r,$g,$b,$alpha)";
             }
 
-            return array_merge($area, ['valores' => $valores, 'bgs' => $bgs]);
+            // Sub-filas: una por cada artículo+color presente en el área. Cada una
+            // con sus valores alineados a las columnas de fecha y su total de fila.
+            $detalles = [];
+            if ($dropdown && ! empty($detallePorArea[$area['nombre']])) {
+                foreach ($detallePorArea[$area['nombre']] as $d) {
+                    $vals = [];
+                    for ($c = 0; $c < $numCols; $c++) {
+                        $vals[$c] = isset($d['valores'][$c]) ? round($d['valores'][$c], $decimales) : null;
+                    }
+                    $totalFila = round(array_sum(array_map(fn ($x) => (float) ($x ?? 0), $vals)), $decimales);
+                    if ($totalFila == 0.0) {
+                        continue; // sin aporte real en el filtro actual
+                    }
+                    $detalles[] = [
+                        'articulo' => trim(($d['articulo'] ?? '').(filled($d['nombreArticulo']) ? ' / '.$d['nombreArticulo'] : '')),
+                        'color' => trim(($d['color'] ?? '').(filled($d['nombreColor']) ? ' / '.$d['nombreColor'] : '')),
+                        'valores' => $vals,
+                        'total' => $totalFila,
+                    ];
+                }
+                // Ordenar por artículo y luego color para una lectura estable.
+                usort($detalles, fn ($a, $b) => [$a['articulo'], $a['color']] <=> [$b['articulo'], $b['color']]);
+            }
+
+            return array_merge($area, ['valores' => $valores, 'bgs' => $bgs, 'detalles' => $detalles]);
         })
         // Ocultar áreas completamente vacías/en cero para el filtro actual.
         ->filter(function ($area) {
@@ -162,6 +230,6 @@ class TrazabilidadMatrixService
             $totales[$i] = $suma ? round($suma, $decimales) : null;
         }
 
-        return compact('fechas', 'areas', 'totales', 'info', 'metrica', 'decimales', 'hayFlog');
+        return compact('fechas', 'areas', 'totales', 'info', 'metrica', 'decimales', 'hayFlog', 'dropdown');
     }
 }

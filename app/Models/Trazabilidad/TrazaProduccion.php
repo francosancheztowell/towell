@@ -29,6 +29,7 @@ class TrazaProduccion extends Model
         'Almacen',
         'NombreAlmacen',
         'Orden',
+        'Localidad',
     ];
 
     protected $casts = [

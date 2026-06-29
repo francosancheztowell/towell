@@ -92,6 +92,18 @@
             background-color: #dbeafe;            /* opción seleccionada azul pastel */
             color: #1e40af;
         }
+
+        /* === Áreas expandibles (dropdown por artículo/color) === */
+        /* Fila de área ABIERTA: resaltar la celda de etiqueta para que se note cuál
+           está desplegada. Solo la primera columna (sticky), para no pisar el heatmap. */
+        #resultado tr.area-fila.area-abierta > td:first-child {
+            background-color: #bfdbfe !important;  /* blue-200 */
+        }
+        #resultado tr.area-fila.area-abierta:hover > td:first-child {
+            background-color: #93c5fd !important;  /* blue-300 al pasar el mouse */
+        }
+        /* Indicar que la fila de área es clickeable */
+        #resultado tr.area-fila > td:first-child { cursor: pointer; }
     </style>
 
     <div class="w-full min-h-full px-1.5 md:px-2 py-3" style="background:#f1f5f9;" id="globalLoader">
@@ -310,6 +322,17 @@
             debounceFiltro = setTimeout(function () {
                 aplicar(valoresActuales());
             }, 80);
+        });
+
+        // Áreas expandibles (Flog con +2 artículos): al hacer click en la fila del área
+        // se muestran/ocultan sus sub-filas de desglose por artículo/color. Se delega en
+        // #resultado porque su contenido se reemplaza completo en cada respuesta AJAX.
+        $resultado.on('click', '.area-fila', function () {
+            const key = $(this).data('area-key');
+            const abierto = $(this).hasClass('area-abierta');
+            $(this).toggleClass('area-abierta');
+            $(this).find('.area-caret').toggleClass('rotate-90', !abierto);
+            $resultado.find('tr.detalle-fila[data-area-key="' + key + '"]').toggleClass('hidden', abierto);
         });
 
         // Click en un badge de mes (multi-select: agrega/quita ese mes).

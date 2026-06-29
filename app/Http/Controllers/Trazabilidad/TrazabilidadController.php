@@ -6,13 +6,17 @@ use App\Exports\TrazabilidadExport;
 use App\Http\Controllers\Controller;
 use App\Models\Trazabilidad\TrazaProduccion;
 use App\Services\Trazabilidad\TrazabilidadMatrixService;
+use App\Services\Trazabilidad\TrazabilidadProduccionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 
 class TrazabilidadController extends Controller
 {
-    public function __construct(private TrazabilidadMatrixService $matriz) {}
+    public function __construct(
+        private TrazabilidadMatrixService $matriz,
+        private TrazabilidadProduccionService $produccionSrv,
+    ) {}
 
     /**
      * Página principal del módulo de Trazabilidad.
@@ -128,6 +132,8 @@ class TrazabilidadController extends Controller
         $areas = [];
         $totales = [];
         $info = null; // Tipo / Cliente / Agente (solo con un Flog específico).
+        $dropdown = false; // Áreas expandibles (Flog con +2 artículos).
+        $produccion = null; // Sección "Producción": telares del flog (Orden/Localidad).
 
         // La matriz se calcula con CUALQUIER filtro activo. La lógica vive en el
         // servicio compartido para que la web y la exportación a Excel coincidan.
@@ -137,11 +143,16 @@ class TrazabilidadController extends Controller
             $areas = $matriz['areas'];
             $totales = $matriz['totales'];
             $info = $matriz['info'];
+            $dropdown = $matriz['dropdown'];
+
+            // Sección "Producción": telares en el flog con su tamaño/color, mapeados
+            // desde la Orden (ReqProgramaTejido / CatCodificados) vs la Localidad.
+            $produccion = $this->produccionSrv->build($filtros);
         }
 
         $datosVista = compact(
             'fechas', 'areas', 'totales', 'filtros', 'hayFlog', 'hayFiltro', 'info',
-            'metrica', 'decimales',
+            'metrica', 'decimales', 'dropdown', 'produccion',
             'opcionesFlog', 'opcionesArticulo', 'opcionesTamano', 'opcionesColor',
             'mesesDisponibles'
         );

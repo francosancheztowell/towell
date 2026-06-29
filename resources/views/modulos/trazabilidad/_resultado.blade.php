@@ -50,6 +50,9 @@
         </p>
     </div>
 @else
+    {{-- Sección "Producción": telares del flog (Orden/Localidad) --}}
+    @include('modulos.trazabilidad._produccion')
+
     {{-- Tarjeta con la matriz --}}
     @php
         // Cuando hay UN solo mes seleccionado, la tabla ocupa todo el ancho (w-full).
@@ -83,17 +86,31 @@
 
                 {{-- Cuerpo: áreas --}}
                 <tbody>
-                    @foreach ($areas as $area)
-                        <tr class="group hover:bg-slate-50/40 transition-colors">
+                    @foreach ($areas as $idx => $area)
+                        @php
+                            // Área expandible: solo cuando hay Flog con +2 artículos ($dropdown)
+                            // y el área tiene desglose por artículo/color.
+                            $expandible = ($dropdown ?? false) && !empty($area['detalles']);
+                        @endphp
+                        <tr class="group hover:bg-slate-50/40 transition-colors {{ $expandible ? 'area-fila cursor-pointer select-none' : '' }}"
+                            @if ($expandible) data-area-key="{{ $idx }}" @endif>
                             {{-- Columna de área (sticky) --}}
                             <td class="sticky left-0 z-10 bg-white group-hover:bg-slate-50 px-3 py-3 w-[350px]
                                        border-b border-slate-100"
                                 style="box-shadow: inset 4px 0 0 0 {{ $area['dot'] }}; border-right:2px solid #cbd5e1;">
                                 <span class="flex items-center gap-2">
+                                    @if ($expandible)
+                                        <i class="area-caret fa-solid fa-chevron-right text-[10px] text-slate-400 transition-transform flex-shrink-0"></i>
+                                    @endif
                                     <span class="inline-block w-2 h-2 rounded-full flex-shrink-0"
                                           style="background-color: {{ $area['dot'] }};"></span>
                                     <span class="font-semibold whitespace-nowrap text-xs"
                                           style="color: {{ $area['text'] }};">{{ $area['label'] ?? $area['nombre'] }}</span>
+                                    @if ($expandible)
+                                        <span class="text-[10px] font-medium text-slate-400 whitespace-nowrap">
+                                            ({{ count($area['detalles']) }})
+                                        </span>
+                                    @endif
                                 </span>
                             </td>
 
@@ -123,6 +140,48 @@
                                 {{ $totalArea ? number_format($totalArea, $decimales) : '—' }}
                             </td>
                         </tr>
+
+                        {{-- Sub-filas: desglose por artículo + color (ocultas hasta hacer click) --}}
+                        @if ($expandible)
+                            @foreach ($area['detalles'] as $det)
+                                <tr class="detalle-fila hidden bg-slate-100" data-area-key="{{ $idx }}">
+                                    {{-- Artículo / color (sticky) --}}
+                                    <td class="sticky left-0 z-10 bg-slate-200 px-3 py-1.5 w-[350px] border-b border-slate-300"
+                                        style="box-shadow: inset 4px 0 0 0 {{ $area['dot'] }}; border-right:2px solid #cbd5e1;">
+                                        <span class="flex flex-col pl-6 leading-tight">
+                                            <span class="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
+                                                {{ $det['articulo'] ?: '—' }}
+                                            </span>
+                                            <span class="text-[10px] text-slate-400 whitespace-nowrap">
+                                                <i class="fa-solid fa-palette mr-0.5"></i>{{ $det['color'] ?: 'Sin color' }}
+                                            </span>
+                                        </span>
+                                    </td>
+
+                                    {{-- Valores por fecha del artículo/color --}}
+                                    @foreach ($fechas as $i => $fecha)
+                                        @php
+                                            $v = $det['valores'][$i] ?? null;
+                                            $bordeMes = !empty($fecha['nuevoMes']) ? 'border-left:3px solid #94a3b8;' : '';
+                                        @endphp
+                                        @if (!is_null($v) && (float) $v != 0.0)
+                                            <td class="px-2 py-1.5 text-center text-[12px] text-slate-600 border-b border-r border-slate-200 tabular-nums"
+                                                style="{{ $bordeMes }}">
+                                                {{ number_format($v, $decimales) }}
+                                            </td>
+                                        @else
+                                            <td class="px-2 py-1.5 text-center text-slate-300 border-b border-r border-slate-200 select-none"
+                                                style="{{ $bordeMes }}">·</td>
+                                        @endif
+                                    @endforeach
+
+                                    {{-- Total de la sub-fila --}}
+                                    <td class="px-2 py-1.5 text-center text-[12px] font-semibold text-slate-700 border-b border-l border-slate-200 bg-blue-50/40 tabular-nums">
+                                        {{ $det['total'] ? number_format($det['total'], $decimales) : '—' }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endif
                     @endforeach
                 </tbody>
 
