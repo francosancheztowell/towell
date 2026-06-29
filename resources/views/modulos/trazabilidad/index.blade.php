@@ -209,6 +209,25 @@
             dropdownCssClass: 'traza-select2-dd'
         });
 
+        // ===== Pestañas Trazabilidad / Producción =====
+        // Las pestañas viven dentro de #resultado (se re-renderiza en cada AJAX), así
+        // que el handler es delegado y la pestaña activa se reaplica tras cada carga.
+        let tabActivo = 'trazabilidad';
+        function aplicarTab(tab) {
+            tabActivo = tab;
+            const $r = $('#resultado');
+            $r.find('[data-pane]').addClass('hidden');
+            $r.find('[data-pane="' + tab + '"]').removeClass('hidden');
+            $r.find('.traza-tab').each(function () {
+                const activo = $(this).data('tab') === tab;
+                $(this).toggleClass('text-blue-600 border-blue-600', activo)
+                       .toggleClass('text-slate-400 border-transparent hover:text-slate-600', !activo);
+            });
+        }
+        $resultado.on('click', '.traza-tab', function () {
+            aplicarTab($(this).data('tab'));
+        });
+
         // Reconstruye un select simple (Flog/Tamaño/Color) preservando el valor.
         function rebuildSelect(id, opciones, seleccionado) {
             let html = '<option value="">Todos</option>';
@@ -292,6 +311,8 @@
                 const data = await window.http.get(RUTA, { params });
                 if (seq !== reqSeq) return; // llegó una petición más nueva; ignorar esta
                 $resultado.html(data.resultado);
+                aplicarTab(tabActivo); // reaplica la pestaña activa tras re-renderizar
+
                 rebuildSelect('#filtro-flog', data.opciones.flog, data.filtros.flog);
                 rebuildCombo('#filtro-articulo', data.opciones.articulo, data.filtros.articulo);
                 rebuildSelect('#filtro-tamano', data.opciones.tamano, data.filtros.tamano);
@@ -347,6 +368,9 @@
 
         // Render inicial de los badges de meses (desde los datos del servidor).
         rebuildMeses(@json($mesesDisponibles));
+
+        // Estilo inicial de la pestaña activa (las pestañas existen si hay filtro).
+        aplicarTab(tabActivo);
 
         // Render inicial del resumen de conteos.
         @php $conteosIniciales = [

@@ -7,16 +7,21 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Trazabilidad\TrazaProduccion;
 
 /**
- * Construye la sección "Producción" de Trazabilidad: los telares que están en el
- * flog (o filtro) actual, con su tamaño y color.
+ * Construye la sección "Producción" de Trazabilidad: una tarjeta por telar del
+ * flog (o filtro) actual, con sus piezas Programadas / Producidas / KG y avance.
  *
  * El telar de cada registro se conoce por dos vías que deben coincidir:
- *  - La columna `Localidad` de TrazaProduccion (el telar según trazabilidad).
+ *  - La columna `Localidad` de TrazaProduccion (el telar según trazabilidad) → es
+ *    el telar que titula cada tarjeta.
  *  - El telar de la `Orden`: se busca primero en ReqProgramaTejido por NoProduccion
- *    (NoTelarId) y, si no está, en CatCodificados por OrdenTejido (TelarId).
+ *    (NoTelarId) y, si no está, en CatCodificados por OrdenTejido (TelarId). De esas
+ *    tablas también salen las piezas Programadas y el estándar de Pzas/Día.
  *
  * Cuando el telar de la orden no coincide con la Localidad —o la orden no se
- * localiza en ninguna de las dos tablas— se marca una alerta en esa fila.
+ * localiza en ninguna de las dos tablas— se marca una alerta en esa tarjeta.
+ *
+ * Producidas/KG provienen de la propia trazabilidad (área "Crudo": lo que el telar
+ * tejió); Programadas/Pzas-Día provienen del programa de tejido.
  */
 class TrazabilidadProduccionService
 {
@@ -38,46 +43,38 @@ class TrazabilidadProduccionService
             ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
             ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
 
-        // Una fila por Orden + Localidad (telar) + Tamaño + Color. La cantidad/peso
-        // producidos se toman del área "Crudo" (lo que el telar tejió).
+        // Una fila por Orden + Localidad (telar). Producidas/KG = área "Crudo".
         $rows = $base()
             ->whereNotNull('Orden')->where('Orden', '<>', '')
             ->selectRaw("
                 Orden,
                 Localidad,
-                Tamano,
-                Color,
-                MAX(NombreColor) as NombreColor,
-                MAX(Articulo) as Articulo,
-                MAX(NombreArticulo) as NombreArticulo,
                 SUM(CASE WHEN NombreAlmacen = 'Crudo' THEN Cantidad ELSE 0 END) as cantidad_crudo,
                 SUM(CASE WHEN NombreAlmacen = 'Crudo' THEN Peso ELSE 0 END) as peso_crudo
             ")
-            ->groupBy('Orden', 'Localidad', 'Tamano', 'Color')
+            ->groupBy('Orden', 'Localidad')
             ->get();
 
         if ($rows->isEmpty()) {
             return ['telares' => [], 'resumen' => $this->resumenVacio()];
         }
 
-        // --- Mapa Orden => telar, en lote para no consultar fila por fila ---
+        // --- Mapa Orden => datos del programa de tejido, en lote ---
         $ordenes = $rows->pluck('Orden')->map(fn ($o) => trim((string) $o))
             ->filter()->unique()->values();
 
         $programa = ReqProgramaTejido::query()
             ->whereIn('NoProduccion', $ordenes->all())
-            ->whereNotNull('NoTelarId')
-            ->get(['NoProduccion', 'NoTelarId'])
+            ->get(['NoProduccion', 'NoTelarId', 'TotalPzas', 'TotalPedido', 'StdDia', 'EnProceso'])
             ->keyBy(fn ($r) => trim((string) $r->NoProduccion));
 
-        // Las órdenes que no están en el programa de tejido se buscan en CatCodificados.
+        // Las órdenes que no están en el programa se buscan en CatCodificados.
         $faltantes = $ordenes->reject(fn ($o) => $programa->has($o))->values();
         $codificados = collect();
         if ($faltantes->isNotEmpty()) {
             $codificados = CatCodificados::query()
                 ->whereIn('OrdenTejido', $faltantes->all())
-                ->whereNotNull('TelarId')
-                ->get(['OrdenTejido', 'TelarId'])
+                ->get(['OrdenTejido', 'TelarId', 'TotalPzas', 'Pedido', 'Total'])
                 ->keyBy(fn ($r) => trim((string) $r->OrdenTejido));
         }
 
@@ -85,67 +82,129 @@ class TrazabilidadProduccionService
         // la orden como "202". Comparamos por el número para no marcar falsos positivos.
         $soloDigitos = fn ($t) => preg_replace('/\D/', '', (string) $t);
 
-        $telares = $rows->map(function ($r) use ($programa, $codificados, $soloDigitos) {
+        // --- Agregar por telar (Localidad) ---
+        $porTelar = [];
+        foreach ($rows as $r) {
             $orden = trim((string) $r->Orden);
             $localidad = trim((string) ($r->Localidad ?? ''));
+            $numLoc = $soloDigitos($localidad);
+            $clave = $numLoc !== '' ? $numLoc : ($localidad !== '' ? $localidad : 'sin_telar');
 
+            // Resolver telar / programadas / std-día de la orden.
             $telarOrden = null;
             $fuente = null;
+            $programadas = 0.0;
+            $stdDia = null;
+            $enProceso = false;
+
             if ($programa->has($orden)) {
-                $telarOrden = trim((string) $programa[$orden]->NoTelarId);
+                $p = $programa[$orden];
+                $telarOrden = trim((string) $p->NoTelarId);
                 $fuente = 'programa';
+                $programadas = (float) ($p->TotalPzas ?: $p->TotalPedido ?: 0);
+                $stdDia = $p->StdDia !== null ? (float) $p->StdDia : null;
+                $enProceso = (bool) $p->EnProceso;
             } elseif ($codificados->has($orden)) {
-                $telarOrden = trim((string) $codificados[$orden]->TelarId);
+                $c = $codificados[$orden];
+                $telarOrden = trim((string) $c->TelarId);
                 $fuente = 'codificados';
+                $programadas = (float) ($c->TotalPzas ?: $c->Pedido ?: $c->Total ?: 0);
             }
 
             $numOrden = $soloDigitos($telarOrden);
-            $numLoc = $soloDigitos($localidad);
             $coincide = $telarOrden !== null && $numOrden !== '' && $numOrden === $numLoc;
 
-            // Alerta: la orden no se localizó, o el telar de la orden no coincide.
-            $alerta = null;
+            $alertaOrden = null;
             if ($telarOrden === null || $telarOrden === '') {
-                $alerta = 'no_encontrado';
+                $alertaOrden = 'no_encontrado';
             } elseif (! $coincide) {
-                $alerta = 'no_coincide';
+                $alertaOrden = 'no_coincide';
             }
 
-            return [
+            if (! isset($porTelar[$clave])) {
+                $porTelar[$clave] = [
+                    'telar' => $this->formatearTelar($localidad, $numLoc),
+                    'localidad' => $localidad,
+                    'numTelar' => $numLoc,
+                    'programadas' => 0.0,
+                    'producidas' => 0.0,
+                    'kg' => 0.0,
+                    'pzasDia' => null,
+                    'enProceso' => false,
+                    'alerta' => false,
+                    'ordenes' => [],
+                ];
+            }
+
+            $t = &$porTelar[$clave];
+            $t['programadas'] += $programadas;
+            $t['producidas'] += (float) $r->cantidad_crudo;
+            $t['kg'] += (float) $r->peso_crudo;
+            // Pzas/Día: estándar del telar (tomamos el mayor entre sus órdenes).
+            if ($stdDia !== null) {
+                $t['pzasDia'] = max((float) ($t['pzasDia'] ?? 0), $stdDia);
+            }
+            $t['enProceso'] = $t['enProceso'] || $enProceso;
+            if ($alertaOrden !== null) {
+                $t['alerta'] = true;
+            }
+            $t['ordenes'][] = [
                 'orden' => $orden,
-                'localidad' => $localidad,
                 'telarOrden' => $telarOrden,
                 'fuente' => $fuente,
-                'tamano' => trim((string) ($r->Tamano ?? '')),
-                'color' => trim(($r->Color ?? '').(filled($r->NombreColor) ? ' / '.$r->NombreColor : '')),
-                'articulo' => trim(($r->Articulo ?? '').(filled($r->NombreArticulo) ? ' / '.$r->NombreArticulo : '')),
-                'cantidad' => (float) $r->cantidad_crudo,
-                'peso' => (float) $r->peso_crudo,
-                'alerta' => $alerta,
+                'alerta' => $alertaOrden,
             ];
+            unset($t);
+        }
+
+        // Avance por telar + orden por número de telar.
+        $telares = collect($porTelar)->map(function ($t) {
+            $t['avance'] = $t['programadas'] > 0
+                ? round($t['producidas'] / $t['programadas'] * 100, 1)
+                : 0.0;
+
+            return $t;
         })
-            // Ordenar por telar (Localidad) y luego por orden para una lectura estable.
-            ->sortBy([
-                fn ($a, $b) => $soloDigitos($a['localidad']) <=> $soloDigitos($b['localidad']),
-                fn ($a, $b) => $a['orden'] <=> $b['orden'],
-            ])
+            ->sortBy(fn ($t) => $t['numTelar'] !== '' ? (int) $t['numTelar'] : PHP_INT_MAX)
             ->values()
             ->all();
 
         $col = collect($telares);
+        $totalProg = (float) $col->sum('programadas');
+        $totalProd = (float) $col->sum('producidas');
         $resumen = [
-            'telares' => $col->pluck('localidad')->filter()->unique()->count(),
-            'ordenes' => $col->count(),
-            'cantidad' => $col->sum('cantidad'),
-            'peso' => $col->sum('peso'),
-            'alertas' => $col->filter(fn ($t) => $t['alerta'] !== null)->count(),
+            'telares' => $col->count(),
+            'activos' => $col->filter(fn ($t) => $t['enProceso'])->count(),
+            'programadas' => $totalProg,
+            'producidas' => $totalProd,
+            'kg' => (float) $col->sum('kg'),
+            'avance' => $totalProg > 0 ? round($totalProd / $totalProg * 100, 1) : 0.0,
+            'alertas' => $col->filter(fn ($t) => $t['alerta'])->count(),
         ];
 
         return ['telares' => $telares, 'resumen' => $resumen];
     }
 
+    /**
+     * Etiqueta del telar para la tarjeta: "T-202" si hay número; si no, el texto
+     * crudo de la Localidad o "Sin telar".
+     */
+    private function formatearTelar(string $localidad, string $numLoc): string
+    {
+        if ($numLoc !== '') {
+            $n = ltrim($numLoc, '0');
+
+            return 'T-'.($n !== '' ? $n : $numLoc);
+        }
+
+        return $localidad !== '' ? $localidad : 'Sin telar';
+    }
+
     private function resumenVacio(): array
     {
-        return ['telares' => 0, 'ordenes' => 0, 'cantidad' => 0, 'peso' => 0, 'alertas' => 0];
+        return [
+            'telares' => 0, 'activos' => 0, 'programadas' => 0, 'producidas' => 0,
+            'kg' => 0, 'avance' => 0, 'alertas' => 0,
+        ];
     }
 }
