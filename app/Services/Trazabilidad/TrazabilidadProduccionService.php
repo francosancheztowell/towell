@@ -13,9 +13,12 @@ use App\Models\Trazabilidad\TrazaProduccion;
  * El telar de cada registro se conoce por dos vías que deben coincidir:
  *  - La columna `Localidad` de TrazaProduccion (el telar según trazabilidad) → es
  *    el telar que titula cada tarjeta.
- *  - El telar de la `Orden`: se busca primero en ReqProgramaTejido por NoProduccion
- *    (NoTelarId) y, si no está, en CatCodificados por OrdenTejido (TelarId). De esas
- *    tablas también salen las piezas Programadas y el estándar de Pzas/Día.
+ *  - El telar de la `Orden`: ReqProgramaTejido (activo) o CatCodificados (finalizado).
+ *
+ * Campos por fuente en cada tarjeta:
+ *  - Programa: NoTelarId, TotalPedido, Produccion, SaldoPedido, SalonTejidoId, StdDia,
+ *    FechaInicio, FechaFinal, OrdCompartida, OrdCompartidaLider.
+ *  - CatCodificados: TelarId, OrdenTejido, Pedido, Produccion, Saldos.
  *
  * Cuando TrazaProduccion registra la misma Orden en otra Localidad distinta al
  * telar del programa, se marca alerta en la tarjeta única (sin duplicar la orden).
@@ -81,7 +84,13 @@ class TrazabilidadProduccionService
             ->whereIn('NoProduccion', $ordenes->all())
             ->orderByDesc('EnProceso')
             ->orderByDesc('Id')
-            ->get(['NoProduccion', 'NoTelarId', 'TotalPzas', 'TotalPedido', 'StdDia', 'EnProceso'])
+            ->get([
+                'NoProduccion', 'NoTelarId', 'SalonTejidoId',
+                'TotalPedido', 'Produccion', 'SaldoPedido', 'TotalPzas',
+                'StdDia', 'EnProceso',
+                'FechaInicio', 'FechaFinal',
+                'OrdCompartida', 'OrdCompartidaLider',
+            ])
             ->unique(fn ($r) => trim((string) $r->NoProduccion))
             ->keyBy(fn ($r) => trim((string) $r->NoProduccion));
 
@@ -91,7 +100,9 @@ class TrazabilidadProduccionService
         if ($faltantes->isNotEmpty()) {
             $codificados = CatCodificados::query()
                 ->whereIn('OrdenTejido', $faltantes->all())
-                ->get(['OrdenTejido', 'TelarId', 'TotalPzas', 'Pedido', 'Total'])
+                ->orderByDesc('Id')
+                ->get(['OrdenTejido', 'TelarId', 'Pedido', 'Produccion', 'Saldos'])
+                ->unique(fn ($r) => trim((string) $r->OrdenTejido))
                 ->keyBy(fn ($r) => trim((string) $r->OrdenTejido));
         }
 
@@ -114,19 +125,48 @@ class TrazabilidadProduccionService
             $programadas = 0.0;
             $stdDia = null;
             $enProceso = false;
+            $programaDatos = null;
+            $codificadosDatos = null;
 
             if ($programa->has($orden)) {
                 $p = $programa[$orden];
                 $telarOrden = trim((string) $p->NoTelarId);
                 $fuente = 'programa';
-                $programadas = (float) ($p->TotalPzas ?: $p->TotalPedido ?: 0);
+                $totalPedido = (float) ($p->TotalPedido ?? 0);
+                $produccionBd = (float) ($p->Produccion ?? 0);
+                $programadas = $totalPedido > 0 ? $totalPedido : (float) ($p->TotalPzas ?? 0);
                 $stdDia = $p->StdDia !== null ? (float) $p->StdDia : null;
                 $enProceso = (bool) $p->EnProceso;
+                $ordCompartida = $p->OrdCompartida;
+                $esOrdCompartida = filled($ordCompartida) && (int) $ordCompartida > 0;
+                $programaDatos = [
+                    'noTelarId' => $telarOrden,
+                    'noProduccion' => $orden,
+                    'salonTejidoId' => trim((string) ($p->SalonTejidoId ?? '')),
+                    'totalPedido' => $totalPedido,
+                    'produccion' => $produccionBd,
+                    'saldoPedido' => (float) ($p->SaldoPedido ?? 0),
+                    'stdDia' => $stdDia,
+                    'fechaInicio' => filled($p->FechaInicio) ? formatearFecha($p->FechaInicio) : null,
+                    'fechaFinal' => filled($p->FechaFinal) ? formatearFecha($p->FechaFinal) : null,
+                    'esOrdCompartida' => $esOrdCompartida,
+                    'ordCompartida' => $esOrdCompartida ? (int) $ordCompartida : null,
+                    'esLiderOrdCompartida' => (bool) $p->OrdCompartidaLider,
+                ];
             } elseif ($codificados->has($orden)) {
                 $c = $codificados[$orden];
                 $telarOrden = trim((string) $c->TelarId);
                 $fuente = 'codificados';
-                $programadas = (float) ($c->TotalPzas ?: $c->Pedido ?: $c->Total ?: 0);
+                $pedido = (float) ($c->Pedido ?? 0);
+                $produccionCat = (float) ($c->Produccion ?? 0);
+                $programadas = $pedido;
+                $codificadosDatos = [
+                    'telarId' => $telarOrden,
+                    'ordenTejido' => $orden,
+                    'pedido' => $pedido,
+                    'produccion' => $produccionCat,
+                    'saldos' => (float) ($c->Saldos ?? 0),
+                ];
             }
 
             if ($telarOrden === null || $telarOrden === '') {
@@ -157,7 +197,17 @@ class TrazabilidadProduccionService
             }
 
             $localidadesExtra = array_values(array_unique($localidadesExtra));
-            $avance = $programadas > 0 ? round($producidas / $programadas * 100, 1) : 0.0;
+
+            $avancePrograma = null;
+            if ($programaDatos !== null && $programaDatos['totalPedido'] > 0) {
+                $avancePrograma = round($programaDatos['produccion'] / $programaDatos['totalPedido'] * 100, 1);
+            }
+            $avanceCodificados = null;
+            if ($codificadosDatos !== null && $codificadosDatos['pedido'] > 0) {
+                $avanceCodificados = round($codificadosDatos['produccion'] / $codificadosDatos['pedido'] * 100, 1);
+            }
+            $avanceTraza = $programadas > 0 ? round($producidas / $programadas * 100, 1) : 0.0;
+            $avance = $avancePrograma ?? $avanceCodificados ?? $avanceTraza;
 
             $ordenCards[] = [
                 'orden' => $orden,
@@ -175,6 +225,9 @@ class TrazabilidadProduccionService
                 'kg' => $kg,
                 'pzasDia' => $stdDia,
                 'avance' => $avance,
+                'avanceTraza' => $avanceTraza,
+                'programa' => $programaDatos,
+                'codificados' => $codificadosDatos,
             ];
         }
 
