@@ -104,6 +104,54 @@
         }
         /* Indicar que la fila de área es clickeable */
         #resultado tr.area-fila > td:first-child { cursor: pointer; }
+
+        /* === Tarjetas pestaña Producción === */
+        .prod-card-v2 {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            overflow: hidden;
+            min-height: 100%;
+        }
+        .prod-card-v2.prod-card--alerta {
+            border-color: #fcd34d;
+            box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.25);
+        }
+        .prod-card-v2__accent {
+            width: 5px;
+            flex-shrink: 0;
+        }
+        .prod-card-v2__accent--activo { background: #22c55e; }
+        .prod-card-v2__accent--terminado { background: #94a3b8; }
+        .prod-card-v2__accent--alerta { background: #f59e0b; }
+        .prod-stat-box {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.65rem;
+            padding: 0.65rem 0.75rem;
+            min-width: 0;
+        }
+        .prod-stat-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+        .prod-stat-value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1e293b;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.25;
+            margin-top: 0.15rem;
+            word-break: break-word;
+        }
+        .prod-switch .prod-filter-btn {
+            white-space: nowrap;
+        }
     </style>
 
     <div class="w-full min-h-full px-1.5 md:px-2 py-3" style="background:#f1f5f9;" id="globalLoader">
@@ -303,6 +351,34 @@
         let reqSeq = 0;
         let prodSeq = 0;
 
+        let prodFiltroActivo = 'todos';
+
+        function aplicarFiltroProduccion(filter) {
+            prodFiltroActivo = filter || 'todos';
+            const $cont = $('#produccion-contenido');
+            if (!$cont.length) return;
+
+            $cont.find('.prod-filter-btn').each(function () {
+                const activo = $(this).data('filter') === prodFiltroActivo;
+                $(this).toggleClass('bg-white shadow text-slate-700', activo)
+                       .toggleClass('text-slate-500', !activo);
+            });
+
+            let visibles = 0;
+            $cont.find('.prod-card').each(function () {
+                const visible = prodFiltroActivo === 'todos'
+                    || $(this).data('estado') === prodFiltroActivo;
+                $(this).toggle(visible);
+                if (visible) visibles++;
+            });
+
+            $cont.find('.prod-sin-resultados').toggle(visibles === 0 && $cont.find('.prod-card').length > 0);
+        }
+
+        $resultado.on('click', '.prod-filter-btn', function () {
+            aplicarFiltroProduccion($(this).data('filter'));
+        });
+
         function actualizarBadgeProduccion(cantidad) {
             const $tab = $('#resultado .traza-tab[data-tab="produccion"]');
             $tab.find('.prod-alert-badge').remove();
@@ -322,6 +398,7 @@
                 const $cont = $('#produccion-contenido');
                 if ($cont.length) {
                     $cont.html(data.produccionHtml);
+                    aplicarFiltroProduccion(prodFiltroActivo);
                 }
                 actualizarBadgeProduccion(data.prodAlertas || 0);
             } catch (err) {

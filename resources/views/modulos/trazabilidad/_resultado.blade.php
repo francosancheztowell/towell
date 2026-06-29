@@ -24,7 +24,7 @@
         </button>
         <button type="button" data-tab="produccion"
                 class="traza-tab inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold border-b-2 -mb-px transition-colors">
-            <span>🧶</span> Producción
+            <i class="fa-solid fa-industry"></i> Producción
             @php $prodIssues = (int) ($produccion['resumen']['alertas'] ?? 0); @endphp
             @if ($prodIssues > 0)
                 <span class="prod-alert-badge inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold min-w-4 h-4 px-1"
@@ -233,7 +233,7 @@
     <div data-pane="produccion" class="hidden">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3">
             <h2 class="text-xs md:text-sm font-bold text-slate-600 whitespace-nowrap flex items-center gap-1.5">
-                <span>🧶</span> Producción · Telares
+                Producción · Telares
                 @if ($hayFlog)
                     <span class="ml-2 normal-case font-semibold text-blue-600">· {{ $filtros['flog'] }}</span>
                 @endif
