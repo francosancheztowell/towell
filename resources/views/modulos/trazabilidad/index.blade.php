@@ -149,15 +149,46 @@
             line-height: 1.2;
             margin-top: 0.2rem;
         }
-        .prod-tag {
+        .prod-badge {
+            display: inline-flex;
+            align-items: center;
             font-size: 0.625rem;
-            font-weight: 500;
-            color: #475569;
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.25rem;
-            padding: 0.125rem 0.375rem;
-            line-height: 1.3;
+            font-weight: 600;
+            border-radius: 0.375rem;
+            padding: 0.2rem 0.45rem;
+            line-height: 1.35;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        .prod-badge--salon {
+            color: #0369a1;
+            background: #e0f2fe;
+            border-color: #7dd3fc;
+        }
+        .prod-badge--compartida {
+            color: #6d28d9;
+            background: #ede9fe;
+            border-color: #c4b5fd;
+        }
+        .prod-badge--mes {
+            color: #4338ca;
+            background: #e0e7ff;
+            border-color: #a5b4fc;
+        }
+        .prod-badge--fecha {
+            color: #0f766e;
+            background: #ccfbf1;
+            border-color: #5eead4;
+        }
+        .prod-badge--saldo {
+            color: #b45309;
+            background: #fef3c7;
+            border-color: #fcd34d;
+        }
+        .prod-badge--saldo-neg {
+            color: #b91c1c;
+            background: #fee2e2;
+            border-color: #fca5a5;
         }
         .prod-switch .prod-filter-btn {
             white-space: nowrap;

@@ -4,6 +4,14 @@
     $prod       = $produccion ?? ['ordenes' => [], 'noEncontradas' => []];
     $ordenCards = $prod['ordenes'] ?? [];
     $resumen    = $prod['resumen'] ?? [];
+    $soloFecha = function (?string $fecha): ?string {
+        if (blank($fecha)) {
+            return null;
+        }
+        $partes = preg_split('/\s+/', trim($fecha), 2);
+
+        return $partes[0] ?? trim($fecha);
+    };
 @endphp
 
 @if (empty($ordenCards))
@@ -131,14 +139,24 @@
                         </div>
                     </div>
 
-                    {{-- Etiquetas: salón, ord. compartida, meses --}}
-                    @if (!empty($o['programa']['salonTejidoId']) || !empty($o['programa']['esOrdCompartida']) || !empty($o['meses']))
-                        <div class="flex flex-wrap gap-1 mb-2">
+                    {{-- Badges: salón, ord. compartida, mes, fechas, saldo --}}
+                    @php
+                        $fechaInicio = $soloFecha($o['programa']['fechaInicio'] ?? null);
+                        $fechaFinal = $soloFecha($o['programa']['fechaFinal'] ?? null);
+                        $hayBadges = !empty($o['programa']['salonTejidoId'])
+                            || !empty($o['programa']['esOrdCompartida'])
+                            || !empty($o['meses'])
+                            || filled($fechaInicio)
+                            || filled($fechaFinal)
+                            || $saldoLabel !== null;
+                    @endphp
+                    @if ($hayBadges)
+                        <div class="flex flex-wrap gap-1 mb-2.5">
                             @if (!empty($o['programa']['salonTejidoId']))
-                                <span class="prod-tag">{{ $o['programa']['salonTejidoId'] }}</span>
+                                <span class="prod-badge prod-badge--salon">{{ $o['programa']['salonTejidoId'] }}</span>
                             @endif
                             @if (!empty($o['programa']['esOrdCompartida']))
-                                <span class="prod-tag text-violet-700 border-violet-200 bg-violet-50">
+                                <span class="prod-badge prod-badge--compartida">
                                     ord. compartida {{ $o['programa']['ordCompartida'] }}
                                     @if ($o['programa']['esLiderOrdCompartida'])
                                         · líder
@@ -146,19 +164,18 @@
                                 </span>
                             @endif
                             @foreach ($o['meses'] ?? [] as $mes)
-                                <span class="prod-tag text-indigo-700 border-indigo-200 bg-indigo-50">{{ $mes }}</span>
+                                <span class="prod-badge prod-badge--mes">{{ $mes }}</span>
                             @endforeach
-                        </div>
-                    @endif
-
-                    {{-- Fechas (solo programa) --}}
-                    @if (!empty($o['programa']['fechaInicio']) || !empty($o['programa']['fechaFinal']))
-                        <div class="space-y-0.5 text-[10px] text-slate-500 mb-2.5">
-                            @if (!empty($o['programa']['fechaInicio']))
-                                <div>inicio: <span class="text-slate-700 font-medium">{{ $o['programa']['fechaInicio'] }}</span></div>
+                            @if (filled($fechaInicio))
+                                <span class="prod-badge prod-badge--fecha">inicio {{ $fechaInicio }}</span>
                             @endif
-                            @if (!empty($o['programa']['fechaFinal']))
-                                <div>final: <span class="text-slate-700 font-medium">{{ $o['programa']['fechaFinal'] }}</span></div>
+                            @if (filled($fechaFinal))
+                                <span class="prod-badge prod-badge--fecha">final {{ $fechaFinal }}</span>
+                            @endif
+                            @if ($saldoLabel !== null)
+                                <span class="prod-badge {{ $saldoValor < 0 ? 'prod-badge--saldo-neg' : 'prod-badge--saldo' }}">
+                                    {{ $saldoLabel }} {{ number_format($saldoValor) }}
+                                </span>
                             @endif
                         </div>
                     @endif
@@ -181,22 +198,6 @@
                             <div class="prod-stat-label">pzas/día</div>
                             <div class="prod-stat-value">{{ $pzasDia !== null ? number_format($pzasDia) : '—' }}</div>
                         </div>
-                    </div>
-
-                    {{-- Saldos + trazabilidad --}}
-                    <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500 mb-3">
-                        @if ($saldoLabel !== null)
-                            <span>
-                                {{ $saldoLabel }}:
-                                <b class="tabular-nums {{ $saldoValor < 0 ? 'text-red-600' : 'text-slate-800' }}">
-                                    {{ number_format($saldoValor) }}
-                                </b>
-                            </span>
-                        @endif
-                        <span>
-                            traza:
-                            <b class="text-slate-800 tabular-nums">{{ number_format($o['producidas']) }}</b>
-                        </span>
                     </div>
 
                     {{-- Avance --}}
