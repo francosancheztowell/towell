@@ -28,18 +28,18 @@
             <span class="font-semibold text-slate-700">{{ count($ordenCards) }} órdenes</span>
             @if (($resumen['activos'] ?? 0) > 0)
                 <span class="text-[11px] bg-emerald-50 text-emerald-700 rounded-full px-2 py-0.5 font-medium">
-                    {{ $resumen['activos'] }} activas
+                    {{ $resumen['activos'] }} Activas
                 </span>
             @endif
             @if (($resumen['terminados'] ?? 0) > 0)
                 <span class="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2 py-0.5 font-medium">
-                    {{ $resumen['terminados'] }} terminadas
+                    {{ $resumen['terminados'] }} Terminadas
                 </span>
             @endif
             @if (($resumen['alertas'] ?? 0) > 0)
                 <span class="text-[11px] bg-amber-50 text-amber-700 rounded-full px-2 py-0.5 font-medium"
                       title="La trazabilidad registra piezas de esa orden en un telar distinto al del programa">
-                    {{ $resumen['alertas'] }} con prod. en otro telar
+                    {{ $resumen['alertas'] }} Con prod. en otro telar
                 </span>
             @endif
         </div>
@@ -47,17 +47,17 @@
         <div class="prod-segment select-none shrink-0 self-start sm:self-auto" role="group" aria-label="Filtrar órdenes">
             <button type="button" data-filter="todos"
                     class="prod-filter-btn prod-segment__btn is-active">
-                <span>todos</span>
+                <span>Todos</span>
                 <span class="prod-segment__count">{{ count($ordenCards) }}</span>
             </button>
             <button type="button" data-filter="activo"
                     class="prod-filter-btn prod-segment__btn prod-segment__btn--activo">
-                <span>activo</span>
+                <span>Activo</span>
                 <span class="prod-segment__count">{{ $resumen['activos'] ?? 0 }}</span>
             </button>
             <button type="button" data-filter="terminado"
                     class="prod-filter-btn prod-segment__btn prod-segment__btn--terminado">
-                <span>terminado</span>
+                <span>Terminado</span>
                 <span class="prod-segment__count">{{ $resumen['terminados'] ?? 0 }}</span>
             </button>
         </div>
@@ -103,8 +103,8 @@
                     ? 'En trazabilidad hay producción de esta orden también en: '.$conflictoTexto.'. En programa/catálogo está en '.$o['telar'].'.'
                     : 'La localidad en trazabilidad no coincide con el telar del programa.';
                 $etiquetaAlerta = $conflictoTexto !== ''
-                    ? 'prod. en '.$conflicto[0]
-                    : 'otro telar';
+                    ? 'Prod. en '.$conflicto[0]
+                    : 'Otro telar';
             @endphp
 
             <div class="prod-card prod-card-v2 {{ $o['alerta'] ? 'prod-card--alerta' : '' }}"
@@ -118,22 +118,22 @@
                                 {{ $o['telar'] }}
                             </div>
                             <div class="text-2xl font-extrabold text-slate-800 leading-none tracking-tight mt-1 font-mono">
-                                orden: {{ $o['orden'] }}
+                                Orden {{ $o['orden'] }}
                             </div>
                         </div>
                         <div class="flex flex-col items-end gap-1 shrink-0 max-w-[48%]">
                             @if ($o['enProceso'])
                                 <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2.5 py-1 whitespace-nowrap">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    en producción
+                                    En producción
                                 </span>
                             @elseif ($o['fuente'] === 'programa')
                                 <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2.5 py-1 whitespace-nowrap">
-                                    programado
+                                    Programado
                                 </span>
                             @else
                                 <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium px-2.5 py-1 whitespace-nowrap">
-                                    finalizado
+                                    Finalizado
                                 </span>
                             @endif
                             @if ($o['alerta'])
@@ -157,9 +157,9 @@
                         <div class="flex flex-wrap gap-1 mb-2.5">
                             @if (!empty($o['programa']['esOrdCompartida']))
                                 <span class="prod-badge prod-badge--compartida">
-                                    ord. compartida {{ $o['programa']['ordCompartida'] }}
+                                    Ord. compartida {{ $o['programa']['ordCompartida'] }}
                                     @if ($o['programa']['esLiderOrdCompartida'])
-                                        · líder
+                                        · Líder
                                     @endif
                                 </span>
                             @endif
@@ -167,24 +167,24 @@
                                 <span class="prod-badge prod-badge--mes">{{ $mes }}</span>
                             @endforeach
                             @if (filled($fechaInicio))
-                                <span class="prod-badge prod-badge--fecha">inicio {{ $fechaInicio }}</span>
+                                <span class="prod-badge prod-badge--fecha">Inicio {{ $fechaInicio }}</span>
                             @endif
                             @if (filled($fechaFinal))
-                                <span class="prod-badge prod-badge--fecha">final {{ $fechaFinal }}</span>
+                                <span class="prod-badge prod-badge--fecha">Final {{ $fechaFinal }}</span>
                             @endif
                         </div>
                     @endif
 
                     <div class="grid grid-cols-2 gap-2 mb-3">
                         <div class="prod-stat-box">
-                            <div class="prod-stat-label">programadas</div>
+                            <div class="prod-stat-label">Programadas</div>
                             <div class="prod-stat-value">{{ number_format($programadas) }}</div>
                         </div>
                         <div class="prod-stat-box"
                              title="Piezas: ReqProgramaTejido.Produccion (o CatCodificados.Produccion). Kilos: suma de Peso en TrazaProduccion, área Crudo, en el telar del programa.">
-                            <div class="prod-stat-label">producido</div>
-                            <div class="prod-stat-value prod-stat-value--sm">{{ number_format($producidasBd) }} pzas</div>
-                            <div class="prod-stat-value prod-stat-value--sm text-teal-800">{{ number_format($kgProducidos, 2) }} kg</div>
+                            <div class="prod-stat-label">Producido</div>
+                            <div class="prod-stat-value prod-stat-value--sm">{{ number_format($producidasBd) }} Pzas</div>
+                            <div class="prod-stat-value prod-stat-value--sm text-teal-800">{{ number_format($kgProducidos, 2) }} Kg</div>
                         </div>
                         <div class="prod-stat-box col-span-2"
                              title="StdDia y ProdKgDia de ReqProgramaTejido (piezas y kg estándar por día).">
@@ -192,10 +192,10 @@
                             @if ($pzasDia !== null || $prodKgDia !== null)
                                 <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-0.5">
                                     @if ($pzasDia !== null)
-                                        <span class="prod-stat-value text-base">{{ number_format($pzasDia) }} <span class="text-xs font-semibold text-slate-400">pzas/día</span></span>
+                                        <span class="prod-stat-value text-base">{{ number_format($pzasDia) }} <span class="text-xs font-semibold text-slate-400">Pzas/día</span></span>
                                     @endif
                                     @if ($prodKgDia !== null)
-                                        <span class="prod-stat-value text-base">{{ number_format($prodKgDia, 2) }} <span class="text-xs font-semibold text-slate-400">kg/día</span></span>
+                                        <span class="prod-stat-value text-base">{{ number_format($prodKgDia, 2) }} <span class="text-xs font-semibold text-slate-400">Kg/día</span></span>
                                     @endif
                                 </div>
                             @else
@@ -207,7 +207,7 @@
                     <div class="mt-auto">
                         <div class="flex items-center justify-between text-[11px] mb-1.5 gap-2">
                             <span class="text-slate-600">
-                                avance: <b class="text-slate-900">{{ number_format($avance, 1) }}%</b>
+                                Avance: <b class="text-slate-900">{{ number_format($avance, 1) }}%</b>
                             </span>
                             <span class="text-slate-400 tabular-nums shrink-0">{{ $avanceRef }}</span>
                         </div>

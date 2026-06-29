@@ -256,7 +256,7 @@ class TrazabilidadProduccionService
     }
 
     /**
-     * Etiqueta del telar para la tarjeta: "T-202" si hay número; si no, el texto
+     * Etiqueta del telar para la tarjeta: "Telar 202" si hay número; si no, el texto
      * crudo de la Localidad o "Sin telar".
      */
     private function formatearTelar(string $localidad, string $numLoc): string
@@ -264,7 +264,7 @@ class TrazabilidadProduccionService
         if ($numLoc !== '') {
             $n = ltrim($numLoc, '0');
 
-            return 'T-'.($n !== '' ? $n : $numLoc);
+            return 'Telar '.($n !== '' ? $n : $numLoc);
         }
 
         return $localidad !== '' ? $localidad : 'Sin telar';
