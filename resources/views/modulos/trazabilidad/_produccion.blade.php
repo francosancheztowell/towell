@@ -12,7 +12,7 @@
     $noEncontradas = $prod['noEncontradas'] ?? [];
 @endphp
 
-@if (empty($telaresProd) && empty($noEncontradas))
+@if (empty($telaresProd))
     <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
         <div class="mx-auto w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-4">
             <i class="fa-solid fa-industry text-slate-400 text-lg"></i>
@@ -21,31 +21,6 @@
         <p class="text-slate-400 text-sm mt-1">No se encontraron órdenes con telar en la trazabilidad de este filtro.</p>
     </div>
 @else
-    {{-- Mensaje: órdenes no localizadas en ReqProgramaTejido ni CatCodificados --}}
-    @if (!empty($noEncontradas))
-        <div class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 mb-4">
-            <div class="flex items-start gap-2">
-                <i class="fa-solid fa-circle-exclamation text-amber-500 mt-0.5"></i>
-                <div class="min-w-0">
-                    <p class="text-xs font-semibold text-amber-800 mb-1.5">
-                        {{ count($noEncontradas) }}
-                        {{ count($noEncontradas) === 1 ? 'orden no se encontró' : 'órdenes no se encontraron' }}
-                        en ReqProgramaTejido ni en CatCodificados
-                        <span class="font-normal text-amber-700">— no se muestran como tarjeta:</span>
-                    </p>
-                    <div class="flex flex-wrap gap-1.5">
-                        @foreach ($noEncontradas as $ne)
-                            <span class="inline-flex items-center gap-1 rounded-md bg-white border border-amber-200 text-amber-800 text-[11px] font-mono px-2 py-0.5"
-                                  title="Localidad (telar) en trazabilidad: {{ $ne['localidad'] ?: '—' }}">
-                                {{ $ne['orden'] }}@if (!empty($ne['localidad']))<span class="text-amber-400">· {{ $ne['localidad'] }}</span>@endif
-                            </span>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
     {{-- Tarjetas por telar (solo órdenes encontradas) --}}
     @if (!empty($telaresProd))
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -93,8 +68,14 @@
                                     <i class="fa-solid fa-triangle-exclamation text-amber-500 text-[10px]"
                                        title="El telar de esta orden no coincide con la Localidad de trazabilidad."></i>
                                 @endif
+                                {{-- Badge(s) de mes para separar la orden por periodo --}}
+                                @foreach ($o['meses'] as $mes)
+                                    <span class="inline-flex items-center rounded-md bg-indigo-100 text-indigo-700 text-[10px] font-bold px-1.5 py-0.5">
+                                        {{ $mes }}
+                                    </span>
+                                @endforeach
                                 @if ($o['fuente'] === 'programa')
-                                    <span class="inline-flex items-center gap-1 rounded-md bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5"
+                                    <span class="inline-flex items-center gap-1 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5"
                                           title="Encontrada en ReqProgramaTejido">
                                         <i class="fa-solid fa-gears"></i> Programado
                                     </span>

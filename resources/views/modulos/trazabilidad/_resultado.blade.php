@@ -25,10 +25,10 @@
         <button type="button" data-tab="produccion"
                 class="traza-tab inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold border-b-2 -mb-px transition-colors">
             <span>🧶</span> Producción
-            @php $prodIssues = (int) ($produccion['resumen']['alertas'] ?? 0) + (int) ($produccion['resumen']['noEncontradas'] ?? 0); @endphp
+            @php $prodIssues = (int) ($produccion['resumen']['alertas'] ?? 0); @endphp
             @if ($prodIssues > 0)
                 <span class="inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold min-w-4 h-4 px-1"
-                      title="{{ $prodIssues }} aviso(s): órdenes no encontradas o telar con discrepancia">
+                      title="{{ $prodIssues }} telar(es) con discrepancia de telar">
                     {{ $prodIssues }}
                 </span>
             @endif

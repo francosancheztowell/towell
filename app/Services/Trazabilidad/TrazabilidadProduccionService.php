@@ -59,6 +59,19 @@ class TrazabilidadProduccionService
             return ['telares' => [], 'noEncontradas' => [], 'resumen' => $this->resumenVacio()];
         }
 
+        // Meses de producción por orden (para el badge de mes de cada orden).
+        $nombresMeses = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        $mesesPorOrden = $base()
+            ->whereNotNull('Orden')->where('Orden', '<>', '')
+            ->whereNotNull('Fecha')
+            ->selectRaw('Orden, MONTH(Fecha) as mes')
+            ->distinct()
+            ->get()
+            ->groupBy(fn ($r) => trim((string) $r->Orden))
+            ->map(fn ($g) => $g->pluck('mes')->map(fn ($m) => (int) $m)
+                ->filter()->unique()->sort()->values()
+                ->map(fn ($m) => $nombresMeses[$m] ?? (string) $m)->all());
+
         // --- Mapa Orden => datos del programa de tejido, en lote ---
         $ordenes = $rows->pluck('Orden')->map(fn ($o) => trim((string) $o))
             ->filter()->unique()->values();
@@ -161,6 +174,7 @@ class TrazabilidadProduccionService
                 'orden' => $orden,
                 'fuente' => $fuente,
                 'coincide' => $coincide,
+                'meses' => $mesesPorOrden[$orden] ?? [],
             ];
             unset($t);
         }
