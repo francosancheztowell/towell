@@ -87,7 +87,7 @@ class TrazabilidadProduccionService
             ->get([
                 'NoProduccion', 'NoTelarId', 'SalonTejidoId',
                 'TotalPedido', 'Produccion', 'SaldoPedido', 'TotalPzas',
-                'StdDia', 'EnProceso',
+                'StdDia', 'ProdKgDia', 'EnProceso',
                 'FechaInicio', 'FechaFinal',
                 'OrdCompartida', 'OrdCompartidaLider',
             ])
@@ -136,6 +136,7 @@ class TrazabilidadProduccionService
                 $produccionBd = (float) ($p->Produccion ?? 0);
                 $programadas = $totalPedido > 0 ? $totalPedido : (float) ($p->TotalPzas ?? 0);
                 $stdDia = $p->StdDia !== null ? (float) $p->StdDia : null;
+                $prodKgDia = $p->ProdKgDia !== null ? (float) $p->ProdKgDia : null;
                 $enProceso = (bool) $p->EnProceso;
                 $ordCompartida = $p->OrdCompartida;
                 $esOrdCompartida = filled($ordCompartida) && (int) $ordCompartida > 0;
@@ -147,6 +148,7 @@ class TrazabilidadProduccionService
                     'produccion' => $produccionBd,
                     'saldoPedido' => (float) ($p->SaldoPedido ?? 0),
                     'stdDia' => $stdDia,
+                    'prodKgDia' => $prodKgDia,
                     'fechaInicio' => filled($p->FechaInicio) ? formatearFecha($p->FechaInicio) : null,
                     'fechaFinal' => filled($p->FechaFinal) ? formatearFecha($p->FechaFinal) : null,
                     'esOrdCompartida' => $esOrdCompartida,

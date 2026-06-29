@@ -175,6 +175,13 @@
             background: #ccfbf1;
             border-color: #5eead4;
         }
+        .prod-stat-value--sm {
+            font-size: 0.9375rem;
+            margin-top: 0.35rem;
+        }
+        .prod-stat-value--sm:first-of-type {
+            margin-top: 0.2rem;
+        }
         .prod-segment {
             display: inline-flex;
             align-items: center;

@@ -74,15 +74,20 @@
                     $programadas = (float) ($o['programa']['totalPedido'] ?? 0);
                     $producidasBd = (float) ($o['programa']['produccion'] ?? 0);
                     $pzasDia = $o['programa']['stdDia'] ?? null;
+                    $prodKgDia = $o['programa']['prodKgDia'] ?? null;
                 } elseif (!empty($o['codificados'])) {
                     $programadas = (float) ($o['codificados']['pedido'] ?? 0);
                     $producidasBd = (float) ($o['codificados']['produccion'] ?? 0);
                     $pzasDia = null;
+                    $prodKgDia = null;
                 } else {
                     $programadas = (float) ($o['programadas'] ?? 0);
                     $producidasBd = (float) ($o['producidas'] ?? 0);
                     $pzasDia = $o['pzasDia'] ?? null;
+                    $prodKgDia = null;
                 }
+
+                $kgProducidos = (float) ($o['kg'] ?? 0);
 
                 $avanceRef = number_format($producidasBd).' / '.number_format($programadas);
                 $avance = $o['avance'];
@@ -112,8 +117,8 @@
                             <div class="text-2xl font-extrabold text-slate-800 leading-none tracking-tight">
                                 {{ $o['telar'] }}
                             </div>
-                            <div class="text-xs text-slate-500 mt-1 font-mono">
-                                orden {{ $o['orden'] }}
+                            <div class="text-2xl font-extrabold text-slate-800 leading-none tracking-tight mt-1 font-mono">
+                                orden: {{ $o['orden'] }}
                             </div>
                         </div>
                         <div class="flex flex-col items-end gap-1 shrink-0 max-w-[48%]">
@@ -175,17 +180,27 @@
                             <div class="prod-stat-label">programadas</div>
                             <div class="prod-stat-value">{{ number_format($programadas) }}</div>
                         </div>
-                        <div class="prod-stat-box">
-                            <div class="prod-stat-label">producidas</div>
-                            <div class="prod-stat-value">{{ number_format($producidasBd) }}</div>
+                        <div class="prod-stat-box"
+                             title="Piezas: ReqProgramaTejido.Produccion (o CatCodificados.Produccion). Kilos: suma de Peso en TrazaProduccion, área Crudo, en el telar del programa.">
+                            <div class="prod-stat-label">producido</div>
+                            <div class="prod-stat-value prod-stat-value--sm">{{ number_format($producidasBd) }} pzas</div>
+                            <div class="prod-stat-value prod-stat-value--sm text-teal-800">{{ number_format($kgProducidos, 2) }} kg</div>
                         </div>
-                        <div class="prod-stat-box">
-                            <div class="prod-stat-label">kg prod.</div>
-                            <div class="prod-stat-value">{{ number_format($o['kg'], 2) }}</div>
-                        </div>
-                        <div class="prod-stat-box">
-                            <div class="prod-stat-label">pzas/día</div>
-                            <div class="prod-stat-value">{{ $pzasDia !== null ? number_format($pzasDia) : '—' }}</div>
+                        <div class="prod-stat-box col-span-2"
+                             title="StdDia y ProdKgDia de ReqProgramaTejido (piezas y kg estándar por día).">
+                            <div class="prod-stat-label">ProdKgDia</div>
+                            @if ($pzasDia !== null || $prodKgDia !== null)
+                                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-0.5">
+                                    @if ($pzasDia !== null)
+                                        <span class="prod-stat-value text-base">{{ number_format($pzasDia) }} <span class="text-xs font-semibold text-slate-400">pzas/día</span></span>
+                                    @endif
+                                    @if ($prodKgDia !== null)
+                                        <span class="prod-stat-value text-base">{{ number_format($prodKgDia, 2) }} <span class="text-xs font-semibold text-slate-400">kg/día</span></span>
+                                    @endif
+                                </div>
+                            @else
+                                <div class="prod-stat-value">—</div>
+                            @endif
                         </div>
                     </div>
 
