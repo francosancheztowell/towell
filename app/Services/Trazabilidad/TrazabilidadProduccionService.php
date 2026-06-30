@@ -5,6 +5,7 @@ namespace App\Services\Trazabilidad;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Trazabilidad\TrazaProduccion;
+use Illuminate\Support\Collection;
 
 /**
  * Construye la sección "Producción" de Trazabilidad: una tarjeta por telar del
@@ -79,32 +80,15 @@ class TrazabilidadProduccionService
         $ordenes = $rows->pluck('Orden')->map(fn ($o) => trim((string) $o))
             ->filter()->unique()->values();
 
-        // Si hay más de un registro por NoProduccion, priorizar EnProceso y el Id más reciente.
-        $programa = ReqProgramaTejido::query()
-            ->whereIn('NoProduccion', $ordenes->all())
-            ->orderByDesc('EnProceso')
-            ->orderByDesc('Id')
-            ->get([
-                'NoProduccion', 'NoTelarId', 'SalonTejidoId',
-                'TotalPedido', 'Produccion', 'SaldoPedido', 'TotalPzas',
-                'StdDia', 'ProdKgDia', 'EnProceso',
-                'FechaInicio', 'FechaFinal',
-                'OrdCompartida', 'OrdCompartidaLider',
-            ])
-            ->unique(fn ($r) => trim((string) $r->NoProduccion))
-            ->keyBy(fn ($r) => trim((string) $r->NoProduccion));
+        // SQL Server limita ~2100 parámetros por consulta; con solo Tamaño/Color
+        // pueden ser miles de órdenes → cargar en lotes.
+        $programa = $this->cargarProgramaPorOrdenes($ordenes);
 
         // Las órdenes que no están en el programa se buscan en CatCodificados.
         $faltantes = $ordenes->reject(fn ($o) => $programa->has($o))->values();
-        $codificados = collect();
-        if ($faltantes->isNotEmpty()) {
-            $codificados = CatCodificados::query()
-                ->whereIn('OrdenTejido', $faltantes->all())
-                ->orderByDesc('Id')
-                ->get(['OrdenTejido', 'TelarId', 'Pedido', 'Produccion', 'Saldos'])
-                ->unique(fn ($r) => trim((string) $r->OrdenTejido))
-                ->keyBy(fn ($r) => trim((string) $r->OrdenTejido));
-        }
+        $codificados = $faltantes->isNotEmpty()
+            ? $this->cargarCodificadosPorOrdenes($faltantes)
+            : collect();
 
         // Solo dígitos: la Localidad puede venir "T-202" / "TELAR 202" y el telar de
         // la orden como "202". Comparamos por el número para no marcar falsos positivos.
@@ -273,5 +257,55 @@ class TrazabilidadProduccionService
     private function resumenVacio(): array
     {
         return ['ordenes' => 0, 'activos' => 0, 'terminados' => 0, 'alertas' => 0, 'noEncontradas' => 0];
+    }
+
+    /**
+     * ReqProgramaTejido por lote de NoProduccion (límite SQL Server en IN).
+     * Si hay varias filas por orden, gana EnProceso y el Id más reciente.
+     */
+    private function cargarProgramaPorOrdenes(Collection $ordenes): Collection
+    {
+        $columnas = [
+            'NoProduccion', 'NoTelarId', 'SalonTejidoId',
+            'TotalPedido', 'Produccion', 'SaldoPedido', 'TotalPzas',
+            'StdDia', 'ProdKgDia', 'EnProceso',
+            'FechaInicio', 'FechaFinal',
+            'OrdCompartida', 'OrdCompartidaLider',
+        ];
+
+        $filas = collect();
+        foreach ($ordenes->chunk(1000) as $lote) {
+            $filas = $filas->concat(
+                ReqProgramaTejido::query()
+                    ->whereIn('NoProduccion', $lote->values()->all())
+                    ->orderByDesc('EnProceso')
+                    ->orderByDesc('Id')
+                    ->get($columnas)
+            );
+        }
+
+        return $filas
+            ->unique(fn ($r) => trim((string) $r->NoProduccion))
+            ->keyBy(fn ($r) => trim((string) $r->NoProduccion));
+    }
+
+    /**
+     * CatCodificados por lote de OrdenTejido (mismo límite de parámetros IN).
+     */
+    private function cargarCodificadosPorOrdenes(Collection $ordenes): Collection
+    {
+        $filas = collect();
+        foreach ($ordenes->chunk(1000) as $lote) {
+            $filas = $filas->concat(
+                CatCodificados::query()
+                    ->whereIn('OrdenTejido', $lote->values()->all())
+                    ->orderByDesc('Id')
+                    ->get(['OrdenTejido', 'TelarId', 'Pedido', 'Produccion', 'Saldos'])
+            );
+        }
+
+        return $filas
+            ->unique(fn ($r) => trim((string) $r->OrdenTejido))
+            ->keyBy(fn ($r) => trim((string) $r->OrdenTejido));
     }
 }

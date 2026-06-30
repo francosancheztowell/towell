@@ -157,6 +157,8 @@ class TrazabilidadController extends Controller
         $produccionCargando = $hayFiltro && $part === 'matriz';
 
         if ($hayFiltro && $part !== 'matriz') {
+            // Filtros amplios (p. ej. solo Tamaño) pueden devolver miles de órdenes.
+            set_time_limit(300);
             $produccion = $this->produccionSrv->build($filtros);
         }
 
