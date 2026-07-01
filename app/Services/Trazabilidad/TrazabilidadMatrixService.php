@@ -39,8 +39,8 @@ class TrazabilidadMatrixService
     /**
      * Construye la matriz a partir de los filtros activos y la métrica elegida.
      *
-     * @param  array  $filtros  ['flog','articulo','tamano','color','mes'(CSV de meses)]
-     * @param  string $metrica  'cantidad' (Material) o 'peso' (Kilos)
+     * @param  array  $filtros  ['flog','articulo','tamano','color','nombrecolor','mes'(CSV de meses)]
+     * @param  string  $metrica  'cantidad' (Material) o 'peso' (Kilos)
      * @return array{fechas:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool, dropdown:bool}
      */
     public function build(array $filtros, string $metrica = 'cantidad'): array
@@ -60,7 +60,8 @@ class TrazabilidadMatrixService
             ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
             ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
             ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
-            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN (' . implode(',', $mesesSel) . ')'));
+            ->when($filtros['nombrecolor'] ?? null, fn ($q, $v) => $q->where('NombreColor', $v))
+            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
 
         // Tipo / Cliente / Agente: solo cuando hay un Flog específico.
         $info = $hayFlog ? $base()->select('Tipo', 'Cliente', 'Agente')->first() : null;
@@ -102,9 +103,9 @@ class TrazabilidadMatrixService
             $mesAnterior = $mesActual;
 
             return [
-                'label'     => $c->format('d/m'),
+                'label' => $c->format('d/m'),
                 'destacada' => $c->isWeekend(),
-                'nuevoMes'  => $nuevoMes,
+                'nuevoMes' => $nuevoMes,
             ];
         })->all();
 
@@ -208,17 +209,17 @@ class TrazabilidadMatrixService
             return array_merge($area, ['valores' => $valores, 'bgs' => $bgs, 'detalles' => $detalles]);
         })
         // Ocultar áreas completamente vacías/en cero para el filtro actual.
-        ->filter(function ($area) {
-            foreach ($area['valores'] as $v) {
-                if ($v !== null && (float) $v != 0.0) {
-                    return true;
+            ->filter(function ($area) {
+                foreach ($area['valores'] as $v) {
+                    if ($v !== null && (float) $v != 0.0) {
+                        return true;
+                    }
                 }
-            }
 
-            return false;
-        })
-        ->values()
-        ->all();
+                return false;
+            })
+            ->values()
+            ->all();
 
         // --- Totales por columna ---
         $totales = [];

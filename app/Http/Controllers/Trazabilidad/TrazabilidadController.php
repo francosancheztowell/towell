@@ -34,6 +34,7 @@ class TrazabilidadController extends Controller
             'articulo' => $request->query('articulo'),
             'tamano' => $request->query('tamano'),
             'color' => $request->query('color'),
+            'nombrecolor' => $request->query('nombrecolor'),
             'mes' => $request->query('mes'),
         ];
 
@@ -56,7 +57,8 @@ class TrazabilidadController extends Controller
         // un Flog específico se muestran los datos de Tipo/Cliente/Agente.
         $hayFlog = filled($filtros['flog']);
         $hayFiltro = filled($filtros['flog']) || filled($filtros['articulo'])
-            || filled($filtros['tamano']) || filled($filtros['color']) || ! empty($mesesSel);
+            || filled($filtros['tamano']) || filled($filtros['color'])
+            || filled($filtros['nombrecolor']) || ! empty($mesesSel);
 
         // Filtros en cascada (faceted): las opciones de cada select se calculan
         // aplicando TODOS los demás filtros activos, menos el propio.
@@ -72,6 +74,9 @@ class TrazabilidadController extends Controller
             }
             if ($excepto !== 'color' && filled($filtros['color'])) {
                 $query->where('Color', $filtros['color']);
+            }
+            if ($excepto !== 'nombrecolor' && filled($filtros['nombrecolor'])) {
+                $query->where('NombreColor', $filtros['nombrecolor']);
             }
             if ($excepto !== 'mes' && ! empty($mesesSel)) {
                 $query->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')');
@@ -103,11 +108,13 @@ class TrazabilidadController extends Controller
             $opcionesArticulo = Cache::remember('traza_opt_articulo_combo', 3600, fn () => $opcionCombo('Articulo', 'NombreArticulo', 'articulo'));
             $opcionesTamano = Cache::remember('traza_opt_tamano', 3600, fn () => $opcionFacet('Tamano', 'tamano'));
             $opcionesColor = Cache::remember('traza_opt_color_combo', 3600, fn () => $opcionCombo('Color', 'NombreColor', 'color'));
+            $opcionesNombrecolor = Cache::remember('traza_opt_nombrecolor', 3600, fn () => $opcionFacet('NombreColor', 'nombrecolor'));
         } else {
             $opcionesFlog = $opcionFacet('Flogs', 'flog');
             $opcionesArticulo = $opcionCombo('Articulo', 'NombreArticulo', 'articulo');
             $opcionesTamano = $opcionFacet('Tamano', 'tamano');
             $opcionesColor = $opcionCombo('Color', 'NombreColor', 'color');
+            $opcionesNombrecolor = $opcionFacet('NombreColor', 'nombrecolor');
         }
 
         // Meses disponibles (con nº de registros) según los filtros activos, menos Mes.
@@ -166,7 +173,7 @@ class TrazabilidadController extends Controller
             'fechas', 'areas', 'totales', 'filtros', 'hayFlog', 'hayFiltro', 'info',
             'metrica', 'decimales', 'dropdown', 'produccion', 'produccionCargando',
             'opcionesFlog', 'opcionesArticulo', 'opcionesTamano', 'opcionesColor',
-            'mesesDisponibles'
+            'opcionesNombrecolor', 'mesesDisponibles'
         );
 
         // Respuesta AJAX: solo el bloque de resultado + las opciones de los selects
@@ -192,6 +199,7 @@ class TrazabilidadController extends Controller
                     'articulo' => $opcionesArticulo->values(), // [{codigo, label}]
                     'tamano' => $opcionesTamano->values(),
                     'color' => $opcionesColor->values(),     // [{codigo, label}]
+                    'nombrecolor' => $opcionesNombrecolor->values(),
                     'mes' => $mesesDisponibles->values(),
                 ],
                 'filtros' => $filtros,
@@ -214,6 +222,7 @@ class TrazabilidadController extends Controller
             'articulo' => $request->query('articulo'),
             'tamano' => $request->query('tamano'),
             'color' => $request->query('color'),
+            'nombrecolor' => $request->query('nombrecolor'),
             'mes' => $request->query('mes'),
         ];
 
@@ -223,7 +232,8 @@ class TrazabilidadController extends Controller
         $filtros['mes'] = implode(',', $mesesSel);
 
         $hayFiltro = filled($filtros['flog']) || filled($filtros['articulo'])
-            || filled($filtros['tamano']) || filled($filtros['color']) || ! empty($mesesSel);
+            || filled($filtros['tamano']) || filled($filtros['color'])
+            || filled($filtros['nombrecolor']) || ! empty($mesesSel);
 
         abort_unless($hayFiltro, 422, 'Selecciona al menos un filtro antes de exportar.');
 

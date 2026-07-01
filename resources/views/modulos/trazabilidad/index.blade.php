@@ -258,7 +258,7 @@
         {{-- Línea de filtros --}}
         <form method="GET" action="{{ route('trazabilidad.index') }}" id="form-filtros"
               class="bg-white border border-slate-200 rounded-2xl shadow-sm p-2.5 md:p-3 mb-3">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
                 <div>
                     <label for="filtro-flog" class="block text-xs font-semibold text-slate-500 mb-0.5">Flog</label>
                     <select name="flog" id="filtro-flog" class="filtro-select w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -292,6 +292,15 @@
                         <option value="">Todos</option>
                         @foreach ($opcionesColor as $opt)
                             <option value="{{ $opt['codigo'] }}" @selected(($filtros['color'] ?? '') === $opt['codigo'])>{{ $opt['label'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="filtro-nombrecolor" class="block text-xs font-semibold text-slate-500 mb-0.5">Nombre color</label>
+                    <select name="nombrecolor" id="filtro-nombrecolor" class="filtro-select w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">Todos</option>
+                        @foreach ($opcionesNombrecolor as $opt)
+                            <option value="{{ $opt }}" @selected(($filtros['nombrecolor'] ?? '') === $opt)>{{ $opt }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -406,7 +415,8 @@
             $c.removeClass('hidden').html(
                 item(counts.articulo, 'artículo', 'artículos', 'fa-box') +
                 item(counts.tamano, 'tamaño', 'tamaños', 'fa-ruler') +
-                item(counts.color, 'color', 'colores', 'fa-palette')
+                item(counts.color, 'color', 'colores', 'fa-palette') +
+                item(counts.nombrecolor, 'nom. color', 'nom. colores', 'fa-droplet')
             );
         }
 
@@ -440,6 +450,7 @@
                 articulo: $('#filtro-articulo').val() || '', // código de artículo
                 tamano:   $('#filtro-tamano').val() || '',
                 color:    $('#filtro-color').val() || '',
+                nombrecolor: $('#filtro-nombrecolor').val() || '',
                 mes:      $('#filtro-mes').val() || '',      // input oculto controlado por los badges
                 metrica:  $('#filtro-metrica').val() || 'cantidad', // switch Material/Kilos
             };
@@ -526,17 +537,20 @@
                 rebuildCombo('#filtro-articulo', data.opciones.articulo, data.filtros.articulo);
                 rebuildSelect('#filtro-tamano', data.opciones.tamano, data.filtros.tamano);
                 rebuildCombo('#filtro-color', data.opciones.color, data.filtros.color);
+                rebuildSelect('#filtro-nombrecolor', data.opciones.nombrecolor, data.filtros.nombrecolor);
                 $('#filtro-mes').val(data.filtros.mes || '');
                 rebuildMeses(data.opciones.mes);
                 rebuildResumen({
                     articulo: (data.opciones.articulo || []).length,
                     tamano:   (data.opciones.tamano || []).length,
                     color:    (data.opciones.color || []).length,
+                    nombrecolor: (data.opciones.nombrecolor || []).length,
                 }, !!data.filtros.flog);
                 window.history.replaceState(null, '', RUTA);
 
                 const hayFiltro = data.filtros.flog || data.filtros.articulo
-                    || data.filtros.tamano || data.filtros.color || data.filtros.mes;
+                    || data.filtros.tamano || data.filtros.color
+                    || data.filtros.nombrecolor || data.filtros.mes;
                 if (hayFiltro) {
                     cargarProduccion(params, seq);
                 } else {
@@ -598,6 +612,7 @@
             'articulo' => $opcionesArticulo->count(),
             'tamano'   => $opcionesTamano->count(),
             'color'    => $opcionesColor->count(),
+            'nombrecolor' => $opcionesNombrecolor->count(),
             'mes'      => $mesesDisponibles->count(),
         ]; @endphp
         rebuildResumen(@json($conteosIniciales), @json($hayFlog));
@@ -618,7 +633,7 @@
         const RUTA_EXPORT = @json(route('trazabilidad.exportar'));
         $('#btn-exportar').on('click', function () {
             const v = valoresActuales();
-            const hayFiltro = v.flog || v.articulo || v.tamano || v.color || v.mes;
+            const hayFiltro = v.flog || v.articulo || v.tamano || v.color || v.nombrecolor || v.mes;
             if (!hayFiltro) {
                 window.notify?.warning('Selecciona al menos un filtro antes de exportar.');
                 return;
@@ -633,7 +648,7 @@
             $('.filtro-select').val(null).trigger('change.select2');
             $('#filtro-mes').val('');
             aplicar({
-                flog: '', articulo: '', tamano: '', color: '', mes: '',
+                flog: '', articulo: '', tamano: '', color: '', nombrecolor: '', mes: '',
                 metrica: $('#filtro-metrica').val() || 'cantidad',
             });
         });
