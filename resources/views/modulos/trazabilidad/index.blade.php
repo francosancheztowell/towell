@@ -278,6 +278,19 @@
         .prod-rollos-maquina-card:hover {
             border-color: #93c5fd;
         }
+
+        /* Modal rollos teñido: por encima del navbar y fondo oscuro */
+        #modal-rollos-maquina {
+            z-index: 9999;
+        }
+        #modal-rollos-maquina .modal-rollos-maquina__backdrop {
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(2px);
+        }
+        #modal-rollos-maquina .modal-rollos-maquina__panel {
+            z-index: 1;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+        }
     </style>
 
     <div class="w-full min-h-full px-1.5 md:px-2 py-3" style="background:#f1f5f9;" id="globalLoader">
@@ -366,10 +379,10 @@
             @include('modulos.trazabilidad._resultado')
         </div>
 
-        {{-- Modal detalle rollos por máquina (fuera de #resultado para persistir entre AJAX) --}}
-        <div id="modal-rollos-maquina" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-rollos-maquina-titulo">
-            <div class="absolute inset-0 bg-slate-900/50" data-modal-rollos-close></div>
-            <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+        {{-- Modal detalle rollos por máquina (se mueve a body vía JS) --}}
+        <div id="modal-rollos-maquina" class="hidden fixed inset-0 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-rollos-maquina-titulo">
+            <div class="modal-rollos-maquina__backdrop absolute inset-0" data-modal-rollos-close></div>
+            <div class="modal-rollos-maquina__panel relative bg-white rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
                 <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200 shrink-0">
                     <h4 id="modal-rollos-maquina-titulo" class="text-lg font-bold text-slate-800 truncate"></h4>
                     <button type="button" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors" data-modal-rollos-close aria-label="Cerrar">
@@ -410,6 +423,11 @@
     document.addEventListener('DOMContentLoaded', function () {
         const RUTA = @json(route('trazabilidad.index'));
         const $resultado = $('#resultado');
+
+        const $modalRollos = $('#modal-rollos-maquina');
+        if ($modalRollos.length) {
+            $modalRollos.appendTo(document.body);
+        }
 
         $('.filtro-select').select2({
             width: '100%',
@@ -516,14 +534,14 @@
             $('#modal-rollos-maquina-body').html(rowsHtml);
             $('#modal-rollos-total-pzas').text(formatNum(totalPzas, 0));
             $('#modal-rollos-total-kg').text(formatNum(totalKg, 2));
-            $modal.removeClass('hidden');
+            $modal.removeClass('hidden').css('display', 'flex');
             document.body.style.overflow = 'hidden';
         }
 
         function cerrarModalRollosMaquina() {
             const $modal = $('#modal-rollos-maquina');
             if (!$modal.length) return;
-            $modal.addClass('hidden');
+            $modal.addClass('hidden').css('display', '');
             document.body.style.overflow = '';
         }
 
@@ -539,6 +557,9 @@
         $resultado.on('click', '[data-modal-rollos-close]', cerrarModalRollosMaquina);
 
         $('#modal-rollos-maquina').on('click', '[data-modal-rollos-close]', cerrarModalRollosMaquina);
+        $('#modal-rollos-maquina').on('click', function (e) {
+            if (e.target === this) cerrarModalRollosMaquina();
+        });
 
         $(document).on('keydown', function (e) {
             if (e.key === 'Escape' && !$('#modal-rollos-maquina').hasClass('hidden')) {
