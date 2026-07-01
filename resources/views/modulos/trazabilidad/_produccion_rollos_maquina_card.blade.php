@@ -1,7 +1,7 @@
 {{-- Tarjeta agrupada por máquina (Rollos Teñido) — click abre modal con detalle --}}
 <button type="button"
         class="prod-rollos-maquina-card prod-card-v2 text-left w-full cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        data-maquina="{{ $m['titulo'] }}"
+        data-maquina="{{ $m['maquina'] }}"
         data-filas='@json($m['filas'], JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE)'>
     <div class="prod-card-v2__accent prod-card-v2__accent--rollos" aria-hidden="true"></div>
 
@@ -9,7 +9,7 @@
         <div class="flex items-start justify-between gap-2 mb-2.5">
             <div class="min-w-0">
                 <div class="text-2xl font-extrabold text-slate-800 leading-none tracking-tight">
-                    {{ $m['titulo'] }}
+                    {{ $m['maquina'] }}
                 </div>
                 <div class="text-sm font-semibold text-slate-500 mt-1.5">
                     {{ $m['ordenes'] }} {{ $m['ordenes'] === 1 ? 'orden' : 'órdenes' }}

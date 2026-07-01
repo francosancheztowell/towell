@@ -321,8 +321,7 @@ class TrazabilidadProduccionService
             if (! isset($porMaquina[$maquinaKey])) {
                 $numLoc = $soloDigitos($localidad);
                 $porMaquina[$maquinaKey] = [
-                    'maquina' => $localidad,
-                    'titulo' => $this->formatearTelar($localidad, $numLoc),
+                    'maquina' => $localidad !== '' ? $localidad : 'Sin localidad',
                     'maquinaSort' => ($n = $numLoc) !== '' ? (int) $n : PHP_INT_MAX,
                     'cantidad' => 0.0,
                     'peso' => 0.0,
