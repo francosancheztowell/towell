@@ -275,25 +275,8 @@
             color: #334155;
         }
 
-        /* Select compacto: color teñido (solo pestaña Producción) */
-        .prod-filtro-tenido .select2-container--default .select2-selection--multiple {
-            min-height: 34px;
-            max-height: 4.5rem;
-            overflow-y: auto;
-            border: 1px solid #cbd5e1;
-            border-radius: 0.6rem;
-            background: #fff;
-            padding: 2px 6px;
-        }
-        .prod-filtro-tenido .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            font-size: 0.6875rem;
-            padding: 1px 6px;
-            margin-top: 3px;
-            max-width: 100%;
-        }
-        .prod-filtro-tenido .select2-container--default .select2-search--inline .select2-search__field {
-            font-size: 0.8125rem;
-            margin-top: 4px;
+        .prod-rollos-maquina-card:hover {
+            border-color: #93c5fd;
         }
     </style>
 
@@ -331,7 +314,10 @@
                     </select>
                 </div>
                 <div>
-                    <label for="filtro-color" class="block text-xs font-semibold text-slate-500 mb-0.5">Color</label>
+                    <label for="filtro-color" class="block text-xs font-semibold text-slate-500 mb-0.5">
+                        Color
+                        <span class="font-normal text-slate-400">· solo rollos teñido</span>
+                    </label>
                     <select name="color" id="filtro-color" class="filtro-select w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Todos</option>
                         @foreach ($opcionesColor as $opt)
@@ -371,7 +357,6 @@
             </div>
 
             <input type="hidden" name="mes" id="filtro-mes" value="{{ $filtros['mes'] ?? '' }}">
-            <input type="hidden" name="nombrecolor" id="filtro-nombrecolor" value="{{ $filtros['nombrecolor'] ?? '' }}">
             {{-- Métrica activa (la controlan los botones de arriba) --}}
             <input type="hidden" name="metrica" id="filtro-metrica" value="{{ $metrica ?? 'cantidad' }}">
         </form>
@@ -379,6 +364,40 @@
         {{-- Contenedor que se actualiza vía AJAX (badges + matriz), sin recargar --}}
         <div id="resultado">
             @include('modulos.trazabilidad._resultado')
+        </div>
+
+        {{-- Modal detalle rollos por máquina (fuera de #resultado para persistir entre AJAX) --}}
+        <div id="modal-rollos-maquina" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-rollos-maquina-titulo">
+            <div class="absolute inset-0 bg-slate-900/50" data-modal-rollos-close></div>
+            <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200 shrink-0">
+                    <h4 id="modal-rollos-maquina-titulo" class="text-lg font-bold text-slate-800 truncate"></h4>
+                    <button type="button" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors" data-modal-rollos-close aria-label="Cerrar">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                <div class="overflow-auto flex-1 p-4">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                                <th class="px-3 py-2 border-b border-slate-200">Orden</th>
+                                <th class="px-3 py-2 border-b border-slate-200">Artículo</th>
+                                <th class="px-3 py-2 border-b border-slate-200">Color</th>
+                                <th class="px-3 py-2 border-b border-slate-200 text-right">Pzas</th>
+                                <th class="px-3 py-2 border-b border-slate-200 text-right">Kg</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-rollos-maquina-body" class="text-slate-700"></tbody>
+                        <tfoot>
+                            <tr class="bg-blue-50 font-bold text-slate-800">
+                                <td colspan="3" class="px-3 py-2 border-t border-slate-200">Total</td>
+                                <td id="modal-rollos-total-pzas" class="px-3 py-2 border-t border-slate-200 text-right tabular-nums"></td>
+                                <td id="modal-rollos-total-kg" class="px-3 py-2 border-t border-slate-200 text-right tabular-nums"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -458,57 +477,74 @@
             return ($('#filtro-mes').val() || '').split(',').filter(Boolean);
         }
 
-        function nombresColorSeleccionados() {
-            return ($('#filtro-nombrecolor').val() || '').split('|').filter(Boolean);
-        }
-
         function hayFiltroPrincipal(f) {
             return !!(f.flog || f.articulo || f.tamano || f.color || f.mes);
         }
 
-        let debounceTenidoColor = null;
+        function formatNum(n, dec) {
+            return Number(n || 0).toLocaleString('es-MX', {
+                minimumFractionDigits: dec,
+                maximumFractionDigits: dec,
+            });
+        }
 
-        function initNombrecolorTenidoSelect(opciones, seleccionados) {
-            const $sel = $('#filtro-nombrecolor-tenido');
-            if (!$sel.length) return;
+        function abrirModalRollosMaquina(maquina, filas) {
+            const $modal = $('#modal-rollos-maquina');
+            if (!$modal.length) return;
 
-            if ($sel.hasClass('select2-hidden-accessible')) {
-                $sel.off('change.nombrecolor');
-                $sel.select2('destroy');
+            let totalPzas = 0;
+            let totalKg = 0;
+            let rowsHtml = '';
+
+            (filas || []).forEach(function (f) {
+                const pzas = Number(f.cantidad || 0);
+                const kg = Number(f.peso || 0);
+                totalPzas += pzas;
+                totalKg += kg;
+                const articulo = [f.articulo, f.nombreArticulo].filter(Boolean).join(' · ');
+                const color = [f.color, f.nombreColor].filter(Boolean).join(' · ');
+                rowsHtml += '<tr class="border-b border-slate-100 hover:bg-slate-50/80">'
+                    + '<td class="px-3 py-2 font-mono font-semibold">' + (f.orden || '—') + '</td>'
+                    + '<td class="px-3 py-2">' + (articulo || '—') + '</td>'
+                    + '<td class="px-3 py-2">' + (color || '—') + '</td>'
+                    + '<td class="px-3 py-2 text-right tabular-nums">' + formatNum(pzas, 0) + '</td>'
+                    + '<td class="px-3 py-2 text-right tabular-nums">' + formatNum(kg, 2) + '</td>'
+                    + '</tr>';
+            });
+
+            $('#modal-rollos-maquina-titulo').text(maquina || 'Detalle máquina');
+            $('#modal-rollos-maquina-body').html(rowsHtml);
+            $('#modal-rollos-total-pzas').text(formatNum(totalPzas, 0));
+            $('#modal-rollos-total-kg').text(formatNum(totalKg, 2));
+            $modal.removeClass('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cerrarModalRollosMaquina() {
+            const $modal = $('#modal-rollos-maquina');
+            if (!$modal.length) return;
+            $modal.addClass('hidden');
+            document.body.style.overflow = '';
+        }
+
+        $resultado.on('click', '.prod-rollos-maquina-card', function () {
+            const maquina = $(this).data('maquina');
+            let filas = $(this).data('filas');
+            if (typeof filas === 'string') {
+                try { filas = JSON.parse(filas); } catch (e) { filas = []; }
             }
+            abrirModalRollosMaquina(maquina, filas);
+        });
 
-            const selSet = new Set((seleccionados || []).map(String));
-            let html = '';
-            (opciones || []).forEach(function (nombre) {
-                const n = String(nombre);
-                const selected = selSet.has(n) ? ' selected' : '';
-                html += '<option value="' + n.replace(/"/g, '&quot;') + '"' + selected + '>' + n + '</option>';
-            });
-            $sel.html(html);
+        $resultado.on('click', '[data-modal-rollos-close]', cerrarModalRollosMaquina);
 
-            $sel.select2({
-                width: '100%',
-                placeholder: 'Todos los colores',
-                allowClear: true,
-                closeOnSelect: false,
-                dropdownCssClass: 'traza-select2-dd',
-            });
+        $('#modal-rollos-maquina').on('click', '[data-modal-rollos-close]', cerrarModalRollosMaquina);
 
-            $sel.on('change.nombrecolor', function () {
-                clearTimeout(debounceTenidoColor);
-                debounceTenidoColor = setTimeout(function () {
-                    const vals = $sel.val() || [];
-                    $('#filtro-nombrecolor').val(vals.join('|'));
-                    recargarSoloProduccion();
-                }, 250);
-            });
-        }
-
-        function recargarSoloProduccion() {
-            const v = valoresActuales();
-            if (!hayFiltroPrincipal(v)) return;
-            cargarProduccion(v, reqSeq);
-        }
+        $(document).on('keydown', function (e) {
+            if (e.key === 'Escape' && !$('#modal-rollos-maquina').hasClass('hidden')) {
+                cerrarModalRollosMaquina();
+            }
+        });
 
         // Renderiza los badges de meses [{mes, nombre}] en la barra de filtros (multi-select).
         function rebuildMeses(meses) {
@@ -535,7 +571,6 @@
                 articulo: $('#filtro-articulo').val() || '', // código de artículo
                 tamano:   $('#filtro-tamano').val() || '',
                 color:    $('#filtro-color').val() || '',
-                nombrecolor: $('#filtro-nombrecolor').val() || '',
                 mes:      $('#filtro-mes').val() || '',      // input oculto controlado por los badges
                 metrica:  $('#filtro-metrica').val() || 'cantidad', // switch Material/Kilos
             };
@@ -602,10 +637,6 @@
                 if ($cont.length) {
                     $cont.html(data.produccionHtml);
                     aplicarFiltroProduccion(prodFiltroActivo);
-                    initNombrecolorTenidoSelect(
-                        data.opciones?.nombrecolor,
-                        nombresColorSeleccionados()
-                    );
                 }
                 actualizarBadgeProduccion(data.prodAlertas || 0);
             } catch (err) {
@@ -637,13 +668,7 @@
                 rebuildSelect('#filtro-tamano', data.opciones.tamano, data.filtros.tamano);
                 rebuildCombo('#filtro-color', data.opciones.color, data.filtros.color);
                 $('#filtro-mes').val(data.filtros.mes || '');
-                $('#filtro-nombrecolor').val(data.filtros.nombrecolor || '');
                 rebuildMeses(data.opciones.mes);
-                const validosColor = (data.opciones.nombrecolor || []).map(String);
-                const coloresSel = nombresColorSeleccionados().filter(function (n) {
-                    return validosColor.includes(n);
-                });
-                $('#filtro-nombrecolor').val(coloresSel.join('|'));
                 rebuildResumen({
                     articulo: (data.opciones.articulo || []).length,
                     tamano:   (data.opciones.tamano || []).length,
@@ -700,13 +725,6 @@
         // Render inicial de los badges de meses (desde los datos del servidor).
         rebuildMeses(@json($mesesDisponibles));
 
-        @if ($hayFiltro && ! ($produccionCargando ?? false))
-            initNombrecolorTenidoSelect(
-                @json($opcionesNombrecolorTenido),
-                nombresColorSeleccionados()
-            );
-        @endif
-
         // Estilo inicial de la pestaña activa (las pestañas existen si hay filtro).
         aplicarTab(tabActivo);
 
@@ -744,8 +762,7 @@
                 window.notify?.warning('Selecciona al menos un filtro antes de exportar.');
                 return;
             }
-            const { nombrecolor: _omit, ...exportParams } = v;
-            const qs = new URLSearchParams(exportParams).toString();
+            const qs = new URLSearchParams(v).toString();
             window.location.href = RUTA_EXPORT + '?' + qs;
         });
 
@@ -754,9 +771,8 @@
         $('#btn-restablecer').on('click', function () {
             $('.filtro-select').val(null).trigger('change.select2');
             $('#filtro-mes').val('');
-            $('#filtro-nombrecolor').val('');
             aplicar({
-                flog: '', articulo: '', tamano: '', color: '', nombrecolor: '', mes: '',
+                flog: '', articulo: '', tamano: '', color: '', mes: '',
                 metrica: $('#filtro-metrica').val() || 'cantidad',
             });
         });

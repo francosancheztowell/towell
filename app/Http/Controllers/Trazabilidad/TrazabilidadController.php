@@ -34,7 +34,6 @@ class TrazabilidadController extends Controller
             'articulo' => $request->query('articulo'),
             'tamano' => $request->query('tamano'),
             'color' => $request->query('color'),
-            'nombrecolor' => $request->query('nombrecolor'),
             'mes' => $request->query('mes'),
         ];
 
@@ -48,10 +47,6 @@ class TrazabilidadController extends Controller
         $mesesSel = collect(explode(',', (string) $filtros['mes']))
             ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
         $filtros['mes'] = implode(',', $mesesSel);
-
-        $nombresColorSel = collect(explode('|', (string) ($filtros['nombrecolor'] ?? '')))
-            ->map(fn ($v) => trim($v))->filter()->unique()->values()->all();
-        $filtros['nombrecolor'] = implode('|', $nombresColorSel);
 
         // Al seleccionar Flog/Artículo/Tamaño/Color sin elegir mes, NO se preselecciona
         // ningún mes: se muestran TODOS los meses disponibles para esos filtros. El
@@ -88,7 +83,7 @@ class TrazabilidadController extends Controller
         // Sin ningún filtro las listas completas son las mismas siempre → se cachean
         // 1h para no escanear las >130k filas en cada carga. Con filtros activos las
         // consultas ya van acotadas (rápidas) y se calculan al vuelo.
-        $sinFiltros = collect($filtros)->except(['nombrecolor'])->every(fn ($v) => blank($v));
+        $sinFiltros = collect($filtros)->every(fn ($v) => blank($v));
 
         $opcionFacet = fn (string $col, string $excepto) => $aplicarFiltros(TrazaProduccion::query(), $excepto)
             ->whereNotNull($col)->where($col, '<>', '')
@@ -114,12 +109,6 @@ class TrazabilidadController extends Controller
             $opcionesTamano = $opcionFacet('Tamano', 'tamano');
             $opcionesColor = $opcionCombo('Color', 'NombreColor', 'color');
         }
-
-        // Nombres de color solo para Rollos Teñido (no afectan matriz ni Crudo).
-        $opcionesNombrecolorTenido = $aplicarFiltros(TrazaProduccion::query(), 'mes')
-            ->where('NombreAlmacen', 'Rollos Teñido')
-            ->whereNotNull('NombreColor')->where('NombreColor', '<>', '')
-            ->distinct()->orderBy('NombreColor')->pluck('NombreColor');
 
         // Meses disponibles (con nº de registros) según los filtros activos, menos Mes.
         // Una sola consulta agrupada → no afecta el rendimiento.
@@ -177,7 +166,7 @@ class TrazabilidadController extends Controller
             'fechas', 'areas', 'totales', 'filtros', 'hayFlog', 'hayFiltro', 'info',
             'metrica', 'decimales', 'dropdown', 'produccion', 'produccionCargando',
             'opcionesFlog', 'opcionesArticulo', 'opcionesTamano', 'opcionesColor',
-            'opcionesNombrecolorTenido', 'mesesDisponibles'
+            'mesesDisponibles'
         );
 
         // Respuesta AJAX: solo el bloque de resultado + las opciones de los selects
@@ -188,16 +177,12 @@ class TrazabilidadController extends Controller
                     'produccionHtml' => view('modulos.trazabilidad._produccion', [
                         'produccion' => $produccion ?? [
                             'crudo' => ['ordenes' => [], 'noEncontradas' => [], 'resumen' => []],
-                            'rollosTenido' => ['ordenes' => [], 'resumen' => ['ordenes' => 0]],
+                            'rollosTenido' => ['maquinas' => [], 'resumen' => ['maquinas' => 0, 'ordenes' => 0]],
                         ],
-                        'opcionesNombrecolorTenido' => $opcionesNombrecolorTenido,
                         'filtros' => $filtros,
                     ])->render(),
                     'prodAlertas' => (int) ($produccion['crudo']['resumen']['alertas'] ?? 0),
                     'filtros' => $filtros,
-                    'opciones' => [
-                        'nombrecolor' => $opcionesNombrecolorTenido->values(),
-                    ],
                 ]);
             }
 
@@ -208,7 +193,6 @@ class TrazabilidadController extends Controller
                     'articulo' => $opcionesArticulo->values(), // [{codigo, label}]
                     'tamano' => $opcionesTamano->values(),
                     'color' => $opcionesColor->values(),     // [{codigo, label}]
-                    'nombrecolor' => $opcionesNombrecolorTenido->values(),
                     'mes' => $mesesDisponibles->values(),
                 ],
                 'filtros' => $filtros,

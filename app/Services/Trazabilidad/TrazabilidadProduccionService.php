@@ -15,18 +15,18 @@ use Illuminate\Support\Collection;
 class TrazabilidadProduccionService
 {
     /**
-     * @param  array  $filtros  ['flog','articulo','tamano','color','nombrecolor'(pipe), 'mes'(CSV)]
+     * @param  array  $filtros  ['flog','articulo','tamano','color','mes'(CSV)]
      * @return array{crudo: array, rollosTenido: array}
      */
     public function build(array $filtros): array
     {
         $mesesSel = $this->mesesSeleccionados($filtros);
-        $nombresColorSel = $this->nombresColorSeleccionados($filtros);
-        $base = $this->queryBase($filtros, $mesesSel);
+        $baseCrudo = $this->queryBase($filtros, $mesesSel, applyColor: false);
+        $baseRollos = $this->queryBase($filtros, $mesesSel, applyColor: true);
 
         return [
-            'crudo' => $this->buildCrudo($base, $mesesSel),
-            'rollosTenido' => $this->buildRollosTenido($base, $nombresColorSel),
+            'crudo' => $this->buildCrudo($baseCrudo, $mesesSel),
+            'rollosTenido' => $this->buildRollosTenido($baseRollos),
         ];
     }
 
@@ -267,17 +267,15 @@ class TrazabilidadProduccionService
     }
 
     /**
-     * Rollos Teñido: una tarjeta por Orden + Localidad, solo TrazaProduccion.
+     * Rollos Teñido: tarjetas agrupadas por máquina (Localidad), detalle en modal.
      *
-     * @return array{ordenes: array, resumen: array}
+     * @return array{maquinas: array, resumen: array}
      */
-    private function buildRollosTenido(callable $base, array $nombresColorSel): array
+    private function buildRollosTenido(callable $base): array
     {
         $area = 'Rollos Teñido';
 
-        $rollosBase = fn () => $base()
-            ->where('NombreAlmacen', $area)
-            ->when(! empty($nombresColorSel), fn ($q) => $q->whereIn('NombreColor', $nombresColorSel));
+        $rollosBase = fn () => $base()->where('NombreAlmacen', $area);
 
         $rows = $rollosBase()
             ->whereNotNull('Orden')->where('Orden', '<>', '')
@@ -296,7 +294,7 @@ class TrazabilidadProduccionService
             ->get();
 
         if ($rows->isEmpty()) {
-            return ['ordenes' => [], 'resumen' => ['ordenes' => 0]];
+            return ['maquinas' => [], 'resumen' => ['maquinas' => 0, 'ordenes' => 0]];
         }
 
         $nombresMeses = $this->nombresMesesCortos();
@@ -311,39 +309,60 @@ class TrazabilidadProduccionService
                 ->filter()->unique()->sort()->values()
                 ->map(fn ($m) => $nombresMeses[$m] ?? (string) $m)->all());
 
-        $ordenCards = [];
+        $soloDigitos = fn ($t) => preg_replace('/\D/', '', (string) $t);
+        $porMaquina = [];
+
         foreach ($rows as $r) {
             $orden = trim((string) $r->Orden);
             $localidad = trim((string) ($r->Localidad ?? ''));
+            $maquinaKey = $localidad !== '' ? $localidad : '__sin__';
             $clave = $orden.'|'.$localidad;
 
-            $ordenCards[] = [
+            if (! isset($porMaquina[$maquinaKey])) {
+                $numLoc = $soloDigitos($localidad);
+                $porMaquina[$maquinaKey] = [
+                    'maquina' => $localidad,
+                    'titulo' => $this->formatearTelar($localidad, $numLoc),
+                    'maquinaSort' => ($n = $numLoc) !== '' ? (int) $n : PHP_INT_MAX,
+                    'cantidad' => 0.0,
+                    'peso' => 0.0,
+                    'filas' => [],
+                ];
+            }
+
+            $cantidad = (float) ($r->cantidad ?? 0);
+            $peso = (float) ($r->peso ?? 0);
+
+            $porMaquina[$maquinaKey]['cantidad'] += $cantidad;
+            $porMaquina[$maquinaKey]['peso'] += $peso;
+            $porMaquina[$maquinaKey]['filas'][] = [
                 'orden' => $orden,
-                'localidad' => $localidad,
-                'titulo' => $localidad !== '' ? $localidad : 'Sin localidad',
-                'tipo' => trim((string) ($r->tipo ?? '')),
                 'articulo' => trim((string) ($r->articulo ?? '')),
                 'nombreArticulo' => trim((string) ($r->nombre_articulo ?? '')),
                 'color' => trim((string) ($r->color ?? '')),
                 'nombreColor' => trim((string) ($r->nombre_color ?? '')),
-                'cantidad' => (float) ($r->cantidad ?? 0),
-                'peso' => (float) ($r->peso ?? 0),
+                'tipo' => trim((string) ($r->tipo ?? '')),
+                'cantidad' => $cantidad,
+                'peso' => $peso,
                 'meses' => $mesesPorClave[$clave] ?? [],
             ];
         }
 
-        usort($ordenCards, function ($a, $b) {
-            $cmpLoc = strcasecmp($a['localidad'], $b['localidad']);
-            if ($cmpLoc !== 0) {
-                return $cmpLoc;
-            }
+        $maquinas = array_values($porMaquina);
+        foreach ($maquinas as &$m) {
+            usort($m['filas'], fn ($a, $b) => strcasecmp($a['orden'], $b['orden']));
+            $m['ordenes'] = count($m['filas']);
+        }
+        unset($m);
 
-            return strcasecmp($a['orden'], $b['orden']);
-        });
+        usort($maquinas, fn ($a, $b) => $a['maquinaSort'] <=> $b['maquinaSort']
+            ?: strcasecmp($a['maquina'], $b['maquina']));
+
+        $totalOrdenes = array_sum(array_column($maquinas, 'ordenes'));
 
         return [
-            'ordenes' => $ordenCards,
-            'resumen' => ['ordenes' => count($ordenCards)],
+            'maquinas' => $maquinas,
+            'resumen' => ['maquinas' => count($maquinas), 'ordenes' => $totalOrdenes],
         ];
     }
 
@@ -353,20 +372,13 @@ class TrazabilidadProduccionService
             ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
     }
 
-    /** @return list<string> */
-    private function nombresColorSeleccionados(array $filtros): array
-    {
-        return collect(explode('|', (string) ($filtros['nombrecolor'] ?? '')))
-            ->map(fn ($v) => trim($v))->filter()->unique()->values()->all();
-    }
-
-    private function queryBase(array $filtros, array $mesesSel): callable
+    private function queryBase(array $filtros, array $mesesSel, bool $applyColor = true): callable
     {
         return fn () => TrazaProduccion::query()
             ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
             ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
             ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
-            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
+            ->when($applyColor && ($filtros['color'] ?? null), fn ($q, $v) => $q->where('Color', $v))
             ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
     }
 

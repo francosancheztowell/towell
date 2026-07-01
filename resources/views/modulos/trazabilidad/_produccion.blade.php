@@ -2,12 +2,12 @@
 
 @php
     $crudo = $produccion['crudo'] ?? ($produccion ?? ['ordenes' => [], 'noEncontradas' => [], 'resumen' => []]);
-    $rollos = $produccion['rollosTenido'] ?? ['ordenes' => [], 'resumen' => ['ordenes' => 0]];
+    $rollos = $produccion['rollosTenido'] ?? ['maquinas' => [], 'resumen' => ['maquinas' => 0, 'ordenes' => 0]];
 
     $ordenCardsCrudo = $crudo['ordenes'] ?? [];
     $resumenCrudo = $crudo['resumen'] ?? [];
-    $ordenCardsRollos = $rollos['ordenes'] ?? [];
-    $resumenRollos = $rollos['resumen'] ?? ['ordenes' => 0];
+    $maquinasRollos = $rollos['maquinas'] ?? [];
+    $resumenRollos = $rollos['resumen'] ?? ['maquinas' => 0, 'ordenes' => 0];
 
     $soloFecha = function (?string $fecha): ?string {
         if (blank($fecha)) {
@@ -97,28 +97,18 @@
 
 {{-- ===== Rollos Teñido ===== --}}
 <section class="prod-area prod-area--rollos-tenido" aria-labelledby="prod-titulo-rollos-tenido">
-    <h3 id="prod-titulo-rollos-tenido" class="text-lg md:text-xl font-bold text-slate-800 mb-3">
+    <h3 id="prod-titulo-rollos-tenido" class="text-lg md:text-xl font-bold text-slate-800 mb-4">
         Rollos Teñido
     </h3>
 
-    @include('modulos.trazabilidad._produccion_filtro_tenido', [
-        'opcionesNombrecolorTenido' => $opcionesNombrecolorTenido ?? collect(),
-        'filtros' => $filtros ?? [],
-    ])
-
-    @php
-        $nombresColorSel = collect(explode('|', (string) ($filtros['nombrecolor'] ?? '')))
-            ->map(fn ($v) => trim($v))->filter()->values()->all();
-    @endphp
-
-    @if (empty($ordenCardsRollos))
+    @if (empty($maquinasRollos))
         <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
             <div class="mx-auto w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-4">
                 <i class="fa-solid fa-scroll text-blue-400 text-lg"></i>
             </div>
-            @if (! empty($nombresColorSel))
-                <p class="text-slate-700 font-semibold">Sin rollos para los colores seleccionados</p>
-                <p class="text-slate-400 text-sm mt-1">Prueba quitando colores del filtro o elige otros.</p>
+            @if (filled($filtros['color'] ?? null))
+                <p class="text-slate-700 font-semibold">Sin rollos para el color seleccionado</p>
+                <p class="text-slate-400 text-sm mt-1">Prueba quitando el filtro de color o elige otro.</p>
             @else
                 <p class="text-slate-700 font-semibold">Sin rollos teñidos para los filtros actuales</p>
                 <p class="text-slate-400 text-sm mt-1">No hay registros en TrazaProduccion con área Rollos Teñido.</p>
@@ -126,12 +116,14 @@
         </div>
     @else
         <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600 mb-4">
-            <span class="font-semibold text-slate-700">{{ count($ordenCardsRollos) }} registros</span>
+            <span class="font-semibold text-slate-700">{{ $resumenRollos['maquinas'] ?? count($maquinasRollos) }} máquinas</span>
+            <span class="text-slate-400">·</span>
+            <span>{{ $resumenRollos['ordenes'] ?? 0 }} órdenes</span>
         </div>
 
         <div class="prod-cards-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
-            @foreach ($ordenCardsRollos as $o)
-                @include('modulos.trazabilidad._produccion_card', ['o' => $o, 'modo' => 'rollos', 'soloFecha' => $soloFecha])
+            @foreach ($maquinasRollos as $m)
+                @include('modulos.trazabilidad._produccion_rollos_maquina_card', ['m' => $m])
             @endforeach
         </div>
     @endif

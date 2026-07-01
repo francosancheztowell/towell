@@ -236,7 +236,6 @@
                 @include('modulos.trazabilidad._produccion_loading')
             @else
                 @include('modulos.trazabilidad._produccion', [
-                    'opcionesNombrecolorTenido' => $opcionesNombrecolorTenido,
                     'filtros' => $filtros,
                 ])
             @endif

@@ -54,13 +54,15 @@ class TrazabilidadMatrixService
 
         $hayFlog = filled($filtros['flog'] ?? null);
 
-        // Query base con los filtros presentes (todos opcionales).
+        // Query base sin color (color solo acota Rollos Teñido en matriz y producción).
         $base = fn () => TrazaProduccion::query()
             ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
             ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
             ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
-            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
             ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
+
+        $baseRollosConColor = fn () => $base()
+            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v));
 
         // Tipo / Cliente / Agente: solo cuando hay un Flog específico.
         $info = $hayFlog ? $base()->select('Tipo', 'Cliente', 'Agente')->first() : null;
@@ -83,6 +85,22 @@ class TrazabilidadMatrixService
             ->groupBy('Fecha', 'NombreAlmacen')
             ->orderBy('Fecha')
             ->get();
+
+        // Rollos Teñido respeta el filtro de color; el resto de áreas no.
+        if (filled($filtros['color'] ?? null)) {
+            $datosRollos = $baseRollosConColor()
+                ->where('NombreAlmacen', 'Rollos Teñido')
+                ->selectRaw("Fecha, NombreAlmacen, SUM($columnaMetrica) as total")
+                ->whereNotNull('Fecha')
+                ->groupBy('Fecha', 'NombreAlmacen')
+                ->orderBy('Fecha')
+                ->get();
+
+            $datos = $datos
+                ->reject(fn ($f) => ($f->NombreAlmacen ?? '') === 'Rollos Teñido')
+                ->concat($datosRollos)
+                ->values();
+        }
 
         // --- Columnas (fechas distintas, ordenadas) ---
         $clavesFechas = $datos->pluck('Fecha')
@@ -129,6 +147,21 @@ class TrazabilidadMatrixService
                 ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
                 ->orderBy('Fecha')
                 ->get();
+
+            if (filled($filtros['color'] ?? null)) {
+                $detalleRollos = $baseRollosConColor()
+                    ->where('NombreAlmacen', 'Rollos Teñido')
+                    ->selectRaw("Fecha, NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor, SUM($columnaMetrica) as total")
+                    ->whereNotNull('Fecha')
+                    ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
+                    ->orderBy('Fecha')
+                    ->get();
+
+                $detalleRaw = $detalleRaw
+                    ->reject(fn ($f) => ($f->NombreAlmacen ?? '') === 'Rollos Teñido')
+                    ->concat($detalleRollos)
+                    ->values();
+            }
 
             foreach ($detalleRaw as $fila) {
                 $area = $fila->NombreAlmacen ?? '';
