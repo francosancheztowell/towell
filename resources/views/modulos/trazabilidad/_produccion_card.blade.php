@@ -1,6 +1,7 @@
 {{-- Tarjeta de producción (Crudo o Rollos Teñido) --}}
 @php
     $modo = $modo ?? 'crudo';
+    $esOtroTelar = false;
     $soloFecha = $soloFecha ?? function (?string $fecha): ?string {
         if (blank($fecha)) {
             return null;
@@ -34,29 +35,27 @@
         }
 
         $kgProducidos = (float) ($o['kg'] ?? 0);
+        $esOtroTelar = (bool) ($o['esOtroTelar'] ?? false);
+        $usarTraza = (bool) ($o['usarTrazaEnProducido'] ?? false);
+
+        if ($usarTraza) {
+            $producidasBd = (float) ($o['producidas'] ?? 0);
+        }
+
         $avanceRef = number_format($producidasBd).' / '.number_format($programadas);
         $avance = $o['avance'];
         $ancho = min(100, max(0, $avance));
 
-        $accentClass = $o['alerta']
+        $accentClass = $esOtroTelar
             ? 'prod-card-v2__accent--alerta'
             : ($o['estado'] === 'activo' ? 'prod-card-v2__accent--activo' : 'prod-card-v2__accent--terminado');
-
-        $conflicto = $o['localidadesConflicto'] ?? [];
-        $conflictoTexto = implode(', ', $conflicto);
-        $tituloAlerta = $conflictoTexto !== ''
-            ? 'En trazabilidad hay producción de esta orden también en: '.$conflictoTexto.'. En programa/catálogo está en '.$o['telar'].'.'
-            : 'La localidad en trazabilidad no coincide con el telar del programa.';
-        $etiquetaAlerta = $conflictoTexto !== ''
-            ? 'Prod. en '.$conflicto[0]
-            : 'Otro telar';
 
         $tituloPrincipal = $o['telar'];
     }
 @endphp
 
-<div class="prod-card prod-card-v2 {{ $modo === 'crudo' && ($o['alerta'] ?? false) ? 'prod-card--alerta' : '' }}"
-     @if ($modo === 'crudo') data-estado="{{ $o['estado'] }}" @endif>
+<div class="prod-card prod-card-v2 {{ $esOtroTelar ? 'prod-card--otro-telar' : '' }}"
+     @if ($modo === 'crudo' && ! ($o['grupoMulti'] ?? false)) data-estado="{{ $o['estado'] }}" @endif>
     <div class="prod-card-v2__accent {{ $accentClass }}" aria-hidden="true"></div>
 
     <div class="flex flex-col flex-1 p-4 min-w-0">
@@ -71,7 +70,12 @@
             </div>
             @if ($modo === 'crudo')
                 <div class="flex flex-col items-end gap-1 shrink-0 max-w-[48%]">
-                    @if ($o['enProceso'])
+                    @if ($esOtroTelar)
+                        <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-800 text-[10px] font-medium px-2 py-0.5 whitespace-nowrap"
+                              title="Producción registrada en trazabilidad en este telar">
+                            Prod. trazabilidad
+                        </span>
+                    @elseif ($o['enProceso'])
                         <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2.5 py-1 whitespace-nowrap">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                             En producción
@@ -83,12 +87,6 @@
                     @else
                         <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium px-2.5 py-1 whitespace-nowrap">
                             Finalizado
-                        </span>
-                    @endif
-                    @if ($o['alerta'])
-                        <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-800 text-[10px] font-medium px-2 py-0.5 whitespace-nowrap"
-                              title="{{ $tituloAlerta }}">
-                            {{ $etiquetaAlerta }}
                         </span>
                     @endif
                 </div>
@@ -168,7 +166,7 @@
                     <div class="prod-stat-value">{{ number_format($programadas) }}</div>
                 </div>
                 <div class="prod-stat-box"
-                     title="Piezas: ReqProgramaTejido.Produccion (o CatCodificados.Produccion). Kilos: suma de Peso en TrazaProduccion, área Crudo, en el telar del programa.">
+                     title="{{ $usarTraza ? 'Piezas y kilos en TrazaProduccion (área Crudo) en este telar.' : 'Piezas: ReqProgramaTejido.Produccion (o CatCodificados.Produccion). Kilos: suma de Peso en TrazaProduccion, área Crudo, en el telar del programa.' }}">
                     <div class="prod-stat-label">Producido</div>
                     <div class="prod-stat-value prod-stat-value--sm">{{ number_format($producidasBd) }} Pzas</div>
                     <div class="prod-stat-value prod-stat-value--sm text-teal-800">{{ number_format($kgProducidos, 2) }} Kg</div>

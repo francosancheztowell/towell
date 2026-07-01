@@ -121,6 +121,29 @@
             border-color: #fbbf24;
             box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35);
         }
+        .prod-card-grupo {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 0.35rem;
+            border-radius: 1rem;
+            border: 1px solid #fcd34d;
+            background: rgba(255, 251, 235, 0.65);
+            min-width: 0;
+        }
+        @media (min-width: 640px) {
+            .prod-card-grupo {
+                flex-direction: row;
+                align-items: stretch;
+            }
+            .prod-card-grupo .prod-card-v2 {
+                flex: 1 1 0;
+                min-width: 0;
+            }
+        }
+        .prod-card-grupo .prod-card--otro-telar {
+            border-color: #fde68a;
+        }
         .prod-card-v2__accent {
             width: 4px;
             flex-shrink: 0;
@@ -535,14 +558,24 @@
             });
 
             let visibles = 0;
-            $crudo.find('.prod-card').each(function () {
+
+            $crudo.find('.prod-card-grupo').each(function () {
                 const visible = prodFiltroActivo === 'todos'
                     || $(this).data('estado') === prodFiltroActivo;
                 $(this).toggle(visible);
                 if (visible) visibles++;
             });
 
-            $crudo.find('.prod-sin-resultados').toggle(visibles === 0 && $crudo.find('.prod-card').length > 0);
+            $crudo.find('.prod-cards-grid > .prod-card').each(function () {
+                const visible = prodFiltroActivo === 'todos'
+                    || $(this).data('estado') === prodFiltroActivo;
+                $(this).toggle(visible);
+                if (visible) visibles++;
+            });
+
+            const totalItems = $crudo.find('.prod-card-grupo').length
+                + $crudo.find('.prod-cards-grid > .prod-card').length;
+            $crudo.find('.prod-sin-resultados').toggle(visibles === 0 && totalItems > 0);
         }
 
         $resultado.on('click', '.prod-filter-btn', function () {

@@ -138,24 +138,41 @@ class TrazabilidadProduccionService
             }
 
             $numOrden = $soloDigitos($telarOrden);
-            $producidas = 0.0;
-            $kg = 0.0;
-            $localidadesExtra = [];
-
+            $porLoc = [];
             foreach ($filasLocalidad as $r) {
                 $localidad = trim((string) ($r->Localidad ?? ''));
-                $numLoc = $soloDigitos($localidad);
-                $coincideLoc = $numOrden !== '' && $numOrden === $numLoc;
+                $cant = (float) $r->cantidad_crudo;
+                $peso = (float) $r->peso_crudo;
+                if ($cant <= 0 && $peso <= 0) {
+                    continue;
+                }
+                if (! isset($porLoc[$localidad])) {
+                    $porLoc[$localidad] = [
+                        'localidad' => $localidad,
+                        'numLoc' => $soloDigitos($localidad),
+                        'cantidad' => 0.0,
+                        'peso' => 0.0,
+                    ];
+                }
+                $porLoc[$localidad]['cantidad'] += $cant;
+                $porLoc[$localidad]['peso'] += $peso;
+            }
 
+            $producidasCanon = 0.0;
+            $kgCanon = 0.0;
+            $extras = [];
+            foreach ($porLoc as $loc) {
+                $coincideLoc = $numOrden !== '' && $loc['numLoc'] === $numOrden;
                 if ($coincideLoc) {
-                    $producidas += (float) $r->cantidad_crudo;
-                    $kg += (float) $r->peso_crudo;
-                } elseif ((float) $r->cantidad_crudo > 0 || (float) $r->peso_crudo > 0) {
-                    $localidadesExtra[] = $this->formatearTelar($localidad, $numLoc);
+                    $producidasCanon += $loc['cantidad'];
+                    $kgCanon += $loc['peso'];
+                } else {
+                    $extras[] = $loc;
                 }
             }
 
-            $localidadesExtra = array_values(array_unique($localidadesExtra));
+            $hayGrupo = ! empty($extras);
+            $grupoKey = $hayGrupo ? $orden : $orden.'_solo';
 
             $avancePrograma = null;
             if ($programaDatos !== null && $programaDatos['totalPedido'] > 0) {
@@ -165,49 +182,85 @@ class TrazabilidadProduccionService
             if ($codificadosDatos !== null && $codificadosDatos['pedido'] > 0) {
                 $avanceCodificados = round($codificadosDatos['produccion'] / $codificadosDatos['pedido'] * 100, 1);
             }
-            $avanceTraza = $programadas > 0 ? round($producidas / $programadas * 100, 1) : 0.0;
-            $avance = $avancePrograma ?? $avanceCodificados ?? $avanceTraza;
+            $avanceTrazaCanon = $programadas > 0 ? round($producidasCanon / $programadas * 100, 1) : 0.0;
+            $avanceCanon = $avancePrograma ?? $avanceCodificados ?? $avanceTrazaCanon;
 
-            $ordenCards[] = [
+            $estado = $fuente === 'programa' ? 'activo' : 'terminado';
+            $telarSort = ($n = $numOrden) !== '' ? (int) $n : PHP_INT_MAX;
+
+            $baseCard = [
                 'orden' => $orden,
-                'telar' => $this->formatearTelar($telarOrden, $numOrden),
-                'localidad' => $telarOrden,
                 'fuente' => $fuente,
-                'estado' => $fuente === 'programa' ? 'activo' : 'terminado',
-                'enProceso' => $enProceso,
-                'coincide' => empty($localidadesExtra),
-                'alerta' => ! empty($localidadesExtra),
-                'localidadesConflicto' => $localidadesExtra,
+                'estado' => $estado,
                 'meses' => $mesesPorOrden[$orden] ?? [],
                 'programadas' => $programadas,
-                'producidas' => $producidas,
-                'kg' => $kg,
                 'pzasDia' => $stdDia,
-                'avance' => $avance,
-                'avanceTraza' => $avanceTraza,
                 'programa' => $programaDatos,
                 'codificados' => $codificadosDatos,
+                'grupoKey' => $grupoKey,
+                'grupoMulti' => $hayGrupo,
+                'telarSort' => $telarSort,
             ];
+
+            $ordenCards[] = array_merge($baseCard, [
+                'esOtroTelar' => false,
+                'telar' => $this->formatearTelar($telarOrden, $numOrden),
+                'localidad' => $telarOrden,
+                'enProceso' => $enProceso,
+                'coincide' => true,
+                'alerta' => false,
+                'localidadesConflicto' => [],
+                'producidas' => $producidasCanon,
+                'kg' => $kgCanon,
+                'avance' => $avanceCanon,
+                'avanceTraza' => $avanceTrazaCanon,
+                'usarTrazaEnProducido' => false,
+            ]);
+
+            foreach ($extras as $extra) {
+                $avanceTrazaExtra = $programadas > 0
+                    ? round($extra['cantidad'] / $programadas * 100, 1)
+                    : 0.0;
+
+                $ordenCards[] = array_merge($baseCard, [
+                    'esOtroTelar' => true,
+                    'telar' => $this->formatearTelar($extra['localidad'], $extra['numLoc']),
+                    'localidad' => $extra['localidad'],
+                    'enProceso' => false,
+                    'coincide' => false,
+                    'alerta' => false,
+                    'localidadesConflicto' => [],
+                    'producidas' => $extra['cantidad'],
+                    'kg' => $extra['peso'],
+                    'avance' => $avanceTrazaExtra,
+                    'avanceTraza' => $avanceTrazaExtra,
+                    'usarTrazaEnProducido' => true,
+                ]);
+            }
         }
 
-        usort($ordenCards, function ($a, $b) use ($soloDigitos) {
-            $na = ($nA = $soloDigitos($a['localidad'])) !== '' ? (int) $nA : PHP_INT_MAX;
-            $nb = ($nB = $soloDigitos($b['localidad'])) !== '' ? (int) $nB : PHP_INT_MAX;
+        usort($ordenCards, function ($a, $b) {
+            if ($a['telarSort'] !== $b['telarSort']) {
+                return $a['telarSort'] <=> $b['telarSort'];
+            }
+            if ($a['grupoKey'] !== $b['grupoKey']) {
+                return strcmp($a['grupoKey'], $b['grupoKey']);
+            }
 
-            return $na <=> $nb;
+            return ($a['esOtroTelar'] ?? false) <=> ($b['esOtroTelar'] ?? false);
         });
 
         $noEncontradas = array_values($noEncontradas);
-        $col = collect($ordenCards);
+        $canonicas = collect($ordenCards)->where(fn ($c) => ! ($c['esOtroTelar'] ?? false));
 
         return [
             'ordenes' => $ordenCards,
             'noEncontradas' => $noEncontradas,
             'resumen' => [
-                'ordenes' => $col->count(),
-                'activos' => $col->where('estado', 'activo')->count(),
-                'terminados' => $col->where('estado', 'terminado')->count(),
-                'alertas' => $col->where('alerta', true)->count(),
+                'ordenes' => $canonicas->count(),
+                'activos' => $canonicas->where('estado', 'activo')->count(),
+                'terminados' => $canonicas->where('estado', 'terminado')->count(),
+                'alertas' => $canonicas->where('grupoMulti', true)->count(),
                 'noEncontradas' => count($noEncontradas),
             ],
         ];

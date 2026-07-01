@@ -36,7 +36,7 @@
     @else
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                <span class="font-semibold text-slate-700">{{ count($ordenCardsCrudo) }} órdenes</span>
+                <span class="font-semibold text-slate-700">{{ $resumenCrudo['ordenes'] ?? count($ordenCardsCrudo) }} órdenes</span>
                 @if (($resumenCrudo['activos'] ?? 0) > 0)
                     <span class="text-[11px] bg-emerald-50 text-emerald-700 rounded-full px-2 py-0.5 font-medium">
                         {{ $resumenCrudo['activos'] }} Activas
@@ -59,7 +59,7 @@
                 <button type="button" data-filter="todos"
                         class="prod-filter-btn prod-segment__btn is-active">
                     <span>Todos</span>
-                    <span class="prod-segment__count">{{ count($ordenCardsCrudo) }}</span>
+                    <span class="prod-segment__count">{{ $resumenCrudo['ordenes'] ?? count($ordenCardsCrudo) }}</span>
                 </button>
                 <button type="button" data-filter="activo"
                         class="prod-filter-btn prod-segment__btn prod-segment__btn--activo">
@@ -79,8 +79,17 @@
         </p>
 
         <div class="prod-cards-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
-            @foreach ($ordenCardsCrudo as $o)
-                @include('modulos.trazabilidad._produccion_card', ['o' => $o, 'modo' => 'crudo', 'soloFecha' => $soloFecha])
+            @foreach (collect($ordenCardsCrudo)->groupBy('grupoKey') as $grupo)
+                @if ($grupo->count() > 1)
+                    @php $estadoGrupo = $grupo->firstWhere('esOtroTelar', false)['estado'] ?? $grupo->first()['estado']; @endphp
+                    <div class="prod-card-grupo sm:col-span-2 xl:col-span-2" data-estado="{{ $estadoGrupo }}">
+                        @foreach ($grupo->sortBy(fn ($c) => ($c['esOtroTelar'] ?? false) ? 1 : 0) as $o)
+                            @include('modulos.trazabilidad._produccion_card', ['o' => $o, 'modo' => 'crudo', 'soloFecha' => $soloFecha])
+                        @endforeach
+                    </div>
+                @else
+                    @include('modulos.trazabilidad._produccion_card', ['o' => $grupo->first(), 'modo' => 'crudo', 'soloFecha' => $soloFecha])
+                @endif
             @endforeach
         </div>
     @endif
