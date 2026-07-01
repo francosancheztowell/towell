@@ -229,17 +229,8 @@
         </div>
     </div>
 
-    {{-- ===== Pestaña: Producción (tarjetas por telar) ===== --}}
+    {{-- ===== Pestaña: Producción (Crudo + Rollos Teñido) ===== --}}
     <div data-pane="produccion" class="hidden">
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3">
-            <h2 class="text-xs md:text-sm font-bold text-slate-600 whitespace-nowrap flex items-center gap-1.5">
-                Producción · Telares
-                @if ($hayFlog)
-                    <span class="ml-2 normal-case font-semibold text-blue-600">· {{ $filtros['flog'] }}</span>
-                @endif
-            </h2>
-            <span class="flex-1 h-px bg-slate-200"></span>
-        </div>
         <div id="produccion-contenido">
             @if ($produccionCargando ?? false)
                 @include('modulos.trazabilidad._produccion_loading')

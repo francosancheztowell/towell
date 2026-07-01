@@ -443,22 +443,22 @@
 
         function aplicarFiltroProduccion(filter) {
             prodFiltroActivo = filter || 'todos';
-            const $cont = $('#produccion-contenido');
-            if (!$cont.length) return;
+            const $crudo = $('#produccion-contenido .prod-area--crudo');
+            if (!$crudo.length) return;
 
-            $cont.find('.prod-filter-btn').each(function () {
+            $crudo.find('.prod-filter-btn').each(function () {
                 $(this).toggleClass('is-active', $(this).data('filter') === prodFiltroActivo);
             });
 
             let visibles = 0;
-            $cont.find('.prod-card').each(function () {
+            $crudo.find('.prod-card').each(function () {
                 const visible = prodFiltroActivo === 'todos'
                     || $(this).data('estado') === prodFiltroActivo;
                 $(this).toggle(visible);
                 if (visible) visibles++;
             });
 
-            $cont.find('.prod-sin-resultados').toggle(visibles === 0 && $cont.find('.prod-card').length > 0);
+            $crudo.find('.prod-sin-resultados').toggle(visibles === 0 && $crudo.find('.prod-card').length > 0);
         }
 
         $resultado.on('click', '.prod-filter-btn', function () {
