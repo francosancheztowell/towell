@@ -25,7 +25,7 @@
         <button type="button" data-tab="produccion"
                 class="traza-tab inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold border-b-2 -mb-px transition-colors">
             <i class="fa-solid fa-industry"></i> Producción
-            @php $prodIssues = (int) ($produccion['resumen']['alertas'] ?? 0); @endphp
+            @php $prodIssues = (int) ($produccion['crudo']['resumen']['alertas'] ?? $produccion['resumen']['alertas'] ?? 0); @endphp
             @if ($prodIssues > 0)
                 <span class="prod-alert-badge inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold min-w-4 h-4 px-1"
                       title="{{ $prodIssues }} orden(es) con producción en otro telar">

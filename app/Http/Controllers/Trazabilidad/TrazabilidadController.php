@@ -175,9 +175,12 @@ class TrazabilidadController extends Controller
             if ($part === 'produccion') {
                 return response()->json([
                     'produccionHtml' => view('modulos.trazabilidad._produccion', [
-                        'produccion' => $produccion ?? ['ordenes' => [], 'noEncontradas' => [], 'resumen' => []],
+                        'produccion' => $produccion ?? [
+                            'crudo' => ['ordenes' => [], 'noEncontradas' => [], 'resumen' => []],
+                            'rollosTenido' => ['ordenes' => [], 'resumen' => ['ordenes' => 0]],
+                        ],
                     ])->render(),
-                    'prodAlertas' => (int) ($produccion['resumen']['alertas'] ?? 0),
+                    'prodAlertas' => (int) ($produccion['crudo']['resumen']['alertas'] ?? 0),
                     'filtros' => $filtros,
                 ]);
             }

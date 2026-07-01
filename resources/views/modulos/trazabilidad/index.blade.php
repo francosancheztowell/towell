@@ -128,6 +128,7 @@
         .prod-card-v2__accent--activo { background: #22c55e; }
         .prod-card-v2__accent--terminado { background: #94a3b8; }
         .prod-card-v2__accent--alerta { background: #f59e0b; }
+        .prod-card-v2__accent--rollos { background: #3b82f6; }
         .prod-stat-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -174,6 +175,16 @@
             color: #0f766e;
             background: #ccfbf1;
             border-color: #5eead4;
+        }
+        .prod-badge--articulo {
+            color: #1e40af;
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+        .prod-badge--color {
+            color: #5b21b6;
+            background: #ede9fe;
+            border-color: #c4b5fd;
         }
         .prod-stat-value--sm {
             font-size: 0.9375rem;

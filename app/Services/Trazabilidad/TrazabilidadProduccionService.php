@@ -8,46 +8,32 @@ use App\Models\Trazabilidad\TrazaProduccion;
 use Illuminate\Support\Collection;
 
 /**
- * Construye la sección "Producción" de Trazabilidad: una tarjeta por telar del
- * flog (o filtro) actual, con sus piezas Programadas / Producidas / KG y avance.
- *
- * El telar de cada registro se conoce por dos vías que deben coincidir:
- *  - La columna `Localidad` de TrazaProduccion (el telar según trazabilidad) → es
- *    el telar que titula cada tarjeta.
- *  - El telar de la `Orden`: ReqProgramaTejido (activo) o CatCodificados (finalizado).
- *
- * Campos por fuente en cada tarjeta:
- *  - Programa: NoTelarId, TotalPedido, Produccion, SaldoPedido, SalonTejidoId, StdDia,
- *    FechaInicio, FechaFinal, OrdCompartida, OrdCompartidaLider.
- *  - CatCodificados: TelarId, OrdenTejido, Pedido, Produccion, Saldos.
- *
- * Cuando TrazaProduccion registra la misma Orden en otra Localidad distinta al
- * telar del programa, se marca alerta en la tarjeta única (sin duplicar la orden).
- *
- * Producidas/KG provienen de la propia trazabilidad (área "Crudo": lo que el telar
- * tejió); Programadas/Pzas-Día provienen del programa de tejido.
+ * Construye la sección "Producción" de Trazabilidad en dos bloques:
+ *  - Crudo: tarjetas por orden/telar (programa + catálogo + traza área Crudo).
+ *  - Rollos Teñido: tarjetas por orden/localidad solo desde TrazaProduccion.
  */
 class TrazabilidadProduccionService
 {
     /**
      * @param  array  $filtros  ['flog','articulo','tamano','color','mes'(CSV de meses)]
-     * @return array{telares:array, resumen:array}
+     * @return array{crudo: array, rollosTenido: array}
      */
     public function build(array $filtros): array
     {
-        $mesesSel = collect(explode(',', (string) ($filtros['mes'] ?? '')))
-            ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
+        $mesesSel = $this->mesesSeleccionados($filtros);
+        $base = $this->queryBase($filtros, $mesesSel);
 
-        // Query base con los filtros presentes (todos opcionales). Misma cascada
-        // que la matriz para que ambas secciones muestren el mismo universo.
-        $base = fn () => TrazaProduccion::query()
-            ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
-            ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
-            ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
-            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
-            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
+        return [
+            'crudo' => $this->buildCrudo($base, $mesesSel),
+            'rollosTenido' => $this->buildRollosTenido($base),
+        ];
+    }
 
-        // Una fila por Orden + Localidad (telar). Producidas/KG = área "Crudo".
+    /**
+     * @return array{ordenes: array, noEncontradas: array, resumen: array}
+     */
+    private function buildCrudo(callable $base, array $mesesSel): array
+    {
         $rows = $base()
             ->whereNotNull('Orden')->where('Orden', '<>', '')
             ->selectRaw("
@@ -63,8 +49,7 @@ class TrazabilidadProduccionService
             return ['ordenes' => [], 'noEncontradas' => [], 'resumen' => $this->resumenVacio()];
         }
 
-        // Meses de producción por orden (para el badge de mes de cada orden).
-        $nombresMeses = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        $nombresMeses = $this->nombresMesesCortos();
         $mesesPorOrden = $base()
             ->whereNotNull('Orden')->where('Orden', '<>', '')
             ->whereNotNull('Fecha')
@@ -76,29 +61,16 @@ class TrazabilidadProduccionService
                 ->filter()->unique()->sort()->values()
                 ->map(fn ($m) => $nombresMeses[$m] ?? (string) $m)->all());
 
-        // --- Mapa Orden => datos del programa de tejido, en lote ---
         $ordenes = $rows->pluck('Orden')->map(fn ($o) => trim((string) $o))
             ->filter()->unique()->values();
 
-        // SQL Server limita ~2100 parámetros por consulta; con solo Tamaño/Color
-        // pueden ser miles de órdenes → cargar en lotes.
         $programa = $this->cargarProgramaPorOrdenes($ordenes);
-
-        // Las órdenes que no están en el programa se buscan en CatCodificados.
         $faltantes = $ordenes->reject(fn ($o) => $programa->has($o))->values();
         $codificados = $faltantes->isNotEmpty()
             ? $this->cargarCodificadosPorOrdenes($faltantes)
             : collect();
 
-        // Solo dígitos: la Localidad puede venir "T-202" / "TELAR 202" y el telar de
-        // la orden como "202". Comparamos por el número para no marcar falsos positivos.
         $soloDigitos = fn ($t) => preg_replace('/\D/', '', (string) $t);
-
-        // --- Una tarjeta por orden (telar canónico desde programa / cat) ---
-        // TrazaProduccion puede repetir la misma Orden en varias Localidades (p. ej.
-        // movimientos históricos en otro telar). Solo mostramos el telar del programa;
-        // las piezas/KG son las del área Crudo en ese telar. Si hay producción en
-        // otras localidades, se marca alerta sin duplicar la tarjeta.
         $porOrden = $rows->groupBy(fn ($r) => trim((string) $r->Orden));
         $ordenCards = [];
         $noEncontradas = [];
@@ -217,7 +189,6 @@ class TrazabilidadProduccionService
             ];
         }
 
-        // Ordenar por número de telar (canónico del programa / cat).
         usort($ordenCards, function ($a, $b) use ($soloDigitos) {
             $na = ($nA = $soloDigitos($a['localidad'])) !== '' ? (int) $nA : PHP_INT_MAX;
             $nb = ($nB = $soloDigitos($b['localidad'])) !== '' ? (int) $nB : PHP_INT_MAX;
@@ -226,23 +197,122 @@ class TrazabilidadProduccionService
         });
 
         $noEncontradas = array_values($noEncontradas);
-
         $col = collect($ordenCards);
-        $resumen = [
-            'ordenes' => $col->count(),
-            'activos' => $col->where('estado', 'activo')->count(),
-            'terminados' => $col->where('estado', 'terminado')->count(),
-            'alertas' => $col->where('alerta', true)->count(),
-            'noEncontradas' => count($noEncontradas),
-        ];
 
-        return ['ordenes' => $ordenCards, 'noEncontradas' => $noEncontradas, 'resumen' => $resumen];
+        return [
+            'ordenes' => $ordenCards,
+            'noEncontradas' => $noEncontradas,
+            'resumen' => [
+                'ordenes' => $col->count(),
+                'activos' => $col->where('estado', 'activo')->count(),
+                'terminados' => $col->where('estado', 'terminado')->count(),
+                'alertas' => $col->where('alerta', true)->count(),
+                'noEncontradas' => count($noEncontradas),
+            ],
+        ];
     }
 
     /**
-     * Etiqueta del telar para la tarjeta: "Telar 202" si hay número; si no, el texto
-     * crudo de la Localidad o "Sin telar".
+     * Rollos Teñido: una tarjeta por Orden + Localidad, solo TrazaProduccion.
+     *
+     * @return array{ordenes: array, resumen: array}
      */
+    private function buildRollosTenido(callable $base): array
+    {
+        $area = 'Rollos Teñido';
+
+        $rows = $base()
+            ->where('NombreAlmacen', $area)
+            ->whereNotNull('Orden')->where('Orden', '<>', '')
+            ->selectRaw('
+                Orden,
+                Localidad,
+                MAX(Tipo) as tipo,
+                MAX(Articulo) as articulo,
+                MAX(NombreArticulo) as nombre_articulo,
+                MAX(Color) as color,
+                MAX(NombreColor) as nombre_color,
+                SUM(Cantidad) as cantidad,
+                SUM(Peso) as peso
+            ')
+            ->groupBy('Orden', 'Localidad')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return ['ordenes' => [], 'resumen' => ['ordenes' => 0]];
+        }
+
+        $nombresMeses = $this->nombresMesesCortos();
+        $mesesPorClave = $base()
+            ->where('NombreAlmacen', $area)
+            ->whereNotNull('Orden')->where('Orden', '<>', '')
+            ->whereNotNull('Fecha')
+            ->selectRaw('Orden, Localidad, MONTH(Fecha) as mes')
+            ->distinct()
+            ->get()
+            ->groupBy(fn ($r) => trim((string) $r->Orden).'|'.trim((string) $r->Localidad))
+            ->map(fn ($g) => $g->pluck('mes')->map(fn ($m) => (int) $m)
+                ->filter()->unique()->sort()->values()
+                ->map(fn ($m) => $nombresMeses[$m] ?? (string) $m)->all());
+
+        $ordenCards = [];
+        foreach ($rows as $r) {
+            $orden = trim((string) $r->Orden);
+            $localidad = trim((string) ($r->Localidad ?? ''));
+            $clave = $orden.'|'.$localidad;
+
+            $ordenCards[] = [
+                'orden' => $orden,
+                'localidad' => $localidad,
+                'titulo' => $localidad !== '' ? $localidad : 'Sin localidad',
+                'tipo' => trim((string) ($r->tipo ?? '')),
+                'articulo' => trim((string) ($r->articulo ?? '')),
+                'nombreArticulo' => trim((string) ($r->nombre_articulo ?? '')),
+                'color' => trim((string) ($r->color ?? '')),
+                'nombreColor' => trim((string) ($r->nombre_color ?? '')),
+                'cantidad' => (float) ($r->cantidad ?? 0),
+                'peso' => (float) ($r->peso ?? 0),
+                'meses' => $mesesPorClave[$clave] ?? [],
+            ];
+        }
+
+        usort($ordenCards, function ($a, $b) {
+            $cmpLoc = strcasecmp($a['localidad'], $b['localidad']);
+            if ($cmpLoc !== 0) {
+                return $cmpLoc;
+            }
+
+            return strcasecmp($a['orden'], $b['orden']);
+        });
+
+        return [
+            'ordenes' => $ordenCards,
+            'resumen' => ['ordenes' => count($ordenCards)],
+        ];
+    }
+
+    private function mesesSeleccionados(array $filtros): array
+    {
+        return collect(explode(',', (string) ($filtros['mes'] ?? '')))
+            ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
+    }
+
+    private function queryBase(array $filtros, array $mesesSel): callable
+    {
+        return fn () => TrazaProduccion::query()
+            ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
+            ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
+            ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
+            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
+            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
+    }
+
+    /** @return array<int, string> */
+    private function nombresMesesCortos(): array
+    {
+        return ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    }
+
     private function formatearTelar(string $localidad, string $numLoc): string
     {
         if ($numLoc !== '') {
@@ -259,10 +329,6 @@ class TrazabilidadProduccionService
         return ['ordenes' => 0, 'activos' => 0, 'terminados' => 0, 'alertas' => 0, 'noEncontradas' => 0];
     }
 
-    /**
-     * ReqProgramaTejido por lote de NoProduccion (límite SQL Server en IN).
-     * Si hay varias filas por orden, gana EnProceso y el Id más reciente.
-     */
     private function cargarProgramaPorOrdenes(Collection $ordenes): Collection
     {
         $columnas = [
@@ -289,9 +355,6 @@ class TrazabilidadProduccionService
             ->keyBy(fn ($r) => trim((string) $r->NoProduccion));
     }
 
-    /**
-     * CatCodificados por lote de OrdenTejido (mismo límite de parámetros IN).
-     */
     private function cargarCodificadosPorOrdenes(Collection $ordenes): Collection
     {
         $filas = collect();
