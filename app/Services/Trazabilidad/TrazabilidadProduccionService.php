@@ -15,17 +15,18 @@ use Illuminate\Support\Collection;
 class TrazabilidadProduccionService
 {
     /**
-     * @param  array  $filtros  ['flog','articulo','tamano','color','mes'(CSV de meses)]
+     * @param  array  $filtros  ['flog','articulo','tamano','color','nombrecolor'(pipe), 'mes'(CSV)]
      * @return array{crudo: array, rollosTenido: array}
      */
     public function build(array $filtros): array
     {
         $mesesSel = $this->mesesSeleccionados($filtros);
+        $nombresColorSel = $this->nombresColorSeleccionados($filtros);
         $base = $this->queryBase($filtros, $mesesSel);
 
         return [
             'crudo' => $this->buildCrudo($base, $mesesSel),
-            'rollosTenido' => $this->buildRollosTenido($base),
+            'rollosTenido' => $this->buildRollosTenido($base, $nombresColorSel),
         ];
     }
 
@@ -217,12 +218,15 @@ class TrazabilidadProduccionService
      *
      * @return array{ordenes: array, resumen: array}
      */
-    private function buildRollosTenido(callable $base): array
+    private function buildRollosTenido(callable $base, array $nombresColorSel): array
     {
         $area = 'Rollos Teñido';
 
-        $rows = $base()
+        $rollosBase = fn () => $base()
             ->where('NombreAlmacen', $area)
+            ->when(! empty($nombresColorSel), fn ($q) => $q->whereIn('NombreColor', $nombresColorSel));
+
+        $rows = $rollosBase()
             ->whereNotNull('Orden')->where('Orden', '<>', '')
             ->selectRaw('
                 Orden,
@@ -243,8 +247,7 @@ class TrazabilidadProduccionService
         }
 
         $nombresMeses = $this->nombresMesesCortos();
-        $mesesPorClave = $base()
-            ->where('NombreAlmacen', $area)
+        $mesesPorClave = $rollosBase()
             ->whereNotNull('Orden')->where('Orden', '<>', '')
             ->whereNotNull('Fecha')
             ->selectRaw('Orden, Localidad, MONTH(Fecha) as mes')
@@ -297,6 +300,13 @@ class TrazabilidadProduccionService
             ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
     }
 
+    /** @return list<string> */
+    private function nombresColorSeleccionados(array $filtros): array
+    {
+        return collect(explode('|', (string) ($filtros['nombrecolor'] ?? '')))
+            ->map(fn ($v) => trim($v))->filter()->unique()->values()->all();
+    }
+
     private function queryBase(array $filtros, array $mesesSel): callable
     {
         return fn () => TrazaProduccion::query()
@@ -304,7 +314,6 @@ class TrazabilidadProduccionService
             ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
             ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
             ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
-            ->when($filtros['nombrecolor'] ?? null, fn ($q, $v) => $q->where('NombreColor', $v))
             ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
     }
 

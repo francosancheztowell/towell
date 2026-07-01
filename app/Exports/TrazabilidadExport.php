@@ -338,9 +338,6 @@ class TrazabilidadExport implements WithColumnWidths, WithDrawings, WithEvents, 
         if (filled($this->filtros['color'])) {
             $r['Color'] = $this->etiquetaCombo('Color', 'NombreColor', $this->filtros['color']);
         }
-        if (filled($this->filtros['nombrecolor'])) {
-            $r['Nombre color'] = $this->filtros['nombrecolor'];
-        }
         if (filled($this->filtros['mes'])) {
             $r['Meses'] = $this->nombresMeses($this->filtros['mes']);
         }

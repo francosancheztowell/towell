@@ -60,7 +60,6 @@ class TrazabilidadMatrixService
             ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
             ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
             ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v))
-            ->when($filtros['nombrecolor'] ?? null, fn ($q, $v) => $q->where('NombreColor', $v))
             ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
 
         // Tipo / Cliente / Agente: solo cuando hay un Flog específico.

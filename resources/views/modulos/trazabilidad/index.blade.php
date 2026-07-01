@@ -258,7 +258,7 @@
         {{-- Línea de filtros --}}
         <form method="GET" action="{{ route('trazabilidad.index') }}" id="form-filtros"
               class="bg-white border border-slate-200 rounded-2xl shadow-sm p-2.5 md:p-3 mb-3">
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
                 <div>
                     <label for="filtro-flog" class="block text-xs font-semibold text-slate-500 mb-0.5">Flog</label>
                     <select name="flog" id="filtro-flog" class="filtro-select w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -295,18 +295,9 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label for="filtro-nombrecolor" class="block text-xs font-semibold text-slate-500 mb-0.5">Nombre color</label>
-                    <select name="nombrecolor" id="filtro-nombrecolor" class="filtro-select w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Todos</option>
-                        @foreach ($opcionesNombrecolor as $opt)
-                            <option value="{{ $opt }}" @selected(($filtros['nombrecolor'] ?? '') === $opt)>{{ $opt }}</option>
-                        @endforeach
-                    </select>
-                </div>
             </div>
 
-            {{-- Switch de métrica + meses disponibles (misma fila) --}}
+            {{-- Switch de métrica + meses + color teñido (misma fila) --}}
             <div class="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
                 {{-- Grupo: Mostrar + switch --}}
                 <div class="flex items-center gap-3">
@@ -331,13 +322,19 @@
                 {{-- Grupo: Meses --}}
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="text-xs font-semibold text-slate-400">Meses:</span>
-                    {{-- Badges de meses (los renderiza el JS desde mesesDisponibles) --}}
                     <span id="meses-badges" class="flex flex-wrap items-center gap-2"></span>
+                </div>
+
+                {{-- Grupo: Color teñido (solo Rollos Teñido, multi-select) --}}
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-400">Color teñido:</span>
+                    <span id="nombrecolor-badges" class="flex flex-wrap items-center gap-2"></span>
                 </div>
             </div>
 
             {{-- Mes se filtra por los badges; se guarda aquí para conservarlo entre cambios --}}
             <input type="hidden" name="mes" id="filtro-mes" value="{{ $filtros['mes'] ?? '' }}">
+            <input type="hidden" name="nombrecolor" id="filtro-nombrecolor" value="{{ $filtros['nombrecolor'] ?? '' }}">
             {{-- Métrica activa (la controlan los botones de arriba) --}}
             <input type="hidden" name="metrica" id="filtro-metrica" value="{{ $metrica ?? 'cantidad' }}">
         </form>
@@ -415,14 +412,47 @@
             $c.removeClass('hidden').html(
                 item(counts.articulo, 'artículo', 'artículos', 'fa-box') +
                 item(counts.tamano, 'tamaño', 'tamaños', 'fa-ruler') +
-                item(counts.color, 'color', 'colores', 'fa-palette') +
-                item(counts.nombrecolor, 'nom. color', 'nom. colores', 'fa-droplet')
+                item(counts.color, 'color', 'colores', 'fa-palette')
             );
         }
 
         // Meses seleccionados (multi) desde el input oculto CSV.
         function mesesSeleccionados() {
             return ($('#filtro-mes').val() || '').split(',').filter(Boolean);
+        }
+
+        function nombresColorSeleccionados() {
+            return ($('#filtro-nombrecolor').val() || '').split('|').filter(Boolean);
+        }
+
+        function hayFiltroPrincipal(f) {
+            return !!(f.flog || f.articulo || f.tamano || f.color || f.mes);
+        }
+
+        // Renderiza badges de nombre color (Rollos Teñido).
+        function rebuildNombresColor(nombres) {
+            const activos = nombresColorSeleccionados();
+            let html = '';
+            (nombres || []).forEach(function (nombre) {
+                const esActivo = activos.includes(String(nombre));
+                const cls = esActivo
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600';
+                const safe = String(nombre).replace(/"/g, '&quot;');
+                html += '<a href="#" data-nombrecolor="' + safe + '" '
+                      + 'class="badge-nombrecolor inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 border transition-colors max-w-[12rem] truncate ' + cls + '"'
+                      + ' title="' + safe + '">' + nombre + '</a>';
+            });
+            if (!html) {
+                html = '<span class="text-xs text-slate-400 italic">Sin colores en Rollos Teñido para los filtros actuales</span>';
+            }
+            $('#nombrecolor-badges').html(html);
+        }
+
+        function recargarSoloProduccion() {
+            const v = valoresActuales();
+            if (!hayFiltroPrincipal(v)) return;
+            cargarProduccion(v, reqSeq);
         }
 
         // Renderiza los badges de meses [{mes, nombre}] en la barra de filtros (multi-select).
@@ -508,6 +538,9 @@
                     $cont.html(data.produccionHtml);
                     aplicarFiltroProduccion(prodFiltroActivo);
                 }
+                if (data.opciones?.nombrecolor) {
+                    rebuildNombresColor(data.opciones.nombrecolor);
+                }
                 actualizarBadgeProduccion(data.prodAlertas || 0);
             } catch (err) {
                 if (seq === prodSeq && seqMatriz === reqSeq) {
@@ -537,20 +570,23 @@
                 rebuildCombo('#filtro-articulo', data.opciones.articulo, data.filtros.articulo);
                 rebuildSelect('#filtro-tamano', data.opciones.tamano, data.filtros.tamano);
                 rebuildCombo('#filtro-color', data.opciones.color, data.filtros.color);
-                rebuildSelect('#filtro-nombrecolor', data.opciones.nombrecolor, data.filtros.nombrecolor);
                 $('#filtro-mes').val(data.filtros.mes || '');
+                $('#filtro-nombrecolor').val(data.filtros.nombrecolor || '');
                 rebuildMeses(data.opciones.mes);
+                const validosColor = (data.opciones.nombrecolor || []).map(String);
+                const coloresSel = nombresColorSeleccionados().filter(function (n) {
+                    return validosColor.includes(n);
+                });
+                $('#filtro-nombrecolor').val(coloresSel.join('|'));
+                rebuildNombresColor(data.opciones.nombrecolor);
                 rebuildResumen({
                     articulo: (data.opciones.articulo || []).length,
                     tamano:   (data.opciones.tamano || []).length,
                     color:    (data.opciones.color || []).length,
-                    nombrecolor: (data.opciones.nombrecolor || []).length,
                 }, !!data.filtros.flog);
                 window.history.replaceState(null, '', RUTA);
 
-                const hayFiltro = data.filtros.flog || data.filtros.articulo
-                    || data.filtros.tamano || data.filtros.color
-                    || data.filtros.nombrecolor || data.filtros.mes;
+                const hayFiltro = hayFiltroPrincipal(data.filtros);
                 if (hayFiltro) {
                     cargarProduccion(params, seq);
                 } else {
@@ -596,8 +632,18 @@
             aplicar(valoresActuales());
         });
 
+        $('#nombrecolor-badges').on('click', '.badge-nombrecolor', function (e) {
+            e.preventDefault();
+            const nombre = String($(this).data('nombrecolor'));
+            let sel = nombresColorSeleccionados();
+            sel = sel.includes(nombre) ? sel.filter(function (x) { return x !== nombre; }) : sel.concat(nombre);
+            $('#filtro-nombrecolor').val(sel.join('|'));
+            recargarSoloProduccion();
+        });
+
         // Render inicial de los badges de meses (desde los datos del servidor).
         rebuildMeses(@json($mesesDisponibles));
+        rebuildNombresColor(@json($opcionesNombrecolorTenido));
 
         // Estilo inicial de la pestaña activa (las pestañas existen si hay filtro).
         aplicarTab(tabActivo);
@@ -612,8 +658,6 @@
             'articulo' => $opcionesArticulo->count(),
             'tamano'   => $opcionesTamano->count(),
             'color'    => $opcionesColor->count(),
-            'nombrecolor' => $opcionesNombrecolor->count(),
-            'mes'      => $mesesDisponibles->count(),
         ]; @endphp
         rebuildResumen(@json($conteosIniciales), @json($hayFlog));
 
@@ -633,12 +677,13 @@
         const RUTA_EXPORT = @json(route('trazabilidad.exportar'));
         $('#btn-exportar').on('click', function () {
             const v = valoresActuales();
-            const hayFiltro = v.flog || v.articulo || v.tamano || v.color || v.nombrecolor || v.mes;
+            const hayFiltro = hayFiltroPrincipal(v);
             if (!hayFiltro) {
                 window.notify?.warning('Selecciona al menos un filtro antes de exportar.');
                 return;
             }
-            const qs = new URLSearchParams(v).toString();
+            const { nombrecolor: _omit, ...exportParams } = v;
+            const qs = new URLSearchParams(exportParams).toString();
             window.location.href = RUTA_EXPORT + '?' + qs;
         });
 
@@ -647,6 +692,7 @@
         $('#btn-restablecer').on('click', function () {
             $('.filtro-select').val(null).trigger('change.select2');
             $('#filtro-mes').val('');
+            $('#filtro-nombrecolor').val('');
             aplicar({
                 flog: '', articulo: '', tamano: '', color: '', nombrecolor: '', mes: '',
                 metrica: $('#filtro-metrica').val() || 'cantidad',
