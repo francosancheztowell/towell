@@ -190,6 +190,8 @@ class TrazabilidadController extends Controller
                             'crudo' => ['ordenes' => [], 'noEncontradas' => [], 'resumen' => []],
                             'rollosTenido' => ['ordenes' => [], 'resumen' => ['ordenes' => 0]],
                         ],
+                        'opcionesNombrecolorTenido' => $opcionesNombrecolorTenido,
+                        'filtros' => $filtros,
                     ])->render(),
                     'prodAlertas' => (int) ($produccion['crudo']['resumen']['alertas'] ?? 0),
                     'filtros' => $filtros,

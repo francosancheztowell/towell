@@ -251,6 +251,27 @@
             background: #e2e8f0;
             color: #334155;
         }
+
+        /* Select compacto: color teñido (solo pestaña Producción) */
+        .prod-filtro-tenido .select2-container--default .select2-selection--multiple {
+            min-height: 34px;
+            max-height: 4.5rem;
+            overflow-y: auto;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.6rem;
+            background: #fff;
+            padding: 2px 6px;
+        }
+        .prod-filtro-tenido .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            font-size: 0.6875rem;
+            padding: 1px 6px;
+            margin-top: 3px;
+            max-width: 100%;
+        }
+        .prod-filtro-tenido .select2-container--default .select2-search--inline .select2-search__field {
+            font-size: 0.8125rem;
+            margin-top: 4px;
+        }
     </style>
 
     <div class="w-full min-h-full px-1.5 md:px-2 py-3" style="background:#f1f5f9;" id="globalLoader">
@@ -297,7 +318,7 @@
                 </div>
             </div>
 
-            {{-- Switch de métrica + meses + color teñido (misma fila) --}}
+            {{-- Switch de métrica + meses (misma fila) --}}
             <div class="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
                 {{-- Grupo: Mostrar + switch --}}
                 <div class="flex items-center gap-3">
@@ -324,15 +345,8 @@
                     <span class="text-xs font-semibold text-slate-400">Meses:</span>
                     <span id="meses-badges" class="flex flex-wrap items-center gap-2"></span>
                 </div>
-
-                {{-- Grupo: Color teñido (solo Rollos Teñido, multi-select) --}}
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-400">Color teñido:</span>
-                    <span id="nombrecolor-badges" class="flex flex-wrap items-center gap-2"></span>
-                </div>
             </div>
 
-            {{-- Mes se filtra por los badges; se guarda aquí para conservarlo entre cambios --}}
             <input type="hidden" name="mes" id="filtro-mes" value="{{ $filtros['mes'] ?? '' }}">
             <input type="hidden" name="nombrecolor" id="filtro-nombrecolor" value="{{ $filtros['nombrecolor'] ?? '' }}">
             {{-- Métrica activa (la controlan los botones de arriba) --}}
@@ -429,24 +443,42 @@
             return !!(f.flog || f.articulo || f.tamano || f.color || f.mes);
         }
 
-        // Renderiza badges de nombre color (Rollos Teñido).
-        function rebuildNombresColor(nombres) {
-            const activos = nombresColorSeleccionados();
-            let html = '';
-            (nombres || []).forEach(function (nombre) {
-                const esActivo = activos.includes(String(nombre));
-                const cls = esActivo
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600';
-                const safe = String(nombre).replace(/"/g, '&quot;');
-                html += '<a href="#" data-nombrecolor="' + safe + '" '
-                      + 'class="badge-nombrecolor inline-flex items-center rounded-full text-xs font-semibold px-3 py-1 border transition-colors max-w-[12rem] truncate ' + cls + '"'
-                      + ' title="' + safe + '">' + nombre + '</a>';
-            });
-            if (!html) {
-                html = '<span class="text-xs text-slate-400 italic">Sin colores en Rollos Teñido para los filtros actuales</span>';
+        let debounceTenidoColor = null;
+
+        function initNombrecolorTenidoSelect(opciones, seleccionados) {
+            const $sel = $('#filtro-nombrecolor-tenido');
+            if (!$sel.length) return;
+
+            if ($sel.hasClass('select2-hidden-accessible')) {
+                $sel.off('change.nombrecolor');
+                $sel.select2('destroy');
             }
-            $('#nombrecolor-badges').html(html);
+
+            const selSet = new Set((seleccionados || []).map(String));
+            let html = '';
+            (opciones || []).forEach(function (nombre) {
+                const n = String(nombre);
+                const selected = selSet.has(n) ? ' selected' : '';
+                html += '<option value="' + n.replace(/"/g, '&quot;') + '"' + selected + '>' + n + '</option>';
+            });
+            $sel.html(html);
+
+            $sel.select2({
+                width: '100%',
+                placeholder: 'Todos los colores',
+                allowClear: true,
+                closeOnSelect: false,
+                dropdownCssClass: 'traza-select2-dd',
+            });
+
+            $sel.on('change.nombrecolor', function () {
+                clearTimeout(debounceTenidoColor);
+                debounceTenidoColor = setTimeout(function () {
+                    const vals = $sel.val() || [];
+                    $('#filtro-nombrecolor').val(vals.join('|'));
+                    recargarSoloProduccion();
+                }, 250);
+            });
         }
 
         function recargarSoloProduccion() {
@@ -537,9 +569,10 @@
                 if ($cont.length) {
                     $cont.html(data.produccionHtml);
                     aplicarFiltroProduccion(prodFiltroActivo);
-                }
-                if (data.opciones?.nombrecolor) {
-                    rebuildNombresColor(data.opciones.nombrecolor);
+                    initNombrecolorTenidoSelect(
+                        data.opciones?.nombrecolor,
+                        nombresColorSeleccionados()
+                    );
                 }
                 actualizarBadgeProduccion(data.prodAlertas || 0);
             } catch (err) {
@@ -578,7 +611,6 @@
                     return validosColor.includes(n);
                 });
                 $('#filtro-nombrecolor').val(coloresSel.join('|'));
-                rebuildNombresColor(data.opciones.nombrecolor);
                 rebuildResumen({
                     articulo: (data.opciones.articulo || []).length,
                     tamano:   (data.opciones.tamano || []).length,
@@ -632,18 +664,15 @@
             aplicar(valoresActuales());
         });
 
-        $('#nombrecolor-badges').on('click', '.badge-nombrecolor', function (e) {
-            e.preventDefault();
-            const nombre = String($(this).data('nombrecolor'));
-            let sel = nombresColorSeleccionados();
-            sel = sel.includes(nombre) ? sel.filter(function (x) { return x !== nombre; }) : sel.concat(nombre);
-            $('#filtro-nombrecolor').val(sel.join('|'));
-            recargarSoloProduccion();
-        });
-
         // Render inicial de los badges de meses (desde los datos del servidor).
         rebuildMeses(@json($mesesDisponibles));
-        rebuildNombresColor(@json($opcionesNombrecolorTenido));
+
+        @if ($hayFiltro && ! ($produccionCargando ?? false))
+            initNombrecolorTenidoSelect(
+                @json($opcionesNombrecolorTenido),
+                nombresColorSeleccionados()
+            );
+        @endif
 
         // Estilo inicial de la pestaña activa (las pestañas existen si hay filtro).
         aplicarTab(tabActivo);

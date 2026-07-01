@@ -88,17 +88,32 @@
 
 {{-- ===== Rollos Teñido ===== --}}
 <section class="prod-area prod-area--rollos-tenido" aria-labelledby="prod-titulo-rollos-tenido">
-    <h3 id="prod-titulo-rollos-tenido" class="text-lg md:text-xl font-bold text-slate-800 mb-4">
+    <h3 id="prod-titulo-rollos-tenido" class="text-lg md:text-xl font-bold text-slate-800 mb-3">
         Rollos Teñido
     </h3>
+
+    @include('modulos.trazabilidad._produccion_filtro_tenido', [
+        'opcionesNombrecolorTenido' => $opcionesNombrecolorTenido ?? collect(),
+        'filtros' => $filtros ?? [],
+    ])
+
+    @php
+        $nombresColorSel = collect(explode('|', (string) ($filtros['nombrecolor'] ?? '')))
+            ->map(fn ($v) => trim($v))->filter()->values()->all();
+    @endphp
 
     @if (empty($ordenCardsRollos))
         <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
             <div class="mx-auto w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-4">
                 <i class="fa-solid fa-scroll text-blue-400 text-lg"></i>
             </div>
-            <p class="text-slate-700 font-semibold">Sin rollos teñidos para los filtros actuales</p>
-            <p class="text-slate-400 text-sm mt-1">No hay registros en TrazaProduccion con área Rollos Teñido.</p>
+            @if (! empty($nombresColorSel))
+                <p class="text-slate-700 font-semibold">Sin rollos para los colores seleccionados</p>
+                <p class="text-slate-400 text-sm mt-1">Prueba quitando colores del filtro o elige otros.</p>
+            @else
+                <p class="text-slate-700 font-semibold">Sin rollos teñidos para los filtros actuales</p>
+                <p class="text-slate-400 text-sm mt-1">No hay registros en TrazaProduccion con área Rollos Teñido.</p>
+            @endif
         </div>
     @else
         <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600 mb-4">

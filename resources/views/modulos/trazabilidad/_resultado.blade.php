@@ -235,7 +235,10 @@
             @if ($produccionCargando ?? false)
                 @include('modulos.trazabilidad._produccion_loading')
             @else
-                @include('modulos.trazabilidad._produccion')
+                @include('modulos.trazabilidad._produccion', [
+                    'opcionesNombrecolorTenido' => $opcionesNombrecolorTenido,
+                    'filtros' => $filtros,
+                ])
             @endif
         </div>
     </div>
