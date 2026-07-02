@@ -138,6 +138,12 @@
                             {{ $general['infoImportante'] }}
                         </div>
                     @endif
+                    @if (filled($general['avisoEspecialTxt'] ?? null))
+                        <div class="flog-meta-nota">
+                            <span class="flog-meta-nota__titulo">Aviso especial</span>
+                            {{ $general['avisoEspecialTxt'] }}
+                        </div>
+                    @endif
                     @if (empty($imagenesFlog))
                         <p class="text-sm text-slate-400 italic mt-1">Sin imágenes disponibles.</p>
                     @endif
@@ -162,12 +168,5 @@
                 @endif
             </div>
         </section>
-
-        @if (filled($general['avisoEspecialTxt'] ?? null))
-            <div class="flog-nota flog-nota--amber">
-                <span class="flog-nota__titulo">Aviso especial</span>
-                {{ $general['avisoEspecialTxt'] }}
-            </div>
-        @endif
     </div>
 @endif
