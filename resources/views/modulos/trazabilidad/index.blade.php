@@ -279,170 +279,223 @@
             border-color: #93c5fd;
         }
 
-        /* === Pestaña Flogs (tarjetas compactas) === */
-        .flog-grid-top {
+        /* === Pestaña Flogs === */
+        .flog-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .flog-grid-2 {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0.75rem;
+            gap: 1rem;
         }
         @media (min-width: 1024px) {
-            .flog-grid-top {
+            .flog-grid-2 {
                 grid-template-columns: 1fr 1fr;
+            }
+            .flog-grid-2--empaque {
+                grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
             }
         }
         .flog-card {
             background: #ffffff;
             border: 1px solid #e2e8f0;
-            border-radius: 0.75rem;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            border-radius: 0.875rem;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
             overflow: hidden;
         }
         .flog-card__head {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.55rem 0.85rem;
+            gap: 0.65rem;
+            padding: 0.75rem 1.1rem;
             border-bottom: 1px solid #e2e8f0;
-            background: #fafbfc;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
         }
         .flog-card__icon {
-            width: 1.5rem;
-            height: 1.5rem;
-            border-radius: 0.375rem;
-            background: #eff6ff;
-            color: #2563eb;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            background: #dbeafe;
+            color: #1d4ed8;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.65rem;
+            font-size: 0.9rem;
             flex-shrink: 0;
         }
         .flog-card__title {
-            font-size: 0.625rem;
+            font-size: 0.8125rem;
             font-weight: 800;
-            letter-spacing: 0.07em;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
-            color: #1e40af;
-            line-height: 1.2;
-        }
-        .flog-card__body {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0 1rem;
-            padding: 0.25rem 0.85rem 0.65rem;
-        }
-        @media (min-width: 640px) {
-            .flog-card__body--2col {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-        .flog-col {
-            min-width: 0;
-        }
-        .flog-fila {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-            gap: 0.35rem 0.65rem;
-            align-items: baseline;
-            padding: 0.4rem 0;
-            border-bottom: 1px dashed #e2e8f0;
-        }
-        .flog-fila:last-child {
-            border-bottom: none;
-        }
-        .flog-fila__label {
-            font-size: 0.5625rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #94a3b8;
+            color: #1e3a8a;
             line-height: 1.25;
         }
-        .flog-fila__valor {
+        .flog-card__body {
+            padding: 1rem 1.1rem 1.1rem;
+        }
+        .flog-fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.85rem 1.25rem;
+        }
+        @media (min-width: 1280px) {
+            .flog-fields {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+        .flog-campo {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            min-width: 0;
+        }
+        .flog-campo__label {
             font-size: 0.6875rem;
             font-weight: 700;
-            color: #1e3a5f;
-            text-align: right;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
             line-height: 1.3;
+        }
+        .flog-campo__valor {
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.35;
             word-break: break-word;
         }
-        .flog-fila__valor--accent {
+        .flog-campo__valor--accent {
             color: #1d4ed8;
         }
-        .flog-fila__valor--warn {
-            color: #ea580c;
-        }
-        .flog-fila__valor--badge {
+        .flog-campo__valor--badge {
             display: inline-block;
-            padding: 0.1rem 0.45rem;
-            border-radius: 0.25rem;
+            align-self: flex-start;
+            padding: 0.2rem 0.55rem;
+            border-radius: 0.375rem;
             background: #f1f5f9;
-            font-size: 0.625rem;
+            border: 1px solid #e2e8f0;
+            font-size: 0.8125rem;
             font-weight: 600;
-            color: #475569;
+            color: #334155;
+        }
+        .flog-campo--wide {
+            grid-column: 1 / -1;
+        }
+        @media (min-width: 768px) {
+            .flog-campo--half {
+                grid-column: span 2;
+            }
+        }
+        .flog-etiq-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.85rem;
+        }
+        .flog-etiq-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.625rem;
+            overflow: hidden;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+        .flog-etiq-item__img {
+            flex: 1;
+            min-height: 200px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.65rem;
+            cursor: zoom-in;
+        }
+        .flog-etiq-item__img img {
+            max-height: 220px;
+            max-width: 100%;
+            width: auto;
+            object-fit: contain;
+        }
+        .flog-etiq-item__txt {
+            padding: 0.55rem 0.65rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.35;
+        }
+        .flog-empaque-img {
+            margin-top: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.625rem;
+            background: #f8fafc;
+            padding: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 220px;
+            cursor: zoom-in;
+        }
+        .flog-empaque-img img {
+            max-height: 280px;
+            max-width: 100%;
+            object-fit: contain;
         }
         .flog-nota {
-            border-radius: 0.5rem;
-            padding: 0.55rem 0.75rem;
-            font-size: 0.6875rem;
-            line-height: 1.45;
+            border-radius: 0.625rem;
+            padding: 0.85rem 1rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
             white-space: pre-line;
+        }
+        .flog-nota__titulo {
+            font-size: 0.6875rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.45rem;
+            display: block;
         }
         .flog-nota--amber {
             background: #fffbeb;
-            border: 1px solid #fde68a;
+            border: 1px solid #fcd34d;
             color: #92400e;
+        }
+        .flog-nota--amber .flog-nota__titulo {
+            color: #b45309;
         }
         .flog-nota--slate {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
+            color: #334155;
+        }
+        .flog-nota--slate .flog-nota__titulo {
             color: #475569;
         }
-        .flog-etiq-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 0.5rem;
+        .flog-empty-img {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            text-align: center;
+            padding: 2rem 1rem;
         }
-        .flog-etiq-item {
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            overflow: hidden;
-            background: #fff;
+
+        /* Modal zoom imagen flog */
+        #modal-flog-imagen {
+            z-index: 9999;
         }
-        .flog-etiq-item__img {
-            height: 72px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.25rem;
+        #modal-flog-imagen .modal-flog-imagen__backdrop {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(3px);
         }
-        .flog-etiq-item__img img {
-            max-height: 100%;
-            max-width: 100%;
-            object-fit: contain;
+        #modal-flog-imagen .modal-flog-imagen__panel {
+            z-index: 1;
+            max-width: min(92vw, 900px);
+            max-height: 90vh;
         }
-        .flog-etiq-item__txt {
-            padding: 0.35rem 0.45rem;
-            font-size: 0.625rem;
-            font-weight: 600;
-            color: #334155;
-            line-height: 1.25;
-        }
-        .flog-empaque-img {
-            margin-top: 0.35rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            background: #f8fafc;
-            padding: 0.35rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 80px;
-        }
-        .flog-empaque-img img {
-            max-height: 88px;
+        #modal-flog-imagen .modal-flog-imagen__panel img {
+            max-height: calc(90vh - 4rem);
             max-width: 100%;
             object-fit: contain;
         }
@@ -581,6 +634,18 @@
             </div>
         </div>
 
+        {{-- Modal zoom imagen Flog --}}
+        <div id="modal-flog-imagen" class="hidden fixed inset-0 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-flog-imagen-titulo">
+            <div class="modal-flog-imagen__backdrop absolute inset-0" data-modal-flog-close></div>
+            <div class="modal-flog-imagen__panel relative bg-white rounded-2xl p-4 flex flex-col items-center">
+                <button type="button" class="absolute top-3 right-3 text-slate-400 hover:text-slate-700 p-1 rounded-lg" data-modal-flog-close aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <p id="modal-flog-imagen-titulo" class="text-sm font-semibold text-slate-600 mb-3 pr-8 self-start"></p>
+                <img src="" alt="" class="rounded-lg">
+            </div>
+        </div>
+
     </div>
 @endsection
 
@@ -596,6 +661,39 @@
         if ($modalRollos.length) {
             $modalRollos.appendTo(document.body);
         }
+
+        const $modalFlogImg = $('#modal-flog-imagen');
+        if ($modalFlogImg.length) {
+            $modalFlogImg.appendTo(document.body);
+        }
+
+        function abrirModalFlogImagen(src, titulo) {
+            if (!src || !$modalFlogImg.length) return;
+            $modalFlogImg.find('img').attr({ src: src, alt: titulo || 'Imagen' });
+            $('#modal-flog-imagen-titulo').text(titulo || '');
+            $modalFlogImg.removeClass('hidden');
+        }
+
+        function cerrarModalFlogImagen() {
+            if (!$modalFlogImg.length) return;
+            $modalFlogImg.addClass('hidden');
+            $modalFlogImg.find('img').attr('src', '');
+        }
+
+        $resultado.on('click', '[data-flog-zoom]', function () {
+            const src = $(this).data('flog-zoom') || $(this).find('img').attr('src');
+            const titulo = $(this).closest('.flog-etiq-item').find('.flog-etiq-item__txt').text()
+                || $(this).closest('.flog-card').find('.flog-card__title').text()
+                || 'Imagen';
+            abrirModalFlogImagen(src, titulo);
+        });
+
+        $modalFlogImg.on('click', '[data-modal-flog-close]', cerrarModalFlogImagen);
+        $modalFlogImg.on('click', function (e) {
+            if (e.target === this || $(e.target).hasClass('modal-flog-imagen__backdrop')) {
+                cerrarModalFlogImagen();
+            }
+        });
 
         $('.filtro-select').select2({
             width: '100%',
@@ -732,6 +830,9 @@
         $(document).on('keydown', function (e) {
             if (e.key === 'Escape' && !$('#modal-rollos-maquina').hasClass('hidden')) {
                 cerrarModalRollosMaquina();
+            }
+            if (e.key === 'Escape' && !$modalFlogImg.hasClass('hidden')) {
+                cerrarModalFlogImagen();
             }
         });
 
