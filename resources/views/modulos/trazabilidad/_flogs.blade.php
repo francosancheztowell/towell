@@ -8,7 +8,7 @@
     $lineas = $flogs['lineas'] ?? [];
 
     $columnasLineas = [
-        ['key' => 'lineNum', 'label' => 'Línea'],
+        ['key' => 'lineNum', 'label' => 'Línea', 'tipo' => 'entero'],
         ['key' => 'estadoLinea', 'label' => 'Estado línea'],
         ['key' => 'fechaCancelacion', 'label' => 'Fecha cancelación'],
         ['key' => 'itemId', 'label' => 'Item'],
@@ -232,7 +232,7 @@
                                         @endphp
                                         <td @class([
                                             'flog-lineas-table__celda--larga' => $esLargo,
-                                            'flog-lineas-table__celda--num' => $tipo === 'decimal',
+                                            'flog-lineas-table__celda--num' => in_array($tipo, ['decimal', 'entero'], true),
                                             'flog-lineas-table__celda--img' => $tipo === 'imagen',
                                         ])>
                                             @if ($tipo === 'imagen')

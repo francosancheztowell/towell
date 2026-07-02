@@ -12,6 +12,13 @@ class TrazabilidadFlogsService
         '2' => 'Stock',
     ];
 
+    private const ESTADO_LINEA_LABELS = [
+        '0' => 'Abierto',
+        '1' => 'Facturado',
+        '2' => 'Cancelado',
+        '3' => 'Todo',
+    ];
+
     private const FLOG_IMAGEN_UNC_ROOT = '\\\\192.168.2.11\\ImagenFlog\\';
 
     /**
@@ -122,8 +129,8 @@ class TrazabilidadFlogsService
     private function mapearLineaFlog(object $row): array
     {
         return [
-            'lineNum' => $this->txt($row->LINENUM ?? null),
-            'estadoLinea' => $this->txt($row->ESTADOLINEA ?? null),
+            'lineNum' => $this->formatearEntero($row->LINENUM ?? null),
+            'estadoLinea' => $this->resolverEstadoLinea($row->ESTADOLINEA ?? null),
             'fechaCancelacion' => $this->formatearFecha($row->FECHACANCELACION ?? null),
             'itemId' => $this->txt($row->ITEMID ?? null),
             'itemName' => $this->txt($row->ITEMNAME ?? null),
@@ -195,6 +202,23 @@ class TrazabilidadFlogsService
         return is_file($ruta) ? $ruta : null;
     }
 
+    private function resolverEstadoLinea(mixed $estado): string
+    {
+        if ($estado === null || $estado === '') {
+            return '—';
+        }
+
+        $codigo = is_numeric($estado)
+            ? (string) (int) $estado
+            : trim((string) $estado);
+
+        if (isset(self::ESTADO_LINEA_LABELS[$codigo])) {
+            return self::ESTADO_LINEA_LABELS[$codigo];
+        }
+
+        return $codigo !== '' ? $codigo : '—';
+    }
+
     private function resolverTipoPedido(mixed $tipoPedido, string $idFlog): string
     {
         $codigo = trim((string) $tipoPedido);
@@ -253,6 +277,20 @@ class TrazabilidadFlogsService
         }
 
         return in_array(strtolower($v), ['1', 'si', 'sí', 'yes', 'true'], true) ? 'Sí' : $v;
+    }
+
+    private function formatearEntero(mixed $valor): string
+    {
+        if (blank($valor) && $valor !== 0 && $valor !== '0') {
+            return '—';
+        }
+
+        $normalizado = str_replace(',', '.', trim((string) $valor));
+        if ($normalizado === '' || ! is_numeric($normalizado)) {
+            return $this->txt($valor) ?: '—';
+        }
+
+        return (string) (int) $normalizado;
     }
 
     private function formatearDecimal3(mixed $valor): string
