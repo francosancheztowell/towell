@@ -707,7 +707,7 @@
         }
     </style>
 
-    <div class="w-full min-h-full px-1.5 md:px-2 py-3" style="background:#f1f5f9;" id="globalLoader">
+    <div class="w-full min-h-full px-1.5 md:px-2 py-3" style="background:#f1f5f9;">
 
         {{-- Línea de filtros --}}
         <form method="GET" action="{{ route('trazabilidad.index') }}" id="form-filtros"
@@ -883,6 +883,52 @@
             $modalFlogImg.appendTo(document.body);
         }
 
+        const $scrollMain = $('main.app-main');
+        let scrollLockCount = 0;
+        let sincronizandoSelects = false;
+
+        function bloquearScrollPagina() {
+            scrollLockCount++;
+            if (scrollLockCount === 1 && $scrollMain.length) {
+                $scrollMain.data('traza-scroll-top', $scrollMain.scrollTop());
+                $scrollMain.css('overflow-y', 'hidden');
+            }
+        }
+
+        function desbloquearScrollPagina() {
+            scrollLockCount = Math.max(0, scrollLockCount - 1);
+            if (scrollLockCount === 0 && $scrollMain.length) {
+                $scrollMain.css('overflow-y', '');
+                const top = $scrollMain.data('traza-scroll-top');
+                if (typeof top === 'number') {
+                    $scrollMain.scrollTop(top);
+                }
+            }
+        }
+
+        function preservarScrollEnMain(callback) {
+            const top = $scrollMain.length ? $scrollMain.scrollTop() : 0;
+            callback();
+            requestAnimationFrame(function () {
+                if ($scrollMain.length) $scrollMain.scrollTop(top);
+            });
+        }
+
+        function escaparHtml(texto) {
+            return String(texto ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function leerValorSelect($el) {
+            const val = $el.val();
+            if (val === null || val === undefined) return '';
+            if (Array.isArray(val)) return val[0] || '';
+            return String(val);
+        }
+
         const flogVisor = {
             src: '',
             titulo: '',
@@ -998,7 +1044,7 @@
 
             $('#modal-flog-imagen-titulo').text(titulo || '');
             $modalFlogImg.removeClass('hidden');
-            document.body.style.overflow = 'hidden';
+            bloquearScrollPagina();
         }
 
         function cerrarModalFlogImagen() {
@@ -1009,7 +1055,7 @@
             flogVisor.src = '';
             flogVisor.dragging = false;
             $flogStage().removeClass('is-dragging');
-            document.body.style.overflow = '';
+            desbloquearScrollPagina();
         }
 
         $resultado.on('click', '.flog-visual-frame[data-flog-zoom]', function () {
@@ -1038,6 +1084,7 @@
         });
 
         $modalFlogImg.on('wheel', '[data-flog-stage]', function (e) {
+            if ($modalFlogImg.hasClass('hidden')) return;
             e.preventDefault();
             const factor = e.originalEvent.deltaY < 0 ? 1.12 : 1 / 1.12;
             cambiarZoomFlog(factor);
@@ -1098,24 +1145,52 @@
             aplicarTab($(this).data('tab'));
         });
 
-        // Reconstruye un select simple (Flog/Tamaño/Color) preservando el valor.
+        // Reconstruye un select  (Flog/Tamaño) preservando el valor.
         function rebuildSelect(id, opciones, seleccionado) {
-            let html = '<option value="">Todos</option>';
+            const $el = $(id);
+            const val = seleccionado == null ? '' : String(seleccionado);
+            let html = '<option value=""></option>';
+            const valores = new Set();
             (opciones || []).forEach(function (v) {
-                const sel = String(v) === String(seleccionado ?? '') ? ' selected' : '';
-                html += '<option value="' + v + '"' + sel + '>' + v + '</option>';
+                const s = String(v);
+                valores.add(s);
+                const sel = s === val ? ' selected' : '';
+                html += '<option value="' + escaparHtml(s) + '"' + sel + '>' + escaparHtml(s) + '</option>';
             });
-            $(id).html(html).trigger('change.select2'); // refresca select2 sin disparar el handler de cambio
+            if (val && !valores.has(val)) {
+                html += '<option value="' + escaparHtml(val) + '" selected>' + escaparHtml(val) + '</option>';
+            }
+            sincronizandoSelects = true;
+            $el.html(html);
+            $el.val(val || null).trigger('change');
+            sincronizandoSelects = false;
         }
 
         // Reconstruye un select combinado "código / nombre": [{codigo, label}].
         function rebuildCombo(id, opciones, seleccionado) {
-            let html = '<option value="">Todos</option>';
+            const $el = $(id);
+            const val = seleccionado == null ? '' : String(seleccionado);
+            let html = '<option value=""></option>';
+            let labelSel = val;
+            const codigos = new Set();
             (opciones || []).forEach(function (o) {
-                const sel = String(o.codigo) === String(seleccionado ?? '') ? ' selected' : '';
-                html += '<option value="' + o.codigo + '"' + sel + '>' + o.label + '</option>';
+                const codigo = String(o.codigo);
+                codigos.add(codigo);
+                const sel = codigo === val ? ' selected' : '';
+                if (sel) labelSel = o.label || codigo;
+                html += '<option value="' + escaparHtml(codigo) + '"' + sel + '>'
+                    + escaparHtml(o.label) + '</option>';
             });
-            $(id).html(html).trigger('change.select2');
+            if (val && !codigos.has(val)) {
+                const fallback = $el.data('traza-last-label') || val;
+                labelSel = fallback;
+                html += '<option value="' + escaparHtml(val) + '" selected>' + escaparHtml(fallback) + '</option>';
+            }
+            sincronizandoSelects = true;
+            $el.html(html);
+            $el.val(val || null).trigger('change');
+            if (val) $el.data('traza-last-label', labelSel);
+            sincronizandoSelects = false;
         }
 
         // Resumen de conteos arriba de los selects (solo si hay Flog).
@@ -1178,14 +1253,14 @@
             $('#modal-rollos-total-pzas').text(formatNum(totalPzas, 0));
             $('#modal-rollos-total-kg').text(formatNum(totalKg, 2));
             $modal.removeClass('hidden').css('display', 'flex');
-            document.body.style.overflow = 'hidden';
+            bloquearScrollPagina();
         }
 
         function cerrarModalRollosMaquina() {
             const $modal = $('#modal-rollos-maquina');
             if (!$modal.length) return;
             $modal.addClass('hidden').css('display', '');
-            document.body.style.overflow = '';
+            desbloquearScrollPagina();
         }
 
         $resultado.on('click', '.prod-rollos-maquina-card', function () {
@@ -1246,12 +1321,12 @@
 
         function valoresActuales() {
             return {
-                flog:     $('#filtro-flog').val() || '',
-                articulo: $('#filtro-articulo').val() || '', // código de artículo
-                tamano:   $('#filtro-tamano').val() || '',
-                color:    $('#filtro-color').val() || '',
-                mes:      $('#filtro-mes').val() || '',      // input oculto controlado por los badges
-                metrica:  $('#filtro-metrica').val() || 'cantidad', // switch Material/Kilos
+                flog:     leerValorSelect($('#filtro-flog')),
+                articulo: leerValorSelect($('#filtro-articulo')),
+                tamano:   leerValorSelect($('#filtro-tamano')),
+                color:    leerValorSelect($('#filtro-color')),
+                mes:      $('#filtro-mes').val() || '',
+                metrica:  $('#filtro-metrica').val() || 'cantidad',
             };
         }
 
@@ -1315,7 +1390,9 @@
                 if (seq !== flogsSeq || seqMatriz !== reqSeq) return;
                 const $cont = $('#flogs-contenido');
                 if ($cont.length) {
-                    $cont.html(data.flogsHtml);
+                    preservarScrollEnMain(function () {
+                        $cont.html(data.flogsHtml);
+                    });
                 }
             } catch (err) {
                 if (seq === flogsSeq && seqMatriz === reqSeq) {
@@ -1338,8 +1415,10 @@
                 if (seq !== prodSeq || seqMatriz !== reqSeq) return;
                 const $cont = $('#produccion-contenido');
                 if ($cont.length) {
-                    $cont.html(data.produccionHtml);
-                    aplicarFiltroProduccion(prodFiltroActivo);
+                    preservarScrollEnMain(function () {
+                        $cont.html(data.produccionHtml);
+                        aplicarFiltroProduccion(prodFiltroActivo);
+                    });
                 }
                 actualizarBadgeProduccion(data.prodAlertas || 0);
             } catch (err) {
@@ -1358,8 +1437,9 @@
 
         async function aplicar(params) {
             const seq = ++reqSeq;
-            prodSeq++; // invalida producción en curso al cambiar filtros
-            flogsSeq++; // invalida flogs en curso al cambiar filtros
+            prodSeq++;
+            flogsSeq++;
+            const scrollAntes = $scrollMain.length ? $scrollMain.scrollTop() : 0;
             $resultado.css('opacity', 0.5);
             try {
                 const data = await window.http.get(RUTA, { params: { ...params, part: 'matriz' } });
@@ -1367,10 +1447,13 @@
                 $resultado.html(data.resultado);
                 aplicarTab(tabActivo);
 
+                sincronizandoSelects = true;
                 rebuildSelect('#filtro-flog', data.opciones.flog, data.filtros.flog);
                 rebuildCombo('#filtro-articulo', data.opciones.articulo, data.filtros.articulo);
                 rebuildSelect('#filtro-tamano', data.opciones.tamano, data.filtros.tamano);
                 rebuildCombo('#filtro-color', data.opciones.color, data.filtros.color);
+                sincronizandoSelects = false;
+
                 $('#filtro-mes').val(data.filtros.mes || '');
                 rebuildMeses(data.opciones.mes);
                 rebuildResumen({
@@ -1379,6 +1462,10 @@
                     color:    (data.opciones.color || []).length,
                 }, !!data.filtros.flog);
                 window.history.replaceState(null, '', RUTA);
+
+                requestAnimationFrame(function () {
+                    if ($scrollMain.length) $scrollMain.scrollTop(scrollAntes);
+                });
 
                 const hayFiltro = hayFiltroPrincipal(data.filtros);
                 if (hayFiltro) {
@@ -1396,16 +1483,23 @@
             }
         }
 
-        // Cambio en cualquier filtro (incluido Flog) → AJAX con la combinación actual.
-        // Se "desbota" (debounce) porque select2 con allowClear puede emitir el evento
-        // `change` más de una vez al seleccionar: así se hace UNA sola petición con el
-        // valor final, en lugar de disparar dos y depender de cuál gana.
-        let debounceFiltro = null;
-        $('.filtro-select').on('change', function () {
+        function programarAplicarFiltros() {
             clearTimeout(debounceFiltro);
             debounceFiltro = setTimeout(function () {
+                if (sincronizandoSelects) return;
                 aplicar(valoresActuales());
-            }, 80);
+            }, 100);
+        }
+
+        // select2:clear + change pueden dispararse juntos; sincronizandoSelects evita
+        // peticiones durante rebuild AJAX.
+        let debounceFiltro = null;
+        $('.filtro-select').on('change select2:select select2:clear', function (e) {
+            if (sincronizandoSelects) return;
+            if (e.type === 'select2:select' && e.params && e.params.data) {
+                $(this).data('traza-last-label', e.params.data.text || '');
+            }
+            programarAplicarFiltros();
         });
 
         // Áreas expandibles (Flog con +2 artículos): al hacer click en la fila del área
@@ -1480,13 +1574,19 @@
         // Botón Restablecer del navbar: limpia todos los filtros (sin recargar).
         // La métrica (Material/Kilos) NO se resetea, es una preferencia de visualización.
         $('#btn-restablecer').on('click', function () {
-            $('.filtro-select').val(null).trigger('change.select2');
+            sincronizandoSelects = true;
+            $('.filtro-select').val(null).trigger('change');
+            sincronizandoSelects = false;
             $('#filtro-mes').val('');
             aplicar({
                 flog: '', articulo: '', tamano: '', color: '', mes: '',
                 metrica: $('#filtro-metrica').val() || 'cantidad',
             });
         });
+
+        // Por si algún modal cerró sin liberar el scroll (p. ej. navegación rápida).
+        scrollLockCount = 0;
+        if ($scrollMain.length) $scrollMain.css('overflow-y', '');
     });
 </script>
 @endpush
