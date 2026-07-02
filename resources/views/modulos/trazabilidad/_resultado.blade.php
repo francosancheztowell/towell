@@ -249,6 +249,15 @@
 
     {{-- ===== Pestaña: Flogs ===== --}}
     <div data-pane="flogs" class="hidden">
-        @include('modulos.trazabilidad._flogs')
+        <div id="flogs-contenido">
+            @if ($flogsCargando ?? false)
+                @include('modulos.trazabilidad._flogs_loading')
+            @else
+                @include('modulos.trazabilidad._flogs', [
+                    'flogs' => $flogs ?? ['encontrado' => false, 'general' => [], 'etiquetas' => [], 'empaques' => []],
+                    'filtros' => $filtros,
+                ])
+            @endif
+        </div>
     </div>
 @endunless

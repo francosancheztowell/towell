@@ -597,10 +597,11 @@
             };
         }
 
-        // Secuencia de peticiones: matriz primero, producción después. Solo la
+        // Secuencia de peticiones: matriz primero, producción y flogs después. Solo la
         // respuesta más reciente se aplica (evita condiciones de carrera).
         let reqSeq = 0;
         let prodSeq = 0;
+        let flogsSeq = 0;
 
         let prodFiltroActivo = 'todos';
 
@@ -649,6 +650,29 @@
             }
         }
 
+        async function cargarFlogs(params, seqMatriz) {
+            const seq = ++flogsSeq;
+            try {
+                const data = await window.http.get(RUTA, { params: { ...params, part: 'flogs' } });
+                if (seq !== flogsSeq || seqMatriz !== reqSeq) return;
+                const $cont = $('#flogs-contenido');
+                if ($cont.length) {
+                    $cont.html(data.flogsHtml);
+                }
+            } catch (err) {
+                if (seq === flogsSeq && seqMatriz === reqSeq) {
+                    const $cont = $('#flogs-contenido');
+                    if ($cont.length) {
+                        $cont.html(
+                            '<div class="bg-white border border-red-200 rounded-2xl p-8 text-center">'
+                            + '<p class="text-red-600 font-semibold">No se pudo cargar la información del Flog.</p>'
+                            + '<p class="text-slate-400 text-sm mt-1">' + (err.message || '') + '</p></div>'
+                        );
+                    }
+                }
+            }
+        }
+
         async function cargarProduccion(params, seqMatriz) {
             const seq = ++prodSeq;
             try {
@@ -677,6 +701,7 @@
         async function aplicar(params) {
             const seq = ++reqSeq;
             prodSeq++; // invalida producción en curso al cambiar filtros
+            flogsSeq++; // invalida flogs en curso al cambiar filtros
             $resultado.css('opacity', 0.5);
             try {
                 const data = await window.http.get(RUTA, { params: { ...params, part: 'matriz' } });
@@ -702,6 +727,9 @@
                     cargarProduccion(params, seq);
                 } else {
                     actualizarBadgeProduccion(0);
+                }
+                if (data.filtros.flog) {
+                    cargarFlogs(params, seq);
                 }
             } catch (err) {
                 if (seq === reqSeq) window.notify?.error(err.message || 'Error al cargar la trazabilidad');
@@ -752,6 +780,10 @@
         // Carga diferida de producción en la primera pintura (matriz ya renderizada).
         @if ($hayFiltro && ($produccionCargando ?? false))
             cargarProduccion(valoresActuales(), 0);
+        @endif
+
+        @if ($hayFlog && ($flogsCargando ?? false))
+            cargarFlogs(valoresActuales(), 0);
         @endif
 
         // Render inicial del resumen de conteos.

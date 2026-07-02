@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Trazabilidad;
 use App\Exports\TrazabilidadExport;
 use App\Http\Controllers\Controller;
 use App\Models\Trazabilidad\TrazaProduccion;
+use App\Services\Trazabilidad\TrazabilidadFlogsService;
 use App\Services\Trazabilidad\TrazabilidadMatrixService;
 use App\Services\Trazabilidad\TrazabilidadProduccionService;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class TrazabilidadController extends Controller
     public function __construct(
         private TrazabilidadMatrixService $matriz,
         private TrazabilidadProduccionService $produccionSrv,
+        private TrazabilidadFlogsService $flogsSrv,
     ) {}
 
     /**
@@ -135,17 +137,19 @@ class TrazabilidadController extends Controller
         $dropdown = false; // Áreas expandibles (Flog con +2 artículos).
         $produccion = null; // Sección "Producción": telares del flog (Orden/Localidad).
         $produccionCargando = false;
+        $flogs = null; // Pestaña Flogs: datos desde sqlsrv_ti.
+        $flogsCargando = false;
 
-        // part=matriz (default) | produccion | all. La matriz se pinta primero;
-        // producción llega en una segunda petición AJAX.
+        // part=matriz (default) | produccion | flogs | all. La matriz se pinta primero;
+        // producción y flogs llegan en peticiones AJAX separadas.
         $part = $request->query('part', 'matriz');
-        if (! in_array($part, ['matriz', 'produccion', 'all'], true)) {
+        if (! in_array($part, ['matriz', 'produccion', 'flogs', 'all'], true)) {
             $part = 'matriz';
         }
 
         // La matriz se calcula con CUALQUIER filtro activo. La lógica vive en el
         // servicio compartido para que la web y la exportación a Excel coincidan.
-        if ($hayFiltro && $part !== 'produccion') {
+        if ($hayFiltro && ! in_array($part, ['produccion', 'flogs'], true)) {
             $matriz = $this->matriz->build($filtros, $metrica);
             $fechas = $matriz['fechas'];
             $areas = $matriz['areas'];
@@ -154,17 +158,27 @@ class TrazabilidadController extends Controller
             $dropdown = $matriz['dropdown'];
         }
 
-        $produccionCargando = $hayFiltro && $part === 'matriz';
-
         if ($hayFiltro && $part !== 'matriz') {
             // Filtros amplios (p. ej. solo Tamaño) pueden devolver miles de órdenes.
             set_time_limit(300);
+        }
+
+        if ($hayFiltro && ! in_array($part, ['matriz', 'flogs'], true)) {
             $produccion = $this->produccionSrv->build($filtros);
         }
+
+        $produccionCargando = $hayFiltro && $part === 'matriz';
+
+        if ($hayFlog && $part === 'flogs') {
+            $flogs = $this->flogsSrv->build($filtros['flog']);
+        }
+
+        $flogsCargando = $hayFlog && $part === 'matriz';
 
         $datosVista = compact(
             'fechas', 'areas', 'totales', 'filtros', 'hayFlog', 'hayFiltro', 'info',
             'metrica', 'decimales', 'dropdown', 'produccion', 'produccionCargando',
+            'flogs', 'flogsCargando',
             'opcionesFlog', 'opcionesArticulo', 'opcionesTamano', 'opcionesColor',
             'mesesDisponibles'
         );
@@ -182,6 +196,16 @@ class TrazabilidadController extends Controller
                         'filtros' => $filtros,
                     ])->render(),
                     'prodAlertas' => (int) ($produccion['crudo']['resumen']['alertas'] ?? 0),
+                    'filtros' => $filtros,
+                ]);
+            }
+
+            if ($part === 'flogs') {
+                return response()->json([
+                    'flogsHtml' => view('modulos.trazabilidad._flogs', [
+                        'flogs' => $flogs ?? ['encontrado' => false, 'general' => [], 'etiquetas' => [], 'empaques' => []],
+                        'filtros' => $filtros,
+                    ])->render(),
                     'filtros' => $filtros,
                 ]);
             }
@@ -241,5 +265,21 @@ class TrazabilidadController extends Controller
         $nombreArchivo = 'Reporte Trazabilidad Produccion'.$sufijo.' - '.now()->format('d-m-Y').'.xlsx';
 
         return Excel::download(new TrazabilidadExport($matrices, $filtros), $nombreArchivo);
+    }
+
+    /**
+     * Sirve imágenes de Flog almacenadas en la ruta de red de TI (UNC).
+     */
+    public function flogArchivo(Request $request)
+    {
+        abort_unless(userCan('acceso', 'Trazabilidad'), 403, 'No tienes acceso al módulo de Trazabilidad.');
+
+        $archivo = basename((string) $request->query('file', ''));
+        abort_unless($archivo !== '', 404);
+
+        $ruta = $this->flogsSrv->rutaAbsolutaImagen($archivo);
+        abort_unless($ruta !== null, 404);
+
+        return response()->file($ruta);
     }
 }
