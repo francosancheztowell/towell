@@ -1,8 +1,9 @@
 {{-- Contenido del módulo de Trazabilidad. Se renderiza tanto en la carga inicial
-     como en las respuestas AJAX (sin recargar la página). Dos pestañas comparten
+     como en las respuestas AJAX (sin recargar la página). Tres pestañas comparten
      los mismos filtros:
        · Trazabilidad → matriz "Producción por día y área".
-       · Producción   → tarjetas por telar (Orden/Localidad vs ReqProgramaTejido). --}}
+       · Producción   → tarjetas por telar (Orden/Localidad vs ReqProgramaTejido).
+       · Flogs        → (pendiente). --}}
 
 @unless ($hayFiltro)
     {{-- Estado inicial: aún no se aplica ningún filtro --}}
@@ -16,7 +17,7 @@
         </p>
     </div>
 @else
-    {{-- ===== Pestañas (Trazabilidad / Producción) ===== --}}
+    {{-- ===== Pestañas (Trazabilidad / Producción / Flogs) ===== --}}
     <div class="flex items-center gap-1 mb-4 border-b border-slate-200" id="traza-tabs">
         <button type="button" data-tab="trazabilidad"
                 class="traza-tab inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold border-b-2 -mb-px transition-colors">
@@ -32,6 +33,10 @@
                     {{ $prodIssues }}
                 </span>
             @endif
+        </button>
+        <button type="button" data-tab="flogs"
+                class="traza-tab inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold border-b-2 -mb-px transition-colors">
+            <i class="fa-solid fa-list-ol"></i> Flogs
         </button>
     </div>
 
@@ -240,5 +245,10 @@
                 ])
             @endif
         </div>
+    </div>
+
+    {{-- ===== Pestaña: Flogs ===== --}}
+    <div data-pane="flogs" class="hidden">
+        @include('modulos.trazabilidad._flogs')
     </div>
 @endunless

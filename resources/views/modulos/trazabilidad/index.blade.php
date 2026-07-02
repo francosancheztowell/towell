@@ -436,7 +436,7 @@
             dropdownCssClass: 'traza-select2-dd'
         });
 
-        // ===== Pestañas Trazabilidad / Producción =====
+        // ===== Pestañas Trazabilidad / Producción / Flogs =====
         // Las pestañas viven dentro de #resultado (se re-renderiza en cada AJAX), así
         // que el handler es delegado y la pestaña activa se reaplica tras cada carga.
         let tabActivo = 'trazabilidad';
