@@ -279,6 +279,174 @@
             border-color: #93c5fd;
         }
 
+        /* === Pestaña Flogs (tarjetas compactas) === */
+        .flog-grid-top {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+        @media (min-width: 1024px) {
+            .flog-grid-top {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .flog-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            overflow: hidden;
+        }
+        .flog-card__head {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 0.85rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fafbfc;
+        }
+        .flog-card__icon {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 0.375rem;
+            background: #eff6ff;
+            color: #2563eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            flex-shrink: 0;
+        }
+        .flog-card__title {
+            font-size: 0.625rem;
+            font-weight: 800;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #1e40af;
+            line-height: 1.2;
+        }
+        .flog-card__body {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0 1rem;
+            padding: 0.25rem 0.85rem 0.65rem;
+        }
+        @media (min-width: 640px) {
+            .flog-card__body--2col {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .flog-col {
+            min-width: 0;
+        }
+        .flog-fila {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+            gap: 0.35rem 0.65rem;
+            align-items: baseline;
+            padding: 0.4rem 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .flog-fila:last-child {
+            border-bottom: none;
+        }
+        .flog-fila__label {
+            font-size: 0.5625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            line-height: 1.25;
+        }
+        .flog-fila__valor {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: #1e3a5f;
+            text-align: right;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+        .flog-fila__valor--accent {
+            color: #1d4ed8;
+        }
+        .flog-fila__valor--warn {
+            color: #ea580c;
+        }
+        .flog-fila__valor--badge {
+            display: inline-block;
+            padding: 0.1rem 0.45rem;
+            border-radius: 0.25rem;
+            background: #f1f5f9;
+            font-size: 0.625rem;
+            font-weight: 600;
+            color: #475569;
+        }
+        .flog-nota {
+            border-radius: 0.5rem;
+            padding: 0.55rem 0.75rem;
+            font-size: 0.6875rem;
+            line-height: 1.45;
+            white-space: pre-line;
+        }
+        .flog-nota--amber {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+        .flog-nota--slate {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+        }
+        .flog-etiq-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.5rem;
+        }
+        .flog-etiq-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            background: #fff;
+        }
+        .flog-etiq-item__img {
+            height: 72px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem;
+        }
+        .flog-etiq-item__img img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+        .flog-etiq-item__txt {
+            padding: 0.35rem 0.45rem;
+            font-size: 0.625rem;
+            font-weight: 600;
+            color: #334155;
+            line-height: 1.25;
+        }
+        .flog-empaque-img {
+            margin-top: 0.35rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #f8fafc;
+            padding: 0.35rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 80px;
+        }
+        .flog-empaque-img img {
+            max-height: 88px;
+            max-width: 100%;
+            object-fit: contain;
+        }
+
         /* Modal rollos teñido: por encima del navbar y fondo oscuro */
         #modal-rollos-maquina {
             z-index: 9999;
