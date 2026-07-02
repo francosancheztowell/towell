@@ -45,16 +45,6 @@
             <i class="fas fa-undo"></i>
             <span>Revivir a programa</span>
         </button>
-        <button id="btn-recalcular-marbetes"
-            type="button"
-            onclick="recalcularMarbetesCodificacion()"
-            class="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            disabled
-            title="Recalcular No. marbetes (fórmula Liberar órdenes + ajuste FEL/Felpa)"
-        >
-            <i class="fas fa-calculator"></i>
-            <span>Recalc. marbetes</span>
-        </button>
     </div>
 @endsection
 
@@ -739,17 +729,13 @@
                                 </div>
                                 <div id="swal-lista-mat-container">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Lista L Mat (BomId) <span id="swal-lista-mat-req" class="text-red-500 ${actLmat ? '' : 'hidden'}">*</span></label>
-                                    <input
-                                        type="text"
+                                    <select
                                         id="swal-lista-mat"
-                                        list="swal-lista-mat-options"
-                                        autocomplete="off"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${actLmat ? '' : 'bg-gray-100 cursor-not-allowed'}"
-                                        placeholder="Escriba o elija de la lista (desde L.Mat en TI)"
-                                        value="${bomId}"
-                                        ${actLmat ? '' : 'disabled readonly'}
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 appearance-none cursor-pointer ${actLmat ? '' : 'bg-gray-100 cursor-not-allowed'}"
+                                        ${actLmat ? '' : 'disabled'}
                                     >
-                                    <datalist id="swal-lista-mat-options"></datalist>
+                                        <option value="">Seleccione un L.Mat...</option>
+                                    </select>
                                     <p id="swal-lista-mat-message" class="text-xs text-gray-500 mt-1 hidden"></p>
                                 </div>
                             </div>
@@ -769,20 +755,18 @@
                         const telarInput = document.getElementById('swal-telar');
                         const articuloInput = document.getElementById('swal-articulo');
                         const pesoMuestraInput = document.getElementById('swal-peso-muestra');
-                        const listaMatOptions = document.getElementById('swal-lista-mat-options');
                         const listaMatMessage = document.getElementById('swal-lista-mat-message');
 
                         function actualizarEstadoListaMat() {
-                            const inp = document.getElementById('swal-lista-mat');
+                            const sel = document.getElementById('swal-lista-mat');
                             const reqSpan = document.getElementById('swal-lista-mat-req');
-                            if (!inp) return;
+                            if (!sel) return;
                             const activo = actLmatCheckbox && actLmatCheckbox.checked;
-                            inp.disabled = !activo;
-                            inp.readOnly = !activo;
-                            inp.classList.toggle('bg-gray-100', !activo);
-                            inp.classList.toggle('cursor-not-allowed', !activo);
+                            sel.disabled = !activo;
+                            sel.classList.toggle('bg-gray-100', !activo);
+                            sel.classList.toggle('cursor-not-allowed', !activo);
                             if (reqSpan) reqSpan.classList.toggle('hidden', !activo);
-                            if (!activo) inp.value = '';
+                            if (!activo) sel.value = '';
                             actualizarBotonGuardar();
                         }
 
@@ -802,78 +786,40 @@
 
                         if (actLmatCheckbox && listaMatInputRef) {
                             actLmatCheckbox.addEventListener('change', actualizarEstadoListaMat);
-                            listaMatInputRef.addEventListener('input', actualizarBotonGuardar);
+                            listaMatInputRef.addEventListener('change', actualizarBotonGuardar);
                             actualizarEstadoListaMat();
                         }
 
-                        // GET órdenes en proceso (ReqProgramaTejido) y rellenar select
+                        function poblarSelectLmat(opciones, bomIdSeleccionado) {
+                            if (!listaMatInputRef) return;
+                            const valorPrevio = bomIdSeleccionado != null ? String(bomIdSeleccionado) : listaMatInputRef.value;
+                            listaMatInputRef.innerHTML = '';
+                            const optVacia = document.createElement('option');
+                            optVacia.value = '';
+                            optVacia.textContent = 'Seleccione un L.Mat...';
+                            listaMatInputRef.appendChild(optVacia);
 
-                        function actualizarDatalistLmat(opciones, mostrarMensajeSinResultados) {
-                            if (!listaMatOptions) return;
-                            listaMatOptions.innerHTML = '';
-                            if (listaMatMessage) {
-                                listaMatMessage.classList.add('hidden');
-                                listaMatMessage.textContent = '';
-                            }
                             if (opciones && Array.isArray(opciones) && opciones.length > 0) {
                                 opciones.forEach(function(item) {
+                                    const bomId = (item.bomId != null) ? String(item.bomId) : '';
+                                    if (!bomId) return;
                                     const opt = document.createElement('option');
-                                    opt.value = (item.bomId != null) ? String(item.bomId) : '';
-                                    opt.label = (item.bomName != null) ? String(item.bomName) : opt.value;
-                                    if (opt.value) listaMatOptions.appendChild(opt);
+                                    opt.value = bomId;
+                                    opt.textContent = (item.bomName != null && item.bomName !== '') ? (bomId + ' - ' + String(item.bomName)) : bomId;
+                                    listaMatInputRef.appendChild(opt);
                                 });
+                                if (valorPrevio) listaMatInputRef.value = valorPrevio;
                                 if (listaMatMessage) {
                                     listaMatMessage.textContent = opciones.length + ' L.Mat encontrado' + (opciones.length > 1 ? 's' : '') + '.';
                                     listaMatMessage.classList.remove('hidden');
                                     listaMatMessage.className = 'text-xs text-green-600 mt-1';
                                 }
-                            } else if (listaMatMessage && (mostrarMensajeSinResultados === undefined || mostrarMensajeSinResultados)) {
-                                listaMatMessage.textContent = 'No se encontró L.Mat. Escriba para buscar libremente.';
+                            } else if (listaMatMessage) {
+                                listaMatMessage.textContent = 'No se encontró ningún L.Mat para este artículo/tamaño.';
                                 listaMatMessage.classList.remove('hidden');
-                                listaMatMessage.className = 'text-xs text-gray-500 mt-1';
+                                listaMatMessage.className = 'text-xs text-red-500 mt-1';
                             }
-                        }
-
-                        function buscarBomLibre(term, callback) {
-                            const t = (term || '').toString().trim();
-                            if (t.length < 2) {
-                                if (callback) callback([]);
-                                return;
-                            }
-                            fetch('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias?freeMode=1&term=' + encodeURIComponent(t), { headers: { 'Accept': 'application/json' } })
-                                .then(resp => resp.json())
-                                .then(json => {
-                                    if (json.success && Array.isArray(json.data)) {
-                                        const items = json.data.map(function(r) { return { bomId: r.bomId, bomName: r.bomName }; });
-                                        if (callback) callback(items);
-                                    } else if (callback) callback([]);
-                                })
-                                .catch(function() { if (callback) callback([]); });
-                        }
-
-                        var debounceBuscarBom = null;
-                        if (listaMatInputRef) {
-                            listaMatInputRef.addEventListener('input', function() {
-                                const val = this.value.trim();
-                                clearTimeout(debounceBuscarBom);
-                                if (val.length < 2) {
-                                    actualizarDatalistLmat([], false);
-                                    if (listaMatMessage) {
-                                        listaMatMessage.textContent = val.length > 0 ? 'Mínimo 2 caracteres para buscar.' : 'Escriba para buscar L.Mat libremente.';
-                                        listaMatMessage.classList.remove('hidden');
-                                    }
-                                    return;
-                                }
-                                debounceBuscarBom = setTimeout(function() {
-                                    buscarBomLibre(val, function(opciones) {
-                                        actualizarDatalistLmat(opciones, opciones.length === 0);
-                                    });
-                                }, 300);
-                            });
-                            listaMatInputRef.addEventListener('focus', function() {
-                                const val = this.value.trim();
-                                if (val.length >= 2) buscarBomLibre(val, function(opciones) { actualizarDatalistLmat(opciones, false); });
-                            });
+                            actualizarBotonGuardar();
                         }
 
                         function cargarCatCodificadosPorOrden(orden) {
@@ -881,9 +827,8 @@
                             if (!ord) {
                                 if (pesoMuestraInput) pesoMuestraInput.value = '';
                                 if (actLmatCheckbox) actLmatCheckbox.checked = false;
-                                if (listaMatInputRef) listaMatInputRef.value = '';
                                 if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
-                                actualizarDatalistLmat([]);
+                                poblarSelectLmat([]);
                                 return;
                             }
                             fetch('/planeacion/codificacion/api/catcodificados-por-orden/' + encodeURIComponent(ord), { headers: { 'Accept': 'application/json' } })
@@ -894,16 +839,14 @@
                                     if (!d) {
                                         if (pesoMuestraInput) pesoMuestraInput.value = '';
                                         if (actLmatCheckbox) actLmatCheckbox.checked = false;
-                                        if (listaMatInputRef) listaMatInputRef.value = '';
                                         if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
-                                        actualizarDatalistLmat([]);
+                                        poblarSelectLmat([]);
                                         return;
                                     }
                                     if (pesoMuestraInput) pesoMuestraInput.value = (d.pesoMuestra != null && d.pesoMuestra !== '') ? Number(d.pesoMuestra) : '';
                                     if (actLmatCheckbox) actLmatCheckbox.checked = d.actualizaLmat === true || d.actualizaLmat === 1;
-                                    if (listaMatInputRef) listaMatInputRef.value = d.bomId != null ? String(d.bomId) : '';
+                                    poblarSelectLmat(d.listaLmat || [], d.bomId);
                                     if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
-                                    actualizarDatalistLmat(d.listaLmat || []);
                                     if (telarInput && (d.telarId != null && d.telarId !== '')) telarInput.value = String(d.telarId);
                                     if (articuloInput && (d.itemId != null || d.nombre != null)) articuloInput.value = (d.itemId != null ? String(d.itemId) : '') || (d.nombre != null ? String(d.nombre) : '');
                                 })
@@ -1143,7 +1086,6 @@
                     updateFilterCount();
                     actualizarEstadoBotonReimprimir();
                     actualizarEstadoBotonRevivir();
-                    actualizarEstadoBotonRecalcMarbete();
 
                     setLoading(false);
                 } catch (error) {
@@ -1230,7 +1172,6 @@
                             });
                             actualizarEstadoBotonReimprimir();
                             actualizarEstadoBotonRevivir();
-                            actualizarEstadoBotonRecalcMarbete();
                         } else {
                             // Deseleccionar fila anterior si existe
                             const prevSelected = tbody.querySelector('tr.codificacion-row-selected');
@@ -1255,7 +1196,6 @@
                             state.selectedRowIndex = globalIndex;
                             actualizarEstadoBotonReimprimir();
                             actualizarEstadoBotonRevivir();
-                            actualizarEstadoBotonRecalcMarbete();
                         }
                     });
 
@@ -1285,7 +1225,6 @@
                 updatePagination();
                 actualizarEstadoBotonReimprimir();
                 actualizarEstadoBotonRevivir();
-                actualizarEstadoBotonRecalcMarbete();
             }
 
             function updatePagination() {
@@ -1449,7 +1388,6 @@
                 updateFilterCount();
                 actualizarEstadoBotonReimprimir();
                 actualizarEstadoBotonRevivir();
-                actualizarEstadoBotonRecalcMarbete();
             }
 
             function updateFilterCount() {
@@ -1489,7 +1427,6 @@
                 updateFilterCount();
                 actualizarEstadoBotonReimprimir();
                 actualizarEstadoBotonRevivir();
-                actualizarEstadoBotonRecalcMarbete();
 
                 showToast(
                     state.filtered.length
@@ -2016,17 +1953,6 @@
                 btn.disabled = !(orden !== '' && depto !== '' && telar !== '');
             }
 
-            function actualizarEstadoBotonRecalcMarbete() {
-                const btn = document.getElementById('btn-recalcular-marbetes');
-                if (!btn) return;
-                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
-                    btn.disabled = true;
-                    return;
-                }
-                const r = state.filtered[state.selectedRowIndex];
-                btn.disabled = !r || !r.Id;
-            }
-
             // =========================
             //   REVIVIR ORDEN A PROGRAMA DE TEJIDO
             // =========================
@@ -2100,81 +2026,6 @@
                     }
 
                     showToast('Orden creada en programa (Id ' + (json.d && json.d.programa_id ? json.d.programa_id : '') + ')', 'success');
-                } catch (e) {
-                    Swal.close();
-                    showToast(e.message || 'Error de red', 'error');
-                }
-            }
-
-            async function recalcularMarbetesCodificacion() {
-                if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
-                    showToast('Selecciona un registro primero', 'warning');
-                    return;
-                }
-                const r = state.filtered[state.selectedRowIndex];
-                if (!r || !r.Id) {
-                    showToast('No se pudo obtener el registro seleccionado', 'error');
-                    return;
-                }
-
-                const ok = await Swal.fire({
-                    title: 'Recalcular marbetes',
-                    html:
-                        '<p class="text-left text-sm text-gray-700">Se calcularán los <strong>No. marbetes</strong> igual que en <strong>Liberar órdenes</strong>: fórmula por pedido, tiras y repeticiones, y si aplica tamaño <strong>FEL</strong>/<strong>FELPA</strong> se duplican (ajuste formato rollo).</p>' +
-                        '<p class="text-left text-sm text-gray-600 mt-2">Requiere <strong>Pedido</strong> (o Cantidad), <strong>NoTiras</strong> y <strong>P_crudo</strong> válidos.</p>',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Recalcular',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonColor: '#3b82f6',
-                });
-
-                if (!ok.isConfirmed) {
-                    return;
-                }
-
-                try {
-                    Swal.fire({
-                        title: 'Calculando…',
-                        allowOutsideClick: false,
-                        didOpen: () => Swal.showLoading(),
-                    });
-
-                    const resp = await fetch('/planeacion/codificacion/api/recalcular-marbetes', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': getCsrf(),
-                        },
-                        body: JSON.stringify({
-                            ids: [parseInt(r.Id, 10)],
-                        }),
-                    });
-
-                    const json = await resp.json().catch(() => ({}));
-                    Swal.close();
-
-                    if (!json.s) {
-                        const msg = json.e || json.message || 'No se pudieron actualizar los marbetes';
-                        showToast(msg, 'error');
-                        return;
-                    }
-
-                    const resList = json.d && json.d.resultados ? json.d.resultados : [];
-                    const primera = resList[0];
-                    if (primera && primera.ok) {
-                        showToast(
-                            'NoMarbete: '
-                                + (primera.anterior != null ? String(primera.anterior) : '—')
-                                + ' → '
-                                + String(primera.nuevo),
-                            'success'
-                        );
-                    } else if (json.message) {
-                        showToast(json.message, 'success');
-                    }
-                    await loadData(true);
                 } catch (e) {
                     Swal.close();
                     showToast(e.message || 'Error de red', 'error');
@@ -2378,7 +2229,6 @@
             window.loadData                    = loadData;
             window.reimprimirOrden              = reimprimirOrden;
             window.revivirOrdenAlPrograma       = revivirOrdenAlPrograma;
-            window.recalcularMarbetesCodificacion = recalcularMarbetesCodificacion;
             window.reimprimirOrdenSeleccionada  = reimprimirOrdenSeleccionada;
             window.abrirModalBalancear          = abrirModalBalancear;
         })();
