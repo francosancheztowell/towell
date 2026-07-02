@@ -1046,31 +1046,28 @@
         let scrollLockCount = 0;
         let sincronizandoSelects = false;
 
+        function liberarScrollPagina() {
+            scrollLockCount = 0;
+            if ($scrollMain.length) {
+                $scrollMain.css('overflow-y', 'auto');
+            }
+        }
+
         function bloquearScrollPagina() {
-            scrollLockCount++;
-            if (scrollLockCount === 1 && $scrollMain.length) {
-                $scrollMain.data('traza-scroll-top', $scrollMain.scrollTop());
+            if (scrollLockCount === 0 && $scrollMain.length) {
                 $scrollMain.css('overflow-y', 'hidden');
             }
+            scrollLockCount++;
         }
 
         function desbloquearScrollPagina() {
-            scrollLockCount = Math.max(0, scrollLockCount - 1);
-            if (scrollLockCount === 0 && $scrollMain.length) {
-                $scrollMain.css('overflow-y', '');
-                const top = $scrollMain.data('traza-scroll-top');
-                if (typeof top === 'number') {
-                    $scrollMain.scrollTop(top);
-                }
+            if (scrollLockCount <= 0) {
+                return;
             }
-        }
-
-        function preservarScrollEnMain(callback) {
-            const top = $scrollMain.length ? $scrollMain.scrollTop() : 0;
-            callback();
-            requestAnimationFrame(function () {
-                if ($scrollMain.length) $scrollMain.scrollTop(top);
-            });
+            scrollLockCount--;
+            if (scrollLockCount === 0 && $scrollMain.length) {
+                $scrollMain.css('overflow-y', 'auto');
+            }
         }
 
         function escaparHtml(texto) {
@@ -1207,7 +1204,7 @@
         }
 
         function cerrarModalFlogImagen() {
-            if (!$modalFlogImg.length) return;
+            if (!$modalFlogImg.length || $modalFlogImg.hasClass('hidden')) return;
             $modalFlogImg.addClass('hidden');
             $flogImg().off('load.flogVisor').attr('src', '');
             $flogViewport().css('transform', '');
@@ -1430,7 +1427,7 @@
 
         function cerrarModalRollosMaquina() {
             const $modal = $('#modal-rollos-maquina');
-            if (!$modal.length) return;
+            if (!$modal.length || $modal.hasClass('hidden')) return;
             $modal.addClass('hidden').css('display', '');
             desbloquearScrollPagina();
         }
@@ -1562,9 +1559,7 @@
                 if (seq !== flogsSeq || seqMatriz !== reqSeq) return;
                 const $cont = $('#flogs-contenido');
                 if ($cont.length) {
-                    preservarScrollEnMain(function () {
-                        $cont.html(data.flogsHtml);
-                    });
+                    $cont.html(data.flogsHtml);
                 }
             } catch (err) {
                 if (seq === flogsSeq && seqMatriz === reqSeq) {
@@ -1587,10 +1582,8 @@
                 if (seq !== prodSeq || seqMatriz !== reqSeq) return;
                 const $cont = $('#produccion-contenido');
                 if ($cont.length) {
-                    preservarScrollEnMain(function () {
-                        $cont.html(data.produccionHtml);
-                        aplicarFiltroProduccion(prodFiltroActivo);
-                    });
+                    $cont.html(data.produccionHtml);
+                    aplicarFiltroProduccion(prodFiltroActivo);
                 }
                 actualizarBadgeProduccion(data.prodAlertas || 0);
             } catch (err) {
@@ -1611,7 +1604,6 @@
             const seq = ++reqSeq;
             prodSeq++;
             flogsSeq++;
-            const scrollAntes = $scrollMain.length ? $scrollMain.scrollTop() : 0;
             $resultado.css('opacity', 0.5);
             try {
                 const data = await window.http.get(RUTA, { params: { ...params, part: 'matriz' } });
@@ -1634,10 +1626,6 @@
                     color:    (data.opciones.color || []).length,
                 }, !!data.filtros.flog);
                 window.history.replaceState(null, '', RUTA);
-
-                requestAnimationFrame(function () {
-                    if ($scrollMain.length) $scrollMain.scrollTop(scrollAntes);
-                });
 
                 const hayFiltro = hayFiltroPrincipal(data.filtros);
                 if (hayFiltro) {
@@ -1756,9 +1744,9 @@
             });
         });
 
-        // Por si algún modal cerró sin liberar el scroll (p. ej. navegación rápida).
-        scrollLockCount = 0;
-        if ($scrollMain.length) $scrollMain.css('overflow-y', '');
+        // Garantizar scroll libre al cargar y si algún modal quedó mal cerrado.
+        liberarScrollPagina();
+        $(window).on('pageshow.trazaScroll', liberarScrollPagina);
     });
 </script>
 @endpush
