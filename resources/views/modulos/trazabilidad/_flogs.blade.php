@@ -139,7 +139,7 @@
                         </div>
                     @endif
                     @if (filled($general['avisoEspecialTxt'] ?? null))
-                        <div class="flog-meta-nota">
+                        <div class="flog-meta-nota flog-meta-nota--verde">
                             <span class="flog-meta-nota__titulo">Aviso especial</span>
                             {{ $general['avisoEspecialTxt'] }}
                         </div>

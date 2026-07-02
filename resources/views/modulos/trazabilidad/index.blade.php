@@ -436,6 +436,11 @@
             border: 1px solid #fcd34d;
             color: #92400e;
         }
+        .flog-meta-nota--verde {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+            color: #065f46;
+        }
         .flog-meta-nota__titulo {
             display: block;
             font-size: 0.625rem;
@@ -444,6 +449,9 @@
             letter-spacing: 0.05em;
             color: #b45309;
             margin-bottom: 0.35rem;
+        }
+        .flog-meta-nota--verde .flog-meta-nota__titulo {
+            color: #047857;
         }
         .flog-visual-gallery {
             flex: 1 1 0;
@@ -659,7 +667,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: grab;
+            cursor: default;
             touch-action: none;
         }
         #modal-flog-imagen .modal-flog-imagen__stage.is-dragging {
@@ -679,6 +687,10 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
             user-select: none;
             -webkit-user-drag: none;
+            cursor: grab;
+        }
+        #modal-flog-imagen .modal-flog-imagen__stage.is-dragging img {
+            cursor: grabbing;
         }
         #modal-flog-imagen .modal-flog-imagen__hint {
             position: absolute;
@@ -857,7 +869,7 @@
                     <div class="modal-flog-imagen__viewport" data-flog-viewport>
                         <img src="" alt="" data-modal-flog-img draggable="false">
                     </div>
-                    <p class="modal-flog-imagen__hint">Rueda del mouse o botones para zoom · Arrastra para mover</p>
+                    <p class="modal-flog-imagen__hint">Rueda o botones para zoom · Arrastra la imagen · Click fuera para cerrar</p>
                 </div>
             </div>
         </div>
@@ -1083,6 +1095,14 @@
             }
         });
 
+        $modalFlogImg.on('click', '[data-flog-stage]', function (e) {
+            if ($modalFlogImg.hasClass('hidden')) return;
+            // Cerrar al hacer click en el área vacía alrededor de la imagen (no sobre la imagen).
+            if (e.target.tagName !== 'IMG') {
+                cerrarModalFlogImagen();
+            }
+        });
+
         $modalFlogImg.on('wheel', '[data-flog-stage]', function (e) {
             if ($modalFlogImg.hasClass('hidden')) return;
             e.preventDefault();
@@ -1091,7 +1111,7 @@
         });
 
         $modalFlogImg.on('mousedown', '[data-flog-stage]', function (e) {
-            if (e.button !== 0) return;
+            if (e.button !== 0 || e.target.tagName !== 'IMG') return;
             flogVisor.dragging = true;
             flogVisor.dragStartX = e.clientX;
             flogVisor.dragStartY = e.clientY;
