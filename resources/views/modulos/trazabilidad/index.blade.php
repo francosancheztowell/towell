@@ -425,6 +425,26 @@
         .flog-visual-meta .flog-campo__valor {
             font-size: 0.875rem;
         }
+        .flog-meta-nota {
+            margin-top: 0.15rem;
+            padding: 0.6rem 0.7rem;
+            border-radius: 0.5rem;
+            font-size: 0.8125rem;
+            line-height: 1.45;
+            white-space: pre-line;
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+        }
+        .flog-meta-nota__titulo {
+            display: block;
+            font-size: 0.625rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #b45309;
+            margin-bottom: 0.35rem;
+        }
         .flog-visual-gallery {
             flex: 1 1 0;
             min-width: 0;

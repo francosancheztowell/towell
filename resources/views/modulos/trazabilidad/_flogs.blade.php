@@ -132,6 +132,12 @@
                             <span class="flog-campo__valor whitespace-pre-line">{{ $empaque['otroEmpaque'] }}</span>
                         </div>
                     @endif
+                    @if (filled($general['infoImportante'] ?? null))
+                        <div class="flog-meta-nota">
+                            <span class="flog-meta-nota__titulo">Información importante</span>
+                            {{ $general['infoImportante'] }}
+                        </div>
+                    @endif
                     @if (empty($imagenesFlog))
                         <p class="text-sm text-slate-400 italic mt-1">Sin imágenes disponibles.</p>
                     @endif
@@ -157,20 +163,10 @@
             </div>
         </section>
 
-        @if (filled($general['avisoEspecialTxt'] ?? null) || filled($general['infoImportante'] ?? null))
-            <div class="flog-grid-2">
-                @if (filled($general['avisoEspecialTxt'] ?? null))
-                    <div class="flog-nota flog-nota--amber">
-                        <span class="flog-nota__titulo">Aviso especial</span>
-                        {{ $general['avisoEspecialTxt'] }}
-                    </div>
-                @endif
-                @if (filled($general['infoImportante'] ?? null))
-                    <div class="flog-nota flog-nota--slate {{ filled($general['avisoEspecialTxt'] ?? null) ? '' : 'lg:col-span-2' }}">
-                        <span class="flog-nota__titulo">Información importante</span>
-                        {{ $general['infoImportante'] }}
-                    </div>
-                @endif
+        @if (filled($general['avisoEspecialTxt'] ?? null))
+            <div class="flog-nota flog-nota--amber">
+                <span class="flog-nota__titulo">Aviso especial</span>
+                {{ $general['avisoEspecialTxt'] }}
             </div>
         @endif
     </div>
