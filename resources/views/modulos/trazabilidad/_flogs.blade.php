@@ -5,6 +5,39 @@
     $encontrado = (bool) ($flogs['encontrado'] ?? false);
     $hayFlogFiltro = filled($filtros['flog'] ?? null);
     $empaque = $empaques[0] ?? null;
+    $lineas = $flogs['lineas'] ?? [];
+
+    $columnasLineas = [
+        ['key' => 'lineNum', 'label' => 'Línea'],
+        ['key' => 'estadoLinea', 'label' => 'Estado línea'],
+        ['key' => 'fechaCancelacion', 'label' => 'Fecha cancelación'],
+        ['key' => 'itemId', 'label' => 'Item'],
+        ['key' => 'itemName', 'label' => 'Nombre artículo'],
+        ['key' => 'tipoHiloId', 'label' => 'Tipo hilo'],
+        ['key' => 'inventSizeId', 'label' => 'Tamaño'],
+        ['key' => 'inventColorId', 'label' => 'Color'],
+        ['key' => 'colorName', 'label' => 'Nombre color'],
+        ['key' => 'rasuradoCrudo', 'label' => 'Rasurado crudo'],
+        ['key' => 'tipoDobladillo', 'label' => 'Tipo dobladillo'],
+        ['key' => 'tipoCostura', 'label' => 'Tipo costura'],
+        ['key' => 'tipoCorteBataId', 'label' => 'Tipo corte bata'],
+        ['key' => 'valorAgregado', 'label' => 'Valor agregado'],
+        ['key' => 'puntadasBordado', 'label' => 'Puntadas bordado'],
+        ['key' => 'infoAdicional', 'label' => 'Info adicional'],
+        ['key' => 'ancho', 'label' => 'Ancho'],
+        ['key' => 'largo', 'label' => 'Largo'],
+        ['key' => 'pesoAcabado', 'label' => 'Peso acabado'],
+        ['key' => 'densidad', 'label' => 'Densidad'],
+        ['key' => 'inventQty', 'label' => 'Cantidad'],
+        ['key' => 'salesUnit', 'label' => 'Ud. venta'],
+        ['key' => 'purchBarCode', 'label' => 'Cód. barras'],
+        ['key' => 'dun14', 'label' => 'DUN14'],
+        ['key' => 'retailLink', 'label' => 'Retail link'],
+        ['key' => 'nombreEtiqueta', 'label' => 'Nombre etiqueta'],
+        ['key' => 'createdDate', 'label' => 'Fecha creación'],
+        ['key' => 'simulacionVtas', 'label' => 'Simulación vtas'],
+        ['key' => 'simulacionDiseno', 'label' => 'Simulación diseño'],
+    ];
 
     $v = fn (?string $valor): string => filled($valor) ? $valor : '—';
 @endphp
@@ -169,6 +202,44 @@
                         </div>
                     </div>
                 @endif
+            </div>
+        </section>
+
+        <section class="flog-card" aria-labelledby="flog-titulo-lineas">
+            <header class="flog-card__head">
+                <span class="flog-card__icon"><i class="fa-solid fa-list"></i></span>
+                <h2 id="flog-titulo-lineas" class="flog-card__title">Líneas</h2>
+                <span class="flog-lineas-count">{{ count($lineas) }}</span>
+            </header>
+            <div class="flog-card__body flog-lineas-wrap">
+                <div class="flog-lineas-scroll" tabindex="0" role="region" aria-label="Tabla de líneas del Flog">
+                    <table class="flog-lineas-table">
+                        <thead>
+                            <tr>
+                                @foreach ($columnasLineas as $col)
+                                    <th scope="col">{{ $col['label'] }}</th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($lineas as $linea)
+                                <tr>
+                                    @foreach ($columnasLineas as $col)
+                                        @php
+                                            $celda = $linea[$col['key']] ?? '';
+                                            $esLargo = in_array($col['key'], ['itemName', 'infoAdicional', 'nombreEtiqueta', 'retailLink'], true);
+                                        @endphp
+                                        <td @class(['flog-lineas-table__celda--larga' => $esLargo])>{{ $v($celda !== '' ? $celda : null) }}</td>
+                                    @endforeach
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="{{ count($columnasLineas) }}" class="flog-lineas-table__vacio">Sin líneas registradas para este Flog.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
     </div>

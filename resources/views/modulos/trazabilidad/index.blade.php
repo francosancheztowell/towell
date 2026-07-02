@@ -562,10 +562,10 @@
         .flog-nota--amber {
             background: #fffbeb;
             border: 1px solid #fcd34d;
-            color: #92400e;
+            color: #c04a00;
         }
         .flog-nota--amber .flog-nota__titulo {
-            color: #b45309;
+            color: #d35d03;
         }
         .flog-nota--slate {
             background: #f8fafc;
@@ -611,6 +611,71 @@
             color: #cbd5e1;
             font-size: 1.75rem;
             box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        }
+        .flog-lineas-count {
+            margin-left: auto;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: #64748b;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 9999px;
+            padding: 0.15rem 0.55rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .flog-lineas-wrap {
+            padding: 0 !important;
+        }
+        .flog-lineas-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+        .flog-lineas-table {
+            width: max-content;
+            min-width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .flog-lineas-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 0.625rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 0.55rem 0.65rem;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+        .flog-lineas-table tbody td {
+            padding: 0.5rem 0.65rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: #1e293b;
+            vertical-align: top;
+            white-space: nowrap;
+            max-width: 14rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .flog-lineas-table tbody tr:hover td {
+            background: #f8fafc;
+        }
+        .flog-lineas-table__celda--larga {
+            max-width: 18rem;
+            white-space: normal;
+            word-break: break-word;
+        }
+        .flog-lineas-table__vacio {
+            text-align: center;
+            color: #94a3b8;
+            font-style: italic;
+            padding: 1.5rem !important;
+            white-space: normal !important;
         }
 
         /* Modal visor imagen Flog — pantalla completa + zoom */

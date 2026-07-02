@@ -15,7 +15,13 @@ class TrazabilidadFlogsService
     private const FLOG_IMAGEN_UNC_ROOT = '\\\\192.168.2.11\\ImagenFlog\\';
 
     /**
-     * @return array{encontrado:bool, general:array<string, mixed>, etiquetas:array<int, array<string, mixed>>, empaques:array<int, array<string, mixed>>}
+     * @return array{
+     *     encontrado: bool,
+     *     general: array<string, mixed>,
+     *     etiquetas: array<int, array<string, mixed>>,
+     *     empaques: array<int, array<string, mixed>>,
+     *     lineas: array<int, array<string, mixed>>
+     * }
      */
     public function build(?string $idFlog): array
     {
@@ -24,6 +30,7 @@ class TrazabilidadFlogsService
             'general' => [],
             'etiquetas' => [],
             'empaques' => [],
+            'lineas' => [],
         ];
 
         $idFlog = trim((string) $idFlog);
@@ -54,6 +61,11 @@ class TrazabilidadFlogsService
             $empaques = $conn->table('dbo.TwBomEmpaque')
                 ->where('IDFLOG', $idFlog)
                 ->orderBy('RECID')
+                ->get();
+
+            $lineas = $conn->table('dbo.TwFlogsItemLine')
+                ->where('IDFLOG', $idFlog)
+                ->orderBy('LINENUM')
                 ->get();
         } catch (\Throwable) {
             return $vacio;
@@ -100,6 +112,45 @@ class TrazabilidadFlogsService
                 'imagenPath' => $this->txt($row->FILEOTROEMPAQUE ?? null),
                 'imagenUrl' => $this->resolverUrlImagen($row->FILEOTROEMPAQUE ?? null),
             ])->values()->all(),
+            'lineas' => $lineas->map(fn ($row) => $this->mapearLineaFlog($row))->values()->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function mapearLineaFlog(object $row): array
+    {
+        return [
+            'lineNum' => $this->txt($row->LINENUM ?? null),
+            'estadoLinea' => $this->txt($row->ESTADOLINEA ?? null),
+            'fechaCancelacion' => $this->formatearFecha($row->FECHACANCELACION ?? null),
+            'itemId' => $this->txt($row->ITEMID ?? null),
+            'itemName' => $this->txt($row->ITEMNAME ?? null),
+            'tipoHiloId' => $this->txt($row->TIPOHILOID ?? null),
+            'inventSizeId' => $this->txt($row->INVENTSIZEID ?? null),
+            'inventColorId' => $this->txt($row->INVENTCOLORID ?? null),
+            'colorName' => $this->txt($row->COLORNAME ?? null),
+            'rasuradoCrudo' => $this->txt($row->RASURADOCRUDO ?? null),
+            'tipoDobladillo' => $this->txt($row->TIPODOBLADILLO ?? null),
+            'tipoCostura' => $this->txt($row->TIPOCOSTURA ?? null),
+            'tipoCorteBataId' => $this->txt($row->TIPOCORTEBATAID ?? null),
+            'valorAgregado' => $this->txt($row->VALORAGREGADO ?? null),
+            'puntadasBordado' => $this->txt($row->PUNTADASBORDADO ?? null),
+            'infoAdicional' => $this->txt($row->INFOADICIONAL ?? null),
+            'ancho' => $this->txt($row->ANCHO ?? null),
+            'largo' => $this->txt($row->LARGO ?? null),
+            'pesoAcabado' => $this->txt($row->PESOACABADO ?? null),
+            'densidad' => $this->txt($row->DENSIDAD ?? null),
+            'inventQty' => $this->txt($row->INVENTQTY ?? null),
+            'salesUnit' => $this->txt($row->SALESUNIT ?? null),
+            'purchBarCode' => $this->txt($row->PURCHBARCODE ?? null),
+            'dun14' => $this->txt($row->DUN14 ?? null),
+            'retailLink' => $this->txt($row->RETAILLINK ?? null),
+            'nombreEtiqueta' => $this->txt($row->NOMBREETIQUETA ?? null),
+            'createdDate' => $this->formatearFecha($row->CREATEDDATE ?? null),
+            'simulacionVtas' => $this->txt($row->SIMULACIONVTAS ?? null),
+            'simulacionDiseno' => $this->txt($row->SIMULACIONDISENO ?? null),
         ];
     }
 
