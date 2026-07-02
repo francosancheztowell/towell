@@ -60,6 +60,41 @@ async function obtenerDetalleBalanceo(registroId) {
 	}
 }
 
+/** Grupo OrdCompartida activo = 2+ registros con el mismo valor (no basta un valor huérfano en una fila). */
+async function resolverGrupoOrdCompartida(ordCompartida) {
+	const ordNum = parseInt(String(ordCompartida ?? '').trim(), 10);
+	if (!Number.isFinite(ordNum) || ordNum <= 0) {
+		return { esGrupoActivo: false, cantidad: 0 };
+	}
+
+	const csrfToken = typeof getCsrfToken === 'function' ? getCsrfToken() : '';
+	try {
+		const resp = await fetch(`${window.location.origin}/planeacion/programa-tejido/registros-ord-compartida/${ordNum}`, {
+			method: 'GET',
+			headers: {
+				'Accept': 'application/json',
+				'X-Requested-With': 'XMLHttpRequest',
+				...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+			},
+			credentials: 'same-origin',
+		});
+		if (!resp.ok) {
+			return { esGrupoActivo: false, cantidad: 0 };
+		}
+		const data = await resp.json();
+		const cantidad = data?.cantidad_registros
+			?? (Array.isArray(data?.registros) ? data.registros.length : 0);
+		return { esGrupoActivo: !!(data?.success && cantidad >= 2), cantidad };
+	} catch (err) {
+		return { esGrupoActivo: false, cantidad: 0 };
+	}
+}
+
+function esGrupoOrdCompartidaActivoModal() {
+	const el = document.getElementById('es-grupo-ord-compartida-activo');
+	return el?.value === '1';
+}
+
 // ===== Función principal para duplicar y dividir telar =====
 async function duplicarTelar(row) {
 	row = row?.closest?.('tr.selectable-row') || row;
@@ -131,9 +166,12 @@ async function duplicarTelar(row) {
 	const ordNum = Number(ordCompartida);
 	ordCompartidaActual = Number.isFinite(ordNum) ? ordNum : null;
 
+	const grupoOrdCompartida = await resolverGrupoOrdCompartida(ordCompartida);
+	const esGrupoOrdCompartidaActivo = grupoOrdCompartida.esGrupoActivo;
+
 	// Modal con formato de tabla
 	const resultado = await Swal.fire({
-		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido: pedidoFinal, saldo: saldoFinal, produccion: produccionFinal, flog, ordCompartida, aplicacion: aplicacionFinal, registroId, descripcion }),
+		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido: pedidoFinal, saldo: saldoFinal, produccion: produccionFinal, flog, ordCompartida, aplicacion: aplicacionFinal, registroId, descripcion, esGrupoOrdCompartidaActivo }),
 		width: '100%',
 		showCancelButton: true,
 		confirmButtonText: 'Aceptar',
@@ -150,7 +188,7 @@ async function duplicarTelar(row) {
 		didOpen: () => {
 			const popup = Swal.getPopup();
 			if (popup) popup.style.maxWidth = '1600px';
-			initModalDuplicar(telar, hilo, ordCompartida, registroId);
+			initModalDuplicar(telar, hilo, ordCompartida, registroId, esGrupoOrdCompartidaActivo);
 		},
 		showLoaderOnConfirm: true,
 		preConfirm: async () => {
@@ -288,10 +326,9 @@ async function duplicarTelar(row) {
 }
 
 // Genera el HTML del modal de duplicar
-function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, produccion, flog, ordCompartida, aplicacion, registroId, descripcion = '' }) {
-	// Determinar si ya está dividido (tiene OrdCompartida)
-	const ordNum = Number(ordCompartida);
-	const yaDividido = Number.isFinite(ordNum) && ordNum !== 0;
+function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido, saldo, produccion, flog, ordCompartida, aplicacion, registroId, descripcion = '', esGrupoOrdCompartidaActivo = false }) {
+	// Grupo dividido real: 2+ registros comparten OrdCompartida (un valor huérfano en una fila no cuenta)
+	const yaDividido = !!esGrupoOrdCompartidaActivo;
 	const claveModeloReadonly = yaDividido ? 'readonly' : '';
 	const claveModeloClass = yaDividido
 		? 'w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100 text-gray-700 cursor-not-allowed'
@@ -393,6 +430,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 			<input type="hidden" id="saldo-original" value="${saldo}">
 			<input type="hidden" id="produccion-original" value="${produccion || ''}">
 			<input type="hidden" id="ord-compartida-original" value="${ordCompartida}">
+			<input type="hidden" id="es-grupo-ord-compartida-activo" value="${esGrupoOrdCompartidaActivo ? '1' : '0'}">
 			<input type="hidden" id="registro-id-original" value="${registroId}">
 
 			<!-- Tabla de salones, telares y cantidades -->
@@ -482,7 +520,7 @@ function generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, prod
 }
 
 // Inicializa los eventos y carga de datos del modal
-function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroIdParam) {
+function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroIdParam, esGrupoOrdCompartidaActivoParam = false) {
 	// Limpiar valores originales guardados al inicializar el modal
 	if (window.valoresOriginalesFilas) {
 		window.valoresOriginalesFilas.clear();
@@ -511,7 +549,9 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	// Datos de OrdCompartida
 	const ordCompartidaActualLocal = ordCompartidaParam || document.getElementById('ord-compartida-original')?.value || '';
 	const registroIdActual = registroIdParam || document.getElementById('registro-id-original')?.value || '';
-	const tieneOrdCompartida = ordCompartidaActualLocal && ordCompartidaActualLocal !== '' && ordCompartidaActualLocal !== '0';
+	const tieneGrupoOrdCompartida = typeof esGrupoOrdCompartidaActivoParam === 'boolean'
+		? esGrupoOrdCompartidaActivoParam
+		: esGrupoOrdCompartidaActivoModal();
 
 	// ⚡ MEJORA: Guardar valores originales de la fila principal al inicializar (especialmente en modo dividir)
 	setTimeout(() => {
@@ -999,7 +1039,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			if (thTelar) thTelar.textContent = 'Telar';
 			if (thPedidoTempo) thPedidoTempo.textContent = 'Pedido';
 
-			if (tieneOrdCompartida) {
+			if (tieneGrupoOrdCompartida) {
 				if (typeof cargarRegistrosOrdCompartida === 'function') {
 					await cargarRegistrosOrdCompartida(ordCompartidaActualLocal);
 				}
@@ -2647,8 +2687,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		const modoDividir = document.getElementById('modo-dividir');
 		const switchModo = document.getElementById('switch-modo');
 
-		// Si tiene registros divididos, abrir en modo dividir automáticamente
-		if (tieneOrdCompartida) {
+		// Si pertenece a un grupo dividido real (2+ registros), abrir en modo dividir
+		if (tieneGrupoOrdCompartida) {
 			if (modoDividir) modoDividir.checked = true;
 			if (modoDuplicar) modoDuplicar.checked = false;
 			if (switchModo) switchModo.checked = false;
@@ -2671,8 +2711,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		const promesasCargaInicial = [];
 
 		// 1. Cargar datos relacionados de la clave modelo (si existe) y luego buscar flog en TI_PRO
-		// Con OrdCompartida ya activa, los campos y la tabla se surten del registro; omitir evita 2+ requests redundantes al abrir.
-		if (!tieneOrdCompartida && claveModeloInicial && salonInicial) {
+		// Con grupo OrdCompartida activo, los campos y la tabla se surten del registro; omitir evita requests redundantes.
+		if (!tieneGrupoOrdCompartida && claveModeloInicial && salonInicial) {
 			const paramsDatos = new URLSearchParams();
 			paramsDatos.append('salon_tejido_id', salonInicial);
 			paramsDatos.append('tamano_clave', claveModeloInicial);
@@ -2769,8 +2809,8 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 		// 3. Cargar telares relacionados con la clave modelo (si existe)
 		// IMPORTANTE: Esto se hace DESPUÉS de que salonesDisponibles esté cargado
-		// Con OrdCompartida las filas usan telar readonly; no hace falta fusionar listas al abrir.
-		if (!tieneOrdCompartida && claveModeloInicial && salonesDisponibles && salonesDisponibles.length > 0) {
+		// Con grupo OrdCompartida las filas usan telar readonly; no hace falta fusionar listas al abrir.
+		if (!tieneGrupoOrdCompartida && claveModeloInicial && salonesDisponibles && salonesDisponibles.length > 0) {
 			promesasCargaInicial.push(
 				Promise.resolve(actualizarTelaresPorClaveModelo(claveModeloInicial))
 					.catch(err => {
@@ -3114,10 +3154,13 @@ function validarYCapturarDatosDuplicar() {
 	const custname = document.getElementById('swal-custname')?.value || '';
 	const inventSizeId = document.getElementById('swal-inventsizeid')?.value || '';
 
-	// OrdCompartida existente (si el registro ya fue dividido antes)
-	// IMPORTANTE: Si el checkbox de vincular está activo, siempre debe ser null para crear uno nuevo
+	// OrdCompartida existente: solo para redistribuir un grupo real en modo dividir (2+ registros).
+	// Duplicar sin vincular ignora OrdCompartida; un valor huérfano en una fila no debe bloquear la copia.
 	const ordCompartidaExistenteRaw = document.getElementById('ord-compartida-original')?.value || '';
-	const ordCompartidaExistente = vincular ? null : (ordCompartidaExistenteRaw || null);
+	const esGrupoActivo = esGrupoOrdCompartidaActivoModal();
+	const ordCompartidaExistente = (modo === 'dividir' && !vincular && esGrupoActivo)
+		? (ordCompartidaExistenteRaw || null)
+		: null;
 	const registroIdOriginal = document.getElementById('registro-id-original')?.value || '';
 
 	// Capturar múltiples filas de telar/pedido-tempo/observaciones/pedido/porcentaje_segundos/aplicacion

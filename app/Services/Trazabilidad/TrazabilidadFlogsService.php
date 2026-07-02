@@ -131,6 +131,7 @@ class TrazabilidadFlogsService
         return [
             'lineNum' => $this->formatearEntero($row->LINENUM ?? null),
             'estadoLinea' => $this->resolverEstadoLinea($row->ESTADOLINEA ?? null),
+            'estadoLineaCodigo' => $this->codigoEstadoLinea($row->ESTADOLINEA ?? null),
             'fechaCancelacion' => $this->formatearFecha($row->FECHACANCELACION ?? null),
             'itemId' => $this->txt($row->ITEMID ?? null),
             'itemName' => $this->txt($row->ITEMNAME ?? null),
@@ -202,21 +203,29 @@ class TrazabilidadFlogsService
         return is_file($ruta) ? $ruta : null;
     }
 
-    private function resolverEstadoLinea(mixed $estado): string
+    private function codigoEstadoLinea(mixed $estado): string
     {
         if ($estado === null || $estado === '') {
-            return '—';
+            return '';
         }
 
-        $codigo = is_numeric($estado)
+        return is_numeric($estado)
             ? (string) (int) $estado
             : trim((string) $estado);
+    }
+
+    private function resolverEstadoLinea(mixed $estado): string
+    {
+        $codigo = $this->codigoEstadoLinea($estado);
+        if ($codigo === '') {
+            return '—';
+        }
 
         if (isset(self::ESTADO_LINEA_LABELS[$codigo])) {
             return self::ESTADO_LINEA_LABELS[$codigo];
         }
 
-        return $codigo !== '' ? $codigo : '—';
+        return $codigo;
     }
 
     private function resolverTipoPedido(mixed $tipoPedido, string $idFlog): string

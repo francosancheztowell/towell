@@ -9,7 +9,7 @@
 
     $columnasLineas = [
         ['key' => 'lineNum', 'label' => 'Línea', 'tipo' => 'entero'],
-        ['key' => 'estadoLinea', 'label' => 'Estado línea'],
+        ['key' => 'estadoLinea', 'label' => 'Estado línea', 'tipo' => 'estado'],
         ['key' => 'fechaCancelacion', 'label' => 'Fecha cancelación'],
         ['key' => 'itemId', 'label' => 'Item'],
         ['key' => 'itemName', 'label' => 'Nombre artículo'],
@@ -37,6 +37,13 @@
         ['key' => 'createdDate', 'label' => 'Fecha creación'],
         ['key' => 'simulacionVtasUrl', 'label' => 'Simulación vtas', 'tipo' => 'imagen', 'titulo' => 'Simulación ventas'],
         ['key' => 'simulacionDisenoUrl', 'label' => 'Simulación diseño', 'tipo' => 'imagen', 'titulo' => 'Simulación diseño'],
+    ];
+
+    $estadoLineaBadge = [
+        '0' => 'flog-estado-badge--abierto',
+        '1' => 'flog-estado-badge--facturado',
+        '2' => 'flog-estado-badge--cancelado',
+        '3' => 'flog-estado-badge--todo',
     ];
 
     $v = fn (?string $valor): string => filled($valor) ? $valor : '—';
@@ -234,8 +241,19 @@
                                             'flog-lineas-table__celda--larga' => $esLargo,
                                             'flog-lineas-table__celda--num' => in_array($tipo, ['decimal', 'entero'], true),
                                             'flog-lineas-table__celda--img' => $tipo === 'imagen',
+                                            'flog-lineas-table__celda--estado' => $tipo === 'estado',
                                         ])>
-                                            @if ($tipo === 'imagen')
+                                            @if ($tipo === 'estado')
+                                                @if (filled($celda) && $celda !== '—')
+                                                    @php
+                                                        $codigoEstado = (string) ($linea['estadoLineaCodigo'] ?? '');
+                                                        $claseEstado = $estadoLineaBadge[$codigoEstado] ?? 'flog-estado-badge--otro';
+                                                    @endphp
+                                                    <span class="flog-estado-badge {{ $claseEstado }}">{{ $celda }}</span>
+                                                @else
+                                                    —
+                                                @endif
+                                            @elseif ($tipo === 'imagen')
                                                 @if (filled($celda))
                                                     <button
                                                         type="button"

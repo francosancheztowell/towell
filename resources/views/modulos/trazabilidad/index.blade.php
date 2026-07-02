@@ -703,6 +703,46 @@
         .flog-lineas-table__celda--img {
             padding: 0.35rem 0.5rem !important;
         }
+        .flog-lineas-table__celda--estado {
+            white-space: nowrap;
+        }
+        .flog-estado-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            border-radius: 9999px;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            line-height: 1.2;
+            border: 1px solid transparent;
+        }
+        .flog-estado-badge--abierto {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+        }
+        .flog-estado-badge--facturado {
+            background: #d1fae5;
+            color: #047857;
+            border-color: #6ee7b7;
+        }
+        .flog-estado-badge--cancelado {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+        .flog-estado-badge--todo {
+            background: #ede9fe;
+            color: #6d28d9;
+            border-color: #c4b5fd;
+        }
+        .flog-estado-badge--otro {
+            background: #f1f5f9;
+            color: #475569;
+            border-color: #cbd5e1;
+        }
         .flog-lineas-thumb {
             display: inline-flex;
             align-items: center;

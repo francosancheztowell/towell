@@ -39,9 +39,12 @@ class DividirTejido
         $inventSizeId = $request->input('invent_size_id');
         $registroIdOriginal = $request->input('registro_id_original');
 
-        // Verificar si es una redistribuci├│n de un grupo existente
+        // Redistribución solo si hay un grupo real (2+ registros); un OrdCompartida huérfano en una fila no aplica
         $ordCompartidaExistente = $request->input('ord_compartida_existente');
-        $esRedistribucion = ! empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0';
+        $esRedistribucion = false;
+        if (! empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0') {
+            $esRedistribucion = ReqProgramaTejido::where('OrdCompartida', (int) $ordCompartidaExistente)->count() >= 2;
+        }
 
         // Guardar y restaurar dispatcher para no romper otros flujos (igual que DuplicarTejido)
         $dispatcher = ReqProgramaTejido::suppressObservers();
