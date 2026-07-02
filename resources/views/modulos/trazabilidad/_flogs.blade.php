@@ -22,21 +22,21 @@
         ['key' => 'tipoCostura', 'label' => 'Tipo costura'],
         ['key' => 'tipoCorteBataId', 'label' => 'Tipo corte bata'],
         ['key' => 'valorAgregado', 'label' => 'Valor agregado'],
-        ['key' => 'puntadasBordado', 'label' => 'Puntadas bordado'],
+        ['key' => 'puntadasBordado', 'label' => 'Puntadas bordado', 'tipo' => 'decimal'],
         ['key' => 'infoAdicional', 'label' => 'Info adicional'],
-        ['key' => 'ancho', 'label' => 'Ancho'],
-        ['key' => 'largo', 'label' => 'Largo'],
-        ['key' => 'pesoAcabado', 'label' => 'Peso acabado'],
-        ['key' => 'densidad', 'label' => 'Densidad'],
-        ['key' => 'inventQty', 'label' => 'Cantidad'],
+        ['key' => 'ancho', 'label' => 'Ancho', 'tipo' => 'decimal'],
+        ['key' => 'largo', 'label' => 'Largo', 'tipo' => 'decimal'],
+        ['key' => 'pesoAcabado', 'label' => 'Peso acabado', 'tipo' => 'decimal'],
+        ['key' => 'densidad', 'label' => 'Densidad', 'tipo' => 'decimal'],
+        ['key' => 'inventQty', 'label' => 'Cantidad', 'tipo' => 'decimal'],
         ['key' => 'salesUnit', 'label' => 'Ud. venta'],
         ['key' => 'purchBarCode', 'label' => 'Cód. barras'],
         ['key' => 'dun14', 'label' => 'DUN14'],
         ['key' => 'retailLink', 'label' => 'Retail link'],
         ['key' => 'nombreEtiqueta', 'label' => 'Nombre etiqueta'],
         ['key' => 'createdDate', 'label' => 'Fecha creación'],
-        ['key' => 'simulacionVtas', 'label' => 'Simulación vtas'],
-        ['key' => 'simulacionDiseno', 'label' => 'Simulación diseño'],
+        ['key' => 'simulacionVtasUrl', 'label' => 'Simulación vtas', 'tipo' => 'imagen', 'titulo' => 'Simulación ventas'],
+        ['key' => 'simulacionDisenoUrl', 'label' => 'Simulación diseño', 'tipo' => 'imagen', 'titulo' => 'Simulación diseño'],
     ];
 
     $v = fn (?string $valor): string => filled($valor) ? $valor : '—';
@@ -227,9 +227,32 @@
                                     @foreach ($columnasLineas as $col)
                                         @php
                                             $celda = $linea[$col['key']] ?? '';
-                                            $esLargo = in_array($col['key'], ['itemName', 'infoAdicional', 'nombreEtiqueta', 'retailLink'], true);
+                                            $tipo = $col['tipo'] ?? 'texto';
+                                            $esLargo = $tipo === 'texto' && in_array($col['key'], ['itemName', 'infoAdicional', 'nombreEtiqueta', 'retailLink'], true);
                                         @endphp
-                                        <td @class(['flog-lineas-table__celda--larga' => $esLargo])>{{ $v($celda !== '' ? $celda : null) }}</td>
+                                        <td @class([
+                                            'flog-lineas-table__celda--larga' => $esLargo,
+                                            'flog-lineas-table__celda--num' => $tipo === 'decimal',
+                                            'flog-lineas-table__celda--img' => $tipo === 'imagen',
+                                        ])>
+                                            @if ($tipo === 'imagen')
+                                                @if (filled($celda))
+                                                    <button
+                                                        type="button"
+                                                        class="flog-lineas-thumb"
+                                                        data-flog-zoom="{{ $celda }}"
+                                                        data-flog-zoom-title="{{ ($col['titulo'] ?? $col['label']) }} — Línea {{ $linea['lineNum'] ?? '' }}"
+                                                        aria-label="Ver {{ $col['label'] }}"
+                                                    >
+                                                        <img src="{{ $celda }}" alt="" loading="lazy" draggable="false">
+                                                    </button>
+                                                @else
+                                                    —
+                                                @endif
+                                            @else
+                                                {{ $v($celda !== '' && $celda !== '—' ? $celda : null) }}
+                                            @endif
+                                        </td>
                                     @endforeach
                                 </tr>
                             @empty

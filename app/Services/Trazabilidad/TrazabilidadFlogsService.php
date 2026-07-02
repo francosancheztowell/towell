@@ -136,21 +136,21 @@ class TrazabilidadFlogsService
             'tipoCostura' => $this->txt($row->TIPOCOSTURA ?? null),
             'tipoCorteBataId' => $this->txt($row->TIPOCORTEBATAID ?? null),
             'valorAgregado' => $this->txt($row->VALORAGREGADO ?? null),
-            'puntadasBordado' => $this->txt($row->PUNTADASBORDADO ?? null),
+            'puntadasBordado' => $this->formatearDecimal3($row->PUNTADASBORDADO ?? null),
             'infoAdicional' => $this->txt($row->INFOADICIONAL ?? null),
-            'ancho' => $this->txt($row->ANCHO ?? null),
-            'largo' => $this->txt($row->LARGO ?? null),
-            'pesoAcabado' => $this->txt($row->PESOACABADO ?? null),
-            'densidad' => $this->txt($row->DENSIDAD ?? null),
-            'inventQty' => $this->txt($row->INVENTQTY ?? null),
+            'ancho' => $this->formatearDecimal3($row->ANCHO ?? null),
+            'largo' => $this->formatearDecimal3($row->LARGO ?? null),
+            'pesoAcabado' => $this->formatearDecimal3($row->PESOACABADO ?? null),
+            'densidad' => $this->formatearDecimal3($row->DENSIDAD ?? null),
+            'inventQty' => $this->formatearDecimal3($row->INVENTQTY ?? null),
             'salesUnit' => $this->txt($row->SALESUNIT ?? null),
             'purchBarCode' => $this->txt($row->PURCHBARCODE ?? null),
             'dun14' => $this->txt($row->DUN14 ?? null),
             'retailLink' => $this->txt($row->RETAILLINK ?? null),
             'nombreEtiqueta' => $this->txt($row->NOMBREETIQUETA ?? null),
             'createdDate' => $this->formatearFecha($row->CREATEDDATE ?? null),
-            'simulacionVtas' => $this->txt($row->SIMULACIONVTAS ?? null),
-            'simulacionDiseno' => $this->txt($row->SIMULACIONDISENO ?? null),
+            'simulacionVtasUrl' => $this->resolverUrlImagen($row->SIMULACIONVTAS ?? null) ?? '',
+            'simulacionDisenoUrl' => $this->resolverUrlImagen($row->SIMULACIONDISENO ?? null) ?? '',
         ];
     }
 
@@ -253,6 +253,20 @@ class TrazabilidadFlogsService
         }
 
         return in_array(strtolower($v), ['1', 'si', 'sí', 'yes', 'true'], true) ? 'Sí' : $v;
+    }
+
+    private function formatearDecimal3(mixed $valor): string
+    {
+        if (blank($valor) && $valor !== 0 && $valor !== '0') {
+            return '—';
+        }
+
+        $normalizado = str_replace(',', '.', trim((string) $valor));
+        if ($normalizado === '' || ! is_numeric($normalizado)) {
+            return $this->txt($valor) ?: '—';
+        }
+
+        return number_format((float) $normalizado, 3, '.', '');
     }
 
     private function formatearFecha(mixed $fecha): string

@@ -677,6 +677,38 @@
             padding: 1.5rem !important;
             white-space: normal !important;
         }
+        .flog-lineas-table__celda--num {
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+        }
+        .flog-lineas-table__celda--img {
+            padding: 0.35rem 0.5rem !important;
+        }
+        .flog-lineas-thumb {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 3.25rem;
+            height: 3.25rem;
+            padding: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            background: #fff;
+            overflow: hidden;
+            cursor: zoom-in;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .flog-lineas-thumb:hover {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+        }
+        .flog-lineas-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
 
         /* Modal visor imagen Flog — pantalla completa + zoom */
         #modal-flog-imagen {
@@ -1166,13 +1198,18 @@
             desbloquearScrollPagina();
         }
 
-        $resultado.on('click', '.flog-visual-frame[data-flog-zoom]', function () {
-            const src = $(this).data('flog-zoom') || $(this).find('img').attr('src');
-            const titulo = $(this).find('.flog-visual-frame__caption').text().trim() || 'Imagen';
+        $resultado.on('click', '[data-flog-zoom]', function () {
+            const $el = $(this);
+            const src = $el.data('flog-zoom') || $el.find('img').attr('src');
+            if (!src) return;
+            const titulo = $el.data('flog-zoom-title')
+                || $el.find('.flog-visual-frame__caption').text().trim()
+                || $el.attr('aria-label')
+                || 'Imagen';
             abrirModalFlogImagen(src, titulo);
         });
 
-        $resultado.on('keydown', '.flog-visual-frame[data-flog-zoom]', function (e) {
+        $resultado.on('keydown', '[data-flog-zoom]', function (e) {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 $(this).trigger('click');
