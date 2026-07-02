@@ -144,9 +144,6 @@
                             {{ $general['avisoEspecialTxt'] }}
                         </div>
                     @endif
-                    @if (empty($imagenesFlog))
-                        <p class="text-sm text-slate-400 italic mt-1">Sin imágenes disponibles.</p>
-                    @endif
                 </aside>
 
                 @if (! empty($imagenesFlog))
@@ -163,8 +160,14 @@
                             </figure>
                         @endforeach
                     </div>
-                @elseif (! $empaque && empty($etiquetas))
-                    <p class="flog-empty-img flex-1">Sin datos de empaque ni etiquetado.</p>
+                @else
+                    <div class="flog-visual-placeholder" role="presentation" aria-hidden="true">
+                        <div class="flog-visual-placeholder__frame">
+                            <span class="flog-visual-placeholder__icon">
+                                <i class="fa-regular fa-image"></i>
+                            </span>
+                        </div>
+                    </div>
                 @endif
             </div>
         </section>

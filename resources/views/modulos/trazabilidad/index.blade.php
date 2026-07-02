@@ -581,6 +581,37 @@
             text-align: center;
             padding: 2rem 1rem;
         }
+        .flog-visual-placeholder {
+            flex: 1 1 0;
+            min-width: 0;
+            align-self: stretch;
+            display: flex;
+            min-height: min(360px, 50vh);
+        }
+        .flog-visual-placeholder__frame {
+            flex: 1;
+            width: 100%;
+            min-height: min(480px, 62vh);
+            border: 2px dashed #e2e8f0;
+            border-radius: 0.75rem;
+            background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 55%, #eef2f7 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .flog-visual-placeholder__icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 4.5rem;
+            height: 4.5rem;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e2e8f0;
+            color: #cbd5e1;
+            font-size: 1.75rem;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        }
 
         /* Modal visor imagen Flog — pantalla completa + zoom */
         #modal-flog-imagen {
