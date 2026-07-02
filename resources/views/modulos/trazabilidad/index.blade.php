@@ -390,58 +390,122 @@
             }
         }
         .flog-etiq-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 0.85rem;
+            align-items: stretch;
+            width: 100%;
         }
-        .flog-etiq-item {
-            border: 1px solid #e2e8f0;
-            border-radius: 0.625rem;
-            overflow: hidden;
-            background: #fff;
+        .flog-visual-layout {
             display: flex;
             flex-direction: column;
+            gap: 0.85rem;
         }
-        .flog-etiq-item__img {
-            flex: 1;
-            min-height: 200px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
+        @media (min-width: 768px) {
+            .flog-visual-layout {
+                flex-direction: row;
+                align-items: stretch;
+                min-height: 360px;
+            }
+        }
+        .flog-visual-meta {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            min-width: 0;
+        }
+        @media (min-width: 768px) {
+            .flog-visual-meta {
+                width: 260px;
+                max-width: 30%;
+                flex-shrink: 0;
+            }
+        }
+        .flog-visual-meta .flog-campo__valor {
+            font-size: 0.875rem;
+        }
+        .flog-visual-gallery {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.85rem;
+            align-content: stretch;
+        }
+        .flog-visual-gallery--solo .flog-visual-frame {
+            flex: 1 1 100%;
+        }
+        .flog-visual-frame {
+            flex: 1 1 calc(50% - 0.5rem);
+            min-width: min(100%, 240px);
+            min-height: 320px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            background: #fff;
+            cursor: zoom-in;
+            position: relative;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .flog-visual-frame:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15);
+        }
+        .flog-visual-frame__img-wrap {
+            flex: 1 1 auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0.65rem;
-            cursor: zoom-in;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 0.85rem;
+            min-height: 300px;
         }
-        .flog-etiq-item__img img {
-            max-height: 220px;
+        .flog-visual-frame__img-wrap img {
             max-width: 100%;
+            max-height: min(480px, 58vh);
             width: auto;
+            height: auto;
             object-fit: contain;
+            display: block;
         }
-        .flog-etiq-item__txt {
-            padding: 0.55rem 0.65rem;
+        .flog-visual-gallery--solo .flog-visual-frame__img-wrap img {
+            max-height: min(520px, 62vh);
+        }
+        .flog-visual-frame__caption {
+            flex-shrink: 0;
+            padding: 0.6rem 0.75rem;
             font-size: 0.8125rem;
             font-weight: 600;
             color: #1e293b;
             line-height: 1.35;
+            border-top: 1px solid #e2e8f0;
+            background: #fff;
         }
-        .flog-empaque-img {
-            margin-top: 0.75rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.625rem;
-            background: #f8fafc;
-            padding: 0.75rem;
+        .flog-visual-frame__zoom-hint {
+            position: absolute;
+            inset: 0;
             display: flex;
-            align-items: center;
+            align-items: flex-end;
             justify-content: center;
-            min-height: 220px;
-            cursor: zoom-in;
+            padding-bottom: 0.65rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            background: linear-gradient(180deg, transparent 55%, rgba(15, 23, 42, 0.45) 100%);
         }
-        .flog-empaque-img img {
-            max-height: 280px;
-            max-width: 100%;
-            object-fit: contain;
+        .flog-visual-frame:hover .flog-visual-frame__zoom-hint {
+            opacity: 1;
+        }
+        .flog-visual-frame__zoom-hint span {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #fff;
+            background: rgba(15, 23, 42, 0.75);
+            padding: 0.3rem 0.65rem;
+            border-radius: 9999px;
         }
         .flog-nota {
             border-radius: 0.625rem;
@@ -481,23 +545,71 @@
             padding: 2rem 1rem;
         }
 
-        /* Modal zoom imagen flog */
+        /* Modal zoom imagen flog — pantalla completa */
         #modal-flog-imagen {
             z-index: 9999;
         }
         #modal-flog-imagen .modal-flog-imagen__backdrop {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(3px);
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(4px);
         }
         #modal-flog-imagen .modal-flog-imagen__panel {
             z-index: 1;
-            max-width: min(92vw, 900px);
-            max-height: 90vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            max-width: 98vw;
+            max-height: 96vh;
+            width: 100%;
+            padding: 2.5rem 1rem 1rem;
+            pointer-events: none;
         }
         #modal-flog-imagen .modal-flog-imagen__panel img {
-            max-height: calc(90vh - 4rem);
-            max-width: 100%;
+            pointer-events: auto;
+            cursor: zoom-out;
+            max-width: 98vw;
+            max-height: 88vh;
+            width: auto;
+            height: auto;
             object-fit: contain;
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.45);
+        }
+        #modal-flog-imagen .modal-flog-imagen__titulo {
+            pointer-events: none;
+            position: absolute;
+            top: 0.75rem;
+            left: 1rem;
+            right: 3rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #modal-flog-imagen .modal-flog-imagen__cerrar {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        #modal-flog-imagen .modal-flog-imagen__cerrar:hover {
+            background: rgba(255, 255, 255, 0.28);
         }
 
         /* Modal rollos teñido: por encima del navbar y fondo oscuro */
@@ -634,15 +746,15 @@
             </div>
         </div>
 
-        {{-- Modal zoom imagen Flog --}}
-        <div id="modal-flog-imagen" class="hidden fixed inset-0 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-flog-imagen-titulo">
+        {{-- Modal zoom imagen Flog (tamaño completo) --}}
+        <div id="modal-flog-imagen" class="hidden fixed inset-0 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="modal-flog-imagen-titulo">
             <div class="modal-flog-imagen__backdrop absolute inset-0" data-modal-flog-close></div>
-            <div class="modal-flog-imagen__panel relative bg-white rounded-2xl p-4 flex flex-col items-center">
-                <button type="button" class="absolute top-3 right-3 text-slate-400 hover:text-slate-700 p-1 rounded-lg" data-modal-flog-close aria-label="Cerrar">
-                    <i class="fa-solid fa-xmark text-xl"></i>
-                </button>
-                <p id="modal-flog-imagen-titulo" class="text-sm font-semibold text-slate-600 mb-3 pr-8 self-start"></p>
-                <img src="" alt="" class="rounded-lg">
+            <button type="button" class="modal-flog-imagen__cerrar" data-modal-flog-close aria-label="Cerrar">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="modal-flog-imagen__panel relative">
+                <p id="modal-flog-imagen-titulo" class="modal-flog-imagen__titulo"></p>
+                <img src="" alt="" data-modal-flog-img>
             </div>
         </div>
 
@@ -669,28 +781,37 @@
 
         function abrirModalFlogImagen(src, titulo) {
             if (!src || !$modalFlogImg.length) return;
-            $modalFlogImg.find('img').attr({ src: src, alt: titulo || 'Imagen' });
+            const $img = $modalFlogImg.find('[data-modal-flog-img]');
+            $img.attr({ src: src, alt: titulo || 'Imagen' });
             $('#modal-flog-imagen-titulo').text(titulo || '');
             $modalFlogImg.removeClass('hidden');
+            document.body.style.overflow = 'hidden';
         }
 
         function cerrarModalFlogImagen() {
             if (!$modalFlogImg.length) return;
             $modalFlogImg.addClass('hidden');
-            $modalFlogImg.find('img').attr('src', '');
+            $modalFlogImg.find('[data-modal-flog-img]').attr('src', '');
+            document.body.style.overflow = '';
         }
 
-        $resultado.on('click', '[data-flog-zoom]', function () {
+        $resultado.on('click', '.flog-visual-frame[data-flog-zoom]', function () {
             const src = $(this).data('flog-zoom') || $(this).find('img').attr('src');
-            const titulo = $(this).closest('.flog-etiq-item').find('.flog-etiq-item__txt').text()
-                || $(this).closest('.flog-card').find('.flog-card__title').text()
-                || 'Imagen';
+            const titulo = $(this).find('.flog-visual-frame__caption').text().trim() || 'Imagen';
             abrirModalFlogImagen(src, titulo);
         });
 
+        $resultado.on('keydown', '.flog-visual-frame[data-flog-zoom]', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                $(this).trigger('click');
+            }
+        });
+
         $modalFlogImg.on('click', '[data-modal-flog-close]', cerrarModalFlogImagen);
+        $modalFlogImg.on('click', '[data-modal-flog-img]', cerrarModalFlogImagen);
         $modalFlogImg.on('click', function (e) {
-            if (e.target === this || $(e.target).hasClass('modal-flog-imagen__backdrop')) {
+            if ($(e.target).is('.modal-flog-imagen__backdrop')) {
                 cerrarModalFlogImagen();
             }
         });

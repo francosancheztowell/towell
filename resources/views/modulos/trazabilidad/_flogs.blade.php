@@ -91,69 +91,71 @@
             </div>
         </section>
 
-        {{-- Empaque + etiquetas con imágenes grandes --}}
-        <div class="flog-grid-2 flog-grid-2--empaque">
-            <section class="flog-card" aria-labelledby="flog-titulo-empaque">
-                <header class="flog-card__head">
-                    <span class="flog-card__icon"><i class="fa-solid fa-box-open"></i></span>
-                    <h2 id="flog-titulo-empaque" class="flog-card__title">Empaque</h2>
-                </header>
-                <div class="flog-card__body">
-                    <div class="flog-fields" style="grid-template-columns: 1fr 1fr;">
-                        <div class="flog-campo">
-                            <span class="flog-campo__label">Id empaque</span>
-                            <span class="flog-campo__valor">{{ $v($empaque['idEmpaque'] ?? null) }}</span>
-                        </div>
-                        <div class="flog-campo">
-                            <span class="flog-campo__label">Etiquetas registradas</span>
-                            <span class="flog-campo__valor">{{ count($etiquetas) }}</span>
-                        </div>
+        {{-- Empaque + etiquetas: meta compacta a la izquierda, galería grande a la derecha --}}
+        @php
+            $imagenesFlog = [];
+            if ($empaque && ! empty($empaque['imagenUrl'])) {
+                $imagenesFlog[] = [
+                    'url' => $empaque['imagenUrl'],
+                    'caption' => 'Empaque — '.($empaque['idEmpaque'] ?? 'Imagen'),
+                ];
+            }
+            foreach ($etiquetas as $etiq) {
+                if (! empty($etiq['imagenUrl'])) {
+                    $imagenesFlog[] = [
+                        'url' => $etiq['imagenUrl'],
+                        'caption' => $etiq['comentarios'] ?: ($etiq['name'] ?: 'Etiqueta'),
+                    ];
+                }
+            }
+            $soloUnaImagen = count($imagenesFlog) === 1;
+        @endphp
+
+        <section class="flog-card" aria-labelledby="flog-titulo-visual">
+            <header class="flog-card__head">
+                <span class="flog-card__icon"><i class="fa-solid fa-box-open"></i></span>
+                <h2 id="flog-titulo-visual" class="flog-card__title">Empaque y etiquetado</h2>
+            </header>
+            <div class="flog-card__body flog-visual-layout">
+                <aside class="flog-visual-meta">
+                    <div class="flog-campo">
+                        <span class="flog-campo__label">Id empaque</span>
+                        <span class="flog-campo__valor">{{ $v($empaque['idEmpaque'] ?? null) }}</span>
+                    </div>
+                    <div class="flog-campo">
+                        <span class="flog-campo__label">Etiquetas registradas</span>
+                        <span class="flog-campo__valor">{{ count($etiquetas) }}</span>
                     </div>
                     @if ($empaque && filled($empaque['otroEmpaque'] ?? null))
-                        <div class="flog-campo mt-3">
+                        <div class="flog-campo">
                             <span class="flog-campo__label">Otro empaque</span>
-                            <span class="flog-campo__valor whitespace-pre-line font-semibold">{{ $empaque['otroEmpaque'] }}</span>
+                            <span class="flog-campo__valor whitespace-pre-line">{{ $empaque['otroEmpaque'] }}</span>
                         </div>
                     @endif
-                    @if ($empaque && ! empty($empaque['imagenUrl']))
-                        <div class="flog-empaque-img" data-flog-zoom="{{ $empaque['imagenUrl'] }}" title="Clic para ampliar">
-                            <img src="{{ $empaque['imagenUrl'] }}" alt="Empaque" loading="lazy">
-                        </div>
-                    @elseif (! $empaque)
-                        <p class="flog-empty-img">Sin datos de empaque.</p>
+                    @if (empty($imagenesFlog))
+                        <p class="text-sm text-slate-400 italic mt-1">Sin imágenes disponibles.</p>
                     @endif
-                </div>
-            </section>
+                </aside>
 
-            <section class="flog-card" aria-labelledby="flog-titulo-etiq">
-                <header class="flog-card__head">
-                    <span class="flog-card__icon"><i class="fa-solid fa-tags"></i></span>
-                    <h2 id="flog-titulo-etiq" class="flog-card__title">Etiquetas</h2>
-                </header>
-                <div class="flog-card__body">
-                    @if (empty($etiquetas))
-                        <p class="flog-empty-img">Sin líneas de etiquetado.</p>
-                    @else
-                        <div class="flog-etiq-grid">
-                            @foreach ($etiquetas as $etiq)
-                                <article class="flog-etiq-item">
-                                    @if (! empty($etiq['imagenUrl']))
-                                        <div class="flog-etiq-item__img" data-flog-zoom="{{ $etiq['imagenUrl'] }}" title="Clic para ampliar">
-                                            <img src="{{ $etiq['imagenUrl'] }}"
-                                                 alt="{{ $etiq['comentarios'] ?: 'Etiqueta' }}"
-                                                 loading="lazy">
-                                        </div>
-                                    @else
-                                        <div class="flog-etiq-item__img flog-empty-img">Sin imagen</div>
-                                    @endif
-                                    <p class="flog-etiq-item__txt">{{ $etiq['comentarios'] ?: ($etiq['name'] ?: '—') }}</p>
-                                </article>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            </section>
-        </div>
+                @if (! empty($imagenesFlog))
+                    <div class="flog-visual-gallery {{ $soloUnaImagen ? 'flog-visual-gallery--solo' : '' }}">
+                        @foreach ($imagenesFlog as $img)
+                            <figure class="flog-visual-frame" data-flog-zoom="{{ $img['url'] }}" role="button" tabindex="0" aria-label="{{ $img['caption'] }}">
+                                <div class="flog-visual-frame__img-wrap">
+                                    <img src="{{ $img['url'] }}" alt="{{ $img['caption'] }}" loading="lazy">
+                                </div>
+                                <figcaption class="flog-visual-frame__caption">{{ $img['caption'] }}</figcaption>
+                                <div class="flog-visual-frame__zoom-hint" aria-hidden="true">
+                                    <span><i class="fa-solid fa-magnifying-glass-plus mr-1"></i> Clic para tamaño completo</span>
+                                </div>
+                            </figure>
+                        @endforeach
+                    </div>
+                @elseif (! $empaque && empty($etiquetas))
+                    <p class="flog-empty-img flex-1">Sin datos de empaque ni etiquetado.</p>
+                @endif
+            </div>
+        </section>
 
         @if (filled($general['avisoEspecialTxt'] ?? null) || filled($general['infoImportante'] ?? null))
             <div class="flog-grid-2">

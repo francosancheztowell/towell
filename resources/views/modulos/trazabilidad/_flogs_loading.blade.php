@@ -16,17 +16,23 @@
             </div>
         </div>
     </div>
-    <div class="flog-grid-2 flog-grid-2--empaque">
-        @for ($c = 0; $c < 2; $c++)
-            <div class="flog-card">
-                <div class="flog-card__head">
-                    <div class="flog-card__icon bg-slate-200"></div>
-                    <div class="h-4 w-28 bg-slate-200 rounded"></div>
-                </div>
-                <div class="flog-card__body">
-                    <div class="rounded-lg bg-slate-100 min-h-[220px]"></div>
-                </div>
+    <div class="flog-card">
+        <div class="flog-card__head">
+            <div class="flog-card__icon bg-slate-200"></div>
+            <div class="h-4 w-40 bg-slate-200 rounded"></div>
+        </div>
+        <div class="flog-card__body flog-visual-layout">
+            <div class="flog-visual-meta space-y-3">
+                @for ($i = 0; $i < 3; $i++)
+                    <div class="space-y-2">
+                        <div class="h-3 w-20 bg-slate-200 rounded"></div>
+                        <div class="h-4 w-full bg-slate-100 rounded"></div>
+                    </div>
+                @endfor
             </div>
-        @endfor
+            <div class="flog-visual-gallery flog-visual-gallery--solo flex-1">
+                <div class="flog-visual-frame min-h-[320px] bg-slate-100 rounded-lg"></div>
+            </div>
+        </div>
     </div>
 </div>
