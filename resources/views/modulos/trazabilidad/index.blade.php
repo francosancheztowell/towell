@@ -634,36 +634,55 @@
         .flog-lineas-table {
             width: max-content;
             min-width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 0.75rem;
         }
         .flog-lineas-table thead th {
             position: sticky;
             top: 0;
             z-index: 1;
-            background: #f8fafc;
-            color: #475569;
-            font-size: 0.625rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: normal;
             text-align: left;
-            padding: 0.55rem 0.65rem;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 0.6rem 0.7rem;
+            border-bottom: 2px solid #1d4ed8;
+            border-right: 1px solid rgba(255, 255, 255, 0.18);
             white-space: nowrap;
+        }
+        .flog-lineas-table thead th:last-child {
+            border-right: none;
+        }
+        .flog-lineas-table thead th:nth-child(even) {
+            background: #1d4ed8;
         }
         .flog-lineas-table tbody td {
             padding: 0.5rem 0.65rem;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
             color: #1e293b;
             vertical-align: top;
             white-space: nowrap;
             max-width: 14rem;
             overflow: hidden;
             text-overflow: ellipsis;
+            background: #ffffff;
+        }
+        .flog-lineas-table tbody td:last-child {
+            border-right: none;
+        }
+        .flog-lineas-table tbody td:nth-child(even) {
+            background: #f8fafc;
         }
         .flog-lineas-table tbody tr:hover td {
-            background: #f8fafc;
+            background: #eff6ff;
+        }
+        .flog-lineas-table tbody tr:hover td:nth-child(even) {
+            background: #dbeafe;
         }
         .flog-lineas-table__celda--larga {
             max-width: 18rem;
