@@ -554,71 +554,123 @@
             padding: 2rem 1rem;
         }
 
-        /* Modal zoom imagen flog — pantalla completa */
+        /* Modal visor imagen Flog — pantalla completa + zoom */
         #modal-flog-imagen {
             z-index: 9999;
         }
         #modal-flog-imagen .modal-flog-imagen__backdrop {
-            background: rgba(15, 23, 42, 0.88);
+            background: rgba(15, 23, 42, 0.92);
             backdrop-filter: blur(4px);
         }
-        #modal-flog-imagen .modal-flog-imagen__panel {
-            z-index: 1;
+        #modal-flog-imagen .modal-flog-imagen__shell {
             position: relative;
+            z-index: 1;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            max-width: 98vw;
-            max-height: 96vh;
-            width: 100%;
-            padding: 2.5rem 1rem 1rem;
-            pointer-events: none;
-        }
-        #modal-flog-imagen .modal-flog-imagen__panel img {
+            width: 100vw;
+            height: 100vh;
             pointer-events: auto;
-            cursor: zoom-out;
-            max-width: 98vw;
-            max-height: 88vh;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            border-radius: 0.5rem;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.45);
+        }
+        #modal-flog-imagen .modal-flog-imagen__toolbar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.65rem 1rem;
+            background: rgba(15, 23, 42, 0.85);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         #modal-flog-imagen .modal-flog-imagen__titulo {
-            pointer-events: none;
-            position: absolute;
-            top: 0.75rem;
-            left: 1rem;
-            right: 3rem;
             font-size: 0.875rem;
             font-weight: 600;
-            color: #e2e8f0;
-            text-align: center;
+            color: #f1f5f9;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            min-width: 0;
+            flex: 1;
         }
-        #modal-flog-imagen .modal-flog-imagen__cerrar {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 2;
-            width: 2.5rem;
-            height: 2.5rem;
-            border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.15);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.25);
+        #modal-flog-imagen .modal-flog-imagen__tools {
             display: flex;
             align-items: center;
+            gap: 0.35rem;
+            flex-shrink: 0;
+        }
+        #modal-flog-imagen .modal-flog-imagen__btn {
+            display: inline-flex;
+            align-items: center;
             justify-content: center;
+            gap: 0.35rem;
+            min-width: 2.25rem;
+            height: 2.25rem;
+            padding: 0 0.55rem;
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            font-size: 0.8125rem;
+            font-weight: 600;
             cursor: pointer;
             transition: background 0.15s ease;
         }
-        #modal-flog-imagen .modal-flog-imagen__cerrar:hover {
-            background: rgba(255, 255, 255, 0.28);
+        #modal-flog-imagen .modal-flog-imagen__btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+        }
+        #modal-flog-imagen .modal-flog-imagen__btn--primary {
+            background: rgba(37, 99, 235, 0.55);
+            border-color: rgba(147, 197, 253, 0.45);
+        }
+        #modal-flog-imagen .modal-flog-imagen__btn--primary:hover {
+            background: rgba(37, 99, 235, 0.75);
+        }
+        #modal-flog-imagen .modal-flog-imagen__zoom-label {
+            min-width: 3.25rem;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #cbd5e1;
+            font-variant-numeric: tabular-nums;
+        }
+        #modal-flog-imagen .modal-flog-imagen__stage {
+            flex: 1 1 auto;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            touch-action: none;
+        }
+        #modal-flog-imagen .modal-flog-imagen__stage.is-dragging {
+            cursor: grabbing;
+        }
+        #modal-flog-imagen .modal-flog-imagen__viewport {
+            transform-origin: center center;
+            will-change: transform;
+        }
+        #modal-flog-imagen .modal-flog-imagen__viewport img {
+            display: block;
+            max-width: none;
+            max-height: none;
+            width: auto;
+            height: auto;
+            border-radius: 0.25rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        #modal-flog-imagen .modal-flog-imagen__hint {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: rgba(226, 232, 240, 0.85);
+            background: rgba(15, 23, 42, 0.65);
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            pointer-events: none;
         }
 
         /* Modal rollos teñido: por encima del navbar y fondo oscuro */
@@ -755,15 +807,38 @@
             </div>
         </div>
 
-        {{-- Modal zoom imagen Flog (tamaño completo) --}}
-        <div id="modal-flog-imagen" class="hidden fixed inset-0 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="modal-flog-imagen-titulo">
+        {{-- Modal visor imagen Flog: pantalla completa, zoom y descarga --}}
+        <div id="modal-flog-imagen" class="hidden fixed inset-0" role="dialog" aria-modal="true" aria-labelledby="modal-flog-imagen-titulo">
             <div class="modal-flog-imagen__backdrop absolute inset-0" data-modal-flog-close></div>
-            <button type="button" class="modal-flog-imagen__cerrar" data-modal-flog-close aria-label="Cerrar">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            <div class="modal-flog-imagen__panel relative">
-                <p id="modal-flog-imagen-titulo" class="modal-flog-imagen__titulo"></p>
-                <img src="" alt="" data-modal-flog-img>
+            <div class="modal-flog-imagen__shell">
+                <header class="modal-flog-imagen__toolbar">
+                    <p id="modal-flog-imagen-titulo" class="modal-flog-imagen__titulo"></p>
+                    <div class="modal-flog-imagen__tools">
+                        <button type="button" class="modal-flog-imagen__btn" data-flog-zoom-out title="Alejar" aria-label="Alejar">
+                            <i class="fa-solid fa-magnifying-glass-minus"></i>
+                        </button>
+                        <span class="modal-flog-imagen__zoom-label" data-flog-zoom-label>100%</span>
+                        <button type="button" class="modal-flog-imagen__btn" data-flog-zoom-in title="Acercar" aria-label="Acercar">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i>
+                        </button>
+                        <button type="button" class="modal-flog-imagen__btn" data-flog-zoom-reset title="Ajustar a pantalla" aria-label="Ajustar a pantalla">
+                            <i class="fa-solid fa-compress"></i>
+                        </button>
+                        <button type="button" class="modal-flog-imagen__btn modal-flog-imagen__btn--primary" data-flog-download title="Descargar imagen" aria-label="Descargar imagen">
+                            <i class="fa-solid fa-download"></i>
+                            <span class="hidden sm:inline">Descargar</span>
+                        </button>
+                        <button type="button" class="modal-flog-imagen__btn" data-modal-flog-close title="Cerrar" aria-label="Cerrar">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </header>
+                <div class="modal-flog-imagen__stage" data-flog-stage>
+                    <div class="modal-flog-imagen__viewport" data-flog-viewport>
+                        <img src="" alt="" data-modal-flog-img draggable="false">
+                    </div>
+                    <p class="modal-flog-imagen__hint">Rueda del mouse o botones para zoom · Arrastra para mover</p>
+                </div>
             </div>
         </div>
 
@@ -788,10 +863,119 @@
             $modalFlogImg.appendTo(document.body);
         }
 
+        const flogVisor = {
+            src: '',
+            titulo: '',
+            scale: 1,
+            baseScale: 1,
+            panX: 0,
+            panY: 0,
+            dragging: false,
+            dragStartX: 0,
+            dragStartY: 0,
+            panStartX: 0,
+            panStartY: 0,
+        };
+
+        const $flogStage = () => $modalFlogImg.find('[data-flog-stage]');
+        const $flogViewport = () => $modalFlogImg.find('[data-flog-viewport]');
+        const $flogImg = () => $modalFlogImg.find('[data-modal-flog-img]');
+
+        function actualizarLabelZoomFlog() {
+            const pct = flogVisor.baseScale > 0
+                ? Math.round((flogVisor.scale / flogVisor.baseScale) * 100)
+                : 100;
+            $modalFlogImg.find('[data-flog-zoom-label]').text(pct + '%');
+        }
+
+        function aplicarTransformFlog() {
+            $flogViewport().css(
+                'transform',
+                'translate(' + flogVisor.panX + 'px, ' + flogVisor.panY + 'px) scale(' + flogVisor.scale + ')'
+            );
+            actualizarLabelZoomFlog();
+        }
+
+        function ajustarImagenFlogAPantalla() {
+            const img = $flogImg()[0];
+            const stage = $flogStage()[0];
+            if (!img || !stage || !img.naturalWidth || !img.naturalHeight) return;
+
+            const pad = 48;
+            const sw = Math.max(stage.clientWidth - pad, 200);
+            const sh = Math.max(stage.clientHeight - pad, 200);
+            flogVisor.baseScale = Math.min(sw / img.naturalWidth, sh / img.naturalHeight);
+            flogVisor.scale = flogVisor.baseScale;
+            flogVisor.panX = 0;
+            flogVisor.panY = 0;
+
+            $flogImg().css({
+                width: img.naturalWidth + 'px',
+                height: img.naturalHeight + 'px',
+            });
+            aplicarTransformFlog();
+        }
+
+        function cambiarZoomFlog(factor) {
+            const min = flogVisor.baseScale * 0.35;
+            const max = flogVisor.baseScale * 12;
+            flogVisor.scale = Math.min(max, Math.max(min, flogVisor.scale * factor));
+            aplicarTransformFlog();
+        }
+
+        function nombreArchivoFlog(src, titulo) {
+            try {
+                const url = new URL(src, window.location.origin);
+                const file = url.searchParams.get('file');
+                if (file) return file;
+            } catch (e) { /* ignore */ }
+            const base = (titulo || 'imagen-flog')
+                .replace(/[^\w\s\-\.áéíóúñÁÉÍÓÚÑ]/g, '')
+                .trim()
+                .replace(/\s+/g, '_')
+                .slice(0, 80) || 'imagen-flog';
+            return base + '.jpg';
+        }
+
+        async function descargarImagenFlog() {
+            if (!flogVisor.src) return;
+            const nombre = nombreArchivoFlog(flogVisor.src, flogVisor.titulo);
+            try {
+                const res = await fetch(flogVisor.src, { credentials: 'same-origin' });
+                if (!res.ok) throw new Error('No se pudo obtener la imagen');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = nombre;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                window.notify?.success('Descarga iniciada');
+            } catch (err) {
+                window.notify?.error(err.message || 'No se pudo descargar la imagen');
+            }
+        }
+
         function abrirModalFlogImagen(src, titulo) {
             if (!src || !$modalFlogImg.length) return;
-            const $img = $modalFlogImg.find('[data-modal-flog-img]');
+            flogVisor.src = src;
+            flogVisor.titulo = titulo || 'Imagen';
+            flogVisor.scale = 1;
+            flogVisor.baseScale = 1;
+            flogVisor.panX = 0;
+            flogVisor.panY = 0;
+
+            const $img = $flogImg();
+            $img.off('load.flogVisor').on('load.flogVisor', function () {
+                ajustarImagenFlogAPantalla();
+            });
             $img.attr({ src: src, alt: titulo || 'Imagen' });
+            if ($img[0]?.complete && $img[0].naturalWidth) {
+                ajustarImagenFlogAPantalla();
+            }
+
             $('#modal-flog-imagen-titulo').text(titulo || '');
             $modalFlogImg.removeClass('hidden');
             document.body.style.overflow = 'hidden';
@@ -800,7 +984,11 @@
         function cerrarModalFlogImagen() {
             if (!$modalFlogImg.length) return;
             $modalFlogImg.addClass('hidden');
-            $modalFlogImg.find('[data-modal-flog-img]').attr('src', '');
+            $flogImg().off('load.flogVisor').attr('src', '');
+            $flogViewport().css('transform', '');
+            flogVisor.src = '';
+            flogVisor.dragging = false;
+            $flogStage().removeClass('is-dragging');
             document.body.style.overflow = '';
         }
 
@@ -818,10 +1006,49 @@
         });
 
         $modalFlogImg.on('click', '[data-modal-flog-close]', cerrarModalFlogImagen);
-        $modalFlogImg.on('click', '[data-modal-flog-img]', cerrarModalFlogImagen);
+        $modalFlogImg.on('click', '[data-flog-zoom-in]', function () { cambiarZoomFlog(1.2); });
+        $modalFlogImg.on('click', '[data-flog-zoom-out]', function () { cambiarZoomFlog(1 / 1.2); });
+        $modalFlogImg.on('click', '[data-flog-zoom-reset]', ajustarImagenFlogAPantalla);
+        $modalFlogImg.on('click', '[data-flog-download]', descargarImagenFlog);
+
         $modalFlogImg.on('click', function (e) {
             if ($(e.target).is('.modal-flog-imagen__backdrop')) {
                 cerrarModalFlogImagen();
+            }
+        });
+
+        $modalFlogImg.on('wheel', '[data-flog-stage]', function (e) {
+            e.preventDefault();
+            const factor = e.originalEvent.deltaY < 0 ? 1.12 : 1 / 1.12;
+            cambiarZoomFlog(factor);
+        });
+
+        $modalFlogImg.on('mousedown', '[data-flog-stage]', function (e) {
+            if (e.button !== 0) return;
+            flogVisor.dragging = true;
+            flogVisor.dragStartX = e.clientX;
+            flogVisor.dragStartY = e.clientY;
+            flogVisor.panStartX = flogVisor.panX;
+            flogVisor.panStartY = flogVisor.panY;
+            $flogStage().addClass('is-dragging');
+        });
+
+        $(document).on('mousemove.flogVisor', function (e) {
+            if (!flogVisor.dragging || $modalFlogImg.hasClass('hidden')) return;
+            flogVisor.panX = flogVisor.panStartX + (e.clientX - flogVisor.dragStartX);
+            flogVisor.panY = flogVisor.panStartY + (e.clientY - flogVisor.dragStartY);
+            aplicarTransformFlog();
+        });
+
+        $(document).on('mouseup.flogVisor', function () {
+            if (!flogVisor.dragging) return;
+            flogVisor.dragging = false;
+            $flogStage().removeClass('is-dragging');
+        });
+
+        $(window).on('resize.flogVisor', function () {
+            if (!$modalFlogImg.hasClass('hidden')) {
+                ajustarImagenFlogAPantalla();
             }
         });
 
@@ -963,6 +1190,18 @@
             }
             if (e.key === 'Escape' && !$modalFlogImg.hasClass('hidden')) {
                 cerrarModalFlogImagen();
+            }
+            if (!$modalFlogImg.hasClass('hidden')) {
+                if (e.key === '+' || e.key === '=') {
+                    e.preventDefault();
+                    cambiarZoomFlog(1.2);
+                } else if (e.key === '-') {
+                    e.preventDefault();
+                    cambiarZoomFlog(1 / 1.2);
+                } else if (e.key === '0') {
+                    e.preventDefault();
+                    ajustarImagenFlogAPantalla();
+                }
             }
         });
 
