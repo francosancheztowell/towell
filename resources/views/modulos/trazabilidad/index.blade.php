@@ -405,7 +405,7 @@
             .flog-visual-layout {
                 flex-direction: row;
                 align-items: stretch;
-                min-height: 360px;
+                min-height: 480px;
             }
         }
         .flog-visual-meta {
@@ -417,8 +417,8 @@
         }
         @media (min-width: 768px) {
             .flog-visual-meta {
-                width: 260px;
-                max-width: 30%;
+                width: 240px;
+                max-width: 28%;
                 flex-shrink: 0;
             }
         }
@@ -426,20 +426,28 @@
             font-size: 0.875rem;
         }
         .flog-visual-gallery {
-            flex: 1 1 auto;
+            flex: 1 1 0;
             min-width: 0;
+            align-self: stretch;
             display: flex;
             flex-wrap: wrap;
             gap: 0.85rem;
-            align-content: stretch;
+            align-items: stretch;
+        }
+        .flog-visual-gallery--solo {
+            flex: 1 1 auto;
+            width: 100%;
+            min-height: min(520px, 62vh);
         }
         .flog-visual-gallery--solo .flog-visual-frame {
             flex: 1 1 100%;
+            width: 100%;
+            min-height: min(520px, 62vh);
         }
         .flog-visual-frame {
             flex: 1 1 calc(50% - 0.5rem);
-            min-width: min(100%, 240px);
-            min-height: 320px;
+            min-width: min(100%, 280px);
+            min-height: 360px;
             display: flex;
             flex-direction: column;
             border: 1px solid #cbd5e1;
@@ -456,23 +464,24 @@
         }
         .flog-visual-frame__img-wrap {
             flex: 1 1 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: relative;
+            width: 100%;
+            min-height: 340px;
             background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-            padding: 0.85rem;
-            min-height: 300px;
+        }
+        .flog-visual-gallery--solo .flog-visual-frame__img-wrap {
+            min-height: min(480px, 58vh);
         }
         .flog-visual-frame__img-wrap img {
-            max-width: 100%;
-            max-height: min(480px, 58vh);
-            width: auto;
-            height: auto;
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            bottom: 0.75rem;
+            left: 0.75rem;
+            width: calc(100% - 1.5rem);
+            height: calc(100% - 1.5rem);
             object-fit: contain;
-            display: block;
-        }
-        .flog-visual-gallery--solo .flog-visual-frame__img-wrap img {
-            max-height: min(520px, 62vh);
+            object-position: center center;
         }
         .flog-visual-frame__caption {
             flex-shrink: 0;
