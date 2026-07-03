@@ -97,68 +97,60 @@
                     </div>
                 </div>
 
-                <div class="flog-fields">
-                    {{-- TwFlogsCustomer --}}
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Cuenta cliente</span>
-                        <span class="flog-campo__valor flog-campo__valor--accent">{{ $v($general['custAccount'] ?? null) }}</span>
+                {{-- TwFlogsCustomer — 7 columnas × 2 filas --}}
+                <div class="flog-cliente-grid" role="grid" aria-label="Datos del cliente">
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Cuenta cliente</span>
+                        <span class="flog-cliente-grid__valor flog-cliente-grid__valor--accent">{{ $v($general['custAccount'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo flog-campo--half">
-                        <span class="flog-campo__label">Nombre cliente</span>
-                        <span class="flog-campo__valor flog-campo__valor--accent">{{ $v($general['custName'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Nombre cliente</span>
+                        <span class="flog-cliente-grid__valor flog-cliente-grid__valor--accent">{{ $v($general['custName'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Núm. proveedor</span>
-                        <span class="flog-campo__valor">{{ $v($general['numProveedor'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Núm. proveedor</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['numProveedor'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Tipo cliente</span>
-                        <span class="flog-campo__valor">{{ $v($general['tipoClienteId'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Tipo cliente</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['tipoClienteId'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Categoría calidad</span>
-                        <span class="flog-campo__valor">{{ $v($general['categoriaCalidad'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Categoría calidad</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['categoriaCalidad'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Proceso Cadmex</span>
-                        <span class="flog-campo__valor">{{ $v($general['procesoCatMex'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Proceso Cadmex</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['procesoCatMex'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">C. agente</span>
-                        <span class="flog-campo__valor">{{ $v($general['cAgente'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">C. agente</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['cAgente'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">N. agente</span>
-                        <span class="flog-campo__valor">{{ $v($general['nAgente'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">N. agente</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['nAgente'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Prueba lab. id</span>
-                        <span class="flog-campo__valor">{{ $v($general['pruebaLabId'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Prueba lab. id</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['pruebaLabId'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo flog-campo--half">
-                        <span class="flog-campo__label">Pruebas lab. texto</span>
-                        <span class="flog-campo__valor">{{ $v($general['pruebasLabTxt'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Pruebas lab. texto</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['pruebasLabTxt'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Suavizante</span>
-                        <span class="flog-campo__valor">{{ $v($general['twSuavizante'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Suavizante</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['twSuavizante'] ?? null) }}</span>
                     </div>
-                    @if (filled($general['avisoEspecialTxt'] ?? null))
-                        <div class="flog-campo flog-campo--wide">
-                            <div class="flog-meta-nota flog-meta-nota--verde">
-                                <span class="flog-meta-nota__titulo">Aviso especial</span>
-                                {{ $general['avisoEspecialTxt'] }}
-                            </div>
-                        </div>
-                    @endif
-                    @if (filled($general['infoImportante'] ?? null))
-                        <div class="flog-campo flog-campo--wide">
-                            <div class="flog-meta-nota">
-                                <span class="flog-meta-nota__titulo">Información importante</span>
-                                {{ $general['infoImportante'] }}
-                            </div>
-                        </div>
-                    @endif
+                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--aviso" role="gridcell">
+                        <span class="flog-cliente-grid__label">Aviso especial</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['avisoEspecialTxt'] ?? null) }}</span>
+                    </div>
+                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--info flog-cliente-grid__celda--span-2" role="gridcell">
+                        <span class="flog-cliente-grid__label">Información importante</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['infoImportante'] ?? null) }}</span>
+                    </div>
                 </div>
             </div>
         </section>

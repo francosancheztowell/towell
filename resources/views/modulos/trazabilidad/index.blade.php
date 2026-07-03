@@ -388,6 +388,67 @@
         .flog-tabla-fila__valor--accent {
             color: #1d4ed8;
         }
+        /* TwFlogsCustomer: 7 columnas × 2 filas */
+        .flog-cliente-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #ffffff;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            min-width: 0;
+        }
+        .flog-cliente-grid__celda {
+            min-width: 6.5rem;
+            padding: 0.55rem 0.65rem;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            min-height: 100%;
+        }
+        .flog-cliente-grid__celda:nth-child(7n) {
+            border-right: none;
+        }
+        .flog-cliente-grid__celda:nth-child(n + 8) {
+            border-bottom: none;
+        }
+        .flog-cliente-grid__celda--aviso {
+            background: #ecfdf5;
+        }
+        .flog-cliente-grid__celda--info {
+            background: #fffbeb;
+        }
+        .flog-cliente-grid__celda--span-2 {
+            grid-column: span 2;
+        }
+        .flog-cliente-grid__label {
+            font-size: 0.625rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            line-height: 1.2;
+        }
+        .flog-cliente-grid__valor {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.35;
+            word-break: break-word;
+            white-space: pre-line;
+        }
+        .flog-cliente-grid__valor--accent {
+            color: #1d4ed8;
+        }
+        @media (max-width: 1100px) {
+            .flog-cliente-grid {
+                grid-template-columns: repeat(7, minmax(7rem, 1fr));
+            }
+        }
         .flog-fields {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
