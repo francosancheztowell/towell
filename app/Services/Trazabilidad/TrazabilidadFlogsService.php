@@ -12,6 +12,11 @@ class TrazabilidadFlogsService
         '2' => 'Stock',
     ];
 
+    private const EMPRESA_LABELS = [
+        '0' => 'TOWELL',
+        '1' => 'TEXTIL',
+    ];
+
     private const ESTADO_LINEA_LABELS = [
         '0' => 'Abierto',
         '1' => 'Facturado',
@@ -78,29 +83,37 @@ class TrazabilidadFlogsService
             return $vacio;
         }
 
-        $custAccount = $this->txt($cliente->CUSTACCOUNT ?? $tabla->CUSTACCOUNT ?? null);
-        $custName = $this->txt($cliente->CUSTNAME ?? $tabla->CUSTNAME ?? null);
-        $cAgente = $this->txt($cliente->CAGENTE ?? null);
-        $nAgente = $this->txt($cliente->NAGENTE ?? null);
+        $custAccount = $this->txt($cliente?->CUSTACCOUNT ?? $tabla->CUSTACCOUNT ?? null);
+        $custName = $this->txt($cliente?->CUSTNAME ?? $tabla->CUSTNAME ?? null);
+        $cAgente = $this->txt($cliente?->CAGENTE ?? null);
+        $nAgente = $this->txt($cliente?->NAGENTE ?? null);
+
+        $pruebaLabIdRaw = $cliente?->PRUEBALABID ?? $cliente?->PRUEBASLAB ?? null;
+        $pruebasLabTxt = $this->txt($cliente?->PRUEBASLABTXT ?? null);
 
         $general = [
             'idFlog' => $this->txt($tabla->IDFLOG ?? $idFlog),
             'tipoPedido' => $this->resolverTipoPedido($tabla->TIPOPEDIDO ?? null, $idFlog),
             'nameProyect' => $this->txt($tabla->NAMEPROYECT ?? null),
             'empresa' => $this->txt($tabla->EMPRESA ?? null),
+            'empresaLabel' => $this->resolverEmpresa($tabla->EMPRESA ?? null),
             'transDate' => $this->formatearFecha($tabla->TRANSDATE ?? null),
             'custAccount' => $custAccount,
             'custName' => $custName,
             'cliente' => trim($custAccount.' '.$custName),
-            'numProveedor' => $this->txt($cliente->NUMPROVEEDOR ?? $tabla->NUMPROVEEDOR ?? null),
-            'tipoClienteId' => $this->txt($cliente->TIPOCLIENTEID ?? null),
-            'categoriaCalidad' => $this->txt($cliente->CATEGORIACALIDAD ?? null),
-            'procesoCatMex' => $this->formatearSiNo($cliente->PROCESOCATMEX ?? null),
+            'numProveedor' => $this->txt($cliente?->NUMPROVEEDOR ?? $tabla->NUMPROVEEDOR ?? null),
+            'tipoClienteId' => $this->txt($cliente?->TIPOCLIENTEID ?? null),
+            'categoriaCalidad' => $this->txt($cliente?->CATEGORIACALIDAD ?? null),
+            'procesoCatMex' => $this->formatearSiNo($cliente?->PROCESOCATMEX ?? null),
+            'cAgente' => $cAgente,
+            'nAgente' => $nAgente,
             'agente' => $this->unirConSeparador([$cAgente, $nAgente], ' — '),
-            'pruebasLab' => $this->formatearPruebasLab($cliente->PRUEBASLAB ?? null, $cliente->PRUEBASLABTXT ?? null),
-            'twSuavizante' => $this->resolverSuavizante($cliente->TWSUAVIZANTE ?? null, $cliente->SUAVISANTEEXPTXT ?? null),
-            'avisoEspecialTxt' => $this->txt($cliente->AVISOESPECIALTXT ?? null),
-            'infoImportante' => $this->txt($cliente->INFOIMPORTANTE ?? null),
+            'pruebaLabId' => $this->txt($pruebaLabIdRaw),
+            'pruebasLabTxt' => $pruebasLabTxt,
+            'pruebasLab' => $this->formatearPruebasLab($pruebaLabIdRaw, $pruebasLabTxt),
+            'twSuavizante' => $this->resolverSuavizante($cliente?->TWSUAVIZANTE ?? null, $cliente?->SUAVISANTEEXPTXT ?? null),
+            'avisoEspecialTxt' => $this->txt($cliente?->AVISOESPECIALTXT ?? null),
+            'infoImportante' => $this->txt($cliente?->INFOIMPORTANTE ?? null),
         ];
 
         return [
@@ -223,6 +236,25 @@ class TrazabilidadFlogsService
 
         if (isset(self::ESTADO_LINEA_LABELS[$codigo])) {
             return self::ESTADO_LINEA_LABELS[$codigo];
+        }
+
+        return $codigo;
+    }
+
+    private function resolverEmpresa(mixed $empresa): string
+    {
+        $codigo = trim((string) $empresa);
+        if ($codigo === '') {
+            return '—';
+        }
+
+        if (isset(self::EMPRESA_LABELS[$codigo])) {
+            return self::EMPRESA_LABELS[$codigo];
+        }
+
+        $upper = strtoupper($codigo);
+        if (in_array($upper, ['TOWELL', 'TEXTIL'], true)) {
+            return $upper;
         }
 
         return $codigo;
