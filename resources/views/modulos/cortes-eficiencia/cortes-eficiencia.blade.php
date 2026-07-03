@@ -926,7 +926,8 @@
                                             ${fallas.map(f => `<option value="${String(f.Clave).replace(/"/g, '&quot;')}" data-desc="${String(f.Descripcion ?? '').replace(/"/g, '&quot;')}">${String(f.Clave)}</option>`).join('')}
                                         </select>
                                     </div>
-                                    <textarea id='swal-textarea' class='w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none' rows='4' placeholder='Escriba sus observaciones aquí...'>${cur}</textarea>
+                                    <textarea id='swal-textarea' class='w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none' rows='4' maxlength='100' placeholder='Escriba sus observaciones aquí...'>${cur}</textarea>
+                                    <p id='swal-textarea-count' class='text-xs text-gray-400 text-right mt-1'></p>
                                 `;
 
                 const r = await Swal.fire({
@@ -942,18 +943,20 @@
                     didOpen: () => {
                         const ta = document.getElementById('swal-textarea');
                         const sel = document.getElementById('swal-select-falla');
-                        if (ta) ta.focus();
+                        const count = document.getElementById('swal-textarea-count');
+                        const syncCount = () => { if (ta && count) count.textContent = `${ta.value.length}/100`; };
+                        if (ta) { ta.focus(); syncCount(); ta.addEventListener('input', syncCount); }
                         if (sel) sel.addEventListener('change', (e) => {
                             const opt = sel.options[sel.selectedIndex];
                             const desc = opt?.getAttribute('data-desc') || '';
                             if (desc) {
                                 // Autocompletar la descripción en el textarea
                                 const area = document.getElementById('swal-textarea');
-                                if (area) area.value = desc;
+                                if (area) { area.value = desc.slice(0, 100); syncCount(); }
                             }
                         });
                     },
-                    preConfirm: () => document.getElementById('swal-textarea')?.value || ''
+                    preConfirm: () => (document.getElementById('swal-textarea')?.value || '').slice(0, 100)
                 });
                 if (!r.isConfirmed) { checkbox.checked = !!cur; return; }
                 state.observaciones[key] = r.value;

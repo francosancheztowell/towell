@@ -14,6 +14,7 @@ use App\Exports\CortesEficienciaExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\TurnoHelper;
 use App\Helpers\FolioHelper;
+use App\Helpers\StringTruncator;
 use App\Models\Inventario\InvSecuenciaCorteEf;
 use App\Models\Tejido\TejEficienciaLine;
 use App\Models\Tejido\TejEficiencia;
@@ -395,15 +396,9 @@ class CortesEficienciaController extends Controller
                     $rpmStd = $telar['RpmStd'] ?? null;
                     $eficienciaStd = $telar['EficienciaStd'] ?? null;
 
-                    // Buscar si ya existe un registro con estos criterios
-                    $registroExistente = TejEficienciaLine::where('Folio', $folioFinal)
-                        ->where('NoTelarId', $noTelar)
-                        ->where('Turno', $validated['turno'])
-                        ->where('Date', $validated['fecha'])
-                        ->first();
-
-                    $datos = [
-                        'Date' => $validated['fecha'],
+                    // Truncar comentarios a los límites reales de la BD (ObsR1/2/3 = varchar(100))
+                    // para que un comentario largo nunca tire el guardado con un error SQL.
+                    $datos = StringTruncator::truncateArray([
                         'SalonTejidoId' => $salonId,
                         'RpmStd' => $rpmStd,
                         'EficienciaSTD' => $eficienciaStd,
@@ -419,22 +414,20 @@ class CortesEficienciaController extends Controller
                         'StatusOB1' => $telar['StatusOB1'] ?? null,
                         'StatusOB2' => $telar['StatusOB2'] ?? null,
                         'StatusOB3' => $telar['StatusOB3'] ?? null,
-                    ];
+                    ]);
 
-                    if ($registroExistente) {
-                        // Actualizar registro existente SIN usar PK 'id'
-                        TejEficienciaLine::where('Folio', $folioFinal)
-                            ->where('NoTelarId', $noTelar)
-                            ->where('Turno', $validated['turno'])
-                            ->where('Date', $validated['fecha'])
-                            ->update($datos);
-                    } else {
-                        // Crear nuevo registro
-                        $datos['Folio'] = $folioFinal;
-                        $datos['NoTelarId'] = $noTelar;
-                        $datos['Turno'] = $validated['turno'];
-                        TejEficienciaLine::create($datos);
-                    }
+                    // updateOrCreate en lugar de "buscar y luego crear/actualizar" evita crear
+                    // filas duplicadas cuando el mismo folio se guarda desde más de una sesión
+                    // (p. ej. el operador que llena los datos y el revisor que corrige después).
+                    TejEficienciaLine::updateOrCreate(
+                        [
+                            'Folio' => $folioFinal,
+                            'NoTelarId' => $noTelar,
+                            'Turno' => $validated['turno'],
+                            'Date' => $validated['fecha'],
+                        ],
+                        $datos
+                    );
                 }
 
                 DB::commit();

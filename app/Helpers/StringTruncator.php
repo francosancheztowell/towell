@@ -70,6 +70,9 @@ class StringTruncator
         'Prioridad'        => 150,
         'UsuarioCrea'      => 50,
         'UsuarioModifica'  => 50,
+        'ObsR1'            => 100,
+        'ObsR2'            => 100,
+        'ObsR3'            => 100,
     ];
 
     public static function getFieldLimits(): array
