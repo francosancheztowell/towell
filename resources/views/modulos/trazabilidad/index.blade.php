@@ -332,9 +332,133 @@
             text-transform: uppercase;
             color: #1e3a8a;
             line-height: 1.25;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .flog-card__toggle {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            margin-left: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #fff;
+            color: #64748b;
+            cursor: pointer;
+            transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+        }
+        .flog-card__toggle:hover {
+            border-color: #93c5fd;
+            color: #1d4ed8;
+            background: #eff6ff;
+        }
+        .flog-card__toggle i {
+            font-size: 0.75rem;
+            transition: transform 0.2s ease;
+        }
+        .flog-card--collapsible.is-expanded .flog-card__toggle i {
+            transform: rotate(180deg);
+        }
+        .flog-card--collapsible:not(.is-expanded) .flog-card__body {
+            display: none;
+        }
+        .flog-card--collapsible:not(.is-expanded) .flog-card__head {
+            border-bottom: none;
         }
         .flog-card__body {
             padding: 1rem 1.1rem 1.1rem;
+        }
+        .flog-meta-tables {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 0.75rem 1rem 1rem !important;
+        }
+        .flog-meta-table-wrap {
+            min-width: 0;
+        }
+        .flog-meta-table__titulo {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin: 0 0 0.45rem;
+            font-size: 0.6875rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #475569;
+        }
+        .flog-meta-table__count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.25rem;
+            padding: 0.05rem 0.4rem;
+            border-radius: 9999px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            font-size: 0.625rem;
+            font-weight: 700;
+            color: #64748b;
+            font-variant-numeric: tabular-nums;
+        }
+        .flog-meta-table-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+        .flog-meta-table {
+            width: 100%;
+            min-width: 28rem;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .flog-meta-table thead th {
+            background: #f8fafc;
+            color: #475569;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            padding: 0.4rem 0.55rem;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .flog-meta-table tbody td {
+            padding: 0.35rem 0.55rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            vertical-align: middle;
+        }
+        .flog-meta-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .flog-meta-table tbody tr:hover td {
+            background: #f8fafc;
+        }
+        .flog-meta-table__celda--larga {
+            max-width: 22rem;
+            white-space: pre-line;
+            line-height: 1.35;
+        }
+        .flog-meta-table__celda--img,
+        .flog-meta-table__th--img {
+            width: 3.25rem;
+            text-align: center;
+        }
+        .flog-meta-table__vacio {
+            padding: 0.65rem 0.55rem !important;
+            text-align: center;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        .flog-meta-thumb {
+            width: 2.5rem !important;
+            height: 2.5rem !important;
         }
         /* TwFlogsTable: IdFlog, TipoPedido, NameProyect, Empresa, TransDate en una sola fila */
         .flog-tabla-fila {
@@ -1508,6 +1632,14 @@
                 frame.removeAttribute('data-flog-zoom');
                 frame.style.cursor = 'default';
             }
+            const thumbBtn = img.closest('.flog-lineas-thumb');
+            if (thumbBtn) {
+                const celda = thumbBtn.closest('td');
+                thumbBtn.remove();
+                if (celda && !celda.textContent.trim()) {
+                    celda.textContent = '—';
+                }
+            }
         }
 
         function initImagenesFlog($root) {
@@ -1849,6 +1981,15 @@
 
         $resultado.on('click', '.flog-lineas-filtro-btn', function () {
             aplicarFiltroLineasFlog($(this).data('flog-linea-filtro'));
+        });
+
+        $resultado.on('click', '.flog-card__toggle', function () {
+            const $btn = $(this);
+            const $card = $btn.closest('.flog-card--collapsible');
+            if (!$card.length) return;
+            const expanded = $card.toggleClass('is-expanded').hasClass('is-expanded');
+            $btn.attr('aria-expanded', expanded);
+            $btn.attr('title', expanded ? 'Ocultar información general' : 'Mostrar información general');
         });
 
         function aplicarFiltroProduccion(filter) {
