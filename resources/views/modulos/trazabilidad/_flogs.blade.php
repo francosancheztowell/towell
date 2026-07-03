@@ -73,29 +73,31 @@
                 <h2 id="flog-titulo-general" class="flog-card__title">Información general del proyecto</h2>
             </header>
             <div class="flog-card__body">
-                <div class="flog-fields">
-                    {{-- TwFlogsTable --}}
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Id Flog</span>
-                        <span class="flog-campo__valor flog-campo__valor--accent">{{ $v($general['idFlog'] ?? null) }}</span>
+                {{-- TwFlogsTable — una sola fila horizontal --}}
+                <div class="flog-tabla-fila" role="row" aria-label="Datos del Flog">
+                    <div class="flog-tabla-fila__celda flog-tabla-fila__celda--flog" role="cell">
+                        <span class="flog-tabla-fila__label">Id Flog</span>
+                        <span class="flog-tabla-fila__valor flog-tabla-fila__valor--accent">{{ $v($general['idFlog'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Tipo pedido</span>
-                        <span class="flog-campo__valor">{{ $v($general['tipoPedido'] ?? null) }}</span>
+                    <div class="flog-tabla-fila__celda" role="cell">
+                        <span class="flog-tabla-fila__label">Tipo pedido</span>
+                        <span class="flog-tabla-fila__valor">{{ $v($general['tipoPedido'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo flog-campo--half">
-                        <span class="flog-campo__label">Proyecto</span>
-                        <span class="flog-campo__valor">{{ $v($general['nameProyect'] ?? null) }}</span>
+                    <div class="flog-tabla-fila__celda flog-tabla-fila__celda--proyecto" role="cell">
+                        <span class="flog-tabla-fila__label">Proyecto</span>
+                        <span class="flog-tabla-fila__valor">{{ $v($general['nameProyect'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Empresa</span>
-                        <span class="flog-campo__valor">{{ $v($general['empresaLabel'] ?? $general['empresa'] ?? null) }}</span>
+                    <div class="flog-tabla-fila__celda" role="cell">
+                        <span class="flog-tabla-fila__label">Empresa</span>
+                        <span class="flog-tabla-fila__valor">{{ $v($general['empresaLabel'] ?? $general['empresa'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Fecha transacción</span>
-                        <span class="flog-campo__valor">{{ $v($general['transDate'] ?? null) }}</span>
+                    <div class="flog-tabla-fila__celda" role="cell">
+                        <span class="flog-tabla-fila__label">Fecha transacción</span>
+                        <span class="flog-tabla-fila__valor">{{ $v($general['transDate'] ?? null) }}</span>
                     </div>
+                </div>
 
+                <div class="flog-fields">
                     {{-- TwFlogsCustomer --}}
                     <div class="flog-campo">
                         <span class="flog-campo__label">Cuenta cliente</span>

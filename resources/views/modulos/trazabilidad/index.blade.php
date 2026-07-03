@@ -336,6 +336,58 @@
         .flog-card__body {
             padding: 1rem 1.1rem 1.1rem;
         }
+        /* TwFlogsTable: IdFlog, TipoPedido, NameProyect, Empresa, TransDate en una sola fila */
+        .flog-tabla-fila {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            gap: 0;
+            margin-bottom: 0.9rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #f8fafc;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .flog-tabla-fila__celda {
+            flex: 1 1 0;
+            min-width: 7.5rem;
+            padding: 0.55rem 0.75rem;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            min-height: 100%;
+        }
+        .flog-tabla-fila__celda:last-child {
+            border-right: none;
+        }
+        .flog-tabla-fila__celda--proyecto {
+            flex: 2 1 0;
+            min-width: 10rem;
+        }
+        .flog-tabla-fila__celda--flog {
+            min-width: 8.5rem;
+        }
+        .flog-tabla-fila__label {
+            font-size: 0.625rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .flog-tabla-fila__valor {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+        .flog-tabla-fila__valor--accent {
+            color: #1d4ed8;
+        }
         .flog-fields {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
