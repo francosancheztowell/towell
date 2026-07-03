@@ -616,7 +616,7 @@
             position: relative;
             width: 100%;
             min-height: 340px;
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            background: #fff;
         }
         .flog-visual-gallery--solo .flog-visual-frame__img-wrap {
             min-height: min(480px, 58vh);
@@ -652,7 +652,6 @@
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.15s ease;
-            background: linear-gradient(180deg, transparent 55%, rgba(15, 23, 42, 0.45) 100%);
         }
         .flog-visual-frame:hover .flog-visual-frame__zoom-hint {
             opacity: 1;
@@ -715,7 +714,7 @@
             min-height: min(480px, 62vh);
             border: 2px dashed #e2e8f0;
             border-radius: 0.75rem;
-            background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 55%, #eef2f7 100%);
+            background: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -727,11 +726,10 @@
             width: 4.5rem;
             height: 4.5rem;
             border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.9);
+            background: #fff;
             border: 1px solid #e2e8f0;
-            color: #cbd5e1;
+            color: #94a3b8;
             font-size: 1.75rem;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
         }
         .flog-lineas-count {
             margin-left: auto;
