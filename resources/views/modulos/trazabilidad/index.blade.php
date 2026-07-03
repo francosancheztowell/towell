@@ -1113,31 +1113,59 @@
         }
 
         const $scrollMain = $('main.app-main');
-        let scrollLockCount = 0;
         let sincronizandoSelects = false;
 
+        function hayModalTrazaAbierto() {
+            const rollosAbierto = $modalRollos.length
+                && !$modalRollos.hasClass('hidden')
+                && $modalRollos.css('display') !== 'none';
+            const flogAbierto = $modalFlogImg.length && !$modalFlogImg.hasClass('hidden');
+            return rollosAbierto || flogAbierto;
+        }
+
+        /** Bloquea/desbloquea según modales visibles (evita contador desfasado tras varias aperturas). */
+        function sincronizarScrollPagina() {
+            if (!$scrollMain.length) return;
+            if (hayModalTrazaAbierto()) {
+                $scrollMain.css('overflow-y', 'hidden');
+            } else {
+                $scrollMain.css('overflow-y', 'auto');
+            }
+        }
+
         function liberarScrollPagina() {
-            scrollLockCount = 0;
             if ($scrollMain.length) {
                 $scrollMain.css('overflow-y', 'auto');
             }
         }
 
         function bloquearScrollPagina() {
-            if (scrollLockCount === 0 && $scrollMain.length) {
-                $scrollMain.css('overflow-y', 'hidden');
-            }
-            scrollLockCount++;
+            sincronizarScrollPagina();
         }
 
         function desbloquearScrollPagina() {
-            if (scrollLockCount <= 0) {
-                return;
+            sincronizarScrollPagina();
+        }
+
+        /** Cierra Select2, quita foco atrapado y restaura scroll en main (tras filtrar Flog). */
+        function restaurarInteraccionScroll() {
+            $('.filtro-select').each(function () {
+                const $el = $(this);
+                if ($el.data('select2')) {
+                    try {
+                        $el.select2('close');
+                    } catch (e) { /* ignore */ }
+                }
+            });
+            $('.select2-container--open').removeClass('select2-container--open');
+
+            const ae = document.activeElement;
+            if (ae && (ae.classList.contains('select2-search__field') || ae.closest('.select2-container'))) {
+                ae.blur();
             }
-            scrollLockCount--;
-            if (scrollLockCount === 0 && $scrollMain.length) {
-                $scrollMain.css('overflow-y', 'auto');
-            }
+
+            sincronizarScrollPagina();
+            liberarScrollPagina();
         }
 
         function escaparHtml(texto) {
@@ -1388,6 +1416,11 @@
         function rebuildSelect(id, opciones, seleccionado) {
             const $el = $(id);
             const val = seleccionado == null ? '' : String(seleccionado);
+            if ($el.data('select2')) {
+                try {
+                    $el.select2('close');
+                } catch (e) { /* ignore */ }
+            }
             let html = '<option value=""></option>';
             const valores = new Set();
             (opciones || []).forEach(function (v) {
@@ -1409,6 +1442,11 @@
         function rebuildCombo(id, opciones, seleccionado) {
             const $el = $(id);
             const val = seleccionado == null ? '' : String(seleccionado);
+            if ($el.data('select2')) {
+                try {
+                    $el.select2('close');
+                } catch (e) { /* ignore */ }
+            }
             let html = '<option value=""></option>';
             let labelSel = val;
             const codigos = new Set();
@@ -1631,6 +1669,7 @@
                 if ($cont.length) {
                     $cont.html(data.flogsHtml);
                 }
+                restaurarInteraccionScroll();
             } catch (err) {
                 if (seq === flogsSeq && seqMatriz === reqSeq) {
                     const $cont = $('#flogs-contenido');
@@ -1656,6 +1695,7 @@
                     aplicarFiltroProduccion(prodFiltroActivo);
                 }
                 actualizarBadgeProduccion(data.prodAlertas || 0);
+                restaurarInteraccionScroll();
             } catch (err) {
                 if (seq === prodSeq && seqMatriz === reqSeq) {
                     const $cont = $('#produccion-contenido');
@@ -1709,7 +1749,10 @@
             } catch (err) {
                 if (seq === reqSeq) window.notify?.error(err.message || 'Error al cargar la trazabilidad');
             } finally {
-                if (seq === reqSeq) $resultado.css('opacity', '');
+                if (seq === reqSeq) {
+                    $resultado.css('opacity', '');
+                    restaurarInteraccionScroll();
+                }
             }
         }
 
@@ -1721,15 +1764,24 @@
             }, 100);
         }
 
-        // select2:clear + change pueden dispararse juntos; sincronizandoSelects evita
-        // peticiones durante rebuild AJAX.
+        // select2:select guarda etiqueta; change dispara aplicar (select2:clear también dispara change).
         let debounceFiltro = null;
-        $('.filtro-select').on('change select2:select select2:clear', function (e) {
+        $('.filtro-select').on('select2:select', function (e) {
             if (sincronizandoSelects) return;
-            if (e.type === 'select2:select' && e.params && e.params.data) {
+            if (e.params && e.params.data) {
                 $(this).data('traza-last-label', e.params.data.text || '');
             }
+        });
+        $('.filtro-select').on('select2:clear', function () {
+            if (sincronizandoSelects) return;
+            $(this).removeData('traza-last-label');
+        });
+        $('.filtro-select').on('change', function () {
+            if (sincronizandoSelects) return;
             programarAplicarFiltros();
+        });
+        $('.filtro-select').on('select2:close', function () {
+            setTimeout(restaurarInteraccionScroll, 0);
         });
 
         // Áreas expandibles (Flog con +2 artículos): al hacer click en la fila del área
@@ -1817,6 +1869,17 @@
         // Garantizar scroll libre al cargar y si algún modal quedó mal cerrado.
         liberarScrollPagina();
         $(window).on('pageshow.trazaScroll', liberarScrollPagina);
+        $(document).on('visibilitychange.trazaScroll', function () {
+            if (!document.hidden) {
+                restaurarInteraccionScroll();
+            }
+        });
+        // Si el scroll quedó bloqueado sin modal abierto (p. ej. tras cambiar Flog), recuperar al intentar bajar.
+        document.addEventListener('wheel', function () {
+            if (!hayModalTrazaAbierto() && $scrollMain.length && $scrollMain.css('overflow-y') === 'hidden') {
+                restaurarInteraccionScroll();
+            }
+        }, { passive: true, capture: true });
     });
 </script>
 @endpush
