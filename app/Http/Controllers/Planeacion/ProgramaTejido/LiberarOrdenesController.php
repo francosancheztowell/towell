@@ -27,6 +27,23 @@ class LiberarOrdenesController extends Controller
     /** Peso estándar rodillo cuando TamanoClave / producto son Felpa (FELPA…). Metros/Pzas÷2 y marbetes×2 con mismo formato que tamaño FEL. */
     private const PESO_ROLLO_KG_FELPA = 90.0;
 
+    /** Cache en memoria para Schema::getColumnListing, por nombre de tabla */
+    private static array $columnListingCache = [];
+
+    /**
+     * Columnas de una tabla con cache estático para evitar consultar la metadata
+     * en cada save/registro. La metadata no cambia durante el request; en workers
+     * persistentes (queue/octane) el cache se refresca por proceso.
+     */
+    private static function columnasDeTabla(string $table): array
+    {
+        if (! isset(self::$columnListingCache[$table])) {
+            self::$columnListingCache[$table] = Schema::getColumnListing($table);
+        }
+
+        return self::$columnListingCache[$table];
+    }
+
     /**
      * Muestra los registros de ReqProgramaTejido que no tienen orden de producción
      *
@@ -1016,7 +1033,7 @@ class LiberarOrdenesController extends Controller
         try {
             $modelo = new CatCodificados;
             $table = $modelo->getTable();
-            $columns = Schema::getColumnListing($table);
+            $columns = self::columnasDeTabla($table);
 
             $query = CatCodificados::query();
             $hasKeyFilter = false;
@@ -1090,7 +1107,7 @@ class LiberarOrdenesController extends Controller
 
             $modelo = new CatCodificados;
             $table = $modelo->getTable();
-            $columns = Schema::getColumnListing($table);
+            $columns = self::columnasDeTabla($table);
 
             $query = CatCodificados::query();
             $hasKeyFilter = false;
@@ -1183,7 +1200,7 @@ class LiberarOrdenesController extends Controller
 
             $modelo = new CatCodificados;
             $table = $modelo->getTable();
-            $columns = Schema::getColumnListing($table);
+            $columns = self::columnasDeTabla($table);
 
             $query = CatCodificados::query();
             $hasKeyFilter = false;

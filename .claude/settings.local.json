@@ -23,7 +23,19 @@
       "Bash(php -l app/Http/Controllers/Urdido/ProgramaUrdido/EditarOrdenesProgramadasController.php)",
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('jquery:', \\(p.dependencies&&p.dependencies.jquery\\)||\\(p.devDependencies&&p.devDependencies.jquery\\)\\); console.log\\('select2:', \\(p.dependencies&&p.dependencies.select2\\)||\\(p.devDependencies&&p.devDependencies.select2\\)\\);\")",
       "Bash(npm run *)",
-      "PowerShell(php -l app/Services/Trazabilidad/TrazabilidadMatrixService.php; php -l app/Exports/TrazabilidadExport.php; php -l app/Http/Controllers/Trazabilidad/TrazabilidadController.php; php -l routes/modules/trazabilidad.php)"
+      "PowerShell(php -l app/Services/Trazabilidad/TrazabilidadMatrixService.php; php -l app/Exports/TrazabilidadExport.php; php -l app/Http/Controllers/Trazabilidad/TrazabilidadController.php; php -l routes/modules/trazabilidad.php)",
+      "Bash(php -l app/Observers/ReqProgramaTejidoObserver.php)",
+      "Bash(php -l app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php)",
+      "Bash(php -l app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php)",
+      "Bash(php -l app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php)",
+      "Bash(xargs wc -l)",
+      "Bash(php -l app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php)",
+      "Bash(php -l app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php)",
+      "PowerShell(Remove-Item *)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php tests/Unit/BalancearTejidoTest.php)",
+      "Bash(php -l tests/Unit/BalancearTejidoTest.php)",
+      "Bash(vendor/bin/phpunit tests/Feature)",
+      "Bash(vendor/bin/phpunit tests/Feature/ProgramaTejidoIndexSmokeTest.php tests/Feature/ProgramaTejidoSmokeTest.php)"
     ]
   }
 }

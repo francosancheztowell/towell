@@ -83,6 +83,17 @@ class BalancearTejidoTest extends TestCase
             $table->string('OrdPrincipal')->nullable();
             $table->string('UpdatedAt')->nullable();
             $table->string('NoProduccion')->nullable();
+            // Columnas de marbetes: el balanceo recalcula la cadena Repeticiones→…→SaldoMarbete
+            // vía ReqProgramaTejidoObserver::recalcularFormulasProduccion tras persistir pedidos.
+            $table->float('LargoCrudo')->nullable();
+            $table->integer('Repeticiones')->nullable();
+            $table->float('PzasRollo')->nullable();
+            $table->float('MtsRollo')->nullable();
+            $table->float('TotalRollos')->nullable();
+            $table->float('TotalPzas')->nullable();
+            $table->float('SaldoMarbete')->nullable();
+            $table->float('NoMarbete')->nullable();
+            $table->float('RollosProgramados')->nullable();
         });
     }
 
@@ -381,6 +392,7 @@ class BalancearTejidoTest extends TestCase
             'FechaInicio' => now()->subDays(5)->format('Y-m-d H:i:s'),
             'OrdCompartidaLider' => 1,
             'ItemId' => 'LID-AX-1',
+            'PesoCrudo' => 500, // inputs válidos para el recálculo de marbetes
         ]);
 
         $noLider = $this->makeReg([
@@ -388,7 +400,14 @@ class BalancearTejidoTest extends TestCase
             'NoTelarId' => '01',
             'FechaInicio' => now()->subDays(10)->format('Y-m-d H:i:s'),
             'OrdCompartidaLider' => null,
+            'PesoCrudo' => 500,
         ]);
+
+        // Sentinela vía query builder (sin eventos): si el balanceo recalculara marbetes
+        // del líder (cuyo pedido no cambia), este valor sería sobrescrito.
+        \Illuminate\Support\Facades\DB::connection('sqlsrv')->table('ReqProgramaTejido')
+            ->where('Id', $liderOriginal->Id)
+            ->update(['SaldoMarbete' => 999]);
 
         $result = $this->callActualizarPedidos(50, [
             [
@@ -396,11 +415,30 @@ class BalancearTejidoTest extends TestCase
                 'total_pedido' => 4200,
                 'modo' => 'total',
             ],
+            [
+                // Mismo total que ya tiene: el pedido NO cambia, no debe recalcular marbetes.
+                'id' => (int) $liderOriginal->Id,
+                'total_pedido' => 5000,
+                'modo' => 'total',
+            ],
         ]);
 
         $this->assertTrue($result['success'], $result['message'] ?? 'La actualizacion de pedidos fallo');
         $this->assertFalse((bool) $noLider->fresh()->OrdCompartidaLider);
         $this->assertTrue((bool) $liderOriginal->fresh()->OrdCompartidaLider);
+
+        // Marbetes recalculados tras balanceo (saves con observers apagados):
+        // pesoRollo fallback 41.5 (sin tabla ReqPesosRollosTejido) → Repeticiones = TRUNC((41.5/500)/4*1000) = 20,
+        // PzasRollo = 80, TotalRollos = ceil(4200/80) = 53 = SaldoMarbete = NoMarbete.
+        $noLiderFresh = $noLider->fresh();
+        $this->assertSame(20, (int) $noLiderFresh->Repeticiones);
+        $this->assertSame(53.0, (float) $noLiderFresh->TotalRollos);
+        $this->assertSame(53.0, (float) $noLiderFresh->SaldoMarbete);
+        $this->assertSame(53.0, (float) $noLiderFresh->NoMarbete);
+
+        // El líder recibió un cambio con el mismo pedido: no debe dispararse el recálculo
+        // y el sentinela permanece intacto.
+        $this->assertSame(999.0, (float) $liderOriginal->fresh()->SaldoMarbete);
     }
 
     /**

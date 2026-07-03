@@ -612,12 +612,10 @@ class UpdateTejido
             $observer = new \App\Observers\ReqProgramaTejidoObserver();
             $observer->sincronizarCatCodificados($registro);
 
-            // Si cambió un input que afecta la cadena de fórmulas (TamanoClave, InventSizeId, PesoCrudo,
-            // NoTiras, LargoCrudo, SaldoPedido), recalcular Repeticiones/PzasRollo/MtsRollo/TotalRollos/
-            // TotalPzas/SaldoMarbete tanto en ReqProgramaTejido como en CatCodificados.
-            $inputsFormula = ['TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido'];
+            // Si cambió un input que afecta la cadena de fórmulas, recalcular Repeticiones/PzasRollo/
+            // MtsRollo/TotalRollos/TotalPzas/SaldoMarbete tanto en ReqProgramaTejido como en CatCodificados.
             $cambioInputFormula = false;
-            foreach ($inputsFormula as $campo) {
+            foreach (\App\Observers\ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
                 if ($registro->wasChanged($campo)) {
                     $cambioInputFormula = true;
                     break;

@@ -259,6 +259,7 @@ class BalancearTejido
             $idsAfectados = [];
             $porTelar = [];
             $idsActualizados = []; // IDs que ya fueron actualizados manualmente
+            $idsPedidoCambiado = []; // IDs cuyo TotalPedido/SaldoPedido realmente cambió (para recalcular marbetes)
 
             DB::beginTransaction();
 
@@ -279,6 +280,11 @@ class BalancearTejido
                 $input = (float) $cambio['total_pedido'];
 
                 [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total');
+
+                // Comparar ANTES de asignar: un cambio puede solo mover fechas (mismo pedido)
+                // y esos registros no deben disparar recálculo de marbetes.
+                $pedidoCambio = ((float) ($registro->TotalPedido ?? 0)) != $total
+                    || ((float) ($registro->SaldoPedido ?? 0)) != $saldo;
 
                 $registro->TotalPedido = $total;
                 $registro->SaldoPedido = $saldo;
@@ -308,6 +314,9 @@ class BalancearTejido
                 $registro->save();
                 $idsAfectados[] = (int) $registro->Id;
                 $idsActualizados[(int) $registro->Id] = true; // Marcar como ya actualizado
+                if ($pedidoCambio) {
+                    $idsPedidoCambiado[(int) $registro->Id] = true;
+                }
 
                 // Para cascada: guardar información del telar
                 $key = trim((string) $registro->SalonTejidoId).'|'.trim((string) $registro->NoTelarId);
@@ -403,6 +412,17 @@ class BalancearTejido
                 try {
                     $regsObs = ReqProgramaTejido::whereIn('Id', $idsAfectados)->get();
                     ReqProgramaTejido::regenerarLineas($regsObs);
+
+                    // Los saves corrieron con observers apagados: recalcular marbetes
+                    // (TotalRollos/SaldoMarbete/NoMarbete) SOLO donde el pedido cambió
+                    // (la cascada únicamente mueve fechas). Se usa la instancia refetcheada
+                    // (valores ya persistidos en BD); el método trae try/catch y logging propios.
+                    $observer = new \App\Observers\ReqProgramaTejidoObserver;
+                    foreach ($regsObs as $regObs) {
+                        if (isset($idsPedidoCambiado[(int) $regObs->Id])) {
+                            $observer->recalcularFormulasProduccion($regObs);
+                        }
+                    }
                 } catch (\Throwable $e) {
                     Log::error('BalancearTejido: Error regenerando líneas tras balanceo', [
                         'ids' => $idsAfectados,
@@ -719,12 +739,19 @@ class BalancearTejido
         // Pasamos $registro (no fresh()) porque la instancia en memoria ya tiene las fechas recalculadas.
         ReqProgramaTejido::regenerarLineas([$registro]);
 
+        // El update SQL externo + saveQuietly() nunca dispararon el observer: recalcular
+        // marbetes (TotalRollos/SaldoMarbete/NoMarbete) con la fila refetcheada (valores
+        // finales en BD). recalcularFormulasProduccion trae try/catch y logging propios.
+        $registroRefreshed = ReqProgramaTejido::find($registro->Id);
+        if ($registroRefreshed) {
+            (new \App\Observers\ReqProgramaTejidoObserver)->recalcularFormulasProduccion($registroRefreshed);
+        }
+
         $ultimo = (int) ($registro->Ultimo ?? 0);
-        if ($ultimo !== 1) {
-            $registroRefreshed = ReqProgramaTejido::find($registro->Id);
-            if ($registroRefreshed) {
-                DateHelpers::cascadeFechas($registroRefreshed);
-            }
+        // recalcularFormulasProduccion solo toca campos de marbete, no fechas:
+        // la instancia refetcheada sigue siendo válida para la cascada.
+        if ($ultimo !== 1 && $registroRefreshed) {
+            DateHelpers::cascadeFechas($registroRefreshed);
         }
 
         return true;

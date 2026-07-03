@@ -439,7 +439,13 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithHeadingRow, WithBatc
 
         $isPercent = str_contains($s, '%');
         $s = str_replace(['%',' '], '', $s);
-        $s = str_replace(',', '.', $s);
+        // Coma = separador de MILES, no decimal (misma regla que TejidoHelpers::sanitizeNumber):
+        // "1,234" => 1234 (antes str_replace(',', '.') lo convertía en 1.234 y corrompía
+        // PesoCrudo/pedidos, explotando Repeticiones = (PesoRollo/PesoCrudo)/Tiras*1000).
+        // El decimal legítimo llega con punto ("1234.5"); un "1.234,56" europeo queda 1.23456
+        // y un "1,5" queda 15 — idéntico a sanitizeNumber: se prefiere consistencia con el
+        // parser canónico del proyecto antes que adivinar el locale.
+        $s = str_replace(',', '', $s);
         $s = preg_replace('/[^0-9.\-]/', '', $s) ?? '';
         if ($s === '' || $s === '-' || $s === '.') return null;
 

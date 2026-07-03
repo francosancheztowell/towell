@@ -750,6 +750,15 @@ class DividirTejido
             // Generar ReqProgramaTejidoLine tras el commit, con las instancias en memoria (evita reconsulta que no ve el registro en SQL Server)
             ReqProgramaTejido::regenerarLineas($registrosParaObserver);
 
+            // Los saves corrieron con observers suprimidos y la división cambió TotalPedido/SaldoPedido:
+            // recalcular marbetes (Repeticiones→…→SaldoMarbete/NoMarbete) para el original Y los nuevos.
+            // Las instancias en memoria tienen los valores finales (incluido el Id real);
+            // recalcularFormulasProduccion trae try/catch y logging propios.
+            $observerFormulas = new \App\Observers\ReqProgramaTejidoObserver;
+            foreach ($registrosParaObserver as $regFormulas) {
+                $observerFormulas->recalcularFormulasProduccion($regFormulas);
+            }
+
             // Re-capturar datos tras observer (las instancias en memoria ya tienen fechas recalculadas)
             foreach ($registrosParaObserver as $registro) {
                 if ($registro && $registro->Id) {
@@ -1301,6 +1310,16 @@ class DividirTejido
                 LogFacade::info('redistribuirGrupoExistente: reconnect OK');
             } catch (\Throwable $reconnectErr) {
                 LogFacade::warning('redistribuirGrupoExistente: reconnect FALLO', ['error' => $reconnectErr->getMessage()]);
+            }
+
+            // Los saves corrieron con observers suprimidos y la redistribución cambió
+            // TotalPedido/SaldoPedido: recalcular marbetes (TotalRollos/SaldoMarbete/NoMarbete)
+            // para los registros actualizados y los nuevos (instancias con valores finales).
+            // Se hace ANTES del refetch del grupo para que la respuesta lleve los valores nuevos.
+            // recalcularFormulasProduccion trae try/catch y logging propios.
+            $observerFormulas = new \App\Observers\ReqProgramaTejidoObserver;
+            foreach ($registrosParaObserver as $regFormulas) {
+                $observerFormulas->recalcularFormulasProduccion($regFormulas);
             }
 
             // ===== ORDCOMPARTIDALIDER: Asignar al registro con fecha inicio más antigua =====

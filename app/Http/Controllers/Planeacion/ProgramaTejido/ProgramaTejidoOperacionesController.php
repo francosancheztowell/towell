@@ -376,6 +376,10 @@ class ProgramaTejidoOperacionesController extends Controller
             }
             $detallesTotales = array_merge($detallesTotales, $detallesDestino);
 
+            // Eventos apagados y persistencia vía query builder: sincronizar telar/salón
+            // en CatCodificados a mano para la orden movida (se localiza por OrdenTejido + TelarId).
+            $this->sincronizarTelarCatCodificados($registro, $nuevoSalon, $nuevoTelar);
+
             DBFacade::commit();
 
             $idsAfectados = array_values(array_unique($idsAfectados));
@@ -486,6 +490,8 @@ class ProgramaTejidoOperacionesController extends Controller
                 $registro->EnProceso = 0;
                 $registro->UpdatedAt = now();
                 $registro->save();
+                // El dispatcher está apagado en este flujo: sincronizar telar/salón en CatCodificados a mano.
+                $this->sincronizarTelarCatCodificados($registro, $nuevoSalon, $nuevoTelar);
                 $idsActualizados[] = $registro->Id;
             }
 
@@ -612,5 +618,32 @@ class ProgramaTejidoOperacionesController extends Controller
         }
 
         return trim($prefijo) . ' ' . $nuevoTelar;
+    }
+
+    /**
+     * CatCodificados se localiza por OrdenTejido + TelarId al liberar y editar campos:
+     * cuando una orden ya liberada (con NoProduccion) cambia de telar/salón, hay que
+     * actualizar TelarId y Departamento en CatCodificados o esos flujos dejan de encontrarla.
+     */
+    private function sincronizarTelarCatCodificados(ReqProgramaTejido $registro, string $nuevoSalon, string $nuevoTelar): void
+    {
+        $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
+        if ($noProduccion === '') {
+            return;
+        }
+
+        try {
+            DBFacade::table((new \App\Models\Planeacion\Catalogos\CatCodificados())->getTable())
+                ->where('OrdenTejido', $noProduccion)
+                ->update([
+                    'TelarId'      => $nuevoTelar,
+                    'Departamento' => $nuevoSalon,
+                ]);
+        } catch (\Throwable $e) {
+            LogFacade::warning('sincronizarTelarCatCodificados error', [
+                'orden' => $noProduccion,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

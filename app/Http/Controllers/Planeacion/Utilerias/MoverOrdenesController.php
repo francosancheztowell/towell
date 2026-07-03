@@ -386,6 +386,12 @@ class MoverOrdenesController extends Controller
             }
 
             $registro->saveQuietly();
+
+            // saveQuietly() no dispara observers: sincronizar telar/salón (y demás campos
+            // mapeados) hacia CatCodificados explícitamente cuando la orden cambió de ubicación.
+            if ($cambiaUbicacion) {
+                (new \App\Observers\ReqProgramaTejidoObserver())->sincronizarCatCodificados($registro);
+            }
             $idsAfectados[$telarKey][] = (int) $id;
         }
     }

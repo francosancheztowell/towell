@@ -41,7 +41,50 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithHeadingRow, Wit
     /** Cache para rastrear qué telares ya fueron recalculados en este chunk */
     private static array $telaresRecalculados = [];
 
+    /**
+     * Registros afectados en el chunk actual para el trabajo diferido del observer:
+     * Id => ['registro' => instancia guardada (conserva wasChanged), 'cambioFormula' => bool]
+     */
+    private array $registrosAfectadosChunk = [];
+
     public function collection(Collection $rows)
+    {
+        // Suprimir observers durante el loop: cada save() disparaba el observer completo
+        // (~10-12 queries por fila: regeneración de líneas diarias + sync CatCodificados +
+        // recálculo de fórmulas) y además generaba líneas con fechas VIEJAS, porque
+        // recalcularFechasTelar() reescribe FechaInicio/FechaFinal DESPUÉS vía query builder.
+        // El trabajo del observer se difiere al final del chunk (ejecutarObserverDiferido()).
+        // Patrón de referencia: UpdateTejido (saveQuietly + llamadas explícitas al observer).
+        $dispatcher = ReqProgramaTejido::suppressObservers();
+
+        try {
+            $this->procesarFilas($rows);
+
+            // Al final del chunk, recalcular fechas para todos los telares que fueron actualizados
+            foreach (self::$telaresRecalculados as $telarInfo) {
+                try {
+                    $this->recalcularFechasTelar($telarInfo['salonTejidoId'], $telarInfo['noTelarId']);
+                } catch (\Throwable $e) {
+                    Log::error('Import PT Update: error al recalcular telar', [
+                        'salonTejidoId' => $telarInfo['salonTejidoId'],
+                        'noTelarId' => $telarInfo['noTelarId'],
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Con las fechas FINALES ya escritas, ejecutar el trabajo diferido del observer
+            $this->ejecutarObserverDiferido();
+        } finally {
+            // Restaurar el dispatcher pase lo que pase
+            ReqProgramaTejido::restoreObservers($dispatcher);
+            // Limpiar caches del chunk para el siguiente
+            self::$telaresRecalculados = [];
+            $this->registrosAfectadosChunk = [];
+        }
+    }
+
+    private function procesarFilas(Collection $rows): void
     {
         foreach ($rows as $rawRow) {
             try {
@@ -324,7 +367,13 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithHeadingRow, Wit
                     // Si no existe, crear nuevo registro (igual que el import original)
                     $this->asignarPosicion($data, $salonTejidoId, $noTelarId);
                     $data = $this->normalizeDataForBatchInsert($data);
-                    ReqProgramaTejido::create($data);
+                    $nuevo = ReqProgramaTejido::create($data);
+                    // Registro nuevo: siempre genera líneas y recalcula fórmulas al final del chunk
+                    // (equivale a wasRecentlyCreated + isDirty en el saved() del observer)
+                    $this->registrosAfectadosChunk[$nuevo->Id] = [
+                        'registro' => $nuevo,
+                        'cambioFormula' => true,
+                    ];
                     $this->processedRows++;
                     continue;
                 }
@@ -352,22 +401,48 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithHeadingRow, Wit
                 $this->skippedRows++;
             }
         }
+    }
 
-        // Al final del chunk, recalcular fechas para todos los telares que fueron actualizados
-        foreach (self::$telaresRecalculados as $telarInfo) {
+    /**
+     * Ejecuta al final del chunk el trabajo que normalmente haría el observer en cada save():
+     * sync CatCodificados, recálculo de fórmulas de producción y regeneración de líneas diarias.
+     * Se difiere para (a) evitar ~10-12 queries por fila y (b) generar las líneas diarias con
+     * las fechas FINALES que escribe recalcularFechasTelar() vía query builder.
+     */
+    private function ejecutarObserverDiferido(): void
+    {
+        if (empty($this->registrosAfectadosChunk)) {
+            return;
+        }
+
+        $observer = new \App\Observers\ReqProgramaTejidoObserver();
+
+        foreach ($this->registrosAfectadosChunk as $id => $info) {
             try {
-                $this->recalcularFechasTelar($telarInfo['salonTejidoId'], $telarInfo['noTelarId']);
+                // sincronizarCatCodificados usa wasChanged(): se invoca sobre la instancia
+                // guardada, que conserva los cambios del save (un refetch los perdería).
+                $observer->sincronizarCatCodificados($info['registro']);
+
+                // Refetch: recalcularFechasTelar() reescribió FechaInicio/FechaFinal/Posicion
+                // vía query builder, así que la instancia en memoria quedó desactualizada.
+                $registro = ReqProgramaTejido::find($id);
+                if (!$registro) {
+                    continue;
+                }
+
+                if ($info['cambioFormula']) {
+                    $observer->recalcularFormulasProduccion($registro);
+                }
+
+                // Regenerar líneas diarias con las fechas finales
+                $observer->regenerateLinesFor($registro);
             } catch (\Throwable $e) {
-                Log::error('Import PT Update: error al recalcular telar', [
-                    'salonTejidoId' => $telarInfo['salonTejidoId'],
-                    'noTelarId' => $telarInfo['noTelarId'],
-                    'error' => $e->getMessage()
+                Log::error('Import PT Update: error en observer diferido', [
+                    'id' => $id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
-
-        // Limpiar cache de telares recalculados para el siguiente chunk
-        self::$telaresRecalculados = [];
     }
 
     /**
@@ -388,7 +463,24 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithHeadingRow, Wit
             }
         }
 
+        // Detectar ANTES del save si cambió un input de fórmulas: tras el refetch al final
+        // del chunk, isDirty()/wasChanged() ya no reflejan el cambio real.
+        $cambioFormula = false;
+        foreach (\App\Observers\ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
+            if ($registro->isDirty($campo)) {
+                $cambioFormula = true;
+                break;
+            }
+        }
+
         $registro->save();
+
+        // Registrar para el trabajo diferido del observer al final del chunk
+        $cambioPrevio = $this->registrosAfectadosChunk[$registro->Id]['cambioFormula'] ?? false;
+        $this->registrosAfectadosChunk[$registro->Id] = [
+            'registro' => $registro,
+            'cambioFormula' => $cambioFormula || $cambioPrevio,
+        ];
     }
 
     /**
@@ -430,49 +522,54 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithHeadingRow, Wit
             return;
         }
 
-        // Primero, asegurarse de que TODOS los registros del telar tengan EnProceso = 0
-        // Esto garantiza que se quite el EnProceso de los registros que ya no deberían tenerlo
-        DB::table('ReqProgramaTejido')
-            ->where('SalonTejidoId', $salonTejidoId)
-            ->where('NoTelarId', $noTelarId)
-            ->update(['EnProceso' => 0]);
-
         // Recalcular fechas para todos los registros del telar
         [$updates] = DateHelpers::recalcularFechasSecuencia($todosRegistrosTelar, $inicioOriginal, true);
 
-        if (empty($updates)) {
-            return;
-        }
-
-        // Actualizar registros en batch
-        $idsActualizar = array_keys($updates);
-
-        // Evitar colisiones de Posicion durante el update
-        DB::table('ReqProgramaTejido')
-            ->whereIn('Id', $idsActualizar)
-            ->where('SalonTejidoId', $salonTejidoId)
-            ->where('NoTelarId', $noTelarId)
-            ->update(['Posicion' => DB::raw('Posicion + 10000')]);
-
-        // Actualizar cada registro con sus nuevos valores (incluyendo EnProceso = 1 para el primero)
-        foreach ($updates as $idU => $dataU) {
-            if (isset($dataU['Posicion'])) {
-                $dataU['Posicion'] = (int) $dataU['Posicion'];
-            }
-
-            // Asegurarse de que EnProceso esté en el array de actualización
-            // DateHelpers::recalcularFechasSecuencia ya debería incluir esto
-            if (!isset($dataU['EnProceso'])) {
-                // Si no está, significa que no es el primer registro, así que debe ser 0
-                $dataU['EnProceso'] = 0;
-            }
-
+        // Escrituras atómicas por telar: el bump Posicion + 10000 seguido de updates fila por
+        // fila dejaría las posiciones corruptas permanentemente si el proceso muere a media
+        // operación. Con la transacción, o se aplica todo o no se aplica nada.
+        DB::transaction(function () use ($salonTejidoId, $noTelarId, $updates) {
+            // Primero, asegurarse de que TODOS los registros del telar tengan EnProceso = 0
+            // Esto garantiza que se quite el EnProceso de los registros que ya no deberían tenerlo
             DB::table('ReqProgramaTejido')
-                ->where('Id', $idU)
                 ->where('SalonTejidoId', $salonTejidoId)
                 ->where('NoTelarId', $noTelarId)
-                ->update($dataU);
-        }
+                ->update(['EnProceso' => 0]);
+
+            if (empty($updates)) {
+                return;
+            }
+
+            // Actualizar registros en batch
+            $idsActualizar = array_keys($updates);
+
+            // Evitar colisiones de Posicion durante el update
+            DB::table('ReqProgramaTejido')
+                ->whereIn('Id', $idsActualizar)
+                ->where('SalonTejidoId', $salonTejidoId)
+                ->where('NoTelarId', $noTelarId)
+                ->update(['Posicion' => DB::raw('Posicion + 10000')]);
+
+            // Actualizar cada registro con sus nuevos valores (incluyendo EnProceso = 1 para el primero)
+            foreach ($updates as $idU => $dataU) {
+                if (isset($dataU['Posicion'])) {
+                    $dataU['Posicion'] = (int) $dataU['Posicion'];
+                }
+
+                // Asegurarse de que EnProceso esté en el array de actualización
+                // DateHelpers::recalcularFechasSecuencia ya debería incluir esto
+                if (!isset($dataU['EnProceso'])) {
+                    // Si no está, significa que no es el primer registro, así que debe ser 0
+                    $dataU['EnProceso'] = 0;
+                }
+
+                DB::table('ReqProgramaTejido')
+                    ->where('Id', $idU)
+                    ->where('SalonTejidoId', $salonTejidoId)
+                    ->where('NoTelarId', $noTelarId)
+                    ->update($dataU);
+            }
+        });
     }
 
     /**
@@ -642,7 +739,13 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithHeadingRow, Wit
         }
         $isPercent = str_contains($s, '%');
         $s = str_replace(['%',' '], '', $s);
-        $s = str_replace(',', '.', $s);
+        // Coma = separador de MILES, no decimal (misma regla que TejidoHelpers::sanitizeNumber):
+        // "1,234" => 1234 (antes str_replace(',', '.') lo convertía en 1.234 y corrompía
+        // PesoCrudo/pedidos, explotando Repeticiones = (PesoRollo/PesoCrudo)/Tiras*1000).
+        // El decimal legítimo llega con punto ("1234.5"); un "1.234,56" europeo queda 1.23456
+        // y un "1,5" queda 15 — idéntico a sanitizeNumber: se prefiere consistencia con el
+        // parser canónico del proyecto antes que adivinar el locale.
+        $s = str_replace(',', '', $s);
         $s = preg_replace('/[^0-9.\-]/', '', $s) ?? '';
         if ($s === '' || $s === '-' || $s === '.') return null;
         $num = (float)$s;

@@ -21,6 +21,9 @@ class ReqProgramaTejidoObserver
     /** Cache en memoria para ReqMatrizHilos */
     private static array $matrizHilosCache = [];
 
+    /** Cache en memoria para Schema::getColumnListing, por nombre de tabla */
+    private static array $columnListingCache = [];
+
     private const FACTOR_PESO = 1000.0;
     private const DENSIDAD_HILO = 0.59;
     private const FACTOR_RETORCIDO = 1.0162;
@@ -59,6 +62,10 @@ class ReqProgramaTejidoObserver
         'FlogsId'        => 'FlogsId',
         'NombreProyecto' => 'NombreProyecto',
         'PesoCrudo'      => 'P_crudo',
+        // La fila en CatCodificados se localiza por OrdenTejido + TelarId al liberar/editar:
+        // si la orden se mueve de telar o salón, CatCodificados debe seguirla.
+        'NoTelarId'      => 'TelarId',
+        'SalonTejidoId'  => 'Departamento',
     ];
 
     /**
@@ -72,8 +79,8 @@ class ReqProgramaTejidoObserver
      *                                                       └─→ TotalRollos = CEIL(SaldoPedido / PzasRollo)
      *                                                              └─→ TotalPzas = TotalRollos × PzasRollo
      */
-    private const CAMPOS_RECALC_FORMULA = [
-        'TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido',
+    public const CAMPOS_RECALC_FORMULA = [
+        'TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido', 'TotalPedido',
     ];
 
     public function saved(ReqProgramaTejido $programa): void
@@ -130,8 +137,12 @@ class ReqProgramaTejidoObserver
                 return;
             }
 
-            $esFelpa = $this->esFelpaInventSize($programa);
-            $pesoRollo = $this->obtenerPesoRolloMaestro($programa, $esFelpa);
+            // Misma semántica que LiberarOrdenesController:
+            //  - Felpa nominal (TamanoClave/NombreProducto con "FELPA") → peso rodillo fijo 90.
+            //  - El ajuste ÷2 en PzasRollo/MtsRollo aplica a felpa nominal Y a tamaños "FEL".
+            $esFelpaNominal = $this->esTamanoFelpa($programa);
+            $aplicaAjusteFel = $esFelpaNominal || $this->esFelpaInventSize($programa);
+            $pesoRollo = $this->obtenerPesoRolloMaestro($programa, $esFelpaNominal);
 
             // === CADENA DE FÓRMULAS ===
             $repeticiones = (int) ((($pesoRollo / $pCrudo) / $tiras) * 1000); // TRUNC
@@ -149,7 +160,7 @@ class ReqProgramaTejidoObserver
             $mtsRollo  = $largo > 0 ? (float) (($largo * $repeticiones) / 100) : null;
 
             // Ajuste FEL: ÷2 en PzasRollo y MtsRollo (igual que LiberarOrdenesController)
-            if ($esFelpa) {
+            if ($aplicaAjusteFel) {
                 $pzasRollo = (float) round($pzasRollo / 2);
                 if ($mtsRollo !== null) {
                     $mtsRollo = (float) ($mtsRollo / 2);
@@ -206,7 +217,8 @@ class ReqProgramaTejidoObserver
             Log::info('ReqProgramaTejidoObserver: fórmulas recalculadas', [
                 'id' => $programa->Id,
                 'NoProduccion' => $noProduccion ?: null,
-                'esFelpa' => $esFelpa,
+                'esFelpaNominal' => $esFelpaNominal,
+                'aplicaAjusteFel' => $aplicaAjusteFel,
                 'pesoRollo_usado' => $pesoRollo,
                 'inputs' => compact('pCrudo', 'tiras', 'largo', 'saldoPedido'),
                 'resultados' => compact('repeticiones', 'pzasRollo', 'mtsRollo', 'totalRollos', 'totalPzas', 'saldoMarbete'),
@@ -231,13 +243,28 @@ class ReqProgramaTejidoObserver
     }
 
     /**
-     * Obtiene el PesoRollo a usar en la fórmula:
-     *   - Felpa: 90 kg fijo (estándar)
-     *   - Resto: buscar por InventSizeId en ReqPesosRollosTejido; fallback "DEF"; último fallback 41.5
+     * Felpa nominal: TamanoClave o NombreProducto contienen "FELPA"
+     * (misma regla que LiberarOrdenesController::esTamanoFelpa).
      */
-    private function obtenerPesoRolloMaestro(ReqProgramaTejido $programa, bool $esFelpa): float
+    private function esTamanoFelpa(ReqProgramaTejido $programa): bool
     {
-        if ($esFelpa) {
+        $tk = trim((string) ($programa->TamanoClave ?? ''));
+        if ($tk !== '' && stripos($tk, 'FELPA') !== false) {
+            return true;
+        }
+        $nombre = trim((string) ($programa->NombreProducto ?? ''));
+
+        return $nombre !== '' && stripos($nombre, 'FELPA') !== false;
+    }
+
+    /**
+     * Obtiene el PesoRollo a usar en la fórmula (mismo orden que LiberarOrdenesController):
+     *   - Felpa nominal (FELPA en clave/nombre): 90 kg fijo
+     *   - Resto: InventSizeId exacto en ReqPesosRollosTejido → "FEL" (si el tamaño contiene FEL) → "DEF" → 41.5
+     */
+    private function obtenerPesoRolloMaestro(ReqProgramaTejido $programa, bool $esFelpaNominal): float
+    {
+        if ($esFelpaNominal) {
             return 90.0;
         }
 
@@ -250,6 +277,7 @@ class ReqProgramaTejidoObserver
                     ->where('InventSizeId', trim($key))
                     ->whereNotNull('PesoRollo')
                     ->orderByDesc('FechaModificacion')
+                    ->orderByDesc('Id')
                     ->value('PesoRollo');
                 return ($valor !== null && is_numeric($valor)) ? (float) $valor : null;
             } catch (Throwable) {
@@ -261,6 +289,13 @@ class ReqProgramaTejidoObserver
             $pr = $buscarPorInventSize($inventSizeId);
             if ($pr !== null) {
                 return $pr;
+            }
+
+            if (stripos($inventSizeId, 'FEL') !== false) {
+                $pr = $buscarPorInventSize('FEL');
+                if ($pr !== null) {
+                    return $pr;
+                }
             }
         }
 
@@ -314,7 +349,7 @@ class ReqProgramaTejidoObserver
 
             // Filtrar cambios a solo columnas que existen en la tabla CatCodificados
             // (defensa por si una columna se renombró en SQL Server).
-            $columnasExistentes = \Illuminate\Support\Facades\Schema::getColumnListing($tabla);
+            $columnasExistentes = self::columnasDeTabla($tabla);
             $cambiosFiltrados = array_intersect_key($cambios, array_flip($columnasExistentes));
 
             if (empty(array_diff_key($cambiosFiltrados, ['FechaModificacion' => 1, 'HoraModificacion' => 1, 'UsuarioModifica' => 1]))) {
@@ -342,6 +377,20 @@ class ReqProgramaTejidoObserver
                 'message' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Columnas de una tabla con cache estático (mismo patrón que $aplicacionesCache).
+     * La metadata de la tabla no cambia durante el request; en workers persistentes
+     * (queue/octane) el cache se refresca por proceso.
+     */
+    private static function columnasDeTabla(string $tabla): array
+    {
+        if (! isset(self::$columnListingCache[$tabla])) {
+            self::$columnListingCache[$tabla] = \Illuminate\Support\Facades\Schema::getColumnListing($tabla);
+        }
+
+        return self::$columnListingCache[$tabla];
     }
 
     /**
