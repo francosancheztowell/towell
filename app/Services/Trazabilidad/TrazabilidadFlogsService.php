@@ -12,6 +12,11 @@ class TrazabilidadFlogsService
         '2' => 'Stock',
     ];
 
+    private const EMPRESA_LABELS = [
+        '0' => 'TOWELL',
+        '1' => 'TEXTIL',
+    ];
+
     private const ESTADO_LINEA_LABELS = [
         '0' => 'Abierto',
         '1' => 'Facturado',
@@ -78,29 +83,37 @@ class TrazabilidadFlogsService
             return $vacio;
         }
 
-        $custAccount = $this->txt($cliente->CUSTACCOUNT ?? $tabla->CUSTACCOUNT ?? null);
-        $custName = $this->txt($cliente->CUSTNAME ?? $tabla->CUSTNAME ?? null);
-        $cAgente = $this->txt($cliente->CAGENTE ?? null);
-        $nAgente = $this->txt($cliente->NAGENTE ?? null);
+        $custAccount = $this->txt($cliente?->CUSTACCOUNT ?? $tabla->CUSTACCOUNT ?? null);
+        $custName = $this->txt($cliente?->CUSTNAME ?? $tabla->CUSTNAME ?? null);
+        $cAgente = $this->txt($cliente?->CAGENTE ?? null);
+        $nAgente = $this->txt($cliente?->NAGENTE ?? null);
+
+        $pruebaLabIdRaw = $cliente?->PRUEBALABID ?? $cliente?->PRUEBASLAB ?? null;
+        $pruebasLabTxt = $this->txt($cliente?->PRUEBASLABTXT ?? null);
 
         $general = [
             'idFlog' => $this->txt($tabla->IDFLOG ?? $idFlog),
             'tipoPedido' => $this->resolverTipoPedido($tabla->TIPOPEDIDO ?? null, $idFlog),
             'nameProyect' => $this->txt($tabla->NAMEPROYECT ?? null),
             'empresa' => $this->txt($tabla->EMPRESA ?? null),
+            'empresaLabel' => $this->resolverEmpresa($tabla->EMPRESA ?? null),
             'transDate' => $this->formatearFecha($tabla->TRANSDATE ?? null),
             'custAccount' => $custAccount,
             'custName' => $custName,
             'cliente' => trim($custAccount.' '.$custName),
-            'numProveedor' => $this->txt($cliente->NUMPROVEEDOR ?? $tabla->NUMPROVEEDOR ?? null),
-            'tipoClienteId' => $this->txt($cliente->TIPOCLIENTEID ?? null),
-            'categoriaCalidad' => $this->txt($cliente->CATEGORIACALIDAD ?? null),
-            'procesoCatMex' => $this->formatearSiNo($cliente->PROCESOCATMEX ?? null),
+            'numProveedor' => $this->txt($cliente?->NUMPROVEEDOR ?? $tabla->NUMPROVEEDOR ?? null),
+            'tipoClienteId' => $this->txt($cliente?->TIPOCLIENTEID ?? null),
+            'categoriaCalidad' => $this->txt($cliente?->CATEGORIACALIDAD ?? null),
+            'procesoCatMex' => $this->formatearSiNo($cliente?->PROCESOCATMEX ?? null),
+            'cAgente' => $cAgente,
+            'nAgente' => $nAgente,
             'agente' => $this->unirConSeparador([$cAgente, $nAgente], ' — '),
-            'pruebasLab' => $this->formatearPruebasLab($cliente->PRUEBASLAB ?? null, $cliente->PRUEBASLABTXT ?? null),
-            'twSuavizante' => $this->resolverSuavizante($cliente->TWSUAVIZANTE ?? null, $cliente->SUAVISANTEEXPTXT ?? null),
-            'avisoEspecialTxt' => $this->txt($cliente->AVISOESPECIALTXT ?? null),
-            'infoImportante' => $this->txt($cliente->INFOIMPORTANTE ?? null),
+            'pruebaLabId' => $this->txt($pruebaLabIdRaw),
+            'pruebasLabTxt' => $pruebasLabTxt,
+            'pruebasLab' => $this->formatearPruebasLab($pruebaLabIdRaw, $pruebasLabTxt),
+            'twSuavizante' => $this->resolverSuavizante($cliente?->TWSUAVIZANTE ?? null, $cliente?->SUAVISANTEEXPTXT ?? null),
+            'avisoEspecialTxt' => $this->txt($cliente?->AVISOESPECIALTXT ?? null),
+            'infoImportante' => $this->txt($cliente?->INFOIMPORTANTE ?? null),
         ];
 
         return [
@@ -131,6 +144,7 @@ class TrazabilidadFlogsService
         return [
             'lineNum' => $this->formatearEntero($row->LINENUM ?? null),
             'estadoLinea' => $this->resolverEstadoLinea($row->ESTADOLINEA ?? null),
+            'estadoLineaCodigo' => $this->codigoEstadoLinea($row->ESTADOLINEA ?? null),
             'fechaCancelacion' => $this->formatearFecha($row->FECHACANCELACION ?? null),
             'itemId' => $this->txt($row->ITEMID ?? null),
             'itemName' => $this->txt($row->ITEMNAME ?? null),
@@ -145,8 +159,8 @@ class TrazabilidadFlogsService
             'valorAgregado' => $this->txt($row->VALORAGREGADO ?? null),
             'puntadasBordado' => $this->formatearDecimal3($row->PUNTADASBORDADO ?? null),
             'infoAdicional' => $this->txt($row->INFOADICIONAL ?? null),
-            'ancho' => $this->formatearDecimal3($row->ANCHO ?? null),
-            'largo' => $this->formatearDecimal3($row->LARGO ?? null),
+            'ancho' => $this->formatearDecimal2($row->ANCHO ?? null),
+            'largo' => $this->formatearDecimal2($row->LARGO ?? null),
             'pesoAcabado' => $this->formatearDecimal3($row->PESOACABADO ?? null),
             'densidad' => $this->formatearDecimal3($row->DENSIDAD ?? null),
             'inventQty' => $this->formatearDecimal3($row->INVENTQTY ?? null),
@@ -202,21 +216,48 @@ class TrazabilidadFlogsService
         return is_file($ruta) ? $ruta : null;
     }
 
-    private function resolverEstadoLinea(mixed $estado): string
+    private function codigoEstadoLinea(mixed $estado): string
     {
         if ($estado === null || $estado === '') {
-            return '—';
+            return '';
         }
 
-        $codigo = is_numeric($estado)
+        return is_numeric($estado)
             ? (string) (int) $estado
             : trim((string) $estado);
+    }
+
+    private function resolverEstadoLinea(mixed $estado): string
+    {
+        $codigo = $this->codigoEstadoLinea($estado);
+        if ($codigo === '') {
+            return '—';
+        }
 
         if (isset(self::ESTADO_LINEA_LABELS[$codigo])) {
             return self::ESTADO_LINEA_LABELS[$codigo];
         }
 
-        return $codigo !== '' ? $codigo : '—';
+        return $codigo;
+    }
+
+    private function resolverEmpresa(mixed $empresa): string
+    {
+        $codigo = trim((string) $empresa);
+        if ($codigo === '') {
+            return '—';
+        }
+
+        if (isset(self::EMPRESA_LABELS[$codigo])) {
+            return self::EMPRESA_LABELS[$codigo];
+        }
+
+        $upper = strtoupper($codigo);
+        if (in_array($upper, ['TOWELL', 'TEXTIL'], true)) {
+            return $upper;
+        }
+
+        return $codigo;
     }
 
     private function resolverTipoPedido(mixed $tipoPedido, string $idFlog): string
@@ -305,6 +346,20 @@ class TrazabilidadFlogsService
         }
 
         return number_format((float) $normalizado, 3, '.', '');
+    }
+
+    private function formatearDecimal2(mixed $valor): string
+    {
+        if (blank($valor) && $valor !== 0 && $valor !== '0') {
+            return '—';
+        }
+
+        $normalizado = str_replace(',', '.', trim((string) $valor));
+        if ($normalizado === '' || ! is_numeric($normalizado)) {
+            return $this->txt($valor) ?: '—';
+        }
+
+        return number_format((float) $normalizado, 2, '.', '');
     }
 
     private function formatearFecha(mixed $fecha): string

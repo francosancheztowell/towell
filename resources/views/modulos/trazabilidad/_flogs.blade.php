@@ -4,12 +4,11 @@
     $empaques = $flogs['empaques'] ?? [];
     $encontrado = (bool) ($flogs['encontrado'] ?? false);
     $hayFlogFiltro = filled($filtros['flog'] ?? null);
-    $empaque = $empaques[0] ?? null;
     $lineas = $flogs['lineas'] ?? [];
 
     $columnasLineas = [
         ['key' => 'lineNum', 'label' => 'Línea', 'tipo' => 'entero'],
-        ['key' => 'estadoLinea', 'label' => 'Estado línea'],
+        ['key' => 'estadoLinea', 'label' => 'Estado línea', 'tipo' => 'estado'],
         ['key' => 'fechaCancelacion', 'label' => 'Fecha cancelación'],
         ['key' => 'itemId', 'label' => 'Item'],
         ['key' => 'itemName', 'label' => 'Nombre artículo'],
@@ -39,6 +38,31 @@
         ['key' => 'simulacionDisenoUrl', 'label' => 'Simulación diseño', 'tipo' => 'imagen', 'titulo' => 'Simulación diseño'],
     ];
 
+    $estadoLineaBadge = [
+        '0' => 'flog-estado-badge--abierto',
+        '1' => 'flog-estado-badge--facturado',
+        '2' => 'flog-estado-badge--cancelado',
+        '3' => 'flog-estado-badge--todo',
+    ];
+
+    $estadosLineaFiltro = [];
+    foreach ($lineas as $linea) {
+        $codigo = (string) ($linea['estadoLineaCodigo'] ?? '');
+        if ($codigo === '') {
+            continue;
+        }
+        if (! isset($estadosLineaFiltro[$codigo])) {
+            $estadosLineaFiltro[$codigo] = [
+                'codigo' => $codigo,
+                'label' => $linea['estadoLinea'] ?? $codigo,
+                'clase' => $estadoLineaBadge[$codigo] ?? 'flog-estado-badge--otro',
+                'count' => 0,
+            ];
+        }
+        $estadosLineaFiltro[$codigo]['count']++;
+    }
+    ksort($estadosLineaFiltro);
+
     $v = fn (?string $valor): string => filled($valor) ? $valor : '—';
 @endphp
 
@@ -60,148 +84,196 @@
     </div>
 @else
     <div class="flog-wrap">
-        {{-- Información general — una tarjeta, grid denso label arriba / valor abajo --}}
-        <section class="flog-card" aria-labelledby="flog-titulo-general">
+        {{-- Información general — visible por defecto; icono para ocultar/mostrar --}}
+        <section class="flog-card flog-card--collapsible is-expanded" id="flog-seccion-general" aria-labelledby="flog-titulo-general">
             <header class="flog-card__head">
                 <span class="flog-card__icon"><i class="fa-solid fa-clipboard-list"></i></span>
                 <h2 id="flog-titulo-general" class="flog-card__title">Información general del proyecto</h2>
+                <button
+                    type="button"
+                    class="flog-card__toggle"
+                    aria-expanded="true"
+                    aria-controls="flog-general-body"
+                    title="Ocultar información general"
+                >
+                    <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                </button>
             </header>
-            <div class="flog-card__body">
-                <div class="flog-fields">
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Folio compra especial</span>
-                        <span class="flog-campo__valor flog-campo__valor--accent">{{ $v($general['idFlog'] ?? null) }}</span>
+            <div id="flog-general-body" class="flog-card__body">
+                {{-- TwFlogsTable — una sola fila horizontal --}}
+                <div class="flog-tabla-fila" role="row" aria-label="Datos del Flog">
+                    <div class="flog-tabla-fila__celda flog-tabla-fila__celda--flog" role="cell">
+                        <span class="flog-tabla-fila__label">Id Flog</span>
+                        <span class="flog-tabla-fila__valor flog-tabla-fila__valor--accent">{{ $v($general['idFlog'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Cliente</span>
-                        <span class="flog-campo__valor flog-campo__valor--accent">{{ $v($general['cliente'] ?? null) }}</span>
+                    <div class="flog-tabla-fila__celda" role="cell">
+                        <span class="flog-tabla-fila__label">Tipo pedido</span>
+                        <span class="flog-tabla-fila__valor">{{ $v($general['tipoPedido'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Agente</span>
-                        <span class="flog-campo__valor">{{ $v($general['agente'] ?? null) }}</span>
+                    <div class="flog-tabla-fila__celda flog-tabla-fila__celda--proyecto" role="cell">
+                        <span class="flog-tabla-fila__label">Proyecto</span>
+                        <span class="flog-tabla-fila__valor">{{ $v($general['nameProyect'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Tipo de pedido</span>
-                        <span class="flog-campo__valor">{{ $v($general['tipoPedido'] ?? null) }}</span>
+                    <div class="flog-tabla-fila__celda" role="cell">
+                        <span class="flog-tabla-fila__label">Empresa</span>
+                        <span class="flog-tabla-fila__valor">{{ $v($general['empresaLabel'] ?? $general['empresa'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Tipo de cliente</span>
-                        <span class="flog-campo__valor">{{ $v($general['tipoClienteId'] ?? null) }}</span>
+                    <div class="flog-tabla-fila__celda" role="cell">
+                        <span class="flog-tabla-fila__label">Fecha transacción</span>
+                        <span class="flog-tabla-fila__valor">{{ $v($general['transDate'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Categoría calidad</span>
-                        <span class="flog-campo__valor">{{ $v($general['categoriaCalidad'] ?? null) }}</span>
+                </div>
+
+                {{-- TwFlogsCustomer — 7 columnas × 2 filas --}}
+                <div class="flog-cliente-grid" role="grid" aria-label="Datos del cliente">
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Cuenta cliente</span>
+                        <span class="flog-cliente-grid__valor flog-cliente-grid__valor--accent">{{ $v($general['custAccount'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Pruebas laboratorio</span>
-                        @if (filled($general['pruebasLab'] ?? null) && ($general['pruebasLab'] ?? '—') !== '—')
-                            <span class="flog-campo__valor flog-campo__valor--badge">{{ $general['pruebasLab'] }}</span>
-                        @else
-                            <span class="flog-campo__valor">—</span>
-                        @endif
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Nombre cliente</span>
+                        <span class="flog-cliente-grid__valor flog-cliente-grid__valor--accent">{{ $v($general['custName'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Proceso 100% Cadmex</span>
-                        <span class="flog-campo__valor">{{ $v($general['procesoCatMex'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Núm. proveedor</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['numProveedor'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo flog-campo--half">
-                        <span class="flog-campo__label">Proyecto</span>
-                        <span class="flog-campo__valor">{{ $v($general['nameProyect'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Tipo cliente</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['tipoClienteId'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Núm. proveedor</span>
-                        <span class="flog-campo__valor">{{ $v($general['numProveedor'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Categoría calidad</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['categoriaCalidad'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Suavizante exportación</span>
-                        <span class="flog-campo__valor">{{ $v($general['twSuavizante'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Proceso Cadmex</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['procesoCatMex'] ?? null) }}</span>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Fecha creación Flog</span>
-                        <span class="flog-campo__valor">{{ $v($general['transDate'] ?? null) }}</span>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">C. agente</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['cAgente'] ?? null) }}</span>
+                    </div>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">N. agente</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['nAgente'] ?? null) }}</span>
+                    </div>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Prueba lab. id</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['pruebaLabId'] ?? null) }}</span>
+                    </div>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Pruebas lab. texto</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['pruebasLabTxt'] ?? null) }}</span>
+                    </div>
+                    <div class="flog-cliente-grid__celda" role="gridcell">
+                        <span class="flog-cliente-grid__label">Suavizante</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['twSuavizante'] ?? null) }}</span>
+                    </div>
+                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--aviso" role="gridcell">
+                        <span class="flog-cliente-grid__label">Aviso especial</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['avisoEspecialTxt'] ?? null) }}</span>
+                    </div>
+                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--info flog-cliente-grid__celda--span-2" role="gridcell">
+                        <span class="flog-cliente-grid__label">Información importante</span>
+                        <span class="flog-cliente-grid__valor">{{ $v($general['infoImportante'] ?? null) }}</span>
                     </div>
                 </div>
             </div>
         </section>
 
-        {{-- Empaque + etiquetas: meta compacta a la izquierda, galería grande a la derecha --}}
-        @php
-            $imagenesFlog = [];
-            if ($empaque && ! empty($empaque['imagenUrl'])) {
-                $imagenesFlog[] = [
-                    'url' => $empaque['imagenUrl'],
-                    'caption' => 'Empaque — '.($empaque['idEmpaque'] ?? 'Imagen'),
-                ];
-            }
-            foreach ($etiquetas as $etiq) {
-                if (! empty($etiq['imagenUrl'])) {
-                    $imagenesFlog[] = [
-                        'url' => $etiq['imagenUrl'],
-                        'caption' => $etiq['comentarios'] ?: ($etiq['name'] ?: 'Etiqueta'),
-                    ];
-                }
-            }
-            $soloUnaImagen = count($imagenesFlog) === 1;
-        @endphp
-
+        {{-- Empaque y etiquetado — tablas compactas --}}
         <section class="flog-card" aria-labelledby="flog-titulo-visual">
             <header class="flog-card__head">
                 <span class="flog-card__icon"><i class="fa-solid fa-box-open"></i></span>
                 <h2 id="flog-titulo-visual" class="flog-card__title">Empaque y etiquetado</h2>
             </header>
-            <div class="flog-card__body flog-visual-layout">
-                <aside class="flog-visual-meta">
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Id empaque</span>
-                        <span class="flog-campo__valor">{{ $v($empaque['idEmpaque'] ?? null) }}</span>
+            <div class="flog-card__body flog-meta-tables">
+                <div class="flog-meta-table-wrap">
+                    <h3 class="flog-meta-table__titulo">Empaques <span class="flog-meta-table__count">{{ count($empaques) }}</span></h3>
+                    <div class="flog-meta-table-scroll">
+                        <table class="flog-meta-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Id empaque</th>
+                                    <th scope="col">Otro empaque</th>
+                                    <th scope="col" class="flog-meta-table__th--img">Imagen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($empaques as $emp)
+                                    <tr>
+                                        <td class="whitespace-nowrap font-semibold text-slate-800">{{ $v($emp['idEmpaque'] ?? null) }}</td>
+                                        <td class="flog-meta-table__celda--larga">{{ $v($emp['otroEmpaque'] ?? null) }}</td>
+                                        <td class="flog-meta-table__celda--img">
+                                            @if (! empty($emp['imagenUrl']))
+                                                <button
+                                                    type="button"
+                                                    class="flog-lineas-thumb flog-meta-thumb"
+                                                    data-flog-zoom="{{ $emp['imagenUrl'] }}"
+                                                    data-flog-zoom-title="Empaque — {{ $emp['idEmpaque'] ?? '' }}"
+                                                    aria-label="Ver empaque"
+                                                >
+                                                    <img src="{{ $emp['imagenUrl'] }}" alt="" loading="lazy" decoding="async" data-flog-img draggable="false">
+                                                </button>
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="3" class="flog-meta-table__vacio">Sin empaques registrados.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="flog-campo">
-                        <span class="flog-campo__label">Etiquetas registradas</span>
-                        <span class="flog-campo__valor">{{ count($etiquetas) }}</span>
-                    </div>
-                    @if ($empaque && filled($empaque['otroEmpaque'] ?? null))
-                        <div class="flog-campo">
-                            <span class="flog-campo__label">Otro empaque</span>
-                            <span class="flog-campo__valor whitespace-pre-line">{{ $empaque['otroEmpaque'] }}</span>
-                        </div>
-                    @endif
-                    @if (filled($general['infoImportante'] ?? null))
-                        <div class="flog-meta-nota">
-                            <span class="flog-meta-nota__titulo">Información importante</span>
-                            {{ $general['infoImportante'] }}
-                        </div>
-                    @endif
-                    @if (filled($general['avisoEspecialTxt'] ?? null))
-                        <div class="flog-meta-nota flog-meta-nota--verde">
-                            <span class="flog-meta-nota__titulo">Aviso especial</span>
-                            {{ $general['avisoEspecialTxt'] }}
-                        </div>
-                    @endif
-                </aside>
+                </div>
 
-                @if (! empty($imagenesFlog))
-                    <div class="flog-visual-gallery {{ $soloUnaImagen ? 'flog-visual-gallery--solo' : '' }}">
-                        @foreach ($imagenesFlog as $img)
-                            <figure class="flog-visual-frame" data-flog-zoom="{{ $img['url'] }}" role="button" tabindex="0" aria-label="{{ $img['caption'] }}">
-                                <div class="flog-visual-frame__img-wrap">
-                                    <img src="{{ $img['url'] }}" alt="{{ $img['caption'] }}" loading="lazy">
-                                </div>
-                                <figcaption class="flog-visual-frame__caption">{{ $img['caption'] }}</figcaption>
-                                <div class="flog-visual-frame__zoom-hint" aria-hidden="true">
-                                    <span><i class="fa-solid fa-magnifying-glass-plus mr-1"></i> Clic para tamaño completo</span>
-                                </div>
-                            </figure>
-                        @endforeach
+                <div class="flog-meta-table-wrap">
+                    <h3 class="flog-meta-table__titulo">Etiquetas <span class="flog-meta-table__count">{{ count($etiquetas) }}</span></h3>
+                    <div class="flog-meta-table-scroll">
+                        <table class="flog-meta-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Item</th>
+                                    <th scope="col">Nombre</th>
+                                    <th scope="col">Comentarios</th>
+                                    <th scope="col" class="flog-meta-table__th--img">Imagen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($etiquetas as $etiq)
+                                    <tr>
+                                        <td class="whitespace-nowrap">{{ $v($etiq['itemId'] ?? null) }}</td>
+                                        <td>{{ $v($etiq['name'] ?? null) }}</td>
+                                        <td class="flog-meta-table__celda--larga">{{ $v($etiq['comentarios'] ?? null) }}</td>
+                                        <td class="flog-meta-table__celda--img">
+                                            @if (! empty($etiq['imagenUrl']))
+                                                <button
+                                                    type="button"
+                                                    class="flog-lineas-thumb flog-meta-thumb"
+                                                    data-flog-zoom="{{ $etiq['imagenUrl'] }}"
+                                                    data-flog-zoom-title="Etiqueta — {{ $etiq['name'] ?? $etiq['itemId'] ?? '' }}"
+                                                    aria-label="Ver etiqueta"
+                                                >
+                                                    <img src="{{ $etiq['imagenUrl'] }}" alt="" loading="lazy" decoding="async" data-flog-img draggable="false">
+                                                </button>
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="flog-meta-table__vacio">Sin etiquetas registradas.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-                @else
-                    <div class="flog-visual-placeholder" role="presentation" aria-hidden="true">
-                        <div class="flog-visual-placeholder__frame">
-                            <span class="flog-visual-placeholder__icon">
-                                <i class="fa-regular fa-image"></i>
-                            </span>
-                        </div>
-                    </div>
-                @endif
+                </div>
             </div>
         </section>
 
@@ -212,6 +284,20 @@
                 <span class="flog-lineas-count">{{ count($lineas) }}</span>
             </header>
             <div class="flog-card__body flog-lineas-wrap">
+                @if (count($lineas) > 0 && count($estadosLineaFiltro) > 0)
+                    <div class="flog-lineas-filtros" role="group" aria-label="Filtrar por estado de línea">
+                        <button type="button" class="flog-lineas-filtro-btn is-active" data-flog-linea-filtro="todos">
+                            <span class="flog-estado-badge flog-estado-badge--todos">Todos</span>
+                            <span class="flog-lineas-filtro-count">{{ count($lineas) }}</span>
+                        </button>
+                        @foreach ($estadosLineaFiltro as $estadoFiltro)
+                            <button type="button" class="flog-lineas-filtro-btn" data-flog-linea-filtro="{{ $estadoFiltro['codigo'] }}">
+                                <span class="flog-estado-badge {{ $estadoFiltro['clase'] }}">{{ $estadoFiltro['label'] }}</span>
+                                <span class="flog-lineas-filtro-count">{{ $estadoFiltro['count'] }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
                 <div class="flog-lineas-scroll" tabindex="0" role="region" aria-label="Tabla de líneas del Flog">
                     <table class="flog-lineas-table">
                         <thead>
@@ -223,7 +309,7 @@
                         </thead>
                         <tbody>
                             @forelse ($lineas as $linea)
-                                <tr>
+                                <tr data-estado-linea="{{ $linea['estadoLineaCodigo'] ?? '' }}">
                                     @foreach ($columnasLineas as $col)
                                         @php
                                             $celda = $linea[$col['key']] ?? '';
@@ -234,8 +320,19 @@
                                             'flog-lineas-table__celda--larga' => $esLargo,
                                             'flog-lineas-table__celda--num' => in_array($tipo, ['decimal', 'entero'], true),
                                             'flog-lineas-table__celda--img' => $tipo === 'imagen',
+                                            'flog-lineas-table__celda--estado' => $tipo === 'estado',
                                         ])>
-                                            @if ($tipo === 'imagen')
+                                            @if ($tipo === 'estado')
+                                                @if (filled($celda) && $celda !== '—')
+                                                    @php
+                                                        $codigoEstado = (string) ($linea['estadoLineaCodigo'] ?? '');
+                                                        $claseEstado = $estadoLineaBadge[$codigoEstado] ?? 'flog-estado-badge--otro';
+                                                    @endphp
+                                                    <span class="flog-estado-badge {{ $claseEstado }}">{{ $celda }}</span>
+                                                @else
+                                                    —
+                                                @endif
+                                            @elseif ($tipo === 'imagen')
                                                 @if (filled($celda))
                                                     <button
                                                         type="button"
@@ -263,6 +360,7 @@
                         </tbody>
                     </table>
                 </div>
+                <p class="flog-lineas-sin-filtro hidden" role="status">Ninguna línea coincide con el estado seleccionado.</p>
             </div>
         </section>
     </div>

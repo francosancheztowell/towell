@@ -332,9 +332,246 @@
             text-transform: uppercase;
             color: #1e3a8a;
             line-height: 1.25;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .flog-card__toggle {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            margin-left: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #fff;
+            color: #64748b;
+            cursor: pointer;
+            transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+        }
+        .flog-card__toggle:hover {
+            border-color: #93c5fd;
+            color: #1d4ed8;
+            background: #eff6ff;
+        }
+        .flog-card__toggle i {
+            font-size: 0.75rem;
+            transition: transform 0.2s ease;
+        }
+        .flog-card--collapsible.is-expanded .flog-card__toggle i {
+            transform: rotate(180deg);
+        }
+        .flog-card--collapsible:not(.is-expanded) .flog-card__body {
+            display: none;
+        }
+        .flog-card--collapsible:not(.is-expanded) .flog-card__head {
+            border-bottom: none;
         }
         .flog-card__body {
             padding: 1rem 1.1rem 1.1rem;
+        }
+        .flog-meta-tables {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 0.75rem 1rem 1rem !important;
+        }
+        .flog-meta-table-wrap {
+            min-width: 0;
+        }
+        .flog-meta-table__titulo {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin: 0 0 0.45rem;
+            font-size: 0.6875rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #475569;
+        }
+        .flog-meta-table__count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.25rem;
+            padding: 0.05rem 0.4rem;
+            border-radius: 9999px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            font-size: 0.625rem;
+            font-weight: 700;
+            color: #64748b;
+            font-variant-numeric: tabular-nums;
+        }
+        .flog-meta-table-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+        .flog-meta-table {
+            width: 100%;
+            min-width: 28rem;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .flog-meta-table thead th {
+            background: #f8fafc;
+            color: #475569;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            padding: 0.4rem 0.55rem;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .flog-meta-table tbody td {
+            padding: 0.35rem 0.55rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            vertical-align: middle;
+        }
+        .flog-meta-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .flog-meta-table tbody tr:hover td {
+            background: #f8fafc;
+        }
+        .flog-meta-table__celda--larga {
+            max-width: 22rem;
+            white-space: pre-line;
+            line-height: 1.35;
+        }
+        .flog-meta-table__celda--img,
+        .flog-meta-table__th--img {
+            width: 3.25rem;
+            text-align: center;
+        }
+        .flog-meta-table__vacio {
+            padding: 0.65rem 0.55rem !important;
+            text-align: center;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        .flog-meta-thumb {
+            width: 2.5rem !important;
+            height: 2.5rem !important;
+        }
+        /* TwFlogsTable: IdFlog, TipoPedido, NameProyect, Empresa, TransDate en una sola fila */
+        .flog-tabla-fila {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            gap: 0;
+            margin-bottom: 0.9rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #f8fafc;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .flog-tabla-fila__celda {
+            flex: 1 1 0;
+            min-width: 7.5rem;
+            padding: 0.55rem 0.75rem;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            min-height: 100%;
+        }
+        .flog-tabla-fila__celda:last-child {
+            border-right: none;
+        }
+        .flog-tabla-fila__celda--proyecto {
+            flex: 2 1 0;
+            min-width: 10rem;
+        }
+        .flog-tabla-fila__celda--flog {
+            min-width: 8.5rem;
+        }
+        .flog-tabla-fila__label {
+            font-size: 0.625rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .flog-tabla-fila__valor {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+        .flog-tabla-fila__valor--accent {
+            color: #1d4ed8;
+        }
+        /* TwFlogsCustomer: 7 columnas × 2 filas */
+        .flog-cliente-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            background: #ffffff;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            min-width: 0;
+        }
+        .flog-cliente-grid__celda {
+            min-width: 6.5rem;
+            padding: 0.55rem 0.65rem;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            min-height: 100%;
+        }
+        .flog-cliente-grid__celda:nth-child(7n) {
+            border-right: none;
+        }
+        .flog-cliente-grid__celda:nth-child(n + 8) {
+            border-bottom: none;
+        }
+        .flog-cliente-grid__celda--aviso {
+            background: #ecfdf5;
+        }
+        .flog-cliente-grid__celda--info {
+            background: #fffbeb;
+        }
+        .flog-cliente-grid__celda--span-2 {
+            grid-column: span 2;
+        }
+        .flog-cliente-grid__label {
+            font-size: 0.625rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            line-height: 1.2;
+        }
+        .flog-cliente-grid__valor {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.35;
+            word-break: break-word;
+            white-space: pre-line;
+        }
+        .flog-cliente-grid__valor--accent {
+            color: #1d4ed8;
+        }
+        @media (max-width: 1100px) {
+            .flog-cliente-grid {
+                grid-template-columns: repeat(7, minmax(7rem, 1fr));
+            }
         }
         .flog-fields {
             display: grid;
@@ -425,6 +662,14 @@
         .flog-visual-meta .flog-campo__valor {
             font-size: 0.875rem;
         }
+        .flog-empaque-block {
+            padding: 0.5rem 0;
+            border-top: 1px solid #e2e8f0;
+        }
+        .flog-empaque-block:first-of-type {
+            border-top: none;
+            padding-top: 0;
+        }
         .flog-meta-nota {
             margin-top: 0.15rem;
             padding: 0.6rem 0.7rem;
@@ -461,6 +706,10 @@
             flex-wrap: wrap;
             gap: 0.85rem;
             align-items: stretch;
+            animation: none !important;
+        }
+        .flog-visual-gallery * {
+            animation: none !important;
         }
         .flog-visual-gallery--solo {
             flex: 1 1 auto;
@@ -490,12 +739,25 @@
             border-color: #3b82f6;
             box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15);
         }
+        .flog-visual-frame__header {
+            flex-shrink: 0;
+            padding: 0.55rem 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fff;
+        }
+        .flog-visual-frame__tipo {
+            font-size: 0.6875rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #1d4ed8;
+        }
         .flog-visual-frame__img-wrap {
             flex: 1 1 auto;
             position: relative;
             width: 100%;
             min-height: 340px;
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            background: #fff;
         }
         .flog-visual-gallery--solo .flog-visual-frame__img-wrap {
             min-height: min(480px, 58vh);
@@ -510,6 +772,29 @@
             height: calc(100% - 1.5rem);
             object-fit: contain;
             object-position: center center;
+        }
+        .flog-visual-frame__img-wrap img.is-broken {
+            display: none;
+        }
+        .flog-visual-frame__sin-img {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            color: #64748b;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            background: #fff;
+        }
+        .flog-visual-frame__sin-img[hidden] {
+            display: none !important;
+        }
+        .flog-visual-frame__sin-img i {
+            font-size: 1.75rem;
+            color: #94a3b8;
         }
         .flog-visual-frame__caption {
             flex-shrink: 0;
@@ -531,7 +816,6 @@
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.15s ease;
-            background: linear-gradient(180deg, transparent 55%, rgba(15, 23, 42, 0.45) 100%);
         }
         .flog-visual-frame:hover .flog-visual-frame__zoom-hint {
             opacity: 1;
@@ -594,7 +878,7 @@
             min-height: min(480px, 62vh);
             border: 2px dashed #e2e8f0;
             border-radius: 0.75rem;
-            background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 55%, #eef2f7 100%);
+            background: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -606,11 +890,10 @@
             width: 4.5rem;
             height: 4.5rem;
             border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.9);
+            background: #fff;
             border: 1px solid #e2e8f0;
-            color: #cbd5e1;
+            color: #94a3b8;
             font-size: 1.75rem;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
         }
         .flog-lineas-count {
             margin-left: auto;
@@ -625,6 +908,56 @@
         }
         .flog-lineas-wrap {
             padding: 0 !important;
+        }
+        .flog-lineas-filtros {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fff;
+        }
+        .flog-lineas-filtro-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.15rem 0.35rem 0.15rem 0.15rem;
+            border: 1px solid transparent;
+            border-radius: 9999px;
+            background: transparent;
+            cursor: pointer;
+            transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .flog-lineas-filtro-btn:hover {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+        .flog-lineas-filtro-btn.is-active {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+        }
+        .flog-lineas-filtro-count {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: #64748b;
+            font-variant-numeric: tabular-nums;
+            min-width: 1.1rem;
+            text-align: center;
+        }
+        .flog-lineas-filtro-btn.is-active .flog-lineas-filtro-count {
+            color: #1d4ed8;
+        }
+        .flog-lineas-sin-filtro {
+            margin: 0;
+            padding: 0.75rem 1rem 1rem;
+            font-size: 0.8125rem;
+            color: #64748b;
+            text-align: center;
+        }
+        .flog-lineas-sin-filtro.hidden {
+            display: none;
         }
         .flog-lineas-scroll {
             overflow-x: auto;
@@ -702,6 +1035,51 @@
         }
         .flog-lineas-table__celda--img {
             padding: 0.35rem 0.5rem !important;
+        }
+        .flog-lineas-table__celda--estado {
+            white-space: nowrap;
+        }
+        .flog-estado-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            border-radius: 9999px;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            line-height: 1.2;
+            border: 1px solid transparent;
+        }
+        .flog-estado-badge--abierto {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+        }
+        .flog-estado-badge--facturado {
+            background: #d1fae5;
+            color: #047857;
+            border-color: #6ee7b7;
+        }
+        .flog-estado-badge--cancelado {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+        .flog-estado-badge--todo {
+            background: #ede9fe;
+            color: #6d28d9;
+            border-color: #c4b5fd;
+        }
+        .flog-estado-badge--otro {
+            background: #f1f5f9;
+            color: #475569;
+            border-color: #cbd5e1;
+        }
+        .flog-estado-badge--todos {
+            background: #fff;
+            color: #334155;
+            border-color: #cbd5e1;
         }
         .flog-lineas-thumb {
             display: inline-flex;
@@ -1043,31 +1421,59 @@
         }
 
         const $scrollMain = $('main.app-main');
-        let scrollLockCount = 0;
         let sincronizandoSelects = false;
 
+        function hayModalTrazaAbierto() {
+            const rollosAbierto = $modalRollos.length
+                && !$modalRollos.hasClass('hidden')
+                && $modalRollos.css('display') !== 'none';
+            const flogAbierto = $modalFlogImg.length && !$modalFlogImg.hasClass('hidden');
+            return rollosAbierto || flogAbierto;
+        }
+
+        /** Bloquea/desbloquea según modales visibles (evita contador desfasado tras varias aperturas). */
+        function sincronizarScrollPagina() {
+            if (!$scrollMain.length) return;
+            if (hayModalTrazaAbierto()) {
+                $scrollMain.css('overflow-y', 'hidden');
+            } else {
+                $scrollMain.css('overflow-y', 'auto');
+            }
+        }
+
         function liberarScrollPagina() {
-            scrollLockCount = 0;
             if ($scrollMain.length) {
                 $scrollMain.css('overflow-y', 'auto');
             }
         }
 
         function bloquearScrollPagina() {
-            if (scrollLockCount === 0 && $scrollMain.length) {
-                $scrollMain.css('overflow-y', 'hidden');
-            }
-            scrollLockCount++;
+            sincronizarScrollPagina();
         }
 
         function desbloquearScrollPagina() {
-            if (scrollLockCount <= 0) {
-                return;
+            sincronizarScrollPagina();
+        }
+
+        /** Cierra Select2, quita foco atrapado y restaura scroll en main (tras filtrar Flog). */
+        function restaurarInteraccionScroll() {
+            $('.filtro-select').each(function () {
+                const $el = $(this);
+                if ($el.data('select2')) {
+                    try {
+                        $el.select2('close');
+                    } catch (e) { /* ignore */ }
+                }
+            });
+            $('.select2-container--open').removeClass('select2-container--open');
+
+            const ae = document.activeElement;
+            if (ae && (ae.classList.contains('select2-search__field') || ae.closest('.select2-container'))) {
+                ae.blur();
             }
-            scrollLockCount--;
-            if (scrollLockCount === 0 && $scrollMain.length) {
-                $scrollMain.css('overflow-y', 'auto');
-            }
+
+            sincronizarScrollPagina();
+            liberarScrollPagina();
         }
 
         function escaparHtml(texto) {
@@ -1214,6 +1620,40 @@
             desbloquearScrollPagina();
         }
 
+        function marcarImagenFlogRota(img) {
+            if (!img || img.classList.contains('is-broken')) return;
+            img.classList.add('is-broken');
+            const fallback = img.nextElementSibling;
+            if (fallback?.classList?.contains('flog-visual-frame__sin-img')) {
+                fallback.hidden = false;
+            }
+            const frame = img.closest('.flog-visual-frame');
+            if (frame) {
+                frame.removeAttribute('data-flog-zoom');
+                frame.style.cursor = 'default';
+            }
+            const thumbBtn = img.closest('.flog-lineas-thumb');
+            if (thumbBtn) {
+                const celda = thumbBtn.closest('td');
+                thumbBtn.remove();
+                if (celda && !celda.textContent.trim()) {
+                    celda.textContent = '—';
+                }
+            }
+        }
+
+        function initImagenesFlog($root) {
+            $root.find('[data-flog-img]').each(function () {
+                if (this.complete && this.naturalWidth === 0) {
+                    marcarImagenFlogRota(this);
+                }
+            });
+        }
+
+        $resultado.on('error', '[data-flog-img]', function () {
+            marcarImagenFlogRota(this);
+        });
+
         $resultado.on('click', '[data-flog-zoom]', function () {
             const $el = $(this);
             const src = $el.data('flog-zoom') || $el.find('img').attr('src');
@@ -1318,6 +1758,11 @@
         function rebuildSelect(id, opciones, seleccionado) {
             const $el = $(id);
             const val = seleccionado == null ? '' : String(seleccionado);
+            if ($el.data('select2')) {
+                try {
+                    $el.select2('close');
+                } catch (e) { /* ignore */ }
+            }
             let html = '<option value=""></option>';
             const valores = new Set();
             (opciones || []).forEach(function (v) {
@@ -1339,6 +1784,11 @@
         function rebuildCombo(id, opciones, seleccionado) {
             const $el = $(id);
             const val = seleccionado == null ? '' : String(seleccionado);
+            if ($el.data('select2')) {
+                try {
+                    $el.select2('close');
+                } catch (e) { /* ignore */ }
+            }
             let html = '<option value=""></option>';
             let labelSel = val;
             const codigos = new Set();
@@ -1506,6 +1956,41 @@
         let flogsSeq = 0;
 
         let prodFiltroActivo = 'todos';
+        let flogLineaFiltroActivo = 'todos';
+
+        function aplicarFiltroLineasFlog(filtro) {
+            flogLineaFiltroActivo = filtro || 'todos';
+            const $wrap = $('#flogs-contenido .flog-lineas-wrap');
+            if (!$wrap.length) return;
+
+            $wrap.find('.flog-lineas-filtro-btn').each(function () {
+                $(this).toggleClass('is-active', String($(this).data('flog-linea-filtro')) === String(flogLineaFiltroActivo));
+            });
+
+            let visibles = 0;
+            const $filas = $wrap.find('.flog-lineas-table tbody tr[data-estado-linea]');
+            $filas.each(function () {
+                const cod = String($(this).data('estado-linea') ?? '');
+                const visible = flogLineaFiltroActivo === 'todos' || cod === String(flogLineaFiltroActivo);
+                $(this).toggle(visible);
+                if (visible) visibles++;
+            });
+
+            $wrap.find('.flog-lineas-sin-filtro').toggleClass('hidden', visibles > 0 || $filas.length === 0);
+        }
+
+        $resultado.on('click', '.flog-lineas-filtro-btn', function () {
+            aplicarFiltroLineasFlog($(this).data('flog-linea-filtro'));
+        });
+
+        $resultado.on('click', '.flog-card__toggle', function () {
+            const $btn = $(this);
+            const $card = $btn.closest('.flog-card--collapsible');
+            if (!$card.length) return;
+            const expanded = $card.toggleClass('is-expanded').hasClass('is-expanded');
+            $btn.attr('aria-expanded', expanded);
+            $btn.attr('title', expanded ? 'Ocultar información general' : 'Mostrar información general');
+        });
 
         function aplicarFiltroProduccion(filter) {
             prodFiltroActivo = filter || 'todos';
@@ -1560,7 +2045,10 @@
                 const $cont = $('#flogs-contenido');
                 if ($cont.length) {
                     $cont.html(data.flogsHtml);
+                    flogLineaFiltroActivo = 'todos';
+                    initImagenesFlog($cont);
                 }
+                restaurarInteraccionScroll();
             } catch (err) {
                 if (seq === flogsSeq && seqMatriz === reqSeq) {
                     const $cont = $('#flogs-contenido');
@@ -1586,6 +2074,7 @@
                     aplicarFiltroProduccion(prodFiltroActivo);
                 }
                 actualizarBadgeProduccion(data.prodAlertas || 0);
+                restaurarInteraccionScroll();
             } catch (err) {
                 if (seq === prodSeq && seqMatriz === reqSeq) {
                     const $cont = $('#produccion-contenido');
@@ -1639,7 +2128,10 @@
             } catch (err) {
                 if (seq === reqSeq) window.notify?.error(err.message || 'Error al cargar la trazabilidad');
             } finally {
-                if (seq === reqSeq) $resultado.css('opacity', '');
+                if (seq === reqSeq) {
+                    $resultado.css('opacity', '');
+                    restaurarInteraccionScroll();
+                }
             }
         }
 
@@ -1651,15 +2143,24 @@
             }, 100);
         }
 
-        // select2:clear + change pueden dispararse juntos; sincronizandoSelects evita
-        // peticiones durante rebuild AJAX.
+        // select2:select guarda etiqueta; change dispara aplicar (select2:clear también dispara change).
         let debounceFiltro = null;
-        $('.filtro-select').on('change select2:select select2:clear', function (e) {
+        $('.filtro-select').on('select2:select', function (e) {
             if (sincronizandoSelects) return;
-            if (e.type === 'select2:select' && e.params && e.params.data) {
+            if (e.params && e.params.data) {
                 $(this).data('traza-last-label', e.params.data.text || '');
             }
+        });
+        $('.filtro-select').on('select2:clear', function () {
+            if (sincronizandoSelects) return;
+            $(this).removeData('traza-last-label');
+        });
+        $('.filtro-select').on('change', function () {
+            if (sincronizandoSelects) return;
             programarAplicarFiltros();
+        });
+        $('.filtro-select').on('select2:close', function () {
+            setTimeout(restaurarInteraccionScroll, 0);
         });
 
         // Áreas expandibles (Flog con +2 artículos): al hacer click en la fila del área
@@ -1696,6 +2197,8 @@
 
         @if ($hayFlog && ($flogsCargando ?? false))
             cargarFlogs(valoresActuales(), 0);
+        @else
+            initImagenesFlog($('#flogs-contenido'));
         @endif
 
         // Render inicial del resumen de conteos.
@@ -1747,6 +2250,17 @@
         // Garantizar scroll libre al cargar y si algún modal quedó mal cerrado.
         liberarScrollPagina();
         $(window).on('pageshow.trazaScroll', liberarScrollPagina);
+        $(document).on('visibilitychange.trazaScroll', function () {
+            if (!document.hidden) {
+                restaurarInteraccionScroll();
+            }
+        });
+        // Si el scroll quedó bloqueado sin modal abierto (p. ej. tras cambiar Flog), recuperar al intentar bajar.
+        document.addEventListener('wheel', function () {
+            if (!hayModalTrazaAbierto() && $scrollMain.length && $scrollMain.css('overflow-y') === 'hidden') {
+                restaurarInteraccionScroll();
+            }
+        }, { passive: true, capture: true });
     });
 </script>
 @endpush
