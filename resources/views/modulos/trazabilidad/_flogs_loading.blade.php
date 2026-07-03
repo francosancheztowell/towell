@@ -1,6 +1,6 @@
-{{-- Skeleton — pestaña Flogs --}}
+{{-- Skeleton — pestaña Flogs (sin animación en galería de imágenes) --}}
 <div class="flog-wrap" id="flogs-loading">
-    <div class="flog-card animate-pulse">
+    <div class="flog-card">
         <div class="flog-card__head">
             <div class="flog-card__icon bg-slate-200"></div>
             <div class="h-4 w-48 bg-slate-200 rounded"></div>
@@ -17,7 +17,7 @@
         </div>
     </div>
     <div class="flog-card">
-        <div class="flog-card__head animate-pulse">
+        <div class="flog-card__head">
             <div class="flog-card__icon bg-slate-200"></div>
             <div class="h-4 w-40 bg-slate-200 rounded"></div>
         </div>

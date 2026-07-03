@@ -159,8 +159,8 @@ class TrazabilidadFlogsService
             'valorAgregado' => $this->txt($row->VALORAGREGADO ?? null),
             'puntadasBordado' => $this->formatearDecimal3($row->PUNTADASBORDADO ?? null),
             'infoAdicional' => $this->txt($row->INFOADICIONAL ?? null),
-            'ancho' => $this->formatearDecimal3($row->ANCHO ?? null),
-            'largo' => $this->formatearDecimal3($row->LARGO ?? null),
+            'ancho' => $this->formatearDecimal2($row->ANCHO ?? null),
+            'largo' => $this->formatearDecimal2($row->LARGO ?? null),
             'pesoAcabado' => $this->formatearDecimal3($row->PESOACABADO ?? null),
             'densidad' => $this->formatearDecimal3($row->DENSIDAD ?? null),
             'inventQty' => $this->formatearDecimal3($row->INVENTQTY ?? null),
@@ -346,6 +346,20 @@ class TrazabilidadFlogsService
         }
 
         return number_format((float) $normalizado, 3, '.', '');
+    }
+
+    private function formatearDecimal2(mixed $valor): string
+    {
+        if (blank($valor) && $valor !== 0 && $valor !== '0') {
+            return '—';
+        }
+
+        $normalizado = str_replace(',', '.', trim((string) $valor));
+        if ($normalizado === '' || ! is_numeric($normalizado)) {
+            return $this->txt($valor) ?: '—';
+        }
+
+        return number_format((float) $normalizado, 2, '.', '');
     }
 
     private function formatearFecha(mixed $fecha): string

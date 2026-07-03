@@ -45,6 +45,24 @@
         '3' => 'flog-estado-badge--todo',
     ];
 
+    $estadosLineaFiltro = [];
+    foreach ($lineas as $linea) {
+        $codigo = (string) ($linea['estadoLineaCodigo'] ?? '');
+        if ($codigo === '') {
+            continue;
+        }
+        if (! isset($estadosLineaFiltro[$codigo])) {
+            $estadosLineaFiltro[$codigo] = [
+                'codigo' => $codigo,
+                'label' => $linea['estadoLinea'] ?? $codigo,
+                'clase' => $estadoLineaBadge[$codigo] ?? 'flog-estado-badge--otro',
+                'count' => 0,
+            ];
+        }
+        $estadosLineaFiltro[$codigo]['count']++;
+    }
+    ksort($estadosLineaFiltro);
+
     $v = fn (?string $valor): string => filled($valor) ? $valor : '—';
 @endphp
 
@@ -161,14 +179,16 @@
             foreach ($empaques as $emp) {
                 if (! empty($emp['imagenUrl'])) {
                     $imagenesFlog[] = [
+                        'tipo' => 'Empaque',
                         'url' => $emp['imagenUrl'],
-                        'caption' => 'Empaque — '.($emp['idEmpaque'] ?? 'Imagen'),
+                        'caption' => $emp['idEmpaque'] ?? 'Imagen',
                     ];
                 }
             }
             foreach ($etiquetas as $etiq) {
                 if (! empty($etiq['imagenUrl'])) {
                     $imagenesFlog[] = [
+                        'tipo' => 'Etiqueta',
                         'url' => $etiq['imagenUrl'],
                         'caption' => $etiq['comentarios'] ?: ($etiq['name'] ?: 'Etiqueta'),
                     ];
@@ -216,9 +236,22 @@
                 @if (! empty($imagenesFlog))
                     <div class="flog-visual-gallery {{ $soloUnaImagen ? 'flog-visual-gallery--solo' : '' }}">
                         @foreach ($imagenesFlog as $img)
-                            <figure class="flog-visual-frame" data-flog-zoom="{{ $img['url'] }}" role="button" tabindex="0" aria-label="{{ $img['caption'] }}">
+                            <figure class="flog-visual-frame" data-flog-zoom="{{ $img['url'] }}" role="button" tabindex="0" aria-label="{{ $img['tipo'] }} — {{ $img['caption'] }}">
+                                <div class="flog-visual-frame__header">
+                                    <span class="flog-visual-frame__tipo">{{ $img['tipo'] }}</span>
+                                </div>
                                 <div class="flog-visual-frame__img-wrap">
-                                    <img src="{{ $img['url'] }}" alt="{{ $img['caption'] }}" loading="lazy">
+                                    <img
+                                        src="{{ $img['url'] }}"
+                                        alt="{{ $img['caption'] }}"
+                                        loading="lazy"
+                                        decoding="async"
+                                        data-flog-img
+                                    >
+                                    <span class="flog-visual-frame__sin-img" hidden aria-hidden="true">
+                                        <i class="fa-regular fa-image"></i>
+                                        <span>Sin imagen</span>
+                                    </span>
                                 </div>
                                 <figcaption class="flog-visual-frame__caption">{{ $img['caption'] }}</figcaption>
                                 <div class="flog-visual-frame__zoom-hint" aria-hidden="true">
@@ -246,6 +279,20 @@
                 <span class="flog-lineas-count">{{ count($lineas) }}</span>
             </header>
             <div class="flog-card__body flog-lineas-wrap">
+                @if (count($lineas) > 0 && count($estadosLineaFiltro) > 0)
+                    <div class="flog-lineas-filtros" role="group" aria-label="Filtrar por estado de línea">
+                        <button type="button" class="flog-lineas-filtro-btn is-active" data-flog-linea-filtro="todos">
+                            <span class="flog-estado-badge flog-estado-badge--todos">Todos</span>
+                            <span class="flog-lineas-filtro-count">{{ count($lineas) }}</span>
+                        </button>
+                        @foreach ($estadosLineaFiltro as $estadoFiltro)
+                            <button type="button" class="flog-lineas-filtro-btn" data-flog-linea-filtro="{{ $estadoFiltro['codigo'] }}">
+                                <span class="flog-estado-badge {{ $estadoFiltro['clase'] }}">{{ $estadoFiltro['label'] }}</span>
+                                <span class="flog-lineas-filtro-count">{{ $estadoFiltro['count'] }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
                 <div class="flog-lineas-scroll" tabindex="0" role="region" aria-label="Tabla de líneas del Flog">
                     <table class="flog-lineas-table">
                         <thead>
@@ -257,7 +304,7 @@
                         </thead>
                         <tbody>
                             @forelse ($lineas as $linea)
-                                <tr>
+                                <tr data-estado-linea="{{ $linea['estadoLineaCodigo'] ?? '' }}">
                                     @foreach ($columnasLineas as $col)
                                         @php
                                             $celda = $linea[$col['key']] ?? '';
@@ -308,6 +355,7 @@
                         </tbody>
                     </table>
                 </div>
+                <p class="flog-lineas-sin-filtro hidden" role="status">Ninguna línea coincide con el estado seleccionado.</p>
             </div>
         </section>
     </div>

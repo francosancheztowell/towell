@@ -582,6 +582,10 @@
             flex-wrap: wrap;
             gap: 0.85rem;
             align-items: stretch;
+            animation: none !important;
+        }
+        .flog-visual-gallery * {
+            animation: none !important;
         }
         .flog-visual-gallery--solo {
             flex: 1 1 auto;
@@ -611,6 +615,19 @@
             border-color: #3b82f6;
             box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15);
         }
+        .flog-visual-frame__header {
+            flex-shrink: 0;
+            padding: 0.55rem 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fff;
+        }
+        .flog-visual-frame__tipo {
+            font-size: 0.6875rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #1d4ed8;
+        }
         .flog-visual-frame__img-wrap {
             flex: 1 1 auto;
             position: relative;
@@ -631,6 +648,29 @@
             height: calc(100% - 1.5rem);
             object-fit: contain;
             object-position: center center;
+        }
+        .flog-visual-frame__img-wrap img.is-broken {
+            display: none;
+        }
+        .flog-visual-frame__sin-img {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            color: #64748b;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            background: #fff;
+        }
+        .flog-visual-frame__sin-img[hidden] {
+            display: none !important;
+        }
+        .flog-visual-frame__sin-img i {
+            font-size: 1.75rem;
+            color: #94a3b8;
         }
         .flog-visual-frame__caption {
             flex-shrink: 0;
@@ -744,6 +784,56 @@
         }
         .flog-lineas-wrap {
             padding: 0 !important;
+        }
+        .flog-lineas-filtros {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fff;
+        }
+        .flog-lineas-filtro-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.15rem 0.35rem 0.15rem 0.15rem;
+            border: 1px solid transparent;
+            border-radius: 9999px;
+            background: transparent;
+            cursor: pointer;
+            transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .flog-lineas-filtro-btn:hover {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+        .flog-lineas-filtro-btn.is-active {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+        }
+        .flog-lineas-filtro-count {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: #64748b;
+            font-variant-numeric: tabular-nums;
+            min-width: 1.1rem;
+            text-align: center;
+        }
+        .flog-lineas-filtro-btn.is-active .flog-lineas-filtro-count {
+            color: #1d4ed8;
+        }
+        .flog-lineas-sin-filtro {
+            margin: 0;
+            padding: 0.75rem 1rem 1rem;
+            font-size: 0.8125rem;
+            color: #64748b;
+            text-align: center;
+        }
+        .flog-lineas-sin-filtro.hidden {
+            display: none;
         }
         .flog-lineas-scroll {
             overflow-x: auto;
@@ -860,6 +950,11 @@
         .flog-estado-badge--otro {
             background: #f1f5f9;
             color: #475569;
+            border-color: #cbd5e1;
+        }
+        .flog-estado-badge--todos {
+            background: #fff;
+            color: #334155;
             border-color: #cbd5e1;
         }
         .flog-lineas-thumb {
@@ -1401,6 +1496,32 @@
             desbloquearScrollPagina();
         }
 
+        function marcarImagenFlogRota(img) {
+            if (!img || img.classList.contains('is-broken')) return;
+            img.classList.add('is-broken');
+            const fallback = img.nextElementSibling;
+            if (fallback?.classList?.contains('flog-visual-frame__sin-img')) {
+                fallback.hidden = false;
+            }
+            const frame = img.closest('.flog-visual-frame');
+            if (frame) {
+                frame.removeAttribute('data-flog-zoom');
+                frame.style.cursor = 'default';
+            }
+        }
+
+        function initImagenesFlog($root) {
+            $root.find('[data-flog-img]').each(function () {
+                if (this.complete && this.naturalWidth === 0) {
+                    marcarImagenFlogRota(this);
+                }
+            });
+        }
+
+        $resultado.on('error', '[data-flog-img]', function () {
+            marcarImagenFlogRota(this);
+        });
+
         $resultado.on('click', '[data-flog-zoom]', function () {
             const $el = $(this);
             const src = $el.data('flog-zoom') || $el.find('img').attr('src');
@@ -1703,6 +1824,32 @@
         let flogsSeq = 0;
 
         let prodFiltroActivo = 'todos';
+        let flogLineaFiltroActivo = 'todos';
+
+        function aplicarFiltroLineasFlog(filtro) {
+            flogLineaFiltroActivo = filtro || 'todos';
+            const $wrap = $('#flogs-contenido .flog-lineas-wrap');
+            if (!$wrap.length) return;
+
+            $wrap.find('.flog-lineas-filtro-btn').each(function () {
+                $(this).toggleClass('is-active', String($(this).data('flog-linea-filtro')) === String(flogLineaFiltroActivo));
+            });
+
+            let visibles = 0;
+            const $filas = $wrap.find('.flog-lineas-table tbody tr[data-estado-linea]');
+            $filas.each(function () {
+                const cod = String($(this).data('estado-linea') ?? '');
+                const visible = flogLineaFiltroActivo === 'todos' || cod === String(flogLineaFiltroActivo);
+                $(this).toggle(visible);
+                if (visible) visibles++;
+            });
+
+            $wrap.find('.flog-lineas-sin-filtro').toggleClass('hidden', visibles > 0 || $filas.length === 0);
+        }
+
+        $resultado.on('click', '.flog-lineas-filtro-btn', function () {
+            aplicarFiltroLineasFlog($(this).data('flog-linea-filtro'));
+        });
 
         function aplicarFiltroProduccion(filter) {
             prodFiltroActivo = filter || 'todos';
@@ -1757,6 +1904,8 @@
                 const $cont = $('#flogs-contenido');
                 if ($cont.length) {
                     $cont.html(data.flogsHtml);
+                    flogLineaFiltroActivo = 'todos';
+                    initImagenesFlog($cont);
                 }
                 restaurarInteraccionScroll();
             } catch (err) {
@@ -1907,6 +2056,8 @@
 
         @if ($hayFlog && ($flogsCargando ?? false))
             cargarFlogs(valoresActuales(), 0);
+        @else
+            initImagenesFlog($('#flogs-contenido'));
         @endif
 
         // Render inicial del resumen de conteos.
