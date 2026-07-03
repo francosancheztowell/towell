@@ -237,48 +237,6 @@
                     </div>
                 @endif
             </div>
-
-            @if (count($etiquetas) > 0)
-                <div class="flog-etiquetas-section">
-                    <h3 class="flog-etiquetas-section__title">Etiquetas (TwFlogsEtiquetasLinea)</h3>
-                    <div class="flog-lineas-scroll" tabindex="0" role="region" aria-label="Tabla de etiquetas del Flog">
-                        <table class="flog-lineas-table flog-etiquetas-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Item</th>
-                                    <th scope="col">Nombre</th>
-                                    <th scope="col">Comentarios</th>
-                                    <th scope="col">Imagen</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($etiquetas as $etiq)
-                                    <tr>
-                                        <td>{{ $v($etiq['itemId'] ?? null) }}</td>
-                                        <td class="flog-lineas-table__celda--larga">{{ $v($etiq['name'] ?? null) }}</td>
-                                        <td class="flog-lineas-table__celda--larga flog-lineas-table__celda--wrap">{{ $v($etiq['comentarios'] ?? null) }}</td>
-                                        <td class="flog-lineas-table__celda--img">
-                                            @if (! empty($etiq['imagenUrl']))
-                                                <button
-                                                    type="button"
-                                                    class="flog-lineas-thumb"
-                                                    data-flog-zoom="{{ $etiq['imagenUrl'] }}"
-                                                    data-flog-zoom-title="Etiqueta — {{ $etiq['itemId'] ?? '' }}"
-                                                    aria-label="Ver imagen etiqueta"
-                                                >
-                                                    <img src="{{ $etiq['imagenUrl'] }}" alt="" loading="lazy" draggable="false">
-                                                </button>
-                                            @else
-                                                —
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            @endif
         </section>
 
         <section class="flog-card" aria-labelledby="flog-titulo-lineas">

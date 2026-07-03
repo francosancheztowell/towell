@@ -546,28 +546,6 @@
             border-top: none;
             padding-top: 0;
         }
-        .flog-etiquetas-section {
-            padding: 0 1.1rem 1.1rem;
-            border-top: 1px solid #e2e8f0;
-        }
-        .flog-etiquetas-section__title {
-            margin: 0.85rem 0 0.65rem;
-            font-size: 0.75rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            color: #475569;
-        }
-        .flog-etiquetas-table {
-            min-width: 100%;
-            width: 100%;
-        }
-        .flog-lineas-table__celda--wrap {
-            white-space: pre-line;
-            max-width: 22rem;
-            overflow: visible;
-            text-overflow: unset;
-        }
         .flog-meta-nota {
             margin-top: 0.15rem;
             padding: 0.6rem 0.7rem;
