@@ -19,11 +19,9 @@ class UrdBpmLineController extends Controller
 
         // Obtener MaquinaId de sesión o de líneas existentes para determinar qué actividades cargar
         $maquinaIdPreview = UrdBpmLineModel::where('Folio', $folio)->value('MaquinaId') ?? session('bpm_maquina_id');
-        $actividades = UrdActividadesBpmModel::when(
-            $maquinaIdPreview === 'KM1',
-            fn($q) => $q->whereBetween('Id', [11, 20]),
-            fn($q) => $q->whereBetween('Id', [1, 10])
-        )->orderBy('Orden')->get();
+        $actividades = UrdActividadesBpmModel::where('Maquina', $maquinaIdPreview === 'KM1' ? 'KM' : 'MC')
+            ->orderBy('Orden')
+            ->get();
 
         // Verificar si ya existen registros para este folio
         $existingLines = UrdBpmLineModel::where('Folio', $folio)->count();
