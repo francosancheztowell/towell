@@ -13,6 +13,11 @@
             title="Peso Muestra" aria-label="Mostrar alerta">
             Peso M
         </button>
+        <button type="button" onclick="mostrarModalLMat()"
+            class="w-28 h-9 flex items-center justify-center p-4 bg-indigo-500 text-white hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+            title="Lista de materiales" aria-label="Mostrar lista de materiales">
+            L Mat
+        </button>
         <button id="btn-filtrar" onclick="filtrarCodificacion()"
             class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
             title="Filtrar" aria-label="Filtrar">
@@ -1019,6 +1024,106 @@
                             console.error('Error al guardar:', error);
                         }
                     }
+                });
+            }
+
+            function mostrarModalLMat() {
+                if (typeof Swal === 'undefined') {
+                    internalToast('SweetAlert2 no está cargado.', 'warning');
+                    return;
+                }
+
+                const registroSeleccionado = state.selectedRowIndex !== null && state.selectedRowIndex !== undefined
+                    ? state.filtered[state.selectedRowIndex]
+                    : null;
+
+                const orden = registroSeleccionado?.OrdenTejido || '';
+                const salon = registroSeleccionado?.Departamento || '';
+                const tamano = registroSeleccionado?.InventSizeId || 'Tamaño';
+                const articulo = registroSeleccionado?.Nombre || registroSeleccionado?.ItemId || 'Nombre Articulo';
+                const codigoDibujo = registroSeleccionado?.CodigoDibujo || 'Cod Dibujo';
+                const pesoCrudo = registroSeleccionado?.P_crudo || registroSeleccionado?.PesoCrudo || 737;
+
+                const articulos = [
+                    { articulo: 'JU-ENG-RI-C', config: 'Cuenta RI + Calibre', tamano: '', color: '1000', almacen: 'A-EP-TEJID', cantidad: 0.384, porcentaje: '52.1%' },
+                    { articulo: 'JU-ENG-PI-C', config: 'Cuenta PI + Calibre', tamano: '', color: '1000', almacen: 'A-EP-TEJID', cantidad: 0.171, porcentaje: '23.3%' },
+                    { articulo: '10.1', config: 'ENTERO', tamano: '', color: '1000', almacen: 'A-PTE-JACQ', cantidad: 0.146, porcentaje: '19.8%' },
+                    { articulo: '600.1', config: 'ENTERO', tamano: '', color: '1000', almacen: 'A-PTE-JACQ', cantidad: 0.005, porcentaje: '0.7%' },
+                    { articulo: '10.1', config: 'ENTERO', tamano: '', color: '1000', almacen: 'A-PTE-JACQ', cantidad: 0.031, porcentaje: '4.2%' },
+                    { articulo: '0', config: 'ENTERO', tamano: '', color: '1000', almacen: 'A-PTE-JACQ', cantidad: 0, porcentaje: '0.0%' },
+                    { articulo: '0', config: 'ENTERO', tamano: '', color: '1000', almacen: 'A-PTE-JACQ', cantidad: 0, porcentaje: '0.0%' },
+                    { articulo: '0', config: 'ENTERO', tamano: '', color: '1000', almacen: 'A-PTE-JACQ', cantidad: 0, porcentaje: '0.0%' },
+                ];
+
+                const filas = articulos.map(item => `
+                    <tr class="border-b border-gray-100">
+                        <td class="px-3 py-2 font-medium text-gray-900">${item.articulo}</td>
+                        <td class="px-3 py-2 text-gray-700">${item.config}</td>
+                        <td class="px-3 py-2 text-gray-700">${item.tamano}</td>
+                        <td class="px-3 py-2 text-center text-gray-700">${item.color}</td>
+                        <td class="px-3 py-2 text-gray-700">${item.almacen}</td>
+                        <td class="px-3 py-2 text-right tabular-nums text-gray-900">${item.cantidad.toFixed(3)}</td>
+                        <td class="px-3 py-2 text-right tabular-nums text-gray-900">${item.porcentaje}</td>
+                    </tr>
+                `).join('');
+
+                Swal.fire({
+                    title: 'L Mat',
+                    html: `
+                        <div class="text-left text-sm text-gray-800">
+                            <div class="grid grid-cols-2 gap-x-8 gap-y-3 mb-5">
+                                <div class="grid grid-cols-[90px_1fr] gap-2">
+                                    <span class="font-semibold text-gray-700">Orden</span>
+                                    <span class="min-h-[22px] border-b border-gray-200">${orden}</span>
+                                </div>
+                                <div class="grid grid-cols-[90px_1fr] gap-2">
+                                    <span class="font-semibold text-gray-700">Salon</span>
+                                    <span class="min-h-[22px] border-b border-gray-200">${salon}</span>
+                                </div>
+                                <div class="grid grid-cols-[90px_1fr] gap-2">
+                                    <span class="font-semibold text-gray-700">Nombre</span>
+                                    <span class="font-medium">TEJ + ${tamano} + ${articulo}</span>
+                                </div>
+                                <div class="grid grid-cols-[90px_1fr] gap-2">
+                                    <span class="font-semibold text-gray-700">Descrip</span>
+                                    <span class="font-medium">${tamano} + ${articulo} + ${codigoDibujo}</span>
+                                </div>
+                                <div class="grid grid-cols-[90px_1fr] gap-2">
+                                    <span class="font-semibold text-gray-700">Peso Crudo</span>
+                                    <span class="font-semibold tabular-nums">${pesoCrudo}</span>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto border border-gray-200 rounded-md">
+                                <table class="min-w-full text-xs">
+                                    <thead class="bg-gray-100 text-gray-700">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-semibold">Articulos</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Config</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Tamaño</th>
+                                            <th class="px-3 py-2 text-center font-semibold">Color</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Almacen</th>
+                                            <th class="px-3 py-2 text-right font-semibold">Cantidad</th>
+                                            <th class="px-3 py-2 text-right font-semibold">Porcentaje</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white">
+                                        ${filas}
+                                    </tbody>
+                                    <tfoot class="bg-gray-50 font-semibold">
+                                        <tr>
+                                            <td class="px-3 py-2" colspan="5"></td>
+                                            <td class="px-3 py-2 text-right tabular-nums">0.737</td>
+                                            <td class="px-3 py-2 text-right tabular-nums">100.0%</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    `,
+                    width: '980px',
+                    confirmButtonText: 'Cerrar',
+                    confirmButtonColor: '#4f46e5',
                 });
             }
 
@@ -2222,6 +2327,7 @@
             //   EXPOSE GLOBAL
             // =========================
             window.mostrarAlertaNavbar         = mostrarAlertaNavbar;
+            window.mostrarModalLMat            = mostrarModalLMat;
             window.filtrarCodificacion         = filtrarCodificacion;
             window.limpiarFiltrosCodificacion  = limpiarFiltrosCodificacion;
             window.removeFilterFromModal       = removeFilterFromModal;
