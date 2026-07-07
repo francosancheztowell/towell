@@ -687,7 +687,7 @@
         qs('#contextMenuEditar')?.addEventListener('click', () => {
           hide();
           if (typeof window.editarFilaSeleccionada === 'function') window.editarFilaSeleccionada();
-          else toast('EdiciÃ³n inline no disponible', 'info');
+          else toast('Edición inline no disponible', 'info');
         });
 
         // Abrir catÃ¡logo de CodificaciÃ³n en nueva ventana
@@ -721,7 +721,6 @@
           hide();
           if (row) {
             const id = row.getAttribute('data-id');
-            console.log('[PT eliminar] row.data-id=' + id + ' menuRow=' + (menuRow ? menuRow.getAttribute('data-id') : 'null') + ' selectedRowIndex=' + window.selectedRowIndex);
             if (id && typeof window.eliminarRegistro === 'function') {
               window.eliminarRegistro(id);
             } else {
@@ -1263,12 +1262,6 @@
         }
       });
 
-      console.log('[applyColumnFilterManual] Filtros aplicados:', {
-        column: columnField,
-        selectedValues: selectedValues,
-        filters: filters.filter(f => f.column === columnField)
-      });
-
       // Asegurar que window.filters también esté actualizado
       window.filters = filters;
 
@@ -1340,14 +1333,6 @@
               const matches = columnFilters.some(filter => {
                 const result = checkFilterMatch(cellValue, filter);
                 // Debug solo para la primera columna filtrada
-                if (column === columnField && !result) {
-                  console.log('[applyColumnFilterManual] No match:', {
-                    column: column,
-                    cellValue: cellValue,
-                    filterValue: filter.value,
-                    operator: filter.operator
-                  });
-                }
                 return result;
               });
               return matches;
@@ -1802,7 +1787,6 @@
         if (!rowCheck) {
           console.warn('[PT eliminar] ADVERTENCIA: la fila con data-id=' + id + ' no existe en DOM. Esto puede indicar un ID incorrecto.');
         }
-        console.log('[PT eliminar] Enviando DELETE id=' + id + ' tipo=' + typeof id);
         PT.loader.show();
         performDeleteFetch()
           .then(data => {
@@ -2078,7 +2062,7 @@
           window.showToast('Edición activada en la fila seleccionada', 'success');
         }
       } else {
-        toast('EdiciÃ³n inline no disponible', 'error');
+        toast('Edición inline no disponible', 'error');
       }
     };
 

@@ -524,6 +524,7 @@ class CatCodificacionController extends Controller
                 ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
                 ->where('BV.ITEMID', $itemIdWithSuffix)
                 ->where('BT.ITEMGROUPID', 'CRUDO')
+                ->where('BT.Vigente', 1)
                 ->whereIn('BT.TwSalon', ['SMIT', 'JACQUARD']);
 
             // Solo filtrar por tamaño si viene informado (igual que LiberarOrdenesController)

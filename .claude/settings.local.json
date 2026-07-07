@@ -35,7 +35,12 @@
       "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php tests/Unit/BalancearTejidoTest.php)",
       "Bash(php -l tests/Unit/BalancearTejidoTest.php)",
       "Bash(vendor/bin/phpunit tests/Feature)",
-      "Bash(vendor/bin/phpunit tests/Feature/ProgramaTejidoIndexSmokeTest.php tests/Feature/ProgramaTejidoSmokeTest.php)"
+      "Bash(vendor/bin/phpunit tests/Feature/ProgramaTejidoIndexSmokeTest.php tests/Feature/ProgramaTejidoSmokeTest.php)",
+      "Bash(git stash *)",
+      "Bash(php -l app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "Bash(php -l app/Models/Planeacion/Catalogos/CatLMat.php)"
     ]
   }
 }

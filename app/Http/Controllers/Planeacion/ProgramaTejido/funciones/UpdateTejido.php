@@ -14,6 +14,7 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 
 class UpdateTejido
@@ -605,56 +606,72 @@ class UpdateTejido
 
         $registro->saveQuietly();
 
-        // Sincronizar campos editables hacia CatCodificados (TamanoClave→ClaveModelo, ItemId, TotalPedido→Pedido,
-        // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
-        // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
+        // ===== Transacción única: si la cascada o regeneración fallan, también se revierte saveQuietly().
+        //      Antes, saveQuietly() commiteaba solo y cascadeFechas() rollbackaba solo su savepoint,
+        //      dejando el registro actualizado con la cascada del telar inconsistente. =====
+        DBFacade::beginTransaction();
         try {
-            $observer = new \App\Observers\ReqProgramaTejidoObserver();
-            $observer->sincronizarCatCodificados($registro);
+            // Sincronizar campos editables hacia CatCodificados (TamanoClave→ClaveModelo, ItemId, TotalPedido→Pedido,
+            // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
+            // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
+            try {
+                $observer = new \App\Observers\ReqProgramaTejidoObserver();
+                $observer->sincronizarCatCodificados($registro);
 
-            // Si cambió un input que afecta la cadena de fórmulas, recalcular Repeticiones/PzasRollo/
-            // MtsRollo/TotalRollos/TotalPzas/SaldoMarbete tanto en ReqProgramaTejido como en CatCodificados.
-            $cambioInputFormula = false;
-            foreach (\App\Observers\ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
-                if ($registro->wasChanged($campo)) {
-                    $cambioInputFormula = true;
-                    break;
+                // Si cambió un input que afecta la cadena de fórmulas, recalcular Repeticiones/PzasRollo/
+                // MtsRollo/TotalRollos/TotalPzas/SaldoMarbete tanto en ReqProgramaTejido como en CatCodificados.
+                $cambioInputFormula = false;
+                foreach (\App\Observers\ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
+                    if ($registro->wasChanged($campo)) {
+                        $cambioInputFormula = true;
+                        break;
+                    }
+                }
+                if ($cambioInputFormula) {
+                    $observer->recalcularFormulasProduccion($registro);
+                }
+            } catch (\Throwable $e) {
+                LogFacade::warning('UpdateTejido: sincronizarCatCodificados/recalc error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
+            }
+
+            // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====
+            if ($fechaFinalCambiada && (int) ($registro->Ultimo ?? 0) !== 1) {
+                // cascadeFechas rethrowa: relanzar para que la transacción externa revierte saveQuietly().
+                // No tragar: la inconsistencia "registro actualizado / cascada rollback" es peor que fallar limpio.
+                DateHelpers::cascadeFechas($registro);
+            }
+
+            // ===== 7) Líneas (solo si cambió planeación) =====
+            $necesitaLineas = $afectaCalendario || $afectaDuracion || $fechaFinalCambiada || $fechaFinalManual;
+
+            if ($necesitaLineas) {
+                try {
+                    ReqProgramaTejido::regenerarLineas([$registro]);
+                } catch (\Throwable $e) {
+                    LogFacade::warning('UpdateTejido: observer saved error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
                 }
             }
-            if ($cambioInputFormula) {
-                $observer->recalcularFormulasProduccion($registro);
+
+            // ===== 8) Actualizar Aplicacion en líneas existentes (solo si cambió aplicación y NO se regeneraron líneas) =====
+            if ($afectaAplicacion && ! $necesitaLineas) {
+                try {
+                    self::actualizarAplicacionEnLineas($registro);
+                } catch (\Throwable $e) {
+                    LogFacade::warning('UpdateTejido: actualizarAplicacionEnLineas error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
+                }
             }
+
+            DBFacade::commit();
         } catch (\Throwable $e) {
-            LogFacade::warning('UpdateTejido: sincronizarCatCodificados/recalc error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
-        }
+            DBFacade::rollBack();
+            LogFacade::error('UpdateTejido: transacción fallida, saveQuietly revertido', [
+                'id' => $id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString(),
+            ]);
 
-        // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====
-        if ($fechaFinalCambiada && (int) ($registro->Ultimo ?? 0) !== 1) {
-            try {
-                DateHelpers::cascadeFechas($registro);
-            } catch (\Throwable $e) {
-                LogFacade::warning('UpdateTejido: cascadeFechas error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
-            }
-        }
-
-        // ===== 7) Líneas (solo si cambió planeación) =====
-        $necesitaLineas = $afectaCalendario || $afectaDuracion || $fechaFinalCambiada || $fechaFinalManual;
-
-        if ($necesitaLineas) {
-            try {
-                ReqProgramaTejido::regenerarLineas([$registro]);
-            } catch (\Throwable $e) {
-                LogFacade::warning('UpdateTejido: observer saved error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
-            }
-        }
-
-        // ===== 8) Actualizar Aplicacion en líneas existentes (solo si cambió aplicación y NO se regeneraron líneas) =====
-        if ($afectaAplicacion && ! $necesitaLineas) {
-            try {
-                self::actualizarAplicacionEnLineas($registro);
-            } catch (\Throwable $e) {
-                LogFacade::warning('UpdateTejido: actualizarAplicacionEnLineas error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
-            }
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo actualizar el programa de tejido (cascada de fechas o regeneración de líneas falló): '.$e->getMessage(),
+            ], 500);
         }
 
         $registro = $registro->fresh(); // para devolver lo definitivo

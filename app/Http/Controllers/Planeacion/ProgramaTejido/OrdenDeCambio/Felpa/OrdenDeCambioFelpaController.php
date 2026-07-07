@@ -1491,12 +1491,11 @@ class OrdenDeCambioFelpaController extends Controller
                 : null;
             $catCodificado->Repeticiones = $repeticiones;
 
-            // NoMarbete viene de la fórmula AY (TRUNCAR(O/AW/AX)) calculada en el Excel
-            // Debe venir de $datosRegistro que ya tiene el valor calculado de la fórmula
-            $noMarbete = isset($datosRegistro['no_marbetes']) && is_numeric($datosRegistro['no_marbetes'])
+            // NoMarbete: prioriza el valor definitivo ya guardado en ReqProgramaTejido.SaldoMarbete
+            // (mismo patrón que PzasRollo), solo cae a datosRegistro (fórmula AY) si viene null.
+            $catCodificado->NoMarbete = $registro->SaldoMarbete ?? (isset($datosRegistro['no_marbetes']) && is_numeric($datosRegistro['no_marbetes'])
                 ? (float) $datosRegistro['no_marbetes']
-                : null;
-            $catCodificado->NoMarbete = $noMarbete;
+                : null);
             $catCodificado->CambioRepaso = $registro->CambioHilo ?? 'NO';
             $catCodificado->Vendedor = null;
             $catCodificado->NoOrden = $registro->NoProduccion ?? null;

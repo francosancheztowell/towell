@@ -590,8 +590,6 @@ async function redirectToRegistro(data) {
 	                                (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 1) ||
 	                                (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length >= 1);
 
-	console.log('[DEBUG] tieneMultiplesRegistros:', tieneMultiplesRegistros);
-
 	if (tieneMultiplesRegistros) {
 		// Preferir usar registros_ids si está disponible (más confiable)
 		// En dividir: registros_ids = solo los nuevos; el original se actualiza con actualizarRegistroOriginalDividir

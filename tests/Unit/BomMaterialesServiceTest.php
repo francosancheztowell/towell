@@ -46,6 +46,7 @@ class BomMaterialesServiceTest extends TestCase
             $table->string('BOMID', 80);
             $table->string('DATAAREAID', 10);
             $table->string('ITEMGROUPID', 20);
+            $table->boolean('Vigente')->default(true);
         });
     }
 

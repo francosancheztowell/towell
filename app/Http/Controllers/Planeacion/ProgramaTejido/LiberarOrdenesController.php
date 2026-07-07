@@ -741,6 +741,7 @@ class LiberarOrdenesController extends Controller
                     ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
                     ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
                     ->where('BT.ITEMGROUPID', 'CRUDO')
+                    ->where('BT.Vigente', 1)
                     ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
                     ->where(function ($query) use ($pairs) {
                         foreach ($pairs as $pair) {
@@ -811,6 +812,7 @@ class LiberarOrdenesController extends Controller
                 ->where('BV.ITEMID', $itemIdWithSuffix)
                 ->where('BT.ITEMGROUPID', 'CRUDO')
                 ->where('BT.TWINVENTSIZEID', $inventSizeId)
+                ->where('BT.Vigente', 1)
                 ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES);
 
             if ($term !== '') {
@@ -850,6 +852,7 @@ class LiberarOrdenesController extends Controller
             ->table('BOMTABLE as BT')
             ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
             ->where('BT.ITEMGROUPID', 'CRUDO')
+            ->where('BT.Vigente', 1)
             ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES);
 
         // Filtrar por tamaño si está disponible
@@ -1463,6 +1466,14 @@ class LiberarOrdenesController extends Controller
                 }
             }
         } catch (\Throwable $e) {
+            // Antes este catch estaba vacío y los errores de sync ReqModelosCodificados se perdían en
+            // silencio: el registro de ReqProgramaTejido quedaba commiteado pero su espejo en el
+            // catálogo no, generando inconsistencia silenciosa. Ver auditoría QW9.
+            Log::warning('LiberarOrdenes: actualizarReqModelosCodificados falló (sync ReqModelosCodificados)', [
+                'registro_id' => $registro->Id ?? null,
+                'no_produccion' => $registro->NoProduccion ?? null,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

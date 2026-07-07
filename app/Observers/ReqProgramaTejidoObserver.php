@@ -551,7 +551,6 @@ class ReqProgramaTejidoObserver
             // Usar la misma conexión que el programa (evita conflictos de visibilidad/auditoría en SQL Server)
             $connection = $programa->getConnection();
             $tableLine = ReqProgramaTejidoLine::tableName();
-            $connection->table($tableLine)->where('ProgramaId', $programa->Id)->delete();
 
             $lineasParaInsertar = [];
 
@@ -636,40 +635,47 @@ class ReqProgramaTejidoObserver
                 }
             }
 
-            if (!empty($lineasParaInsertar)) {
-                // Determinar la conexión para insertar las líneas.
-                // pdo_sqlsrv/ODBC puede no ver registros recién insertados en la misma sesión
-                // (incluso dentro de la misma transacción), así que probamos varias estrategias.
-                $connParaInsert = $connection;
+            // Determinar la conexión para insertar las líneas.
+            // pdo_sqlsrv/ODBC puede no ver registros recién insertados en la misma sesión
+            // (incluso dentro de la misma transacción), así que probamos varias estrategias.
+            $connParaInsert = $connection;
 
-                // Si el modelo fue save()-ado exitosamente (exists=true, Id>0), confiar en él
-                // e intentar el insert directamente sin verificar EXISTS.
-                // Si no tiene exists=true, verificar visibilidad como safety net.
-                if (!$programa->exists) {
-                    $parentExists = $connection->table(ReqProgramaTejido::tableName())
+            // Si el modelo fue save()-ado exitosamente (exists=true, Id>0), confiar en él
+            // e intentar el insert directamente sin verificar EXISTS.
+            // Si no tiene exists=true, verificar visibilidad como safety net.
+            if (!$programa->exists) {
+                $parentExists = $connection->table(ReqProgramaTejido::tableName())
+                    ->where('Id', $programa->Id)
+                    ->exists();
+
+                if (!$parentExists) {
+                    $parentExists = \Illuminate\Support\Facades\DB::table(ReqProgramaTejido::tableName())
                         ->where('Id', $programa->Id)
                         ->exists();
-
-                    if (!$parentExists) {
-                        $parentExists = \Illuminate\Support\Facades\DB::table(ReqProgramaTejido::tableName())
-                            ->where('Id', $programa->Id)
-                            ->exists();
-                        if ($parentExists) {
-                            $connParaInsert = \Illuminate\Support\Facades\DB::connection();
-                        } else {
-                            Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias: registro padre no visible, omitiendo líneas', [
-                                'programa_id' => $programa->Id,
-                            ]);
-                            return;
-                        }
+                    if ($parentExists) {
+                        $connParaInsert = \Illuminate\Support\Facades\DB::connection();
+                    } else {
+                        Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias: registro padre no visible, omitiendo líneas', [
+                            'programa_id' => $programa->Id,
+                        ]);
+                        return;
                     }
                 }
-
-                $chunks = array_chunk($lineasParaInsertar, 500);
-                foreach ($chunks as $chunk) {
-                    $connParaInsert->table($tableLine)->insert($chunk);
-                }
             }
+
+            // ===== Transacción: DELETE + INSERT atómicos.
+            //      Antes, si el proceso moría tras el DELETE, la pista quedaba con 0 líneas (silenciosamente).
+            //      Ahora cualquier fallo entre el DELETE y el último chunk revierte todo. =====
+            $connParaInsert->transaction(function () use ($connParaInsert, $tableLine, $programa, $lineasParaInsertar): void {
+                $connParaInsert->table($tableLine)->where('ProgramaId', $programa->Id)->delete();
+
+                if (!empty($lineasParaInsertar)) {
+                    $chunks = array_chunk($lineasParaInsertar, 500);
+                    foreach ($chunks as $chunk) {
+                        $connParaInsert->table($tableLine)->insert($chunk);
+                    }
+                }
+            });
 
         } catch (Throwable $e) {
             Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias error', [

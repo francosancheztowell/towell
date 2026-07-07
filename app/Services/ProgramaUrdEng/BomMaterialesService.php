@@ -21,6 +21,7 @@ class BomMaterialesService
         $q = DB::connection(self::CONN)->table('BOMTABLE as bt')
             ->where('bt.DATAAREAID', self::DATAAREA)
             ->where('bt.ITEMGROUPID', 'JUL-URD')
+            ->where('bt.Vigente', 1)
             ->where('bt.BOMID', 'LIKE', 'URD %');
 
         if (strlen($query) >= 1) {
@@ -39,6 +40,7 @@ class BomMaterialesService
         $q = DB::connection(self::CONN)->table('BOMTABLE as bt')
             ->where('bt.ITEMGROUPID', 'JUL-ENG')
             ->where('bt.DATAAREAID', self::DATAAREA)
+            ->where('bt.Vigente', 1)
             ->where('bt.BOMID', 'LIKE', 'ENG %');
 
         if (strlen($query) >= 1) {
@@ -586,6 +588,7 @@ class BomMaterialesService
                 ->where('BV.DATAAREAID', self::DATAAREA)
                 ->whereIn('BV.ItemId', $parentItemIds)
                 ->where('BT.ITEMGROUPID', 'JUL-ENG')
+                ->where('BT.Vigente', 1)
                 ->where('BT.BOMID', 'like', 'ENG %')
                 ->distinct()
                 ->pluck('BV.BomId')

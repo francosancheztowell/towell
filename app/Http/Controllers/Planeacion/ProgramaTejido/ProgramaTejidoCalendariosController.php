@@ -20,7 +20,7 @@ use Illuminate\Validation\ValidationException;
  * @file ProgramaTejidoCalendariosController.php
  * @description Controlador de calendarios para Programa Tejido. Actualización masiva de calendarios,
  *              reprogramar registro, recalcular fechas. Regla: EnProceso no permite edición de fechas.
- * @dependencies CalendarioController, BalancearTejido, ReqProgramaTejido, ReqProgramaTejidoObserver
+ * @dependencies CalendarioController, BalancearTejido, ReqProgramaTejido
  */
 class ProgramaTejidoCalendariosController extends Controller
 {
@@ -102,7 +102,6 @@ class ProgramaTejidoCalendariosController extends Controller
                 $calendarioController = new CalendarioController();
                 $prevFin = null;
                 $prevTelar = null;
-                $observer = new ReqProgramaTejidoObserver();
 
                 foreach ($registros as $p) {
                     try {

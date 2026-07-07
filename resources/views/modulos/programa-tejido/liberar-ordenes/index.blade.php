@@ -1374,7 +1374,7 @@ function initLiberarContextMenuHeader() {
 
 // Funciones para fijar columnas
 function openPinColumnsModal() {
-    const columns = @json($columns);
+    const columns = liberarOrdenesColumnsList;
     const pinned = pinnedColumns;
 
     const columnOptions = columns.map((col, index) => {
@@ -1501,7 +1501,7 @@ function updatePinnedColumnsPositions() {
 
 // Funciones para ocultar columnas
 function openHideColumnsModal() {
-    const columns = @json($columns);
+    const columns = liberarOrdenesColumnsList;
     const hidden = hiddenColumns;
 
     const columnOptions = columns.map((col, index) => {
@@ -1585,7 +1585,7 @@ function toggleFilters() {
 
 /** Abre el modal de filtros. Opcional: preSelectColumnField = campo de columna a preseleccionar (desde menú contextual). */
 function openFiltersModal(preSelectColumnField) {
-    const columns = @json($columns);
+    const columns = liberarOrdenesColumnsList;
     const filteredColumns = columns.filter(c => c.field !== 'select' && c.field !== 'prioridad');
 
     // Construir HTML de filtros activos

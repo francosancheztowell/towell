@@ -70,6 +70,7 @@ class ProcesarDesarrolladorService
                     ->first();
 
                 $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
+                $detallePayload = $this->aplicarDetalleDesdeRequest($detallePayload, $validated);
                 $pasadasPayload = $this->buildPasadasPayload($validated['pasadas'] ?? [], $ordenData);
 
                 $modeloDestino = $this->resolverModeloDestinoYCopiaSiAplica(
@@ -260,6 +261,16 @@ class ProcesarDesarrolladorService
             'CodificacionModelo' => 'required|string|max:100',
             'pasadas' => 'nullable|array',
             'pasadas.*' => 'nullable|integer|min:1',
+            'detalle_calibre' => 'nullable|array',
+            'detalle_calibre.*' => 'nullable|string|max:50',
+            'detalle_hilo' => 'nullable|array',
+            'detalle_hilo.*' => 'nullable|numeric|min:0',
+            'detalle_fibra' => 'nullable|array',
+            'detalle_fibra.*' => 'nullable|string|max:100',
+            'detalle_codcolor' => 'nullable|array',
+            'detalle_codcolor.*' => 'nullable|string|max:50',
+            'detalle_nombrecolor' => 'nullable|array',
+            'detalle_nombrecolor.*' => 'nullable|string|max:100',
             'CambioTelarActivo' => 'nullable|boolean',
             'TelarDestino' => 'nullable|string|max:120',
         ]);
@@ -707,11 +718,6 @@ class ProcesarDesarrolladorService
             return;
         }
 
-        $codigoPrevioModelo = trim((string) ($registroModelo->CodigoDibujo ?? $registroModelo->CodificacionModelo ?? ''));
-        if ($codigoPrevioModelo !== '') {
-            return;
-        }
-
         $payloadModelo = array_merge([
             'TamanoClave' => $claveModelo,
             'SalonTejidoId' => $salonDestino,
@@ -996,6 +1002,94 @@ class ProcesarDesarrolladorService
         }
 
         return $payload;
+    }
+
+    /**
+     * Sobrescribe $detallePayload con lo que el usuario editó en la tabla "Detalles de la Orden"
+     * (detalle_calibre[]/detalle_hilo[]/detalle_fibra[]/detalle_codcolor[]/detalle_nombrecolor[]).
+     * Cada fila se relaciona con su slot (Trama / Comb1..5) por la posición de su llave en
+     * pasadas[], que ya viene nombrada igual que la columna (PasadasTramaFondoC1, PasadasCombN).
+     * Si no hay forma de emparejar filas 1 a 1 con llaves de pasadas, no se sobrescribe nada
+     * (se conservan los valores de la orden) para no mezclar datos de slots equivocados.
+     */
+    private function aplicarDetalleDesdeRequest(array $detallePayload, array $validated): array
+    {
+        $calibres = $validated['detalle_calibre'] ?? [];
+        $hilos = $validated['detalle_hilo'] ?? [];
+        $fibras = $validated['detalle_fibra'] ?? [];
+        $codColores = $validated['detalle_codcolor'] ?? [];
+        $nombreColores = $validated['detalle_nombrecolor'] ?? [];
+
+        if (empty($calibres) && empty($hilos) && empty($fibras) && empty($codColores) && empty($nombreColores)) {
+            return $detallePayload;
+        }
+
+        $pasadasKeys = array_keys($validated['pasadas'] ?? []);
+        $total = count($calibres);
+        if ($total === 0 || $total !== count($pasadasKeys)) {
+            Log::warning('Detalle de orden ignorado: no se pudo emparejar con pasadas[]', [
+                'total_detalle' => $total,
+                'total_pasadas_keys' => count($pasadasKeys),
+            ]);
+
+            return $detallePayload;
+        }
+
+        $valor = static function (array $arr, int $i) {
+            $v = $arr[$i] ?? null;
+            $v = is_string($v) ? trim($v) : $v;
+
+            return ($v === null || $v === '') ? null : $v;
+        };
+
+        for ($i = 0; $i < $total; $i++) {
+            $key = $pasadasKeys[$i];
+            $calibre = $valor($calibres, $i);
+            $hilo = $valor($hilos, $i);
+            $fibra = $valor($fibras, $i);
+            $codColor = $valor($codColores, $i);
+            $nombreColor = $valor($nombreColores, $i);
+
+            if ($key === 'PasadasTramaFondoC1' || $key === 'PasadasTrama') {
+                if ($calibre !== null) {
+                    $detallePayload['Tra'] = $calibre;
+                    $detallePayload['CalTramaFondoC1'] = $calibre;
+                }
+                if ($fibra !== null) {
+                    $detallePayload['FibraId'] = $fibra;
+                    $detallePayload['FibraTramaFondoC1'] = $fibra;
+                }
+                if ($codColor !== null) {
+                    $detallePayload['CodColorTrama'] = $codColor;
+                }
+                if ($nombreColor !== null) {
+                    $detallePayload['ColorTrama'] = $nombreColor;
+                }
+                if ($hilo !== null) {
+                    $detallePayload['HiloAX'] = $hilo;
+                }
+
+                continue;
+            }
+
+            if (preg_match('/^PasadasComb([1-5])$/', $key, $m)) {
+                $n = $m[1];
+                if ($calibre !== null) {
+                    $detallePayload["CalibreComb{$n}"] = $calibre;
+                }
+                if ($fibra !== null) {
+                    $detallePayload["FibraComb{$n}"] = $fibra;
+                }
+                if ($codColor !== null) {
+                    $detallePayload["CodColorC{$n}"] = $codColor;
+                }
+                if ($nombreColor !== null) {
+                    $detallePayload["NomColorC{$n}"] = $nombreColor;
+                }
+            }
+        }
+
+        return $detallePayload;
     }
 
     private function calcularMinutosCambio(?string $horaInicio, ?string $horaFinal): ?int

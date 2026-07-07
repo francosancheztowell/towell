@@ -49,6 +49,9 @@ class VincularTejido
             ], 404);
         }
 
+        // ¿El primer registro ya pertenecía a un grupo OrdCompartida? Determina el mensaje final.
+        $primerTieneOrdCompartida = filled($primerRegistro->OrdCompartida);
+
         // OrdCompartida = NoProduccion del primer registro seleccionado (líder propuesto).
         // El líder DEBE tener NoProduccion; los demás registros pueden o no tenerlo
         // y conservan su propio NoProduccion (solo se sobrescribe OrdCompartida).
@@ -368,7 +371,15 @@ class VincularTejido
     {
         $modelo = new CatCodificados;
         $table = $modelo->getTable();
-        $columns = Schema::getColumnListing($table);
+
+        // Cache estático del listado de columnas (introspección INFORMATION_SCHEMA costosa en SQL Server).
+        // La estructura de la tabla no cambia entre llamadas del mismo request.
+        static $columnsCache = [];
+        if (! isset($columnsCache[$table])) {
+            $columnsCache[$table] = Schema::getColumnListing($table);
+        }
+        $columns = $columnsCache[$table];
+
         $query = CatCodificados::query();
         $hasKeyFilter = false;
 
