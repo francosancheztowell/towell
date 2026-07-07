@@ -434,6 +434,13 @@
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"></textarea>
                         </div>
                     </div>
+
+                    <div class="flex justify-end mt-4">
+                        <button type="button" id="btnGuardarDevolucion" onclick="guardarDevolucion()"
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-save mr-1"></i> Guardar Devolución
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -500,10 +507,16 @@
             const currentNoJulio = {!! json_encode($montadoTelas->first()->NoJulio ?? null) !!};
             const currentNoOrden = {!! json_encode($montadoTelas->first()->NoProduccion ?? null) !!};
             const esSoloLectura = {!! json_encode($montadoTelas->first()->Estatus === 'Autorizado') !!};
+            const currentRefId = {!! json_encode($montadoTelas->first()->Id ?? null) !!};
+            const currentTelar = {!! json_encode($montadoTelas->first()->NoTelarId ?? null) !!};
+            const currentLote = {!! json_encode($montadoTelas->first()->LoteProveedor ?? null) !!};
         @else
             const currentNoJulio = null;
             const currentNoOrden = null;
             const esSoloLectura = false;
+            const currentRefId = null;
+            const currentTelar = null;
+            const currentLote = null;
         @endif
 
     // Información de actividades para validación
@@ -520,6 +533,85 @@
             const panel = document.getElementById('devolucionPanel');
             if (!panel) return;
             panel.classList.toggle('hidden', !checked);
+
+            // Al abrir, prellenar campos informativos si están vacíos
+            if (checked) {
+                const setSiVacio = (id, valor) => {
+                    const el = document.getElementById(id);
+                    if (el && !el.value && valor != null) el.value = valor;
+                };
+                setSiVacio('dev_telar', currentTelar);
+                setSiVacio('dev_lote', currentLote);
+                setSiVacio('dev_no_julio', currentNoJulio);
+                const fecha = document.getElementById('dev_fecha');
+                if (fecha && !fecha.value) {
+                    fecha.value = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+                }
+            }
+        }
+
+        function guardarDevolucion() {
+            if (!currentRefId) {
+                Swal.fire({ icon: 'error', title: 'Sin atado', text: 'No hay un atado asociado para registrar la devolución.' });
+                return;
+            }
+
+            const val = (id) => {
+                const el = document.getElementById(id);
+                return el ? el.value.trim() : '';
+            };
+
+            const kilos = val('dev_kilos');
+            const metros = val('dev_metros');
+            if ((kilos === '' || parseFloat(kilos) <= 0) && (metros === '' || parseFloat(metros) <= 0)) {
+                Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'Captura al menos Kilos o Metros para registrar la devolución.' });
+                return;
+            }
+
+            const payload = {
+                ref_id: currentRefId,
+                no_julio: val('dev_no_julio') || null,
+                no_produccion: currentNoOrden || null,
+                kilos: kilos !== '' ? parseFloat(kilos) : null,
+                metros: metros !== '' ? parseFloat(metros) : null,
+                ubicacion: val('dev_ubicacion') || null,
+                fecha_devol: val('dev_fecha') || null,
+                cuenta: val('dev_cuenta') || null,
+                calibre: val('dev_calibre') || null,
+                hilo: val('dev_hilo') || null,
+                tipo: val('dev_tipo') || null,
+                obs: val('dev_obs') || null,
+            };
+
+            const btn = document.getElementById('btnGuardarDevolucion');
+            if (btn) btn.disabled = true;
+
+            fetch('{{ route('atadores.devoluciones.store') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.ok) {
+                        Swal.fire({ icon: 'success', title: 'Devolución registrada', timer: 1500, showConfirmButton: false });
+                        // Limpiar campos capturables y cerrar el panel
+                        ['dev_ubicacion', 'dev_cuenta', 'dev_lote', 'dev_metros', 'dev_calibre', 'dev_tipo', 'dev_kilos', 'dev_hilo', 'dev_obs'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) el.value = '';
+                        });
+                        const chk = document.getElementById('chkDevolucion');
+                        if (chk) chk.checked = false;
+                        toggleDevolucion(false);
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo registrar la devolución' });
+                    }
+                })
+                .catch(() => Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo conectar con el servidor.' }))
+                .finally(() => { if (btn) btn.disabled = false; });
         }
 
         // Auto-guardado de observaciones

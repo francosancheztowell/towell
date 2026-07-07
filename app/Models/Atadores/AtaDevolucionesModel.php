@@ -2,6 +2,7 @@
 
 namespace App\Models\Atadores;
 
+use App\Models\Atadores\AtaMontadoTelasModel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
