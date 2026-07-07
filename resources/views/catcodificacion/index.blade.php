@@ -4,17 +4,19 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+        {{--
         <button type="button" onclick="subirExcelCatCodificacion()" class="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md">
             <i class="fas fa-file-excel text-white"></i>
             <span>Subir Excel</span>
         </button>
+        --}}
         <button type="button" onclick="mostrarAlertaNavbar()"
             class="w-28 h-9 flex items-center justify-center p-4 bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
             title="Peso Muestra" aria-label="Mostrar alerta">
             Peso M
         </button>
         <button type="button" onclick="mostrarModalLMat()"
-            class="w-28 h-9 flex items-center justify-center p-4 bg-indigo-500 text-white hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+            class="w-28 h-9 flex items-center justify-center p-4 bg-black text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors"
             title="Lista de materiales" aria-label="Mostrar lista de materiales">
             L Mat
         </button>
@@ -1055,13 +1057,37 @@
                     { articulo: '0', config: 'ENTERO', tamano: '', color: '1000', almacen: 'A-PTE-JACQ', cantidad: 0, porcentaje: '0.0%' },
                 ];
 
+                const opcionesSelectLMat = {
+                    articulo: ['JU-ENG-RI-C', 'JU-ENG-PI-C', '10.1', '600.1', '0'],
+                    config: ['Cuenta RI + Calibre', 'Cuenta PI + Calibre', 'ENTERO'],
+                    tamano: ['', 'CH', 'MD', 'GD', 'XL'],
+                    color: ['1000'],
+                    almacen: ['A-EP-TEJID', 'A-PTE-JACQ'],
+                };
+
+                function buildSelectLMat(nombre, valorActual, opciones) {
+                    return `
+                        <select
+                            name="${nombre}"
+                            class="w-full min-w-[110px] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                        >
+                            ${opciones.map(opcion => {
+                                const valor = String(opcion);
+                                const selected = valor === String(valorActual ?? '') ? ' selected' : '';
+                                const texto = valor === '' ? 'Seleccione...' : valor;
+                                return `<option value="${valor}"${selected}>${texto}</option>`;
+                            }).join('')}
+                        </select>
+                    `;
+                }
+
                 const filas = articulos.map(item => `
                     <tr class="border-b border-gray-100">
-                        <td class="px-3 py-2 font-medium text-gray-900">${item.articulo}</td>
-                        <td class="px-3 py-2 text-gray-700">${item.config}</td>
-                        <td class="px-3 py-2 text-gray-700">${item.tamano}</td>
-                        <td class="px-3 py-2 text-center text-gray-700">${item.color}</td>
-                        <td class="px-3 py-2 text-gray-700">${item.almacen}</td>
+                        <td class="px-3 py-2">${buildSelectLMat('articulo[]', item.articulo, opcionesSelectLMat.articulo)}</td>
+                        <td class="px-3 py-2">${buildSelectLMat('config[]', item.config, opcionesSelectLMat.config)}</td>
+                        <td class="px-3 py-2">${buildSelectLMat('tamano[]', item.tamano, opcionesSelectLMat.tamano)}</td>
+                        <td class="px-3 py-2">${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}</td>
+                        <td class="px-3 py-2">${buildSelectLMat('almacen[]', item.almacen, opcionesSelectLMat.almacen)}</td>
                         <td class="px-3 py-2 text-right tabular-nums text-gray-900">${item.cantidad.toFixed(3)}</td>
                         <td class="px-3 py-2 text-right tabular-nums text-gray-900">${item.porcentaje}</td>
                     </tr>
