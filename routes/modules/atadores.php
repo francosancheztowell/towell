@@ -3,6 +3,7 @@
 use App\Http\Controllers\Atadores\Catalogos\Actividades\AtaActividadesController;
 use App\Http\Controllers\Atadores\Catalogos\Comentarios\AtaComentariosController;
 use App\Http\Controllers\Atadores\Catalogos\Maquinas\AtaMaquinasController;
+use App\Http\Controllers\Atadores\ProgramaAtadores\AtaDevolucionesController;
 use App\Http\Controllers\Atadores\ProgramaAtadores\AtadoresController;
 use App\Http\Controllers\Atadores\Reportes\ReportesAtadoresController;
 use App\Http\Controllers\UsuarioController;
@@ -31,6 +32,8 @@ Route::prefix('atadores')->name('atadores.')->group(function () {
     Route::get('/iniciar', [AtadoresController::class, 'iniciarAtado'])->name('iniciar');
     Route::get('/calificar', [AtadoresController::class, 'calificarAtadores'])->name('calificar');
     Route::post('/save', [AtadoresController::class, 'save'])->name('save');
+
+    Route::post('/devoluciones', [AtaDevolucionesController::class, 'store'])->name('devoluciones.store');
 });
 
 Route::get('/produccionProceso/atadores', [AtadoresController::class, 'index'])->name('atadores.produccion');

@@ -40,6 +40,32 @@ class TejEficienciaLine extends Model
     ];
 
     /**
+     * Esta tabla no tiene columna 'id'; su llave natural es compuesta
+     * (Folio + NoTelarId + Turno + Date, ver índice único creado en
+     * dedupe_and_constrain_tej_eficiencia_line). Eloquent no soporta
+     * llaves primarias compuestas, así que se sobreescribe la
+     * resolución de la llave para que save()/update()/delete() por
+     * instancia usen esas columnas en el WHERE en lugar del 'id'
+     * inexistente (evita el error "Invalid column name 'id'" en
+     * updateOrCreate()).
+     */
+    protected $compositeKeyColumns = ['Folio', 'NoTelarId', 'Turno', 'Date'];
+
+    protected function setKeysForSaveQuery($query)
+    {
+        foreach ($this->compositeKeyColumns as $column) {
+            $query->where($column, '=', $this->original[$column] ?? $this->getAttribute($column));
+        }
+
+        return $query;
+    }
+
+    protected function setKeysForSelectQuery($query)
+    {
+        return $this->setKeysForSaveQuery($query);
+    }
+
+    /**
      * Relación con el encabezado de eficiencia
      */
     public function tejEficiencia()
