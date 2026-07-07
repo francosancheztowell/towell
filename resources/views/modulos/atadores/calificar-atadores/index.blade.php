@@ -346,6 +346,97 @@
                 </div>
             </div>
 
+            <!-- Devolución -->
+            <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+                <label class="flex items-center gap-3 cursor-pointer select-none w-fit">
+                    <input type="checkbox" id="chkDevolucion" class="h-4 w-4 text-blue-600 rounded"
+                        onchange="toggleDevolucion(this.checked)" />
+                    <span class="text-base font-semibold text-gray-700">Devolución</span>
+                </label>
+
+                <div id="devolucionPanel" class="hidden mt-4 border-t pt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+                        <!-- Fila 1: Telar | Ubicación | Cuenta | Lote -->
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                                Telar
+                            </label>
+                            <input type="text" id="dev_telar"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                                Ubicación
+                            </label>
+                            <input type="text" id="dev_ubicacion" maxlength="10"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Cuenta</label>
+                            <input type="text" id="dev_cuenta" maxlength="10"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Lote</label>
+                            <input type="text" id="dev_lote"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+
+                        <!-- Fila 2: Julio | Metros | Calibre | Tipo -->
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                                Julio
+                            </label>
+                            <input type="text" id="dev_no_julio" maxlength="20"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                                Metros
+                            </label>
+                            <input type="number" step="any" min="0" id="dev_metros"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Calibre</label>
+                            <input type="text" id="dev_calibre" maxlength="10"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Tipo</label>
+                            <input type="text" id="dev_tipo" maxlength="5"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+
+                        <!-- Fila 3: Kilos | Fecha | Hilo | Obs -->
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                                Kilos
+                            </label>
+                            <input type="number" step="any" min="0" id="dev_kilos"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                                Fecha
+                            </label>
+                            <input type="date" id="dev_fecha"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Hilo</label>
+                            <input type="text" id="dev_hilo" maxlength="20"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Obs</label>
+                            <textarea id="dev_obs" rows="2" maxlength="255"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         @else
             <div class="bg-white rounded-lg shadow-md p-8 text-center">
                 <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
@@ -423,6 +514,13 @@
             'estado' => $a && (int) ($a->Estado ?? 0) === 1
         ];
     })) !!};
+
+        // Mostrar/ocultar panel de Devolución según el check
+        function toggleDevolucion(checked) {
+            const panel = document.getElementById('devolucionPanel');
+            if (!panel) return;
+            panel.classList.toggle('hidden', !checked);
+        }
 
         // Auto-guardado de observaciones
         let autoSaveTimeout = null;
