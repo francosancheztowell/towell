@@ -4,6 +4,7 @@ namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Construye la matriz "Producción por día y área" de Trazabilidad
@@ -103,11 +104,9 @@ class TrazabilidadMatrixService
         }
 
         // --- Columnas (fechas distintas, ordenadas) ---
-        $clavesFechas = $datos->pluck('Fecha')
-            ->map(fn ($f) => Carbon::parse($f)->format('Y-m-d'))
-            ->unique()
-            ->sort()
-            ->values();
+        $clavesFechas = $this->ordenarClavesFechas(
+            $datos->pluck('Fecha')->map(fn ($f) => Carbon::parse($f)->format('Y-m-d'))
+        );
 
         $mesAnterior = null;
         $fechas = $clavesFechas->map(function ($clave) use (&$mesAnterior) {
@@ -264,5 +263,14 @@ class TrazabilidadMatrixService
         }
 
         return compact('fechas', 'areas', 'totales', 'info', 'metrica', 'decimales', 'hayFlog', 'dropdown');
+    }
+
+    /**
+     * @param  Collection<int, string>  $claves
+     * @return Collection<int, string>
+     */
+    private function ordenarClavesFechas(Collection $claves): Collection
+    {
+        return $claves->unique()->sortDesc()->values();
     }
 }

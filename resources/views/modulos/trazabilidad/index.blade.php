@@ -121,9 +121,6 @@
             .prod-crudo-grid {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
             }
-            .prod-crudo-card.is-expanded {
-                grid-column: span 2;
-            }
         }
         @media (min-width: 1280px) {
             .prod-crudo-grid {
@@ -131,10 +128,10 @@
             }
         }
         .prod-crudo-card {
-            --prod-card-title-size: 1rem;
-            --prod-card-meta-size: 0.6875rem;
-            --prod-card-label-size: 0.625rem;
-            --prod-card-value-size: 0.8125rem;
+            --prod-card-title-size: 1.125rem;
+            --prod-card-meta-size: 0.75rem;
+            --prod-card-label-size: 0.6875rem;
+            --prod-card-value-size: 0.875rem;
             position: relative;
             overflow: hidden;
             min-width: 0;
@@ -294,78 +291,62 @@
             border-radius: inherit;
             background: #3b82f6;
         }
-        .prod-crudo-card__detail {
-            padding: 0.45rem 0.75rem 0.55rem 0.95rem;
-            border-top: 1px solid #e6ebf1;
-            background: #fbfcfe;
+        .prod-crudo-card__loom-matrix-wrap {
+            margin: 0 0.75rem 0.65rem 0.95rem;
+            overflow-x: auto;
+            border: 1px solid #dbe3ec;
+            border-radius: 0.5rem;
+            scrollbar-width: thin;
+            scrollbar-color: #94a3b8 transparent;
         }
-        .prod-crudo-card__loom-row {
-            display: grid;
-            grid-template-columns: 0.75fr 1.15fr 0.8fr 0.9fr;
-            gap: 0.5rem;
-            padding: 0.35rem 0.4rem;
-            border-bottom: 1px solid #edf1f5;
-            color: #526176;
+        .prod-crudo-card__loom-matrix {
+            width: 100%;
+            min-width: max-content;
+            border-collapse: collapse;
+            color: #334155;
             font-size: var(--prod-card-label-size);
             font-variant-numeric: tabular-nums;
         }
-        .prod-crudo-card__loom-row:last-child {
+        .prod-crudo-card__loom-matrix th,
+        .prod-crudo-card__loom-matrix td {
+            min-width: 4.75rem;
+            padding: 0.45rem 0.55rem;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .prod-crudo-card__loom-matrix tr > :last-child {
+            border-right: 0;
+        }
+        .prod-crudo-card__loom-matrix tbody tr:last-child > * {
             border-bottom: 0;
         }
-        .prod-crudo-card__loom-row--head {
-            color: #94a3b8;
-            font-size: 0.5625rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-        .prod-crudo-card__loom-row > :nth-child(n+3) {
-            text-align: right;
-        }
-        .prod-crudo-card__footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.75rem;
-            min-height: 2.1rem;
-            padding: 0.45rem 0.75rem 0.45rem 0.95rem;
-            border-top: 1px solid #edf1f5;
-        }
-        .prod-crudo-toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            flex-shrink: 0;
-            border: 0;
-            background: transparent;
-            color: #1d4ed8;
-            cursor: pointer;
+        .prod-crudo-card__loom-matrix thead th {
+            background: #f1f5f9;
+            color: #334155;
             font-size: var(--prod-card-meta-size);
+            font-weight: 800;
+        }
+        .prod-crudo-card__loom-matrix thead th:first-child,
+        .prod-crudo-card__loom-matrix tbody th {
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            min-width: 4.25rem;
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 800;
+            text-align: left;
+        }
+        .prod-crudo-card__loom-matrix td {
+            color: #172b4d;
+            font-size: var(--prod-card-value-size);
             font-weight: 700;
         }
-        .prod-crudo-toggle:hover {
-            color: #1e40af;
-            text-decoration: underline;
-        }
-        .prod-crudo-toggle:focus-visible {
-            border-radius: 0.25rem;
-            outline: 2px solid #3b82f6;
-            outline-offset: 2px;
-        }
-        .prod-crudo-toggle i {
-            font-size: 0.5rem;
-            transition: transform 0.18s ease;
-        }
-        .prod-crudo-card.is-expanded .prod-crudo-toggle i {
-            transform: rotate(180deg);
-        }
-        .prod-crudo-card__loom-summary {
-            min-width: 0;
-            overflow: hidden;
-            color: #7a899e;
+        .prod-crudo-card__loom-matrix small {
+            color: #64748b;
             font-size: var(--prod-card-label-size);
-            text-overflow: ellipsis;
-            white-space: nowrap;
         }
         .prod-crudo-card__single-loom {
             padding: 0 0.75rem 0.65rem 0.95rem;
@@ -2265,20 +2246,6 @@
 
         $resultado.on('click', '.prod-filter-btn', function () {
             aplicarFiltroProduccion($(this).data('filter'));
-        });
-
-        $resultado.on('click', '.prod-crudo-toggle', function () {
-            const $button = $(this);
-            const $card = $button.closest('.prod-crudo-card');
-            const panelId = $button.attr('aria-controls');
-            const $panel = panelId ? $card.find('#' + panelId) : $();
-            if (!$card.length || !$panel.length) return;
-
-            const expanded = $button.attr('aria-expanded') !== 'true';
-            $button.attr('aria-expanded', expanded);
-            $button.find('.prod-crudo-toggle__label').text(expanded ? 'Ocultar telares' : 'Ver telares');
-            $panel.toggleClass('hidden', !expanded);
-            $card.toggleClass('is-expanded', expanded);
         });
 
         function actualizarBadgeProduccion(cantidad) {

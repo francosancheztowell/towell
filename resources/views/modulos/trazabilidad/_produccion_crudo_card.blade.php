@@ -1,5 +1,4 @@
 @php
-    $panelId = 'prod-telares-'.preg_replace('/[^A-Za-z0-9_-]/', '-', (string) $o['orden']);
     $esMultiTelar = (bool) ($o['esMultiTelar'] ?? false);
     $estado = $o['estado'] ?? 'terminado';
     $estadoLabel = $estado === 'activo' ? 'Activa' : 'Finalizada';
@@ -56,6 +55,39 @@
         </div>
     </div>
 
+    @if ($esMultiTelar)
+        <div class="prod-crudo-card__loom-matrix-wrap">
+            <table class="prod-crudo-card__loom-matrix">
+                <thead>
+                    <tr>
+                        <th scope="col"></th>
+                        @foreach ($o['telares'] as $telar)
+                            <th scope="col" data-loom-column>Telar {{ $telar['telarNumero'] }}</th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">Piezas</th>
+                        @foreach ($o['telares'] as $telar)
+                            <td>{{ number_format((float) $telar['producidas']) }}</td>
+                        @endforeach
+                    </tr>
+                    <tr>
+                        <th scope="row">Peso</th>
+                        @foreach ($o['telares'] as $telar)
+                            <td>{{ number_format((float) $telar['kg'], 2) }} <small>kg</small></td>
+                        @endforeach
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    @else
+        <div class="prod-crudo-card__single-loom">
+            Telar {{ $o['telares'][0]['telarNumero'] ?? '—' }}
+        </div>
+    @endif
+
     <div class="prod-crudo-card__progress">
         <div class="prod-crudo-card__progress-meta">
             <span>Avance</span>
@@ -70,42 +102,4 @@
             <div class="prod-crudo-card__progress-bar" style="width: {{ $avanceBarra }}%"></div>
         </div>
     </div>
-
-    @if ($esMultiTelar)
-        <div id="{{ $panelId }}" class="prod-crudo-card__detail hidden">
-            <div class="prod-crudo-card__loom-row prod-crudo-card__loom-row--head">
-                <span>Telar</span>
-                <span>Origen</span>
-                <span>Piezas</span>
-                <span>Peso</span>
-            </div>
-            @foreach ($o['telares'] as $telar)
-                <div class="prod-crudo-card__loom-row" data-loom-row>
-                    <strong class="{{ $telar['origen'] === 'trazabilidad' ? 'text-amber-700' : '' }}">
-                        {{ $telar['telarNumero'] }}
-                    </strong>
-                    <span>{{ $telar['origen'] === 'trazabilidad' ? 'Trazabilidad' : 'Programa' }}</span>
-                    <span>{{ number_format((float) $telar['producidas']) }}</span>
-                    <span>{{ number_format((float) $telar['kg'], 2) }} kg</span>
-                </div>
-            @endforeach
-        </div>
-
-        <div class="prod-crudo-card__footer">
-            <button type="button"
-                    class="prod-crudo-toggle"
-                    aria-expanded="false"
-                    aria-controls="{{ $panelId }}">
-                <span class="prod-crudo-toggle__label">Ver telares</span>
-                <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-            </button>
-            <span class="prod-crudo-card__loom-summary" title="{{ $o['telaresResumen'] }}">
-                {{ $o['telaresResumen'] }}
-            </span>
-        </div>
-    @else
-        <div class="prod-crudo-card__single-loom">
-            Telar {{ $o['telares'][0]['telarNumero'] ?? '—' }}
-        </div>
-    @endif
 </article>

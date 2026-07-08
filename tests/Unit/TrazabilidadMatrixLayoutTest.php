@@ -2,6 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Services\Trazabilidad\TrazabilidadMatrixService;
+use Illuminate\Support\Collection;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class TrazabilidadMatrixLayoutTest extends TestCase
@@ -30,6 +33,28 @@ class TrazabilidadMatrixLayoutTest extends TestCase
         $this->assertLessThan(
             strpos($footer, '@foreach ($fechas as $i => $fecha)'),
             strpos($footer, '$granTotal')
+        );
+    }
+
+    public function test_total_column_is_sticky_after_the_fixed_area_column(): void
+    {
+        $view = file_get_contents(resource_path('views/modulos/trazabilidad/_resultado.blade.php'));
+
+        $this->assertSame(4, substr_count($view, 'sticky left-[350px]'));
+    }
+
+    public function test_date_keys_are_ordered_from_most_recent_to_oldest(): void
+    {
+        $method = new ReflectionMethod(TrazabilidadMatrixService::class, 'ordenarClavesFechas');
+        /** @var Collection<int, string> $dates */
+        $dates = $method->invoke(
+            app(TrazabilidadMatrixService::class),
+            collect(['2026-01-05', '2026-03-20', '2026-02-14', '2026-03-20'])
+        );
+
+        $this->assertSame(
+            ['2026-03-20', '2026-02-14', '2026-01-05'],
+            $dates->all()
         );
     }
 

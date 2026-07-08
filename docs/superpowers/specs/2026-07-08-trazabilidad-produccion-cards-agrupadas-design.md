@@ -18,22 +18,15 @@ Mejorar la sección **Producción > Crudo** para evitar que una misma orden ocup
   - porcentaje y barra de avance.
 - Cuando la orden tenga producción en varios telares:
   - la card mostrará la cantidad de telares;
-  - mostrará una lista breve de sus números de telar;
-  - la acción **Ver telares** aparecerá en la esquina inferior izquierda;
-  - el detalle estará cerrado inicialmente;
-  - al abrirse, el desglose aparecerá dentro de la misma card.
-- Una orden de un solo telar permanecerá como card compacta y no mostrará un control de expansión innecesario.
+  - mostrará siempre una matriz horizontal, sin dropdown;
+  - cada telar será una columna;
+  - Piezas y Peso serán las filas;
+  - si no caben todos los telares, la matriz tendrá scroll horizontal interno.
+- Una orden de un solo telar permanecerá como card compacta.
 
 ## Detalle desplegable
 
-El detalle incluirá una fila por telar con:
-
-- número de telar;
-- origen: programa o trazabilidad;
-- piezas producidas;
-- peso producido.
-
-El telar canónico del programa y los telares encontrados únicamente en trazabilidad seguirán diferenciándose visualmente. El color ámbar indicará producción distribuida, sin convertir cada telar en una card independiente.
+La matriz no mostrará la columna Origen. El encabezado contendrá los telares y las filas mostrarán piezas y peso producidos. El color ámbar de la card indicará producción distribuida.
 
 ## Distribución responsive
 
@@ -45,8 +38,7 @@ El telar canónico del programa y los telares encontrados únicamente en trazabi
 
 ## Interacción y filtros
 
-- **Ver telares** expandirá solo la card seleccionada y cambiará a **Ocultar telares**.
-- El control será un botón accesible con `aria-expanded` y relación explícita con el panel.
+- No habrá interacción de expansión para los telares.
 - Los filtros existentes de estado continuarán operando por orden, no por cada registro de telar.
 - La sección **Rollos Teñido** no cambia.
 

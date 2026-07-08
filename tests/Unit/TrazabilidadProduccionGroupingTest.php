@@ -32,7 +32,7 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         $this->assertSame('trazabilidad', $orders[0]['telares'][1]['origen']);
     }
 
-    public function test_grouped_card_renders_one_compact_order_with_lower_left_loom_action(): void
+    public function test_grouped_card_renders_looms_as_columns_without_dropdown_and_progress_at_the_bottom(): void
     {
         $order = [
             'orden' => '36162',
@@ -58,15 +58,21 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         $html = view('modulos.trazabilidad._produccion_crudo_card', ['o' => $order])->render();
 
         $this->assertSame(1, substr_count($html, 'Orden 36162'));
-        $this->assertStringContainsString('prod-crudo-card__footer', $html);
-        $this->assertStringContainsString('prod-crudo-toggle', $html);
-        $this->assertStringContainsString('Ver telares', $html);
-        $this->assertStringContainsString('aria-expanded="false"', $html);
+        $this->assertStringNotContainsString('prod-crudo-toggle', $html);
+        $this->assertStringNotContainsString('Ver telares', $html);
+        $this->assertStringNotContainsString('Origen', $html);
+        $this->assertStringContainsString('prod-crudo-card__loom-matrix', $html);
+        $this->assertSame(4, substr_count($html, 'data-loom-column'));
+        $this->assertStringContainsString('>Piezas<', $html);
+        $this->assertStringContainsString('>Peso<', $html);
         $this->assertStringContainsString('Pzas/día', $html);
         $this->assertStringContainsString('Kg/día', $html);
         $this->assertStringContainsString('78.4%', $html);
         $this->assertStringContainsString('prod-crudo-card__progress-bar', $html);
-        $this->assertSame(4, substr_count($html, 'data-loom-row'));
+        $this->assertGreaterThan(
+            strpos($html, 'prod-crudo-card__loom-matrix'),
+            strpos($html, 'prod-crudo-card__progress')
+        );
     }
 
     public function test_single_loom_card_preserves_program_production_as_its_visible_total(): void
@@ -99,10 +105,10 @@ class TrazabilidadProduccionGroupingTest extends TestCase
     {
         $content = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
 
-        $this->assertStringContainsString('--prod-card-title-size: 1rem;', $content);
-        $this->assertStringContainsString('--prod-card-meta-size: 0.6875rem;', $content);
-        $this->assertStringContainsString('--prod-card-label-size: 0.625rem;', $content);
-        $this->assertStringContainsString('--prod-card-value-size: 0.8125rem;', $content);
+        $this->assertStringContainsString('--prod-card-title-size: 1.125rem;', $content);
+        $this->assertStringContainsString('--prod-card-meta-size: 0.75rem;', $content);
+        $this->assertStringContainsString('--prod-card-label-size: 0.6875rem;', $content);
+        $this->assertStringContainsString('--prod-card-value-size: 0.875rem;', $content);
     }
 
     /**

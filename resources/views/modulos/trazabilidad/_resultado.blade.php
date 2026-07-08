@@ -95,7 +95,7 @@
                                 style="border-right:2px solid #cbd5e1;">
                                 Área
                             </th>
-                            <th class="px-2 py-1.5 text-center font-bold text-blue-800
+                            <th class="sticky left-[350px] z-[19] px-2 py-1.5 text-center font-bold text-blue-800
                                        bg-blue-50 border-b border-r border-slate-200 min-w-[72px]">
                                 Total
                             </th>
@@ -141,7 +141,7 @@
 
                                 {{-- Total por área --}}
                                 @php $totalArea = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $area['valores'])); @endphp
-                                <td class="px-2 py-3 text-center font-bold border-b border-r border-slate-200 bg-blue-50/60 tabular-nums"
+                                <td class="sticky left-[350px] z-[9] px-2 py-3 text-center font-bold border-b border-r border-slate-200 bg-blue-50 tabular-nums"
                                     style="color: {{ $area['text'] }};">
                                     {{ $totalArea ? number_format($totalArea, $decimales) : '—' }}
                                 </td>
@@ -184,7 +184,7 @@
                                         </td>
 
                                         {{-- Total de la sub-fila --}}
-                                        <td class="px-2 py-1.5 text-center text-[12px] font-semibold text-slate-700 border-b border-r border-slate-200 bg-blue-50/40 tabular-nums">
+                                        <td class="sticky left-[350px] z-[9] px-2 py-1.5 text-center text-[12px] font-semibold text-slate-700 border-b border-r border-slate-200 bg-blue-50 tabular-nums">
                                             {{ $det['total'] ? number_format($det['total'], $decimales) : '—' }}
                                         </td>
 
@@ -218,7 +218,7 @@
                                 Total
                             </td>
                             @php $granTotal = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $totales)); @endphp
-                            <td class="px-2 py-1.5 text-center font-extrabold text-blue-900 bg-blue-100/70 border-r border-slate-200 tabular-nums">
+                            <td class="sticky left-[350px] z-[9] px-2 py-1.5 text-center font-extrabold text-blue-900 bg-blue-100 border-r border-slate-200 tabular-nums">
                                 {{ $granTotal ? number_format($granTotal, $decimales) : '—' }}
                             </td>
                             @foreach ($fechas as $i => $fecha)
