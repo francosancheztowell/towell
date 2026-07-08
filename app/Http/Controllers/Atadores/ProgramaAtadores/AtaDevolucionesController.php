@@ -60,11 +60,18 @@ class AtaDevolucionesController extends Controller
             ], 422);
         }
 
+        // El "Lote" de la devolución se almacena en la columna NoProduccion con el
+        // prefijo "Dev" seguido del número de orden (evitando duplicar el prefijo).
+        $ordenBase = trim((string) ($data['no_produccion'] ?? $montado->NoProduccion ?? ''));
+        $loteDev = $ordenBase !== ''
+            ? (str_starts_with($ordenBase, 'Dev') ? $ordenBase : 'Dev' . $ordenBase)
+            : null;
+
         try {
             $devolucion = AtaDevolucionesModel::create([
                 'RefId' => $montado->Id,
                 'NoJulio' => $data['no_julio'] ?? $montado->NoJulio,
-                'NoProduccion' => $data['no_produccion'] ?? $montado->NoProduccion,
+                'NoProduccion' => $loteDev,
                 'Kilos' => $kilos,
                 'Metros' => $metros,
                 'Ubicacion' => $data['ubicacion'] ?? null,
@@ -77,7 +84,8 @@ class AtaDevolucionesController extends Controller
                 'ConfigId' => $data['config_id'] ?? $montado->ConfigId,
                 'InventSizeId' => $data['invent_size_id'] ?? $montado->InventSizeId,
                 'InventColorId' => $data['invent_color_id'] ?? $montado->InventColorId,
-                'Estatus' => 'Activo',
+                // El Estatus queda ligado al del atado padre (AtaMontadoTelas) desde su creación.
+                'Estatus' => $montado->Estatus ?: 'Activo',
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al registrar devolución de atadores', [

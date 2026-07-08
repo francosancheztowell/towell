@@ -378,8 +378,8 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Lote</label>
-                            <input type="text" id="dev_lote"
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                            <input type="text" id="dev_lote" readonly
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none" />
                         </div>
 
                         <!-- Fila 2: Julio | Metros | Calibre | Tipo -->
@@ -404,8 +404,12 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Tipo</label>
-                            <input type="text" id="dev_tipo" maxlength="5"
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                            <select id="dev_tipo"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                                <option value="">Seleccione</option>
+                                <option value="Rizo">Rizo</option>
+                                <option value="Pie">Pie</option>
+                            </select>
                         </div>
 
                         <!-- Fila 3: Kilos | Fecha | Hilo | Obs -->
@@ -541,7 +545,8 @@
                     if (el && !el.value && valor != null) el.value = valor;
                 };
                 setSiVacio('dev_telar', currentTelar);
-                setSiVacio('dev_lote', currentLote);
+                // Lote = "Dev" + NoProduccion (se guarda en la columna NoProduccion de AtaDevoluciones)
+                setSiVacio('dev_lote', currentNoOrden ? ('Dev' + currentNoOrden) : null);
                 setSiVacio('dev_no_julio', currentNoJulio);
                 const fecha = document.getElementById('dev_fecha');
                 if (fecha && !fecha.value) {
