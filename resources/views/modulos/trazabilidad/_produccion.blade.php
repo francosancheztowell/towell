@@ -78,18 +78,9 @@
             Ninguna orden coincide con el filtro seleccionado.
         </p>
 
-        <div class="prod-cards-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
-            @foreach (collect($ordenCardsCrudo)->groupBy('grupoKey') as $grupo)
-                @if ($grupo->count() > 1)
-                    @php $estadoGrupo = $grupo->firstWhere('esOtroTelar', false)['estado'] ?? $grupo->first()['estado']; @endphp
-                    <div class="prod-card-grupo sm:col-span-2 xl:col-span-2" data-estado="{{ $estadoGrupo }}">
-                        @foreach ($grupo->sortBy(fn ($c) => ($c['esOtroTelar'] ?? false) ? 1 : 0) as $o)
-                            @include('modulos.trazabilidad._produccion_card', ['o' => $o, 'modo' => 'crudo', 'soloFecha' => $soloFecha])
-                        @endforeach
-                    </div>
-                @else
-                    @include('modulos.trazabilidad._produccion_card', ['o' => $grupo->first(), 'modo' => 'crudo', 'soloFecha' => $soloFecha])
-                @endif
+        <div class="prod-crudo-grid">
+            @foreach ($ordenCardsCrudo as $o)
+                @include('modulos.trazabilidad._produccion_crudo_card', ['o' => $o])
             @endforeach
         </div>
     @endif

@@ -106,6 +106,203 @@
         #resultado tr.area-fila > td:first-child { cursor: pointer; }
 
         /* === Tarjetas pestaña Producción === */
+        .prod-crudo-grid {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 0.65rem;
+            align-items: start;
+        }
+        @media (min-width: 640px) {
+            .prod-crudo-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (min-width: 1024px) {
+            .prod-crudo-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            .prod-crudo-card.is-expanded {
+                grid-column: span 2;
+            }
+        }
+        .prod-crudo-card {
+            position: relative;
+            overflow: hidden;
+            min-width: 0;
+            background: #ffffff;
+            border: 1px solid #dbe3ec;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04);
+        }
+        .prod-crudo-card::before {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: #94a3b8;
+            content: "";
+        }
+        .prod-crudo-card[data-estado="activo"]::before {
+            background: #22c55e;
+        }
+        .prod-crudo-card--multi::before {
+            background: #f59e0b;
+        }
+        .prod-crudo-card__head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.7rem 0.75rem 0.45rem 0.95rem;
+        }
+        .prod-crudo-card__title {
+            color: #102a4e;
+            font-size: 0.9375rem;
+            font-weight: 800;
+            line-height: 1.15;
+        }
+        .prod-crudo-card__meta {
+            margin-top: 0.2rem;
+            color: #718096;
+            font-size: 0.625rem;
+            line-height: 1.2;
+        }
+        .prod-crudo-card__loom-count,
+        .prod-crudo-card__status {
+            flex-shrink: 0;
+            border-radius: 9999px;
+            padding: 0.25rem 0.45rem;
+            font-size: 0.5625rem;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .prod-crudo-card__loom-count {
+            border: 1px solid #fde68a;
+            background: #fffbeb;
+            color: #92400e;
+        }
+        .prod-crudo-card__status--activo {
+            background: #ecfdf5;
+            color: #047857;
+        }
+        .prod-crudo-card__status--terminado {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+        .prod-crudo-card__stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.35rem;
+            padding: 0 0.75rem 0.65rem 0.95rem;
+        }
+        .prod-crudo-card__stat {
+            min-width: 0;
+            padding: 0.4rem 0.45rem;
+            border: 1px solid #e8edf3;
+            border-radius: 0.45rem;
+            background: #f8fafc;
+        }
+        .prod-crudo-card__stat > span {
+            display: block;
+            color: #8a98aa;
+            font-size: 0.5rem;
+            line-height: 1.2;
+        }
+        .prod-crudo-card__stat > strong {
+            display: block;
+            margin-top: 0.15rem;
+            overflow: hidden;
+            color: #172b4d;
+            font-size: 0.6875rem;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .prod-crudo-card__stat small {
+            color: #64748b;
+            font-size: 0.5rem;
+            font-weight: 600;
+        }
+        .prod-crudo-card__detail {
+            padding: 0.45rem 0.75rem 0.55rem 0.95rem;
+            border-top: 1px solid #e6ebf1;
+            background: #fbfcfe;
+        }
+        .prod-crudo-card__loom-row {
+            display: grid;
+            grid-template-columns: 0.75fr 1.15fr 0.8fr 0.9fr;
+            gap: 0.5rem;
+            padding: 0.35rem 0.4rem;
+            border-bottom: 1px solid #edf1f5;
+            color: #526176;
+            font-size: 0.625rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .prod-crudo-card__loom-row:last-child {
+            border-bottom: 0;
+        }
+        .prod-crudo-card__loom-row--head {
+            color: #94a3b8;
+            font-size: 0.5rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .prod-crudo-card__loom-row > :nth-child(n+3) {
+            text-align: right;
+        }
+        .prod-crudo-card__footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            min-height: 2.1rem;
+            padding: 0.45rem 0.75rem 0.45rem 0.95rem;
+            border-top: 1px solid #edf1f5;
+        }
+        .prod-crudo-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-shrink: 0;
+            border: 0;
+            background: transparent;
+            color: #1d4ed8;
+            cursor: pointer;
+            font-size: 0.625rem;
+            font-weight: 700;
+        }
+        .prod-crudo-toggle:hover {
+            color: #1e40af;
+            text-decoration: underline;
+        }
+        .prod-crudo-toggle:focus-visible {
+            border-radius: 0.25rem;
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        .prod-crudo-toggle i {
+            font-size: 0.5rem;
+            transition: transform 0.18s ease;
+        }
+        .prod-crudo-card.is-expanded .prod-crudo-toggle i {
+            transform: rotate(180deg);
+        }
+        .prod-crudo-card__loom-summary {
+            min-width: 0;
+            overflow: hidden;
+            color: #7a899e;
+            font-size: 0.5625rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .prod-crudo-card__single-loom {
+            padding: 0 0.75rem 0.65rem 0.95rem;
+            color: #64748b;
+            font-size: 0.625rem;
+            font-weight: 600;
+        }
         .prod-card-v2 {
             display: flex;
             flex-direction: row;
@@ -116,33 +313,6 @@
             overflow: hidden;
             min-height: 100%;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-        }
-        .prod-card-v2.prod-card--alerta {
-            border-color: #fbbf24;
-            box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35);
-        }
-        .prod-card-grupo {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            padding: 0.35rem;
-            border-radius: 1rem;
-            border: 1px solid #fcd34d;
-            background: rgba(255, 251, 235, 0.65);
-            min-width: 0;
-        }
-        @media (min-width: 640px) {
-            .prod-card-grupo {
-                flex-direction: row;
-                align-items: stretch;
-            }
-            .prod-card-grupo .prod-card-v2 {
-                flex: 1 1 0;
-                min-width: 0;
-            }
-        }
-        .prod-card-grupo .prod-card--otro-telar {
-            border-color: #fde68a;
         }
         .prod-card-v2__accent {
             width: 4px;
@@ -2003,27 +2173,33 @@
 
             let visibles = 0;
 
-            $crudo.find('.prod-card-grupo').each(function () {
+            $crudo.find('.prod-crudo-card').each(function () {
                 const visible = prodFiltroActivo === 'todos'
                     || $(this).data('estado') === prodFiltroActivo;
                 $(this).toggle(visible);
                 if (visible) visibles++;
             });
 
-            $crudo.find('.prod-cards-grid > .prod-card').each(function () {
-                const visible = prodFiltroActivo === 'todos'
-                    || $(this).data('estado') === prodFiltroActivo;
-                $(this).toggle(visible);
-                if (visible) visibles++;
-            });
-
-            const totalItems = $crudo.find('.prod-card-grupo').length
-                + $crudo.find('.prod-cards-grid > .prod-card').length;
+            const totalItems = $crudo.find('.prod-crudo-card').length;
             $crudo.find('.prod-sin-resultados').toggle(visibles === 0 && totalItems > 0);
         }
 
         $resultado.on('click', '.prod-filter-btn', function () {
             aplicarFiltroProduccion($(this).data('filter'));
+        });
+
+        $resultado.on('click', '.prod-crudo-toggle', function () {
+            const $button = $(this);
+            const $card = $button.closest('.prod-crudo-card');
+            const panelId = $button.attr('aria-controls');
+            const $panel = panelId ? $card.find('#' + panelId) : $();
+            if (!$card.length || !$panel.length) return;
+
+            const expanded = $button.attr('aria-expanded') !== 'true';
+            $button.attr('aria-expanded', expanded);
+            $button.find('.prod-crudo-toggle__label').text(expanded ? 'Ocultar telares' : 'Ver telares');
+            $panel.toggleClass('hidden', !expanded);
+            $card.toggleClass('is-expanded', expanded);
         });
 
         function actualizarBadgeProduccion(cantidad) {

@@ -254,7 +254,7 @@ class TrazabilidadProduccionService
         $canonicas = collect($ordenCards)->where(fn ($c) => ! ($c['esOtroTelar'] ?? false));
 
         return [
-            'ordenes' => $ordenCards,
+            'ordenes' => $this->agruparCardsCrudo($ordenCards),
             'noEncontradas' => $noEncontradas,
             'resumen' => [
                 'ordenes' => $canonicas->count(),
@@ -264,6 +264,58 @@ class TrazabilidadProduccionService
                 'noEncontradas' => count($noEncontradas),
             ],
         ];
+    }
+
+    /**
+     * Convierte las tarjetas planas orden/telar en una sola tarjeta por orden.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function agruparCardsCrudo(array $cards): array
+    {
+        return collect($cards)
+            ->groupBy('grupoKey')
+            ->map(function (Collection $grupo): array {
+                $ordenadas = $grupo
+                    ->sortBy(fn (array $card): int => ($card['esOtroTelar'] ?? false) ? 1 : 0)
+                    ->values();
+                $canonica = $ordenadas->firstWhere('esOtroTelar', false) ?? $ordenadas->first();
+
+                $telares = $ordenadas->map(function (array $card): array {
+                    $telar = trim((string) ($card['telar'] ?? ''));
+                    $telarNumero = preg_replace('/^Telar\s+/i', '', $telar);
+
+                    return [
+                        'telar' => $telar,
+                        'telarNumero' => $telarNumero !== '' ? $telarNumero : '—',
+                        'origen' => ($card['esOtroTelar'] ?? false) ? 'trazabilidad' : 'programa',
+                        'producidas' => (float) ($card['producidas'] ?? 0),
+                        'kg' => (float) ($card['kg'] ?? 0),
+                    ];
+                })->all();
+
+                $producidasTraza = (float) collect($telares)->sum('producidas');
+                $producidasCanonica = (float) (
+                    $canonica['programa']['produccion']
+                    ?? $canonica['codificados']['produccion']
+                    ?? $canonica['producidas']
+                    ?? 0
+                );
+                $cantidadTelares = count($telares);
+
+                return array_merge($canonica, [
+                    'telares' => $telares,
+                    'telaresResumen' => implode(', ', array_column($telares, 'telarNumero')),
+                    'cantidadTelares' => $cantidadTelares,
+                    'esMultiTelar' => $cantidadTelares > 1,
+                    'producidasTotal' => $cantidadTelares > 1 && $producidasTraza > 0
+                        ? $producidasTraza
+                        : $producidasCanonica,
+                    'pesoTotal' => (float) collect($telares)->sum('kg'),
+                ]);
+            })
+            ->values()
+            ->all();
     }
 
     /**
