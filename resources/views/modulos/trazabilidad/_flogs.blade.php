@@ -28,6 +28,8 @@
         ['key' => 'pesoAcabado', 'label' => 'Peso acabado', 'tipo' => 'decimal'],
         ['key' => 'densidad', 'label' => 'Densidad', 'tipo' => 'decimal'],
         ['key' => 'inventQty', 'label' => 'Cantidad', 'tipo' => 'decimal'],
+        ['key' => 'facturado', 'label' => 'Facturado', 'tipo' => 'decimal'],
+        ['key' => 'porEntregar', 'label' => 'Por entregar', 'tipo' => 'decimal'],
         ['key' => 'salesUnit', 'label' => 'Ud. venta'],
         ['key' => 'purchBarCode', 'label' => 'Cód. barras'],
         ['key' => 'dun14', 'label' => 'DUN14'],

@@ -164,6 +164,8 @@ class TrazabilidadFlogsService
             'pesoAcabado' => $this->formatearDecimal3($row->PESOACABADO ?? null),
             'densidad' => $this->formatearDecimal3($row->DENSIDAD ?? null),
             'inventQty' => $this->formatearDecimal3($row->INVENTQTY ?? null),
+            'facturado' => $this->formatearDecimal3($row->FACTURADO ?? null),
+            'porEntregar' => $this->formatearDecimal3($row->PORENTREGAR ?? null),
             'salesUnit' => $this->txt($row->SALESUNIT ?? null),
             'purchBarCode' => $this->txt($row->PURCHBARCODE ?? null),
             'dun14' => $this->txt($row->DUN14 ?? null),
