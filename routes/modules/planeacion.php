@@ -10,6 +10,7 @@ use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatTelares\CatalagoTelarC
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatVelocidades\CatalagoVelocidadController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\ModelosCodificados\CodificacionController;
 use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
+use App\Http\Controllers\Planeacion\CatLMat\CatLMatController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ColumnasProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\DescargarProgramaController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
@@ -88,6 +89,10 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion/excel-progress/{id}', [CatCodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
     Route::post('/codificacion/excel-cancel/{id}', [CatCodificacionController::class, 'cancelImport'])->name('codificacion.excel.cancel');
     Route::get('/codificacion/orden-cambio-excel', [OrdenDeCambioFelpaController::class, 'generarExcel'])->name('codificacion.orden-cambio-excel');
+
+    Route::get('/lmat/api/calibres', [CatLMatController::class, 'getCalibres'])->name('lmat.calibres');
+    Route::get('/lmat/api/tamanos', [CatLMatController::class, 'getTamanos'])->name('lmat.tamanos');
+    Route::get('/lmat/api/colores', [CatLMatController::class, 'getColores'])->name('lmat.colores');
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');
     Route::get('/alineacion/api/data', [AlineacionController::class, 'apiData'])->name('alineacion.api.data');

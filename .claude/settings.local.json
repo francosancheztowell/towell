@@ -40,7 +40,10 @@
       "Bash(php -l app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php)",
       "mcp__visualize__read_me",
       "mcp__visualize__show_widget",
-      "Bash(php -l app/Models/Planeacion/Catalogos/CatLMat.php)"
+      "Bash(php -l app/Models/Planeacion/Catalogos/CatLMat.php)",
+      "Bash(php -l app/Http/Controllers/Planeacion/CatLMat/CatLMatController.php)",
+      "Bash(php -l routes/modules/planeacion.php)",
+      "Bash(php -r ' *)"
     ]
   }
 }
