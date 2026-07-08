@@ -10,13 +10,17 @@ class CatLMat extends Model
     use HasFactory;
 
     protected $table = 'CatLMat';
+
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     public $timestamps = false;
 
     public const COLUMNS = [
         'Id', 'Orden', 'Salon', 'Nombre', 'Descrip', 'PesoCrudo', 'ItemId', 'ConfigId',
         'InventSizeId', 'InventColorId', 'InventLocationId', 'Qty', 'Porcentaje',
+        'FechaRegistro', 'HoraRegistro', 'UsuarioRegistro',
     ];
 
     protected $fillable = self::COLUMNS;
@@ -25,5 +29,8 @@ class CatLMat extends Model
         'Id' => 'integer',
         'Qty' => 'float',
         'Porcentaje' => 'float',
+        'FechaRegistro' => 'date',
+        'HoraRegistro' => 'string',
+        'UsuarioRegistro' => 'string',
     ];
 }

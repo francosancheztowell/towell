@@ -91,8 +91,12 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion/orden-cambio-excel', [OrdenDeCambioFelpaController::class, 'generarExcel'])->name('codificacion.orden-cambio-excel');
 
     Route::get('/lmat/api/calibres', [CatLMatController::class, 'getCalibres'])->name('lmat.calibres');
+    Route::get('/lmat/api/existe', [CatLMatController::class, 'existeLmat'])->name('lmat.existe');
+    Route::get('/lmat/api/configs', [CatLMatController::class, 'getConfigs'])->name('lmat.configs');
     Route::get('/lmat/api/tamanos', [CatLMatController::class, 'getTamanos'])->name('lmat.tamanos');
     Route::get('/lmat/api/colores', [CatLMatController::class, 'getColores'])->name('lmat.colores');
+    Route::get('/lmat/api/por-orden/{orden}', [CatLMatController::class, 'getLmatPorOrden'])->name('lmat.por-orden');
+    Route::post('/lmat/api/guardar', [CatLMatController::class, 'guardarLmat'])->name('lmat.guardar');
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');
     Route::get('/alineacion/api/data', [AlineacionController::class, 'apiData'])->name('alineacion.api.data');

@@ -13,66 +13,67 @@ class StringTruncator
      * Si no aparece, no se aplica truncamiento.
      */
     private static array $fieldLimits = [
-        'CuentaRizo'       => 10,
-        'SalonTejidoId'    => 10,
-        'NoTelarId'        => 10,
-        'Ultimo'           => 2,
-        'CambioHilo'       => 2,
-        'Maquina'          => 15,
-        'CalendarioId'     => 25,
-        'TamanoClave'      => 20,
-        'NoExisteBase'     => 20,
-        'ItemId'           => 20,
-        'InventSizeId'     => 10,
-        'Rasurado'         => 2,
-        'NombreProducto'   => 100,
-        'NoProduccion'     => 15,
-        'FlogsId'          => 60,
-        'NombreProyecto'   => 80,
-        'CustName'         => 80,
-        'AplicacionId'     => 30,
-        'Observaciones'    => 200,
-        'TipoPedido'       => 20,
-        'FibraTrama'       => 15,
-        'DobladilloId'     => 20,
-        'CodColorTrama'    => 10,
-        'ColorTrama'       => 80,
-        'FibraRizo'        => 80,
-        'CodColorComb1'    => 10,
-        'CodColorComb2'    => 10,
-        'CodColorComb3'    => 10,
-        'CodColorComb4'    => 10,
-        'CodColorComb5'    => 10,
-        'NombreCC1'        => 60,
-        'NombreCC2'        => 60,
-        'NombreCC3'        => 60,
-        'NombreCC4'        => 60,
-        'NombreCC5'        => 60,
-        'FibraComb1'       => 50,
-        'FibraComb2'       => 50,
-        'FibraComb3'       => 50,
-        'FibraComb4'       => 50,
-        'FibraComb5'       => 50,
-        'CalibreComb1'     => 20,
-        'CalibreComb2'     => 20,
-        'CalibreComb3'     => 20,
-        'CalibreComb4'     => 20,
-        'CalibreComb5'     => 20,
-        'CuentaPie'        => 10,
-        'CodColorCtaPie'   => 10,
-        'NombreCPie'       => 60,
-        'FibraPie'         => 15,
+        'CuentaRizo' => 10,
+        'SalonTejidoId' => 10,
+        'NoTelarId' => 10,
+        'Ultimo' => 2,
+        'CambioHilo' => 2,
+        'Maquina' => 15,
+        'CalendarioId' => 25,
+        'TamanoClave' => 20,
+        'NoExisteBase' => 20,
+        'ItemId' => 20,
+        'InventSizeId' => 10,
+        'Rasurado' => 2,
+        'NombreProducto' => 100,
+        'NoProduccion' => 15,
+        'FlogsId' => 60,
+        'NombreProyecto' => 80,
+        'CustName' => 80,
+        'AplicacionId' => 30,
+        'Observaciones' => 200,
+        'TipoPedido' => 20,
+        'FibraTrama' => 15,
+        'DobladilloId' => 20,
+        'CodColorTrama' => 10,
+        'ColorTrama' => 80,
+        'FibraRizo' => 80,
+        'CodColorComb1' => 10,
+        'CodColorComb2' => 10,
+        'CodColorComb3' => 10,
+        'CodColorComb4' => 10,
+        'CodColorComb5' => 10,
+        'NombreCC1' => 60,
+        'NombreCC2' => 60,
+        'NombreCC3' => 60,
+        'NombreCC4' => 60,
+        'NombreCC5' => 60,
+        'FibraComb1' => 50,
+        'FibraComb2' => 50,
+        'FibraComb3' => 50,
+        'FibraComb4' => 50,
+        'FibraComb5' => 50,
+        'CalibreComb1' => 20,
+        'CalibreComb2' => 20,
+        'CalibreComb3' => 20,
+        'CalibreComb4' => 20,
+        'CalibreComb5' => 20,
+        'CuentaPie' => 10,
+        'CodColorCtaPie' => 10,
+        'NombreCPie' => 60,
+        'FibraPie' => 15,
         'CategoriaCalidad' => 20,
-        'CombinaTram'      => 80,
-        'BomId'            => 30,
-        'BomName'          => 100,
-        'HiloAX'           => 30,
-        'Prioridad'        => 150,
-        'UsuarioCrea'      => 50,
-        'UsuarioModifica'  => 50,
-        'ObsR1'            => 100,
-        'ObsR2'            => 100,
-        'ObsR3'            => 100,
+        'CombinaTram' => 80,
+        'BomId' => 30,
+        'BomName' => 100,
+        'HiloAX' => 30,
+        'Prioridad' => 150,
+        'UsuarioCrea' => 50,
+        'UsuarioModifica' => 50,
+        'UsuarioRegistro' => 60,
+        'ObsR1' => 100,
+        'ObsR2' => 100,
+        'ObsR3' => 100,
     ];
 
     public static function getFieldLimits(): array
@@ -86,12 +87,22 @@ class StringTruncator
             return $value;
         }
 
-        $str = (string) $value;
         $limit = self::$fieldLimits[$fieldName] ?? null;
 
         if ($limit === null) {
-            return $str;
+            return (string) $value;
         }
+
+        return self::truncateToLength($value, $limit);
+    }
+
+    public static function truncateToLength(mixed $value, int $limit): mixed
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        $str = (string) $value;
 
         if (mb_strlen($str) > $limit) {
             return mb_substr($str, 0, $limit);

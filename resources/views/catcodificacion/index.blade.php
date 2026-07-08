@@ -1033,6 +1033,7 @@
             // ── Materiales del modal L.Mat (Artículo/Tamaño/Color, cascada por ItemId) ──
             const LMatMateriales = (() => {
                 let calibres = null;
+                let configs = null;
                 const tamanos = new Map();
                 const colores = new Map();
 
@@ -1047,6 +1048,19 @@
                         calibres = [];
                     }
                     return calibres;
+                }
+
+                async function getConfigs() {
+                    if (configs) return configs;
+                    try {
+                        const resp = await fetch('/planeacion/lmat/api/configs', { headers: { Accept: 'application/json' } });
+                        const json = await resp.json();
+                        configs = (json.data || []).map(c => c.ConfigId).filter(Boolean);
+                    } catch (e) {
+                        console.error('No se pudieron cargar configs (fibra) L.Mat', e);
+                        configs = [];
+                    }
+                    return configs;
                 }
 
                 async function getTamanos(itemId) {
@@ -1079,7 +1093,7 @@
                     return lista;
                 }
 
-                return { getCalibres, getTamanos, getColores };
+                return { getCalibres, getConfigs, getTamanos, getColores };
             })();
 
             function setSelectOptionsLMat(selectEl, opciones, valorActual) {
@@ -1100,7 +1114,7 @@
                 }).join('');
             }
 
-            function mostrarModalLMat() {
+            async function mostrarModalLMat() {
                 if (typeof Swal === 'undefined') {
                     internalToast('SweetAlert2 no está cargado.', 'warning');
                     return;
@@ -1118,22 +1132,63 @@
                 const orden = registroSeleccionado?.OrdenTejido || '';
                 const salon = registroSeleccionado?.Departamento || '';
                 const telarSeleccionado = parseInt(registroSeleccionado?.TelarId, 10) || 0;
+
+                // Si ya hay una L.Mat guardada para esta Orden en CatLMat, se recarga para editarla.
+                let guardadoLMat = null;
+                if (orden) {
+                    try {
+                        const respGuardado = await fetch('/planeacion/lmat/api/por-orden/' + encodeURIComponent(orden), { headers: { Accept: 'application/json' } });
+                        const jsonGuardado = await respGuardado.json();
+                        if (jsonGuardado.success && Array.isArray(jsonGuardado.data) && jsonGuardado.data.length) {
+                            guardadoLMat = jsonGuardado.data;
+                        }
+                    } catch (e) {
+                        console.error('No se pudo cargar CatLMat', e);
+                    }
+                }
                 const tamano = registroSeleccionado?.InventSizeId || 'Tamaño';
+                const itemId = registroSeleccionado?.ItemId || '';
                 const articulo = registroSeleccionado?.Nombre || registroSeleccionado?.ItemId || 'Nombre Articulo';
                 const codigoDibujo = registroSeleccionado?.CodigoDibujo || 'Cod Dibujo';
-                const pesoCrudo = registroSeleccionado?.P_crudo || registroSeleccionado?.PesoCrudo || 737;
+                let pesoCrudo = registroSeleccionado?.P_crudo || registroSeleccionado?.PesoCrudo || 737;
                 const cuentaRizo = registroSeleccionado?.CuentaRizo || 'CuentaRizo';
                 const cuentaPie = registroSeleccionado?.CuentaPie || 'CuentaPie';
+                // Calibre numérico → formato ItemId: 450.1 → 450/1, 16.1 → 16/1, pero entero (10.0) queda como 10.
+                const calibreAItemId = (numero) => Number.isInteger(numero) ? String(numero) : numero.toFixed(1).replace('.', '/');
                 const formatearCalibre = (valor, fallback) => {
                     const numero = Number(String(valor ?? '').replace(',', '.'));
-                    return Number.isFinite(numero) ? numero.toFixed(1) : fallback;
+                    return Number.isFinite(numero) ? calibreAItemId(numero) : fallback;
                 };
                 const calibreRizo = formatearCalibre(registroSeleccionado?.CalibreRizo, 'CalibreRizo');
                 const calibrePie = formatearCalibre(registroSeleccionado?.CalibrePie, 'CalibrePie');
-                const configRizo = cuentaRizo + ' + ' + calibreRizo;
-                const configPie = cuentaPie + ' + ' + calibrePie;
-                const nombreLMat = ['TEJ', tamano, articulo].filter(Boolean).join(' ');
-                const descripcionLMat = [tamano, articulo, codigoDibujo].filter(Boolean).join(' ');
+                // Igual que en programación de requerimientos: ConfigId = Fibra, Tamaño = cuenta + calibre (aquí juntos).
+                const fibraRizo = registroSeleccionado?.FibraRizo || '';
+                const fibraPie = registroSeleccionado?.FibraPie || '';
+                const tamanoRizo = cuentaRizo + ' - ' + calibreRizo;
+                const tamanoPie = cuentaPie + ' - ' + calibrePie;
+                const truncLmat = (value, max) => {
+                    const text = String(value ?? '');
+                    return text.length > max ? text.slice(0, max) : text;
+                };
+                function resolverAlmacenLMat(articuloLMat) {
+                    if (String(articuloLMat || '').startsWith('JU-ENG-')) return 'A-EP-TEJID';
+                    if (telarSeleccionado >= 305 && telarSeleccionado <= 316) return 'A-PTE-LISO';
+                    if (telarSeleccionado >= 200 && telarSeleccionado <= 220) return 'A-PTE-JACQ';
+                    if ((telarSeleccionado >= 299 && telarSeleccionado <= 304) || (telarSeleccionado >= 317 && telarSeleccionado <= 320)) return 'A-PTE-ITEM';
+                    return '';
+                }
+                function almacenVisibleLMat(item) {
+                    const guardado = String(item?.almacen ?? '').trim();
+                    return guardado !== '' ? guardado : resolverAlmacenLMat(item?.articulo);
+                }
+                let nombreLMat = truncLmat(['TEJ', tamano, articulo].filter(Boolean).join(' '), 20);
+                let descripcionLMat = truncLmat([tamano, articulo, codigoDibujo].filter(Boolean).join(' '), 60);
+                if (guardadoLMat) {
+                    // Recargar cabecera desde lo guardado (Nombre=BomId, Descrip=BomName, PesoCrudo).
+                    nombreLMat = truncLmat(guardadoLMat[0].Nombre ?? nombreLMat, 20);
+                    descripcionLMat = truncLmat(guardadoLMat[0].Descrip ?? descripcionLMat, 60);
+                    if (guardadoLMat[0].PesoCrudo != null && guardadoLMat[0].PesoCrudo !== '') pesoCrudo = guardadoLMat[0].PesoCrudo;
+                }
                 const escapeAttr = (value) => String(value ?? '')
                     .replace(/&/g, '&amp;')
                     .replace(/"/g, '&quot;')
@@ -1147,8 +1202,9 @@
                     const numero = Number(String(calibre ?? '').replace(',', '.'));
                     if (!Number.isFinite(numero) || numero === 0) return;
                     filasExistentesLMat.push({
-                        articulo: numero.toFixed(1),
-                        config: tamano,
+                        articulo: calibreAItemId(numero),
+                        config: '',
+                        tamano: 'ENTERO',
                         color: codColor || '',
                         almacen: '',
                         cantidad: 0,
@@ -1160,18 +1216,32 @@
                     agregarFilaSiTieneValorLMat(registroSeleccionado?.[`CalibreComb${n}`], registroSeleccionado?.[`CodColorC${n}`]);
                 }
 
-                const articulos = [
-                    { articulo: 'JU-ENG-RI-C', config: configRizo, tamano: '', color: '1000', almacen: 'A-EP-TEJID', cantidad: 0.384, porcentaje: '52.1%' },
-                    { articulo: 'JU-ENG-PI-C', config: configPie, tamano: '', color: '1000', almacen: 'A-EP-TEJID', cantidad: 0.171, porcentaje: '23.3%' },
+                let articulos = [
+                    { articulo: 'JU-ENG-RI-C', config: fibraRizo, tamano: tamanoRizo, color: '1000', almacen: 'A-EP-TEJID', cantidad: 0.384, porcentaje: '52.1%' },
+                    { articulo: 'JU-ENG-PI-C', config: fibraPie, tamano: tamanoPie, color: '1000', almacen: 'A-EP-TEJID', cantidad: 0.171, porcentaje: '23.3%' },
                     ...filasExistentesLMat,
                 ];
+
+                // Si hay L.Mat guardada, las filas vienen de CatLMat (no de los defaults calculados).
+                if (guardadoLMat) {
+                    articulos = guardadoLMat.map(r => ({
+                        articulo: r.ItemId ?? '',
+                        config: r.ConfigId ?? '',
+                        tamano: r.InventSizeId ?? '',
+                        color: r.InventColorId ?? '',
+                        almacen: r.InventLocationId ?? resolverAlmacenLMat(r.ItemId ?? ''),
+                        cantidad: r.Qty != null ? Number(r.Qty) : 0,
+                        porcentaje: (r.Porcentaje != null ? Number(r.Porcentaje).toFixed(1) : '0.0') + '%',
+                    }));
+                }
 
                 // Cada fila precargada (Tra/CalibreComb1..5) trae su propio valor real de articulo/tamaño/color;
                 // hay que incluirlo aquí para que quede "selected" desde el primer render (si no está en la
                 // lista, el <select> no marca nada y el navegador cae al primer option de la lista).
                 const opcionesSelectLMat = {
                     articulo: Array.from(new Set(['10.1', '600.1', '0', ...filasExistentesLMat.map(f => f.articulo)])),
-                    config: Array.from(new Set([configRizo, configPie, 'ENTERO', tamano].filter(Boolean))),
+                    config: Array.from(new Set([fibraRizo, fibraPie, 'ENTERO'].filter(Boolean))),
+                    tamano: Array.from(new Set([tamano, tamanoRizo, tamanoPie, ...filasExistentesLMat.map(f => f.tamano).filter(Boolean)].filter(Boolean))),
                     color: Array.from(new Set(['1000', ...filasExistentesLMat.map(f => f.color).filter(Boolean)])),
                 };
                 const pesoCrudoNumerico = Number(String(pesoCrudo ?? '').replace(',', '.')) || 0;
@@ -1184,14 +1254,18 @@
                 const clasesPorcentajeTotal = ['text-green-700', 'bg-green-50', 'text-orange-700', 'bg-orange-50', 'text-red-700', 'bg-red-50'];
 
                 function buildSelectLMat(nombre, valorActual, opciones) {
+                    const actual = valorActual != null ? String(valorActual) : '';
+                    let lista = (opciones || []).map(String);
+                    // Asegurar que el valor actual (p.ej. recargado de CatLMat) esté como opción y quede seleccionado.
+                    if (actual !== '' && !lista.includes(actual)) lista = [actual, ...lista];
                     return `
                         <select
                             name="${nombre}"
                             class="w-full min-w-[110px] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                         >
-                            ${opciones.map(opcion => {
+                            ${lista.map(opcion => {
                                 const valor = String(opcion);
-                                const selected = valor === String(valorActual ?? '') ? ' selected' : '';
+                                const selected = valor === actual ? ' selected' : '';
                                 const texto = valor === '' ? 'Seleccione...' : valor;
                                 return `<option value="${valor}"${selected}>${texto}</option>`;
                             }).join('')}
@@ -1199,19 +1273,12 @@
                     `;
                 }
 
-                function resolverAlmacenLMat(articuloLMat) {
-                    if (String(articuloLMat || '').startsWith('JU-ENG-')) return 'A-EP-TEJID';
-                    if (telarSeleccionado >= 305 && telarSeleccionado <= 316) return 'A-PTE-LISO';
-                    if (telarSeleccionado >= 200 && telarSeleccionado <= 220) return 'A-PTE-JACQ';
-                    if ((telarSeleccionado >= 299 && telarSeleccionado <= 304) || (telarSeleccionado >= 317 && telarSeleccionado <= 320)) return 'A-PTE-ITEM';
-                    return '';
+                function renderConfigLMat(item) {
+                    return buildSelectLMat('config[]', item.config, opcionesSelectLMat.config);
                 }
 
                 function renderTamanoLMat(item) {
-                    if (String(item.articulo || '').startsWith('JU-ENG-')) {
-                        return `<span class="font-medium text-gray-800">${escapeHtml(item.config)}</span>`;
-                    }
-                    return buildSelectLMat('config[]', item.config, opcionesSelectLMat.config);
+                    return buildSelectLMat('tamano[]', item.tamano, opcionesSelectLMat.tamano);
                 }
 
                 function renderPlanoOSelectLMat(item, campo, nombre, opciones) {
@@ -1221,24 +1288,26 @@
                     return buildSelectLMat(nombre, item[campo], opciones);
                 }
 
-                function renderFilaEditableLMat(item = { articulo: '10.1', config: 'ENTERO', color: '1000', cantidad: 0 }) {
+                function renderFilaEditableLMat(item = { articulo: '10.1', config: 'ENTERO', tamano: '', color: '1000', cantidad: 0 }) {
                     return `
                         <tr class="border-b border-gray-100">
                             <td class="px-3 py-2">${buildSelectLMat('articulo[]', item.articulo, opcionesSelectLMat.articulo)}</td>
+                            <td class="px-3 py-2">${buildSelectLMat('tamano[]', item.tamano, opcionesSelectLMat.tamano)}</td>
                             <td class="px-3 py-2">${buildSelectLMat('config[]', item.config, opcionesSelectLMat.config)}</td>
                             <td class="px-3 py-2">${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}</td>
-                            <td class="px-3 py-2 font-medium text-gray-800">${resolverAlmacenLMat(item.articulo)}</td>
+                            <td class="lmat-almacen-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
                             <td class="px-3 py-2">
                                 <input
                                     type="number"
                                     name="cantidad[]"
                                     step="0.001"
                                     min="0"
-                                    class="lmat-cantidad-input w-full min-w-[90px] rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                    class="lmat-cantidad-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                                     value="${Number(item.cantidad || 0).toFixed(3)}"
                                 >
                             </td>
                             <td class="lmat-porcentaje-cell px-3 py-2 text-right tabular-nums text-gray-900">0.0%</td>
+                            <!-- Columna Acción oculta
                             <td class="px-3 py-2 text-center">
                                 <button
                                     type="button"
@@ -1248,28 +1317,30 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
+                            -->
                         </tr>
                     `;
                 }
 
                 const filas = articulos.map(item => `
-                    <tr class="border-b border-gray-100">
+                    <tr class="border-b border-gray-100"${String(item.articulo || '').startsWith('JU-ENG-') ? ` data-articulo-fijo="${escapeAttr(item.articulo)}"` : ''}>
                         <td class="px-3 py-2">${renderPlanoOSelectLMat(item, 'articulo', 'articulo[]', opcionesSelectLMat.articulo)}</td>
                         <td class="px-3 py-2">${renderTamanoLMat(item)}</td>
-                        <td class="px-3 py-2">${renderPlanoOSelectLMat(item, 'color', 'color[]', opcionesSelectLMat.color)}</td>
-                        <td class="px-3 py-2 font-medium text-gray-800">${resolverAlmacenLMat(item.articulo)}</td>
+                        <td class="px-3 py-2">${renderConfigLMat(item)}</td>
+                        <td class="px-3 py-2">${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}</td>
+                        <td class="lmat-almacen-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
                         <td class="px-3 py-2">
                             <input
                                 type="number"
                                 name="cantidad[]"
                                 step="0.001"
                                 min="0"
-                                class="lmat-cantidad-input w-full min-w-[90px] rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                class="lmat-cantidad-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                                 value="${item.cantidad.toFixed(3)}"
                             >
                         </td>
                         <td class="lmat-porcentaje-cell px-3 py-2 text-right tabular-nums text-gray-900">${item.porcentaje}</td>
-                        <td class="px-3 py-2"></td>
+                        <!-- Columna Acción oculta -->
                     </tr>
                 `).join('');
 
@@ -1277,34 +1348,71 @@
                     title: 'L Mat',
                     html: `
                         <div class="text-left text-sm text-gray-800">
-                            <div class="grid grid-cols-2 gap-x-8 gap-y-3 mb-5">
-                                <div class="grid grid-cols-[90px_1fr] gap-2">
-                                    <span class="font-semibold text-gray-700">Orden</span>
-                                    <span class="min-h-[22px] border-b border-gray-200">${orden}</span>
+                            <div id="lmat-banner-ocupada" class="hidden mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                                <i class="fas fa-exclamation-triangle mr-1"></i> L.Mat ocupada — ya existe una con ese nombre.
+                            </div>
+                            <div class="mb-5 space-y-2">
+                                <div class="grid grid-cols-5 gap-x-3 gap-y-1">
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-xs font-semibold text-gray-700">Orden</span>
+                                        <span class="min-h-[30px] flex items-center border-b border-gray-200 text-sm">${orden}</span>
+                                    </div>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-xs font-semibold text-gray-700">Salon</span>
+                                        <span class="min-h-[30px] flex items-center border-b border-gray-200 text-sm">${salon}</span>
+                                    </div>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-xs font-semibold text-gray-700">Peso Crudo</span>
+                                        <input
+                                            type="number"
+                                            id="lmat-pesocrudo"
+                                            step="0.01"
+                                            min="0"
+                                            class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-right tabular-nums text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                            value="${escapeAttr(pesoCrudo)}"
+                                        >
+                                    </div>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-xs font-semibold text-gray-700">ItemId</span>
+                                        <input
+                                            type="text"
+                                            id="lmat-itemid"
+                                            class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                            value="${escapeAttr(itemId)}"
+                                        >
+                                    </div>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-xs font-semibold text-gray-700">Tamaño</span>
+                                        <input
+                                            type="text"
+                                            id="lmat-tamano"
+                                            class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                            value="${escapeAttr(tamano)}"
+                                        >
+                                    </div>
                                 </div>
-                                <div class="grid grid-cols-[90px_1fr_90px_1fr] gap-2">
-                                    <span class="font-semibold text-gray-700">Salon</span>
-                                    <span class="min-h-[22px] border-b border-gray-200">${salon}</span>
-                                    <span class="font-semibold text-gray-700">Peso Crudo</span>
-                                    <span class="font-semibold tabular-nums">${pesoCrudo}</span>
-                                </div>
-                                <div class="grid grid-cols-[90px_1fr] gap-2 items-center">
-                                    <span class="font-semibold text-gray-700">Nombre</span>
-                                    <input
-                                        type="text"
-                                        id="lmat-nombre"
-                                        class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                        value="${escapeAttr(nombreLMat)}"
-                                    >
-                                </div>
-                                <div class="grid grid-cols-[90px_1fr] gap-2 items-center">
-                                    <span class="font-semibold text-gray-700">Descrip</span>
-                                    <input
-                                        type="text"
-                                        id="lmat-descripcion"
-                                        class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                        value="${escapeAttr(descripcionLMat)}"
-                                    >
+                                <div class="grid grid-cols-2 gap-x-3">
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-xs font-semibold text-gray-700">Nombre</span>
+                                        <input
+                                            type="text"
+                                            id="lmat-nombre"
+                                            maxlength="20"
+                                            class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                            value="${escapeAttr(nombreLMat)}"
+                                        >
+                                        <p id="lmat-nombre-error" class="hidden mt-0.5 text-xs font-semibold text-red-600">Ya existe esa L.Mat</p>
+                                    </div>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-xs font-semibold text-gray-700">Descrip</span>
+                                        <input
+                                            type="text"
+                                            id="lmat-descripcion"
+                                            maxlength="60"
+                                            class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                            value="${escapeAttr(descripcionLMat)}"
+                                        >
+                                    </div>
                                 </div>
                             </div>
 
@@ -1314,11 +1422,12 @@
                                         <tr>
                                             <th class="px-3 py-2 text-left font-semibold">Articulos</th>
                                             <th class="px-3 py-2 text-left font-semibold">Tamaño</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Config</th>
                                             <th class="px-3 py-2 text-center font-semibold">Color</th>
                                             <th class="px-3 py-2 text-left font-semibold">Almacen</th>
                                             <th class="px-3 py-2 text-right font-semibold">Cantidad</th>
                                             <th class="px-3 py-2 text-right font-semibold">Porcentaje</th>
-                                            <th class="px-3 py-2 text-center font-semibold">Acción</th>
+                                            <!-- <th class="px-3 py-2 text-center font-semibold">Acción</th> -->
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white">
@@ -1326,10 +1435,10 @@
                                     </tbody>
                                     <tfoot class="bg-gray-50 font-semibold">
                                         <tr>
-                                            <td class="px-3 py-2" colspan="4"></td>
-                                            <td class="px-3 py-2 text-right tabular-nums">${totalCantidad.toFixed(3)}</td>
+                                            <td class="px-3 py-2" colspan="5"></td>
+                                            <td id="lmat-total-cantidad" class="px-3 py-2 text-right tabular-nums">${totalCantidad.toFixed(3)}</td>
                                             <td id="lmat-total-porcentaje" class="px-3 py-2 text-right tabular-nums ${totalPorcentajeClass}">${totalPorcentajeRedondeado.toFixed(1)}%</td>
-                                            <td class="px-3 py-2"></td>
+                                            <!-- Columna Acción oculta -->
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -1368,11 +1477,17 @@
                     showConfirmButton: false,
                     didOpen: () => {
                         const tbodyLMat = document.querySelector('.swal2-html-container tbody');
+                        const pesoCrudoInput = document.getElementById('lmat-pesocrudo');
                         const recalcularPorcentajesLMat = () => {
+                            // El total base = PesoCrudo / 1000, leído en vivo del input (cambia al editarlo).
+                            const totalCantidadActual = (Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0) / 1000;
+                            const totalCantidadCell = document.getElementById('lmat-total-cantidad');
+                            if (totalCantidadCell) totalCantidadCell.textContent = totalCantidadActual.toFixed(3);
+
                             let totalPorcentajeActual = 0;
                             document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
                                 const cantidad = Number(String(input.value || '0').replace(',', '.')) || 0;
-                                const porcentaje = totalCantidad > 0 ? (cantidad / totalCantidad) * 100 : 0;
+                                const porcentaje = totalCantidadActual > 0 ? (cantidad / totalCantidadActual) * 100 : 0;
                                 totalPorcentajeActual += porcentaje;
                                 const porcentajeCell = input.closest('tr')?.querySelector('.lmat-porcentaje-cell');
                                 if (porcentajeCell) porcentajeCell.textContent = porcentaje.toFixed(1) + '%';
@@ -1399,6 +1514,10 @@
                             });
                         };
 
+                        // Al cambiar Peso Crudo, recalcular total base y porcentajes.
+                        pesoCrudoInput?.addEventListener('input', recalcularPorcentajesLMat);
+
+                        /* Columna Acción oculta: quitar fila deshabilitado
                         const conectarQuitarFilasLMat = () => {
                             document.querySelectorAll('.lmat-quitar-fila').forEach((btn) => {
                                 if (btn.dataset.lmatConnected === '1') return;
@@ -1409,23 +1528,35 @@
                                 });
                             });
                         };
+                        */
+
+                        const actualizarAlmacenFilaLMat = (fila, articulo) => {
+                            const cell = fila?.querySelector('.lmat-almacen-cell');
+                            if (cell) cell.textContent = resolverAlmacenLMat(articulo);
+                        };
 
                         // Carga en cascada: al elegir Artículo se recargan Tamaño y Color de esa fila.
-                        const cargarTamanoYColorLMat = (articuloSelect) => {
-                            const fila = articuloSelect?.closest('tr');
-                            if (!fila) return;
-                            const tamanoSelect = fila.querySelector('select[name="config[]"]');
+                        const cargarMaterialesFilaLMat = (fila, itemId) => {
+                            if (!fila || !itemId) return;
+                            const configSelect = fila.querySelector('select[name="config[]"]');
+                            const tamanoSelect = fila.querySelector('select[name="tamano[]"]');
                             const colorSelect = fila.querySelector('select[name="color[]"]');
-                            const itemId = articuloSelect.value;
-                            if (!itemId) return;
 
                             Promise.all([
+                                LMatMateriales.getConfigs(itemId),
                                 LMatMateriales.getTamanos(itemId),
                                 LMatMateriales.getColores(itemId),
-                            ]).then(([tamanos, colores]) => {
+                            ]).then(([configsItem, tamanos, colores]) => {
+                                if (configSelect) setSelectOptionsLMat(configSelect, configsItem, configSelect.value);
                                 if (tamanoSelect) setSelectOptionsLMat(tamanoSelect, tamanos, tamanoSelect.value);
                                 if (colorSelect) setSelectOptionsLMat(colorSelect, colores, colorSelect.value);
                             });
+                        };
+
+                        const cargarTamanoYColorLMat = (articuloSelect) => {
+                            const fila = articuloSelect?.closest('tr');
+                            actualizarAlmacenFilaLMat(fila, articuloSelect?.value);
+                            cargarMaterialesFilaLMat(fila, articuloSelect?.value);
                         };
 
                         const conectarArticuloSelectsLMat = () => {
@@ -1437,7 +1568,7 @@
                         };
 
                         conectarInputsCantidadLMat();
-                        conectarQuitarFilasLMat();
+                        // conectarQuitarFilasLMat(); // Columna Acción oculta
                         recalcularPorcentajesLMat();
 
                         LMatMateriales.getCalibres().then((calibresDisponibles) => {
@@ -1448,11 +1579,16 @@
                             conectarArticuloSelectsLMat();
                         });
 
+                        // Filas con artículo fijo (JU-ENG rizo/pie): cargar Config/Tamaño/Color por su ItemId.
+                        document.querySelectorAll('tr[data-articulo-fijo]').forEach((fila) => {
+                            cargarMaterialesFilaLMat(fila, fila.dataset.articuloFijo);
+                        });
+
                         document.getElementById('lmat-anadir-fila')?.addEventListener('click', () => {
                             if (!tbodyLMat) return;
                             tbodyLMat.insertAdjacentHTML('beforeend', renderFilaEditableLMat());
                             conectarInputsCantidadLMat();
-                            conectarQuitarFilasLMat();
+                            // conectarQuitarFilasLMat(); // Columna Acción oculta
                             recalcularPorcentajesLMat();
 
                             const nuevaFila = tbodyLMat.lastElementChild;
@@ -1466,8 +1602,116 @@
                             }
                         });
 
-                        document.getElementById('lmat-guardar-front')?.addEventListener('click', () => {
-                            showToast('Datos de L Mat guardados en front.', 'success');
+                        // Validación: el Nombre (BOMID / columna "L.Mat" de liberar órdenes) no debe existir ya en BOMTABLE.
+                        const nombreInput = document.getElementById('lmat-nombre');
+                        const nombreError = document.getElementById('lmat-nombre-error');
+                        const bannerOcupada = document.getElementById('lmat-banner-ocupada');
+                        const guardarBtn = document.getElementById('lmat-guardar-front');
+                        let lmatDuplicada = false;
+                        let guardandoLmat = false;
+                        let lmatCheckTimer = null;
+
+                        const actualizarEstadoGuardarBtn = () => {
+                            if (!guardarBtn) return;
+                            const bloqueado = lmatDuplicada || guardandoLmat;
+                            guardarBtn.disabled = bloqueado;
+                            guardarBtn.classList.toggle('opacity-50', bloqueado);
+                            guardarBtn.classList.toggle('cursor-not-allowed', bloqueado);
+                        };
+
+                        const setGuardarLmatLoading = (isLoading) => {
+                            guardandoLmat = isLoading;
+                            const iconEl = guardarBtn?.querySelector('i');
+                            const spanEl = guardarBtn?.querySelector('span');
+                            if (iconEl) iconEl.className = isLoading ? 'fas fa-spinner fa-spin' : 'fas fa-save';
+                            if (spanEl) spanEl.textContent = isLoading ? 'Guardando...' : 'Guardar';
+                            actualizarEstadoGuardarBtn();
+                        };
+
+                        const marcarLmatDuplicada = (duplicado) => {
+                            lmatDuplicada = duplicado;
+                            if (nombreInput) {
+                                nombreInput.classList.toggle('border-red-500', duplicado);
+                                nombreInput.classList.toggle('ring-1', duplicado);
+                                nombreInput.classList.toggle('ring-red-500', duplicado);
+                            }
+                            if (nombreError) nombreError.classList.toggle('hidden', !duplicado);
+                            if (bannerOcupada) bannerOcupada.classList.toggle('hidden', !duplicado);
+                            actualizarEstadoGuardarBtn();
+                        };
+
+                        const validarLmat = async () => {
+                            const nombre = (nombreInput?.value || '').trim();
+                            if (!nombre) { marcarLmatDuplicada(false); return; }
+                            try {
+                                const resp = await fetch('/planeacion/lmat/api/existe?nombre=' + encodeURIComponent(nombre), { headers: { Accept: 'application/json' } });
+                                const json = await resp.json();
+                                marcarLmatDuplicada(!!json.existe);
+                            } catch (e) {
+                                console.error('No se pudo validar la L.Mat', e);
+                                marcarLmatDuplicada(false);
+                            }
+                        };
+
+                        nombreInput?.addEventListener('input', () => {
+                            clearTimeout(lmatCheckTimer);
+                            lmatCheckTimer = setTimeout(validarLmat, 400);
+                        });
+                        validarLmat(); // validar el nombre precargado al abrir
+
+                        guardarBtn?.addEventListener('click', async () => {
+                            if (lmatDuplicada || guardandoLmat) {
+                                if (lmatDuplicada) showToast('Ya existe esa L.Mat.', 'error');
+                                return;
+                            }
+
+                            // Recolectar las filas de la tabla del modal.
+                            const filasData = [];
+                            document.querySelectorAll('.swal2-html-container tbody tr').forEach((fila) => {
+                                const articuloVal = fila.querySelector('select[name="articulo[]"]')?.value ?? fila.dataset.articuloFijo ?? '';
+                                if (!articuloVal) return;
+                                const almacenVal = (fila.querySelector('.lmat-almacen-cell')?.textContent || '').trim()
+                                    || resolverAlmacenLMat(articuloVal);
+                                filasData.push({
+                                    itemId: articuloVal,
+                                    configId: fila.querySelector('select[name="config[]"]')?.value || '',
+                                    inventSizeId: fila.querySelector('select[name="tamano[]"]')?.value || '',
+                                    inventColorId: fila.querySelector('select[name="color[]"]')?.value || '',
+                                    inventLocationId: almacenVal,
+                                    qty: parseFloat(fila.querySelector('.lmat-cantidad-input')?.value || '0') || 0,
+                                    porcentaje: parseFloat((fila.querySelector('.lmat-porcentaje-cell')?.textContent || '0').replace('%', '')) || 0,
+                                });
+                            });
+
+                            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                            setGuardarLmatLoading(true);
+                            try {
+                                const resp = await fetch('/planeacion/lmat/api/guardar', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
+                                    body: JSON.stringify({
+                                        orden: orden,
+                                        salon: salon,
+                                        telarId: String(telarSeleccionado || ''),
+                                        nombre: nombreInput?.value || '',
+                                        descrip: document.getElementById('lmat-descripcion')?.value || '',
+                                        pesoCrudo: String(document.getElementById('lmat-pesocrudo')?.value || ''),
+                                        filas: filasData,
+                                    }),
+                                });
+                                const json = await resp.json();
+                                if (json.success) {
+                                    showToast(json.message || 'L.Mat guardada.', 'success');
+                                    Swal.close();
+                                    await loadData(true);
+                                } else {
+                                    showToast(json.message || 'Error al guardar la L.Mat.', 'error');
+                                }
+                            } catch (e) {
+                                showToast('Error al guardar: ' + (e.message || 'desconocido'), 'error');
+                            } finally {
+                                setGuardarLmatLoading(false);
+                            }
                         });
                         document.getElementById('lmat-cerrar-front')?.addEventListener('click', () => {
                             Swal.close();
