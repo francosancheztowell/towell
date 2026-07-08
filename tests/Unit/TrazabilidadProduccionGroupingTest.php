@@ -95,6 +95,16 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         );
     }
 
+    public function test_compact_cards_keep_readable_typography(): void
+    {
+        $content = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+
+        $this->assertStringContainsString('--prod-card-title-size: 1rem;', $content);
+        $this->assertStringContainsString('--prod-card-meta-size: 0.6875rem;', $content);
+        $this->assertStringContainsString('--prod-card-label-size: 0.625rem;', $content);
+        $this->assertStringContainsString('--prod-card-value-size: 0.8125rem;', $content);
+    }
+
     /**
      * @return array<string, mixed>
      */

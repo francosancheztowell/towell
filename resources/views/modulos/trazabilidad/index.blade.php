@@ -131,6 +131,10 @@
             }
         }
         .prod-crudo-card {
+            --prod-card-title-size: 1rem;
+            --prod-card-meta-size: 0.6875rem;
+            --prod-card-label-size: 0.625rem;
+            --prod-card-value-size: 0.8125rem;
             position: relative;
             overflow: hidden;
             min-width: 0;
@@ -161,14 +165,14 @@
         }
         .prod-crudo-card__title {
             color: #102a4e;
-            font-size: 0.9375rem;
+            font-size: var(--prod-card-title-size);
             font-weight: 800;
             line-height: 1.15;
         }
         .prod-crudo-card__meta {
             margin-top: 0.2rem;
             color: #718096;
-            font-size: 0.625rem;
+            font-size: var(--prod-card-meta-size);
             line-height: 1.2;
         }
         .prod-crudo-card__loom-count,
@@ -176,7 +180,7 @@
             flex-shrink: 0;
             border-radius: 9999px;
             padding: 0.25rem 0.45rem;
-            font-size: 0.5625rem;
+            font-size: var(--prod-card-label-size);
             font-weight: 700;
             line-height: 1;
             white-space: nowrap;
@@ -210,7 +214,7 @@
         .prod-crudo-card__stat > span {
             display: block;
             color: #8a98aa;
-            font-size: 0.5rem;
+            font-size: var(--prod-card-label-size);
             line-height: 1.2;
         }
         .prod-crudo-card__stat > strong {
@@ -218,7 +222,7 @@
             margin-top: 0.15rem;
             overflow: hidden;
             color: #172b4d;
-            font-size: 0.6875rem;
+            font-size: var(--prod-card-value-size);
             font-variant-numeric: tabular-nums;
             line-height: 1.2;
             text-overflow: ellipsis;
@@ -226,7 +230,7 @@
         }
         .prod-crudo-card__stat small {
             color: #64748b;
-            font-size: 0.5rem;
+            font-size: var(--prod-card-label-size);
             font-weight: 600;
         }
         .prod-crudo-card__daily {
@@ -252,13 +256,13 @@
         }
         .prod-crudo-card__daily span {
             color: #8a98aa;
-            font-size: 0.5rem;
+            font-size: var(--prod-card-label-size);
             white-space: nowrap;
         }
         .prod-crudo-card__daily strong {
             overflow: hidden;
             color: #172b4d;
-            font-size: 0.6875rem;
+            font-size: var(--prod-card-value-size);
             font-variant-numeric: tabular-nums;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -272,11 +276,11 @@
             justify-content: space-between;
             margin-bottom: 0.25rem;
             color: #64748b;
-            font-size: 0.5rem;
+            font-size: var(--prod-card-label-size);
         }
         .prod-crudo-card__progress-meta strong {
             color: #334155;
-            font-size: 0.5625rem;
+            font-size: var(--prod-card-meta-size);
             font-variant-numeric: tabular-nums;
         }
         .prod-crudo-card__progress-track {
@@ -302,7 +306,7 @@
             padding: 0.35rem 0.4rem;
             border-bottom: 1px solid #edf1f5;
             color: #526176;
-            font-size: 0.625rem;
+            font-size: var(--prod-card-label-size);
             font-variant-numeric: tabular-nums;
         }
         .prod-crudo-card__loom-row:last-child {
@@ -310,7 +314,7 @@
         }
         .prod-crudo-card__loom-row--head {
             color: #94a3b8;
-            font-size: 0.5rem;
+            font-size: 0.5625rem;
             font-weight: 700;
             letter-spacing: 0.04em;
             text-transform: uppercase;
@@ -336,7 +340,7 @@
             background: transparent;
             color: #1d4ed8;
             cursor: pointer;
-            font-size: 0.625rem;
+            font-size: var(--prod-card-meta-size);
             font-weight: 700;
         }
         .prod-crudo-toggle:hover {
@@ -359,14 +363,14 @@
             min-width: 0;
             overflow: hidden;
             color: #7a899e;
-            font-size: 0.5625rem;
+            font-size: var(--prod-card-label-size);
             text-overflow: ellipsis;
             white-space: nowrap;
         }
         .prod-crudo-card__single-loom {
             padding: 0 0.75rem 0.65rem 0.95rem;
             color: #64748b;
-            font-size: 0.625rem;
+            font-size: var(--prod-card-meta-size);
             font-weight: 600;
         }
         .prod-card-v2 {
