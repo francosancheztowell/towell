@@ -13,6 +13,9 @@ Mejorar la sección **Producción > Crudo** para evitar que una misma orden ocup
   - cantidad programada;
   - piezas producidas consolidadas;
   - peso total consolidado.
+  - piezas estándar por día;
+  - kilogramos estándar por día;
+  - porcentaje y barra de avance.
 - Cuando la orden tenga producción en varios telares:
   - la card mostrará la cantidad de telares;
   - mostrará una lista breve de sus números de telar;
@@ -34,7 +37,8 @@ El telar canónico del programa y los telares encontrados únicamente en trazabi
 
 ## Distribución responsive
 
-- Escritorio: cuadrícula de tres columnas para cards cerradas.
+- Escritorio amplio: cuadrícula de cuatro columnas para cards cerradas.
+- Escritorio intermedio: cuadrícula de tres columnas.
 - Una card abierta con varios telares ocupará dos columnas cuando exista espacio.
 - Tableta: cuadrícula de dos columnas.
 - Móvil: una columna; la card abierta conservará el detalle dentro de su ancho.

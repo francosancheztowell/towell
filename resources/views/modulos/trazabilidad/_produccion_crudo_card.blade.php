@@ -5,6 +5,10 @@
     $estadoLabel = $estado === 'activo' ? 'Activa' : 'Finalizada';
     $meses = implode(', ', $o['meses'] ?? []);
     $meta = collect([$meses, $estadoLabel])->filter()->implode(' · ');
+    $pzasDia = $o['pzasDia'] ?? ($o['programa']['stdDia'] ?? null);
+    $kgDia = $o['prodKgDia'] ?? ($o['programa']['prodKgDia'] ?? null);
+    $avance = (float) ($o['avance'] ?? 0);
+    $avanceBarra = min(100, max(0, $avance));
 @endphp
 
 <article class="prod-crudo-card {{ $esMultiTelar ? 'prod-crudo-card--multi' : '' }}"
@@ -38,6 +42,32 @@
         <div class="prod-crudo-card__stat">
             <span>Peso total</span>
             <strong>{{ number_format((float) ($o['pesoTotal'] ?? 0), 2) }} <small>kg</small></strong>
+        </div>
+    </div>
+
+    <div class="prod-crudo-card__daily">
+        <div>
+            <span>Pzas/día</span>
+            <strong>{{ $pzasDia !== null ? number_format((float) $pzasDia) : '—' }}</strong>
+        </div>
+        <div>
+            <span>Kg/día</span>
+            <strong>{{ $kgDia !== null ? number_format((float) $kgDia, 2) : '—' }}</strong>
+        </div>
+    </div>
+
+    <div class="prod-crudo-card__progress">
+        <div class="prod-crudo-card__progress-meta">
+            <span>Avance</span>
+            <strong>{{ number_format($avance, 1) }}%</strong>
+        </div>
+        <div class="prod-crudo-card__progress-track"
+             role="progressbar"
+             aria-label="Avance de la orden {{ $o['orden'] }}"
+             aria-valuemin="0"
+             aria-valuemax="100"
+             aria-valuenow="{{ $avanceBarra }}">
+            <div class="prod-crudo-card__progress-bar" style="width: {{ $avanceBarra }}%"></div>
         </div>
     </div>
 

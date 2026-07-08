@@ -61,13 +61,15 @@ Expected: failure because the grouped-card partial does not exist.
 
 Render the card heading, status/month metadata, three compact totals, the lower-left expansion button, loom summary, and hidden internal detail table. Use `aria-expanded="false"` and a unique panel id.
 
+Render `Pzas/día`, `Kg/día`, and the percentage progress bar below the three primary totals.
+
 - [ ] **Step 4: Replace flat grouped rendering**
 
 Update `_produccion.blade.php` to iterate once per grouped order and include the new partial. Keep Rollos Teñido unchanged.
 
 - [ ] **Step 5: Replace obsolete group CSS**
 
-Remove `.prod-card-grupo` styling and add styles for compact order cards, two-column expanded state, internal loom rows, lower-left action placement, and one-column mobile behavior.
+Remove `.prod-card-grupo` styling and add styles for compact order cards, four closed cards per wide desktop row, two-column expanded state, internal loom rows, lower-left action placement, and one-column mobile behavior.
 
 - [ ] **Step 6: Add delegated expansion behavior**
 

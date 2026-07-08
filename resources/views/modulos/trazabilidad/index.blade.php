@@ -125,6 +125,11 @@
                 grid-column: span 2;
             }
         }
+        @media (min-width: 1280px) {
+            .prod-crudo-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
         .prod-crudo-card {
             position: relative;
             overflow: hidden;
@@ -223,6 +228,67 @@
             color: #64748b;
             font-size: 0.5rem;
             font-weight: 600;
+        }
+        .prod-crudo-card__daily {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.35rem;
+            margin: 0 0.75rem 0.55rem 0.95rem;
+            padding: 0.4rem 0.5rem;
+            border: 1px solid #e8edf3;
+            border-radius: 0.45rem;
+            background: #ffffff;
+        }
+        .prod-crudo-card__daily > div {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.35rem;
+            min-width: 0;
+        }
+        .prod-crudo-card__daily > div + div {
+            padding-left: 0.5rem;
+            border-left: 1px solid #e2e8f0;
+        }
+        .prod-crudo-card__daily span {
+            color: #8a98aa;
+            font-size: 0.5rem;
+            white-space: nowrap;
+        }
+        .prod-crudo-card__daily strong {
+            overflow: hidden;
+            color: #172b4d;
+            font-size: 0.6875rem;
+            font-variant-numeric: tabular-nums;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .prod-crudo-card__progress {
+            margin: 0 0.75rem 0.65rem 0.95rem;
+        }
+        .prod-crudo-card__progress-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+            color: #64748b;
+            font-size: 0.5rem;
+        }
+        .prod-crudo-card__progress-meta strong {
+            color: #334155;
+            font-size: 0.5625rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .prod-crudo-card__progress-track {
+            height: 0.35rem;
+            overflow: hidden;
+            border-radius: 9999px;
+            background: #e2e8f0;
+        }
+        .prod-crudo-card__progress-bar {
+            height: 100%;
+            border-radius: inherit;
+            background: #3b82f6;
         }
         .prod-crudo-card__detail {
             padding: 0.45rem 0.75rem 0.55rem 0.95rem;

@@ -41,6 +41,9 @@ class TrazabilidadProduccionGroupingTest extends TestCase
             'programadas' => 6200.0,
             'producidasTotal' => 4861.0,
             'pesoTotal' => 8161.8,
+            'pzasDia' => 780.0,
+            'prodKgDia' => 355.5,
+            'avance' => 78.4,
             'cantidadTelares' => 4,
             'esMultiTelar' => true,
             'telaresResumen' => '302, 301, 303, 320',
@@ -59,6 +62,10 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         $this->assertStringContainsString('prod-crudo-toggle', $html);
         $this->assertStringContainsString('Ver telares', $html);
         $this->assertStringContainsString('aria-expanded="false"', $html);
+        $this->assertStringContainsString('Pzas/día', $html);
+        $this->assertStringContainsString('Kg/día', $html);
+        $this->assertStringContainsString('78.4%', $html);
+        $this->assertStringContainsString('prod-crudo-card__progress-bar', $html);
         $this->assertSame(4, substr_count($html, 'data-loom-row'));
     }
 
@@ -75,6 +82,17 @@ class TrazabilidadProduccionGroupingTest extends TestCase
 
         $this->assertFalse($orders[0]['esMultiTelar']);
         $this->assertSame(450.0, $orders[0]['producidasTotal']);
+    }
+
+    public function test_production_layout_uses_four_card_columns_on_wide_screens(): void
+    {
+        $content = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+
+        $this->assertStringContainsString('@media (min-width: 1280px)', $content);
+        $this->assertStringContainsString(
+            'grid-template-columns: repeat(4, minmax(0, 1fr));',
+            $content
+        );
     }
 
     /**
