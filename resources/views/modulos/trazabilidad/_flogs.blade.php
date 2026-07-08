@@ -172,11 +172,11 @@
                     </div>
                     <div class="flog-cliente-grid__celda flog-cliente-grid__celda--aviso" role="gridcell">
                         <span class="flog-cliente-grid__label">Aviso especial</span>
-                        <span class="flog-cliente-grid__valor">{{ $v($general['avisoEspecialTxt'] ?? null) }}</span>
+                        <span class="flog-cliente-grid__valor flog-cliente-grid__valor--limitado">{{ $v($general['avisoEspecialTxt'] ?? null) }}</span>
                     </div>
-                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--info flog-cliente-grid__celda--span-2" role="gridcell">
+                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--info flog-cliente-grid__celda--full-row" role="gridcell">
                         <span class="flog-cliente-grid__label">Información importante</span>
-                        <span class="flog-cliente-grid__valor">{{ $v($general['infoImportante'] ?? null) }}</span>
+                        <span class="flog-cliente-grid__valor flog-cliente-grid__valor--limitado">{{ $v($general['infoImportante'] ?? null) }}</span>
                     </div>
                 </div>
             </div>

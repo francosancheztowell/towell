@@ -781,13 +781,15 @@
             border-bottom: none;
         }
         .flog-cliente-grid__celda--aviso {
+            grid-column: span 3;
             background: #ecfdf5;
         }
         .flog-cliente-grid__celda--info {
             background: #fffbeb;
         }
-        .flog-cliente-grid__celda--span-2 {
-            grid-column: span 2;
+        .flog-cliente-grid__celda--full-row {
+            grid-column: 1 / -1;
+            border-right: none;
         }
         .flog-cliente-grid__label {
             font-size: 0.625rem;
@@ -804,6 +806,13 @@
             line-height: 1.35;
             word-break: break-word;
             white-space: pre-line;
+        }
+        .flog-cliente-grid__valor--limitado {
+            max-height: calc(3 * 1.35em);
+            overflow-y: auto;
+            padding-right: 0.25rem;
+            scrollbar-width: thin;
+            scrollbar-color: #94a3b8 transparent;
         }
         .flog-cliente-grid__valor--accent {
             color: #1d4ed8;
