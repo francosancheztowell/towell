@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Atadores\AtaMontadoTelasModel;
+use App\Models\Atadores\AtaDevolucionesModel;
 use App\Models\Atadores\AtaMontadoMaquinasModel;
 use App\Models\Atadores\AtaMontadoActividadesModel;
 use App\Models\Atadores\AtaMaquinasModel;
@@ -537,6 +538,9 @@ class AtadoresController extends Controller
                 $montado->comments_sup = $comentariosSupervisor;
                 $montado->save();
 
+                // Propagar el nuevo estatus a las devoluciones asociadas (por RefId)
+                $this->sincronizarEstatusDevoluciones($montado->Id, 'Autorizado');
+
                 // 2. Guardar en TejHistorialInventarioTelares con todos los campos
                 // Usar query builder para tener mejor control sobre el formato de fechas
 
@@ -717,6 +721,9 @@ class AtadoresController extends Controller
                     'NomTejedor' => $user->nombre,
                     'Estatus' => 'Calificado'
                 ]);
+
+            // Propagar el nuevo estatus a las devoluciones asociadas (por RefId)
+            $this->sincronizarEstatusDevoluciones($montado->Id, 'Calificado');
 
             // Actualizar también el status en tej_inventario_telares
             TejInventarioTelares::where('no_julio', $montado->NoJulio)
@@ -934,6 +941,9 @@ class AtadoresController extends Controller
                     'comments_ata' => $commentsAta,
                 ]);
 
+            // Propagar el nuevo estatus a las devoluciones asociadas (por RefId)
+            $this->sincronizarEstatusDevoluciones($montado->Id, 'Terminado');
+
             // Actualizar también el status en tej_inventario_telares
             TejInventarioTelares::where('no_julio', $montado->NoJulio)
                 ->where('no_orden', $montado->NoProduccion)
@@ -1002,6 +1012,28 @@ class AtadoresController extends Controller
         }
 
         return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);
+    }
+
+    /**
+     * Propaga el cambio de Estatus del atado padre (AtaMontadoTelas) a las
+     * devoluciones asociadas (AtaDevoluciones) vinculadas por RefId, de forma
+     * que el Estatus de la devolución siga siempre al del registro padre.
+     */
+    private function sincronizarEstatusDevoluciones(?int $refId, string $estatus): void
+    {
+        if (!$refId) {
+            return;
+        }
+
+        try {
+            AtaDevolucionesModel::where('RefId', $refId)->update(['Estatus' => $estatus]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo sincronizar el Estatus de AtaDevoluciones con el atado padre', [
+                'ref_id' => $refId,
+                'estatus' => $estatus,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
