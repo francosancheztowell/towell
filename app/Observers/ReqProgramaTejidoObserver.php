@@ -59,6 +59,8 @@ class ReqProgramaTejidoObserver
         'ItemId'         => 'ItemId',
         'TotalPedido'    => 'Pedido',
         'SaldoPedido'    => 'Saldos',
+        'Produccion'     => 'Produccion',
+        'ProduccionMarbetes' => 'ProduccionMarbetes',
         'FlogsId'        => 'FlogsId',
         'NombreProyecto' => 'NombreProyecto',
         'PesoCrudo'      => 'P_crudo',
@@ -76,11 +78,12 @@ class ReqProgramaTejidoObserver
      *   PesoRollo (maestro o 90 para felpa) ─→ Repeticiones = TRUNC((PesoRollo/PesoCrudo)/NoTiras × 1000)
      *                                                       ├─→ PzasRollo = Rep × NoTiras  (÷2 si FEL)
      *                                                       ├─→ MtsRollo  = (LargoCrudo × Rep)/100  (÷2 si FEL)
-     *                                                       └─→ TotalRollos = CEIL(SaldoPedido / PzasRollo)
-     *                                                              └─→ TotalPzas = TotalRollos × PzasRollo
+     *                                                       └─→ TotalRollos = CEIL(TotalPedido / PzasRollo)
+     *                                                              ├─→ TotalPzas  = TotalRollos × PzasRollo
+     *                                                              └─→ NoMarbete  = TotalRollos − ProduccionMarbetes
      */
     public const CAMPOS_RECALC_FORMULA = [
-        'TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido', 'TotalPedido',
+        'TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido', 'TotalPedido', 'Produccion', 'ProduccionMarbetes',
     ];
 
     public function saved(ReqProgramaTejido $programa): void
@@ -126,7 +129,11 @@ class ReqProgramaTejidoObserver
             $pCrudo = (float) ($programa->PesoCrudo ?? 0);
             $tiras  = (float) ($programa->NoTiras ?? 0);
             $largo  = (float) ($programa->LargoCrudo ?? 0);
-            $saldoPedido = (float) ($programa->SaldoPedido ?? $programa->TotalPedido ?? 0);
+            // TotalRollos/TotalPzas se calculan sobre el PEDIDO completo (no el saldo pendiente).
+            // Fallback a SaldoPedido/Produccion solo si TotalPedido viene vacío (órdenes antiguas).
+            $totalPedido = (float) ($programa->TotalPedido ?? $programa->SaldoPedido ?? $programa->Produccion ?? 0);
+            // Marbetes ya producidos (columna ProduccionMarbetes); null → 0.
+            $produccionMarbetes = (float) ($programa->ProduccionMarbetes ?? 0);
 
             if ($pCrudo <= 0 || $tiras <= 0) {
                 Log::info('ReqProgramaTejidoObserver: skip recalc (PesoCrudo o NoTiras invalido)', [
@@ -167,16 +174,19 @@ class ReqProgramaTejidoObserver
                 }
             }
 
-            $totalRollos = ($saldoPedido > 0 && $pzasRollo > 0)
-                ? (float) ceil($saldoPedido / $pzasRollo)
+            $totalRollos = ($totalPedido > 0 && $pzasRollo > 0)
+                ? (float) ceil($totalPedido / $pzasRollo)
                 : null;
             $totalPzas = ($totalRollos !== null && $pzasRollo > 0)
                 ? (float) round($totalRollos * $pzasRollo, 0)
                 : null;
 
-            // SaldoMarbete / NoMarbete = TotalRollos (consistente con lo que hace LiberarOrdenes
-            // al guardar; si necesitas la fórmula clásica SaldoPedido/NoTiras/Rep cambia aquí).
-            $saldoMarbete = $totalRollos;
+            // NoMarbete = TotalRollos − ProduccionMarbetes (marbetes pendientes por imprimir).
+            // Ej: TotalRollos 100, ya producidos 60 → NoMarbete 40. max(0, ...) evita negativos.
+            $noMarbete = $totalRollos !== null
+                ? (float) max(0, $totalRollos - $produccionMarbetes)
+                : null;
+            $saldoMarbete = $noMarbete;
 
             // === UPDATE directo (evita recursión del observer) ===
             $tabla = $programa->getTable();
@@ -190,7 +200,7 @@ class ReqProgramaTejidoObserver
                     'TotalRollos'       => $totalRollos,
                     'TotalPzas'         => $totalPzas,
                     'SaldoMarbete'      => $saldoMarbete,
-                    'NoMarbete'         => $saldoMarbete,
+                    'NoMarbete'         => $noMarbete,
                     'RollosProgramados' => $totalRollos,
                     'UpdatedAt'         => \Carbon\Carbon::now(),
                 ]);
@@ -208,7 +218,7 @@ class ReqProgramaTejidoObserver
                         'MtsRollo'          => $mtsRollo,
                         'TotalRollos'       => $totalRollos,
                         'TotalPzas'         => $totalPzas,
-                        'NoMarbete'         => $saldoMarbete,
+                        'NoMarbete'         => $noMarbete,
                         'FechaModificacion' => \Carbon\Carbon::now()->format('Y-m-d'),
                         'HoraModificacion'  => \Carbon\Carbon::now()->format('H:i:s'),
                     ]);
@@ -220,8 +230,8 @@ class ReqProgramaTejidoObserver
                 'esFelpaNominal' => $esFelpaNominal,
                 'aplicaAjusteFel' => $aplicaAjusteFel,
                 'pesoRollo_usado' => $pesoRollo,
-                'inputs' => compact('pCrudo', 'tiras', 'largo', 'saldoPedido'),
-                'resultados' => compact('repeticiones', 'pzasRollo', 'mtsRollo', 'totalRollos', 'totalPzas', 'saldoMarbete'),
+                'inputs' => compact('pCrudo', 'tiras', 'largo', 'totalPedido', 'produccionMarbetes'),
+                'resultados' => compact('repeticiones', 'pzasRollo', 'mtsRollo', 'totalRollos', 'totalPzas', 'noMarbete'),
                 'filas_RPT_afectadas' => $afectadasRpt,
                 'filas_CAT_afectadas' => $afectadasCat,
             ]);
