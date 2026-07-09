@@ -111,6 +111,19 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         $this->assertStringContainsString('--prod-card-value-size: 0.875rem;', $content);
     }
 
+    public function test_summary_card_keeps_normal_width_and_vertical_stats(): void
+    {
+        $content = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+
+        $summaryRule = $this->between($content, '.prod-resumen-crudo {', '}');
+        $statsRule = $this->between($content, '.prod-resumen-crudo__stats {', '}');
+
+        $this->assertStringContainsString('grid-column: span 1;', $summaryRule);
+        $this->assertStringContainsString('min-height: 100%;', $summaryRule);
+        $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $statsRule);
+        $this->assertStringNotContainsString('grid-template-columns: repeat(5, minmax(0, 1fr));', $content);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -140,5 +153,16 @@ class TrazabilidadProduccionGroupingTest extends TestCase
             'avance' => 0.0,
             'usarTrazaEnProducido' => $otroTelar,
         ];
+    }
+
+    private function between(string $content, string $start, string $end): string
+    {
+        $startAt = strpos($content, $start);
+        $endAt = strpos($content, $end, $startAt);
+
+        $this->assertNotFalse($startAt);
+        $this->assertNotFalse($endAt);
+
+        return substr($content, $startAt, $endAt - $startAt);
     }
 }
