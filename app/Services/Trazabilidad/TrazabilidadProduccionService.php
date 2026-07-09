@@ -252,17 +252,81 @@ class TrazabilidadProduccionService
 
         $noEncontradas = array_values($noEncontradas);
         $canonicas = collect($ordenCards)->where(fn ($c) => ! ($c['esOtroTelar'] ?? false));
+        $ordenesAgrupadas = $this->agruparCardsCrudo($ordenCards);
 
         return [
-            'ordenes' => $this->agruparCardsCrudo($ordenCards),
+            'ordenes' => $ordenesAgrupadas,
             'noEncontradas' => $noEncontradas,
-            'resumen' => [
+            'resumen' => array_merge([
                 'ordenes' => $canonicas->count(),
                 'activos' => $canonicas->where('estado', 'activo')->count(),
                 'terminados' => $canonicas->where('estado', 'terminado')->count(),
                 'alertas' => $canonicas->where('grupoMulti', true)->count(),
                 'noEncontradas' => count($noEncontradas),
-            ],
+            ], $this->resumenGlobalCrudo($ordenesAgrupadas, $ordenCards)),
+        ];
+    }
+
+    /**
+     * Totales globales + desglose por telar para la tarjeta de resumen de Crudo.
+     *
+     * @param  array<int, array<string, mixed>>  $ordenesAgrupadas  Una tarjeta por orden (agrupaCardsCrudo).
+     * @param  array<int, array<string, mixed>>  $ordenCards  Tarjetas planas orden/telar (incluye "otro telar").
+     * @return array{totalProgramado: float, totalProducido: float, totalKg: float, avanceGlobal: float, telaresActivos: int, telaresTotal: int, porTelar: array}
+     */
+    private function resumenGlobalCrudo(array $ordenesAgrupadas, array $ordenCards): array
+    {
+        $totalProgramado = (float) collect($ordenesAgrupadas)->sum('programadas');
+        $totalProducido = (float) collect($ordenesAgrupadas)->sum('producidasTotal');
+        $totalKg = (float) collect($ordenesAgrupadas)->sum('pesoTotal');
+        $avanceGlobal = $totalProgramado > 0 ? round($totalProducido / $totalProgramado * 100, 2) : 0.0;
+
+        $soloDigitos = fn ($t) => preg_replace('/\D/', '', (string) $t);
+        $porTelar = [];
+        foreach ($ordenCards as $c) {
+            $telar = trim((string) ($c['telar'] ?? ''));
+            if ($telar === '') {
+                continue;
+            }
+            if (! isset($porTelar[$telar])) {
+                $numero = $soloDigitos($telar);
+                $porTelar[$telar] = [
+                    'telar' => $telar,
+                    'sort' => $numero !== '' ? (int) $numero : PHP_INT_MAX,
+                    'programado' => 0.0,
+                    'producido' => 0.0,
+                    'kg' => 0.0,
+                    'activo' => false,
+                ];
+            }
+            if (! ($c['esOtroTelar'] ?? false)) {
+                $porTelar[$telar]['programado'] += (float) ($c['programadas'] ?? 0);
+            }
+            $porTelar[$telar]['producido'] += (float) ($c['producidas'] ?? 0);
+            $porTelar[$telar]['kg'] += (float) ($c['kg'] ?? 0);
+            if (($c['estado'] ?? null) === 'activo') {
+                $porTelar[$telar]['activo'] = true;
+            }
+        }
+
+        $porTelar = collect($porTelar)
+            ->map(function (array $t): array {
+                $t['avance'] = $t['programado'] > 0 ? round($t['producido'] / $t['programado'] * 100, 2) : 0.0;
+
+                return $t;
+            })
+            ->sortBy('sort')
+            ->values()
+            ->all();
+
+        return [
+            'totalProgramado' => $totalProgramado,
+            'totalProducido' => $totalProducido,
+            'totalKg' => $totalKg,
+            'avanceGlobal' => $avanceGlobal,
+            'telaresActivos' => collect($porTelar)->where('activo', true)->count(),
+            'telaresTotal' => count($porTelar),
+            'porTelar' => $porTelar,
         ];
     }
 
@@ -452,7 +516,11 @@ class TrazabilidadProduccionService
 
     private function resumenVacio(): array
     {
-        return ['ordenes' => 0, 'activos' => 0, 'terminados' => 0, 'alertas' => 0, 'noEncontradas' => 0];
+        return [
+            'ordenes' => 0, 'activos' => 0, 'terminados' => 0, 'alertas' => 0, 'noEncontradas' => 0,
+            'totalProgramado' => 0.0, 'totalProducido' => 0.0, 'totalKg' => 0.0, 'avanceGlobal' => 0.0,
+            'telaresActivos' => 0, 'telaresTotal' => 0, 'porTelar' => [],
+        ];
     }
 
     private function cargarProgramaPorOrdenes(Collection $ordenes): Collection

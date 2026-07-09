@@ -120,6 +120,93 @@
         }
 
         /* === Tarjetas pestaña Producción === */
+        .prod-resumen-crudo {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem 1.1rem;
+        }
+        .prod-resumen-crudo__stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem;
+        }
+        @media (min-width: 640px) {
+            .prod-resumen-crudo__stats {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        @media (min-width: 1024px) {
+            .prod-resumen-crudo__stats {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+        }
+        .prod-resumen-crudo__stat {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .prod-resumen-crudo__stat span {
+            font-size: 0.6875rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+        }
+        .prod-resumen-crudo__stat strong {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #0f172a;
+            font-variant-numeric: tabular-nums;
+        }
+        .prod-resumen-crudo__telares-wrap {
+            margin-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 0.85rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .prod-resumen-crudo__telares {
+            width: 100%;
+            min-width: 32rem;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .prod-resumen-crudo__telares thead th {
+            text-align: left;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #64748b;
+            padding: 0.35rem 0.6rem;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+        .prod-resumen-crudo__telares tbody td {
+            padding: 0.35rem 0.6rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            white-space: nowrap;
+        }
+        .prod-resumen-crudo__telares tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .prod-resumen-crudo__telar-badge {
+            display: inline-block;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            padding: 0.1rem 0.5rem;
+            border-radius: 999px;
+        }
+        .prod-resumen-crudo__telar-badge--activo {
+            background: #ecfdf5;
+            color: #047857;
+        }
+        .prod-resumen-crudo__telar-badge--inactivo {
+            background: #f1f5f9;
+            color: #64748b;
+        }
         .prod-crudo-grid {
             display: grid;
             grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -780,6 +867,7 @@
             background: #ecfdf5;
         }
         .flog-cliente-grid__celda--info {
+            grid-column: span 4;
             background: #fffbeb;
         }
         .flog-cliente-grid__celda--full-row {
@@ -1205,8 +1293,10 @@
         }
         .flog-lineas-scroll {
             overflow-x: auto;
+            overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             max-width: 100%;
+            max-height: 32rem;
         }
         .flog-lineas-table {
             width: max-content;

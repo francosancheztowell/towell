@@ -156,7 +156,7 @@
                         <span class="flog-cliente-grid__label">Pruebas lab</span>
                         <span class="flog-cliente-grid__valor">{{ $v($general['pruebasLabTxt'] ?? null) }}</span>
                     </div>
-                    <div class="flog-cliente-grid__celda" role="gridcell">
+                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--full-row" role="gridcell">
                         <span class="flog-cliente-grid__label">Suavizante</span>
                         <span class="flog-cliente-grid__valor">{{ $v($general['twSuavizante'] ?? null) }}</span>
                     </div>
@@ -164,7 +164,7 @@
                         <span class="flog-cliente-grid__label">Aviso especial</span>
                         <span class="flog-cliente-grid__valor flog-cliente-grid__valor--limitado">{{ $v($general['avisoEspecialTxt'] ?? null) }}</span>
                     </div>
-                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--info flog-cliente-grid__celda--full-row" role="gridcell">
+                    <div class="flog-cliente-grid__celda flog-cliente-grid__celda--info" role="gridcell">
                         <span class="flog-cliente-grid__label">Información importante</span>
                         <span class="flog-cliente-grid__valor flog-cliente-grid__valor--limitado">{{ $v($general['infoImportante'] ?? null) }}</span>
                     </div>

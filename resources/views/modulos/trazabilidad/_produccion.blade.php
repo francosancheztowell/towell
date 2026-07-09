@@ -34,6 +34,8 @@
             <p class="text-slate-400 text-sm mt-1">No se encontraron órdenes en la trazabilidad de este filtro.</p>
         </div>
     @else
+        @include('modulos.trazabilidad._produccion_resumen_crudo', ['resumenCrudo' => $resumenCrudo])
+
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                 <span class="font-semibold text-slate-700">{{ $resumenCrudo['ordenes'] ?? count($ordenCardsCrudo) }} órdenes</span>
