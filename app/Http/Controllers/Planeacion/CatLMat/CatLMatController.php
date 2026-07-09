@@ -59,6 +59,8 @@ class CatLMatController extends Controller
             'nombre' => 'nullable|string|max:60',   // BomId (columna "L.Mat")
             'descrip' => 'nullable|string|max:255',   // BomName (columna "Nombre L.Mat")
             'pesoCrudo' => 'nullable|string|max:60',
+            'itemIdCrudo' => 'nullable|string|max:60',
+            'inventSizeCrudo' => 'nullable|string|max:60',
             'filas' => 'nullable|array',
             'filas.*.itemId' => 'nullable|string|max:60',
             'filas.*.configId' => 'nullable|string|max:60',
@@ -88,6 +90,12 @@ class CatLMatController extends Controller
                     ? StringTruncator::truncateToLength($descripRaw, self::LIM_DESCRIP_CAT_LMAT)
                     : null;
                 $telarId = trim((string) ($data['telarId'] ?? ''));
+                $itemIdCrudo = isset($data['itemIdCrudo']) && $data['itemIdCrudo'] !== ''
+                    ? StringTruncator::truncateToLength(trim($data['itemIdCrudo']), 60)
+                    : null;
+                $inventSizeCrudo = isset($data['inventSizeCrudo']) && $data['inventSizeCrudo'] !== ''
+                    ? StringTruncator::truncateToLength(trim($data['inventSizeCrudo']), 60)
+                    : null;
 
                 // 1) CatCodificados: fila seleccionada de esa Orden (+ telar si viene).
                 $q = CatCodificados::query()->where('OrdenTejido', $orden);
@@ -109,6 +117,11 @@ class CatLMatController extends Controller
                     if ($itemId === '') {
                         continue;
                     }
+                    // No persistir filas con cantidad 0; mínimo 0.01.
+                    $qty = isset($f['qty']) ? (float) $f['qty'] : 0.0;
+                    if ($qty < 0.01) {
+                        continue;
+                    }
                     CatLMat::create([
                         'Orden' => StringTruncator::truncateToLength($orden, 60),
                         'Salon' => $salon !== '' ? StringTruncator::truncateToLength($salon, 60) : null,
@@ -121,7 +134,7 @@ class CatLMatController extends Controller
                         'ConfigId' => ($v = trim((string) ($f['configId'] ?? ''))) !== ''
                             ? StringTruncator::truncateToLength($v, 60)
                             : null,
-                        'InventSizeId' => ($v = trim((string) ($f['inventSizeId'] ?? ''))) !== ''
+                        'InventSizeId' => ($v = preg_replace('/\s+/', '', str_replace(' - ', '-', trim((string) ($f['inventSizeId'] ?? ''))))) !== ''
                             ? StringTruncator::truncateToLength($v, 60)
                             : null,
                         'InventColorId' => ($v = trim((string) ($f['inventColorId'] ?? ''))) !== ''
@@ -130,8 +143,10 @@ class CatLMatController extends Controller
                         'InventLocationId' => ($v = trim((string) ($f['inventLocationId'] ?? ''))) !== ''
                             ? StringTruncator::truncateToLength($v, 60)
                             : null,
-                        'Qty' => isset($f['qty']) ? (float) $f['qty'] : null,
+                        'Qty' => $qty,
                         'Porcentaje' => isset($f['porcentaje']) ? (float) $f['porcentaje'] : null,
+                        'ItemIdCrudo' => $itemIdCrudo,
+                        'InventSizeCrudo' => $inventSizeCrudo,
                         'FechaRegistro' => $now->toDateString(),
                         'HoraRegistro' => $now->format('H:i:s'),
                         'UsuarioRegistro' => $usuarioRegistro,
@@ -196,22 +211,26 @@ class CatLMatController extends Controller
         }
     }
 
-    public function getConfigs(): JsonResponse
+    public function getConfigs(Request $request): JsonResponse
     {
+        $itemId = trim((string) $request->query('itemId', ''));
+        if ($itemId === '') {
+            return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
+        }
+
         try {
-            // Idéntico a programación de requerimientos (BomMaterialesService::obtenerHilos):
-            // todas las fibras del maestro ConfigTable para JULIO-URDIDO, sin filtrar por existencia.
+            // Configs del ItemId de la fila (cambia con el select de Artículos: JU-ENG-RI-C, trama, C1..C5).
             $configs = DB::connection('sqlsrv_ti')
                 ->table('ConfigTable')
                 ->select('ConfigId')
-                ->where('ItemId', 'JULIO-URDIDO')
+                ->where('ItemId', $itemId)
+                ->where('DATAAREAID', 'PRO')
                 ->orderBy('ConfigId')
-                ->distinct()
                 ->get();
 
             return response()->json(['success' => true, 'data' => $configs]);
         } catch (\Throwable $e) {
-            Log::error('CatLMatController::getConfigs', ['exception' => $e]);
+            Log::error('CatLMatController::getConfigs', ['exception' => $e, 'itemId' => $itemId]);
 
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -227,11 +246,10 @@ class CatLMatController extends Controller
         try {
             $tamanos = DB::connection('sqlsrv_ti')
                 ->table('InventSize')
-                ->select('InventSizeId')
+                ->select('InventSizeId', 'NAME')
                 ->where('ItemId', $itemId)
                 ->where('DATAAREAID', 'PRO')
                 ->orderBy('InventSizeId')
-                ->distinct()
                 ->get();
 
             return response()->json(['success' => true, 'data' => $tamanos]);

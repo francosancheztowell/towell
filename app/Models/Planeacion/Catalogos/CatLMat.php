@@ -20,6 +20,7 @@ class CatLMat extends Model
     public const COLUMNS = [
         'Id', 'Orden', 'Salon', 'Nombre', 'Descrip', 'PesoCrudo', 'ItemId', 'ConfigId',
         'InventSizeId', 'InventColorId', 'InventLocationId', 'Qty', 'Porcentaje',
+        'ItemIdCrudo', 'InventSizeCrudo',
         'FechaRegistro', 'HoraRegistro', 'UsuarioRegistro',
     ];
 

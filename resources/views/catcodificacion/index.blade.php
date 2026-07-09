@@ -1033,7 +1033,7 @@
             // ── Materiales del modal L.Mat (Artículo/Tamaño/Color, cascada por ItemId) ──
             const LMatMateriales = (() => {
                 let calibres = null;
-                let configs = null;
+                const configs = new Map();
                 const tamanos = new Map();
                 const colores = new Map();
 
@@ -1050,17 +1050,22 @@
                     return calibres;
                 }
 
-                async function getConfigs() {
-                    if (configs) return configs;
+                async function getConfigs(itemId) {
+                    if (!itemId) return [];
+                    if (configs.has(itemId)) return configs.get(itemId);
+                    let lista = [];
                     try {
-                        const resp = await fetch('/planeacion/lmat/api/configs', { headers: { Accept: 'application/json' } });
+                        const resp = await fetch('/planeacion/lmat/api/configs?itemId=' + encodeURIComponent(itemId), { headers: { Accept: 'application/json' } });
                         const json = await resp.json();
-                        configs = (json.data || []).map(c => c.ConfigId).filter(Boolean);
+                        lista = (json.data || [])
+                            .map(c => c.ConfigId)
+                            .filter(Boolean)
+                            .filter(c => String(c).trim().toUpperCase() !== 'HILO');
                     } catch (e) {
                         console.error('No se pudieron cargar configs (fibra) L.Mat', e);
-                        configs = [];
                     }
-                    return configs;
+                    configs.set(itemId, lista);
+                    return lista;
                 }
 
                 async function getTamanos(itemId) {
@@ -1098,20 +1103,82 @@
 
             function setSelectOptionsLMat(selectEl, opciones, valorActual) {
                 if (!selectEl) return;
-                const actual = valorActual !== null && valorActual !== undefined ? String(valorActual) : '';
+                const esConfig = selectEl.name === 'config[]';
+                const esArticulo = selectEl.name === 'articulo[]';
+                let actual = valorActual !== null && valorActual !== undefined ? String(valorActual) : '';
+                if (esConfig && actual.trim().toUpperCase() === 'HILO') actual = '';
                 let lista = (opciones || []).map(String);
-                // Si el valor ya capturado (Tra/CalibreComb.../CodColor...) no viene en el catálogo de AX,
-                // se conserva como opción para no perder lo ya guardado al repoblar el select.
+                if (esConfig) lista = lista.filter(v => String(v).trim().toUpperCase() !== 'HILO');
+                // Artículos: solo valores del catálogo (GET calibres). No inventar opciones.
+                // Otros selects: si el valor capturado no está en catálogo, se conserva.
                 if (actual !== '' && !lista.includes(actual)) {
-                    lista = [actual, ...lista];
+                    if (esArticulo) actual = '';
+                    else lista = [actual, ...lista];
                 }
                 if (lista.length === 0) lista = [''];
+                if (esArticulo && !lista.includes('')) lista = ['', ...lista];
 
                 selectEl.innerHTML = lista.map((valor) => {
                     const selected = valor === actual ? ' selected' : '';
                     const texto = valor === '' ? 'Seleccione...' : valor;
                     return `<option value="${valor}"${selected}>${texto}</option>`;
                 }).join('');
+            }
+
+            function parseCalibrePartsLMat(valor) {
+                const s = String(valor ?? '').trim().replace(',', '.');
+                const m = s.match(/^(\d+)(?:[./](\d+))?$/);
+                if (!m) return null;
+                const base = m[1];
+                const frac = m[2] != null ? m[2] : null;
+                const num = Number(frac != null ? `${base}.${frac}` : base);
+                if (!Number.isFinite(num)) return null;
+                return { base, frac, num };
+            }
+
+            /** Resuelve Items crudo (ej. 8.0) a un ItemId del GET de calibres: exacto o más cercano del mismo base (8/1). Si no hay ninguno, ''. */
+            function resolverArticuloDesdeCalibres(itemsCrudo, calibres) {
+                const lista = (calibres || []).map(String).filter(Boolean);
+                if (!lista.length) return '';
+                const parts = parseCalibrePartsLMat(itemsCrudo);
+                if (!parts) return '';
+
+                const candidatosExactos = [];
+                if (parts.frac != null) {
+                    candidatosExactos.push(`${parts.base}/${parts.frac}`);
+                    candidatosExactos.push(`${parts.base}.${parts.frac}`);
+                }
+                candidatosExactos.push(parts.base);
+                const n = Number(String(itemsCrudo ?? '').replace(',', '.'));
+                if (Number.isFinite(n)) {
+                    candidatosExactos.push(Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', '/'));
+                }
+                for (const c of candidatosExactos) {
+                    if (lista.includes(c)) return c;
+                }
+
+                const mismosBase = lista.filter((item) => {
+                    const p = parseCalibrePartsLMat(item);
+                    return p && p.base === parts.base;
+                });
+                if (!mismosBase.length) return '';
+
+                let mejor = '';
+                let mejorDist = Infinity;
+                for (const item of mismosBase) {
+                    const p = parseCalibrePartsLMat(item);
+                    if (!p) continue;
+                    const dist = Math.abs(p.num - parts.num);
+                    if (dist < mejorDist) {
+                        mejorDist = dist;
+                        mejor = item;
+                    }
+                }
+                return mejor;
+            }
+
+            function bomIdTieneEstand(bomId) {
+                return String(bomId ?? '').toUpperCase().includes('ESTAND');
             }
 
             async function mostrarModalLMat() {
@@ -1126,6 +1193,17 @@
 
                 if (!registroSeleccionado) {
                     internalToast('Selecciona primero una fila.', 'warning');
+                    return;
+                }
+
+                const telarId = String(registroSeleccionado?.TelarId ?? '').trim();
+                if (!telarId) {
+                    internalToast('La fila seleccionada no tiene telar.', 'warning');
+                    return;
+                }
+
+                if (!bomIdTieneEstand(registroSeleccionado?.BomId)) {
+                    internalToast('Solo se puede abrir L.Mat si el BomId contiene ESTAND.', 'warning');
                     return;
                 }
 
@@ -1146,8 +1224,8 @@
                         console.error('No se pudo cargar CatLMat', e);
                     }
                 }
-                const tamano = registroSeleccionado?.InventSizeId || 'Tamaño';
-                const itemId = registroSeleccionado?.ItemId || '';
+                let tamano = registroSeleccionado?.InventSizeId || 'Tamaño';
+                let itemId = registroSeleccionado?.ItemId || '';
                 const articulo = registroSeleccionado?.Nombre || registroSeleccionado?.ItemId || 'Nombre Articulo';
                 const codigoDibujo = registroSeleccionado?.CodigoDibujo || 'Cod Dibujo';
                 let pesoCrudo = registroSeleccionado?.P_crudo || registroSeleccionado?.PesoCrudo || 737;
@@ -1164,8 +1242,13 @@
                 // Igual que en programación de requerimientos: ConfigId = Fibra, Tamaño = cuenta + calibre (aquí juntos).
                 const fibraRizo = registroSeleccionado?.FibraRizo || '';
                 const fibraPie = registroSeleccionado?.FibraPie || '';
-                const tamanoRizo = cuentaRizo + ' - ' + calibreRizo;
-                const tamanoPie = cuentaPie + ' - ' + calibrePie;
+                // InventSizeId sin espacios: 2766-16/1 (no "2766 - 16/1").
+                const tamanoRizo = String(cuentaRizo).trim() + '-' + String(calibreRizo).trim();
+                const tamanoPie = String(cuentaPie).trim() + '-' + String(calibrePie).trim();
+                const normalizarInventSizeIdLMat = (valor) => String(valor ?? '')
+                    .trim()
+                    .replace(/\s*-\s*/g, '-')
+                    .replace(/\s+/g, '');
                 const truncLmat = (value, max) => {
                     const text = String(value ?? '');
                     return text.length > max ? text.slice(0, max) : text;
@@ -1188,6 +1271,8 @@
                     nombreLMat = truncLmat(guardadoLMat[0].Nombre ?? nombreLMat, 20);
                     descripcionLMat = truncLmat(guardadoLMat[0].Descrip ?? descripcionLMat, 60);
                     if (guardadoLMat[0].PesoCrudo != null && guardadoLMat[0].PesoCrudo !== '') pesoCrudo = guardadoLMat[0].PesoCrudo;
+                    if (guardadoLMat[0].ItemIdCrudo != null && guardadoLMat[0].ItemIdCrudo !== '') itemId = guardadoLMat[0].ItemIdCrudo;
+                    if (guardadoLMat[0].InventSizeCrudo != null && guardadoLMat[0].InventSizeCrudo !== '') tamano = guardadoLMat[0].InventSizeCrudo;
                 }
                 const escapeAttr = (value) => String(value ?? '')
                     .replace(/&/g, '&amp;')
@@ -1195,37 +1280,115 @@
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
 
-                // Filas ya capturadas en CatCodificados (Tra = calibre trama, CalibreComb1..5 = combinaciones):
-                // deben precargarse en el modal, editables, en vez de perderse.
-                const filasExistentesLMat = [];
-                const agregarFilaSiTieneValorLMat = (calibre, codColor) => {
-                    const numero = Number(String(calibre ?? '').replace(',', '.'));
-                    if (!Number.isFinite(numero) || numero === 0) return;
-                    filasExistentesLMat.push({
-                        articulo: calibreAItemId(numero),
-                        config: '',
-                        tamano: 'ENTERO',
-                        color: codColor || '',
-                        almacen: '',
-                        cantidad: 0,
-                        porcentaje: '0.0%',
-                    });
+                // Cálculo Excel (curvas → pesos g → % → cantidad kg):
+                // Trama/Cn = SI(P>0, ((P*(Ancho+13/TL)*curva_peine)/100)*0.59/Hilo, 0)
+                // Pie = (((Largo+Corte)*curva_luchaje/100)*0.59/HiloPie)*1.076*(CuentaPie/TL)
+                // Rizo = PesoCrudo - (Pie+Trama+C1..C5)
+                // Cantidad(kg) = peso_g / 1000 ; % = peso_g / PesoCrudo
+                const numLMat = (valor) => {
+                    const n = Number(String(valor ?? '').replace(',', '.'));
+                    return Number.isFinite(n) ? n : 0;
                 };
-                agregarFilaSiTieneValorLMat(registroSeleccionado?.Tra, registroSeleccionado?.CodColorTrama);
-                for (let n = 1; n <= 5; n++) {
-                    agregarFilaSiTieneValorLMat(registroSeleccionado?.[`CalibreComb${n}`], registroSeleccionado?.[`CodColorC${n}`]);
-                }
+                const FACTOR_PIE_LMAT = 1.076;
+                const DENSIDAD_HILO_LMAT = 0.59;
+                const inputsCalculoLMat = {
+                    peine: numLMat(registroSeleccionado?.Peine),
+                    ancho: numLMat(registroSeleccionado?.Ancho),
+                    largo: numLMat(registroSeleccionado?.Largo),
+                    corte: numLMat(registroSeleccionado?.MedidaPlano),
+                    luchaje: numLMat(registroSeleccionado?.Luchaje),
+                    tl: numLMat(registroSeleccionado?.NoTiras),
+                    hiloPie: numLMat(registroSeleccionado?.CalibrePie),
+                    cuentaPie: numLMat(registroSeleccionado?.CuentaPie),
+                    pasadasTrama: numLMat(registroSeleccionado?.PasadasTramaFondoC1),
+                    hiloTrama: numLMat(registroSeleccionado?.Tra),
+                    pasadasComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`PasadasComb${n}`])),
+                    hiloComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`CalibreComb${n}`])),
+                };
+                const calcularPesosComponentesLMat = (pesoCrudoG) => {
+                    const pesoCrudoTotal = numLMat(pesoCrudoG);
+                    const { peine, ancho, largo, corte, luchaje, tl, hiloPie, cuentaPie, pasadasTrama, hiloTrama, pasadasComb, hiloComb } = inputsCalculoLMat;
+                    const curvaLuchaje = luchaje >= 33 ? 1.083 : 1.055;
+                    const curvaPeine = peine >= 50 ? 1.001 : 1.002;
+                    const pesoTramaCn = (pasadas, hilo) => {
+                        if (!(pasadas > 0) || !(hilo > 0) || !(tl > 0)) return 0;
+                        return ((pasadas * (ancho + (13 / tl)) * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
+                    };
+                    const tramaG = pesoTramaCn(pasadasTrama, hiloTrama);
+                    const combG = pasadasComb.map((p, i) => pesoTramaCn(p, hiloComb[i]));
+                    let pieG = 0;
+                    if (hiloPie > 0 && tl > 0) {
+                        pieG = (((largo + corte) * curvaLuchaje / 100) * DENSIDAD_HILO_LMAT / hiloPie)
+                            * FACTOR_PIE_LMAT
+                            * (cuentaPie / tl);
+                    }
+                    const sumaSinRizo = pieG + tramaG + combG.reduce((a, b) => a + b, 0);
+                    const rizoG = Math.max(0, pesoCrudoTotal - sumaSinRizo);
+                    return { rizoG, pieG, tramaG, combG, pesoCrudoTotal };
+                };
+                const pesoACantidadYPorcentajeLMat = (pesoG, pesoCrudoTotal) => {
+                    const cantidad = Number((pesoG / 1000).toFixed(3));
+                    const porcentaje = pesoCrudoTotal > 0
+                        ? Number(((pesoG / pesoCrudoTotal) * 100).toFixed(1))
+                        : 0;
+                    return { cantidad, porcentaje: porcentaje.toFixed(1) + '%' };
+                };
+                const armarFilasDesdeCalculoLMat = (pesoCrudoG) => {
+                    const pesos = calcularPesosComponentesLMat(pesoCrudoG);
+                    const rizo = pesoACantidadYPorcentajeLMat(pesos.rizoG, pesos.pesoCrudoTotal);
+                    const pie = pesoACantidadYPorcentajeLMat(pesos.pieG, pesos.pesoCrudoTotal);
+                    const trama = pesoACantidadYPorcentajeLMat(pesos.tramaG, pesos.pesoCrudoTotal);
+                    const filas = [
+                        { articulo: 'JU-ENG-RI-C', combinacion: '', items: '', config: '', tamano: tamanoRizo, color: '1000', almacen: 'A-EP-TEJID', cantidad: rizo.cantidad, porcentaje: rizo.porcentaje, rol: 'rizo' },
+                        { articulo: 'JU-ENG-PI-C', combinacion: '', items: '', config: '', tamano: tamanoPie, color: '1000', almacen: 'A-EP-TEJID', cantidad: pie.cantidad, porcentaje: pie.porcentaje, rol: 'pie' },
+                    ];
+                    const tramaCalibre = numLMat(registroSeleccionado?.Tra);
+                    if (tramaCalibre > 0) {
+                        filas.push({
+                            articulo: '',
+                            combinacion: String(registroSeleccionado?.FibraTramaFondoC1 ?? registroSeleccionado?.FibraId ?? '').trim(),
+                            items: tramaCalibre.toFixed(1),
+                            config: '',
+                            tamano: 'ENTERO',
+                            color: registroSeleccionado?.CodColorTrama || '',
+                            almacen: '',
+                            cantidad: trama.cantidad,
+                            porcentaje: trama.porcentaje,
+                            rol: 'trama',
+                        });
+                    }
+                    for (let n = 1; n <= 5; n++) {
+                        const calibre = numLMat(registroSeleccionado?.[`CalibreComb${n}`]);
+                        if (!(calibre > 0)) continue;
+                        const comb = pesoACantidadYPorcentajeLMat(pesos.combG[n - 1], pesos.pesoCrudoTotal);
+                        filas.push({
+                            articulo: '',
+                            combinacion: String(registroSeleccionado?.[`FibraComb${n}`] ?? '').trim(),
+                            items: calibre.toFixed(1),
+                            config: '',
+                            tamano: 'ENTERO',
+                            color: registroSeleccionado?.[`CodColorC${n}`] || '',
+                            almacen: '',
+                            cantidad: comb.cantidad,
+                            porcentaje: comb.porcentaje,
+                            rol: 'c' + n,
+                        });
+                    }
+                    return filas;
+                };
 
-                let articulos = [
-                    { articulo: 'JU-ENG-RI-C', config: fibraRizo, tamano: tamanoRizo, color: '1000', almacen: 'A-EP-TEJID', cantidad: 0.384, porcentaje: '52.1%' },
-                    { articulo: 'JU-ENG-PI-C', config: fibraPie, tamano: tamanoPie, color: '1000', almacen: 'A-EP-TEJID', cantidad: 0.171, porcentaje: '23.3%' },
-                    ...filasExistentesLMat,
-                ];
+                const filasExistentesLMat = [];
+                let articulos = armarFilasDesdeCalculoLMat(pesoCrudo);
+                articulos.forEach((f) => {
+                    if (f.rol === 'trama' || String(f.rol || '').startsWith('c')) filasExistentesLMat.push(f);
+                });
 
                 // Si hay L.Mat guardada, las filas vienen de CatLMat (no de los defaults calculados).
                 if (guardadoLMat) {
                     articulos = guardadoLMat.map(r => ({
                         articulo: r.ItemId ?? '',
+                        combinacion: '',
+                        items: '',
                         config: r.ConfigId ?? '',
                         tamano: r.InventSizeId ?? '',
                         color: r.InventColorId ?? '',
@@ -1238,9 +1401,10 @@
                 // Cada fila precargada (Tra/CalibreComb1..5) trae su propio valor real de articulo/tamaño/color;
                 // hay que incluirlo aquí para que quede "selected" desde el primer render (si no está en la
                 // lista, el <select> no marca nada y el navegador cae al primer option de la lista).
+                const sinHiloConfig = (valor) => String(valor ?? '').trim().toUpperCase() !== 'HILO';
                 const opcionesSelectLMat = {
-                    articulo: Array.from(new Set(['10.1', '600.1', '0', ...filasExistentesLMat.map(f => f.articulo)])),
-                    config: Array.from(new Set([fibraRizo, fibraPie, 'ENTERO'].filter(Boolean))),
+                    articulo: [''],
+                    config: Array.from(new Set([fibraRizo, fibraPie, 'ENTERO'].filter(Boolean).filter(sinHiloConfig))),
                     tamano: Array.from(new Set([tamano, tamanoRizo, tamanoPie, ...filasExistentesLMat.map(f => f.tamano).filter(Boolean)].filter(Boolean))),
                     color: Array.from(new Set(['1000', ...filasExistentesLMat.map(f => f.color).filter(Boolean)])),
                 };
@@ -1254,10 +1418,18 @@
                 const clasesPorcentajeTotal = ['text-green-700', 'bg-green-50', 'text-orange-700', 'bg-orange-50', 'text-red-700', 'bg-red-50'];
 
                 function buildSelectLMat(nombre, valorActual, opciones) {
-                    const actual = valorActual != null ? String(valorActual) : '';
+                    const esConfig = nombre === 'config[]';
+                    const esArticulo = nombre === 'articulo[]';
+                    let actual = valorActual != null ? String(valorActual) : '';
+                    if (esConfig && actual.trim().toUpperCase() === 'HILO') actual = '';
                     let lista = (opciones || []).map(String);
-                    // Asegurar que el valor actual (p.ej. recargado de CatLMat) esté como opción y quede seleccionado.
-                    if (actual !== '' && !lista.includes(actual)) lista = [actual, ...lista];
+                    if (esConfig) lista = lista.filter(sinHiloConfig);
+                    // Artículos: no inventar opciones fuera del catálogo.
+                    if (actual !== '' && !lista.includes(actual)) {
+                        if (esArticulo) actual = '';
+                        else lista = [actual, ...lista];
+                    }
+                    if (actual === '' && !lista.includes('')) lista = ['', ...lista];
                     return `
                         <select
                             name="${nombre}"
@@ -1288,9 +1460,11 @@
                     return buildSelectLMat(nombre, item[campo], opciones);
                 }
 
-                function renderFilaEditableLMat(item = { articulo: '10.1', config: 'ENTERO', tamano: '', color: '1000', cantidad: 0 }) {
+                function renderFilaEditableLMat(item = { articulo: '10.1', combinacion: '', items: '', config: 'ENTERO', tamano: '', color: '1000', cantidad: 0 }) {
                     return `
                         <tr class="border-b border-gray-100">
+                            <td class="lmat-combinacion-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(item.combinacion || '')}</td>
+                            <td class="lmat-items-cell px-3 py-2 font-medium tabular-nums text-gray-800">${escapeHtml(item.items || '')}</td>
                             <td class="px-3 py-2">${buildSelectLMat('articulo[]', item.articulo, opcionesSelectLMat.articulo)}</td>
                             <td class="px-3 py-2">${buildSelectLMat('tamano[]', item.tamano, opcionesSelectLMat.tamano)}</td>
                             <td class="px-3 py-2">${buildSelectLMat('config[]', item.config, opcionesSelectLMat.config)}</td>
@@ -1323,7 +1497,9 @@
                 }
 
                 const filas = articulos.map(item => `
-                    <tr class="border-b border-gray-100"${String(item.articulo || '').startsWith('JU-ENG-') ? ` data-articulo-fijo="${escapeAttr(item.articulo)}"` : ''}>
+                    <tr class="border-b border-gray-100"${String(item.articulo || '').startsWith('JU-ENG-') ? ` data-articulo-fijo="${escapeAttr(item.articulo)}"` : ''}${item.rol ? ` data-rol="${escapeAttr(item.rol)}"` : ''}>
+                        <td class="lmat-combinacion-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(item.combinacion || '')}</td>
+                        <td class="lmat-items-cell px-3 py-2 font-medium tabular-nums text-gray-800">${escapeHtml(item.items || '')}</td>
                         <td class="px-3 py-2">${renderPlanoOSelectLMat(item, 'articulo', 'articulo[]', opcionesSelectLMat.articulo)}</td>
                         <td class="px-3 py-2">${renderTamanoLMat(item)}</td>
                         <td class="px-3 py-2">${renderConfigLMat(item)}</td>
@@ -1420,6 +1596,8 @@
                                 <table class="min-w-full text-xs">
                                     <thead class="bg-blue-600 text-white">
                                         <tr>
+                                            <th class="px-3 py-2 text-left font-semibold">Combinacion</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Calibre</th>
                                             <th class="px-3 py-2 text-left font-semibold">Articulos</th>
                                             <th class="px-3 py-2 text-left font-semibold">Tamaño</th>
                                             <th class="px-3 py-2 text-left font-semibold">Config</th>
@@ -1435,7 +1613,7 @@
                                     </tbody>
                                     <tfoot class="bg-gray-50 font-semibold">
                                         <tr>
-                                            <td class="px-3 py-2" colspan="5"></td>
+                                            <td class="px-3 py-2" colspan="7"></td>
                                             <td id="lmat-total-cantidad" class="px-3 py-2 text-right tabular-nums">${totalCantidad.toFixed(3)}</td>
                                             <td id="lmat-total-porcentaje" class="px-3 py-2 text-right tabular-nums ${totalPorcentajeClass}">${totalPorcentajeRedondeado.toFixed(1)}%</td>
                                             <!-- Columna Acción oculta -->
@@ -1447,7 +1625,7 @@
                                 <button
                                     type="button"
                                     id="lmat-anadir-fila"
-                                    class="inline-flex min-w-[150px] items-center justify-center gap-2 rounded bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    class="inline-flex min-w-[150px] items-center justify-center gap-2 rounded bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
                                 >
                                     <i class="fas fa-plus"></i>
                                     <span>Añadir fila</span>
@@ -1473,7 +1651,7 @@
                             </div>
                         </div>
                     `,
-                    width: '980px',
+                    width: '1120px',
                     showConfirmButton: false,
                     didOpen: () => {
                         const tbodyLMat = document.querySelector('.swal2-html-container tbody');
@@ -1506,6 +1684,29 @@
                             }
                         };
 
+                        const recalcularCantidadesDesdePesoCrudoLMat = () => {
+                            if (guardadoLMat) {
+                                recalcularPorcentajesLMat();
+                                return;
+                            }
+                            const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
+                            const pesos = calcularPesosComponentesLMat(pesoCrudoActual);
+                            const aplicar = (rol, pesoG) => {
+                                const fila = document.querySelector(`.swal2-html-container tr[data-rol="${rol}"]`);
+                                if (!fila) return;
+                                const vals = pesoACantidadYPorcentajeLMat(pesoG, pesos.pesoCrudoTotal);
+                                const input = fila.querySelector('.lmat-cantidad-input');
+                                const pct = fila.querySelector('.lmat-porcentaje-cell');
+                                if (input) input.value = vals.cantidad.toFixed(3);
+                                if (pct) pct.textContent = vals.porcentaje;
+                            };
+                            aplicar('rizo', pesos.rizoG);
+                            aplicar('pie', pesos.pieG);
+                            aplicar('trama', pesos.tramaG);
+                            pesos.combG.forEach((g, i) => aplicar('c' + (i + 1), g));
+                            recalcularPorcentajesLMat();
+                        };
+
                         const conectarInputsCantidadLMat = () => {
                             document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
                                 if (input.dataset.lmatConnected === '1') return;
@@ -1514,8 +1715,8 @@
                             });
                         };
 
-                        // Al cambiar Peso Crudo, recalcular total base y porcentajes.
-                        pesoCrudoInput?.addEventListener('input', recalcularPorcentajesLMat);
+                        // Al cambiar Peso Crudo, recalcular pesos (Rizo por diferencia) y porcentajes.
+                        pesoCrudoInput?.addEventListener('input', recalcularCantidadesDesdePesoCrudoLMat);
 
                         /* Columna Acción oculta: quitar fila deshabilitado
                         const conectarQuitarFilasLMat = () => {
@@ -1573,7 +1774,15 @@
 
                         LMatMateriales.getCalibres().then((calibresDisponibles) => {
                             document.querySelectorAll('select[name="articulo[]"]').forEach((sel) => {
-                                setSelectOptionsLMat(sel, calibresDisponibles, sel.value);
+                                const fila = sel.closest('tr');
+                                const itemsVal = (fila?.querySelector('.lmat-items-cell')?.textContent || '').trim();
+                                let valorSeleccionado = '';
+                                if (itemsVal) {
+                                    valorSeleccionado = resolverArticuloDesdeCalibres(itemsVal, calibresDisponibles);
+                                } else if (sel.value && calibresDisponibles.includes(sel.value)) {
+                                    valorSeleccionado = sel.value;
+                                }
+                                setSelectOptionsLMat(sel, calibresDisponibles, valorSeleccionado);
                                 cargarTamanoYColorLMat(sel);
                             });
                             conectarArticuloSelectsLMat();
@@ -1584,12 +1793,39 @@
                             cargarMaterialesFilaLMat(fila, fila.dataset.articuloFijo);
                         });
 
+                        // Máximo trama + C1..C5 (6). Rizo/Pie no cuentan.
+                        const MAX_FILAS_TRAMA_COMB_LMAT = 6;
+                        const anadirFilaBtn = document.getElementById('lmat-anadir-fila');
+                        const contarFilasTramaCombLMat = () => {
+                            if (!tbodyLMat) return 0;
+                            return Array.from(tbodyLMat.querySelectorAll('tr')).filter((tr) => {
+                                const fijo = String(tr.dataset.articuloFijo || '');
+                                return !fijo.startsWith('JU-ENG-');
+                            }).length;
+                        };
+                        const actualizarEstadoAnadirFilaLMat = () => {
+                            if (!anadirFilaBtn) return;
+                            const count = contarFilasTramaCombLMat();
+                            const bloqueado = count >= MAX_FILAS_TRAMA_COMB_LMAT;
+                            anadirFilaBtn.disabled = bloqueado;
+                            anadirFilaBtn.title = bloqueado
+                                ? 'Máximo trama + C1 a C5 (6 filas)'
+                                : 'Añadir fila';
+                        };
+                        actualizarEstadoAnadirFilaLMat();
+
                         document.getElementById('lmat-anadir-fila')?.addEventListener('click', () => {
                             if (!tbodyLMat) return;
+                            if (contarFilasTramaCombLMat() >= MAX_FILAS_TRAMA_COMB_LMAT) {
+                                actualizarEstadoAnadirFilaLMat();
+                                showToast('Solo se permiten trama y C1 a C5 (máximo 6 filas).', 'warning');
+                                return;
+                            }
                             tbodyLMat.insertAdjacentHTML('beforeend', renderFilaEditableLMat());
                             conectarInputsCantidadLMat();
                             // conectarQuitarFilasLMat(); // Columna Acción oculta
                             recalcularPorcentajesLMat();
+                            actualizarEstadoAnadirFilaLMat();
 
                             const nuevaFila = tbodyLMat.lastElementChild;
                             const articuloSelect = nuevaFila?.querySelector('select[name="articulo[]"]');
@@ -1666,22 +1902,34 @@
                             }
 
                             // Recolectar las filas de la tabla del modal.
+                            // Solo se guardan filas con cantidad >= 0.01 (cantidad 0 se omite).
                             const filasData = [];
+                            let omitidasPorCantidadCero = 0;
                             document.querySelectorAll('.swal2-html-container tbody tr').forEach((fila) => {
                                 const articuloVal = fila.querySelector('select[name="articulo[]"]')?.value ?? fila.dataset.articuloFijo ?? '';
                                 if (!articuloVal) return;
+                                const qty = parseFloat(fila.querySelector('.lmat-cantidad-input')?.value || '0') || 0;
+                                if (qty < 0.01) {
+                                    omitidasPorCantidadCero += 1;
+                                    return;
+                                }
                                 const almacenVal = (fila.querySelector('.lmat-almacen-cell')?.textContent || '').trim()
                                     || resolverAlmacenLMat(articuloVal);
                                 filasData.push({
                                     itemId: articuloVal,
                                     configId: fila.querySelector('select[name="config[]"]')?.value || '',
-                                    inventSizeId: fila.querySelector('select[name="tamano[]"]')?.value || '',
+                                    inventSizeId: normalizarInventSizeIdLMat(fila.querySelector('select[name="tamano[]"]')?.value || ''),
                                     inventColorId: fila.querySelector('select[name="color[]"]')?.value || '',
                                     inventLocationId: almacenVal,
-                                    qty: parseFloat(fila.querySelector('.lmat-cantidad-input')?.value || '0') || 0,
+                                    qty,
                                     porcentaje: parseFloat((fila.querySelector('.lmat-porcentaje-cell')?.textContent || '0').replace('%', '')) || 0,
                                 });
                             });
+
+                            if (filasData.length === 0) {
+                                showToast('No hay filas con cantidad mínima de 0.01 para guardar.', 'warning');
+                                return;
+                            }
 
                             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
                             setGuardarLmatLoading(true);
@@ -1696,12 +1944,17 @@
                                         nombre: nombreInput?.value || '',
                                         descrip: document.getElementById('lmat-descripcion')?.value || '',
                                         pesoCrudo: String(document.getElementById('lmat-pesocrudo')?.value || ''),
+                                        itemIdCrudo: document.getElementById('lmat-itemid')?.value || '',
+                                        inventSizeCrudo: document.getElementById('lmat-tamano')?.value || '',
                                         filas: filasData,
                                     }),
                                 });
                                 const json = await resp.json();
                                 if (json.success) {
-                                    showToast(json.message || 'L.Mat guardada.', 'success');
+                                    const msg = omitidasPorCantidadCero > 0
+                                        ? (json.message || 'L.Mat guardada.') + ' Se omitieron ' + omitidasPorCantidadCero + ' fila(s) con cantidad 0.'
+                                        : (json.message || 'L.Mat guardada.');
+                                    showToast(msg, 'success');
                                     Swal.close();
                                     await loadData(true);
                                 } else {
@@ -2587,11 +2840,25 @@
                 const btnLMat = document.getElementById('btn-lmat');
                 if (!btnLMat) return;
 
-                const tieneFilaSeleccionada = state.selectedRowIndex !== null
+                const registroSeleccionado = state.selectedRowIndex !== null
                     && state.selectedRowIndex !== undefined
-                    && !!state.filtered[state.selectedRowIndex];
+                    ? state.filtered[state.selectedRowIndex]
+                    : null;
 
-                btnLMat.disabled = !tieneFilaSeleccionada;
+                const tieneFilaSeleccionada = !!registroSeleccionado;
+                const tieneTelar = tieneFilaSeleccionada
+                    && String(registroSeleccionado?.TelarId ?? '').trim() !== '';
+                const tieneBomEstand = tieneFilaSeleccionada
+                    && bomIdTieneEstand(registroSeleccionado?.BomId);
+
+                btnLMat.disabled = !(tieneFilaSeleccionada && tieneTelar && tieneBomEstand);
+                btnLMat.title = !tieneFilaSeleccionada
+                    ? 'Selecciona una fila'
+                    : (!tieneTelar
+                        ? 'La fila seleccionada no tiene telar'
+                        : (!tieneBomEstand
+                            ? 'Solo disponible si BomId contiene ESTAND'
+                            : 'Lista de materiales'));
             }
 
             function actualizarEstadoBotonReimprimir() {
