@@ -123,10 +123,10 @@
         .prod-resumen-crudo {
             position: relative;
             min-width: 0;
-            background: #f8fafc;
-            border: 1px solid #dbe3ec;
+            background: linear-gradient(155deg, #1d4ed8, #2563eb 55%, #3b82f6);
+            border: 1px solid #1e40af;
             border-radius: 0.75rem;
-            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04);
+            box-shadow: 0 6px 16px rgba(29, 78, 216, 0.28);
             padding: 0.7rem 0.75rem;
         }
         .prod-resumen-crudo__head {
@@ -137,7 +137,7 @@
             margin-bottom: 0.5rem;
         }
         .prod-resumen-crudo__title {
-            color: #102a4e;
+            color: #ffffff;
             font-size: 0.875rem;
             font-weight: 800;
         }
@@ -145,20 +145,17 @@
             display: inline-flex;
             align-items: center;
             gap: 0.3rem;
-            border: 1px solid #cbd5e1;
-            background: #ffffff;
-            color: #334155;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
             font-size: 0.6875rem;
             font-weight: 700;
             border-radius: 9999px;
             padding: 0.2rem 0.55rem;
             cursor: pointer;
         }
-        .prod-resumen-crudo__toggle i {
-            transition: transform 0.15s ease;
-        }
-        .prod-resumen-crudo__toggle[aria-expanded="true"] i {
-            transform: rotate(180deg);
+        .prod-resumen-crudo__toggle:hover {
+            background: rgba(255, 255, 255, 0.22);
         }
         .prod-resumen-crudo__stats {
             display: grid;
@@ -168,16 +165,16 @@
         .prod-resumen-crudo__stat {
             min-width: 0;
             padding: 0.35rem 0.4rem;
-            border: 1px solid #e8edf3;
+            border: 1px solid rgba(255, 255, 255, 0.22);
             border-radius: 0.45rem;
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
         }
         .prod-resumen-crudo__stat--wide {
             grid-column: 1 / -1;
         }
         .prod-resumen-crudo__stat span {
             display: block;
-            color: #8a98aa;
+            color: rgba(255, 255, 255, 0.75);
             font-size: 0.625rem;
             font-weight: 800;
             text-transform: uppercase;
@@ -186,60 +183,10 @@
         }
         .prod-resumen-crudo__stat strong {
             display: block;
-            color: #102a4e;
+            color: #ffffff;
             font-size: 0.9375rem;
             font-weight: 800;
             font-variant-numeric: tabular-nums;
-        }
-        .prod-resumen-crudo__popover {
-            position: absolute;
-            top: calc(100% + 6px);
-            left: 0;
-            right: 0;
-            min-width: 22rem;
-            max-height: 16rem;
-            overflow: auto;
-            background: #ffffff;
-            border: 1px solid #dbe3ec;
-            border-radius: 0.6rem;
-            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
-            padding: 0.5rem;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-4px);
-            transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
-            z-index: 20;
-        }
-        .prod-resumen-crudo__popover.is-open {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        .prod-resumen-crudo__telares {
-            width: 100%;
-            min-width: 30rem;
-            border-collapse: collapse;
-            font-size: 0.75rem;
-        }
-        .prod-resumen-crudo__telares thead th {
-            text-align: left;
-            font-size: 0.625rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            color: #64748b;
-            padding: 0.3rem 0.5rem;
-            border-bottom: 1px solid #e2e8f0;
-            white-space: nowrap;
-        }
-        .prod-resumen-crudo__telares tbody td {
-            padding: 0.3rem 0.5rem;
-            border-bottom: 1px solid #f1f5f9;
-            color: #334155;
-            white-space: nowrap;
-        }
-        .prod-resumen-crudo__telares tbody tr:last-child td {
-            border-bottom: none;
         }
         .prod-resumen-crudo__telar-badge {
             display: inline-block;
@@ -255,6 +202,17 @@
         .prod-resumen-crudo__telar-badge--inactivo {
             background: #f1f5f9;
             color: #64748b;
+        }
+        #modal-resumen-telares {
+            z-index: 9999;
+        }
+        #modal-resumen-telares .modal-resumen-telares__backdrop {
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(2px);
+        }
+        #modal-resumen-telares .modal-resumen-telares__panel {
+            z-index: 1;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
         }
         .prod-crudo-grid {
             display: grid;
@@ -1811,7 +1769,11 @@
                 && !$modalRollos.hasClass('hidden')
                 && $modalRollos.css('display') !== 'none';
             const flogAbierto = $modalFlogImg.length && !$modalFlogImg.hasClass('hidden');
-            return rollosAbierto || flogAbierto;
+            const $modalTelares = $('#modal-resumen-telares');
+            const telaresAbierto = $modalTelares.length
+                && !$modalTelares.hasClass('hidden')
+                && $modalTelares.css('display') !== 'none';
+            return rollosAbierto || flogAbierto || telaresAbierto;
         }
 
         /** Bloquea/desbloquea según modales visibles (evita contador desfasado tras varias aperturas). */
@@ -2285,6 +2247,9 @@
             if (e.key === 'Escape' && !$('#modal-rollos-maquina').hasClass('hidden')) {
                 cerrarModalRollosMaquina();
             }
+            if (e.key === 'Escape' && !$('#modal-resumen-telares').hasClass('hidden')) {
+                cerrarModalResumenTelares();
+            }
             if (e.key === 'Escape' && !$modalFlogImg.hasClass('hidden')) {
                 cerrarModalFlogImagen();
             }
@@ -2401,23 +2366,22 @@
             aplicarFiltroProduccion($(this).data('filter'));
         });
 
-        $resultado.on('click', '.prod-resumen-crudo__toggle', function (e) {
-            e.stopPropagation();
-            const $btn = $(this);
-            const $pop = $('#' + $btn.attr('aria-controls'));
-            if (!$pop.length) return;
-            const open = !$pop.hasClass('is-open');
-            $('.prod-resumen-crudo__popover').not($pop).removeClass('is-open');
-            $('.prod-resumen-crudo__toggle').not($btn).attr('aria-expanded', 'false');
-            $pop.toggleClass('is-open', open);
-            $btn.attr('aria-expanded', open ? 'true' : 'false');
-        });
+        function abrirModalResumenTelares() {
+            const $modal = $('#modal-resumen-telares');
+            if (!$modal.length) return;
+            $modal.removeClass('hidden').css('display', 'flex');
+            bloquearScrollPagina();
+        }
 
-        $(document).on('click', function (e) {
-            if ($(e.target).closest('.prod-resumen-crudo').length) return;
-            $('.prod-resumen-crudo__popover').removeClass('is-open');
-            $('.prod-resumen-crudo__toggle').attr('aria-expanded', 'false');
-        });
+        function cerrarModalResumenTelares() {
+            const $modal = $('#modal-resumen-telares');
+            if (!$modal.length || $modal.hasClass('hidden')) return;
+            $modal.addClass('hidden').css('display', '');
+            desbloquearScrollPagina();
+        }
+
+        $resultado.on('click', '[data-abrir-modal-telares]', abrirModalResumenTelares);
+        $resultado.on('click', '[data-modal-resumen-telares-close]', cerrarModalResumenTelares);
 
         function actualizarBadgeProduccion(cantidad) {
             const $tab = $('#resultado .traza-tab[data-tab="produccion"]');
