@@ -121,70 +121,119 @@
 
         /* === Tarjetas pestaña Producción === */
         .prod-resumen-crudo {
+            position: relative;
+            min-width: 0;
+            background: #f8fafc;
+            border: 1px solid #dbe3ec;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04);
+            padding: 0.7rem 0.75rem;
+        }
+        .prod-resumen-crudo__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .prod-resumen-crudo__title {
+            color: #102a4e;
+            font-size: 0.875rem;
+            font-weight: 800;
+        }
+        .prod-resumen-crudo__toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            border: 1px solid #cbd5e1;
             background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 1rem;
-            padding: 1rem 1.1rem;
+            color: #334155;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            border-radius: 9999px;
+            padding: 0.2rem 0.55rem;
+            cursor: pointer;
+        }
+        .prod-resumen-crudo__toggle i {
+            transition: transform 0.15s ease;
+        }
+        .prod-resumen-crudo__toggle[aria-expanded="true"] i {
+            transform: rotate(180deg);
         }
         .prod-resumen-crudo__stats {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.85rem;
-        }
-        @media (min-width: 640px) {
-            .prod-resumen-crudo__stats {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
-        }
-        @media (min-width: 1024px) {
-            .prod-resumen-crudo__stats {
-                grid-template-columns: repeat(5, minmax(0, 1fr));
-            }
+            gap: 0.4rem;
         }
         .prod-resumen-crudo__stat {
-            display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
+            min-width: 0;
+            padding: 0.35rem 0.4rem;
+            border: 1px solid #e8edf3;
+            border-radius: 0.45rem;
+            background: #ffffff;
+        }
+        .prod-resumen-crudo__stat--wide {
+            grid-column: 1 / -1;
         }
         .prod-resumen-crudo__stat span {
-            font-size: 0.6875rem;
+            display: block;
+            color: #8a98aa;
+            font-size: 0.625rem;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #64748b;
+            letter-spacing: 0.04em;
+            line-height: 1.2;
         }
         .prod-resumen-crudo__stat strong {
-            font-size: 1.35rem;
+            display: block;
+            color: #102a4e;
+            font-size: 0.9375rem;
             font-weight: 800;
-            color: #0f172a;
             font-variant-numeric: tabular-nums;
         }
-        .prod-resumen-crudo__telares-wrap {
-            margin-top: 1rem;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 0.85rem;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        .prod-resumen-crudo__popover {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            min-width: 22rem;
+            max-height: 16rem;
+            overflow: auto;
+            background: #ffffff;
+            border: 1px solid #dbe3ec;
+            border-radius: 0.6rem;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+            padding: 0.5rem;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-4px);
+            transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+            z-index: 20;
+        }
+        .prod-resumen-crudo__popover.is-open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
         }
         .prod-resumen-crudo__telares {
             width: 100%;
-            min-width: 32rem;
+            min-width: 30rem;
             border-collapse: collapse;
             font-size: 0.75rem;
         }
         .prod-resumen-crudo__telares thead th {
             text-align: left;
-            font-size: 0.6875rem;
+            font-size: 0.625rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.03em;
             color: #64748b;
-            padding: 0.35rem 0.6rem;
+            padding: 0.3rem 0.5rem;
             border-bottom: 1px solid #e2e8f0;
             white-space: nowrap;
         }
         .prod-resumen-crudo__telares tbody td {
-            padding: 0.35rem 0.6rem;
+            padding: 0.3rem 0.5rem;
             border-bottom: 1px solid #f1f5f9;
             color: #334155;
             white-space: nowrap;
@@ -194,7 +243,7 @@
         }
         .prod-resumen-crudo__telar-badge {
             display: inline-block;
-            font-size: 0.6875rem;
+            font-size: 0.625rem;
             font-weight: 700;
             padding: 0.1rem 0.5rem;
             border-radius: 999px;
@@ -2350,6 +2399,24 @@
 
         $resultado.on('click', '.prod-filter-btn', function () {
             aplicarFiltroProduccion($(this).data('filter'));
+        });
+
+        $resultado.on('click', '.prod-resumen-crudo__toggle', function (e) {
+            e.stopPropagation();
+            const $btn = $(this);
+            const $pop = $('#' + $btn.attr('aria-controls'));
+            if (!$pop.length) return;
+            const open = !$pop.hasClass('is-open');
+            $('.prod-resumen-crudo__popover').not($pop).removeClass('is-open');
+            $('.prod-resumen-crudo__toggle').not($btn).attr('aria-expanded', 'false');
+            $pop.toggleClass('is-open', open);
+            $btn.attr('aria-expanded', open ? 'true' : 'false');
+        });
+
+        $(document).on('click', function (e) {
+            if ($(e.target).closest('.prod-resumen-crudo').length) return;
+            $('.prod-resumen-crudo__popover').removeClass('is-open');
+            $('.prod-resumen-crudo__toggle').attr('aria-expanded', 'false');
         });
 
         function actualizarBadgeProduccion(cantidad) {

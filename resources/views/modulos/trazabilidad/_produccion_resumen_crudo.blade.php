@@ -2,38 +2,52 @@
     $porTelar = $resumenCrudo['porTelar'] ?? [];
 @endphp
 
-<div class="prod-resumen-crudo mb-6">
+<article class="prod-resumen-crudo" data-prod-summary-card>
+    <div class="prod-resumen-crudo__head">
+        <h4 class="prod-resumen-crudo__title">Resumen</h4>
+        @if (! empty($porTelar))
+            <button type="button"
+                    class="prod-resumen-crudo__toggle"
+                    aria-expanded="false"
+                    aria-controls="prod-resumen-telares-detalle"
+                    title="Ver detalle por telar">
+                <span>Telares</span>
+                <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+            </button>
+        @endif
+    </div>
+
     <div class="prod-resumen-crudo__stats">
         <div class="prod-resumen-crudo__stat">
-            <span>Total Programado</span>
+            <span>Programado</span>
             <strong>{{ number_format((float) ($resumenCrudo['totalProgramado'] ?? 0)) }}</strong>
         </div>
         <div class="prod-resumen-crudo__stat">
-            <span>Total Producido</span>
+            <span>Producido</span>
             <strong>{{ number_format((float) ($resumenCrudo['totalProducido'] ?? 0)) }}</strong>
         </div>
         <div class="prod-resumen-crudo__stat">
-            <span>KG Producidos</span>
-            <strong>{{ number_format((float) ($resumenCrudo['totalKg'] ?? 0), 2) }}</strong>
+            <span>KG</span>
+            <strong>{{ number_format((float) ($resumenCrudo['totalKg'] ?? 0)) }}</strong>
         </div>
         <div class="prod-resumen-crudo__stat">
-            <span>Avance Global</span>
-            <strong>{{ number_format((float) ($resumenCrudo['avanceGlobal'] ?? 0), 2) }}%</strong>
+            <span>Avance</span>
+            <strong>{{ number_format((float) ($resumenCrudo['avanceGlobal'] ?? 0)) }}%</strong>
         </div>
-        <div class="prod-resumen-crudo__stat">
-            <span>Telares Activos</span>
+        <div class="prod-resumen-crudo__stat prod-resumen-crudo__stat--wide">
+            <span>Telares activos</span>
             <strong>{{ (int) ($resumenCrudo['telaresActivos'] ?? 0) }} / {{ (int) ($resumenCrudo['telaresTotal'] ?? 0) }}</strong>
         </div>
     </div>
 
     @if (! empty($porTelar))
-        <div class="prod-resumen-crudo__telares-wrap">
+        <div id="prod-resumen-telares-detalle" class="prod-resumen-crudo__popover" role="region" aria-label="Detalle por telar">
             <table class="prod-resumen-crudo__telares">
                 <thead>
                     <tr>
                         <th scope="col">Telar</th>
-                        <th scope="col">Programado</th>
-                        <th scope="col">Producido</th>
+                        <th scope="col">Prog.</th>
+                        <th scope="col">Prod.</th>
                         <th scope="col">KG</th>
                         <th scope="col">Avance</th>
                         <th scope="col">Estado</th>
@@ -45,8 +59,8 @@
                             <td>{{ $t['telar'] }}</td>
                             <td>{{ number_format((float) $t['programado']) }}</td>
                             <td>{{ number_format((float) $t['producido']) }}</td>
-                            <td>{{ number_format((float) $t['kg'], 2) }}</td>
-                            <td>{{ number_format((float) $t['avance'], 2) }}%</td>
+                            <td>{{ number_format((float) $t['kg']) }}</td>
+                            <td>{{ number_format((float) $t['avance']) }}%</td>
                             <td>
                                 <span class="prod-resumen-crudo__telar-badge prod-resumen-crudo__telar-badge--{{ $t['activo'] ? 'activo' : 'inactivo' }}">
                                     {{ $t['activo'] ? 'Activo' : 'Inactivo' }}
@@ -58,4 +72,4 @@
             </table>
         </div>
     @endif
-</div>
+</article>
