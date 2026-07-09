@@ -161,7 +161,7 @@
                         <span class="flog-cliente-grid__valor">{{ $v($general['twSuavizante'] ?? null) }}</span>
                     </div>
                     <div class="flog-cliente-grid__celda flog-cliente-grid__celda--aviso" role="gridcell">
-                        <span class="flog-cliente-grid__label">Aviso especial</span>
+                        <span class="flog-cliente-grid__label">Aveo especial</span>
                         <span class="flog-cliente-grid__valor flog-cliente-grid__valor--limitado">{{ $v($general['avisoEspecialTxt'] ?? null) }}</span>
                     </div>
                     <div class="flog-cliente-grid__celda flog-cliente-grid__celda--info" role="gridcell">
