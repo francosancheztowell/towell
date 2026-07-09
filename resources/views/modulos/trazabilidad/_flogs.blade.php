@@ -23,13 +23,13 @@
         ['key' => 'valorAgregado', 'label' => 'Valor agregado'],
         ['key' => 'puntadasBordado', 'label' => 'Puntadas bordado', 'tipo' => 'decimal'],
         ['key' => 'infoAdicional', 'label' => 'Info adicional'],
-        ['key' => 'ancho', 'label' => 'Ancho', 'tipo' => 'decimal'],
-        ['key' => 'largo', 'label' => 'Largo', 'tipo' => 'decimal'],
-        ['key' => 'pesoAcabado', 'label' => 'Peso acabado', 'tipo' => 'decimal'],
+        ['key' => 'ancho', 'label' => 'Ancho', 'tipo' => 'entero'],
+        ['key' => 'largo', 'label' => 'Largo', 'tipo' => 'entero'],
+        ['key' => 'pesoAcabado', 'label' => 'Peso acabado', 'tipo' => 'entero'],
         ['key' => 'densidad', 'label' => 'Densidad', 'tipo' => 'decimal'],
-        ['key' => 'inventQty', 'label' => 'Cantidad', 'tipo' => 'decimal'],
-        ['key' => 'facturado', 'label' => 'Facturado', 'tipo' => 'decimal'],
-        ['key' => 'porEntregar', 'label' => 'Por entregar', 'tipo' => 'decimal'],
+        ['key' => 'inventQty', 'label' => 'Cantidad', 'tipo' => 'entero'],
+        ['key' => 'facturado', 'label' => 'Facturado', 'tipo' => 'entero'],
+        ['key' => 'porEntregar', 'label' => 'Por entregar', 'tipo' => 'entero'],
         ['key' => 'salesUnit', 'label' => 'Ud. venta'],
         ['key' => 'purchBarCode', 'label' => 'Cód. barras'],
         ['key' => 'dun14', 'label' => 'DUN14'],
@@ -149,23 +149,11 @@
                         <span class="flog-cliente-grid__valor">{{ $v($general['categoriaCalidad'] ?? null) }}</span>
                     </div>
                     <div class="flog-cliente-grid__celda" role="gridcell">
-                        <span class="flog-cliente-grid__label">Proceso Cadmex</span>
-                        <span class="flog-cliente-grid__valor">{{ $v($general['procesoCatMex'] ?? null) }}</span>
-                    </div>
-                    <div class="flog-cliente-grid__celda" role="gridcell">
-                        <span class="flog-cliente-grid__label">C. agente</span>
-                        <span class="flog-cliente-grid__valor">{{ $v($general['cAgente'] ?? null) }}</span>
-                    </div>
-                    <div class="flog-cliente-grid__celda" role="gridcell">
-                        <span class="flog-cliente-grid__label">N. agente</span>
+                        <span class="flog-cliente-grid__label">Agente</span>
                         <span class="flog-cliente-grid__valor">{{ $v($general['nAgente'] ?? null) }}</span>
                     </div>
                     <div class="flog-cliente-grid__celda" role="gridcell">
-                        <span class="flog-cliente-grid__label">Prueba lab. id</span>
-                        <span class="flog-cliente-grid__valor">{{ $v($general['pruebaLabId'] ?? null) }}</span>
-                    </div>
-                    <div class="flog-cliente-grid__celda" role="gridcell">
-                        <span class="flog-cliente-grid__label">Pruebas lab. texto</span>
+                        <span class="flog-cliente-grid__label">Pruebas lab</span>
                         <span class="flog-cliente-grid__valor">{{ $v($general['pruebasLabTxt'] ?? null) }}</span>
                     </div>
                     <div class="flog-cliente-grid__celda" role="gridcell">

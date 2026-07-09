@@ -18,8 +18,8 @@ class TrazabilidadFlogsServiceTest extends TestCase
         $method = new ReflectionMethod(TrazabilidadFlogsService::class, 'mapearLineaFlog');
         $line = $method->invoke(app(TrazabilidadFlogsService::class), $row);
 
-        $this->assertSame('125.500', $line['facturado']);
-        $this->assertSame('74.250', $line['porEntregar']);
+        $this->assertSame('125', $line['facturado']);
+        $this->assertSame('74', $line['porEntregar']);
     }
 
     public function test_lines_table_declares_invoiced_and_pending_delivery_columns(): void
@@ -27,11 +27,11 @@ class TrazabilidadFlogsServiceTest extends TestCase
         $view = file_get_contents(resource_path('views/modulos/trazabilidad/_flogs.blade.php'));
 
         $this->assertStringContainsString(
-            "['key' => 'facturado', 'label' => 'Facturado', 'tipo' => 'decimal']",
+            "['key' => 'facturado', 'label' => 'Facturado', 'tipo' => 'entero']",
             $view
         );
         $this->assertStringContainsString(
-            "['key' => 'porEntregar', 'label' => 'Por entregar', 'tipo' => 'decimal']",
+            "['key' => 'porEntregar', 'label' => 'Por entregar', 'tipo' => 'entero']",
             $view
         );
     }

@@ -96,14 +96,28 @@
         /* === Áreas expandibles (dropdown por artículo/color) === */
         /* Fila de área ABIERTA: resaltar la celda de etiqueta para que se note cuál
            está desplegada. Solo la primera columna (sticky), para no pisar el heatmap. */
-        #resultado tr.area-fila.area-abierta > td:first-child {
+        #resultado tr.area-fila.area-abierta > td.traza-col-area {
             background-color: #bfdbfe !important;  /* blue-200 */
         }
-        #resultado tr.area-fila.area-abierta:hover > td:first-child {
+        #resultado tr.area-fila.area-abierta:hover > td.traza-col-area {
             background-color: #93c5fd !important;  /* blue-300 al pasar el mouse */
         }
         /* Indicar que la fila de área es clickeable */
-        #resultado tr.area-fila > td:first-child { cursor: pointer; }
+        #resultado tr.area-fila > td.traza-col-area { cursor: pointer; }
+
+        /* Columna Total fija al scroll horizontal (junto a Área) */
+        #resultado .traza-col-total {
+            position: sticky;
+            left: 350px;
+            box-shadow: 2px 0 0 0 #cbd5e1;
+        }
+        #resultado thead .traza-col-total,
+        #resultado tfoot .traza-col-total {
+            background-color: #dbeafe; /* blue-100 / blue-50 */
+        }
+        #resultado tbody tr.area-fila.area-abierta > td.traza-col-total {
+            background-color: #dbeafe !important;
+        }
 
         /* === Tarjetas pestaña Producción === */
         .prod-crudo-grid {
@@ -2385,9 +2399,9 @@
             setTimeout(restaurarInteraccionScroll, 0);
         });
 
-        // Áreas expandibles (Flog con +2 artículos): al hacer click en la fila del área
-        // se muestran/ocultan sus sub-filas de desglose por artículo/color. Se delega en
-        // #resultado porque su contenido se reemplaza completo en cada respuesta AJAX.
+        // Dropdown por área: al hacer click en la fila se muestran/ocultan sus sub-filas
+        // de desglose por artículo/color. Se delega en #resultado porque su contenido
+        // se reemplaza completo en cada respuesta AJAX.
         $resultado.on('click', '.area-fila', function () {
             const key = $(this).data('area-key');
             const abierto = $(this).hasClass('area-abierta');

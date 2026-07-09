@@ -90,12 +90,12 @@
                     {{-- Cabecera: fechas --}}
                     <thead>
                         <tr class="bg-slate-50/80">
-                            <th class="sticky left-0 z-20 bg-slate-50 text-left font-bold text-slate-500
+                            <th class="traza-col-area sticky left-0 z-30 bg-slate-50 text-left font-bold text-slate-500
                                        px-3 py-1.5 w-[350px] whitespace-nowrap border-b border-slate-200"
                                 style="border-right:2px solid #cbd5e1;">
                                 Área
                             </th>
-                            <th class="sticky left-[350px] z-[19] px-2 py-1.5 text-center font-bold text-blue-800
+                            <th class="traza-col-total sticky left-[350px] z-[29] px-2 py-1.5 text-center font-bold text-blue-800
                                        bg-blue-50 border-b border-r border-slate-200 min-w-[72px]">
                                 Total
                             </th>
@@ -113,14 +113,13 @@
                     <tbody>
                         @foreach ($areas as $idx => $area)
                             @php
-                                // Área expandible: solo cuando hay Flog con +2 artículos ($dropdown)
-                                // y el área tiene desglose por artículo/color.
-                                $expandible = ($dropdown ?? false) && !empty($area['detalles']);
+                                // Dropdown por área: expandible si trae desglose artículo/color.
+                                $expandible = ! empty($area['detalles']);
                             @endphp
                             <tr class="group hover:bg-slate-50/40 transition-colors {{ $expandible ? 'area-fila cursor-pointer select-none' : '' }}"
                                 @if ($expandible) data-area-key="{{ $idx }}" @endif>
                                 {{-- Columna de área (sticky) --}}
-                                <td class="sticky left-0 z-10 bg-white group-hover:bg-slate-50 px-3 py-3 w-[350px]
+                                <td class="traza-col-area sticky left-0 z-20 bg-white group-hover:bg-slate-50 px-3 py-3 w-[350px]
                                            border-b border-slate-100"
                                     style="box-shadow: inset 4px 0 0 0 {{ $area['dot'] }}; border-right:2px solid #cbd5e1;">
                                     <span class="flex items-center gap-2">
@@ -139,9 +138,9 @@
                                     </span>
                                 </td>
 
-                                {{-- Total por área --}}
+                                {{-- Total por área (sticky, fijo al scroll horizontal) --}}
                                 @php $totalArea = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $area['valores'])); @endphp
-                                <td class="sticky left-[350px] z-[9] px-2 py-3 text-center font-bold border-b border-r border-slate-200 bg-blue-50 tabular-nums"
+                                <td class="traza-col-total sticky left-[350px] z-[19] px-2 py-3 text-center font-bold border-b border-r border-slate-200 bg-blue-50 tabular-nums min-w-[72px]"
                                     style="color: {{ $area['text'] }};">
                                     {{ $totalArea ? number_format($totalArea, $decimales) : '—' }}
                                 </td>
@@ -171,7 +170,7 @@
                                 @foreach ($area['detalles'] as $det)
                                     <tr class="detalle-fila hidden bg-slate-100" data-area-key="{{ $idx }}">
                                         {{-- Artículo / color (sticky) --}}
-                                        <td class="sticky left-0 z-10 bg-slate-200 px-3 py-1.5 w-[350px] border-b border-slate-300"
+                                        <td class="traza-col-area sticky left-0 z-20 bg-slate-200 px-3 py-1.5 w-[350px] border-b border-slate-300"
                                             style="box-shadow: inset 4px 0 0 0 {{ $area['dot'] }}; border-right:2px solid #cbd5e1;">
                                             <span class="flex flex-col pl-6 leading-tight">
                                                 <span class="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
@@ -183,8 +182,8 @@
                                             </span>
                                         </td>
 
-                                        {{-- Total de la sub-fila --}}
-                                        <td class="sticky left-[350px] z-[9] px-2 py-1.5 text-center text-[12px] font-semibold text-slate-700 border-b border-r border-slate-200 bg-blue-50 tabular-nums">
+                                        {{-- Total de la sub-fila (sticky) --}}
+                                        <td class="traza-col-total sticky left-[350px] z-[19] px-2 py-1.5 text-center text-[12px] font-semibold text-slate-700 border-b border-r border-slate-200 bg-blue-50 tabular-nums min-w-[72px]">
                                             {{ $det['total'] ? number_format($det['total'], $decimales) : '—' }}
                                         </td>
 
@@ -213,12 +212,12 @@
                     {{-- Pie: totales --}}
                     <tfoot>
                         <tr class="bg-blue-50/70">
-                            <td class="sticky left-0 z-10 bg-blue-50 px-3 py-1.5 font-bold text-blue-800"
+                            <td class="traza-col-area sticky left-0 z-20 bg-blue-50 px-3 py-1.5 font-bold text-blue-800"
                                 style="border-right:2px solid #cbd5e1;">
                                 Total
                             </td>
                             @php $granTotal = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $totales)); @endphp
-                            <td class="sticky left-[350px] z-[9] px-2 py-1.5 text-center font-extrabold text-blue-900 bg-blue-100 border-r border-slate-200 tabular-nums">
+                            <td class="traza-col-total sticky left-[350px] z-[19] px-2 py-1.5 text-center font-extrabold text-blue-900 bg-blue-100 border-r border-slate-200 tabular-nums min-w-[72px]">
                                 {{ $granTotal ? number_format($granTotal, $decimales) : '—' }}
                             </td>
                             @foreach ($fechas as $i => $fecha)

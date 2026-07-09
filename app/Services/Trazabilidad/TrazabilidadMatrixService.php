@@ -42,7 +42,7 @@ class TrazabilidadMatrixService
      *
      * @param  array  $filtros  ['flog','articulo','tamano','color','nombrecolor','mes'(CSV de meses)]
      * @param  string  $metrica  'cantidad' (Material) o 'peso' (Kilos)
-     * @return array{fechas:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool, dropdown:bool}
+     * @return array{fechas:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool, dropdown:bool} Dropdown = true si alguna área tiene desglose.
      */
     public function build(array $filtros, string $metrica = 'cantidad'): array
     {
@@ -67,17 +67,6 @@ class TrazabilidadMatrixService
 
         // Tipo / Cliente / Agente: solo cuando hay un Flog específico.
         $info = $hayFlog ? $base()->select('Tipo', 'Cliente', 'Agente')->first() : null;
-
-        // Nº de artículos distintos del filtro actual (solo importa con un Flog elegido).
-        // El desglose por artículo/color (áreas expandibles) se activa cuando hay un Flog
-        // con DOS O MÁS artículos: ahí tiene sentido detallar qué hay dentro de cada área.
-        $numArticulos = 0;
-        if ($hayFlog) {
-            $numArticulos = (int) $base()
-                ->whereNotNull('Articulo')->where('Articulo', '<>', '')
-                ->distinct()->count('Articulo');
-        }
-        $dropdown = $hayFlog && $numArticulos >= 2;
 
         // Agregación en SQL: una fila por (Fecha, NombreAlmacen) con la suma de la métrica.
         $datos = $base()
@@ -136,56 +125,54 @@ class TrazabilidadMatrixService
             $valoresPorArea[$area][$pos] = ($valoresPorArea[$area][$pos] ?? 0) + (float) $fila->total;
         }
 
-        // Desglose por artículo+color dentro de cada área (solo cuando aplica el dropdown).
+        // Desglose por artículo+color dentro de cada área (dropdown expandible por fila).
         // Mapa [NombreAlmacen][articulo|color] => ['articulo','nombreArticulo','color','nombreColor','valores'=>[pos=>total]].
         $detallePorArea = [];
-        if ($dropdown) {
-            $detalleRaw = $base()
+        $detalleRaw = $base()
+            ->selectRaw("Fecha, NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor, SUM($columnaMetrica) as total")
+            ->whereNotNull('Fecha')
+            ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
+            ->orderBy('Fecha')
+            ->get();
+
+        if (filled($filtros['color'] ?? null)) {
+            $detalleRollos = $baseRollosConColor()
+                ->where('NombreAlmacen', 'Rollos Teñido')
                 ->selectRaw("Fecha, NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor, SUM($columnaMetrica) as total")
                 ->whereNotNull('Fecha')
                 ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
                 ->orderBy('Fecha')
                 ->get();
 
-            if (filled($filtros['color'] ?? null)) {
-                $detalleRollos = $baseRollosConColor()
-                    ->where('NombreAlmacen', 'Rollos Teñido')
-                    ->selectRaw("Fecha, NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor, SUM($columnaMetrica) as total")
-                    ->whereNotNull('Fecha')
-                    ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
-                    ->orderBy('Fecha')
-                    ->get();
+            $detalleRaw = $detalleRaw
+                ->reject(fn ($f) => ($f->NombreAlmacen ?? '') === 'Rollos Teñido')
+                ->concat($detalleRollos)
+                ->values();
+        }
 
-                $detalleRaw = $detalleRaw
-                    ->reject(fn ($f) => ($f->NombreAlmacen ?? '') === 'Rollos Teñido')
-                    ->concat($detalleRollos)
-                    ->values();
+        foreach ($detalleRaw as $fila) {
+            $area = $fila->NombreAlmacen ?? '';
+            $clave = Carbon::parse($fila->Fecha)->format('Y-m-d');
+            $pos = $posFecha[$clave] ?? null;
+            if ($pos === null) {
+                continue;
             }
-
-            foreach ($detalleRaw as $fila) {
-                $area = $fila->NombreAlmacen ?? '';
-                $clave = Carbon::parse($fila->Fecha)->format('Y-m-d');
-                $pos = $posFecha[$clave] ?? null;
-                if ($pos === null) {
-                    continue;
-                }
-                $ac = ($fila->Articulo ?? '').'|'.($fila->Color ?? '');
-                if (! isset($detallePorArea[$area][$ac])) {
-                    $detallePorArea[$area][$ac] = [
-                        'articulo' => $fila->Articulo,
-                        'nombreArticulo' => $fila->NombreArticulo,
-                        'color' => $fila->Color,
-                        'nombreColor' => $fila->NombreColor,
-                        'valores' => [],
-                    ];
-                }
-                $detallePorArea[$area][$ac]['valores'][$pos] =
-                    ($detallePorArea[$area][$ac]['valores'][$pos] ?? 0) + (float) $fila->total;
+            $ac = ($fila->Articulo ?? '').'|'.($fila->Color ?? '');
+            if (! isset($detallePorArea[$area][$ac])) {
+                $detallePorArea[$area][$ac] = [
+                    'articulo' => $fila->Articulo,
+                    'nombreArticulo' => $fila->NombreArticulo,
+                    'color' => $fila->Color,
+                    'nombreColor' => $fila->NombreColor,
+                    'valores' => [],
+                ];
             }
+            $detallePorArea[$area][$ac]['valores'][$pos] =
+                ($detallePorArea[$area][$ac]['valores'][$pos] ?? 0) + (float) $fila->total;
         }
 
         $numCols = count($fechas);
-        $areas = collect($this->areasFijas)->map(function ($area) use ($valoresPorArea, $detallePorArea, $dropdown, $numCols, $decimales) {
+        $areas = collect($this->areasFijas)->map(function ($area) use ($valoresPorArea, $detallePorArea, $numCols, $decimales) {
             $valores = [];
             for ($c = 0; $c < $numCols; $c++) {
                 $valores[$c] = isset($valoresPorArea[$area['nombre']][$c])
@@ -216,7 +203,7 @@ class TrazabilidadMatrixService
             // Sub-filas: una por cada artículo+color presente en el área. Cada una
             // con sus valores alineados a las columnas de fecha y su total de fila.
             $detalles = [];
-            if ($dropdown && ! empty($detallePorArea[$area['nombre']])) {
+            if (! empty($detallePorArea[$area['nombre']])) {
                 foreach ($detallePorArea[$area['nombre']] as $d) {
                     $vals = [];
                     for ($c = 0; $c < $numCols; $c++) {
@@ -251,6 +238,9 @@ class TrazabilidadMatrixService
             })
             ->values()
             ->all();
+
+        // Hay dropdown si al menos un área trae desglose por artículo/color.
+        $dropdown = collect($areas)->contains(fn ($area) => ! empty($area['detalles']));
 
         // --- Totales por columna ---
         $totales = [];

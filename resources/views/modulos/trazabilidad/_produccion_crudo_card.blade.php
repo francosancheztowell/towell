@@ -55,38 +55,32 @@
         </div>
     </div>
 
-    @if ($esMultiTelar)
-        <div class="prod-crudo-card__loom-matrix-wrap">
-            <table class="prod-crudo-card__loom-matrix">
-                <thead>
-                    <tr>
-                        <th scope="col"></th>
-                        @foreach ($o['telares'] as $telar)
-                            <th scope="col" data-loom-column>Telar {{ $telar['telarNumero'] }}</th>
-                        @endforeach
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <th scope="row">Piezas</th>
-                        @foreach ($o['telares'] as $telar)
-                            <td>{{ number_format((float) $telar['producidas']) }}</td>
-                        @endforeach
-                    </tr>
-                    <tr>
-                        <th scope="row">Peso</th>
-                        @foreach ($o['telares'] as $telar)
-                            <td>{{ number_format((float) $telar['kg'], 2) }} <small>kg</small></td>
-                        @endforeach
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    @else
-        <div class="prod-crudo-card__single-loom">
-            Telar {{ $o['telares'][0]['telarNumero'] ?? '—' }}
-        </div>
-    @endif
+    <div class="prod-crudo-card__loom-matrix-wrap">
+        <table class="prod-crudo-card__loom-matrix">
+            <thead>
+                <tr>
+                    <th scope="col"></th>
+                    @foreach ($o['telares'] as $telar)
+                        <th scope="col" data-loom-column>Telar {{ $telar['telarNumero'] }}</th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">Piezas</th>
+                    @foreach ($o['telares'] as $telar)
+                        <td>{{ number_format((float) $telar['producidas']) }}</td>
+                    @endforeach
+                </tr>
+                <tr>
+                    <th scope="row">Peso</th>
+                    @foreach ($o['telares'] as $telar)
+                        <td>{{ number_format((int) round((float) $telar['kg'])) }} <small>kg</small></td>
+                    @endforeach
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     <div class="prod-crudo-card__progress">
         <div class="prod-crudo-card__progress-meta">

@@ -134,7 +134,7 @@ class TrazabilidadController extends Controller
         $areas = [];
         $totales = [];
         $info = null; // Tipo / Cliente / Agente (solo con un Flog específico).
-        $dropdown = false; // Áreas expandibles (Flog con +2 artículos).
+        $dropdown = false; // Áreas expandibles con desglose por artículo/color.
         $produccion = null; // Sección "Producción": telares del flog (Orden/Localidad).
         $produccionCargando = false;
         $flogs = null; // Pestaña Flogs: datos desde sqlsrv_ti.
