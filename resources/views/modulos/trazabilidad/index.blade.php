@@ -123,11 +123,17 @@
         .prod-resumen-crudo {
             position: relative;
             min-width: 0;
+            grid-column: span 1;
             background: linear-gradient(155deg, #1d4ed8, #2563eb 55%, #3b82f6);
             border: 1px solid #1e40af;
             border-radius: 0.75rem;
             box-shadow: 0 6px 16px rgba(29, 78, 216, 0.28);
             padding: 0.7rem 0.75rem;
+        }
+        @media (min-width: 640px) {
+            .prod-resumen-crudo {
+                grid-column: span 2;
+            }
         }
         .prod-resumen-crudo__head {
             display: flex;
@@ -162,6 +168,11 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.4rem;
         }
+        @media (min-width: 640px) {
+            .prod-resumen-crudo__stats {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+        }
         .prod-resumen-crudo__stat {
             min-width: 0;
             padding: 0.35rem 0.4rem;
@@ -171,6 +182,11 @@
         }
         .prod-resumen-crudo__stat--wide {
             grid-column: 1 / -1;
+        }
+        @media (min-width: 640px) {
+            .prod-resumen-crudo__stat--wide {
+                grid-column: auto;
+            }
         }
         .prod-resumen-crudo__stat span {
             display: block;
