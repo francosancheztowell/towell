@@ -43,6 +43,17 @@ class TrazabilidadMatrixLayoutTest extends TestCase
         $this->assertSame(4, substr_count($view, 'sticky left-[350px]'));
     }
 
+    public function test_area_column_width_is_fixed_to_match_total_sticky_offset(): void
+    {
+        $styles = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+
+        $areaRule = $this->between($styles, '#resultado .traza-col-area {', '}');
+
+        $this->assertStringContainsString('width: 350px;', $areaRule);
+        $this->assertStringContainsString('min-width: 350px;', $areaRule);
+        $this->assertStringContainsString('max-width: 350px;', $areaRule);
+    }
+
     public function test_date_keys_are_ordered_from_most_recent_to_oldest(): void
     {
         $method = new ReflectionMethod(TrazabilidadMatrixService::class, 'ordenarClavesFechas');

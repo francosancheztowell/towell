@@ -105,6 +105,13 @@
         /* Indicar que la fila de área es clickeable */
         #resultado tr.area-fila > td.traza-col-area { cursor: pointer; }
 
+        /* Área debe medir exactamente lo mismo que el offset sticky de Total */
+        #resultado .traza-col-area {
+            width: 350px;
+            min-width: 350px;
+            max-width: 350px;
+        }
+
         /* Columna Total fija al scroll horizontal (junto a Área) */
         #resultado .traza-col-total {
             position: sticky;
