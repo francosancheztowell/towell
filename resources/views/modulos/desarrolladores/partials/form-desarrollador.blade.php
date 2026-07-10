@@ -146,7 +146,7 @@
             <div class="overflow-x-auto pb-2">
                 <div class="flex justify-start items-center gap-2 min-w-max px-2">
                     @for ($i = 0; $i < 20; $i++)
-                        <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="{{ $i }}" {{ $i < 16 ? 'required' : '' }}>
+                        <input type="text" class="codificacion-char w-10 h-10 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase" maxlength="1" data-index="{{ $i }}" {{ $i < 10 ? 'required' : '' }}>
                     @endfor
                     <span id="codificacionSuffix" class="text-lg font-bold text-gray-600">.JC5</span>
                 </div>
