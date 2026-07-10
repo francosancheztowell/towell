@@ -113,6 +113,21 @@ trait ProduccionTrait
     }
 
     /**
+     * @return JsonResponse|null Respuesta 422 si Kg. Bruto es cero; null si OK (null pasa, se valida en marcarListo).
+     */
+    protected function jsonIfKgBrutoIsZero(?float $kgBruto): ?JsonResponse
+    {
+        if ($kgBruto === null || $kgBruto != 0) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => 'Kg. Bruto debe ser distinto de cero.',
+        ], 422);
+    }
+
+    /**
      * Verifica que el usuario tenga permiso de modificar. Usa permisos del módulo, no el área.
      */
     protected function ensureUserCanEdit(): void
@@ -551,7 +566,7 @@ trait ProduccionTrait
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
-                'no_julio' => 'nullable|string|max:10',
+                'no_julio' => 'required|string|max:10',
                 'tara' => 'nullable|numeric|min:0',
             ]);
 
@@ -568,7 +583,7 @@ trait ProduccionTrait
 
             $this->ensureUserCanEdit();
 
-            $registro->NoJulio = $request->no_julio ?? null;
+            $registro->NoJulio = $request->no_julio;
 
             $taraValue = null;
             if ($request->has('tara') && $request->tara !== null && $request->tara !== '') {
@@ -642,6 +657,11 @@ trait ProduccionTrait
             $rejectBruto = $this->jsonIfKgBrutoExceedsLimit($kgBrutoValue);
             if ($rejectBruto !== null) {
                 return $rejectBruto;
+            }
+
+            $rejectBrutoCero = $this->jsonIfKgBrutoIsZero($kgBrutoValue);
+            if ($rejectBrutoCero !== null) {
+                return $rejectBrutoCero;
             }
 
             $registro->KgBruto = $kgBrutoValue;
@@ -768,8 +788,8 @@ trait ProduccionTrait
                 if (empty($registro->NoJulio)) {
                     $camposFaltantes[] = 'No. Julio es requerido';
                 }
-                if (is_null($registro->KgBruto) || $registro->KgBruto < 0) {
-                    $camposFaltantes[] = 'Kg Bruto debe ser un valor mayor o igual a 0';
+                if (is_null($registro->KgBruto) || $registro->KgBruto <= 0) {
+                    $camposFaltantes[] = 'Kg Bruto debe ser un valor mayor a 0';
                 }
                 $maxBruto = $this->maxKgBrutoAllowed();
                 if ($maxBruto !== null && $registro->KgBruto !== null && (float) $registro->KgBruto > $maxBruto) {

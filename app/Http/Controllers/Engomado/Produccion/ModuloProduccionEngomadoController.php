@@ -539,6 +539,24 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 422);
             }
 
+            $registrosInvalidos = EngProduccionEngomado::where('Folio', $orden->Folio)
+                ->whereNotNull('HoraInicial')
+                ->whereNotNull('HoraFinal')
+                ->where(function ($q) {
+                    $q->whereNull('NoJulio')
+                        ->orWhere('NoJulio', '')
+                        ->orWhereNull('KgBruto')
+                        ->orWhere('KgBruto', 0);
+                })
+                ->count();
+
+            if ($registrosInvalidos > 0) {
+                return response()->json([
+                    'success' => false,
+                    'error' => "No se puede finalizar: hay {$registrosInvalidos} registro(s) con No. Julio vacío o Kg Bruto en cero. Revisa los registros antes de finalizar.",
+                ], 422);
+            }
+
             // Validar horas
             $errorHoras = $this->validarHorasRegistros($orden->Folio);
             if ($errorHoras) {

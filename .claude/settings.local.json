@@ -43,7 +43,8 @@
       "Bash(php -l app/Models/Planeacion/Catalogos/CatLMat.php)",
       "Bash(php -l app/Http/Controllers/Planeacion/CatLMat/CatLMatController.php)",
       "Bash(php -l routes/modules/planeacion.php)",
-      "Bash(php -r ' *)"
+      "Bash(php -r ' *)",
+      "Bash(php -l app/Http/Controllers/Engomado/Produccion/ModuloProduccionEngomadoController.php)"
     ]
   }
 }
