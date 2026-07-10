@@ -18,6 +18,7 @@ use App\Models\Atadores\AtaMontadoActividadesModel;
 use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Atadores\AtaActividadesModel;
 use App\Models\Atadores\AtaComentariosModel;
+use App\Models\Planeacion\ReqTelares;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Sistema\SYSMensaje;
 
@@ -454,6 +455,13 @@ class AtadoresController extends Controller
         // Catálogo de notas/comentarios (para mostrar al final)
         $comentarios = AtaComentariosModel::orderBy('Nota1')->get();
 
+        // Catálogo de telares de la planta, para el select "Telar" del panel de Devolución.
+        $telaresCatalogo = ReqTelares::orderBy('NoTelarId')
+            ->pluck('NoTelarId')
+            ->filter()
+            ->unique()
+            ->values();
+
         return view(
             'modulos.atadores.calificar-atadores.index',
             compact(
@@ -462,7 +470,8 @@ class AtadoresController extends Controller
                 'maquinasMontado',
                 'actividadesCatalogo',
                 'actividadesMontado',
-                'comentarios'
+                'comentarios',
+                'telaresCatalogo'
             )
         );
     }

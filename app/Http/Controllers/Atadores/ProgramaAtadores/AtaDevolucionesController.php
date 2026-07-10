@@ -9,10 +9,106 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AtaDevolucionesController extends Controller
 {
+    /**
+     * Ubicación fija del catálogo WMSLocation (TI-PRO) usada para el
+     * combo de Ubicación en el panel de Devolución.
+     */
+    private const UBICACION_INVENT_LOCATION_ID = 'A-JUL/TELA';
+    private const UBICACION_DATA_AREA_ID = 'PRO';
+
+    /**
+     * Catálogo de ubicaciones (WMSLocationId) para el combo de Ubicación del
+     * panel de Devolución. Se consulta en vivo contra TI-PRO (conexión
+     * sqlsrv_ti) filtrando InventLocationId y dataAreaId fijos.
+     */
+    public function ubicaciones(): JsonResponse
+    {
+        try {
+            $ubicaciones = DB::connection('sqlsrv_ti')
+                ->table('WMSLocation')
+                ->where('InventLocationId', self::UBICACION_INVENT_LOCATION_ID)
+                ->where('dataAreaId', self::UBICACION_DATA_AREA_ID)
+                ->distinct()
+                ->orderBy('wMSLocationId')
+                ->pluck('wMSLocationId')
+                ->filter()
+                ->values();
+
+            return response()->json(['ok' => true, 'ubicaciones' => $ubicaciones]);
+        } catch (\Throwable $e) {
+            Log::error('Error al consultar WMSLocation (TI-PRO) para ubicaciones de devolución', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo consultar el catálogo de ubicaciones en TI-PRO.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Estatus de AtaMontadoTelas que se considera "atado finalizado" para
+     * efectos de buscar julios previos del mismo Telar y Tipo.
+     */
+    private const JULIO_ESTATUS_FINALIZADO = 'Terminado';
+
+    /**
+     * Julios atados (AtaMontadoTelas) de un Telar, filtrados por el mismo Tipo
+     * del atado actual y en estatus Terminado, ordenados del más reciente al
+     * más antiguo. Se sugiere el "penúltimo" (segundo de la lista) porque el
+     * más reciente suele ser el atado que se está calificando actualmente.
+     */
+    public function julios(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'telar' => ['required', 'string', 'max:20'],
+            'tipo' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        try {
+            $query = AtaMontadoTelasModel::where('NoTelarId', $data['telar'])
+                ->where('Estatus', self::JULIO_ESTATUS_FINALIZADO);
+
+            if (!empty($data['tipo'])) {
+                $query->where('Tipo', $data['tipo']);
+            }
+
+            $julios = $query->orderByDesc('Fecha')
+                ->orderByDesc('Turno')
+                ->orderByDesc('Id')
+                ->pluck('NoJulio')
+                ->filter()
+                ->unique()
+                ->values();
+
+            // "Penúltimo": el segundo elemento de la lista (se salta el más reciente).
+            $sugerido = $julios->count() >= 2 ? $julios->get(1) : $julios->first();
+
+            return response()->json([
+                'ok' => true,
+                'julios' => $julios,
+                'sugerido' => $sugerido,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al consultar julios atados por telar para devolución', [
+                'telar' => $data['telar'],
+                'tipo' => $data['tipo'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo consultar los julios atados de ese telar.',
+            ], 500);
+        }
+    }
+
     /**
      * Registra una devolución asociada a un proceso de atado (AtaMontadoTelas).
      *

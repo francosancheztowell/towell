@@ -358,18 +358,25 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
                         <!-- Fila 1: Telar | Ubicación | Cuenta | Lote -->
                         <div>
-                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                            <label for="dev_telar" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Telar
                             </label>
-                            <input type="text" id="dev_telar"
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                            <select id="dev_telar" onchange="onCambioTelarDevolucion(this.value)"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                                <option value="">Seleccione</option>
+                                @foreach($telaresCatalogo ?? [] as $telarOpcion)
+                                    <option value="{{ $telarOpcion }}">{{ $telarOpcion }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                            <label for="dev_ubicacion" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Ubicación
                             </label>
-                            <input type="text" id="dev_ubicacion" maxlength="10"
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                            <select id="dev_ubicacion"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                                <option value="">Seleccione</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Cuenta</label>
@@ -384,11 +391,13 @@
 
                         <!-- Fila 2: Julio | Metros | Calibre | Tipo -->
                         <div>
-                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                            <label for="dev_no_julio" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Julio
                             </label>
-                            <input type="text" id="dev_no_julio" maxlength="20"
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                            <select id="dev_no_julio"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                                <option value="">Seleccione un telar</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide mb-1">
@@ -421,11 +430,13 @@
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
                         </div>
                         <div>
-                            <label class="block text-xs font-bold uppercase tracking-wide mb-1">
+                            <label for="dev_fecha" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Fecha
                             </label>
                             <input type="date" id="dev_fecha"
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                                onclick="abrirCalendarioFecha(this)"
+                                onfocus="abrirCalendarioFecha(this)"
+                                class="w-full min-h-10 px-2 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 cursor-pointer" />
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Hilo</label>
@@ -514,6 +525,7 @@
             const currentRefId = {!! json_encode($montadoTelas->first()->Id ?? null) !!};
             const currentTelar = {!! json_encode($montadoTelas->first()->NoTelarId ?? null) !!};
             const currentLote = {!! json_encode($montadoTelas->first()->LoteProveedor ?? null) !!};
+            const currentTipoAtado = {!! json_encode($montadoTelas->first()->Tipo ?? null) !!};
         @else
             const currentNoJulio = null;
             const currentNoOrden = null;
@@ -521,6 +533,7 @@
             const currentRefId = null;
             const currentTelar = null;
             const currentLote = null;
+            const currentTipoAtado = null;
         @endif
 
     // Información de actividades para validación
@@ -532,6 +545,126 @@
         ];
     })) !!};
 
+        // Abre el datepicker nativo (mejor UX en tablet al editar la fecha).
+        function abrirCalendarioFecha(input) {
+            if (!input || input.disabled) return;
+            try {
+                if (typeof input.showPicker === 'function') {
+                    input.showPicker();
+                }
+            } catch (e) {
+                // Algunos navegadores bloquean showPicker fuera de un gesto directo;
+                // el type="date" sigue permitiendo editar con el control nativo.
+            }
+        }
+
+        // Cache en memoria del catálogo de ubicaciones (WMSLocation en TI-PRO)
+        // para no repetir la consulta cada vez que se abre el panel.
+        let ubicacionesDevolucionCargadas = false;
+
+        function cargarUbicacionesDevolucion() {
+            const select = document.getElementById('dev_ubicacion');
+            if (!select || ubicacionesDevolucionCargadas) return;
+
+            const valorPrevio = select.value;
+            select.disabled = true;
+
+            fetch('{{ route('atadores.devoluciones.ubicaciones') }}')
+                .then(r => r.json())
+                .then(res => {
+                    if (res.ok && Array.isArray(res.ubicaciones)) {
+                        select.innerHTML = '<option value="">Seleccione</option>';
+                        res.ubicaciones.forEach(ubi => {
+                            const opt = document.createElement('option');
+                            opt.value = ubi;
+                            opt.textContent = ubi;
+                            select.appendChild(opt);
+                        });
+                        ubicacionesDevolucionCargadas = true;
+                        if (valorPrevio) select.value = valorPrevio;
+                    } else {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Ubicaciones no disponibles',
+                            text: res.message || 'No se pudo cargar el catálogo de ubicaciones (TI-PRO).'
+                        });
+                    }
+                })
+                .catch(() => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de conexión',
+                        text: 'No se pudo conectar con TI-PRO para cargar las ubicaciones.'
+                    });
+                })
+                .finally(() => { select.disabled = false; });
+        }
+
+        // Cache en memoria de los julios ya consultados por telar (evita repetir
+        // la consulta si el usuario vuelve a seleccionar el mismo telar).
+        const juliosDevolucionCache = {};
+
+        // Se dispara al cambiar el Telar en el panel de Devolución: recarga el
+        // select de "Julio" filtrando por ese telar + el mismo Tipo del atado actual.
+        function onCambioTelarDevolucion(telar) {
+            cargarJuliosDevolucion(telar, { autoseleccionar: true });
+        }
+
+        function cargarJuliosDevolucion(telar, { autoseleccionar = false } = {}) {
+            const select = document.getElementById('dev_no_julio');
+            if (!select) return;
+
+            if (!telar) {
+                select.innerHTML = '<option value="">Seleccione un telar</option>';
+                return;
+            }
+
+            const render = (julios, sugerido) => {
+                select.innerHTML = '<option value="">Seleccione</option>';
+                julios.forEach(j => {
+                    const opt = document.createElement('option');
+                    opt.value = j;
+                    opt.textContent = j;
+                    select.appendChild(opt);
+                });
+                if (autoseleccionar && sugerido) {
+                    select.value = sugerido;
+                }
+            };
+
+            if (juliosDevolucionCache[telar]) {
+                render(juliosDevolucionCache[telar].julios, juliosDevolucionCache[telar].sugerido);
+                return;
+            }
+
+            select.disabled = true;
+            select.innerHTML = '<option value="">Cargando...</option>';
+
+            const params = new URLSearchParams({ telar });
+            if (currentTipoAtado) params.set('tipo', currentTipoAtado);
+
+            fetch('{{ route('atadores.devoluciones.julios') }}?' + params.toString())
+                .then(r => r.json())
+                .then(res => {
+                    if (res.ok && Array.isArray(res.julios)) {
+                        juliosDevolucionCache[telar] = { julios: res.julios, sugerido: res.sugerido || null };
+                        render(res.julios, res.sugerido);
+                    } else {
+                        select.innerHTML = '<option value="">Seleccione</option>';
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Julios no disponibles',
+                            text: res.message || 'No se pudo cargar los julios atados de ese telar.'
+                        });
+                    }
+                })
+                .catch(() => {
+                    select.innerHTML = '<option value="">Seleccione</option>';
+                    Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo cargar los julios de ese telar.' });
+                })
+                .finally(() => { select.disabled = false; });
+        }
+
         // Mostrar/ocultar panel de Devolución según el check
         function toggleDevolucion(checked) {
             const panel = document.getElementById('devolucionPanel');
@@ -540,14 +673,31 @@
 
             // Al abrir, prellenar campos informativos si están vacíos
             if (checked) {
+                cargarUbicacionesDevolucion();
+
                 const setSiVacio = (id, valor) => {
                     const el = document.getElementById(id);
                     if (el && !el.value && valor != null) el.value = valor;
                 };
-                setSiVacio('dev_telar', currentTelar);
+
+                const telarSelect = document.getElementById('dev_telar');
+                if (telarSelect && !telarSelect.value && currentTelar) {
+                    telarSelect.value = currentTelar;
+                    // Si el telar actual no está en el catálogo, se agrega para no perder el dato.
+                    if (telarSelect.value !== String(currentTelar)) {
+                        const opt = document.createElement('option');
+                        opt.value = currentTelar;
+                        opt.textContent = currentTelar;
+                        telarSelect.appendChild(opt);
+                        telarSelect.value = currentTelar;
+                    }
+                }
+                if (telarSelect && telarSelect.value) {
+                    cargarJuliosDevolucion(telarSelect.value, { autoseleccionar: true });
+                }
+
                 // Lote = "Dev" + NoProduccion (se guarda en la columna NoProduccion de AtaDevoluciones)
                 setSiVacio('dev_lote', currentNoOrden ? ('Dev' + currentNoOrden) : null);
-                setSiVacio('dev_no_julio', currentNoJulio);
                 const fecha = document.getElementById('dev_fecha');
                 if (fecha && !fecha.value) {
                     fecha.value = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
