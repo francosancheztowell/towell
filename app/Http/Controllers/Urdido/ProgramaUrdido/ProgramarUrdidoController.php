@@ -23,7 +23,7 @@ class ProgramarUrdidoController extends Controller
     public function __construct(private readonly ProgramaPrioridadService $prioridadService) {}
 
     /**
-     * Verifica si el usuario puede editar: solo usuarios del área Supervisores.
+     * Verifica si el usuario puede editar: solo usuarios con puesto de Supervisor.
      */
     private function usuarioPuedeEditar(): bool
     {
@@ -32,9 +32,9 @@ class ProgramarUrdidoController extends Controller
             return false;
         }
 
-        $area = trim($usuario->area ?? '');
+        $puesto = trim($usuario->puesto ?? '');
 
-        return strcasecmp($area, 'Supervisores') === 0;
+        return $puesto !== '' && stripos($puesto, 'supervisor') !== false;
     }
 
     /**
