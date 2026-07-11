@@ -347,7 +347,7 @@
             </div>
 
             <!-- Devolución -->
-            <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <!--<div class="bg-white rounded-lg shadow-md p-4 mb-6">
                 <label class="flex items-center gap-3 cursor-pointer select-none w-fit">
                     <input type="checkbox" id="chkDevolucion" class="h-4 w-4 text-blue-600 rounded"
                         onchange="toggleDevolucion(this.checked)" />
@@ -356,7 +356,7 @@
 
                 <div id="devolucionPanel" class="hidden mt-4 border-t pt-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
-                        <!-- Fila 1: Telar | Ubicación | Cuenta | Lote -->
+                         Fila 1: Telar | Ubicación | Cuenta | Lote 
                         <div>
                             <label for="dev_telar" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Telar
@@ -389,7 +389,7 @@
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none" />
                         </div>
 
-                        <!-- Fila 2: Julio | Metros | Calibre | Tipo -->
+                         Fila 2: Julio | Metros | Calibre | Tipo 
                         <div>
                             <label for="dev_no_julio" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Julio
@@ -421,7 +421,7 @@
                             </select>
                         </div>
 
-                        <!-- Fila 3: Kilos | Fecha | Hilo | Obs -->
+                         Fila 3: Kilos | Fecha | Hilo | Obs 
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Kilos
@@ -457,7 +457,7 @@
                         </button>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
         @else
             <div class="bg-white rounded-lg shadow-md p-8 text-center">
