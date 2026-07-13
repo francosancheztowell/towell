@@ -619,21 +619,34 @@
                 return;
             }
 
-            const render = (julios, sugerido) => {
+            // Precarga Cuenta/Calibre/Hilo sugeridos del julio anterior (siguen
+            // siendo campos editables, solo se prellenan como punto de partida).
+            const precargarDatosJulio = (datos) => {
+                const setValor = (id, valor) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = valor ?? '';
+                };
+                setValor('dev_cuenta', datos.cuenta);
+                setValor('dev_calibre', datos.calibre);
+                setValor('dev_hilo', datos.hilo);
+            };
+
+            const render = (datos) => {
                 select.innerHTML = '<option value="">Seleccione</option>';
-                julios.forEach(j => {
+                datos.julios.forEach(j => {
                     const opt = document.createElement('option');
                     opt.value = j;
                     opt.textContent = j;
                     select.appendChild(opt);
                 });
-                if (autoseleccionar && sugerido) {
-                    select.value = sugerido;
+                if (autoseleccionar && datos.sugerido) {
+                    select.value = datos.sugerido;
+                    precargarDatosJulio(datos);
                 }
             };
 
             if (juliosDevolucionCache[telar]) {
-                render(juliosDevolucionCache[telar].julios, juliosDevolucionCache[telar].sugerido);
+                render(juliosDevolucionCache[telar]);
                 return;
             }
 
@@ -642,13 +655,21 @@
 
             const params = new URLSearchParams({ telar });
             if (currentTipoAtado) params.set('tipo', currentTipoAtado);
+            if (currentRefId) params.set('exclude_id', currentRefId);
 
             fetch('{{ route('atadores.devoluciones.julios') }}?' + params.toString())
                 .then(r => r.json())
                 .then(res => {
                     if (res.ok && Array.isArray(res.julios)) {
-                        juliosDevolucionCache[telar] = { julios: res.julios, sugerido: res.sugerido || null };
-                        render(res.julios, res.sugerido);
+                        const datos = {
+                            julios: res.julios,
+                            sugerido: res.sugerido || null,
+                            cuenta: res.cuenta || null,
+                            calibre: res.calibre || null,
+                            hilo: res.hilo || null,
+                        };
+                        juliosDevolucionCache[telar] = datos;
+                        render(datos);
                     } else {
                         select.innerHTML = '<option value="">Seleccione</option>';
                         Swal.fire({
@@ -698,6 +719,7 @@
 
                 // Lote = "Dev" + NoProduccion (se guarda en la columna NoProduccion de AtaDevoluciones)
                 setSiVacio('dev_lote', currentNoOrden ? ('Dev' + currentNoOrden) : null);
+                setSiVacio('dev_tipo', currentTipoAtado);
                 const fecha = document.getElementById('dev_fecha');
                 if (fecha && !fecha.value) {
                     fecha.value = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
@@ -725,6 +747,7 @@
 
             const payload = {
                 ref_id: currentRefId,
+                telar: val('dev_telar') || null,
                 no_julio: val('dev_no_julio') || null,
                 no_produccion: currentNoOrden || null,
                 kilos: kilos !== '' ? parseFloat(kilos) : null,

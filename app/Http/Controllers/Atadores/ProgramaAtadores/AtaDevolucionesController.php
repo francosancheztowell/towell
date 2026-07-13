@@ -53,47 +53,80 @@ class AtaDevolucionesController extends Controller
     }
 
     /**
-     * Estatus de AtaMontadoTelas que se considera "atado finalizado" para
-     * efectos de buscar julios previos del mismo Telar y Tipo.
+     * Estatus de AtaMontadoTelas que se consideran "atado finalizado" para
+     * efectos de buscar julios previos del mismo Telar y Tipo. Un atado pasa
+     * por Terminado -> Calificado -> Autorizado; los históricos casi siempre
+     * ya están en Calificado o Autorizado, por lo que hay que incluir los tres.
      */
-    private const JULIO_ESTATUS_FINALIZADO = 'Terminado';
+    private const JULIO_ESTATUS_FINALIZADOS = ['Terminado', 'Calificado', 'Autorizado'];
 
     /**
      * Julios atados (AtaMontadoTelas) de un Telar, filtrados por el mismo Tipo
-     * del atado actual y en estatus Terminado, ordenados del más reciente al
-     * más antiguo. Se sugiere el "penúltimo" (segundo de la lista) porque el
-     * más reciente suele ser el atado que se está calificando actualmente.
+     * del atado actual y en estatus finalizado, ordenados del más reciente al
+     * más antiguo. Se sugiere el más reciente, excluyendo explícitamente el
+     * atado que se está trabajando actualmente (exclude_id) para no auto-
+     * sugerirse a sí mismo cuando ya alcanzó un estatus finalizado.
      */
     public function julios(Request $request): JsonResponse
     {
         $data = $request->validate([
             'telar' => ['required', 'string', 'max:20'],
             'tipo' => ['nullable', 'string', 'max:20'],
+            'exclude_id' => ['nullable', 'integer'],
         ]);
 
         try {
             $query = AtaMontadoTelasModel::where('NoTelarId', $data['telar'])
-                ->where('Estatus', self::JULIO_ESTATUS_FINALIZADO);
+                ->whereIn('Estatus', self::JULIO_ESTATUS_FINALIZADOS);
 
             if (!empty($data['tipo'])) {
                 $query->where('Tipo', $data['tipo']);
             }
 
-            $julios = $query->orderByDesc('Fecha')
+            if (!empty($data['exclude_id'])) {
+                $query->where('Id', '!=', $data['exclude_id']);
+            }
+
+            $registros = $query->orderByDesc('Fecha')
                 ->orderByDesc('Turno')
                 ->orderByDesc('Id')
-                ->pluck('NoJulio')
-                ->filter()
-                ->unique()
-                ->values();
+                ->get();
 
-            // "Penúltimo": el segundo elemento de la lista (se salta el más reciente).
-            $sugerido = $julios->count() >= 2 ? $julios->get(1) : $julios->first();
+            $julios = $registros->pluck('NoJulio')->filter()->unique()->values();
+
+            $registroSugerido = $registros->first();
+            $sugerido = $registroSugerido->NoJulio ?? null;
+
+            // Cuenta y Calibre viven en TejHistorialInventarioTelares, donde se
+            // insertan (Status = 'Completado') cuando el atado pasa a Autorizado.
+            // El Hilo, en cambio, se toma directo de AtaMontadoTelas.ConfigId.
+            $cuenta = null;
+            $calibre = null;
+            $hilo = $registroSugerido->ConfigId ?? null;
+
+            if ($registroSugerido) {
+                $historial = DB::connection('sqlsrv')
+                    ->table('TejHistorialInventarioTelares')
+                    ->where('NoTelarId', $data['telar'])
+                    ->where('NoJulio', $registroSugerido->NoJulio)
+                    ->where('NoProduccion', $registroSugerido->NoProduccion)
+                    ->where('Status', 'Completado')
+                    ->orderByDesc('FechaAtado')
+                    ->first();
+
+                if ($historial) {
+                    $cuenta = $historial->Cuenta;
+                    $calibre = $historial->Calibre;
+                }
+            }
 
             return response()->json([
                 'ok' => true,
                 'julios' => $julios,
                 'sugerido' => $sugerido,
+                'cuenta' => $cuenta,
+                'calibre' => $calibre,
+                'hilo' => $hilo,
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al consultar julios atados por telar para devolución', [
@@ -112,9 +145,9 @@ class AtaDevolucionesController extends Controller
     /**
      * Registra una devolución asociada a un proceso de atado (AtaMontadoTelas).
      *
-     * El registro se vincula al montado mediante RefId. Los campos Telar y Lote
-     * del formulario son informativos (viven en el montado padre) y no se
-     * persisten porque la tabla AtaDevoluciones no los contempla.
+     * El registro se vincula al montado mediante RefId. El "Lote" del formulario
+     * es informativo (vive en el montado padre, columna NoProduccion) y no se
+     * persiste como tal porque la tabla AtaDevoluciones no lo contempla.
      */
     public function store(Request $request): JsonResponse
     {
@@ -125,6 +158,7 @@ class AtaDevolucionesController extends Controller
 
         $data = $request->validate([
             'ref_id' => ['required', 'integer'],
+            'telar' => ['nullable', 'string', 'max:20'],
             'no_julio' => ['nullable', 'string', 'max:20'],
             'no_produccion' => ['nullable', 'string', 'max:20'],
             'kilos' => ['nullable', 'numeric', 'min:0'],
@@ -163,11 +197,19 @@ class AtaDevolucionesController extends Controller
             ? (str_starts_with($ordenBase, 'Dev') ? $ordenBase : 'Dev' . $ordenBase)
             : null;
 
+        // ProduccionOriginal = la parte del Julio antes del guion (p.ej. "00730-470" -> "00730").
+        $noJulio = $data['no_julio'] ?? $montado->NoJulio;
+        $produccionOriginal = $noJulio ? strstr($noJulio, '-', true) ?: $noJulio : null;
+
         try {
             $devolucion = AtaDevolucionesModel::create([
                 'RefId' => $montado->Id,
-                'NoJulio' => $data['no_julio'] ?? $montado->NoJulio,
+                'NoTelarId' => $data['telar'] ?? $montado->NoTelarId,
+                'NoJulio' => $noJulio,
                 'NoProduccion' => $loteDev,
+                'ProduccionOriginal' => $produccionOriginal,
+                // Siempre 0 al registrar la devolución.
+                'integer' => 0,
                 'Kilos' => $kilos,
                 'Metros' => $metros,
                 'Ubicacion' => $data['ubicacion'] ?? null,
