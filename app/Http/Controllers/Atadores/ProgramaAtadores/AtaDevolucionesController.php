@@ -53,47 +53,82 @@ class AtaDevolucionesController extends Controller
     }
 
     /**
-     * Estatus de AtaMontadoTelas que se considera "atado finalizado" para
-     * efectos de buscar julios previos del mismo Telar y Tipo.
+     * Estatus de AtaMontadoTelas que se consideran "atado finalizado" para
+     * efectos de buscar julios previos del mismo Telar y Tipo. Un atado pasa
+     * por Terminado -> Calificado -> Autorizado; los históricos casi siempre
+     * ya están en Calificado o Autorizado, por lo que hay que incluir los tres.
      */
-    private const JULIO_ESTATUS_FINALIZADO = 'Terminado';
+    private const JULIO_ESTATUS_FINALIZADOS = ['Terminado', 'Calificado', 'Autorizado'];
 
     /**
      * Julios atados (AtaMontadoTelas) de un Telar, filtrados por el mismo Tipo
-     * del atado actual y en estatus Terminado, ordenados del más reciente al
-     * más antiguo. Se sugiere el "penúltimo" (segundo de la lista) porque el
-     * más reciente suele ser el atado que se está calificando actualmente.
+     * del atado actual y en estatus finalizado, ordenados del más reciente al
+     * más antiguo. Se sugiere el más reciente, excluyendo explícitamente el
+     * atado que se está trabajando actualmente (exclude_id) para no auto-
+     * sugerirse a sí mismo cuando ya alcanzó un estatus finalizado.
      */
     public function julios(Request $request): JsonResponse
     {
         $data = $request->validate([
             'telar' => ['required', 'string', 'max:20'],
             'tipo' => ['nullable', 'string', 'max:20'],
+            'exclude_id' => ['nullable', 'integer'],
         ]);
 
         try {
+            $fechaMinima = Carbon::now('America/Mexico_City')->subDays(20)->startOfDay();
             $query = AtaMontadoTelasModel::where('NoTelarId', $data['telar'])
-                ->where('Estatus', self::JULIO_ESTATUS_FINALIZADO);
+                ->whereIn('Estatus', self::JULIO_ESTATUS_FINALIZADOS)
+                ->where('Fecha', '>=', $fechaMinima->toDateString());
 
             if (!empty($data['tipo'])) {
                 $query->where('Tipo', $data['tipo']);
             }
 
-            $julios = $query->orderByDesc('Fecha')
+            if (!empty($data['exclude_id'])) {
+                $query->where('Id', '!=', $data['exclude_id']);
+            }
+
+            $registros = $query->orderByDesc('Fecha')
                 ->orderByDesc('Turno')
                 ->orderByDesc('Id')
-                ->pluck('NoJulio')
-                ->filter()
-                ->unique()
-                ->values();
+                ->get();
 
-            // "Penúltimo": el segundo elemento de la lista (se salta el más reciente).
-            $sugerido = $julios->count() >= 2 ? $julios->get(1) : $julios->first();
+            $julios = $registros->pluck('NoJulio')->filter()->unique()->values();
+
+            $registroSugerido = $registros->first();
+            $sugerido = $registroSugerido->NoJulio ?? null;
+
+            // Cuenta y Calibre viven en TejHistorialInventarioTelares, donde se
+            // insertan (Status = 'Completado') cuando el atado pasa a Autorizado.
+            // El Hilo, en cambio, se toma directo de AtaMontadoTelas.ConfigId.
+            $cuenta = null;
+            $calibre = null;
+            $hilo = $registroSugerido->ConfigId ?? null;
+
+            if ($registroSugerido) {
+                $historial = DB::connection('sqlsrv')
+                    ->table('TejHistorialInventarioTelares')
+                    ->where('NoTelarId', $data['telar'])
+                    ->where('NoJulio', $registroSugerido->NoJulio)
+                    ->where('NoProduccion', $registroSugerido->NoProduccion)
+                    ->where('Status', 'Completado')
+                    ->orderByDesc('FechaAtado')
+                    ->first();
+
+                if ($historial) {
+                    $cuenta = $historial->Cuenta;
+                    $calibre = $historial->Calibre;
+                }
+            }
 
             return response()->json([
                 'ok' => true,
                 'julios' => $julios,
                 'sugerido' => $sugerido,
+                'cuenta' => $cuenta,
+                'calibre' => $calibre,
+                'hilo' => $hilo,
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al consultar julios atados por telar para devolución', [
@@ -110,11 +145,11 @@ class AtaDevolucionesController extends Controller
     }
 
     /**
-     * Registra una devolución asociada a un proceso de atado (AtaMontadoTelas).
+     * Registra o actualiza una devolución asociada a un proceso de atado (AtaMontadoTelas).
      *
-     * El registro se vincula al montado mediante RefId. Los campos Telar y Lote
-     * del formulario son informativos (viven en el montado padre) y no se
-     * persisten porque la tabla AtaDevoluciones no los contempla.
+     * El registro se vincula al montado mediante RefId. NoProduccion guarda el
+     * lote de devolución con prefijo "Dev" y LoteOriginal guarda el mismo lote
+     * sin ese prefijo.
      */
     public function store(Request $request): JsonResponse
     {
@@ -125,16 +160,17 @@ class AtaDevolucionesController extends Controller
 
         $data = $request->validate([
             'ref_id' => ['required', 'integer'],
-            'no_julio' => ['nullable', 'string', 'max:20'],
-            'no_produccion' => ['nullable', 'string', 'max:20'],
-            'kilos' => ['nullable', 'numeric', 'min:0'],
-            'metros' => ['nullable', 'numeric', 'min:0'],
-            'ubicacion' => ['nullable', 'string', 'max:10'],
-            'fecha_devol' => ['nullable', 'date'],
-            'cuenta' => ['nullable', 'string', 'max:10'],
-            'calibre' => ['nullable', 'string', 'max:10'],
-            'hilo' => ['nullable', 'string', 'max:20'],
-            'tipo' => ['nullable', 'string', 'max:5'],
+            'telar' => ['required', 'string', 'max:10'],
+            'no_julio' => ['required', 'string', 'max:20'],
+            'no_produccion' => ['required', 'string', 'max:20'],
+            'kilos' => ['required', 'numeric', 'gt:0'],
+            'metros' => ['required', 'numeric', 'gt:0'],
+            'ubicacion' => ['required', 'string', 'max:10'],
+            'fecha_devol' => ['required', 'date'],
+            'cuenta' => ['required', 'string', 'max:10'],
+            'calibre' => ['required', 'string', 'max:10'],
+            'hilo' => ['required', 'string', 'max:20'],
+            'tipo' => ['required', 'string', 'max:5'],
             'obs' => ['nullable', 'string', 'max:255'],
             'config_id' => ['nullable', 'string', 'max:10'],
             'invent_size_id' => ['nullable', 'string', 'max:10'],
@@ -146,28 +182,37 @@ class AtaDevolucionesController extends Controller
             return response()->json(['ok' => false, 'message' => 'No se encontró el atado asociado a la devolución'], 404);
         }
 
-        // Exigir al menos un dato cuantitativo para evitar devoluciones vacías.
         $kilos = $data['kilos'] ?? null;
         $metros = $data['metros'] ?? null;
-        if (($kilos === null || (float) $kilos <= 0) && ($metros === null || (float) $metros <= 0)) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Captura al menos Kilos o Metros para registrar la devolución.',
-            ], 422);
-        }
 
         // El "Lote" de la devolución se almacena en la columna NoProduccion con el
         // prefijo "Dev" seguido del número de orden (evitando duplicar el prefijo).
         $ordenBase = trim((string) ($data['no_produccion'] ?? $montado->NoProduccion ?? ''));
+        $loteOriginal = preg_replace('/^Dev/i', '', $ordenBase) ?? '';
+        $loteOriginal = trim($loteOriginal);
         $loteDev = $ordenBase !== ''
-            ? (str_starts_with($ordenBase, 'Dev') ? $ordenBase : 'Dev' . $ordenBase)
+            ? 'Dev' . $loteOriginal
             : null;
+        if ($loteDev !== null && strlen($loteDev) > 20) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'El lote de devolución excede los 20 caracteres permitidos.',
+            ], 422);
+        }
+
+        // LoteOriginal conserva el lote base usado para formar NoProduccion sin el prefijo "Dev".
+        $noJulio = $data['no_julio'] ?? $montado->NoJulio;
+        $loteOriginal = $loteOriginal !== '' ? $loteOriginal : null;
 
         try {
-            $devolucion = AtaDevolucionesModel::create([
+            $payload = [
                 'RefId' => $montado->Id,
-                'NoJulio' => $data['no_julio'] ?? $montado->NoJulio,
+                'NoTelarId' => $data['telar'] ?? $montado->NoTelarId,
+                'NoJulio' => $noJulio,
                 'NoProduccion' => $loteDev,
+                'LoteOriginal' => $loteOriginal,
+                // Siempre 0 al registrar la devolución.
+                'integer' => 0,
                 'Kilos' => $kilos,
                 'Metros' => $metros,
                 'Ubicacion' => $data['ubicacion'] ?? null,
@@ -182,7 +227,18 @@ class AtaDevolucionesController extends Controller
                 'InventColorId' => $data['invent_color_id'] ?? $montado->InventColorId,
                 // El Estatus queda ligado al del atado padre (AtaMontadoTelas) desde su creación.
                 'Estatus' => $montado->Estatus ?: 'Activo',
-            ]);
+            ];
+
+            $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
+                ->orderByDesc('Id')
+                ->first();
+
+            if ($devolucion) {
+                $devolucion->fill($payload);
+                $devolucion->save();
+            } else {
+                $devolucion = AtaDevolucionesModel::create($payload);
+            }
         } catch (\Throwable $e) {
             Log::error('Error al registrar devolución de atadores', [
                 'ref_id' => $montado->Id,
@@ -199,7 +255,7 @@ class AtaDevolucionesController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Devolución registrada correctamente',
+            'message' => 'Devolución guardada correctamente',
             'id' => $devolucion->Id,
         ]);
     }

@@ -34,6 +34,10 @@
             @php
                 $item = $montadoTelas->first();
                 $esAutorizado = $item->Estatus === 'Autorizado';
+                $hayDevolucion = !empty($devolucionActual);
+                $fechaDevolucion = $hayDevolucion && $devolucionActual->FechaDevol
+                    ? \Carbon\Carbon::parse($devolucionActual->FechaDevol)->format('Y-m-d')
+                    : '';
             @endphp
 
             @if($esAutorizado)
@@ -347,25 +351,30 @@
             </div>
 
             <!-- Devolución -->
-            <!--<div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-4 mb-6">
                 <label class="flex items-center gap-3 cursor-pointer select-none w-fit">
                     <input type="checkbox" id="chkDevolucion" class="h-4 w-4 text-blue-600 rounded"
-                        onchange="toggleDevolucion(this.checked)" />
+                        onchange="toggleDevolucion(this.checked, this)"
+                        @if($hayDevolucion) checked @endif
+                        @if($esAutorizado) disabled @endif />
                     <span class="text-base font-semibold text-gray-700">Devolución</span>
                 </label>
 
-                <div id="devolucionPanel" class="hidden mt-4 border-t pt-4">
+                <div id="devolucionPanel" class="{{ $hayDevolucion ? '' : 'hidden' }} mt-4 border-t pt-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
-                         Fila 1: Telar | Ubicación | Cuenta | Lote 
+                        {{-- Fila 1: Telar | Ubicación | Cuenta | Lote --}}
                         <div>
                             <label for="dev_telar" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Telar
                             </label>
-                            <select id="dev_telar" onchange="onCambioTelarDevolucion(this.value)"
+                            <select id="dev_telar" onchange="onCambioTelarDevolucion(this.value)" required
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                 <option value="">Seleccione</option>
+                                @if($hayDevolucion && $devolucionActual->NoTelarId && !($telaresCatalogo ?? collect())->contains($devolucionActual->NoTelarId))
+                                    <option value="{{ $devolucionActual->NoTelarId }}" selected>{{ $devolucionActual->NoTelarId }}</option>
+                                @endif
                                 @foreach($telaresCatalogo ?? [] as $telarOpcion)
-                                    <option value="{{ $telarOpcion }}">{{ $telarOpcion }}</option>
+                                    <option value="{{ $telarOpcion }}" @selected($hayDevolucion && (string) $devolucionActual->NoTelarId === (string) $telarOpcion)>{{ $telarOpcion }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -373,91 +382,107 @@
                             <label for="dev_ubicacion" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Ubicación
                             </label>
-                            <select id="dev_ubicacion"
+                            <select id="dev_ubicacion" required
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                 <option value="">Seleccione</option>
+                                @if($hayDevolucion && $devolucionActual->Ubicacion)
+                                    <option value="{{ $devolucionActual->Ubicacion }}" selected>{{ $devolucionActual->Ubicacion }}</option>
+                                @endif
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Cuenta</label>
-                            <input type="text" id="dev_cuenta" maxlength="10"
+                            <input type="text" id="dev_cuenta" maxlength="10" required
+                                value="{{ $hayDevolucion ? $devolucionActual->Cuenta : '' }}"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Lote</label>
-                            <input type="text" id="dev_lote" readonly
+                            <input type="text" id="dev_lote" readonly required
+                                value="{{ $hayDevolucion ? $devolucionActual->NoProduccion : '' }}"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none" />
                         </div>
 
-                         Fila 2: Julio | Metros | Calibre | Tipo 
+                        {{-- Fila 2: Julio | Metros | Calibre | Tipo --}}
                         <div>
                             <label for="dev_no_julio" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Julio
                             </label>
-                            <select id="dev_no_julio"
+                            <select id="dev_no_julio" required
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                <option value="">Seleccione un telar</option>
+                                <option value="">{{ $hayDevolucion ? 'Seleccione' : 'Seleccione un telar' }}</option>
+                                @if($hayDevolucion && $devolucionActual->NoJulio)
+                                    <option value="{{ $devolucionActual->NoJulio }}" selected>{{ $devolucionActual->NoJulio }}</option>
+                                @endif
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Metros
                             </label>
-                            <input type="number" step="any" min="0" id="dev_metros"
+                            <input type="number" step="any" min="0" id="dev_metros" required
+                                value="{{ $hayDevolucion ? $devolucionActual->Metros : '' }}"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Calibre</label>
-                            <input type="text" id="dev_calibre" maxlength="10"
+                            <input type="text" id="dev_calibre" maxlength="10" required
+                                value="{{ $hayDevolucion ? $devolucionActual->Calibre : '' }}"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Tipo</label>
-                            <select id="dev_tipo"
+                            <select id="dev_tipo" required
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                 <option value="">Seleccione</option>
-                                <option value="Rizo">Rizo</option>
-                                <option value="Pie">Pie</option>
+                                @if($hayDevolucion && $devolucionActual->Tipo && !in_array($devolucionActual->Tipo, ['Rizo', 'Pie'], true))
+                                    <option value="{{ $devolucionActual->Tipo }}" selected>{{ $devolucionActual->Tipo }}</option>
+                                @endif
+                                <option value="Rizo" @selected($hayDevolucion && $devolucionActual->Tipo === 'Rizo')>Rizo</option>
+                                <option value="Pie" @selected($hayDevolucion && $devolucionActual->Tipo === 'Pie')>Pie</option>
                             </select>
                         </div>
 
-                         Fila 3: Kilos | Fecha | Hilo | Obs 
+                        {{-- Fila 3: Kilos | Fecha | Hilo | Obs --}}
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Kilos
                             </label>
-                            <input type="number" step="any" min="0" id="dev_kilos"
+                            <input type="number" step="any" min="0" id="dev_kilos" required
+                                value="{{ $hayDevolucion ? $devolucionActual->Kilos : '' }}"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
                         </div>
                         <div>
                             <label for="dev_fecha" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Fecha
                             </label>
-                            <input type="date" id="dev_fecha"
+                            <input type="date" id="dev_fecha" required
+                                value="{{ $fechaDevolucion }}"
                                 onclick="abrirCalendarioFecha(this)"
                                 onfocus="abrirCalendarioFecha(this)"
                                 class="w-full min-h-10 px-2 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 cursor-pointer" />
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Hilo</label>
-                            <input type="text" id="dev_hilo" maxlength="20"
+                            <input type="text" id="dev_hilo" maxlength="20" required
+                                value="{{ $hayDevolucion ? $devolucionActual->Hilo : '' }}"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Obs</label>
                             <textarea id="dev_obs" rows="2" maxlength="255"
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"></textarea>
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">{{ $hayDevolucion ? $devolucionActual->Obs : '' }}</textarea>
                         </div>
                     </div>
 
                     <div class="flex justify-end mt-4">
                         <button type="button" id="btnGuardarDevolucion" onclick="guardarDevolucion()"
                             class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <i class="fas fa-save mr-1"></i> Guardar Devolución
+                            <i class="fas fa-save mr-1"></i> {{ $hayDevolucion ? 'Actualizar Devolución' : 'Guardar Devolución' }}
                         </button>
                     </div>
                 </div>
-            </div> -->
+            </div>
 
         @else
             <div class="bg-white rounded-lg shadow-md p-8 text-center">
@@ -526,6 +551,11 @@
             const currentTelar = {!! json_encode($montadoTelas->first()->NoTelarId ?? null) !!};
             const currentLote = {!! json_encode($montadoTelas->first()->LoteProveedor ?? null) !!};
             const currentTipoAtado = {!! json_encode($montadoTelas->first()->Tipo ?? null) !!};
+            const devolucionActual = {!! json_encode($hayDevolucion ? [
+                'id' => $devolucionActual->Id,
+                'no_julio' => $devolucionActual->NoJulio,
+                'ubicacion' => $devolucionActual->Ubicacion,
+            ] : null) !!};
         @else
             const currentNoJulio = null;
             const currentNoOrden = null;
@@ -534,7 +564,9 @@
             const currentTelar = null;
             const currentLote = null;
             const currentTipoAtado = null;
+            const devolucionActual = null;
         @endif
+        let devolucionRegistrada = !!devolucionActual;
 
     // Información de actividades para validación
     const actividadesData = {!! json_encode($actividadesCatalogo->map(function ($act) use ($actividadesMontado) {
@@ -581,7 +613,15 @@
                             select.appendChild(opt);
                         });
                         ubicacionesDevolucionCargadas = true;
-                        if (valorPrevio) select.value = valorPrevio;
+                        if (valorPrevio) {
+                            if (![...select.options].some(opt => opt.value === valorPrevio)) {
+                                const opt = document.createElement('option');
+                                opt.value = valorPrevio;
+                                opt.textContent = `${valorPrevio} (registrada)`;
+                                select.appendChild(opt);
+                            }
+                            select.value = valorPrevio;
+                        }
                     } else {
                         Swal.fire({
                             icon: 'warning',
@@ -607,6 +647,10 @@
         // Se dispara al cambiar el Telar en el panel de Devolución: recarga el
         // select de "Julio" filtrando por ese telar + el mismo Tipo del atado actual.
         function onCambioTelarDevolucion(telar) {
+            const select = document.getElementById('dev_no_julio');
+            if (select) {
+                select.value = '';
+            }
             cargarJuliosDevolucion(telar, { autoseleccionar: true });
         }
 
@@ -619,21 +663,44 @@
                 return;
             }
 
-            const render = (julios, sugerido) => {
+            // Precarga Cuenta/Calibre/Hilo sugeridos del julio anterior (siguen
+            // siendo campos editables, solo se prellenan como punto de partida).
+            const precargarDatosJulio = (datos) => {
+                const setValor = (id, valor) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = valor ?? '';
+                };
+                setValor('dev_cuenta', datos.cuenta);
+                setValor('dev_calibre', datos.calibre);
+                setValor('dev_hilo', datos.hilo);
+            };
+
+            const render = (datos) => {
+                const valorPrevio = select.value;
                 select.innerHTML = '<option value="">Seleccione</option>';
-                julios.forEach(j => {
+                datos.julios.forEach(j => {
                     const opt = document.createElement('option');
                     opt.value = j;
                     opt.textContent = j;
                     select.appendChild(opt);
                 });
-                if (autoseleccionar && sugerido) {
-                    select.value = sugerido;
+
+                if (valorPrevio) {
+                    if (![...select.options].some(opt => opt.value === valorPrevio)) {
+                        const opt = document.createElement('option');
+                        opt.value = valorPrevio;
+                        opt.textContent = `${valorPrevio} (registrado)`;
+                        select.appendChild(opt);
+                    }
+                    select.value = valorPrevio;
+                } else if (autoseleccionar && datos.sugerido) {
+                    select.value = datos.sugerido;
+                    precargarDatosJulio(datos);
                 }
             };
 
             if (juliosDevolucionCache[telar]) {
-                render(juliosDevolucionCache[telar].julios, juliosDevolucionCache[telar].sugerido);
+                render(juliosDevolucionCache[telar]);
                 return;
             }
 
@@ -642,13 +709,21 @@
 
             const params = new URLSearchParams({ telar });
             if (currentTipoAtado) params.set('tipo', currentTipoAtado);
+            if (currentRefId) params.set('exclude_id', currentRefId);
 
             fetch('{{ route('atadores.devoluciones.julios') }}?' + params.toString())
                 .then(r => r.json())
                 .then(res => {
                     if (res.ok && Array.isArray(res.julios)) {
-                        juliosDevolucionCache[telar] = { julios: res.julios, sugerido: res.sugerido || null };
-                        render(res.julios, res.sugerido);
+                        const datos = {
+                            julios: res.julios,
+                            sugerido: res.sugerido || null,
+                            cuenta: res.cuenta || null,
+                            calibre: res.calibre || null,
+                            hilo: res.hilo || null,
+                        };
+                        juliosDevolucionCache[telar] = datos;
+                        render(datos);
                     } else {
                         select.innerHTML = '<option value="">Seleccione</option>';
                         Swal.fire({
@@ -666,9 +741,23 @@
         }
 
         // Mostrar/ocultar panel de Devolución según el check
-        function toggleDevolucion(checked) {
+        function toggleDevolucion(checked, checkbox = null) {
             const panel = document.getElementById('devolucionPanel');
             if (!panel) return;
+
+            if (devolucionRegistrada && !checked) {
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+                panel.classList.remove('hidden');
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Devolución registrada',
+                    text: 'Este atado ya tiene devolución registrada; no se puede desmarcar.'
+                });
+                return;
+            }
+
             panel.classList.toggle('hidden', !checked);
 
             // Al abrir, prellenar campos informativos si están vacíos
@@ -698,11 +787,28 @@
 
                 // Lote = "Dev" + NoProduccion (se guarda en la columna NoProduccion de AtaDevoluciones)
                 setSiVacio('dev_lote', currentNoOrden ? ('Dev' + currentNoOrden) : null);
+                setSiVacio('dev_tipo', currentTipoAtado);
                 const fecha = document.getElementById('dev_fecha');
                 if (fecha && !fecha.value) {
                     fecha.value = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
                 }
             }
+        }
+
+        function inicializarDevolucionExistente() {
+            const chk = document.getElementById('chkDevolucion');
+            if (!devolucionActual || !chk) {
+                return;
+            }
+
+            chk.checked = true;
+            toggleDevolucion(true);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', inicializarDevolucionExistente);
+        } else {
+            inicializarDevolucionExistente();
         }
 
         function guardarDevolucion() {
@@ -718,13 +824,42 @@
 
             const kilos = val('dev_kilos');
             const metros = val('dev_metros');
-            if ((kilos === '' || parseFloat(kilos) <= 0) && (metros === '' || parseFloat(metros) <= 0)) {
-                Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'Captura al menos Kilos o Metros para registrar la devolución.' });
+
+            const camposRequeridos = [
+                ['dev_telar', 'Telar'],
+                ['dev_ubicacion', 'Ubicación'],
+                ['dev_cuenta', 'Cuenta'],
+                ['dev_lote', 'Lote'],
+                ['dev_no_julio', 'Julio'],
+                ['dev_metros', 'Metros'],
+                ['dev_calibre', 'Calibre'],
+                ['dev_tipo', 'Tipo'],
+                ['dev_kilos', 'Kilos'],
+                ['dev_fecha', 'Fecha'],
+                ['dev_hilo', 'Hilo'],
+            ];
+
+            const faltantes = camposRequeridos
+                .filter(([id]) => val(id) === '')
+                .map(([, label]) => label);
+
+            if (faltantes.length > 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campos obligatorios',
+                    text: 'Captura: ' + faltantes.join(', ') + '.'
+                });
+                return;
+            }
+
+            if (parseFloat(kilos) <= 0 || parseFloat(metros) <= 0) {
+                Swal.fire({ icon: 'warning', title: 'Valores inválidos', text: 'Kilos y Metros deben ser mayores a cero.' });
                 return;
             }
 
             const payload = {
                 ref_id: currentRefId,
+                telar: val('dev_telar') || null,
                 no_julio: val('dev_no_julio') || null,
                 no_produccion: currentNoOrden || null,
                 kilos: kilos !== '' ? parseFloat(kilos) : null,
@@ -752,15 +887,11 @@
                 .then(r => r.json())
                 .then(res => {
                     if (res.ok) {
-                        Swal.fire({ icon: 'success', title: 'Devolución registrada', timer: 1500, showConfirmButton: false });
-                        // Limpiar campos capturables y cerrar el panel
-                        ['dev_ubicacion', 'dev_cuenta', 'dev_lote', 'dev_metros', 'dev_calibre', 'dev_tipo', 'dev_kilos', 'dev_hilo', 'dev_obs'].forEach(id => {
-                            const el = document.getElementById(id);
-                            if (el) el.value = '';
-                        });
+                        Swal.fire({ icon: 'success', title: 'Devolución guardada', timer: 1500, showConfirmButton: false });
                         const chk = document.getElementById('chkDevolucion');
-                        if (chk) chk.checked = false;
-                        toggleDevolucion(false);
+                        devolucionRegistrada = true;
+                        if (chk) chk.checked = true;
+                        toggleDevolucion(true);
                     } else {
                         Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo registrar la devolución' });
                     }

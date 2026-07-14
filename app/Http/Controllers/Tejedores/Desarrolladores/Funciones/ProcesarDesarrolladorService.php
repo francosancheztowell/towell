@@ -258,7 +258,7 @@ class ProcesarDesarrolladorService
             'TramaAnchoPeine' => 'nullable|numeric|min:0',
             'DesperdicioTrama' => 'nullable|numeric|min:0',
             'LongitudLuchaTot' => 'nullable|numeric|min:0',
-            'CodificacionModelo' => 'required|string|max:100',
+            'CodificacionModelo' => ['required', 'string', 'max:100', $this->reglaLongitudCodigoDibujo()],
             'pasadas' => 'nullable|array',
             'pasadas.*' => 'nullable|integer|min:1',
             'detalle_calibre' => 'nullable|array',
@@ -284,6 +284,18 @@ class ProcesarDesarrolladorService
         }
 
         return $validated;
+    }
+
+    private function reglaLongitudCodigoDibujo(): \Closure
+    {
+        return function (string $attribute, $value, \Closure $fail) {
+            $codigo = preg_replace('/\.(?:JC5|JCS)\s*$/i', '', trim((string) $value));
+            $longitud = mb_strlen($codigo);
+
+            if ($longitud < 10 || $longitud > 20) {
+                $fail('El código de dibujo debe tener entre 10 y 20 caracteres.');
+            }
+        };
     }
 
     private function normalizarEntero($value)

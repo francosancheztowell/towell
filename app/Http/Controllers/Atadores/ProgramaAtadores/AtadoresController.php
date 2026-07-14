@@ -401,6 +401,7 @@ class AtadoresController extends Controller
         // Estados para el atado actual (si existe)
         $maquinasMontado = collect();
         $actividadesMontado = collect();
+        $devolucionActual = null;
         if ($montadoTelas->isNotEmpty()) {
             $actual = $montadoTelas->first();
 
@@ -423,6 +424,10 @@ class AtadoresController extends Controller
                 ->where('NoProduccion', $actual->NoProduccion)
                 ->get()
                 ->keyBy('ActividadId');
+
+            $devolucionActual = AtaDevolucionesModel::where('RefId', $actual->Id)
+                ->orderByDesc('Id')
+                ->first();
 
             // Asegurar que existan filas base de actividades para el folio actual.
             // Esto evita que el guardado falle cuando por datos históricos no se generaron al iniciar.
@@ -471,7 +476,8 @@ class AtadoresController extends Controller
                 'actividadesCatalogo',
                 'actividadesMontado',
                 'comentarios',
-                'telaresCatalogo'
+                'telaresCatalogo',
+                'devolucionActual'
             )
         );
     }
