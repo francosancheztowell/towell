@@ -21,6 +21,7 @@ export default defineConfig({
         'resources/js/app.js',
         'resources/js/app-core.js',
         'resources/js/app-filters.js',
+        'resources/js/catcodificacion/index.js',
       ],
       refresh: true,
     }),
