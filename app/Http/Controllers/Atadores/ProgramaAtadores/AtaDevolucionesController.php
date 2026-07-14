@@ -76,8 +76,10 @@ class AtaDevolucionesController extends Controller
         ]);
 
         try {
+            $fechaMinima = Carbon::now('America/Mexico_City')->subDays(20)->startOfDay();
             $query = AtaMontadoTelasModel::where('NoTelarId', $data['telar'])
-                ->whereIn('Estatus', self::JULIO_ESTATUS_FINALIZADOS);
+                ->whereIn('Estatus', self::JULIO_ESTATUS_FINALIZADOS)
+                ->where('Fecha', '>=', $fechaMinima->toDateString());
 
             if (!empty($data['tipo'])) {
                 $query->where('Tipo', $data['tipo']);
@@ -143,11 +145,11 @@ class AtaDevolucionesController extends Controller
     }
 
     /**
-     * Registra una devolución asociada a un proceso de atado (AtaMontadoTelas).
+     * Registra o actualiza una devolución asociada a un proceso de atado (AtaMontadoTelas).
      *
-     * El registro se vincula al montado mediante RefId. El "Lote" del formulario
-     * es informativo (vive en el montado padre, columna NoProduccion) y no se
-     * persiste como tal porque la tabla AtaDevoluciones no lo contempla.
+     * El registro se vincula al montado mediante RefId. NoProduccion guarda el
+     * lote de devolución con prefijo "Dev" y LoteOriginal guarda el mismo lote
+     * sin ese prefijo.
      */
     public function store(Request $request): JsonResponse
     {
@@ -158,17 +160,17 @@ class AtaDevolucionesController extends Controller
 
         $data = $request->validate([
             'ref_id' => ['required', 'integer'],
-            'telar' => ['nullable', 'string', 'max:10'],
-            'no_julio' => ['nullable', 'string', 'max:20'],
-            'no_produccion' => ['nullable', 'string', 'max:20'],
-            'kilos' => ['nullable', 'numeric', 'min:0'],
-            'metros' => ['nullable', 'numeric', 'min:0'],
-            'ubicacion' => ['nullable', 'string', 'max:10'],
-            'fecha_devol' => ['nullable', 'date'],
-            'cuenta' => ['nullable', 'string', 'max:10'],
-            'calibre' => ['nullable', 'string', 'max:10'],
-            'hilo' => ['nullable', 'string', 'max:20'],
-            'tipo' => ['nullable', 'string', 'max:5'],
+            'telar' => ['required', 'string', 'max:10'],
+            'no_julio' => ['required', 'string', 'max:20'],
+            'no_produccion' => ['required', 'string', 'max:20'],
+            'kilos' => ['required', 'numeric', 'gt:0'],
+            'metros' => ['required', 'numeric', 'gt:0'],
+            'ubicacion' => ['required', 'string', 'max:10'],
+            'fecha_devol' => ['required', 'date'],
+            'cuenta' => ['required', 'string', 'max:10'],
+            'calibre' => ['required', 'string', 'max:10'],
+            'hilo' => ['required', 'string', 'max:20'],
+            'tipo' => ['required', 'string', 'max:5'],
             'obs' => ['nullable', 'string', 'max:255'],
             'config_id' => ['nullable', 'string', 'max:10'],
             'invent_size_id' => ['nullable', 'string', 'max:10'],
@@ -180,21 +182,16 @@ class AtaDevolucionesController extends Controller
             return response()->json(['ok' => false, 'message' => 'No se encontró el atado asociado a la devolución'], 404);
         }
 
-        // Exigir al menos un dato cuantitativo para evitar devoluciones vacías.
         $kilos = $data['kilos'] ?? null;
         $metros = $data['metros'] ?? null;
-        if (($kilos === null || (float) $kilos <= 0) && ($metros === null || (float) $metros <= 0)) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Captura al menos Kilos o Metros para registrar la devolución.',
-            ], 422);
-        }
 
         // El "Lote" de la devolución se almacena en la columna NoProduccion con el
         // prefijo "Dev" seguido del número de orden (evitando duplicar el prefijo).
         $ordenBase = trim((string) ($data['no_produccion'] ?? $montado->NoProduccion ?? ''));
+        $loteOriginal = preg_replace('/^Dev/i', '', $ordenBase) ?? '';
+        $loteOriginal = trim($loteOriginal);
         $loteDev = $ordenBase !== ''
-            ? (str_starts_with($ordenBase, 'Dev') ? $ordenBase : 'Dev' . $ordenBase)
+            ? 'Dev' . $loteOriginal
             : null;
         if ($loteDev !== null && strlen($loteDev) > 20) {
             return response()->json([
@@ -205,10 +202,10 @@ class AtaDevolucionesController extends Controller
 
         // LoteOriginal conserva el lote base usado para formar NoProduccion sin el prefijo "Dev".
         $noJulio = $data['no_julio'] ?? $montado->NoJulio;
-        $loteOriginal = $ordenBase !== '' ? $ordenBase : null;
+        $loteOriginal = $loteOriginal !== '' ? $loteOriginal : null;
 
         try {
-            $devolucion = AtaDevolucionesModel::create([
+            $payload = [
                 'RefId' => $montado->Id,
                 'NoTelarId' => $data['telar'] ?? $montado->NoTelarId,
                 'NoJulio' => $noJulio,
@@ -230,7 +227,18 @@ class AtaDevolucionesController extends Controller
                 'InventColorId' => $data['invent_color_id'] ?? $montado->InventColorId,
                 // El Estatus queda ligado al del atado padre (AtaMontadoTelas) desde su creación.
                 'Estatus' => $montado->Estatus ?: 'Activo',
-            ]);
+            ];
+
+            $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
+                ->orderByDesc('Id')
+                ->first();
+
+            if ($devolucion) {
+                $devolucion->fill($payload);
+                $devolucion->save();
+            } else {
+                $devolucion = AtaDevolucionesModel::create($payload);
+            }
         } catch (\Throwable $e) {
             Log::error('Error al registrar devolución de atadores', [
                 'ref_id' => $montado->Id,
@@ -247,7 +255,7 @@ class AtaDevolucionesController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Devolución registrada correctamente',
+            'message' => 'Devolución guardada correctamente',
             'id' => $devolucion->Id,
         ]);
     }
