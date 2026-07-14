@@ -158,7 +158,7 @@ class AtaDevolucionesController extends Controller
 
         $data = $request->validate([
             'ref_id' => ['required', 'integer'],
-            'telar' => ['nullable', 'string', 'max:20'],
+            'telar' => ['nullable', 'string', 'max:10'],
             'no_julio' => ['nullable', 'string', 'max:20'],
             'no_produccion' => ['nullable', 'string', 'max:20'],
             'kilos' => ['nullable', 'numeric', 'min:0'],
@@ -196,10 +196,16 @@ class AtaDevolucionesController extends Controller
         $loteDev = $ordenBase !== ''
             ? (str_starts_with($ordenBase, 'Dev') ? $ordenBase : 'Dev' . $ordenBase)
             : null;
+        if ($loteDev !== null && strlen($loteDev) > 20) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'El lote de devolución excede los 20 caracteres permitidos.',
+            ], 422);
+        }
 
-        // ProduccionOriginal = la parte del Julio antes del guion (p.ej. "00730-470" -> "00730").
+        // LoteOriginal conserva el lote base usado para formar NoProduccion sin el prefijo "Dev".
         $noJulio = $data['no_julio'] ?? $montado->NoJulio;
-        $produccionOriginal = $noJulio ? strstr($noJulio, '-', true) ?: $noJulio : null;
+        $loteOriginal = $ordenBase !== '' ? $ordenBase : null;
 
         try {
             $devolucion = AtaDevolucionesModel::create([
@@ -207,7 +213,7 @@ class AtaDevolucionesController extends Controller
                 'NoTelarId' => $data['telar'] ?? $montado->NoTelarId,
                 'NoJulio' => $noJulio,
                 'NoProduccion' => $loteDev,
-                'ProduccionOriginal' => $produccionOriginal,
+                'LoteOriginal' => $loteOriginal,
                 // Siempre 0 al registrar la devolución.
                 'integer' => 0,
                 'Kilos' => $kilos,

@@ -34,7 +34,7 @@ class AtaDevolucionesModel extends Model
         'integer',
         'Estatus',
         'NoTelarId',
-        'ProduccionOriginal',
+        'LoteOriginal',
     ];
 
     protected $casts = [
