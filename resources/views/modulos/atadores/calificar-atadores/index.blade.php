@@ -354,7 +354,7 @@
             <div class="bg-white rounded-lg shadow-md p-4 mb-6">
                 <label class="flex items-center gap-3 cursor-pointer select-none w-fit">
                     <input type="checkbox" id="chkDevolucion" class="h-4 w-4 text-blue-600 rounded"
-                        onchange="toggleDevolucion(this.checked)"
+                        onchange="toggleDevolucion(this.checked, this)"
                         @if($hayDevolucion) checked @endif
                         @if($esAutorizado) disabled @endif />
                     <span class="text-base font-semibold text-gray-700">Devolución</span>
@@ -566,6 +566,7 @@
             const currentTipoAtado = null;
             const devolucionActual = null;
         @endif
+        let devolucionRegistrada = !!devolucionActual;
 
     // Información de actividades para validación
     const actividadesData = {!! json_encode($actividadesCatalogo->map(function ($act) use ($actividadesMontado) {
@@ -740,9 +741,23 @@
         }
 
         // Mostrar/ocultar panel de Devolución según el check
-        function toggleDevolucion(checked) {
+        function toggleDevolucion(checked, checkbox = null) {
             const panel = document.getElementById('devolucionPanel');
             if (!panel) return;
+
+            if (devolucionRegistrada && !checked) {
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+                panel.classList.remove('hidden');
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Devolución registrada',
+                    text: 'Este atado ya tiene devolución registrada; no se puede desmarcar.'
+                });
+                return;
+            }
+
             panel.classList.toggle('hidden', !checked);
 
             // Al abrir, prellenar campos informativos si están vacíos
@@ -874,6 +889,7 @@
                     if (res.ok) {
                         Swal.fire({ icon: 'success', title: 'Devolución guardada', timer: 1500, showConfirmButton: false });
                         const chk = document.getElementById('chkDevolucion');
+                        devolucionRegistrada = true;
                         if (chk) chk.checked = true;
                         toggleDevolucion(true);
                     } else {
