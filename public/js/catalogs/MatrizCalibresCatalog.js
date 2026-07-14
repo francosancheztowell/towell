@@ -175,28 +175,32 @@ class MatrizCalibresCatalog extends CatalogBase {
 
     getFormHTML(prefix, data = {}) {
         const val = (key) => this.escapeAttr(data[key] ?? '');
+        const tipoActual = (data.Tipo || '').toString().trim().toUpperCase();
 
         return `
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left text-sm">
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
-                    <input id="${prefix}Tipo" type="text" maxlength="60" value="${val('Tipo')}"
-                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Ej: Rizo">
+                    <select id="${prefix}Tipo"
+                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                        <option value="">Seleccione...</option>
+                        ${['RIZO', 'PIE', 'TRAMA'].map((tipo) => `<option value="${tipo}"${tipo === tipoActual ? ' selected' : ''}>${tipo}</option>`).join('')}
+                    </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">Calibre</label>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Calibre <span class="font-normal text-slate-400">(opcional en PIE)</span></label>
                     <input id="${prefix}Calibre" type="number" step="0.0001" value="${val('Calibre')}"
-                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="0.0000">
+                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-400" placeholder="0.0000">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">Fibra</label>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Fibra <span class="font-normal text-slate-400">(opcional en PIE)</span></label>
                     <input id="${prefix}FibraId" type="text" maxlength="60" value="${val('FibraId')}"
                         class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="FibraId">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">Cuenta</label>
                     <input id="${prefix}Cuenta" type="text" maxlength="60" value="${val('Cuenta')}"
-                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Cuenta">
+                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-400" placeholder="Cuenta">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1">ItemId</label>
@@ -254,9 +258,21 @@ class MatrizCalibresCatalog extends CatalogBase {
     }
 
     validateCreateData(data) {
-        const hasAny = Object.values(data).some((value) => value !== '' && value !== null && value !== undefined);
-        if (!hasAny) {
-            return { valid: false, message: 'Captura al menos un campo' };
+        const requeridos = ['Tipo', 'ItemId', 'ConfigId', 'InventSizeId', 'InventColorId'];
+        const faltante = requeridos.find((campo) => !String(data[campo] ?? '').trim());
+        if (faltante) {
+            return { valid: false, message: `${faltante} es obligatorio` };
+        }
+        const tieneCalibre = Boolean(String(data.Calibre ?? '').trim());
+        const tieneFibra = Boolean(String(data.FibraId ?? '').trim());
+        if (data.Tipo === 'PIE' && !tieneCalibre && !tieneFibra) {
+            return { valid: false, message: 'Para Pie debe existir al menos Fibra o Calibre' };
+        }
+        if (data.Tipo !== 'PIE' && (!tieneCalibre || !tieneFibra)) {
+            return { valid: false, message: 'Fibra y Calibre son obligatorios para Rizo y Trama' };
+        }
+        if ((data.Tipo === 'RIZO' || data.Tipo === 'PIE') && !String(data.Cuenta ?? '').trim()) {
+            return { valid: false, message: 'Cuenta es obligatoria para Rizo y Pie' };
         }
         return { valid: true };
     }
@@ -267,21 +283,46 @@ class MatrizCalibresCatalog extends CatalogBase {
 
     processData(data) {
         const processed = { ...data };
-
-        if (processed.Calibre === '' || processed.Calibre === null) {
-            processed.Calibre = null;
-        } else {
-            const parsed = parseFloat(processed.Calibre);
-            processed.Calibre = Number.isNaN(parsed) ? null : parsed;
-        }
-
-        Object.keys(processed).forEach((key) => {
-            if (key !== 'Calibre' && processed[key] === '') {
-                processed[key] = null;
-            }
-        });
+        processed.Tipo = String(processed.Tipo || '').trim().toUpperCase();
+        processed.FibraId = String(processed.FibraId || '').trim().toUpperCase() || null;
+        processed.Cuenta = processed.Tipo === 'TRAMA'
+            ? null
+            : String(processed.Cuenta || '').trim().toUpperCase();
+        const calibre = parseFloat(processed.Calibre);
+        processed.Calibre = Number.isFinite(calibre) && calibre > 0
+            ? Math.round(calibre * 10) / 10
+            : null;
 
         return processed;
+    }
+
+    onCreateFormOpen() {
+        this.connectTipoCuenta('swal-');
+    }
+
+    onEditFormOpen() {
+        this.connectTipoCuenta('swal-edit-');
+    }
+
+    connectTipoCuenta(prefix) {
+        const tipoSelect = document.getElementById(`${prefix}Tipo`);
+        const cuentaInput = document.getElementById(`${prefix}Cuenta`);
+        const calibreInput = document.getElementById(`${prefix}Calibre`);
+        const fibraInput = document.getElementById(`${prefix}FibraId`);
+        if (!tipoSelect || !cuentaInput || !calibreInput || !fibraInput) return;
+
+        const actualizar = () => {
+            const esTrama = tipoSelect.value === 'TRAMA';
+            const esPie = tipoSelect.value === 'PIE';
+            cuentaInput.disabled = esTrama;
+            cuentaInput.required = !esTrama;
+            if (esTrama) cuentaInput.value = '';
+            calibreInput.required = !esPie;
+            fibraInput.required = !esPie;
+        };
+
+        tipoSelect.addEventListener('change', actualizar);
+        actualizar();
     }
 
     renderRow() {

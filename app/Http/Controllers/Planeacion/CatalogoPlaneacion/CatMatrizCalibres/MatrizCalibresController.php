@@ -1,16 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatMatrizCalibres;
 
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\Catalogos\CatMatrizCalibres;
+use App\Services\Planeacion\MatrizCalibresService;
+use App\ValueObjects\Planeacion\MatrizCalibreClave;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
-class MatrizCalibresController extends Controller
+final class MatrizCalibresController extends Controller
 {
-    public function index()
+    public function __construct(
+        private readonly MatrizCalibresService $matrizCalibres,
+    ) {}
+
+    public function index(): View
     {
         $registros = CatMatrizCalibres::query()
             ->orderBy('Tipo')
@@ -31,11 +42,11 @@ class MatrizCalibresController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         try {
             $validated = $this->validatePayload($request);
-            $registro = CatMatrizCalibres::create($validated);
+            $registro = $this->matrizCalibres->guardarRegistroCompleto($validated);
 
             return response()->json([
                 'success' => true,
@@ -60,7 +71,7 @@ class MatrizCalibresController extends Controller
         }
     }
 
-    public function show(int $id)
+    public function show(int $id): JsonResponse
     {
         $registro = CatMatrizCalibres::find($id);
 
@@ -77,7 +88,7 @@ class MatrizCalibresController extends Controller
         ]);
     }
 
-    public function update(Request $request, int $id)
+    public function update(Request $request, int $id): JsonResponse
     {
         try {
             $registro = CatMatrizCalibres::find($id);
@@ -90,12 +101,12 @@ class MatrizCalibresController extends Controller
             }
 
             $validated = $this->validatePayload($request);
-            $registro->update($validated);
+            $registro = $this->matrizCalibres->guardarRegistroCompleto($validated, $registro);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Registro actualizado exitosamente',
-                'data' => $registro->fresh(),
+                'data' => $registro,
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -116,7 +127,7 @@ class MatrizCalibresController extends Controller
         }
     }
 
-    public function destroy(int $id)
+    public function destroy(int $id): JsonResponse
     {
         try {
             $registro = CatMatrizCalibres::find($id);
@@ -148,30 +159,94 @@ class MatrizCalibresController extends Controller
         }
     }
 
+    public function lookup(Request $request): JsonResponse
+    {
+        $tipo = mb_strtoupper(trim((string) $request->input('tipo', '')), 'UTF-8');
+        $request->merge([
+            'tipo' => $tipo,
+        ]);
+
+        $validated = $request->validate([
+            'tipo' => ['required', 'string', Rule::in(MatrizCalibreClave::TIPOS)],
+            'calibre' => [
+                Rule::requiredIf($tipo !== MatrizCalibreClave::TIPO_PIE),
+                'nullable',
+                'numeric',
+                'gt:0',
+            ],
+            'fibraId' => [
+                Rule::requiredIf($tipo !== MatrizCalibreClave::TIPO_PIE),
+                'nullable',
+                'string',
+                'max:60',
+            ],
+            'cuenta' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $clave = MatrizCalibreClave::tryFromArray($validated);
+        if ($clave === null) {
+            if (in_array($tipo, [MatrizCalibreClave::TIPO_RIZO, MatrizCalibreClave::TIPO_PIE], true)
+                && blank($validated['cuenta'] ?? null)) {
+                throw ValidationException::withMessages([
+                    'cuenta' => 'Cuenta es obligatoria para las equivalencias de Rizo y Pie.',
+                ]);
+            }
+
+            throw ValidationException::withMessages([
+                'fibraId' => $tipo === MatrizCalibreClave::TIPO_PIE
+                    ? 'Para Pie debe existir al menos Fibra o Calibre.'
+                    : 'Fibra y Calibre son obligatorios para Rizo y Trama.',
+            ]);
+        }
+
+        $registro = $this->matrizCalibres->buscar($clave);
+
+        return response()->json([
+            'success' => true,
+            'found' => $registro !== null,
+            'data' => $registro,
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
     private function validatePayload(Request $request): array
     {
+        $tipo = mb_strtoupper(trim((string) $request->input('Tipo', '')), 'UTF-8');
+        $request->merge(['Tipo' => $tipo]);
+
         $validated = $request->validate([
-            'Tipo' => 'nullable|string|max:60',
-            'Calibre' => 'nullable|numeric',
-            'FibraId' => 'nullable|string|max:60',
-            'Cuenta' => 'nullable|string|max:60',
-            'ItemId' => 'nullable|string|max:60',
-            'ConfigId' => 'nullable|string|max:60',
-            'InventSizeId' => 'nullable|string|max:60',
-            'InventColorId' => 'nullable|string|max:60',
+            'Tipo' => ['required', 'string', Rule::in(MatrizCalibreClave::TIPOS)],
+            'Calibre' => [
+                Rule::requiredIf($tipo !== MatrizCalibreClave::TIPO_PIE),
+                'nullable',
+                'numeric',
+                'gt:0',
+            ],
+            'FibraId' => [
+                Rule::requiredIf($tipo !== MatrizCalibreClave::TIPO_PIE),
+                'nullable',
+                'string',
+                'max:60',
+            ],
+            'Cuenta' => [
+                Rule::requiredIf(in_array($tipo, [MatrizCalibreClave::TIPO_RIZO, MatrizCalibreClave::TIPO_PIE], true)),
+                Rule::prohibitedIf($tipo === MatrizCalibreClave::TIPO_TRAMA),
+                'nullable',
+                'string',
+                'max:60',
+            ],
+            'ItemId' => ['required', 'string', 'max:60'],
+            'ConfigId' => ['required', 'string', 'max:60'],
+            'InventSizeId' => ['required', 'string', 'max:60'],
+            'InventColorId' => ['required', 'string', 'max:60'],
         ]);
 
-        foreach ($validated as $key => $value) {
-            if (is_string($value)) {
-                $validated[$key] = trim($value) === '' ? null : trim($value);
-            }
-        }
-
-        if (array_key_exists('Calibre', $validated) && $validated['Calibre'] !== null) {
-            $validated['Calibre'] = (float) $validated['Calibre'];
+        if (MatrizCalibreClave::tryFromArray($validated) === null) {
+            throw ValidationException::withMessages([
+                'FibraId' => 'Para Pie debe existir al menos Fibra o Calibre.',
+            ]);
         }
 
         return $validated;

@@ -500,14 +500,17 @@
         }
     </style>
 
-    <script id="catcodificacion-config" type="application/json">
-        @json([
+    @php
+        $catcodificacionConfig = [
             'columnas' => $columnas ?? [],
             'columnLabels' => $columnLabels ?? [],
             'columnSegmentClass' => $columnSegmentClass ?? [],
             'apiUrl' => $apiUrl ?? '/planeacion/codificacion/api/all-fast',
             'totalRegistros' => isset($totalRegistros) ? (int) $totalRegistros : 0,
-        ])
+        ];
+    @endphp
+    <script id="catcodificacion-config" type="application/json">
+        @json($catcodificacionConfig)
     </script>
 
     @vite('resources/js/catcodificacion/index.js')

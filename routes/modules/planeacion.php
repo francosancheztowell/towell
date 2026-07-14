@@ -97,6 +97,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion/orden-cambio-excel', [OrdenDeCambioFelpaController::class, 'generarExcel'])->name('codificacion.orden-cambio-excel');
 
     Route::get('/lmat/api/calibres', [CatLMatController::class, 'getCalibres'])->name('lmat.calibres');
+    Route::get('/lmat/api/matriz-calibre', [MatrizCalibresController::class, 'lookup'])->name('lmat.matriz-calibre');
     Route::get('/lmat/api/existe', [CatLMatController::class, 'existeLmat'])->name('lmat.existe');
     Route::get('/lmat/api/configs', [CatLMatController::class, 'getConfigs'])->name('lmat.configs');
     Route::get('/lmat/api/tamanos', [CatLMatController::class, 'getTamanos'])->name('lmat.tamanos');

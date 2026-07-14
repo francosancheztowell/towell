@@ -1,11 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Planeacion\CatLMat;
 
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\CatLMat;
+use App\Services\Planeacion\MatrizCalibresService;
+use App\ValueObjects\Planeacion\MatrizCalibreClave;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +29,10 @@ class CatLMatController extends Controller
     private const LIM_DESCRIP_CAT_LMAT = 255;
 
     private const LIM_USUARIO_REGISTRO_CAT_LMAT = 60;
+
+    public function __construct(
+        private readonly MatrizCalibresService $matrizCalibres,
+    ) {}
 
     /**
      * Filas de CatLMat ya guardadas para una Orden (para recargar el modal al reabrir).
@@ -69,6 +77,10 @@ class CatLMatController extends Controller
             'filas.*.inventLocationId' => 'nullable|string|max:60',
             'filas.*.qty' => 'nullable|numeric',
             'filas.*.porcentaje' => 'nullable|numeric',
+            'filas.*.matrizTipo' => 'nullable|string|max:60',
+            'filas.*.matrizCalibre' => 'nullable|numeric',
+            'filas.*.matrizFibraId' => 'nullable|string|max:60',
+            'filas.*.matrizCuenta' => 'nullable|string|max:60',
         ]);
 
         try {
@@ -122,6 +134,16 @@ class CatLMatController extends Controller
                     if ($qty < 0.01) {
                         continue;
                     }
+
+                    $configId = trim((string) ($f['configId'] ?? ''));
+                    $inventSizeId = preg_replace(
+                        '/\s+/',
+                        '',
+                        str_replace(' - ', '-', trim((string) ($f['inventSizeId'] ?? ''))),
+                    ) ?? '';
+                    $inventColorId = trim((string) ($f['inventColorId'] ?? ''));
+                    $inventLocationId = trim((string) ($f['inventLocationId'] ?? ''));
+
                     CatLMat::create([
                         'Orden' => StringTruncator::truncateToLength($orden, 60),
                         'Salon' => $salon !== '' ? StringTruncator::truncateToLength($salon, 60) : null,
@@ -131,17 +153,17 @@ class CatLMatController extends Controller
                             ? StringTruncator::truncateToLength((string) $data['pesoCrudo'], 60)
                             : null,
                         'ItemId' => StringTruncator::truncateToLength($itemId, 60),
-                        'ConfigId' => ($v = trim((string) ($f['configId'] ?? ''))) !== ''
-                            ? StringTruncator::truncateToLength($v, 60)
+                        'ConfigId' => $configId !== ''
+                            ? StringTruncator::truncateToLength($configId, 60)
                             : null,
-                        'InventSizeId' => ($v = preg_replace('/\s+/', '', str_replace(' - ', '-', trim((string) ($f['inventSizeId'] ?? ''))))) !== ''
-                            ? StringTruncator::truncateToLength($v, 60)
+                        'InventSizeId' => $inventSizeId !== ''
+                            ? StringTruncator::truncateToLength($inventSizeId, 60)
                             : null,
-                        'InventColorId' => ($v = trim((string) ($f['inventColorId'] ?? ''))) !== ''
-                            ? StringTruncator::truncateToLength($v, 60)
+                        'InventColorId' => $inventColorId !== ''
+                            ? StringTruncator::truncateToLength($inventColorId, 60)
                             : null,
-                        'InventLocationId' => ($v = trim((string) ($f['inventLocationId'] ?? ''))) !== ''
-                            ? StringTruncator::truncateToLength($v, 60)
+                        'InventLocationId' => $inventLocationId !== ''
+                            ? StringTruncator::truncateToLength($inventLocationId, 60)
                             : null,
                         'Qty' => $qty,
                         'Porcentaje' => isset($f['porcentaje']) ? (float) $f['porcentaje'] : null,
@@ -151,6 +173,22 @@ class CatLMatController extends Controller
                         'HoraRegistro' => $now->format('H:i:s'),
                         'UsuarioRegistro' => $usuarioRegistro,
                     ]);
+
+                    $claveMatriz = MatrizCalibreClave::tryFromArray([
+                        'Tipo' => $f['matrizTipo'] ?? null,
+                        'Calibre' => $f['matrizCalibre'] ?? null,
+                        'FibraId' => $f['matrizFibraId'] ?? null,
+                        'Cuenta' => $f['matrizCuenta'] ?? null,
+                    ]);
+
+                    if ($claveMatriz !== null) {
+                        $this->matrizCalibres->aprender($claveMatriz, [
+                            'ItemId' => $itemId,
+                            'ConfigId' => $configId,
+                            'InventSizeId' => $inventSizeId,
+                            'InventColorId' => $inventColorId,
+                        ]);
+                    }
                 }
             });
 

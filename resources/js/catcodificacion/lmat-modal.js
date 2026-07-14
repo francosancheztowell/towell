@@ -92,7 +92,26 @@ const LMatMateriales = (() => {
         return lista;
     }
 
-    return { getCalibres, getConfigs, getTamanos, getColores };
+    async function getMatrizCalibre(clave) {
+        const params = new URLSearchParams({
+            tipo: clave.tipo,
+        });
+        if (clave.calibre !== null) params.set('calibre', clave.calibre.toFixed(1));
+        if (clave.fibraId !== null) params.set('fibraId', clave.fibraId);
+        if (clave.cuenta) params.set('cuenta', clave.cuenta);
+
+        const resp = await fetch('/planeacion/lmat/api/matriz-calibre?' + params.toString(), {
+            headers: { Accept: 'application/json' },
+        });
+        const json = await resp.json().catch(() => ({}));
+        if (!resp.ok || json.success !== true) {
+            throw new Error(json.message || `Error ${resp.status} al consultar Matriz de Calibres`);
+        }
+
+        return json.found ? json.data : null;
+    }
+
+    return { getCalibres, getConfigs, getTamanos, getColores, getMatrizCalibre };
 })();
 
 function setSelectOptionsLMat(selectEl, opciones, valorActual) {
@@ -175,6 +194,42 @@ function resolverArticuloDesdeCalibres(itemsCrudo, calibres) {
     return mejor;
 }
 
+function crearClaveMatrizLMat(tipo, calibre, fibraId, cuenta = null) {
+    const tipoNormalizado = String(tipo ?? '').trim().toUpperCase();
+    const fibraNormalizada = String(fibraId ?? '').trim().toUpperCase() || null;
+    if (!['RIZO', 'PIE', 'TRAMA'].includes(tipoNormalizado)) {
+        return null;
+    }
+
+    let calibreNormalizado = null;
+    if (String(calibre ?? '').trim() !== '') {
+        const calibreNumerico = Number(String(calibre ?? '').replace(',', '.'));
+        if (Number.isFinite(calibreNumerico) && calibreNumerico > 0) {
+            calibreNormalizado = Math.round(calibreNumerico * 10) / 10;
+        }
+    }
+    if (tipoNormalizado !== 'PIE' && (!fibraNormalizada || calibreNormalizado === null)) return null;
+    if (tipoNormalizado === 'PIE' && !fibraNormalizada && calibreNormalizado === null) return null;
+
+    const cuentaNormalizada = tipoNormalizado === 'TRAMA'
+        ? null
+        : String(cuenta ?? '').trim().toUpperCase();
+    if (tipoNormalizado !== 'TRAMA' && !cuentaNormalizada) return null;
+
+    return {
+        tipo: tipoNormalizado,
+        calibre: calibreNormalizado,
+        fibraId: fibraNormalizada,
+        cuenta: cuentaNormalizada,
+    };
+}
+
+function serializarClaveMatrizLMat(clave) {
+    if (!clave) return '';
+    const calibre = clave.calibre === null ? '' : clave.calibre.toFixed(1);
+    return [clave.tipo, calibre, clave.fibraId || '', clave.cuenta || ''].join('|');
+}
+
 async function openLMatModal(context = {}) {
     const {
         fallbackToast = defaultToast,
@@ -222,8 +277,8 @@ async function openLMatModal(context = {}) {
     const articulo = registroSeleccionado?.Nombre || registroSeleccionado?.ItemId || 'Nombre Articulo';
     const codigoDibujo = registroSeleccionado?.CodigoDibujo || 'Cod Dibujo';
     let pesoCrudo = registroSeleccionado?.P_crudo || registroSeleccionado?.PesoCrudo || 737;
-    const cuentaRizo = registroSeleccionado?.CuentaRizo || 'CuentaRizo';
-    const cuentaPie = registroSeleccionado?.CuentaPie || 'CuentaPie';
+    const cuentaRizo = String(registroSeleccionado?.CuentaRizo ?? '').trim();
+    const cuentaPie = String(registroSeleccionado?.CuentaPie ?? '').trim();
     // Calibre numérico → formato ItemId: 450.1 → 450/1, 16.1 → 16/1, pero entero (10.0) queda como 10.
     const calibreAItemId = (numero) => Number.isInteger(numero) ? String(numero) : numero.toFixed(1).replace('.', '/');
     const formatearCalibre = (valor, fallback) => {
@@ -252,8 +307,8 @@ async function openLMatModal(context = {}) {
         registroSeleccionado?.FibraTramaFondoC1 ?? registroSeleccionado?.FibraId
     );
     // InventSizeId sin espacios: 2766-16/1 (no "2766 - 16/1").
-    const tamanoRizo = String(cuentaRizo).trim() + '-' + String(calibreRizo).trim();
-    const tamanoPie = String(cuentaPie).trim() + '-' + String(calibrePie).trim();
+    const tamanoRizo = String(cuentaRizo || 'CuentaRizo').trim() + '-' + String(calibreRizo).trim();
+    const tamanoPie = String(cuentaPie || 'CuentaPie').trim() + '-' + String(calibrePie).trim();
     const normalizarInventSizeIdLMat = (valor) => String(valor ?? '')
         .trim()
         .replace(/\s*-\s*/g, '-')
@@ -274,11 +329,11 @@ async function openLMatModal(context = {}) {
         return guardado !== '' ? guardado : resolverAlmacenLMat(item?.articulo);
     }
     let nombreLMat = truncLmat(['TEJ', tamano, articulo].filter(Boolean).join(' '), 20);
-    let descripcionLMat = truncLmat([tamano, articulo, codigoDibujo].filter(Boolean).join(' '), 60);
+    // Descripción: Nombre + CodigoDibujo (sin InventSizeId / tamaño).
+    let descripcionLMat = truncLmat([articulo, codigoDibujo].filter(Boolean).join(' '), 60);
     if (guardadoLMat) {
-        // Recargar cabecera desde lo guardado (Nombre=BomId, Descrip=BomName, PesoCrudo).
+        // Recargar cabecera desde lo guardado (Nombre=BomId). Descripción se recalcula sin tamaño.
         nombreLMat = truncLmat(guardadoLMat[0].Nombre ?? nombreLMat, 20);
-        descripcionLMat = truncLmat(guardadoLMat[0].Descrip ?? descripcionLMat, 60);
         if (guardadoLMat[0].PesoCrudo != null && guardadoLMat[0].PesoCrudo !== '') pesoCrudo = guardadoLMat[0].PesoCrudo;
         if (guardadoLMat[0].ItemIdCrudo != null && guardadoLMat[0].ItemIdCrudo !== '') itemId = guardadoLMat[0].ItemIdCrudo;
         if (guardadoLMat[0].InventSizeCrudo != null && guardadoLMat[0].InventSizeCrudo !== '') tamano = guardadoLMat[0].InventSizeCrudo;
@@ -361,6 +416,12 @@ async function openLMatModal(context = {}) {
                 cantidad: rizo.cantidad,
                 porcentaje: rizo.porcentaje,
                 rol: 'rizo',
+                matriz: crearClaveMatrizLMat(
+                    'RIZO',
+                    registroSeleccionado?.CalibreRizo,
+                    fibraRizo,
+                    cuentaRizo,
+                ),
             },
             {
                 articulo: 'JU-ENG-PI-C',
@@ -373,6 +434,12 @@ async function openLMatModal(context = {}) {
                 cantidad: pie.cantidad,
                 porcentaje: pie.porcentaje,
                 rol: 'pie',
+                matriz: crearClaveMatrizLMat(
+                    'PIE',
+                    registroSeleccionado?.CalibrePie,
+                    fibraPie,
+                    cuentaPie,
+                ),
             },
         ];
         const tramaCalibre = numLMat(registroSeleccionado?.Tra);
@@ -388,6 +455,11 @@ async function openLMatModal(context = {}) {
                 cantidad: trama.cantidad,
                 porcentaje: trama.porcentaje,
                 rol: 'trama',
+                matriz: crearClaveMatrizLMat(
+                    'TRAMA',
+                    registroSeleccionado?.Tra,
+                    fibraTrama,
+                ),
             });
         }
         for (let n = 1; n <= 5; n++) {
@@ -405,13 +477,45 @@ async function openLMatModal(context = {}) {
                 cantidad: comb.cantidad,
                 porcentaje: comb.porcentaje,
                 rol: 'c' + n,
+                matriz: crearClaveMatrizLMat(
+                    'TRAMA',
+                    registroSeleccionado?.[`CalibreComb${n}`],
+                    registroSeleccionado?.[`FibraComb${n}`],
+                ),
             });
         }
         return filas;
     };
 
-    const filasExistentesLMat = [];
     let articulos = armarFilasDesdeCalculoLMat(pesoCrudo);
+
+    let falloConsultaMatriz = false;
+    if (!guardadoLMat) {
+        await Promise.all(articulos.map(async (item) => {
+            if (!item.matriz) return;
+
+            try {
+                const equivalencia = await LMatMateriales.getMatrizCalibre(item.matriz);
+                if (!equivalencia) return;
+
+                item.articulo = equivalencia.ItemId;
+                item.config = equivalencia.ConfigId;
+                item.tamano = equivalencia.InventSizeId;
+                item.color = equivalencia.InventColorId;
+                item.almacen = resolverAlmacenLMat(equivalencia.ItemId);
+                item.matrizEncontrada = true;
+            } catch (error) {
+                falloConsultaMatriz = true;
+                console.error('No se pudo consultar CatMatrizCalibres para una fila L.Mat', error);
+            }
+        }));
+    }
+
+    if (falloConsultaMatriz) {
+        showToast('No se pudo consultar una o más equivalencias. Se usará el proceso actual para esas filas.', 'warning');
+    }
+
+    const filasExistentesLMat = [];
     articulos.forEach((f) => {
         if (f.rol === 'trama' || String(f.rol || '').startsWith('c')) filasExistentesLMat.push(f);
     });
@@ -445,11 +549,13 @@ async function openLMatModal(context = {}) {
                     const id = String(r.ItemId ?? '').trim();
                     return id === 'JU-ENG-RI-C' || id.startsWith('JU-ENG-RI');
                 });
+                if (!saved) saved = tomarGuardado(() => true);
             } else if (def.rol === 'pie') {
                 saved = tomarGuardado((r) => {
                     const id = String(r.ItemId ?? '').trim();
                     return id === 'JU-ENG-PI-C' || id.startsWith('JU-ENG-PI');
                 });
+                if (!saved) saved = tomarGuardado(() => true);
             } else {
                 // trama / c1..c5: siguiente fila CatLMat que no sea rizo/pie
                 saved = tomarGuardado((r) => {
@@ -473,6 +579,7 @@ async function openLMatModal(context = {}) {
                 porcentaje: (saved.Porcentaje != null
                     ? Number(saved.Porcentaje).toFixed(1)
                     : String(def.porcentaje || '0.0').replace('%', '')) + '%',
+                desdeCatLMat: true,
             };
         });
 
@@ -491,6 +598,8 @@ async function openLMatModal(context = {}) {
                 cantidad: r.Qty != null ? Number(r.Qty) : 0,
                 porcentaje: (r.Porcentaje != null ? Number(r.Porcentaje).toFixed(1) : '0.0') + '%',
                 rol: '',
+                matriz: null,
+                desdeCatLMat: true,
             });
         });
     }
@@ -500,7 +609,10 @@ async function openLMatModal(context = {}) {
     // lista, el <select> no marca nada y el navegador cae al primer option de la lista).
     const sinHiloConfig = (valor) => String(valor ?? '').trim().toUpperCase() !== 'HILO';
     const opcionesSelectLMat = {
-        articulo: [''],
+        articulo: Array.from(new Set([
+            '',
+            ...articulos.filter(f => f.matrizEncontrada).map(f => f.articulo).filter(Boolean),
+        ])),
         // Config NO incluye Fibras de CatCodificados; esas van solo en columna Fibra.
         config: Array.from(new Set([
             'ENTERO',
@@ -577,10 +689,25 @@ async function openLMatModal(context = {}) {
     }
 
     function renderPlanoOSelectLMat(item, campo, nombre, opciones) {
-        if (String(item.articulo || '').startsWith('JU-ENG-')) {
+        if (item.rol === 'rizo' || item.rol === 'pie') {
             return `<span class="font-medium text-gray-800">${escapeHtml(item[campo])}</span>`;
         }
         return buildSelectLMat(nombre, item[campo], opciones);
+    }
+
+    function atributosMatrizLMat(item) {
+        const clave = item.matriz;
+        if (!clave) return '';
+
+        return [
+            `data-matriz-clave="${escapeAttr(serializarClaveMatrizLMat(clave))}"`,
+            `data-matriz-tipo="${escapeAttr(clave.tipo)}"`,
+            `data-matriz-calibre="${escapeAttr(clave.calibre === null ? '' : clave.calibre.toFixed(1))}"`,
+            `data-matriz-fibra-id="${escapeAttr(clave.fibraId || '')}"`,
+            `data-matriz-cuenta="${escapeAttr(clave.cuenta || '')}"`,
+            `data-matriz-encontrada="${item.matrizEncontrada ? '1' : '0'}"`,
+            `data-preservar-articulo="${item.matrizEncontrada || item.desdeCatLMat ? '1' : '0'}"`,
+        ].join(' ');
     }
 
     function renderFilaEditableLMat(item = { articulo: '10.1', combinacion: '', items: '', config: 'ENTERO', tamano: '', color: '1000', cantidad: 0 }) {
@@ -620,7 +747,7 @@ async function openLMatModal(context = {}) {
     }
 
     const filas = articulos.map(item => `
-        <tr class="border-b border-gray-100"${String(item.articulo || '').startsWith('JU-ENG-') ? ` data-articulo-fijo="${escapeAttr(item.articulo)}"` : ''}${item.rol ? ` data-rol="${escapeAttr(item.rol)}"` : ''}>
+        <tr class="border-b border-gray-100"${item.rol === 'rizo' || item.rol === 'pie' ? ` data-articulo-fijo="${escapeAttr(item.articulo)}"` : ''}${item.rol ? ` data-rol="${escapeAttr(item.rol)}"` : ''}${item.matriz ? ` ${atributosMatrizLMat(item)}` : ''}${item.desdeCatLMat && !item.matriz ? ' data-preservar-articulo="1"' : ''}>
             <td class="lmat-combinacion-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(item.combinacion || '')}</td>
             <td class="lmat-items-cell px-3 py-2 font-medium tabular-nums text-gray-800">${escapeHtml(item.items || '')}</td>
             <td class="px-3 py-2">${renderPlanoOSelectLMat(item, 'articulo', 'articulo[]', opcionesSelectLMat.articulo)}</td>
@@ -878,7 +1005,7 @@ async function openLMatModal(context = {}) {
                 const configSelect = fila.querySelector('select[name="config[]"]');
                 const tamanoSelect = fila.querySelector('select[name="tamano[]"]');
                 const colorSelect = fila.querySelector('select[name="color[]"]');
-                const configActual = configPreferido !== null
+                const configInicial = configPreferido !== null
                     ? String(configPreferido || '')
                     : (configSelect?.value || '');
 
@@ -887,7 +1014,10 @@ async function openLMatModal(context = {}) {
                     LMatMateriales.getTamanos(itemId),
                     LMatMateriales.getColores(itemId),
                 ]).then(([configsItem, tamanos, colores]) => {
-                    if (configSelect) setSelectOptionsLMat(configSelect, configsItem, configActual);
+                    const configVigente = configPreferido !== null
+                        ? configInicial
+                        : (configSelect?.value || configInicial);
+                    if (configSelect) setSelectOptionsLMat(configSelect, configsItem, configVigente);
                     if (tamanoSelect) setSelectOptionsLMat(tamanoSelect, tamanos, tamanoSelect.value);
                     if (colorSelect) setSelectOptionsLMat(colorSelect, colores, colorSelect.value);
                 });
@@ -900,15 +1030,58 @@ async function openLMatModal(context = {}) {
                 cargarMaterialesFilaLMat(fila, articuloSelect?.value);
             };
 
+            const asignarValorSelectLMat = (select, valor) => {
+                if (!select) return;
+                const normalizado = String(valor ?? '');
+                if (normalizado !== '' && !Array.from(select.options).some(option => option.value === normalizado)) {
+                    select.add(new Option(normalizado, normalizado));
+                }
+                select.value = normalizado;
+            };
+
+            const sincronizarSalidaMatrizLMat = (filaOrigen, nombreCampo, valor) => {
+                const clave = filaOrigen?.dataset?.matrizClave || '';
+                if (!clave) return;
+
+                document.querySelectorAll('tr[data-matriz-clave]').forEach((filaDestino) => {
+                    if (filaDestino === filaOrigen || filaDestino.dataset.matrizClave !== clave) return;
+                    const selectDestino = filaDestino.querySelector(`select[name="${nombreCampo}"]`);
+                    if (!selectDestino) return;
+
+                    asignarValorSelectLMat(selectDestino, valor);
+                    if (nombreCampo === 'articulo[]') {
+                        cargarTamanoYColorLMat(selectDestino);
+                    }
+                });
+            };
+
             const conectarArticuloSelectsLMat = () => {
                 document.querySelectorAll('select[name="articulo[]"]').forEach((sel) => {
                     if (sel.dataset.lmatConnected === '1') return;
                     sel.dataset.lmatConnected = '1';
-                    sel.addEventListener('change', () => cargarTamanoYColorLMat(sel));
+                    sel.addEventListener('change', () => {
+                        const fila = sel.closest('tr');
+                        sincronizarSalidaMatrizLMat(fila, 'articulo[]', sel.value);
+                        cargarTamanoYColorLMat(sel);
+                    });
+                });
+            };
+
+            const conectarSelectsSalidaMatrizLMat = () => {
+                ['config[]', 'tamano[]', 'color[]'].forEach((nombreCampo) => {
+                    document.querySelectorAll(`select[name="${nombreCampo}"]`).forEach((select) => {
+                        const dataKey = 'lmatMatrizConnected';
+                        if (select.dataset[dataKey] === '1') return;
+                        select.dataset[dataKey] = '1';
+                        select.addEventListener('change', () => {
+                            sincronizarSalidaMatrizLMat(select.closest('tr'), nombreCampo, select.value);
+                        });
+                    });
                 });
             };
 
             conectarInputsCantidadLMat();
+            conectarSelectsSalidaMatrizLMat();
             // conectarQuitarFilasLMat(); // Columna Acción oculta
             recalcularPorcentajesLMat();
 
@@ -917,15 +1090,20 @@ async function openLMatModal(context = {}) {
                     const fila = sel.closest('tr');
                     const itemsVal = (fila?.querySelector('.lmat-items-cell')?.textContent || '').trim();
                     let valorSeleccionado = '';
-                    if (itemsVal) {
+                    let opcionesDisponibles = calibresDisponibles;
+                    if (fila?.dataset?.preservarArticulo === '1' && sel.value) {
+                        valorSeleccionado = sel.value;
+                        opcionesDisponibles = Array.from(new Set([...calibresDisponibles, sel.value]));
+                    } else if (itemsVal) {
                         valorSeleccionado = resolverArticuloDesdeCalibres(itemsVal, calibresDisponibles);
                     } else if (sel.value && calibresDisponibles.includes(sel.value)) {
                         valorSeleccionado = sel.value;
                     }
-                    setSelectOptionsLMat(sel, calibresDisponibles, valorSeleccionado);
+                    setSelectOptionsLMat(sel, opcionesDisponibles, valorSeleccionado);
                     cargarTamanoYColorLMat(sel);
                 });
                 conectarArticuloSelectsLMat();
+                conectarSelectsSalidaMatrizLMat();
             });
 
             // Rizo/Pie: cargar Config AX guardado en la fila (independiente de Fibra informativa).
@@ -941,8 +1119,8 @@ async function openLMatModal(context = {}) {
             const contarFilasTramaCombLMat = () => {
                 if (!tbodyLMat) return 0;
                 return Array.from(tbodyLMat.querySelectorAll('tr')).filter((tr) => {
-                    const fijo = String(tr.dataset.articuloFijo || '');
-                    return !fijo.startsWith('JU-ENG-');
+                    const rol = String(tr.dataset.rol || '');
+                    return rol !== 'rizo' && rol !== 'pie';
                 }).length;
             };
             const actualizarEstadoAnadirFilaLMat = () => {
@@ -965,6 +1143,7 @@ async function openLMatModal(context = {}) {
                 }
                 tbodyLMat.insertAdjacentHTML('beforeend', renderFilaEditableLMat());
                 conectarInputsCantidadLMat();
+                conectarSelectsSalidaMatrizLMat();
                 // conectarQuitarFilasLMat(); // Columna Acción oculta
                 recalcularPorcentajesLMat();
                 actualizarEstadoAnadirFilaLMat();
@@ -1087,6 +1266,10 @@ async function openLMatModal(context = {}) {
                         inventLocationId: almacenVal,
                         qty,
                         porcentaje: parseFloat((fila.querySelector('.lmat-porcentaje-cell')?.textContent || '0').replace('%', '')) || 0,
+                        matrizTipo: fila.dataset.matrizTipo || null,
+                        matrizCalibre: fila.dataset.matrizCalibre || null,
+                        matrizFibraId: fila.dataset.matrizFibraId || null,
+                        matrizCuenta: fila.dataset.matrizCuenta || null,
                     });
                 });
 
