@@ -626,14 +626,18 @@ async function openLMatModal(context = {}) {
     const pesoACantidadYPorcentajeLMat = (pesoG, pesoCrudoTotal) => {
         const cantidad = pesoG / 1000;
         const porcentaje = pesoCrudoTotal > 0
-            ? Number(((pesoG / pesoCrudoTotal) * 100).toFixed(1))
+            ? Number(((pesoG / pesoCrudoTotal) * 100).toFixed(2))
             : 0;
-        return { cantidad, porcentaje: porcentaje.toFixed(1) + '%' };
+        return { cantidad, porcentaje: porcentaje.toFixed(2) + '%' };
     };
     const formatearCantidadLMat = (valor) => {
         const cantidad = Number(valor);
-        if (!Number.isFinite(cantidad) || cantidad <= 0) return '0.000';
-        return cantidad.toFixed(3);
+        if (!Number.isFinite(cantidad) || cantidad <= 0) return '0.0000';
+        return cantidad.toFixed(4);
+    };
+    const formatearPorcentajeLMat = (valor) => {
+        const porcentaje = Number(String(valor ?? '').replace('%', '').replace(',', '.'));
+        return Number.isFinite(porcentaje) && porcentaje >= 0 ? porcentaje.toFixed(2) : '0.00';
     };
     const serializarCantidadRawLMat = (valor) => {
         const cantidad = Number(valor);
@@ -844,8 +848,8 @@ async function openLMatModal(context = {}) {
                 almacen: saved.InventLocationId ?? resolverAlmacenLMat(saved.ItemId ?? def.articulo),
                 cantidad: saved.Qty != null ? Number(saved.Qty) : def.cantidad,
                 porcentaje: (saved.Porcentaje != null
-                    ? Number(saved.Porcentaje).toFixed(1)
-                    : String(def.porcentaje || '0.0').replace('%', '')) + '%',
+                    ? Number(saved.Porcentaje).toFixed(2)
+                    : String(def.porcentaje || '0.00').replace('%', '')) + '%',
                 desdeCatLMat: true,
             };
         });
@@ -865,7 +869,7 @@ async function openLMatModal(context = {}) {
                 color: r.InventColorId ?? '',
                 almacen: r.InventLocationId ?? resolverAlmacenLMat(itemId),
                 cantidad: r.Qty != null ? Number(r.Qty) : 0,
-                porcentaje: (r.Porcentaje != null ? Number(r.Porcentaje).toFixed(1) : '0.0') + '%',
+                porcentaje: (r.Porcentaje != null ? Number(r.Porcentaje).toFixed(2) : '0.00') + '%',
                 rol: '',
                 matriz: null,
                 desdeCatLMat: true,
@@ -932,7 +936,7 @@ async function openLMatModal(context = {}) {
     const pesoCrudoNumerico = Number(String(pesoCrudo ?? '').replace(',', '.')) || 0;
     const totalCantidad = pesoCrudoNumerico / 1000;
     const totalPorcentaje = articulos.reduce((total, item) => total + parseFloat(String(item.porcentaje || '0').replace('%', '')), 0);
-    const totalPorcentajeRedondeado = Number(totalPorcentaje.toFixed(1));
+    const totalPorcentajeRedondeado = Number(totalPorcentaje.toFixed(2));
     const totalPorcentajeClass = totalPorcentajeRedondeado === 100
         ? 'text-green-700 bg-green-50'
         : (totalPorcentajeRedondeado > 100 || totalPorcentajeRedondeado < 90 ? 'text-red-700 bg-red-50' : 'text-orange-700 bg-orange-50');
@@ -1014,14 +1018,24 @@ async function openLMatModal(context = {}) {
                     <input
                         type="number"
                         name="cantidad[]"
-                        step="0.001"
+                        step="0.0001"
                         min="0"
                         data-cantidad-raw="${escapeAttr(serializarCantidadRawLMat(item.cantidad))}"
                         class="lmat-cantidad-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                         value="${formatearCantidadLMat(item.cantidad)}"
                     >
                 </td>
-                <td class="lmat-porcentaje-cell px-3 py-2 text-right tabular-nums text-gray-900">0.0%</td>
+                <td class="px-3 py-2">
+                    <input
+                        type="number"
+                        name="porcentaje[]"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        class="lmat-porcentaje-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                        value="0.00"
+                    >
+                </td>
             </tr>
         `;
     }
@@ -1043,14 +1057,24 @@ async function openLMatModal(context = {}) {
                 <input
                     type="number"
                     name="cantidad[]"
-                    step="0.001"
+                    step="0.0001"
                     min="0"
                     data-cantidad-raw="${escapeAttr(serializarCantidadRawLMat(item.cantidad))}"
                     class="lmat-cantidad-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                     value="${formatearCantidadLMat(item.cantidad)}"
                 >
             </td>
-            <td class="lmat-porcentaje-cell px-3 py-2 text-right tabular-nums text-gray-900">${item.porcentaje}</td>
+            <td class="px-3 py-2">
+                <input
+                    type="number"
+                    name="porcentaje[]"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="lmat-porcentaje-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                    value="${escapeAttr(formatearPorcentajeLMat(item.porcentaje))}"
+                >
+            </td>
         </tr>
     `).join('');
 
@@ -1149,8 +1173,8 @@ async function openLMatModal(context = {}) {
                         <tfoot class="bg-gray-50 font-semibold">
                             <tr>
                                 <td class="px-3 py-2" colspan="8"></td>
-                                <td id="lmat-total-cantidad" class="px-3 py-2 text-right tabular-nums">${totalCantidad.toFixed(3)}</td>
-                                <td id="lmat-total-porcentaje" class="px-3 py-2 text-right tabular-nums ${totalPorcentajeClass}">${totalPorcentajeRedondeado.toFixed(1)}%</td>
+                                <td id="lmat-total-cantidad" class="px-3 py-2 text-right tabular-nums">${totalCantidad.toFixed(4)}</td>
+                                <td id="lmat-total-porcentaje" class="px-3 py-2 text-right tabular-nums ${totalPorcentajeClass}">${totalPorcentajeRedondeado.toFixed(2)}%</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -1197,7 +1221,7 @@ async function openLMatModal(context = {}) {
                 const totalCell = document.getElementById('lmat-total-porcentaje');
                 const texto = (totalCell?.textContent || '0').replace('%', '').trim();
                 const n = Number(texto);
-                return Number.isFinite(n) ? Number(n.toFixed(1)) : 0;
+                return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
             };
 
             const obtenerCantidadRawLMat = (input) => {
@@ -1216,26 +1240,12 @@ async function openLMatModal(context = {}) {
                 input.dataset.cantidadInicialVisible = input.value;
             };
 
-            const recalcularPorcentajesLMat = () => {
-                // El total base = PesoCrudo / 1000, leído en vivo del input (cambia al editarlo).
-                const totalCantidadActual = (Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0) / 1000;
-                const totalCantidadCell = document.getElementById('lmat-total-cantidad');
-                if (totalCantidadCell) totalCantidadCell.textContent = totalCantidadActual.toFixed(3);
-
-                let totalPorcentajeActual = 0;
-                document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
-                    const cantidad = obtenerCantidadRawLMat(input);
-                    const porcentaje = totalCantidadActual > 0 ? (cantidad / totalCantidadActual) * 100 : 0;
-                    totalPorcentajeActual += porcentaje;
-                    const porcentajeCell = input.closest('tr')?.querySelector('.lmat-porcentaje-cell');
-                    if (porcentajeCell) porcentajeCell.textContent = porcentaje.toFixed(1) + '%';
-                });
-
+            const actualizarTotalPorcentajeLMat = (totalPorcentaje) => {
                 const totalCell = document.getElementById('lmat-total-porcentaje');
+                const totalRedondeado = Number(totalPorcentaje.toFixed(2));
+                totalPorcentajeActualLMat = totalRedondeado;
                 if (totalCell) {
-                    const totalRedondeado = Number(totalPorcentajeActual.toFixed(1));
-                    totalPorcentajeActualLMat = totalRedondeado;
-                    totalCell.textContent = totalRedondeado.toFixed(1) + '%';
+                    totalCell.textContent = totalRedondeado.toFixed(2) + '%';
                     totalCell.classList.remove(...clasesPorcentajeTotal);
                     totalCell.classList.add(...(
                         totalRedondeado === 100
@@ -1244,6 +1254,24 @@ async function openLMatModal(context = {}) {
                     ));
                 }
                 if (onPorcentajeActualizadoLMat) onPorcentajeActualizadoLMat();
+            };
+
+            const recalcularPorcentajesLMat = () => {
+                // El total base = PesoCrudo / 1000, leído en vivo del input (cambia al editarlo).
+                const totalCantidadActual = (Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0) / 1000;
+                const totalCantidadCell = document.getElementById('lmat-total-cantidad');
+                if (totalCantidadCell) totalCantidadCell.textContent = totalCantidadActual.toFixed(4);
+
+                let totalPorcentajeActual = 0;
+                document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
+                    const cantidad = obtenerCantidadRawLMat(input);
+                    const porcentaje = totalCantidadActual > 0 ? (cantidad / totalCantidadActual) * 100 : 0;
+                    totalPorcentajeActual += porcentaje;
+                    const porcentajeInput = input.closest('tr')?.querySelector('.lmat-porcentaje-input');
+                    if (porcentajeInput) porcentajeInput.value = porcentaje.toFixed(2);
+                });
+
+                actualizarTotalPorcentajeLMat(totalPorcentajeActual);
             };
 
             const recalcularCantidadesDesdePesoCrudoLMat = () => {
@@ -1258,9 +1286,9 @@ async function openLMatModal(context = {}) {
                     if (!fila) return;
                     const vals = pesoACantidadYPorcentajeLMat(pesoG, pesos.pesoCrudoTotal);
                     const input = fila.querySelector('.lmat-cantidad-input');
-                    const pct = fila.querySelector('.lmat-porcentaje-cell');
+                    const pct = fila.querySelector('.lmat-porcentaje-input');
                     asignarCantidadLMat(input, vals.cantidad);
-                    if (pct) pct.textContent = vals.porcentaje;
+                    if (pct) pct.value = formatearPorcentajeLMat(vals.porcentaje);
                 };
                 aplicar('rizo', pesos.rizoG);
                 aplicar('pie', pesos.pieG);
@@ -1287,6 +1315,30 @@ async function openLMatModal(context = {}) {
                     });
                     input.addEventListener('change', () => {
                         input.value = formatearCantidadLMat(obtenerCantidadRawLMat(input));
+                    });
+                });
+            };
+
+            const conectarInputsPorcentajeLMat = () => {
+                document.querySelectorAll('.lmat-porcentaje-input').forEach((input) => {
+                    if (input.dataset.lmatConnected === '1') return;
+                    input.dataset.lmatConnected = '1';
+                    input.addEventListener('input', () => {
+                        const porcentaje = Number(String(input.value || '0').replace(',', '.'));
+                        const porcentajeValido = Number.isFinite(porcentaje) && porcentaje >= 0 ? porcentaje : 0;
+                        const totalCantidad = (Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0) / 1000;
+                        const cantidadInput = input.closest('tr')?.querySelector('.lmat-cantidad-input');
+                        asignarCantidadLMat(cantidadInput, totalCantidad * (porcentajeValido / 100));
+
+                        const totalPorcentaje = Array.from(document.querySelectorAll('.lmat-porcentaje-input'))
+                            .reduce((total, porcentajeInput) => {
+                                const valor = Number(String(porcentajeInput.value || '0').replace(',', '.'));
+                                return total + (Number.isFinite(valor) && valor >= 0 ? valor : 0);
+                            }, 0);
+                        actualizarTotalPorcentajeLMat(totalPorcentaje);
+                    });
+                    input.addEventListener('change', () => {
+                        input.value = formatearPorcentajeLMat(input.value);
                     });
                 });
             };
@@ -1538,6 +1590,7 @@ async function openLMatModal(context = {}) {
             });
 
             conectarInputsCantidadLMat();
+            conectarInputsPorcentajeLMat();
             conectarSelectsSalidaMatrizLMat();
             // conectarQuitarFilasLMat(); // Columna Acción oculta
             recalcularPorcentajesLMat();
@@ -1602,6 +1655,7 @@ async function openLMatModal(context = {}) {
                 }
                 tbodyLMat.insertAdjacentHTML('beforeend', renderFilaEditableLMat());
                 conectarInputsCantidadLMat();
+                conectarInputsPorcentajeLMat();
                 conectarSelectsSalidaMatrizLMat();
                 // conectarQuitarFilasLMat(); // Columna Acción oculta
                 recalcularPorcentajesLMat();
@@ -1756,7 +1810,7 @@ async function openLMatModal(context = {}) {
                         nombreColor: fila.querySelector('.lmat-nombre-color-input')?.value || '',
                         inventLocationId: almacenVal,
                         qty,
-                        porcentaje: parseFloat((fila.querySelector('.lmat-porcentaje-cell')?.textContent || '0').replace('%', '')) || 0,
+                        porcentaje: parseFloat(fila.querySelector('.lmat-porcentaje-input')?.value || '0') || 0,
                         matrizTipo: fila.dataset.matrizTipo || null,
                         matrizCalibre: fila.dataset.matrizCalibre || null,
                         matrizFibraId: fila.dataset.matrizFibraId || null,
