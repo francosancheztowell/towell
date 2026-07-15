@@ -79,7 +79,7 @@ class AtaDevolucionesController extends Controller
         ]);
 
         try {
-            $fechaMinima = Carbon::now('America/Mexico_City')->subDays(20)->startOfDay();
+            $fechaMinima = Carbon::now('America/Mexico_City')->subDays(30)->startOfDay();
             $query = AtaMontadoTelasModel::where('NoTelarId', $data['telar'])
                 ->whereIn('Estatus', self::JULIO_ESTATUS_FINALIZADOS)
                 ->where('Fecha', '>=', $fechaMinima->toDateString());
