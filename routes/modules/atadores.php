@@ -36,6 +36,7 @@ Route::prefix('atadores')->name('atadores.')->group(function () {
     Route::post('/devoluciones', [AtaDevolucionesController::class, 'store'])->name('devoluciones.store');
     Route::get('/devoluciones/ubicaciones', [AtaDevolucionesController::class, 'ubicaciones'])->name('devoluciones.ubicaciones');
     Route::get('/devoluciones/julios', [AtaDevolucionesController::class, 'julios'])->name('devoluciones.julios');
+    Route::get('/devoluciones/disponibilidad', [AtaDevolucionesController::class, 'disponibilidad'])->name('devoluciones.disponibilidad');
 });
 
 Route::get('/produccionProceso/atadores', [AtadoresController::class, 'index'])->name('atadores.produccion');

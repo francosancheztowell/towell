@@ -2,17 +2,21 @@
 
 namespace App\Models\Atadores;
 
-use App\Models\Atadores\AtaMontadoTelasModel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AtaDevolucionesModel extends Model
 {
     protected $table = 'AtaDevoluciones';
+
     protected $connection = 'sqlsrv';
+
     public $timestamps = false;
+
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     protected $fillable = [
@@ -35,12 +39,14 @@ class AtaDevolucionesModel extends Model
         'Estatus',
         'NoTelarId',
         'LoteOriginal',
+        'InvTelasReservadaId',
     ];
 
     protected $casts = [
         'RefId' => 'integer',
         'Kilos' => 'float',
         'Metros' => 'float',
+        'InvTelasReservadaId' => 'integer',
         'FechaDevol' => 'date',
         // 'Integrer' => 'integer',
     ];

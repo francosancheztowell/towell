@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Atadores\ProgramaAtadores;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaDevolucionesModel;
 use App\Models\Atadores\AtaMontadoTelasModel;
+use App\Models\Inventario\InvTelasReservadas;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class AtaDevolucionesController extends Controller
 {
@@ -19,6 +21,7 @@ class AtaDevolucionesController extends Controller
      * combo de Ubicación en el panel de Devolución.
      */
     private const UBICACION_INVENT_LOCATION_ID = 'A-JUL/TELA';
+
     private const UBICACION_DATA_AREA_ID = 'PRO';
 
     /**
@@ -81,11 +84,11 @@ class AtaDevolucionesController extends Controller
                 ->whereIn('Estatus', self::JULIO_ESTATUS_FINALIZADOS)
                 ->where('Fecha', '>=', $fechaMinima->toDateString());
 
-            if (!empty($data['tipo'])) {
+            if (! empty($data['tipo'])) {
                 $query->where('Tipo', $data['tipo']);
             }
 
-            if (!empty($data['exclude_id'])) {
+            if (! empty($data['exclude_id'])) {
                 $query->where('Id', '!=', $data['exclude_id']);
             }
 
@@ -145,6 +148,41 @@ class AtaDevolucionesController extends Controller
     }
 
     /**
+     * Devuelve los límites que aún pueden capturarse para la devolución de un
+     * julio. La reserva es la fuente de entrada; las devoluciones anteriores
+     * del mismo origen se descuentan para impedir excedentes acumulados.
+     */
+    public function disponibilidad(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ref_id' => ['nullable', 'integer'],
+            'telar' => ['required', 'string', 'max:10'],
+            'no_julio' => ['required', 'string', 'max:20'],
+            'tipo' => ['required', 'string', 'max:20'],
+        ]);
+
+        $reserva = $this->buscarReservaOrigen($data);
+        if (! $reserva) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se encontró la entrada de inventario para el Telar, Julio y Tipo seleccionados.',
+            ], 422);
+        }
+
+        $devolucionActualId = null;
+        if (! empty($data['ref_id'])) {
+            $devolucionActualId = AtaDevolucionesModel::where('RefId', $data['ref_id'])
+                ->orderByDesc('Id')
+                ->value('Id');
+        }
+
+        return response()->json([
+            'ok' => true,
+            'disponibilidad' => $this->calcularDisponibilidad($reserva, $devolucionActualId),
+        ]);
+    }
+
+    /**
      * Registra o actualiza una devolución asociada a un proceso de atado (AtaMontadoTelas).
      *
      * El registro se vincula al montado mediante RefId. NoProduccion guarda el
@@ -154,7 +192,7 @@ class AtaDevolucionesController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
         }
 
@@ -178,7 +216,7 @@ class AtaDevolucionesController extends Controller
         ]);
 
         $montado = AtaMontadoTelasModel::find($data['ref_id']);
-        if (!$montado) {
+        if (! $montado) {
             return response()->json(['ok' => false, 'message' => 'No se encontró el atado asociado a la devolución'], 404);
         }
 
@@ -191,7 +229,7 @@ class AtaDevolucionesController extends Controller
         $loteOriginal = preg_replace('/^Dev/i', '', $ordenBase) ?? '';
         $loteOriginal = trim($loteOriginal);
         $loteDev = $ordenBase !== ''
-            ? 'Dev' . $loteOriginal
+            ? 'Dev'.$loteOriginal
             : null;
         if ($loteDev !== null && strlen($loteDev) > 20) {
             return response()->json([
@@ -205,40 +243,71 @@ class AtaDevolucionesController extends Controller
         $loteOriginal = $loteOriginal !== '' ? $loteOriginal : null;
 
         try {
-            $payload = [
-                'RefId' => $montado->Id,
-                'NoTelarId' => $data['telar'] ?? $montado->NoTelarId,
-                'NoJulio' => $noJulio,
-                'NoProduccion' => $loteDev,
-                'LoteOriginal' => $loteOriginal,
-                // Siempre 0 al registrar la devolución.
-                'integer' => 0,
-                'Kilos' => $kilos,
-                'Metros' => $metros,
-                'Ubicacion' => $data['ubicacion'] ?? null,
-                'FechaDevol' => $data['fecha_devol'] ?? Carbon::now('America/Mexico_City')->toDateString(),
-                'Cuenta' => $data['cuenta'] ?? null,
-                'Calibre' => $data['calibre'] ?? null,
-                'Hilo' => $data['hilo'] ?? null,
-                'Tipo' => $data['tipo'] ?? $montado->Tipo,
-                'Obs' => $data['obs'] ?? null,
-                'ConfigId' => $data['config_id'] ?? $montado->ConfigId,
-                'InventSizeId' => $data['invent_size_id'] ?? $montado->InventSizeId,
-                'InventColorId' => $data['invent_color_id'] ?? $montado->InventColorId,
-                // El Estatus queda ligado al del atado padre (AtaMontadoTelas) desde su creación.
-                'Estatus' => $montado->Estatus ?: 'Activo',
-            ];
+            [$devolucion, $disponibilidad] = DB::connection('sqlsrv')->transaction(function () use ($data, $montado, $noJulio, $loteDev, $loteOriginal, $kilos, $metros) {
+                // El bloqueo de la reserva serializa guardados concurrentes para el mismo julio.
+                $reserva = $this->buscarReservaOrigen($data, true);
+                if (! $reserva) {
+                    throw ValidationException::withMessages([
+                        'no_julio' => ['No se encontró la entrada de inventario para el Telar, Julio y Tipo seleccionados.'],
+                    ]);
+                }
 
-            $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
-                ->orderByDesc('Id')
-                ->first();
+                $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
+                    ->orderByDesc('Id')
+                    ->first();
 
-            if ($devolucion) {
-                $devolucion->fill($payload);
-                $devolucion->save();
-            } else {
-                $devolucion = AtaDevolucionesModel::create($payload);
-            }
+                $disponibilidad = $this->calcularDisponibilidad($reserva, $devolucion?->Id);
+                if ((float) $kilos > $disponibilidad['kilos_disponibles'] + 0.0001) {
+                    throw ValidationException::withMessages([
+                        'kilos' => [sprintf('Los kilos a devolver exceden el disponible (%.4f kg).', $disponibilidad['kilos_disponibles'])],
+                    ]);
+                }
+
+                if ((float) $metros > $disponibilidad['metros_disponibles'] + 0.0001) {
+                    throw ValidationException::withMessages([
+                        'metros' => [sprintf('Los metros a devolver exceden el disponible (%.4f m).', $disponibilidad['metros_disponibles'])],
+                    ]);
+                }
+
+                $payload = [
+                    'RefId' => $montado->Id,
+                    'InvTelasReservadaId' => $reserva->Id,
+                    'NoTelarId' => $data['telar'],
+                    'NoJulio' => $noJulio,
+                    'NoProduccion' => $loteDev,
+                    'LoteOriginal' => $loteOriginal,
+                    // Siempre 0 al registrar la devolución.
+                    'integer' => 0,
+                    'Kilos' => $kilos,
+                    'Metros' => $metros,
+                    'Ubicacion' => $data['ubicacion'],
+                    'FechaDevol' => $data['fecha_devol'] ?? Carbon::now('America/Mexico_City')->toDateString(),
+                    'Cuenta' => $data['cuenta'],
+                    'Calibre' => $data['calibre'],
+                    'Hilo' => $data['hilo'],
+                    'Tipo' => $data['tipo'],
+                    'Obs' => $data['obs'] ?? null,
+                    'ConfigId' => $data['config_id'] ?? $montado->ConfigId,
+                    'InventSizeId' => $data['invent_size_id'] ?? $montado->InventSizeId,
+                    'InventColorId' => $data['invent_color_id'] ?? $montado->InventColorId,
+                    // El Estatus queda ligado al del atado padre (AtaMontadoTelas) desde su creación.
+                    'Estatus' => $montado->Estatus ?: 'Activo',
+                ];
+
+                if ($devolucion) {
+                    $devolucion->fill($payload);
+                    $devolucion->save();
+                } else {
+                    $devolucion = AtaDevolucionesModel::create($payload);
+                }
+
+                return [$devolucion, $disponibilidad];
+            });
+        } catch (ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => collect($e->errors())->flatten()->first() ?? 'La devolución excede el inventario disponible.',
+            ], 422);
         } catch (\Throwable $e) {
             Log::error('Error al registrar devolución de atadores', [
                 'ref_id' => $montado->Id,
@@ -249,7 +318,7 @@ class AtaDevolucionesController extends Controller
 
             return response()->json([
                 'ok' => false,
-                'message' => 'No se pudo registrar la devolución: ' . $e->getMessage(),
+                'message' => 'No se pudo registrar la devolución: '.$e->getMessage(),
             ], 500);
         }
 
@@ -257,6 +326,93 @@ class AtaDevolucionesController extends Controller
             'ok' => true,
             'message' => 'Devolución guardada correctamente',
             'id' => $devolucion->Id,
+            'disponibilidad' => $disponibilidad,
         ]);
+    }
+
+    /**
+     * Localiza la entrada original. El NoJulio de AtaMontadoTelas puede ser
+     * distinto del InventSerialId del inventario (por ejemplo, un julio de
+     * proceso contra el serial físico). Por ello se intenta primero el serial
+     * exacto y, si no coincide, la reserva activa del mismo Telar y Tipo.
+     */
+    private function buscarReservaOrigen(array $data, bool $bloquear = false): ?InvTelasReservadas
+    {
+        $telar = trim((string) ($data['telar'] ?? ''));
+        $julio = trim((string) ($data['no_julio'] ?? ''));
+        $tipo = mb_strtolower(trim((string) ($data['tipo'] ?? '')), 'UTF-8');
+
+        $query = InvTelasReservadas::query()
+            ->where('NoTelarId', $telar)
+            ->whereRaw('LOWER(LTRIM(RTRIM(Tipo))) = ?', [$tipo]);
+
+        if ($bloquear) {
+            $query->lockForUpdate();
+        }
+
+        // En instalaciones donde NoJulio e InventSerialId sí son iguales,
+        // mantener esa coincidencia como la opción más precisa.
+        $porSerial = (clone $query)
+            ->where('InventSerialId', $julio)
+            ->where('Status', 'Reservado')
+            ->orderByDesc('Id')
+            ->first()
+            ?? (clone $query)
+                ->where('InventSerialId', $julio)
+                ->orderByDesc('Id')
+                ->first();
+
+        if ($porSerial) {
+            return $porSerial;
+        }
+
+        // En el flujo de atadores, el Julio mostrado puede ser el de proceso;
+        // la entrada física se identifica por la reserva activa del Telar/Tipo.
+        return (clone $query)
+            ->where('Status', 'Reservado')
+            ->orderByDesc('Id')
+            ->first()
+            ?? $query->orderByDesc('Id')->first();
+    }
+
+    /**
+     * Calcula lo que queda disponible. Incluye devoluciones antiguas sin FK
+     * para que los registros existentes con InvTelasReservadaId = NULL también
+     * cuenten contra el límite.
+     */
+    private function calcularDisponibilidad(InvTelasReservadas $reserva, ?int $excluirDevolucionId = null): array
+    {
+        $tipo = mb_strtolower(trim((string) $reserva->Tipo), 'UTF-8');
+
+        $devoluciones = AtaDevolucionesModel::query()
+            ->where(function ($query) use ($reserva, $tipo) {
+                $query->where('InvTelasReservadaId', $reserva->Id)
+                    ->orWhere(function ($legacy) use ($reserva, $tipo) {
+                        $legacy->whereNull('InvTelasReservadaId')
+                            ->where('NoTelarId', $reserva->NoTelarId)
+                            ->where('NoJulio', $reserva->InventSerialId)
+                            ->whereRaw('LOWER(LTRIM(RTRIM(Tipo))) = ?', [$tipo]);
+                    });
+            });
+
+        if ($excluirDevolucionId) {
+            $devoluciones->where('Id', '!=', $excluirDevolucionId);
+        }
+
+        $kilosDevueltos = (float) (clone $devoluciones)->sum('Kilos');
+        $metrosDevueltos = (float) $devoluciones->sum('Metros');
+        $kilosIngresados = (float) $reserva->InventQty;
+        $metrosIngresados = (float) $reserva->Metros;
+
+        return [
+            'inv_telas_reservada_id' => (int) $reserva->Id,
+            'invent_serial_id' => trim((string) $reserva->InventSerialId),
+            'kilos_ingresados' => $kilosIngresados,
+            'metros_ingresados' => $metrosIngresados,
+            'kilos_ya_devueltos' => $kilosDevueltos,
+            'metros_ya_devueltos' => $metrosDevueltos,
+            'kilos_disponibles' => max(0, $kilosIngresados - $kilosDevueltos),
+            'metros_disponibles' => max(0, $metrosIngresados - $metrosDevueltos),
+        ];
     }
 }
