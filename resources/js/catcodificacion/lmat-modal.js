@@ -550,7 +550,7 @@ async function openLMatModal(context = {}) {
         .replace(/>/g, '&gt;');
 
     // Cálculo Excel (curvas → pesos g → % → cantidad kg):
-    // Trama/Cn = SI(P>0, ((P*(Ancho+13/TL)*curva_peine)/100)*0.59/Hilo, 0)
+    // Trama/Cn = SI(P>0, ((P*(Ancho+13)*curva_peine)/100)*0.59/Hilo, 0)
     // Pie = (((Largo+Corte)*curva_luchaje/100)*0.59/HiloPie)*1.076*(CuentaPie/TL)
     // Rizo = PesoCrudo - (Pie+Trama+C1..C5)
     // Cantidad(kg) = peso_g / 1000 ; % = peso_g / PesoCrudo
@@ -567,12 +567,12 @@ async function openLMatModal(context = {}) {
         corte: numLMat(registroSeleccionado?.MedidaPlano),
         luchaje: numLMat(registroSeleccionado?.Luchaje),
         tl: numLMat(registroSeleccionado?.NoTiras),
-        hiloPie: numLMat(registroSeleccionado?.CalibrePie),
+        hiloPie: numLMat(registroSeleccionado?.CalibrePie2),
         cuentaPie: numLMat(registroSeleccionado?.CuentaPie),
         pasadasTrama: numLMat(registroSeleccionado?.PasadasTramaFondoC1),
-        hiloTrama: numLMat(registroSeleccionado?.Tra),
+        hiloTrama: numLMat(registroSeleccionado?.CalibreTrama2),
         pasadasComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`PasadasComb${n}`])),
-        hiloComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`CalibreComb${n}`])),
+        hiloComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`CalibreComb${n}2`])),
     };
     const calcularPesosComponentesLMat = (pesoCrudoG) => {
         const pesoCrudoTotal = numLMat(pesoCrudoG);
@@ -581,7 +581,7 @@ async function openLMatModal(context = {}) {
         const curvaPeine = peine >= 50 ? 1.001 : 1.002;
         const pesoTramaCn = (pasadas, hilo) => {
             if (!(pasadas > 0) || !(hilo > 0) || !(tl > 0)) return 0;
-            return ((pasadas * (ancho + (13 / tl)) * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
+            return ((pasadas * (ancho + 13) * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
         };
         const tramaG = pesoTramaCn(pasadasTrama, hiloTrama);
         const combG = pasadasComb.map((p, i) => pesoTramaCn(p, hiloComb[i]));
@@ -812,6 +812,7 @@ async function openLMatModal(context = {}) {
                 config: String(saved.ConfigId ?? '').trim(), // Config = CatLMat (independiente de Fibra)
                 tamano: saved.InventSizeId ?? def.tamano,
                 color: saved.InventColorId ?? def.color,
+                nombreColor: saved.NombreColor ?? def.nombreColor,
                 almacen: saved.InventLocationId ?? resolverAlmacenLMat(saved.ItemId ?? def.articulo),
                 cantidad: saved.Qty != null ? Number(saved.Qty) : def.cantidad,
                 porcentaje: (saved.Porcentaje != null
@@ -830,7 +831,7 @@ async function openLMatModal(context = {}) {
                 combinacion: '',
                 items: calibreDisplayDesdeItemIdLMat(itemId),
                 pasadas: '',
-                nombreColor: '',
+                nombreColor: r.NombreColor ?? '',
                 config: String(r.ConfigId ?? '').trim(),
                 tamano: r.InventSizeId ?? '',
                 color: r.InventColorId ?? '',
@@ -972,8 +973,10 @@ async function openLMatModal(context = {}) {
                 <td class="px-3 py-2">${buildSelectLMat('articulo[]', item.articulo, opcionesSelectLMat.articulo)}</td>
                 <td class="px-3 py-2">${buildSelectLMat('tamano[]', item.tamano, opcionesSelectLMat.tamano)}</td>
                 <td class="px-3 py-2">${buildSelectLMat('config[]', item.config, opcionesSelectLMat.config)}</td>
-                <td class="px-3 py-2">${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}</td>
-                <td class="lmat-nombre-color-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(item.nombreColor || '')}</td>
+                <td class="px-3 py-2">
+                    ${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}
+                    <input type="hidden" class="lmat-nombre-color-input" value="${escapeAttr(item.nombreColor || '')}">
+                </td>
                 <td class="lmat-almacen-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
                 <td class="px-3 py-2">
                     <input
@@ -999,8 +1002,10 @@ async function openLMatModal(context = {}) {
             <td class="px-3 py-2">${renderPlanoOSelectLMat(item, 'articulo', 'articulo[]', opcionesSelectLMat.articulo)}</td>
             <td class="px-3 py-2">${renderTamanoLMat(item)}</td>
             <td class="px-3 py-2">${renderConfigLMat(item)}</td>
-            <td class="px-3 py-2">${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}</td>
-            <td class="lmat-nombre-color-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(item.nombreColor || '')}</td>
+            <td class="px-3 py-2">
+                ${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}
+                <input type="hidden" class="lmat-nombre-color-input" value="${escapeAttr(item.nombreColor || '')}">
+            </td>
             <td class="lmat-almacen-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
             <td class="px-3 py-2">
                 <input
@@ -1100,8 +1105,7 @@ async function openLMatModal(context = {}) {
                                 <th class="px-3 py-2 text-left font-semibold">Articulos</th>
                                 <th class="px-3 py-2 text-left font-semibold">Tamaño</th>
                                 <th class="px-3 py-2 text-left font-semibold">Config</th>
-                                <th class="px-3 py-2 text-center font-semibold">Color</th>
-                                <th class="px-3 py-2 text-left font-semibold">Nombre color</th>
+                                <th class="px-3 py-2 text-left font-semibold">Color</th>
                                 <th class="px-3 py-2 text-left font-semibold">Almacen</th>
                                 <th class="px-3 py-2 text-right font-semibold">Cantidad</th>
                                 <th class="px-3 py-2 text-right font-semibold">Porcentaje</th>
@@ -1112,7 +1116,7 @@ async function openLMatModal(context = {}) {
                         </tbody>
                         <tfoot class="bg-gray-50 font-semibold">
                             <tr>
-                                <td class="px-3 py-2" colspan="9"></td>
+                                <td class="px-3 py-2" colspan="8"></td>
                                 <td id="lmat-total-cantidad" class="px-3 py-2 text-right tabular-nums">${totalCantidad.toFixed(3)}</td>
                                 <td id="lmat-total-porcentaje" class="px-3 py-2 text-right tabular-nums ${totalPorcentajeClass}">${totalPorcentajeRedondeado.toFixed(1)}%</td>
                             </tr>
@@ -1176,6 +1180,8 @@ async function openLMatModal(context = {}) {
                 const raw = Number(cantidad);
                 input.dataset.cantidadRaw = Number.isFinite(raw) && raw > 0 ? String(raw) : '0';
                 input.value = formatearCantidadLMat(raw);
+                input.dataset.cantidadInicialRaw = input.dataset.cantidadRaw;
+                input.dataset.cantidadInicialVisible = input.value;
             };
 
             const recalcularPorcentajesLMat = () => {
@@ -1235,11 +1241,16 @@ async function openLMatModal(context = {}) {
                 document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
                     input.dataset.lmatConnected = '1';
+                    input.dataset.cantidadInicialRaw = input.dataset.cantidadRaw || '0';
+                    input.dataset.cantidadInicialVisible = input.value;
                     input.addEventListener('input', () => {
                         const cantidadEditada = Number(String(input.value || '0').replace(',', '.'));
-                        input.dataset.cantidadRaw = Number.isFinite(cantidadEditada) && cantidadEditada > 0
-                            ? String(cantidadEditada)
-                            : '0';
+                        const regresoAlValorInicial = input.value === input.dataset.cantidadInicialVisible;
+                        input.dataset.cantidadRaw = regresoAlValorInicial
+                            ? input.dataset.cantidadInicialRaw
+                            : (Number.isFinite(cantidadEditada) && cantidadEditada > 0
+                                ? String(cantidadEditada)
+                                : '0');
                         recalcularPorcentajesLMat();
                     });
                     input.addEventListener('change', () => {
@@ -1273,12 +1284,13 @@ async function openLMatModal(context = {}) {
             // Nombre color = InventColor.Name del GET AX filtrado por ItemId (columna Artículos)
             // y el InventColorId elegido en columna Color.
             const actualizarNombreColorFilaLMat = (fila, coloresLista, inventColorId = null) => {
-                const cell = fila?.querySelector('.lmat-nombre-color-cell');
-                if (!cell) return;
+                const input = fila?.querySelector('.lmat-nombre-color-input');
+                if (!input) return;
                 const colorId = inventColorId !== null && inventColorId !== undefined
                     ? inventColorId
                     : (fila.querySelector('select[name="color[]"]')?.value || '');
-                cell.textContent = LMatMateriales.nombreColorPorId(coloresLista, colorId);
+                const nombre = LMatMateriales.nombreColorPorId(coloresLista, colorId);
+                if (nombre || !String(colorId || '').trim()) input.value = nombre;
             };
 
             const itemIdDeFilaLMat = (fila) => (
@@ -1302,14 +1314,42 @@ async function openLMatModal(context = {}) {
                 const nombre = await LMatMateriales.getNombreColor(itemId, inventColorId);
                 if (fila.dataset.nombreColorSolicitud !== solicitud) return;
 
-                const cell = fila.querySelector('.lmat-nombre-color-cell');
-                if (cell) cell.textContent = nombre;
+                const input = fila.querySelector('.lmat-nombre-color-input');
+                if (input && nombre) input.value = nombre;
             };
 
-            /** Rellena select Color desde AX; si solo hay 1 color, lo selecciona y resuelve Nombre color. */
+            const inicializarColorBuscableLMat = (fila, colorSelect) => {
+                const jq = window.jQuery;
+                if (!jq?.fn?.select2 || !colorSelect) return;
+
+                const $select = jq(colorSelect);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                }
+
+                $select.select2({
+                    dropdownParent: jq(Swal.getPopup()),
+                    width: '100%',
+                    placeholder: 'Escribe código o nombre',
+                    allowClear: true,
+                    minimumResultsForSearch: 0,
+                });
+                $select.off('change.lmatColor').on('change.lmatColor', () => {
+                    actualizarNombreColorPorSeleccionLMat(fila);
+                    sincronizarSalidaMatrizLMat(fila, 'color[]', colorSelect.value);
+                });
+            };
+
+            /** Rellena Color desde AX como "código — nombre"; si solo hay 1, lo selecciona. */
             const aplicarColoresAxFilaLMat = (fila, coloresLista, colorPreferido = null) => {
                 const colorSelect = fila?.querySelector('select[name="color[]"]');
                 if (!colorSelect) return;
+
+                const jq = window.jQuery;
+                const $colorSelect = jq ? jq(colorSelect) : null;
+                if ($colorSelect?.hasClass('select2-hidden-accessible')) {
+                    $colorSelect.select2('destroy');
+                }
 
                 const ids = LMatMateriales.idsColores(coloresLista);
                 let preferido = colorPreferido !== null && colorPreferido !== undefined
@@ -1322,6 +1362,12 @@ async function openLMatModal(context = {}) {
                 }
 
                 setSelectOptionsLMat(colorSelect, ids, preferido);
+                Array.from(colorSelect.options).forEach((option) => {
+                    const id = String(option.value || '').trim();
+                    if (!id) return;
+                    const nombre = LMatMateriales.nombreColorPorId(coloresLista, id);
+                    option.textContent = nombre ? `${id} — ${nombre}` : id;
+                });
 
                 const opcionesNoVacias = Array.from(colorSelect.options)
                     .map((o) => String(o.value || '').trim())
@@ -1331,6 +1377,7 @@ async function openLMatModal(context = {}) {
                 }
 
                 actualizarNombreColorFilaLMat(fila, coloresLista, colorSelect.value);
+                inicializarColorBuscableLMat(fila, colorSelect);
                 actualizarNombreColorPorSeleccionLMat(fila);
             };
 
@@ -1379,6 +1426,10 @@ async function openLMatModal(context = {}) {
                     select.add(new Option(normalizado, normalizado));
                 }
                 select.value = normalizado;
+                const jq = window.jQuery;
+                if (jq && jq(select).hasClass('select2-hidden-accessible')) {
+                    jq(select).trigger('change.select2');
+                }
             };
 
             const sincronizarSalidaMatrizLMat = (filaOrigen, nombreCampo, valor) => {
@@ -1404,11 +1455,27 @@ async function openLMatModal(context = {}) {
                 document.querySelectorAll('select[name="articulo[]"]').forEach((sel) => {
                     if (sel.dataset.lmatConnected === '1') return;
                     sel.dataset.lmatConnected = '1';
-                    sel.addEventListener('change', () => {
+
+                    const manejarCambioArticulo = () => {
                         const fila = sel.closest('tr');
                         sincronizarSalidaMatrizLMat(fila, 'articulo[]', sel.value);
                         cargarTamanoYColorLMat(sel);
-                    });
+                    };
+
+                    const jq = window.jQuery;
+                    if (jq?.fn?.select2) {
+                        const $select = jq(sel);
+                        $select.select2({
+                            dropdownParent: jq(Swal.getPopup()),
+                            width: '100%',
+                            placeholder: 'Escribe para buscar artículo',
+                            allowClear: true,
+                            minimumResultsForSearch: 0,
+                        });
+                        $select.off('change.lmatArticulo').on('change.lmatArticulo', manejarCambioArticulo);
+                    } else {
+                        sel.addEventListener('change', manejarCambioArticulo);
+                    }
                 });
             };
 
@@ -1652,6 +1719,7 @@ async function openLMatModal(context = {}) {
                         configId: configVal,
                         inventSizeId: normalizarInventSizeIdLMat(fila.querySelector('select[name="tamano[]"]')?.value || ''),
                         inventColorId: fila.querySelector('select[name="color[]"]')?.value || '',
+                        nombreColor: fila.querySelector('.lmat-nombre-color-input')?.value || '',
                         inventLocationId: almacenVal,
                         qty,
                         porcentaje: parseFloat((fila.querySelector('.lmat-porcentaje-cell')?.textContent || '0').replace('%', '')) || 0,

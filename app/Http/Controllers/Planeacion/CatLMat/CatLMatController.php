@@ -78,6 +78,7 @@ class CatLMatController extends Controller
             'filas.*.configId' => 'required|string|max:60',
             'filas.*.inventSizeId' => 'nullable|string|max:60',
             'filas.*.inventColorId' => 'nullable|string|max:60',
+            'filas.*.nombreColor' => 'nullable|string|max:60',
             'filas.*.inventLocationId' => 'nullable|string|max:60',
             'filas.*.qty' => 'required|numeric|gt:0',
             'filas.*.porcentaje' => 'nullable|numeric',
@@ -159,6 +160,7 @@ class CatLMatController extends Controller
                         str_replace(' - ', '-', trim((string) ($f['inventSizeId'] ?? ''))),
                     ) ?? '';
                     $inventColorId = trim((string) ($f['inventColorId'] ?? ''));
+                    $nombreColor = trim((string) ($f['nombreColor'] ?? ''));
                     $inventLocationId = trim((string) ($f['inventLocationId'] ?? ''));
 
                     CatLMat::create([
@@ -178,6 +180,9 @@ class CatLMatController extends Controller
                             : null,
                         'InventColorId' => $inventColorId !== ''
                             ? StringTruncator::truncateToLength($inventColorId, 60)
+                            : null,
+                        'NombreColor' => $nombreColor !== ''
+                            ? StringTruncator::truncateToLength($nombreColor, 60)
                             : null,
                         'InventLocationId' => $inventLocationId !== ''
                             ? StringTruncator::truncateToLength($inventLocationId, 60)
