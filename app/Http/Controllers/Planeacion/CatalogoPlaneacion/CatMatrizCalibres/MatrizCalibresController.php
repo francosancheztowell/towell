@@ -208,6 +208,40 @@ final class MatrizCalibresController extends Controller
         ]);
     }
 
+    public function lookupBatch(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'claves' => ['required', 'array', 'min:1', 'max:10'],
+            'claves.*.key' => ['required', 'string', 'max:255', 'distinct'],
+            'claves.*.tipo' => ['required', 'string', Rule::in(MatrizCalibreClave::TIPOS)],
+            'claves.*.calibre' => ['nullable', 'numeric', 'gt:0'],
+            'claves.*.fibraId' => ['nullable', 'string', 'max:60'],
+            'claves.*.cuenta' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $claves = [];
+        foreach ($validated['claves'] as $index => $data) {
+            $clave = MatrizCalibreClave::tryFromArray($data);
+            if ($clave === null) {
+                throw ValidationException::withMessages([
+                    "claves.$index" => 'La clave de Matriz de Calibres está incompleta o no es válida.',
+                ]);
+            }
+            $claves[] = $clave;
+        }
+
+        $registros = $this->matrizCalibres->buscarMultiples($claves);
+        $data = [];
+        foreach ($validated['claves'] as $index => $entrada) {
+            $data[$entrada['key']] = $registros[$index] ?? null;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */

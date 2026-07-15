@@ -8,6 +8,7 @@ use App\Models\Planeacion\Catalogos\CatMatrizCalibres;
 use App\ValueObjects\Planeacion\MatrizCalibreClave;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 
 final class MatrizCalibresService
 {
@@ -18,6 +19,35 @@ final class MatrizCalibresService
         return $this->queryPorClave($clave)
             ->orderByDesc('Id')
             ->first();
+    }
+
+    /**
+     * Resuelve varias claves con una sola consulta a CatMatrizCalibres.
+     *
+     * @param  list<MatrizCalibreClave>  $claves
+     * @return list<CatMatrizCalibres|null>
+     */
+    public function buscarMultiples(array $claves): array
+    {
+        if ($claves === []) {
+            return [];
+        }
+
+        $registros = CatMatrizCalibres::query()
+            ->where(function (Builder $query) use ($claves): void {
+                foreach ($claves as $clave) {
+                    $query->orWhere(function (Builder $candidato) use ($clave): void {
+                        $this->aplicarClave($candidato, $clave);
+                    });
+                }
+            })
+            ->orderByDesc('Id')
+            ->get();
+
+        return array_map(
+            fn (MatrizCalibreClave $clave): ?CatMatrizCalibres => $this->encontrarCoincidencia($registros, $clave),
+            $claves,
+        );
     }
 
     /**
@@ -93,8 +123,12 @@ final class MatrizCalibresService
 
     private function queryPorClave(MatrizCalibreClave $clave): Builder
     {
-        $query = CatMatrizCalibres::query()
-            ->where('Tipo', $clave->tipo);
+        return $this->aplicarClave(CatMatrizCalibres::query(), $clave);
+    }
+
+    private function aplicarClave(Builder $query, MatrizCalibreClave $clave): Builder
+    {
+        $query->where('Tipo', $clave->tipo);
 
         $query = $clave->calibre === null
             ? $query->whereNull('Calibre')
@@ -110,6 +144,31 @@ final class MatrizCalibresService
         return $clave->cuenta === null
             ? $query->whereNull('Cuenta')
             : $query->where('Cuenta', $clave->cuenta);
+    }
+
+    /**
+     * @param  Collection<int, CatMatrizCalibres>  $registros
+     */
+    private function encontrarCoincidencia(Collection $registros, MatrizCalibreClave $clave): ?CatMatrizCalibres
+    {
+        return $registros->first(function (CatMatrizCalibres $registro) use ($clave): bool {
+            $calibre = $registro->Calibre !== null ? (float) $registro->Calibre : null;
+            $calibreCoincide = $clave->calibre === null
+                ? $calibre === null
+                : $calibre !== null && abs($calibre - $clave->calibre) <= self::TOLERANCIA_CALIBRE;
+
+            return mb_strtoupper(trim((string) $registro->Tipo), 'UTF-8') === $clave->tipo
+                && $calibreCoincide
+                && $this->textoNormalizado($registro->FibraId) === $clave->fibraId
+                && $this->textoNormalizado($registro->Cuenta) === $clave->cuenta;
+        });
+    }
+
+    private function textoNormalizado(mixed $value): ?string
+    {
+        $texto = mb_strtoupper(trim((string) ($value ?? '')), 'UTF-8');
+
+        return $texto !== '' ? $texto : null;
     }
 
     /**

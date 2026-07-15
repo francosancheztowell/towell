@@ -20,7 +20,7 @@ class CatLMat extends Model
     public const COLUMNS = [
         'Id', 'Orden', 'Salon', 'Nombre', 'Descrip', 'PesoCrudo', 'ItemId', 'ConfigId',
         'InventSizeId', 'InventColorId', 'InventLocationId', 'Qty', 'Porcentaje',
-        'ItemIdCrudo', 'InventSizeCrudo',
+        'ItemIdCrudo', 'InventSizeCrudo', 'Luchaje', 'CodigoDibujo',
         'FechaRegistro', 'HoraRegistro', 'UsuarioRegistro',
     ];
 
@@ -30,6 +30,7 @@ class CatLMat extends Model
         'Id' => 'integer',
         'Qty' => 'float',
         'Porcentaje' => 'float',
+        'Luchaje' => 'integer',
         'FechaRegistro' => 'date',
         'HoraRegistro' => 'string',
         'UsuarioRegistro' => 'string',

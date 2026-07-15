@@ -98,10 +98,12 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
 
     Route::get('/lmat/api/calibres', [CatLMatController::class, 'getCalibres'])->name('lmat.calibres');
     Route::get('/lmat/api/matriz-calibre', [MatrizCalibresController::class, 'lookup'])->name('lmat.matriz-calibre');
+    Route::post('/lmat/api/matriz-calibre/lote', [MatrizCalibresController::class, 'lookupBatch'])->name('lmat.matriz-calibre.lote');
     Route::get('/lmat/api/existe', [CatLMatController::class, 'existeLmat'])->name('lmat.existe');
     Route::get('/lmat/api/configs', [CatLMatController::class, 'getConfigs'])->name('lmat.configs');
     Route::get('/lmat/api/tamanos', [CatLMatController::class, 'getTamanos'])->name('lmat.tamanos');
     Route::get('/lmat/api/colores', [CatLMatController::class, 'getColores'])->name('lmat.colores');
+    Route::get('/lmat/api/catalogos-materiales', [CatLMatController::class, 'getCatalogosMateriales'])->name('lmat.catalogos-materiales');
     Route::get('/lmat/api/por-orden/{orden}', [CatLMatController::class, 'getLmatPorOrden'])->name('lmat.por-orden');
     Route::post('/lmat/api/guardar', [CatLMatController::class, 'guardarLmat'])->name('lmat.guardar');
 

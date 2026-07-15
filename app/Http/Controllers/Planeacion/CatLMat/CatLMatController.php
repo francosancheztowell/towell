@@ -8,6 +8,7 @@ use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\CatLMat;
+use App\Services\Planeacion\CatalogosMaterialesLMatService;
 use App\Services\Planeacion\MatrizCalibresService;
 use App\ValueObjects\Planeacion\MatrizCalibreClave;
 use Carbon\Carbon;
@@ -32,6 +33,7 @@ class CatLMatController extends Controller
 
     public function __construct(
         private readonly MatrizCalibresService $matrizCalibres,
+        private readonly CatalogosMaterialesLMatService $catalogosMateriales,
     ) {}
 
     /**
@@ -69,18 +71,28 @@ class CatLMatController extends Controller
             'pesoCrudo' => 'nullable|string|max:60',
             'itemIdCrudo' => 'nullable|string|max:60',
             'inventSizeCrudo' => 'nullable|string|max:60',
-            'filas' => 'nullable|array',
-            'filas.*.itemId' => 'nullable|string|max:60',
-            'filas.*.configId' => 'nullable|string|max:60',
+            'luchaje' => 'nullable|integer',
+            'codigoDibujo' => 'nullable|string|max:30',
+            'filas' => 'required|array|min:1',
+            'filas.*.itemId' => 'required|string|max:60',
+            'filas.*.configId' => 'required|string|max:60',
             'filas.*.inventSizeId' => 'nullable|string|max:60',
             'filas.*.inventColorId' => 'nullable|string|max:60',
             'filas.*.inventLocationId' => 'nullable|string|max:60',
-            'filas.*.qty' => 'nullable|numeric',
+            'filas.*.qty' => 'required|numeric|gt:0',
             'filas.*.porcentaje' => 'nullable|numeric',
             'filas.*.matrizTipo' => 'nullable|string|max:60',
             'filas.*.matrizCalibre' => 'nullable|numeric',
             'filas.*.matrizFibraId' => 'nullable|string|max:60',
             'filas.*.matrizCuenta' => 'nullable|string|max:60',
+        ], [
+            'orden.required' => 'La orden es obligatoria.',
+            'filas.required' => 'Debe enviar al menos una fila de L.Mat.',
+            'filas.min' => 'Debe enviar al menos una fila de L.Mat.',
+            'filas.*.itemId.required' => 'El artículo es obligatorio en cada línea con cantidad.',
+            'filas.*.configId.required' => 'El Config es obligatorio en cada línea con cantidad.',
+            'filas.*.qty.required' => 'La cantidad es obligatoria en cada línea.',
+            'filas.*.qty.gt' => 'La cantidad debe ser mayor a 0.',
         ]);
 
         try {
@@ -114,7 +126,19 @@ class CatLMatController extends Controller
                 if ($telarId !== '') {
                     $q->where('TelarId', $telarId);
                 }
+                $catCodificado = (clone $q)->first(['Luchaje', 'CodigoDibujo']);
                 $q->update(['BomId' => $bomIdCat, 'BomName' => $bomNameCat]);
+
+                // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados (aunque no se muestren en el modal).
+                $luchaje = array_key_exists('luchaje', $data) && $data['luchaje'] !== null
+                    ? (int) $data['luchaje']
+                    : ($catCodificado?->Luchaje !== null ? (int) $catCodificado->Luchaje : null);
+                $codigoDibujoRaw = isset($data['codigoDibujo']) && trim((string) $data['codigoDibujo']) !== ''
+                    ? trim((string) $data['codigoDibujo'])
+                    : trim((string) ($catCodificado?->CodigoDibujo ?? ''));
+                $codigoDibujo = $codigoDibujoRaw !== ''
+                    ? StringTruncator::truncateToLength($codigoDibujoRaw, 30)
+                    : null;
 
                 // 2) CatLMat: reemplazar filas de esa Orden.
                 CatLMat::query()->where('Orden', $orden)->delete();
@@ -125,15 +149,8 @@ class CatLMatController extends Controller
                     : null;
 
                 foreach ($data['filas'] ?? [] as $f) {
-                    $itemId = trim((string) ($f['itemId'] ?? ''));
-                    if ($itemId === '') {
-                        continue;
-                    }
-                    // No persistir filas con cantidad 0; mínimo 0.01.
-                    $qty = isset($f['qty']) ? (float) $f['qty'] : 0.0;
-                    if ($qty < 0.01) {
-                        continue;
-                    }
+                    $itemId = trim((string) $f['itemId']);
+                    $qty = (float) $f['qty'];
 
                     $configId = trim((string) ($f['configId'] ?? ''));
                     $inventSizeId = preg_replace(
@@ -169,6 +186,8 @@ class CatLMatController extends Controller
                         'Porcentaje' => isset($f['porcentaje']) ? (float) $f['porcentaje'] : null,
                         'ItemIdCrudo' => $itemIdCrudo,
                         'InventSizeCrudo' => $inventSizeCrudo,
+                        'Luchaje' => $luchaje,
+                        'CodigoDibujo' => $codigoDibujo,
                         'FechaRegistro' => $now->toDateString(),
                         'HoraRegistro' => $now->format('H:i:s'),
                         'UsuarioRegistro' => $usuarioRegistro,
@@ -300,23 +319,52 @@ class CatLMatController extends Controller
 
     public function getColores(Request $request): JsonResponse
     {
-        $itemId = $request->query('itemId');
+        $itemId = trim((string) $request->query('itemId', ''));
         if (! $itemId) {
             return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
         }
+        $inventColorId = trim((string) $request->query('inventColorId', ''));
 
         try {
-            $colores = DB::connection('sqlsrv_ti')
+            $query = DB::connection('sqlsrv_ti')
                 ->table('InventColor')
                 ->select('InventColorId', 'Name')
                 ->where('ItemId', $itemId)
-                ->where('DATAAREAID', 'PRO')
+                ->where('DATAAREAID', 'PRO');
+
+            if ($inventColorId !== '') {
+                $query->where('InventColorId', $inventColorId);
+            }
+
+            $colores = $query
                 ->orderBy('InventColorId')
                 ->get();
 
             return response()->json(['success' => true, 'data' => $colores]);
         } catch (\Throwable $e) {
             Log::error('CatLMatController::getColores', ['exception' => $e, 'itemId' => $itemId]);
+
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getCatalogosMateriales(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'itemIds' => ['required', 'array', 'min:1', 'max:10'],
+            'itemIds.*' => ['required', 'string', 'max:60'],
+        ]);
+
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => $this->catalogosMateriales->obtener($validated['itemIds']),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('CatLMatController::getCatalogosMateriales', [
+                'exception' => $e,
+                'itemIds' => $validated['itemIds'],
+            ]);
 
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }

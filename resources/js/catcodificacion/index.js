@@ -541,6 +541,24 @@ import { openLMatModal } from './lmat-modal';
     }
 
     // El módulo L.Mat recibe únicamente el contexto necesario de esta pantalla.
+    function actualizarFilaTrasGuardarLMat({ bomId, bomName }) {
+        if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) return;
+        const registro = state.filtered[state.selectedRowIndex];
+        if (!registro) return;
+
+        registro.BomId = bomId;
+        registro.BomName = bomName;
+
+        const tbody = $('#catcodificacion-body');
+        const fila = tbody?.querySelector(`tr[data-index="${state.selectedRowIndex}"]`);
+        if (!fila) return;
+
+        const celdaBomId = fila.querySelector('td[data-column="BomId"]');
+        const celdaBomName = fila.querySelector('td[data-column="BomName"]');
+        if (celdaBomId) celdaBomId.textContent = bomId;
+        if (celdaBomName) celdaBomName.textContent = bomName;
+    }
+
     function mostrarModalLMat() {
         return openLMatModal({
             fallbackToast: internalToast,
@@ -549,7 +567,7 @@ import { openLMatModal } from './lmat-modal';
                     ? state.filtered[state.selectedRowIndex]
                     : null
             ),
-            reloadData: () => loadData(true),
+            onSaved: actualizarFilaTrasGuardarLMat,
             showToast,
         });
     }

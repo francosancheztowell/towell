@@ -25,10 +25,36 @@ final class MatrizCalibresServiceTest extends TestCase
             'prefix' => '',
             'foreign_key_constraints' => true,
         ]);
+        config()->set('database.connections.sqlsrv_ti', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+        ]);
         config()->set('database.default', 'sqlsrv');
 
         DB::purge('sqlsrv');
         DB::connection('sqlsrv')->getPdo();
+        DB::purge('sqlsrv_ti');
+        DB::connection('sqlsrv_ti')->getPdo();
+
+        Schema::connection('sqlsrv_ti')->create('InventColor', function (Blueprint $table): void {
+            $table->string('ItemId', 60);
+            $table->string('InventColorId', 60);
+            $table->string('Name', 120)->nullable();
+            $table->string('DATAAREAID', 10);
+        });
+        Schema::connection('sqlsrv_ti')->create('ConfigTable', function (Blueprint $table): void {
+            $table->string('ItemId', 60);
+            $table->string('ConfigId', 60);
+            $table->string('DATAAREAID', 10);
+        });
+        Schema::connection('sqlsrv_ti')->create('InventSize', function (Blueprint $table): void {
+            $table->string('ItemId', 60);
+            $table->string('InventSizeId', 60);
+            $table->string('NAME', 120)->nullable();
+            $table->string('DATAAREAID', 10);
+        });
 
         Schema::connection('sqlsrv')->create('CatMatrizCalibres', function (Blueprint $table): void {
             $table->increments('Id');
@@ -49,6 +75,8 @@ final class MatrizCalibresServiceTest extends TestCase
             $table->string('TelarId', 60)->nullable();
             $table->string('BomId', 20)->nullable();
             $table->string('BomName', 60)->nullable();
+            $table->integer('Luchaje')->nullable();
+            $table->string('CodigoDibujo', 30)->nullable();
         });
 
         Schema::connection('sqlsrv')->create('CatLMat', function (Blueprint $table): void {
@@ -67,6 +95,8 @@ final class MatrizCalibresServiceTest extends TestCase
             $table->float('Porcentaje')->nullable();
             $table->string('ItemIdCrudo', 60)->nullable();
             $table->string('InventSizeCrudo', 60)->nullable();
+            $table->integer('Luchaje')->nullable();
+            $table->string('CodigoDibujo', 30)->nullable();
             $table->date('FechaRegistro')->nullable();
             $table->string('HoraRegistro', 20)->nullable();
             $table->string('UsuarioRegistro', 60)->nullable();
@@ -371,6 +401,136 @@ final class MatrizCalibresServiceTest extends TestCase
             'Cuenta' => '4112',
             'ItemId' => 'JU-ENG-PI-C',
         ], 'sqlsrv');
+    }
+
+    public function test_guardar_lmat_conserva_cualquier_cantidad_positiva(): void
+    {
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => 'ORD-100',
+            'TelarId' => '305',
+        ]);
+        $payload = $this->payloadLMat('ITEM-NORMAL');
+        $filaPequena = $payload['filas'][0];
+        $filaPequena['itemId'] = '600/1';
+        $filaPequena['qty'] = 0.000021947;
+        $filaPequena['matrizCalibre'] = 600.1;
+        $payload['filas'][] = $filaPequena;
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payload)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $qtyGuardada = (float) DB::connection('sqlsrv')
+            ->table('CatLMat')
+            ->where('Orden', 'ORD-100')
+            ->where('ItemId', '600/1')
+            ->value('Qty');
+
+        $this->assertEqualsWithDelta(0.000021947, $qtyGuardada, 0.000000001);
+        $this->assertSame(2, DB::connection('sqlsrv')->table('CatLMat')->count());
+        $this->assertSame(2, DB::connection('sqlsrv')->table('CatMatrizCalibres')->count());
+    }
+
+    public function test_nombre_color_se_resuelve_por_articulo_e_invent_color_id(): void
+    {
+        DB::connection('sqlsrv_ti')->table('InventColor')->insert([
+            ['ItemId' => '10/1', 'InventColorId' => '1000', 'Name' => 'HILO 10/1', 'DATAAREAID' => 'PRO'],
+            ['ItemId' => '10/1', 'InventColorId' => '2000', 'Name' => 'HILO 10/1 AZUL', 'DATAAREAID' => 'PRO'],
+            ['ItemId' => '12/1', 'InventColorId' => '2000', 'Name' => 'OTRO ARTICULO', 'DATAAREAID' => 'PRO'],
+        ]);
+
+        $this->withoutMiddleware()
+            ->getJson(route('planeacion.lmat.colores', [
+                'itemId' => '10/1',
+                'inventColorId' => '2000',
+            ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.InventColorId', '2000')
+            ->assertJsonPath('data.0.Name', 'HILO 10/1 AZUL');
+    }
+
+    public function test_catalogos_materiales_se_cargan_en_un_solo_lote_por_articulos(): void
+    {
+        DB::connection('sqlsrv_ti')->table('ConfigTable')->insert([
+            ['ItemId' => '10/1', 'ConfigId' => 'ENTERO', 'DATAAREAID' => 'PRO'],
+            ['ItemId' => '10/1', 'ConfigId' => 'HILO', 'DATAAREAID' => 'PRO'],
+            ['ItemId' => '12/1', 'ConfigId' => 'DOBLE', 'DATAAREAID' => 'PRO'],
+        ]);
+        DB::connection('sqlsrv_ti')->table('InventSize')->insert([
+            ['ItemId' => '10/1', 'InventSizeId' => 'ENTERO', 'NAME' => 'Entero', 'DATAAREAID' => 'PRO'],
+            ['ItemId' => '12/1', 'InventSizeId' => 'MEDIO', 'NAME' => 'Medio', 'DATAAREAID' => 'PRO'],
+        ]);
+        DB::connection('sqlsrv_ti')->table('InventColor')->insert([
+            ['ItemId' => '10/1', 'InventColorId' => '1000', 'Name' => 'HILO 10/1', 'DATAAREAID' => 'PRO'],
+            ['ItemId' => '12/1', 'InventColorId' => '2000', 'Name' => 'HILO 12/1 AZUL', 'DATAAREAID' => 'PRO'],
+        ]);
+
+        $response = $this->withoutMiddleware()->getJson(route('planeacion.lmat.catalogos-materiales', [
+            'itemIds' => ['10/1', '12/1'],
+        ]));
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $data = $response->json('data');
+        $this->assertSame(['ENTERO'], $data['10/1']['configs']);
+        $this->assertSame('ENTERO', $data['10/1']['tamanos'][0]['InventSizeId']);
+        $this->assertSame('HILO 12/1 AZUL', $data['12/1']['colores'][0]['Name']);
+    }
+
+    public function test_matriz_calibres_resuelve_varias_claves_en_un_solo_lote(): void
+    {
+        $claveGuardada = MatrizCalibreClave::fromArray([
+            'Tipo' => 'TRAMA',
+            'Calibre' => 10.1,
+            'FibraId' => 'PES',
+        ]);
+        $this->service->aprender($claveGuardada, $this->salida('10/1'));
+
+        $response = $this->withoutMiddleware()->postJson(route('planeacion.lmat.matriz-calibre.lote'), [
+            'claves' => [
+                ['key' => 'TRAMA|10.1|PES|', 'tipo' => 'TRAMA', 'calibre' => 10.1, 'fibraId' => 'PES', 'cuenta' => null],
+                ['key' => 'TRAMA|12.1|ALG|', 'tipo' => 'TRAMA', 'calibre' => 12.1, 'fibraId' => 'ALG', 'cuenta' => null],
+            ],
+        ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $data = $response->json('data');
+        $this->assertSame('10/1', $data['TRAMA|10.1|PES|']['ItemId']);
+        $this->assertNull($data['TRAMA|12.1|ALG|']);
+    }
+
+    public function test_guardar_lmat_rechaza_cantidad_cero_sin_hacer_guardado_parcial(): void
+    {
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => 'ORD-100',
+            'TelarId' => '305',
+        ]);
+        $payload = $this->payloadLMat('ITEM-A');
+        $payload['filas'][0]['qty'] = 0;
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('filas.0.qty');
+
+        $this->assertSame(0, DB::connection('sqlsrv')->table('CatLMat')->count());
+    }
+
+    public function test_guardar_lmat_rechaza_fila_sin_articulo_sin_hacer_guardado_parcial(): void
+    {
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => 'ORD-100',
+            'TelarId' => '305',
+        ]);
+        $payload = $this->payloadLMat('');
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('filas.0.itemId');
+
+        $this->assertSame(0, DB::connection('sqlsrv')->table('CatLMat')->count());
     }
 
     public function test_guardar_y_actualizar_lmat_tambien_actualiza_la_equivalencia_global(): void
