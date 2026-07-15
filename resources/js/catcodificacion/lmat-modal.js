@@ -1809,8 +1809,10 @@ async function openLMatModal(context = {}) {
                         inventColorId: fila.querySelector('select[name="color[]"]')?.value || '',
                         nombreColor: fila.querySelector('.lmat-nombre-color-input')?.value || '',
                         inventLocationId: almacenVal,
-                        qty,
-                        porcentaje: parseFloat(fila.querySelector('.lmat-porcentaje-input')?.value || '0') || 0,
+                        qty: Number(qty.toFixed(4)),
+                        porcentaje: Number((
+                            parseFloat(fila.querySelector('.lmat-porcentaje-input')?.value || '0') || 0
+                        ).toFixed(2)),
                         matrizTipo: fila.dataset.matrizTipo || null,
                         matrizCalibre: fila.dataset.matrizCalibre || null,
                         matrizFibraId: fila.dataset.matrizFibraId || null,

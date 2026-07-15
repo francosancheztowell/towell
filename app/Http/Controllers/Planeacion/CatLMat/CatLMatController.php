@@ -151,7 +151,10 @@ class CatLMatController extends Controller
 
                 foreach ($data['filas'] ?? [] as $f) {
                     $itemId = trim((string) $f['itemId']);
-                    $qty = (float) $f['qty'];
+                    $qty = round((float) $f['qty'], 4);
+                    $porcentaje = isset($f['porcentaje'])
+                        ? round((float) $f['porcentaje'], 2)
+                        : null;
 
                     $configId = trim((string) ($f['configId'] ?? ''));
                     $inventSizeId = preg_replace(
@@ -188,7 +191,7 @@ class CatLMatController extends Controller
                             ? StringTruncator::truncateToLength($inventLocationId, 60)
                             : null,
                         'Qty' => $qty,
-                        'Porcentaje' => isset($f['porcentaje']) ? (float) $f['porcentaje'] : null,
+                        'Porcentaje' => $porcentaje,
                         'ItemIdCrudo' => $itemIdCrudo,
                         'InventSizeCrudo' => $inventSizeCrudo,
                         'Luchaje' => $luchaje,
