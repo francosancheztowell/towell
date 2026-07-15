@@ -352,7 +352,8 @@ function setSelectOptionsLMat(selectEl, opciones, valorActual) {
 
 function parseCalibrePartsLMat(valor) {
     const s = String(valor ?? '').trim().replace(',', '.');
-    const m = s.match(/^(\d+)(?:[./](\d+))?$/);
+    // Acepta artículos AX con sufijo, por ejemplo 450/1T.
+    const m = s.match(/^(\d+)(?:[./](\d+))?[A-Za-z]*$/);
     if (!m) return null;
     const base = m[1];
     const frac = m[2] != null ? m[2] : null;
@@ -1550,9 +1551,9 @@ async function openLMatModal(context = {}) {
                     if (fila?.dataset?.preservarArticulo === '1' && sel.value) {
                         valorSeleccionado = sel.value;
                         opcionesDisponibles = Array.from(new Set([...calibresDisponibles, sel.value]));
-                    } else if (!fila?.dataset?.matrizClave && itemsVal) {
-                        // Solo filas manuales pueden inferirse por calibre. Trama/C1–C5
-                        // deben venir de CatMatrizCalibres usando Fibra + Calibre.
+                    } else if (itemsVal) {
+                        // Respaldo cuando Fibra + Calibre no existen en CatMatrizCalibres:
+                        // elegir el artículo AX de calibre exacto o más cercano de la misma base.
                         valorSeleccionado = resolverArticuloDesdeCalibres(itemsVal, calibresDisponibles);
                     } else if (sel.value && calibresDisponibles.includes(sel.value)) {
                         valorSeleccionado = sel.value;
