@@ -255,7 +255,8 @@ const LMatMateriales = (() => {
         }
 
         const equivalencia = json.found ? json.data : null;
-        matrices.set(key, equivalencia);
+        // No guardar misses: la matriz puede aprender una equivalencia al guardar L.Mat.
+        if (equivalencia) matrices.set(key, equivalencia);
         return equivalencia;
     }
 
@@ -265,22 +266,44 @@ const LMatMateriales = (() => {
         const faltantes = Array.from(unicas.entries()).filter(([key]) => !matrices.has(key));
 
         if (faltantes.length) {
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-            const resp = await fetch('/planeacion/lmat/api/matriz-calibre/lote', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
-                body: JSON.stringify({
-                    claves: faltantes.map(([key, clave]) => ({ key, ...clave })),
-                }),
-            });
-            const json = await resp.json().catch(() => ({}));
-            if (!resp.ok || json.success !== true) {
-                throw new Error(json.message || `Error ${resp.status} al consultar Matriz de Calibres`);
+            try {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const resp = await fetch('/planeacion/lmat/api/matriz-calibre/lote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
+                    body: JSON.stringify({
+                        claves: faltantes.map(([key, clave]) => ({ key, ...clave })),
+                    }),
+                });
+                const json = await resp.json().catch(() => ({}));
+                if (!resp.ok || json.success !== true) {
+                    throw new Error(json.message || `Error ${resp.status} al consultar Matriz de Calibres`);
+                }
+                faltantes.forEach(([key]) => {
+                    const equivalencia = json.data?.[key] || null;
+                    if (equivalencia) matrices.set(key, equivalencia);
+                });
+            } catch (errorLote) {
+                console.warn('Falló consulta por lote; reintentando equivalencias individualmente', errorLote);
+                let consultasExitosas = 0;
+                await Promise.all(faltantes.map(async ([key, clave]) => {
+                    try {
+                        const equivalencia = await getMatrizCalibre(clave);
+                        consultasExitosas += 1;
+                        if (equivalencia) matrices.set(key, equivalencia);
+                    } catch (errorIndividual) {
+                        console.error('Falló equivalencia individual L.Mat', { key, errorIndividual });
+                    }
+                }));
+                if (consultasExitosas === 0) throw errorLote;
             }
-            faltantes.forEach(([key]) => matrices.set(key, json.data?.[key] || null));
         }
 
         return new Map(Array.from(unicas.keys()).map((key) => [key, matrices.get(key) || null]));
+    }
+
+    function limpiarMatrices() {
+        matrices.clear();
     }
 
     return {
@@ -295,6 +318,7 @@ const LMatMateriales = (() => {
         claveMatrizKey,
         getMatrizCalibre,
         getMatricesCalibres,
+        limpiarMatrices,
     };
 })();
 
@@ -432,6 +456,9 @@ async function openLMatModal(context = {}) {
         fallbackToast('Selecciona primero una fila.', 'warning');
         return;
     }
+
+    // Consultar siempre equivalencias vigentes: guardar una L.Mat puede enseñar nuevas claves.
+    LMatMateriales.limpiarMatrices();
 
     const telarId = String(registroSeleccionado?.TelarId ?? '').trim();
     if (!telarId) {
@@ -865,7 +892,11 @@ async function openLMatModal(context = {}) {
     const opcionesSelectLMat = {
         articulo: Array.from(new Set([
             '',
-            ...articulos.filter(f => f.matrizEncontrada).map(f => f.articulo).filter(Boolean),
+            // En actualización conservar también el ItemId persistido en CatLMat.
+            ...articulos
+                .filter((f) => f.matrizEncontrada || f.desdeCatLMat)
+                .map((f) => f.articulo)
+                .filter(Boolean),
         ])),
         // Config NO incluye Fibras de CatCodificados; esas van solo en columna Fibra.
         config: Array.from(new Set([
@@ -1519,7 +1550,9 @@ async function openLMatModal(context = {}) {
                     if (fila?.dataset?.preservarArticulo === '1' && sel.value) {
                         valorSeleccionado = sel.value;
                         opcionesDisponibles = Array.from(new Set([...calibresDisponibles, sel.value]));
-                    } else if (itemsVal) {
+                    } else if (!fila?.dataset?.matrizClave && itemsVal) {
+                        // Solo filas manuales pueden inferirse por calibre. Trama/C1–C5
+                        // deben venir de CatMatrizCalibres usando Fibra + Calibre.
                         valorSeleccionado = resolverArticuloDesdeCalibres(itemsVal, calibresDisponibles);
                     } else if (sel.value && calibresDisponibles.includes(sel.value)) {
                         valorSeleccionado = sel.value;
