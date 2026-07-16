@@ -947,7 +947,6 @@ async function openLMatModal(context = {}) {
     const actLmatCheckboxHtml = esBomIdEstand
         ? `
                         <div class="flex flex-col gap-0.5 justify-end">
-                            <span class="text-xs font-semibold text-gray-700">Act L.Mat</span>
                             <label class="inline-flex min-h-[34px] items-center gap-2 cursor-pointer select-none">
                                 <input
                                     type="checkbox"
@@ -955,9 +954,8 @@ async function openLMatModal(context = {}) {
                                     class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                     ${actLmatInicial ? 'checked' : ''}
                                 >
-                                <span class="text-sm font-medium text-gray-700">Actualizar BomId (ESTAND)</span>
+                                <span class="text-sm font-medium text-gray-700">Actualizar L.Mat</span>
                             </label>
-                            <p class="text-xs text-gray-500">Si está activo, al guardar se reemplaza ESTAND por el Nombre de esta L.Mat.</p>
                         </div>
         `
         : '';
