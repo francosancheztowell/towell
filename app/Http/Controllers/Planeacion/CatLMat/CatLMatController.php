@@ -91,7 +91,7 @@ class CatLMatController extends Controller
 
     /**
      * Guarda la L.Mat del modal:
-     *  - Actualiza CatCodificados (fila seleccionada por OrdenTejido + TelarId): BomId ← nombre, BomName ← descrip.
+     *  - CatCodificados BomId/BomName solo si BomId actual es ESTAND y Act L.Mat está activo.
      *  - Reemplaza en CatLMat las filas de esa Orden (delete + insert) con las filas del modal.
      */
     public function guardarLmat(Request $request): JsonResponse
@@ -107,6 +107,7 @@ class CatLMatController extends Controller
             'inventSizeCrudo' => 'nullable|string|max:60',
             'luchaje' => 'nullable|integer',
             'codigoDibujo' => 'nullable|string|max:30',
+            'actualizaLmat' => 'sometimes|boolean',
             'filas' => 'required|array|min:1',
             'filas.*.itemId' => 'required|string|max:60',
             'filas.*.configId' => 'required|string|max:60',
@@ -130,8 +131,13 @@ class CatLMatController extends Controller
             'filas.*.qty.gt' => 'La cantidad debe ser mayor a 0.',
         ]);
 
+        $updatedBom = false;
+        $bomIdResultado = null;
+        $bomNameResultado = null;
+        $actualizaLmatResultado = null;
+
         try {
-            DB::connection('sqlsrv')->transaction(function () use ($data) {
+            DB::connection('sqlsrv')->transaction(function () use ($data, &$updatedBom, &$bomIdResultado, &$bomNameResultado, &$actualizaLmatResultado) {
                 $orden = trim($data['orden']);
                 $salon = trim((string) ($data['salon'] ?? ''));
                 $nombreRaw = $data['nombre'] !== null && $data['nombre'] !== '' ? trim($data['nombre']) : null;
@@ -155,14 +161,34 @@ class CatLMatController extends Controller
                 $inventSizeCrudo = isset($data['inventSizeCrudo']) && $data['inventSizeCrudo'] !== ''
                     ? StringTruncator::truncateToLength(trim($data['inventSizeCrudo']), 60)
                     : null;
+                $actualizaLmat = array_key_exists('actualizaLmat', $data)
+                    ? (bool) $data['actualizaLmat']
+                    : false;
 
-                // 1) CatCodificados: fila seleccionada de esa Orden (+ telar si viene).
+                // 1) CatCodificados: BomId/BomName solo si BomId actual es ESTAND y Act L.Mat activo.
                 $q = CatCodificados::query()->where('OrdenTejido', $orden);
                 if ($telarId !== '') {
                     $q->where('TelarId', $telarId);
                 }
-                $catCodificado = (clone $q)->first(['Luchaje', 'CodigoDibujo']);
-                $q->update(['BomId' => $bomIdCat, 'BomName' => $bomNameCat]);
+                $catCodificado = (clone $q)->first(['Luchaje', 'CodigoDibujo', 'BomId', 'BomName', 'ActualizaLmat']);
+                $bomIdActual = strtoupper(trim((string) ($catCodificado?->BomId ?? '')));
+                $esEstand = $bomIdActual === 'ESTAND';
+                $bomIdResultado = $catCodificado?->BomId;
+                $bomNameResultado = $catCodificado?->BomName;
+                $actualizaLmatResultado = $catCodificado?->ActualizaLmat;
+
+                if ($esEstand) {
+                    $payloadCat = ['ActualizaLmat' => $actualizaLmat];
+                    if ($actualizaLmat) {
+                        $payloadCat['BomId'] = $bomIdCat;
+                        $payloadCat['BomName'] = $bomNameCat;
+                        $updatedBom = true;
+                        $bomIdResultado = $bomIdCat;
+                        $bomNameResultado = $bomNameCat;
+                    }
+                    $q->update($payloadCat);
+                    $actualizaLmatResultado = $actualizaLmat;
+                }
 
                 // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados (aunque no se muestren en el modal).
                 $luchaje = array_key_exists('luchaje', $data) && $data['luchaje'] !== null
@@ -253,7 +279,14 @@ class CatLMatController extends Controller
                 }
             });
 
-            return response()->json(['success' => true, 'message' => 'L.Mat guardada correctamente.']);
+            return response()->json([
+                'success' => true,
+                'message' => 'L.Mat guardada correctamente.',
+                'updatedBom' => $updatedBom,
+                'bomId' => $bomIdResultado,
+                'bomName' => $bomNameResultado,
+                'actualizaLmat' => $actualizaLmatResultado,
+            ]);
         } catch (\Throwable $e) {
             Log::error('CatLMatController::guardarLmat', ['exception' => $e, 'orden' => $data['orden'] ?? null]);
 

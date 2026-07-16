@@ -926,6 +926,13 @@ async function openLMatModal(context = {}) {
         ])),
     };
     const esActualizacionLMat = Array.isArray(guardadoLMat) && guardadoLMat.length > 0;
+    const bomIdActualCat = String(registroSeleccionado?.BomId ?? '').trim();
+    const esBomIdEstand = bomIdActualCat.toUpperCase() === 'ESTAND';
+    const actLmatInicial = registroSeleccionado?.ActualizaLmat === true
+        || registroSeleccionado?.ActualizaLmat === 1
+        || registroSeleccionado?.ActualizaLmat === '1'
+        || registroSeleccionado?.ActualizaLmat === null
+        || registroSeleccionado?.ActualizaLmat === undefined;
     const nombreInputAttrsLMat = esActualizacionLMat
         ? 'readonly disabled title="El nombre no se puede cambiar al actualizar"'
         : '';
@@ -937,6 +944,23 @@ async function openLMatModal(context = {}) {
         : 'inline-flex min-w-[150px] items-center justify-center gap-2 rounded bg-black px-6 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400';
     const guardarBtnIconLMat = esActualizacionLMat ? 'fas fa-edit' : 'fas fa-save';
     const guardarBtnLabelLMat = esActualizacionLMat ? 'Actualizar' : 'Guardar';
+    const actLmatCheckboxHtml = esBomIdEstand
+        ? `
+                        <div class="flex flex-col gap-0.5 justify-end">
+                            <span class="text-xs font-semibold text-gray-700">Act L.Mat</span>
+                            <label class="inline-flex min-h-[34px] items-center gap-2 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    id="lmat-act-lmat"
+                                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    ${actLmatInicial ? 'checked' : ''}
+                                >
+                                <span class="text-sm font-medium text-gray-700">Actualizar BomId (ESTAND)</span>
+                            </label>
+                            <p class="text-xs text-gray-500">Si está activo, al guardar se reemplaza ESTAND por el Nombre de esta L.Mat.</p>
+                        </div>
+        `
+        : '';
     const pesoCrudoNumerico = Number(String(pesoCrudo ?? '').replace(',', '.')) || 0;
     const totalCantidad = pesoCrudoNumerico / 1000;
     const totalPorcentaje = articulos.reduce((total, item) => total + parseFloat(String(item.porcentaje || '0').replace('%', '')), 0);
@@ -1123,7 +1147,7 @@ async function openLMatModal(context = {}) {
                             >
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-x-3">
+                    <div class="grid grid-cols-2 ${esBomIdEstand ? 'lg:grid-cols-3' : ''} gap-x-3 gap-y-2">
                         <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-700">Nombre (20 caracteres)</span>
                             <input
@@ -1146,6 +1170,7 @@ async function openLMatModal(context = {}) {
                                 value="${escapeAttr(descripcionLMat)}"
                             >
                         </div>
+                        ${actLmatCheckboxHtml}
                     </div>
                 </div>
 
@@ -1888,6 +1913,9 @@ async function openLMatModal(context = {}) {
                 }
 
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const actLmatChecked = esBomIdEstand
+                    ? Boolean(document.getElementById('lmat-act-lmat')?.checked)
+                    : false;
                 setGuardarLmatLoading(true);
                 try {
                     const resp = await fetch('/planeacion/lmat/api/guardar', {
@@ -1907,13 +1935,19 @@ async function openLMatModal(context = {}) {
                                 ? Number(registroSeleccionado.Luchaje)
                                 : null,
                             codigoDibujo: String(registroSeleccionado?.CodigoDibujo ?? '').trim() || null,
+                            actualizaLmat: actLmatChecked,
                             filas: filasData,
                         }),
                     });
                     const json = await resp.json().catch(() => ({}));
                     if (resp.ok && json.success) {
-                        const bomIdGuardado = nombreInput?.value || '';
-                        const bomNameGuardado = document.getElementById('lmat-descripcion')?.value || '';
+                        const updatedBom = json.updatedBom === true;
+                        const bomIdGuardado = updatedBom
+                            ? (json.bomId ?? nombreInput?.value ?? '')
+                            : (json.bomId ?? bomIdActualCat);
+                        const bomNameGuardado = updatedBom
+                            ? (json.bomName ?? document.getElementById('lmat-descripcion')?.value ?? '')
+                            : (json.bomName ?? String(registroSeleccionado?.BomName ?? ''));
                         const baseMsg = esActualizacionLMat
                             ? (json.message || 'L.Mat actualizada.')
                             : (json.message || 'L.Mat guardada.');
@@ -1928,6 +1962,8 @@ async function openLMatModal(context = {}) {
                                 telarId: String(telarSeleccionado || ''),
                                 bomId: bomIdGuardado,
                                 bomName: bomNameGuardado,
+                                updatedBom,
+                                actualizaLmat: json.actualizaLmat,
                             });
                         } catch (error) {
                             console.error('No se pudo actualizar localmente la fila de Codificación', error);
