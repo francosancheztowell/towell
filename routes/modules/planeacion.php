@@ -106,6 +106,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/lmat/api/colores', [CatLMatController::class, 'getColores'])->name('lmat.colores');
     Route::get('/lmat/api/catalogos-materiales', [CatLMatController::class, 'getCatalogosMateriales'])->name('lmat.catalogos-materiales');
     Route::get('/lmat/api/por-orden/{orden}', [CatLMatController::class, 'getLmatPorOrden'])->name('lmat.por-orden');
+    Route::get('/lmat/api/catcodificados-por-orden/{orden}', [CatLMatController::class, 'getRegistroCatCodificadosPorOrden'])->name('lmat.catcodificados-por-orden');
     Route::post('/lmat/api/guardar', [CatLMatController::class, 'guardarLmat'])->name('lmat.guardar');
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');

@@ -49,6 +49,28 @@ class CatLMatController extends Controller
     }
 
     /**
+     * Registro CatCodificados de una Orden (para alimentar el modal L.Mat reutilizado desde el catálogo de listas).
+     */
+    public function getRegistroCatCodificadosPorOrden(string $orden): JsonResponse
+    {
+        try {
+            $registro = CatCodificados::query()
+                ->where('OrdenTejido', trim($orden))
+                ->first();
+
+            if (! $registro) {
+                return response()->json(['success' => false, 'message' => 'No existe registro en CatCodificados para esta orden.'], 404);
+            }
+
+            return response()->json(['success' => true, 'data' => $registro]);
+        } catch (\Throwable $e) {
+            Log::error('CatLMatController::getRegistroCatCodificadosPorOrden', ['exception' => $e, 'orden' => $orden]);
+
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Filas de CatLMat ya guardadas para una Orden (para recargar el modal al reabrir).
      */
     public function getLmatPorOrden(string $orden): JsonResponse

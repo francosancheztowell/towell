@@ -22,6 +22,7 @@ export default defineConfig({
         'resources/js/app-core.js',
         'resources/js/app-filters.js',
         'resources/js/catcodificacion/index.js',
+        'resources/js/lmat-lista/index.js',
       ],
       refresh: true,
     }),
