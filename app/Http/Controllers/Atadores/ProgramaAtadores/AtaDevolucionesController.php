@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
+// use Illuminate\Validation\ValidationException;
 
 class AtaDevolucionesController extends Controller
 {
@@ -244,34 +244,39 @@ class AtaDevolucionesController extends Controller
 
         try {
             [$devolucion, $disponibilidad] = DB::connection('sqlsrv')->transaction(function () use ($data, $montado, $noJulio, $loteDev, $loteOriginal, $kilos, $metros) {
-                // El bloqueo de la reserva serializa guardados concurrentes para el mismo julio.
-                $reserva = $this->buscarReservaOrigen($data, true);
-                if (! $reserva) {
-                    throw ValidationException::withMessages([
-                        'no_julio' => ['No se encontró la entrada de inventario para el Telar, Julio y Tipo seleccionados.'],
-                    ]);
-                }
-
                 $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
                     ->orderByDesc('Id')
                     ->first();
 
-                $disponibilidad = $this->calcularDisponibilidad($reserva, $devolucion?->Id);
-                if ((float) $kilos > $disponibilidad['kilos_disponibles'] + 0.0001) {
-                    throw ValidationException::withMessages([
-                        'kilos' => [sprintf('Los kilos a devolver exceden el disponible (%.4f kg).', $disponibilidad['kilos_disponibles'])],
-                    ]);
-                }
-
-                if ((float) $metros > $disponibilidad['metros_disponibles'] + 0.0001) {
-                    throw ValidationException::withMessages([
-                        'metros' => [sprintf('Los metros a devolver exceden el disponible (%.4f m).', $disponibilidad['metros_disponibles'])],
-                    ]);
-                }
+                /*
+                 * VALIDACIÓN TEMPORALMENTE DESHABILITADA A PETICIÓN DEL USUARIO.
+                 *
+                 * $reserva = $this->buscarReservaOrigen($data, true);
+                 * if (! $reserva) {
+                 *     throw ValidationException::withMessages([
+                 *         'no_julio' => ['No se encontró la entrada de inventario para el Telar, Julio y Tipo seleccionados.'],
+                 *     ]);
+                 * }
+                 *
+                 * $disponibilidad = $this->calcularDisponibilidad($reserva, $devolucion?->Id);
+                 * if ((float) $kilos > $disponibilidad['kilos_disponibles'] + 0.0001) {
+                 *     throw ValidationException::withMessages([
+                 *         'kilos' => [sprintf('Los kilos a devolver exceden el disponible (%.4f kg).', $disponibilidad['kilos_disponibles'])],
+                 *     ]);
+                 * }
+                 *
+                 * if ((float) $metros > $disponibilidad['metros_disponibles'] + 0.0001) {
+                 *     throw ValidationException::withMessages([
+                 *         'metros' => [sprintf('Los metros a devolver exceden el disponible (%.4f m).', $disponibilidad['metros_disponibles'])],
+                 *     ]);
+                 * }
+                 */
+                $disponibilidad = null;
 
                 $payload = [
                     'RefId' => $montado->Id,
-                    'InvTelasReservadaId' => $reserva->Id,
+                    // Se conserva el vínculo ya existente mientras la validación está pausada.
+                    'InvTelasReservadaId' => $devolucion?->InvTelasReservadaId,
                     'NoTelarId' => $data['telar'],
                     'NoJulio' => $noJulio,
                     'NoProduccion' => $loteDev,
@@ -303,11 +308,6 @@ class AtaDevolucionesController extends Controller
 
                 return [$devolucion, $disponibilidad];
             });
-        } catch (ValidationException $e) {
-            return response()->json([
-                'ok' => false,
-                'message' => collect($e->errors())->flatten()->first() ?? 'La devolución excede el inventario disponible.',
-            ], 422);
         } catch (\Throwable $e) {
             Log::error('Error al registrar devolución de atadores', [
                 'ref_id' => $montado->Id,
