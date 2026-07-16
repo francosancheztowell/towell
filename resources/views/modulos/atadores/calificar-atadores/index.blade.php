@@ -408,7 +408,7 @@
                             <label for="dev_no_julio" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Julio
                             </label>
-                            <select id="dev_no_julio" required
+                            <select id="dev_no_julio" {{-- onchange="actualizarDisponibilidadDevolucion()" --}} required
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                 <option value="">{{ $hayDevolucion ? 'Seleccione' : 'Seleccione un telar' }}</option>
                                 @if($hayDevolucion && $devolucionActual->NoJulio)
@@ -432,7 +432,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Tipo</label>
-                            <select id="dev_tipo" required
+                            <select id="dev_tipo" {{-- onchange="actualizarDisponibilidadDevolucion()" --}} required
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                 <option value="">Seleccione</option>
                                 @if($hayDevolucion && $devolucionActual->Tipo && !in_array($devolucionActual->Tipo, ['Rizo', 'Pie'], true))
@@ -474,6 +474,8 @@
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">{{ $hayDevolucion ? $devolucionActual->Obs : '' }}</textarea>
                         </div>
                     </div>
+
+                    {{-- Validación temporalmente pausada: <div id="dev_disponibilidad" class="hidden mt-4 rounded border px-3 py-2 text-sm" aria-live="polite"></div> --}}
 
                     <div class="flex justify-end mt-4">
                         <button type="button" id="btnGuardarDevolucion" onclick="guardarDevolucion()"
@@ -643,6 +645,85 @@
         // Cache en memoria de los julios ya consultados por telar (evita repetir
         // la consulta si el usuario vuelve a seleccionar el mismo telar).
         const juliosDevolucionCache = {};
+        let devolucionDisponibilidad = null;
+        let solicitudDisponibilidad = 0;
+
+        function formatearCantidadDevolucion(valor) {
+            return new Intl.NumberFormat('es-MX', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 4,
+            }).format(Number(valor || 0));
+        }
+
+        function limpiarDisponibilidadDevolucion(mensaje = 'Seleccione Telar, Julio y Tipo para consultar el disponible.') {
+            devolucionDisponibilidad = null;
+            const panel = document.getElementById('dev_disponibilidad');
+            const kilos = document.getElementById('dev_kilos');
+            const metros = document.getElementById('dev_metros');
+
+            if (kilos) kilos.removeAttribute('max');
+            if (metros) metros.removeAttribute('max');
+            if (!panel) return;
+
+            panel.textContent = mensaje;
+            panel.className = 'mt-4 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600';
+        }
+
+        async function actualizarDisponibilidadDevolucion({ silencioso = true } = {}) {
+            const telar = document.getElementById('dev_telar')?.value?.trim() || '';
+            const julio = document.getElementById('dev_no_julio')?.value?.trim() || '';
+            const tipo = document.getElementById('dev_tipo')?.value?.trim() || currentTipoAtado || '';
+
+            if (!telar || !julio || !tipo) {
+                limpiarDisponibilidadDevolucion();
+                return null;
+            }
+
+            const solicitudActual = ++solicitudDisponibilidad;
+            const panel = document.getElementById('dev_disponibilidad');
+            if (panel) {
+                panel.textContent = 'Consultando disponible...';
+                panel.className = 'mt-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700';
+            }
+
+            const params = new URLSearchParams({ telar, no_julio: julio, tipo });
+            if (currentRefId) params.set('ref_id', currentRefId);
+
+            try {
+                const response = await fetch('{{ route('atadores.devoluciones.disponibilidad') }}?' + params.toString());
+                const res = await response.json();
+                if (solicitudActual !== solicitudDisponibilidad) return null;
+
+                if (!res.ok || !res.disponibilidad) {
+                    limpiarDisponibilidadDevolucion(res.message || 'No se encontró la entrada de inventario para el julio seleccionado.');
+                    if (!silencioso) {
+                        Swal.fire({ icon: 'warning', title: 'Entrada no encontrada', text: res.message || 'No se puede registrar la devolución sin su entrada de inventario.' });
+                    }
+                    return null;
+                }
+
+                devolucionDisponibilidad = res.disponibilidad;
+                const kilos = document.getElementById('dev_kilos');
+                const metros = document.getElementById('dev_metros');
+                if (kilos) kilos.max = String(res.disponibilidad.kilos_disponibles);
+                if (metros) metros.max = String(res.disponibilidad.metros_disponibles);
+
+                if (panel) {
+                    const serial = res.disponibilidad.invent_serial_id ? `Entrada ${res.disponibilidad.invent_serial_id} · ` : '';
+                    panel.textContent = `${serial}Disponible para devolver: ${formatearCantidadDevolucion(res.disponibilidad.kilos_disponibles)} kg y ${formatearCantidadDevolucion(res.disponibilidad.metros_disponibles)} m.`;
+                    panel.className = 'mt-4 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800';
+                }
+
+                return devolucionDisponibilidad;
+            } catch (_) {
+                if (solicitudActual !== solicitudDisponibilidad) return null;
+                limpiarDisponibilidadDevolucion('No se pudo consultar el inventario disponible.');
+                if (!silencioso) {
+                    Swal.fire({ icon: 'error', title: 'Error de conexión', text: 'No se pudo validar el inventario disponible.' });
+                }
+                return null;
+            }
+        }
 
         // Se dispara al cambiar el Telar en el panel de Devolución: recarga el
         // select de "Julio" filtrando por ese telar + el mismo Tipo del atado actual.
@@ -651,6 +732,7 @@
             if (select) {
                 select.value = '';
             }
+            limpiarDisponibilidadDevolucion();
             cargarJuliosDevolucion(telar, { autoseleccionar: true });
         }
 
@@ -697,6 +779,8 @@
                     select.value = datos.sugerido;
                     precargarDatosJulio(datos);
                 }
+
+                // Validación temporalmente pausada: actualizarDisponibilidadDevolucion();
             };
 
             if (juliosDevolucionCache[telar]) {
@@ -811,7 +895,7 @@
             inicializarDevolucionExistente();
         }
 
-        function guardarDevolucion() {
+        async function guardarDevolucion() {
             if (!currentRefId) {
                 Swal.fire({ icon: 'error', title: 'Sin atado', text: 'No hay un atado asociado para registrar la devolución.' });
                 return;
@@ -857,6 +941,21 @@
                 return;
             }
 
+            /* VALIDACIÓN TEMPORALMENTE PAUSADA: disponibilidad por Julio, kg y metros.
+            const disponibilidad = await actualizarDisponibilidadDevolucion({ silencioso: false });
+            if (!disponibilidad) return;
+
+            if (parseFloat(kilos) > Number(disponibilidad.kilos_disponibles) + 0.0001 ||
+                parseFloat(metros) > Number(disponibilidad.metros_disponibles) + 0.0001) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cantidad excedida',
+                    text: `Solo puede devolver hasta ${formatearCantidadDevolucion(disponibilidad.kilos_disponibles)} kg y ${formatearCantidadDevolucion(disponibilidad.metros_disponibles)} m.`
+                });
+                return;
+            }
+            */
+
             const payload = {
                 ref_id: currentRefId,
                 telar: val('dev_telar') || null,
@@ -892,6 +991,7 @@
                         devolucionRegistrada = true;
                         if (chk) chk.checked = true;
                         toggleDevolucion(true);
+                        // Validación temporalmente pausada: actualizarDisponibilidadDevolucion();
                     } else {
                         Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo registrar la devolución' });
                     }
