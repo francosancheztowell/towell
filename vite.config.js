@@ -35,6 +35,7 @@ export default defineConfig({
         'resources/js/app-core.js',
         'resources/js/app-filters.js',
         'resources/js/catcodificacion/index.js',
+        'resources/js/planeacion/programa-tejido/main.tsx',
         'resources/js/planeacion/pesos-rollos/main.tsx',
       ],
       refresh: true,

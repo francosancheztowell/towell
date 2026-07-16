@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 use App\Http\Controllers\Planeacion\Api\V1\PesoRolloController;
+use App\Http\Controllers\Planeacion\Api\V1\ProgramaTejidoController as ProgramaTejidoApiController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatAplicaciones\AplicacionesController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias\CatalagoEficienciaController;
@@ -40,6 +41,7 @@ Route::redirect('/planeacion/utilera', '/planeacion/utileria', 301);
 
 Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::prefix('api/v1')->name('api.v1.')->group(function () {
+        Route::get('/programa-tejido', [ProgramaTejidoApiController::class, 'index'])->name('programa-tejido.index');
         Route::get('/pesos-rollos', [PesoRolloController::class, 'index'])->name('pesos-rollos.index');
         Route::post('/pesos-rollos', [PesoRolloController::class, 'store'])->name('pesos-rollos.store');
         Route::put('/pesos-rollos/{pesoRollo}', [PesoRolloController::class, 'update'])->name('pesos-rollos.update');

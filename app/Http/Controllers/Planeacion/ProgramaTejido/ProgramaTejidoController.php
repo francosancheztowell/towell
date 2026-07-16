@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
+use Illuminate\View\View;
 
 /**
  * @file ProgramaTejidoController.php
@@ -25,10 +26,15 @@ use Illuminate\Support\Facades\Log as LogFacade;
  */
 class ProgramaTejidoController extends Controller
 {
-    public function index()
+    public function index(Request $request): View
     {
+        $isMuestras = $request->is('planeacion/muestras');
+
+        if (! $isMuestras && $request->boolean('react')) {
+            return view('modulos.programa-tejido.react-index');
+        }
+
         try {
-            $isMuestras = request()->is('planeacion/muestras');
             $basePath = $isMuestras ? '/planeacion/muestras' : '/planeacion/programa-tejido';
             $apiPath = $isMuestras ? '/muestras' : '/programa-tejido';
             $linePath = $isMuestras ? '/planeacion/muestras-line' : '/planeacion/req-programa-tejido-line';
@@ -143,7 +149,8 @@ class ProgramaTejidoController extends Controller
                 'basePath',
                 'apiPath',
                 'linePath',
-                'pageTitle'
+                'pageTitle',
+                'isMuestras'
             ));
         } catch (\Throwable $e) {
             LogFacade::error('Error al cargar programa de tejido', [
@@ -159,6 +166,7 @@ class ProgramaTejidoController extends Controller
                 'apiPath' => $apiPath ?? '/programa-tejido',
                 'linePath' => $linePath ?? '/planeacion/req-programa-tejido-line',
                 'pageTitle' => $pageTitle ?? 'Programa de Tejido',
+                'isMuestras' => $isMuestras,
             ]);
         }
     }

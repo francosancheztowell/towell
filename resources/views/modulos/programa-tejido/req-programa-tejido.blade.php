@@ -43,6 +43,17 @@ document.addEventListener('DOMContentLoaded', function () {
 @endpush
 
 @section('content')
+@if(!($isMuestras ?? false))
+<div class="px-3 pt-3 sm:px-5">
+  <a
+    href="{{ route('catalogos.req-programa-tejido', ['react' => 1]) }}"
+    class="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+  >
+    <i class="fas fa-flask text-primary" aria-hidden="true"></i>
+    Probar vista React
+  </a>
+</div>
+@endif
 <div class="w-full pt-page">
   <div class="bg-white overflow-hidden w-full pt-page-card">
 
