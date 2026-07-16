@@ -8,6 +8,16 @@
     $kgDia = $o['prodKgDia'] ?? ($o['programa']['prodKgDia'] ?? null);
     $avance = (float) ($o['avance'] ?? 0);
     $avanceBarra = min(100, max(0, $avance));
+    $soloFecha = $soloFecha ?? function (?string $fecha): ?string {
+        if (blank($fecha)) {
+            return null;
+        }
+        $partes = preg_split('/\s+/', trim($fecha), 2);
+
+        return $partes[0] ?? trim($fecha);
+    };
+    $fechaInicio = $soloFecha($o['programa']['fechaInicio'] ?? null);
+    $fechaFinal = $soloFecha($o['programa']['fechaFinal'] ?? null);
 @endphp
 
 <article class="prod-crudo-card {{ $esMultiTelar ? 'prod-crudo-card--multi' : '' }}"
@@ -45,6 +55,14 @@
     </div>
 
     <div class="prod-crudo-card__daily">
+        <div>
+            <span>F. Inicio</span>
+            <strong>{{ $fechaInicio ?? '—' }}</strong>
+        </div>
+        <div>
+            <span>F. Final</span>
+            <strong>{{ $fechaFinal ?? '—' }}</strong>
+        </div>
         <div>
             <span>Pzas/día</span>
             <strong>{{ $pzasDia !== null ? number_format((int) round((int) $pzasDia)) : '—' }}</strong>
