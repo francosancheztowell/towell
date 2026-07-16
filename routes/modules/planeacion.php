@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
+use App\Http\Controllers\Planeacion\Api\V1\PesoRolloController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatAplicaciones\AplicacionesController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias\CatalagoEficienciaController;
@@ -38,6 +39,13 @@ Route::redirect('/planeacion/simulaciones', '/simulacion', 301);
 Route::redirect('/planeacion/utilera', '/planeacion/utileria', 301);
 
 Route::prefix('planeacion')->name('planeacion.')->group(function () {
+    Route::prefix('api/v1')->name('api.v1.')->group(function () {
+        Route::get('/pesos-rollos', [PesoRolloController::class, 'index'])->name('pesos-rollos.index');
+        Route::post('/pesos-rollos', [PesoRolloController::class, 'store'])->name('pesos-rollos.store');
+        Route::put('/pesos-rollos/{pesoRollo}', [PesoRolloController::class, 'update'])->name('pesos-rollos.update');
+        Route::delete('/pesos-rollos/{pesoRollo}', [PesoRolloController::class, 'destroy'])->name('pesos-rollos.destroy');
+    });
+
     Route::prefix('catalogos')->name('catalogos.')->group(function () {
         Route::get('/', [UsuarioController::class, 'showSubModulosNivel3'])->defaults('moduloPadre', '104')->name('index');
         Route::redirect('/eficienciasstd', '/planeacion/catalogos/eficiencia', 301);

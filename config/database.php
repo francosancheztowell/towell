@@ -118,7 +118,7 @@ return [
             'port' => env('DB_PORT_TIPRO', '1433'),
             'database' => env('DB_DATABASE_TIPRO', 'TOW_PRO'),
             'username' => env('DB_USERNAME_TIPRO', 'ax'),
-            'password' => env('DB_PASSWORD_TIPRO', 'TWPL-sql2k8'),
+            'password' => env('DB_PASSWORD_TIPRO'),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,

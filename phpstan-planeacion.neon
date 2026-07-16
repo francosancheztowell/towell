@@ -1,0 +1,14 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 9
+    paths:
+        - app/DTO/Planeacion/PesosRollos
+        - app/Http/Controllers/Planeacion/Api/V1
+        - app/Http/Requests/Planeacion/PesosRollos
+        - app/Http/Resources/Planeacion/PesoRolloResource.php
+        - app/Models/Planeacion/Catalogos/ReqPesosRollosTejido.php
+        - app/Services/Planeacion/PesosRollos
+        - database/migrations/2026_07_16_000001_add_unique_item_size_to_req_pesos_rollo_tejido.php
+    tmpDir: storage/framework/cache/phpstan
