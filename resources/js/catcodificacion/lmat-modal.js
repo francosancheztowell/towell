@@ -835,7 +835,10 @@ async function openLMatModal(context = {}) {
                 }
             }
 
-            if (!saved) return def;
+            // Al actualizar una L.Mat ya guardada, solo se muestran los componentes
+            // que realmente están en CatLMat: si un componente (rizo/pie/trama/C1..C5)
+            // no tiene fila guardada, no se reconstruye — se omite por completo.
+            if (!saved) return null;
 
             return {
                 ...def,
@@ -852,7 +855,7 @@ async function openLMatModal(context = {}) {
                     : String(def.porcentaje || '0.00').replace('%', '')) + '%',
                 desdeCatLMat: true,
             };
-        });
+        }).filter(Boolean);
 
         // Filas extra en CatLMat que no matchearon defaults (añadidas a mano).
         guardadoLMat.forEach((r, i) => {
@@ -1000,7 +1003,7 @@ async function openLMatModal(context = {}) {
         ].join(' ');
     }
 
-    function renderFilaEditableLMat(item = { articulo: '10.1', combinacion: '', items: '', pasadas: '', nombreColor: '', config: 'ENTERO', tamano: '', color: '1000', cantidad: 0 }) {
+    function renderFilaEditableLMat(item = { articulo: '10.1', combinacion: '', items: '', pasadas: '', nombreColor: '', config: '', tamano: '', color: '1000', cantidad: 0 }) {
         return `
             <tr class="border-b border-gray-100">
                 <td class="lmat-combinacion-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(item.combinacion || '')}</td>
@@ -1016,10 +1019,8 @@ async function openLMatModal(context = {}) {
                 <td class="lmat-almacen-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
                 <td class="px-3 py-2">
                     <input
-                        type="number"
+                        type="text"
                         name="cantidad[]"
-                        step="0.0001"
-                        min="0"
                         inputmode="decimal"
                         data-cantidad-raw="${escapeAttr(serializarCantidadRawLMat(item.cantidad))}"
                         class="lmat-cantidad-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
@@ -1028,11 +1029,8 @@ async function openLMatModal(context = {}) {
                 </td>
                 <td class="px-3 py-2">
                     <input
-                        type="number"
+                        type="text"
                         name="porcentaje[]"
-                        step="0.01"
-                        min="0"
-                        max="100"
                         inputmode="decimal"
                         class="lmat-porcentaje-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                         value="0.00"
@@ -1057,10 +1055,8 @@ async function openLMatModal(context = {}) {
             <td class="lmat-almacen-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
             <td class="px-3 py-2">
                 <input
-                    type="number"
+                    type="text"
                     name="cantidad[]"
-                    step="0.0001"
-                    min="0"
                     inputmode="decimal"
                     data-cantidad-raw="${escapeAttr(serializarCantidadRawLMat(item.cantidad))}"
                     class="lmat-cantidad-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
@@ -1069,11 +1065,8 @@ async function openLMatModal(context = {}) {
             </td>
             <td class="px-3 py-2">
                 <input
-                    type="number"
+                    type="text"
                     name="porcentaje[]"
-                    step="0.01"
-                    min="0"
-                    max="100"
                     inputmode="decimal"
                     class="lmat-porcentaje-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                     value="${escapeAttr(formatearPorcentajeLMat(item.porcentaje))}"
@@ -1545,7 +1538,10 @@ async function openLMatModal(context = {}) {
                     const configVigente = configPreferido !== null
                         ? configInicial
                         : (configSelect?.value || configInicial);
-                    if (configSelect) setSelectOptionsLMat(configSelect, configsItem, configVigente);
+                    // Si AX no devuelve configs para este ItemId (p.ej. los códigos internos
+                    // JU-ENG-RI-C / JU-ENG-PI-C de Rizo/Pie no existen en AX), no dejar el
+                    // select vacío: conservar "ENTERO" como opción genérica seleccionable.
+                    if (configSelect) setSelectOptionsLMat(configSelect, configsItem.length ? configsItem : ['ENTERO'], configVigente);
                     if (tamanoSelect) setSelectOptionsLMat(tamanoSelect, tamanos, tamanoSelect.value);
                     // Color + Nombre color dependen del ItemId (Artículos) vía GET AX.
                     aplicarColoresAxFilaLMat(fila, colores, colorInicial);
