@@ -172,7 +172,7 @@ class CatLMatController extends Controller
                 }
                 $catCodificado = (clone $q)->first(['Luchaje', 'CodigoDibujo', 'BomId', 'BomName', 'ActualizaLmat']);
                 $bomIdActual = strtoupper(trim((string) ($catCodificado?->BomId ?? '')));
-                $esEstand = $bomIdActual === 'ESTAND';
+                $esEstand = str_starts_with($bomIdActual, 'ESTAND');
                 $bomIdResultado = $catCodificado?->BomId;
                 $bomNameResultado = $catCodificado?->BomName;
                 $actualizaLmatResultado = $catCodificado?->ActualizaLmat;

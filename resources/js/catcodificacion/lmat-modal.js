@@ -927,7 +927,7 @@ async function openLMatModal(context = {}) {
     };
     const esActualizacionLMat = Array.isArray(guardadoLMat) && guardadoLMat.length > 0;
     const bomIdActualCat = String(registroSeleccionado?.BomId ?? '').trim();
-    const esBomIdEstand = bomIdActualCat.toUpperCase() === 'ESTAND';
+    const esBomIdEstand = bomIdActualCat.toUpperCase().startsWith('ESTAND');
     const actLmatInicial = registroSeleccionado?.ActualizaLmat === true
         || registroSeleccionado?.ActualizaLmat === 1
         || registroSeleccionado?.ActualizaLmat === '1'
