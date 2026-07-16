@@ -907,10 +907,11 @@ async function openLMatModal(context = {}) {
                 .filter(Boolean),
         ])),
         // Config NO incluye Fibras de CatCodificados; esas van solo en columna Fibra.
-        config: Array.from(new Set([
-            'ENTERO',
-            ...articulos.map(f => f.config).filter(Boolean),
-        ].filter(Boolean).filter(sinHiloConfig))),
+        // Placeholder inicial solamente: la lista real (filtrada por TwVigente=1) de cada
+        // fila la trae cargarMaterialesFilaLMat vía AX/ConfigTable, por ItemId específico.
+        // No mezclar aquí los ConfigId guardados de OTRAS filas: un config válido/vigente
+        // para un artículo puede no serlo (o ni existir) para el artículo de otra fila.
+        config: ['ENTERO'],
         tamano: Array.from(new Set([
             tamano,
             tamanoRizo,
