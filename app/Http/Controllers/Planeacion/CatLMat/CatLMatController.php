@@ -37,6 +37,18 @@ class CatLMatController extends Controller
     ) {}
 
     /**
+     * Vista: catálogo de listas de materiales (una fila por Orden, líneas en modal solo lectura).
+     */
+    public function listaMateriales()
+    {
+        $lineas = CatLMat::query()->orderBy('Orden')->orderBy('Id')->get();
+
+        return view('catalagos.lmat-lista', [
+            'grupos' => $lineas->groupBy('Orden'),
+        ]);
+    }
+
+    /**
      * Filas de CatLMat ya guardadas para una Orden (para recargar el modal al reabrir).
      */
     public function getLmatPorOrden(string $orden): JsonResponse
@@ -290,6 +302,7 @@ class CatLMatController extends Controller
                 ->select('ConfigId')
                 ->where('ItemId', $itemId)
                 ->where('DATAAREAID', 'PRO')
+                ->where('TwVigente', 1)
                 ->orderBy('ConfigId')
                 ->get();
 
@@ -314,6 +327,7 @@ class CatLMatController extends Controller
                 ->select('InventSizeId', 'NAME')
                 ->where('ItemId', $itemId)
                 ->where('DATAAREAID', 'PRO')
+                ->where('TwVigente', 1)
                 ->orderBy('InventSizeId')
                 ->get();
 
@@ -338,7 +352,8 @@ class CatLMatController extends Controller
                 ->table('InventColor')
                 ->select('InventColorId', 'Name')
                 ->where('ItemId', $itemId)
-                ->where('DATAAREAID', 'PRO');
+                ->where('DATAAREAID', 'PRO')
+                ->where('TwVigente', 1);
 
             if ($inventColorId !== '') {
                 $query->where('InventColorId', $inventColorId);

@@ -186,7 +186,11 @@
                     $presentes = array_values(array_intersect($ordenDeseado, $columnas));
                     $restantes = array_values(array_diff($columnas, $ordenDeseado));
                     $columnas = array_values(array_merge($presentes, $restantes));
-                    $columnas = array_values(array_diff($columnas, ['NoOrden']));
+                    // Columnas ocultas en la tabla (siguen viniendo en la API: Id se usa para acciones)
+                    $columnas = array_values(array_diff($columnas, [
+                        'NoOrden', 'Id', 'CantidadProducir_2', 'Tejidas', 'pzaXrollo',
+                        'Total', 'RespInicio', 'HrInicio', 'HrTermino', 'MinutosCambio', 'RegAlinacion', 'OBSParaPro',
+                    ]));
 
                     // Clases visuales por segmento de columnas para mejorar lectura
                     $segmentos = [
@@ -210,6 +214,16 @@
                         foreach ($cols as $col) {
                             $columnSegmentClass[$col] = $segmentClass;
                         }
+                    }
+
+                    // Marcar la primera columna de cada segmento para dibujar el separador
+                    $prevSeg = null;
+                    foreach ($columnas as $col) {
+                        $seg = $columnSegmentClass[$col] ?? '';
+                        if ($seg !== '' && $seg !== $prevSeg) {
+                            $columnSegmentClass[$col] = $seg.' seg-start';
+                        }
+                        $prevSeg = $seg;
                     }
                 @endphp
 
@@ -241,6 +255,10 @@
                     <i class="fas fa-thumbtack text-blue-500"></i>
                     <span id="codificacionCtxFijarLabel">Fijar</span>
                 </button>
+                <button type="button" id="codificacionCtxLmat" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center gap-2">
+                    <i class="fas fa-list text-green-600"></i>
+                    <span>Agrupar LMat</span>
+                </button>
             </div>
 
             {{-- Paginación fija abajo --}}
@@ -264,13 +282,6 @@
                             <span id="pagination-current" class="font-semibold">1</span>
                             de
                             <span id="pagination-total-pages" class="font-semibold">1</span>
-                        </span>
-                        <span class="text-gray-500">
-                            · Mostrando
-                            <span id="pagination-start">0</span> -
-                            <span id="pagination-end">0</span>
-                            de
-                            <span id="pagination-total">0</span>
                         </span>
                     </div>
 
@@ -477,15 +488,37 @@
         #mainTable thead th.seg-tiempos { background-color: #374151 !important; }
         #mainTable thead th.seg-prod { background-color: #854d0e !important; }
 
-        #mainTable tbody td.seg-main { background-color: rgba(29, 78, 216, 0.04); }
-        #mainTable tbody td.seg-medidas { background-color: rgba(22, 101, 52, 0.05); }
-        #mainTable tbody td.seg-plano { background-color: rgba(15, 118, 110, 0.05); }
-        #mainTable tbody td.seg-vel { background-color: rgba(124, 58, 237, 0.05); }
-        #mainTable tbody td.seg-cenefa { background-color: rgba(146, 64, 14, 0.05); }
-        #mainTable tbody td.seg-comercial { background-color: rgba(190, 18, 60, 0.05); }
-        #mainTable tbody td.seg-trama { background-color: rgba(14, 116, 144, 0.05); }
-        #mainTable tbody td.seg-tiempos { background-color: rgba(55, 65, 81, 0.05); }
-        #mainTable tbody td.seg-prod { background-color: rgba(133, 77, 14, 0.06); }
+        #mainTable tbody td.seg-main { background-color: rgba(29, 78, 216, 0.07); }
+        #mainTable tbody td.seg-medidas { background-color: rgba(22, 101, 52, 0.09); }
+        #mainTable tbody td.seg-plano { background-color: rgba(15, 118, 110, 0.09); }
+        #mainTable tbody td.seg-vel { background-color: rgba(124, 58, 237, 0.09); }
+        #mainTable tbody td.seg-cenefa { background-color: rgba(146, 64, 14, 0.09); }
+        #mainTable tbody td.seg-comercial { background-color: rgba(190, 18, 60, 0.09); }
+        #mainTable tbody td.seg-trama { background-color: rgba(14, 116, 144, 0.09); }
+        #mainTable tbody td.seg-tiempos { background-color: rgba(55, 65, 81, 0.09); }
+        #mainTable tbody td.seg-prod { background-color: rgba(133, 77, 14, 0.10); }
+
+        /* Separador vertical al inicio de cada segmento de columnas */
+        #mainTable tbody td.seg-start { border-left: 3px solid rgba(0, 0, 0, 0.28); }
+        #mainTable thead th.seg-start { border-left: 3px solid rgba(255, 255, 255, 0.65); }
+
+        /* Badge LMat junto al número de orden */
+        .lmat-badge {
+            display: inline-block;
+            margin-left: 5px;
+            padding: 1px 6px;
+            border-radius: 9999px;
+            background-color: #dcfce7;
+            color: #15803d;
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1.4;
+            vertical-align: middle;
+        }
+        #mainTable tbody tr.codificacion-row-selected .lmat-badge {
+            background-color: #fff;
+            color: #15803d;
+        }
 
         /* Fila seleccionada (bg-blue-500, text-white) */
         #mainTable tbody tr.codificacion-row-selected,

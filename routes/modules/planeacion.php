@@ -47,6 +47,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
         Route::redirect('/pesosporrollos', '/planeacion/catalogos/pesos-rollos', 301);
         Route::redirect('/codificacionmodelos', '/planeacion/catalogos/codificacion-modelos', 301);
 
+        Route::get('/lista-de-materiales', [CatLMatController::class, 'listaMateriales'])->name('lmat.lista');
         Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares');
         Route::get('/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia');
         Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad');
