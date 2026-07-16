@@ -408,7 +408,7 @@
                             <label for="dev_no_julio" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Julio
                             </label>
-                            <select id="dev_no_julio" onchange="actualizarDisponibilidadDevolucion()" required
+                            <select id="dev_no_julio" {{-- onchange="actualizarDisponibilidadDevolucion()" --}} required
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                 <option value="">{{ $hayDevolucion ? 'Seleccione' : 'Seleccione un telar' }}</option>
                                 @if($hayDevolucion && $devolucionActual->NoJulio)
@@ -432,7 +432,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Tipo</label>
-                            <select id="dev_tipo" onchange="actualizarDisponibilidadDevolucion()" required
+                            <select id="dev_tipo" {{-- onchange="actualizarDisponibilidadDevolucion()" --}} required
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
                                 <option value="">Seleccione</option>
                                 @if($hayDevolucion && $devolucionActual->Tipo && !in_array($devolucionActual->Tipo, ['Rizo', 'Pie'], true))
@@ -475,7 +475,7 @@
                         </div>
                     </div>
 
-                    <div id="dev_disponibilidad" class="hidden mt-4 rounded border px-3 py-2 text-sm" aria-live="polite"></div>
+                    {{-- Validación temporalmente pausada: <div id="dev_disponibilidad" class="hidden mt-4 rounded border px-3 py-2 text-sm" aria-live="polite"></div> --}}
 
                     <div class="flex justify-end mt-4">
                         <button type="button" id="btnGuardarDevolucion" onclick="guardarDevolucion()"
@@ -780,7 +780,7 @@
                     precargarDatosJulio(datos);
                 }
 
-                actualizarDisponibilidadDevolucion();
+                // Validación temporalmente pausada: actualizarDisponibilidadDevolucion();
             };
 
             if (juliosDevolucionCache[telar]) {
@@ -941,6 +941,7 @@
                 return;
             }
 
+            /* VALIDACIÓN TEMPORALMENTE PAUSADA: disponibilidad por Julio, kg y metros.
             const disponibilidad = await actualizarDisponibilidadDevolucion({ silencioso: false });
             if (!disponibilidad) return;
 
@@ -953,6 +954,7 @@
                 });
                 return;
             }
+            */
 
             const payload = {
                 ref_id: currentRefId,
@@ -989,7 +991,7 @@
                         devolucionRegistrada = true;
                         if (chk) chk.checked = true;
                         toggleDevolucion(true);
-                        actualizarDisponibilidadDevolucion();
+                        // Validación temporalmente pausada: actualizarDisponibilidadDevolucion();
                     } else {
                         Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo registrar la devolución' });
                     }
