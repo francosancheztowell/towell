@@ -35,6 +35,7 @@
                 $item = $montadoTelas->first();
                 $esAutorizado = $item->Estatus === 'Autorizado';
                 $hayDevolucion = !empty($devolucionActual);
+                $devolucionBloqueadaPorAx = $hayDevolucion && (int) ($devolucionActual->AX ?? 0) === 1;
                 $fechaDevolucion = $hayDevolucion && $devolucionActual->FechaDevol
                     ? \Carbon\Carbon::parse($devolucionActual->FechaDevol)->format('Y-m-d')
                     : '';
@@ -356,11 +357,18 @@
                     <input type="checkbox" id="chkDevolucion" class="h-4 w-4 text-blue-600 rounded"
                         onchange="toggleDevolucion(this.checked, this)"
                         @if($hayDevolucion) checked @endif
-                        @if($esAutorizado) disabled @endif />
+                        @if($esAutorizado || $devolucionBloqueadaPorAx) disabled @endif />
                     <span class="text-base font-semibold text-gray-700">Devolución</span>
                 </label>
 
                 <div id="devolucionPanel" class="{{ $hayDevolucion ? '' : 'hidden' }} mt-4 border-t pt-4">
+                    <!-- @if($devolucionBloqueadaPorAx)
+                        <div class="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            Esta devolución ya fue procesada en AX (AX = 1) y está bloqueada para cambios.
+                        </div>
+                    @endif -->
+
+                    <fieldset class="m-0 min-w-0 border-0 p-0" @disabled($devolucionBloqueadaPorAx)>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
                         {{-- Fila 1: Telar | Ubicación | Cuenta | Lote --}}
                         <div>
@@ -382,13 +390,15 @@
                             <label for="dev_ubicacion" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Ubicación
                             </label>
-                            <select id="dev_ubicacion" required
+                            <input type="text" id="dev_ubicacion" list="dev_ubicaciones_sugeridas" autocomplete="off" required
+                                value="{{ $hayDevolucion ? $devolucionActual->Ubicacion : '' }}"
+                                placeholder="Escriba o seleccione una ubicación"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                <option value="">Seleccione</option>
+                            <datalist id="dev_ubicaciones_sugeridas">
                                 @if($hayDevolucion && $devolucionActual->Ubicacion)
-                                    <option value="{{ $devolucionActual->Ubicacion }}" selected>{{ $devolucionActual->Ubicacion }}</option>
+                                    <option value="{{ $devolucionActual->Ubicacion }}"></option>
                                 @endif
-                            </select>
+                            </datalist>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Cuenta</label>
@@ -408,13 +418,17 @@
                             <label for="dev_no_julio" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Julio
                             </label>
-                            <select id="dev_no_julio" {{-- onchange="actualizarDisponibilidadDevolucion()" --}} required
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                <option value="">{{ $hayDevolucion ? 'Seleccione' : 'Seleccione un telar' }}</option>
+                            <input type="text" id="dev_no_julio" list="dev_julios_sugeridos" autocomplete="off" required
+                                value="{{ $hayDevolucion ? $devolucionActual->NoJulio : '' }}"
+                                placeholder="Escriba o seleccione un Julio"
+                                oninput="onCambioJulioDevolucion(this.value)"
+                                onchange="onCambioJulioDevolucion(this.value)"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                            <datalist id="dev_julios_sugeridos">
                                 @if($hayDevolucion && $devolucionActual->NoJulio)
-                                    <option value="{{ $devolucionActual->NoJulio }}" selected>{{ $devolucionActual->NoJulio }}</option>
+                                    <option value="{{ $devolucionActual->NoJulio }}"></option>
                                 @endif
-                            </select>
+                            </datalist>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide mb-1">
@@ -479,10 +493,12 @@
 
                     <div class="flex justify-end mt-4">
                         <button type="button" id="btnGuardarDevolucion" onclick="guardarDevolucion()"
+                            @disabled($devolucionBloqueadaPorAx)
                             class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                             <i class="fas fa-save mr-1"></i> {{ $hayDevolucion ? 'Actualizar Devolución' : 'Guardar Devolución' }}
                         </button>
                     </div>
+                    </fieldset>
                 </div>
             </div>
 
@@ -557,6 +573,7 @@
                 'id' => $devolucionActual->Id,
                 'no_julio' => $devolucionActual->NoJulio,
                 'ubicacion' => $devolucionActual->Ubicacion,
+                'bloqueada_por_ax' => $devolucionBloqueadaPorAx,
             ] : null) !!};
         @else
             const currentNoJulio = null;
@@ -569,6 +586,7 @@
             const devolucionActual = null;
         @endif
         let devolucionRegistrada = !!devolucionActual;
+        const devolucionBloqueadaPorAx = !!devolucionActual?.bloqueada_por_ax;
 
     // Información de actividades para validación
     const actividadesData = {!! json_encode($actividadesCatalogo->map(function ($act) use ($actividadesMontado) {
@@ -597,33 +615,23 @@
         let ubicacionesDevolucionCargadas = false;
 
         function cargarUbicacionesDevolucion() {
-            const select = document.getElementById('dev_ubicacion');
-            if (!select || ubicacionesDevolucionCargadas) return;
+            const input = document.getElementById('dev_ubicacion');
+            const sugerencias = document.getElementById('dev_ubicaciones_sugeridas');
+            if (!input || !sugerencias || ubicacionesDevolucionCargadas) return;
 
-            const valorPrevio = select.value;
-            select.disabled = true;
+            input.disabled = true;
 
             fetch('{{ route('atadores.devoluciones.ubicaciones') }}')
                 .then(r => r.json())
                 .then(res => {
                     if (res.ok && Array.isArray(res.ubicaciones)) {
-                        select.innerHTML = '<option value="">Seleccione</option>';
+                        sugerencias.innerHTML = '';
                         res.ubicaciones.forEach(ubi => {
                             const opt = document.createElement('option');
                             opt.value = ubi;
-                            opt.textContent = ubi;
-                            select.appendChild(opt);
+                            sugerencias.appendChild(opt);
                         });
                         ubicacionesDevolucionCargadas = true;
-                        if (valorPrevio) {
-                            if (![...select.options].some(opt => opt.value === valorPrevio)) {
-                                const opt = document.createElement('option');
-                                opt.value = valorPrevio;
-                                opt.textContent = `${valorPrevio} (registrada)`;
-                                select.appendChild(opt);
-                            }
-                            select.value = valorPrevio;
-                        }
                     } else {
                         Swal.fire({
                             icon: 'warning',
@@ -639,7 +647,7 @@
                         text: 'No se pudo conectar con TI-PRO para cargar las ubicaciones.'
                     });
                 })
-                .finally(() => { select.disabled = false; });
+                .finally(() => { input.disabled = false; });
         }
 
         // Cache en memoria de los julios ya consultados por telar (evita repetir
@@ -725,59 +733,80 @@
             }
         }
 
-        // Se dispara al cambiar el Telar en el panel de Devolución: recarga el
-        // select de "Julio" filtrando por ese telar + el mismo Tipo del atado actual.
+        function aplicarDatosJulioDevolucion(registro) {
+            if (!registro) return;
+
+            const setValor = (id, valor) => {
+                const el = document.getElementById(id);
+                if (el) el.value = valor ?? '';
+            };
+
+            setValor('dev_cuenta', registro.cuenta);
+            setValor('dev_calibre', registro.calibre);
+            setValor('dev_hilo', registro.hilo);
+            setValor('dev_lote', registro.lote);
+
+            const tipo = String(registro.tipo ?? '').trim();
+            const tipoInput = document.getElementById('dev_tipo');
+            if (!tipoInput || !tipo) return;
+
+            if (![...tipoInput.options].some(opcion => opcion.value === tipo)) {
+                const opcion = document.createElement('option');
+                opcion.value = tipo;
+                opcion.textContent = tipo;
+                tipoInput.appendChild(opcion);
+            }
+
+            tipoInput.value = tipo;
+        }
+
+        function onCambioJulioDevolucion(julio) {
+            const telar = document.getElementById('dev_telar')?.value?.trim() || '';
+            const datos = juliosDevolucionCache[telar];
+            const valor = String(julio ?? '').trim();
+            if (!datos || !valor) return;
+
+            const registro = (datos.registros || []).find(item => String(item.julio ?? '').trim() === valor);
+            if (registro) aplicarDatosJulioDevolucion(registro);
+        }
+
+        // Se dispara al cambiar el Telar en el panel de Devolución: recarga las
+        // sugerencias de Julio filtradas por ese telar + el Tipo del atado actual.
         function onCambioTelarDevolucion(telar) {
-            const select = document.getElementById('dev_no_julio');
-            if (select) {
-                select.value = '';
+            const input = document.getElementById('dev_no_julio');
+            if (input) {
+                input.value = '';
             }
             limpiarDisponibilidadDevolucion();
             cargarJuliosDevolucion(telar, { autoseleccionar: true });
         }
 
         function cargarJuliosDevolucion(telar, { autoseleccionar = false } = {}) {
-            const select = document.getElementById('dev_no_julio');
-            if (!select) return;
+            const input = document.getElementById('dev_no_julio');
+            const sugerencias = document.getElementById('dev_julios_sugeridos');
+            if (!input || !sugerencias) return;
 
             if (!telar) {
-                select.innerHTML = '<option value="">Seleccione un telar</option>';
+                sugerencias.innerHTML = '';
+                input.placeholder = 'Seleccione un telar primero';
                 return;
             }
 
-            // Precarga Cuenta/Calibre/Hilo sugeridos del julio anterior (siguen
-            // siendo campos editables, solo se prellenan como punto de partida).
-            const precargarDatosJulio = (datos) => {
-                const setValor = (id, valor) => {
-                    const el = document.getElementById(id);
-                    if (el) el.value = valor ?? '';
-                };
-                setValor('dev_cuenta', datos.cuenta);
-                setValor('dev_calibre', datos.calibre);
-                setValor('dev_hilo', datos.hilo);
-            };
-
             const render = (datos) => {
-                const valorPrevio = select.value;
-                select.innerHTML = '<option value="">Seleccione</option>';
+                const valorPrevio = input.value.trim();
+                input.placeholder = 'Escriba o seleccione un Julio';
+                sugerencias.innerHTML = '';
                 datos.julios.forEach(j => {
                     const opt = document.createElement('option');
                     opt.value = j;
-                    opt.textContent = j;
-                    select.appendChild(opt);
+                    sugerencias.appendChild(opt);
                 });
 
                 if (valorPrevio) {
-                    if (![...select.options].some(opt => opt.value === valorPrevio)) {
-                        const opt = document.createElement('option');
-                        opt.value = valorPrevio;
-                        opt.textContent = `${valorPrevio} (registrado)`;
-                        select.appendChild(opt);
-                    }
-                    select.value = valorPrevio;
+                    onCambioJulioDevolucion(valorPrevio);
                 } else if (autoseleccionar && datos.sugerido) {
-                    select.value = datos.sugerido;
-                    precargarDatosJulio(datos);
+                    input.value = datos.sugerido;
+                    onCambioJulioDevolucion(datos.sugerido);
                 }
 
                 // Validación temporalmente pausada: actualizarDisponibilidadDevolucion();
@@ -788,8 +817,8 @@
                 return;
             }
 
-            select.disabled = true;
-            select.innerHTML = '<option value="">Cargando...</option>';
+            input.disabled = true;
+            input.placeholder = 'Cargando sugerencias...';
 
             const params = new URLSearchParams({ telar });
             if (currentTipoAtado) params.set('tipo', currentTipoAtado);
@@ -805,11 +834,13 @@
                             cuenta: res.cuenta || null,
                             calibre: res.calibre || null,
                             hilo: res.hilo || null,
+                            registros: Array.isArray(res.registros) ? res.registros : [],
                         };
                         juliosDevolucionCache[telar] = datos;
                         render(datos);
                     } else {
-                        select.innerHTML = '<option value="">Seleccione</option>';
+                        sugerencias.innerHTML = '';
+                        input.placeholder = 'Escriba un Julio';
                         Swal.fire({
                             icon: 'warning',
                             title: 'Julios no disponibles',
@@ -818,16 +849,23 @@
                     }
                 })
                 .catch(() => {
-                    select.innerHTML = '<option value="">Seleccione</option>';
+                    sugerencias.innerHTML = '';
+                    input.placeholder = 'Escriba un Julio';
                     Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo cargar los julios de ese telar.' });
                 })
-                .finally(() => { select.disabled = false; });
+                .finally(() => { input.disabled = false; });
         }
 
         // Mostrar/ocultar panel de Devolución según el check
         function toggleDevolucion(checked, checkbox = null) {
             const panel = document.getElementById('devolucionPanel');
             if (!panel) return;
+
+            if (devolucionBloqueadaPorAx) {
+                if (checkbox) checkbox.checked = true;
+                panel.classList.remove('hidden');
+                return;
+            }
 
             if (devolucionRegistrada && !checked) {
                 if (checkbox) {
@@ -869,8 +907,8 @@
                     cargarJuliosDevolucion(telarSelect.value, { autoseleccionar: true });
                 }
 
-                // Lote = "Dev" + NoProduccion (se guarda en la columna NoProduccion de AtaDevoluciones)
-                setSiVacio('dev_lote', currentNoOrden ? ('Dev' + currentNoOrden) : null);
+                // Lote = "DEV" + NoProduccion (se guarda en la columna NoProduccion de AtaDevoluciones)
+                setSiVacio('dev_lote', currentNoOrden ? ('DEV' + currentNoOrden) : null);
                 setSiVacio('dev_tipo', currentTipoAtado);
                 const fecha = document.getElementById('dev_fecha');
                 if (fecha && !fecha.value) {
@@ -896,6 +934,15 @@
         }
 
         async function guardarDevolucion() {
+            if (devolucionBloqueadaPorAx) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Devolución bloqueada',
+                    text: 'Esta devolución ya fue procesada en AX y no se puede modificar.'
+                });
+                return;
+            }
+
             if (!currentRefId) {
                 Swal.fire({ icon: 'error', title: 'Sin atado', text: 'No hay un atado asociado para registrar la devolución.' });
                 return;
@@ -960,7 +1007,7 @@
                 ref_id: currentRefId,
                 telar: val('dev_telar') || null,
                 no_julio: val('dev_no_julio') || null,
-                no_produccion: currentNoOrden || null,
+                no_produccion: val('dev_lote') || currentNoOrden || null,
                 kilos: kilos !== '' ? parseFloat(kilos) : null,
                 metros: metros !== '' ? parseFloat(metros) : null,
                 ubicacion: val('dev_ubicacion') || null,

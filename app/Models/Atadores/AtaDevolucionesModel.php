@@ -40,6 +40,7 @@ class AtaDevolucionesModel extends Model
         'NoTelarId',
         'LoteOriginal',
         'InvTelasReservadaId',
+        'AX',
     ];
 
     protected $casts = [
@@ -47,6 +48,7 @@ class AtaDevolucionesModel extends Model
         'Kilos' => 'float',
         'Metros' => 'float',
         'InvTelasReservadaId' => 'integer',
+        'AX' => 'integer',
         'FechaDevol' => 'date',
         // 'Integrer' => 'integer',
     ];
