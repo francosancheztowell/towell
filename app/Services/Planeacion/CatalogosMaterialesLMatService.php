@@ -46,6 +46,7 @@ final class CatalogosMaterialesLMatService
             ->select('ItemId', 'ConfigId')
             ->whereIn('ItemId', $articulos->all())
             ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1)
             ->orderBy('ItemId')
             ->orderBy('ConfigId')
             ->get();
@@ -63,6 +64,7 @@ final class CatalogosMaterialesLMatService
             ->select('ItemId', 'InventSizeId', 'NAME')
             ->whereIn('ItemId', $articulos->all())
             ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1)
             ->orderBy('ItemId')
             ->orderBy('InventSizeId')
             ->get();
@@ -83,6 +85,7 @@ final class CatalogosMaterialesLMatService
             ->select('ItemId', 'InventColorId', 'Name')
             ->whereIn('ItemId', $articulos->all())
             ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1)
             ->orderBy('ItemId')
             ->orderBy('InventColorId')
             ->get();
