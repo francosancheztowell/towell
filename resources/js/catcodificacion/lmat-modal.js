@@ -1806,7 +1806,10 @@ async function openLMatModal(context = {}) {
             conectarInputsPorcentajeLMat();
             conectarInputsPasadasLMat();
             conectarSelectsSalidaMatrizLMat();
-            recalcularPorcentajesLMat();
+            // Al editar una L.Mat ya guardada, respetar los Qty/Porcentaje tal cual están en
+            // CatLMat: recalcular aquí los sobreescribe con un valor distinto por el redondeo
+            // de Qty a 4 decimales, "descuadrando" el porcentaje mostrado vs. el guardado.
+            if (!guardadoLMat) recalcularPorcentajesLMat();
 
             LMatMateriales.getCalibres().then((calibresDisponibles) => {
                 document.querySelectorAll('select[name="articulo[]"]').forEach((sel) => {
