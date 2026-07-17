@@ -358,6 +358,33 @@ class CatLMatController extends Controller
         }
     }
 
+    /**
+     * Última L.Mat creada (por Id) para un ItemIdCrudo + InventSizeCrudo.
+     * Se usa para precargar Nombre/Descrip en el modal; si no hay, el front concatena.
+     */
+    public function getUltimaLmat(Request $request): JsonResponse
+    {
+        $itemIdCrudo = trim((string) $request->query('itemIdCrudo', ''));
+        $inventSizeCrudo = trim((string) $request->query('inventSizeCrudo', ''));
+        if ($itemIdCrudo === '' || $inventSizeCrudo === '') {
+            return response()->json(['success' => true, 'data' => null]);
+        }
+
+        try {
+            $ultima = CatLMat::query()
+                ->where('ItemIdCrudo', $itemIdCrudo)
+                ->where('InventSizeCrudo', $inventSizeCrudo)
+                ->orderByDesc('Id')
+                ->first(['Nombre', 'Descrip']);
+
+            return response()->json(['success' => true, 'data' => $ultima]);
+        } catch (\Throwable $e) {
+            Log::error('CatLMatController::getUltimaLmat', ['exception' => $e, 'itemIdCrudo' => $itemIdCrudo]);
+
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function getCalibres(): JsonResponse
     {
         try {
@@ -397,7 +424,9 @@ class CatLMatController extends Controller
             $existe = DB::connection('sqlsrv_ti')
                 ->table('BOMTABLE')
                 ->where('BOMID', 'like', '%'.$escapado.'%')
-                ->exists();
+                ->exists()
+                // También bloquear nombres ya usados localmente en CatLMat (aún no subidos a AX).
+                || CatLMat::query()->where('Nombre', $nombre)->exists();
 
             return response()->json(['success' => true, 'existe' => $existe]);
         } catch (\Throwable $e) {

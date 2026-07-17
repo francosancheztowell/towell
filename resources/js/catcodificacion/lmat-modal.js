@@ -564,6 +564,24 @@ async function openLMatModal(context = {}) {
     let nombreLMat = truncLmat(['TEJ', articulo].filter(Boolean).join(' '), 20);
     // Descripción: Nombre + CodigoDibujo (sin InventSizeId / tamaño).
     let descripcionLMat = truncLmat([articulo, codigoDibujo].filter(Boolean).join(' '), 60);
+    if (!guardadoLMat && itemId) {
+        // L.Mat nueva: precargar Nombre/Descrip de la última creada con el mismo ItemIdCrudo + InventSizeCrudo.
+        // Si no hay ninguna, quedan los concatenados de arriba.
+        try {
+            const respUltima = await fetch(
+                '/planeacion/lmat/api/ultima?itemIdCrudo=' + encodeURIComponent(itemId)
+                + '&inventSizeCrudo=' + encodeURIComponent(String(tamano ?? '').trim()),
+                { headers: { Accept: 'application/json' } },
+            );
+            const jsonUltima = await respUltima.json();
+            if (jsonUltima.success && jsonUltima.data) {
+                nombreLMat = truncLmat(jsonUltima.data.Nombre ?? nombreLMat, 20);
+                descripcionLMat = truncLmat(jsonUltima.data.Descrip ?? descripcionLMat, 60);
+            }
+        } catch (e) {
+            console.error('No se pudo cargar la última L.Mat por crudo', e);
+        }
+    }
     if (guardadoLMat) {
         // Recargar cabecera desde lo guardado (Nombre=BomId). Descripción se recalcula sin tamaño.
         nombreLMat = truncLmat(guardadoLMat[0].Nombre ?? nombreLMat, 20);
@@ -578,7 +596,7 @@ async function openLMatModal(context = {}) {
         .replace(/>/g, '&gt;');
 
     // Cálculo Excel (curvas → pesos g → % → cantidad kg):
-    // Trama/Cn = SI(P>0, ((P*(Ancho+13)*curva_peine)/100)*0.59/Hilo, 0)
+    // Trama/Cn = SI(P>0, ((P*((AnchoPeine+13)/TL)*curva_peine)/100)*0.59/Hilo, 0)
     // Pie = (((Largo+Corte)*curva_luchaje/100)*0.59/HiloPie)*1.076*(CuentaPie/TL)
     // Rizo = PesoCrudo - (Pie+Trama+C1..C5)
     // Cantidad(kg) = peso_g / 1000 ; % = peso_g / PesoCrudo
@@ -591,6 +609,9 @@ async function openLMatModal(context = {}) {
     const inputsCalculoLMat = {
         peine: numLMat(registroSeleccionado?.Peine),
         ancho: numLMat(registroSeleccionado?.Ancho),
+        // Excel usa el ancho EN PEINE total (col. TramaAnchoPeine ≈ 280), no el ancho
+        // de producto terminado (Ancho = 38): W = (anchoPeine + 13) / tiras.
+        anchoPeine: numLMat(registroSeleccionado?.TramaAnchoPeine),
         largo: numLMat(registroSeleccionado?.Largo),
         corte: numLMat(registroSeleccionado?.MedidaPlano),
         luchaje: numLMat(registroSeleccionado?.Luchaje),
@@ -625,7 +646,7 @@ async function openLMatModal(context = {}) {
     };
     const calcularPesosComponentesLMat = (pesoCrudoG, pasadasCalculo = inputsCalculoLMat) => {
         const pesoCrudoTotal = numLMat(pesoCrudoG);
-        const { peine, ancho, largo, corte, luchaje, tl, hiloPie, cuentaPie, hiloTrama, hiloComb } = inputsCalculoLMat;
+        const { peine, ancho, anchoPeine, largo, corte, luchaje, tl, hiloPie, cuentaPie, hiloTrama, hiloComb } = inputsCalculoLMat;
         const pasadasTrama = numLMat(pasadasCalculo.pasadasTrama);
         const pasadasComb = Array.from(
             { length: 5 },
@@ -635,7 +656,10 @@ async function openLMatModal(context = {}) {
         const curvaPeine = peine >= 50 ? 1.001 : 1.002;
         const pesoTramaCn = (pasadas, hilo) => {
             if (!(pasadas > 0) || !(hilo > 0) || !(tl > 0)) return 0;
-            return ((pasadas * (ancho + 13) * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
+            // W = (anchoPeine total + 13) / tiras, igual que el Excel. Si el registro no
+            // tiene TramaAnchoPeine, se cae al comportamiento anterior (Ancho + 13/tiras).
+            const anchoTira = anchoPeine > 0 ? (anchoPeine + 13) / tl : ancho + 13 / tl;
+            return ((pasadas * anchoTira * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
         };
         const tramaG = pesoTramaCn(pasadasTrama, hiloTrama);
         const combG = pasadasComb.map((p, i) => pesoTramaCn(p, hiloComb[i]));
@@ -646,7 +670,8 @@ async function openLMatModal(context = {}) {
                 * (cuentaPie / tl);
         }
         const sumaSinRizo = pieG + tramaG + combG.reduce((a, b) => a + b, 0);
-        const rizoG = Math.max(0, pesoCrudoTotal - sumaSinRizo);
+        // Igual que el Excel (AX2): resta directa, sin tope en 0.
+        const rizoG = pesoCrudoTotal - sumaSinRizo;
         return { rizoG, pieG, tramaG, combG, pesoCrudoTotal };
     };
     const pesoACantidadYPorcentajeLMat = (pesoG, pesoCrudoTotal) => {
@@ -1422,13 +1447,32 @@ async function openLMatModal(context = {}) {
                 if (totalCantidadCell) totalCantidadCell.textContent = totalCantidadActual.toFixed(4);
 
                 let totalPorcentajeActual = 0;
+                let sumaCantidades = 0;
+                let porcentajeInputRizo = null;
                 document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
                     const cantidad = obtenerCantidadRawLMat(input);
-                    const porcentaje = totalCantidadActual > 0 ? (cantidad / totalCantidadActual) * 100 : 0;
-                    totalPorcentajeActual += porcentaje;
-                    const porcentajeInput = input.closest('tr')?.querySelector('.lmat-porcentaje-input');
+                    sumaCantidades += cantidad;
+                    const fila = input.closest('tr');
+                    const porcentajeInput = fila?.querySelector('.lmat-porcentaje-input');
+                    // Redondear cada fila a 2 decimales y sumar los REDONDEADOS: lo que se
+                    // muestra/guarda es lo que cuadra, no el valor interno sin redondear.
+                    const porcentaje = Number((totalCantidadActual > 0 ? (cantidad / totalCantidadActual) * 100 : 0).toFixed(2));
                     if (porcentajeInput) porcentajeInput.value = porcentaje.toFixed(2);
+                    if (fila?.dataset?.rol === 'rizo') {
+                        porcentajeInputRizo = porcentajeInput;
+                    } else {
+                        totalPorcentajeActual += porcentaje;
+                    }
                 });
+
+                if (porcentajeInputRizo) {
+                    // Rizo absorbe el residuo de redondeo (igual que en cantidades): si las
+                    // cantidades suman el Peso Crudo, los porcentajes cierran en 100.00 exacto.
+                    if (totalCantidadActual > 0 && Math.abs(sumaCantidades - totalCantidadActual) < 1e-6) {
+                        porcentajeInputRizo.value = Math.max(0, Number((100 - totalPorcentajeActual).toFixed(2))).toFixed(2);
+                    }
+                    totalPorcentajeActual += Number(porcentajeInputRizo.value);
+                }
 
                 actualizarTotalPorcentajeLMat(totalPorcentajeActual);
             };

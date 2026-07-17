@@ -48,7 +48,8 @@
       "Bash(awk -F: '{s+=$2} END {print s}')",
       "PowerShell(Get-Content \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-Towell\\\\c13308eb-8e9d-4e4c-8721-a5683a9e626d\\\\scratchpad\\\\idx.php\" | php artisan tinker)",
       "Bash(php -l app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(node *)"
     ]
   }
 }
