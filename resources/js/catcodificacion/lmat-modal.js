@@ -1468,11 +1468,20 @@ async function openLMatModal(context = {}) {
                     asignarCantidadLMat(input, cantidad);
                 };
 
-                aplicarDiferencia('rizo', pesosActuales.rizoG, pesosReferencia.rizoG);
                 aplicarDiferencia('trama', pesosActuales.tramaG, pesosReferencia.tramaG);
                 pesosActuales.combG.forEach((pesoG, index) => {
                     aplicarDiferencia(`c${index + 1}`, pesoG, pesosReferencia.combG[index]);
                 });
+                // Rizo = residuo real (PesoCrudo − todas las demás filas), no delta de fórmula:
+                // absorbe el redondeo a 4 decimales de los Qty guardados y el total da 100% exacto.
+                const inputRizo = document.querySelector('.swal2-html-container tr[data-rol="rizo"] .lmat-cantidad-input');
+                if (inputRizo) {
+                    let sumaOtras = 0;
+                    document.querySelectorAll('.lmat-cantidad-input').forEach((otro) => {
+                        if (otro !== inputRizo) sumaOtras += obtenerCantidadRawLMat(otro);
+                    });
+                    asignarCantidadLMat(inputRizo, Math.max(0, (pesoCrudoActual / 1000) - sumaOtras));
+                }
                 recalcularPorcentajesLMat();
             };
 
@@ -1499,9 +1508,7 @@ async function openLMatModal(context = {}) {
                             const match = String(campo || '').match(/^PasadasComb([1-5])$/);
                             if (match) inputsCalculoLMat.pasadasComb[Number(match[1]) - 1] = pasadas;
                         }
-                        // Igual que PesoCrudo: en L.Mat ya guardada NO recalcular cantidades/%
-                        // (los Qty guardados van redondeados a 4 decimales y recalcular descuadra).
-                        if (!guardadoLMat) aplicarDiferenciaPasadasLMat();
+                        aplicarDiferenciaPasadasLMat();
                         actualizarTotalPasadasLMat();
                     });
                 });
