@@ -12,8 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
-// use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\ValidationException;
 
 class AtaDevolucionesController extends Controller
 {
@@ -98,41 +97,57 @@ class AtaDevolucionesController extends Controller
                 ->orderByDesc('Id')
                 ->get();
 
-            $julios = $registros->pluck('NoJulio')->filter()->unique()->values();
-
-            $registroSugerido = $registros->first();
-            $sugerido = $registroSugerido->NoJulio ?? null;
-
             // Cuenta y Calibre viven en TejHistorialInventarioTelares, donde se
             // insertan (Status = 'Completado') cuando el atado pasa a Autorizado.
-            // El Hilo, en cambio, se toma directo de AtaMontadoTelas.ConfigId.
-            $cuenta = null;
-            $calibre = null;
-            $hilo = $registroSugerido->ConfigId ?? null;
-
-            if ($registroSugerido) {
-                $historial = DB::connection('sqlsrv')
+            // Se consultan todos los julios en bloque para poder completar el
+            // formulario al elegir cualquiera de las sugerencias.
+            $historiales = collect();
+            $juliosRegistrados = $registros->pluck('NoJulio')->filter()->unique()->values();
+            if ($juliosRegistrados->isNotEmpty()) {
+                $historiales = DB::connection('sqlsrv')
                     ->table('TejHistorialInventarioTelares')
                     ->where('NoTelarId', $data['telar'])
-                    ->where('NoJulio', $registroSugerido->NoJulio)
-                    ->where('NoProduccion', $registroSugerido->NoProduccion)
+                    ->whereIn('NoJulio', $juliosRegistrados)
                     ->where('Status', 'Completado')
                     ->orderByDesc('FechaAtado')
-                    ->first();
-
-                if ($historial) {
-                    $cuenta = $historial->Cuenta;
-                    $calibre = $historial->Calibre;
-                }
+                    ->get(['NoJulio', 'NoProduccion', 'Cuenta', 'Calibre', 'FechaAtado']);
             }
+
+            $historialPorJulioYLote = $historiales
+                ->groupBy(fn ($historial) => $this->claveJulioYLote($historial->NoJulio ?? null, $historial->NoProduccion ?? null))
+                ->map(fn ($historialesDelJulio) => $historialesDelJulio->first());
+
+            $datosPorJulio = $registros
+                ->filter(fn ($registro) => filled($registro->NoJulio))
+                ->map(function ($registro) use ($historialPorJulioYLote) {
+                    $historial = $historialPorJulioYLote->get(
+                        $this->claveJulioYLote($registro->NoJulio, $registro->NoProduccion)
+                    );
+
+                    return [
+                        'julio' => trim((string) $registro->NoJulio),
+                        'cuenta' => $historial->Cuenta ?? null,
+                        'calibre' => $historial->Calibre ?? null,
+                        'hilo' => $registro->ConfigId ?? null,
+                        'lote' => $this->formatearLoteDevolucion($registro->NoProduccion),
+                        'tipo' => $registro->Tipo ?? null,
+                    ];
+                })
+                // La consulta ya viene del más reciente al más antiguo.
+                ->unique('julio')
+                ->values();
+
+            $registroSugerido = $datosPorJulio->first();
+            $julios = $datosPorJulio->pluck('julio')->values();
 
             return response()->json([
                 'ok' => true,
                 'julios' => $julios,
-                'sugerido' => $sugerido,
-                'cuenta' => $cuenta,
-                'calibre' => $calibre,
-                'hilo' => $hilo,
+                'registros' => $datosPorJulio,
+                'sugerido' => $registroSugerido['julio'] ?? null,
+                'cuenta' => $registroSugerido['cuenta'] ?? null,
+                'calibre' => $registroSugerido['calibre'] ?? null,
+                'hilo' => $registroSugerido['hilo'] ?? null,
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al consultar julios atados por telar para devolución', [
@@ -187,29 +202,28 @@ class AtaDevolucionesController extends Controller
      * Registra o actualiza una devolución asociada a un proceso de atado (AtaMontadoTelas).
      *
      * El registro se vincula al montado mediante RefId. NoProduccion guarda el
-     * lote de devolución con prefijo "Dev" y LoteOriginal guarda el mismo lote
+     * lote de devolución con prefijo "DEV" y LoteOriginal guarda el mismo lote
      * sin ese prefijo.
      */
     public function store(Request $request): JsonResponse
     {
-        $user = Auth::user();
-        if (! $user) {
+        if (! Auth::check()) {
             return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
         }
 
         $data = $request->validate([
             'ref_id' => ['required', 'integer'],
-            'telar' => ['required', 'string', 'max:10'],
-            'no_julio' => ['required', 'string', 'max:20'],
-            'no_produccion' => ['required', 'string', 'max:20'],
-            'kilos' => ['required', 'numeric', 'gt:0'],
-            'metros' => ['required', 'numeric', 'gt:0'],
-            'ubicacion' => ['required', 'string', 'max:10'],
-            'fecha_devol' => ['required', 'date'],
-            'cuenta' => ['required', 'string', 'max:10'],
-            'calibre' => ['required', 'string', 'max:10'],
-            'hilo' => ['required', 'string', 'max:20'],
-            'tipo' => ['required', 'string', 'max:5'],
+            'telar' => ['nullable', 'string', 'max:10'],
+            'no_julio' => ['nullable', 'string', 'max:20'],
+            'no_produccion' => ['nullable', 'string', 'max:20'],
+            'kilos' => ['nullable', 'numeric', 'min:0'],
+            'metros' => ['nullable', 'numeric', 'min:0'],
+            'ubicacion' => ['nullable', 'string', 'max:10'],
+            'fecha_devol' => ['nullable', 'date'],
+            'cuenta' => ['nullable', 'string', 'max:10'],
+            'calibre' => ['nullable', 'string', 'max:10'],
+            'hilo' => ['nullable', 'string', 'max:20'],
+            'tipo' => ['nullable', 'string', 'max:5'],
             'obs' => ['nullable', 'string', 'max:255'],
             'config_id' => ['nullable', 'string', 'max:10'],
             'invent_size_id' => ['nullable', 'string', 'max:10'],
@@ -221,17 +235,14 @@ class AtaDevolucionesController extends Controller
             return response()->json(['ok' => false, 'message' => 'No se encontró el atado asociado a la devolución'], 404);
         }
 
-        $kilos = $data['kilos'] ?? null;
-        $metros = $data['metros'] ?? null;
+        $kilos = $data['kilos'] ?? 0;
+        $metros = $data['metros'] ?? 0;
 
         // El "Lote" de la devolución se almacena en la columna NoProduccion con el
-        // prefijo "Dev" seguido del número de orden (evitando duplicar el prefijo).
+        // prefijo "DEV" seguido del número de orden (evitando duplicar el prefijo).
         $ordenBase = trim((string) ($data['no_produccion'] ?? $montado->NoProduccion ?? ''));
-        $loteOriginal = preg_replace('/^Dev/i', '', $ordenBase) ?? '';
-        $loteOriginal = trim($loteOriginal);
-        $loteDev = $ordenBase !== ''
-            ? 'Dev'.$loteOriginal
-            : null;
+        $loteOriginal = $this->extraerLoteOriginal($ordenBase);
+        $loteDev = $this->formatearLoteDevolucion($ordenBase);
         if ($loteDev !== null && strlen($loteDev) > 20) {
             return response()->json([
                 'ok' => false,
@@ -239,15 +250,21 @@ class AtaDevolucionesController extends Controller
             ], 422);
         }
 
-        // LoteOriginal conserva el lote base usado para formar NoProduccion sin el prefijo "Dev".
+        // LoteOriginal conserva el lote base usado para formar NoProduccion sin el prefijo "DEV".
         $noJulio = $data['no_julio'] ?? $montado->NoJulio;
-        $loteOriginal = $loteOriginal !== '' ? $loteOriginal : null;
 
         try {
             [$devolucion, $disponibilidad] = DB::connection('sqlsrv')->transaction(function () use ($data, $montado, $noJulio, $loteDev, $loteOriginal, $kilos, $metros) {
                 $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
                     ->orderByDesc('Id')
+                    ->lockForUpdate()
                     ->first();
+
+                if ($this->estaBloqueadaPorAx($devolucion)) {
+                    throw ValidationException::withMessages([
+                        'devolucion' => ['Esta devolución ya fue procesada en AX y no se puede modificar.'],
+                    ]);
+                }
 
                 /*
                  * VALIDACIÓN TEMPORALMENTE DESHABILITADA A PETICIÓN DEL USUARIO.
@@ -278,20 +295,18 @@ class AtaDevolucionesController extends Controller
                     'RefId' => $montado->Id,
                     // Se conserva el vínculo ya existente mientras la validación está pausada.
                     'InvTelasReservadaId' => $devolucion?->InvTelasReservadaId,
-                    'NoTelarId' => $data['telar'],
+                    'NoTelarId' => $data['telar'] ?? $montado->NoTelarId,
                     'NoJulio' => $noJulio,
                     'NoProduccion' => $loteDev,
                     'LoteOriginal' => $loteOriginal,
-                    // Siempre 0 al registrar la devolución.
-                    'integer' => 0,
                     'Kilos' => $kilos,
                     'Metros' => $metros,
-                    'Ubicacion' => $data['ubicacion'],
+                    'Ubicacion' => $data['ubicacion'] ?? null,
                     'FechaDevol' => $data['fecha_devol'] ?? Carbon::now('America/Mexico_City')->toDateString(),
-                    'Cuenta' => $data['cuenta'],
-                    'Calibre' => $data['calibre'],
-                    'Hilo' => $data['hilo'],
-                    'Tipo' => $data['tipo'],
+                    'Cuenta' => $data['cuenta'] ?? null,
+                    'Calibre' => $data['calibre'] ?? null,
+                    'Hilo' => $data['hilo'] ?? null,
+                    'Tipo' => $data['tipo'] ?? $montado->Tipo,
                     'Obs' => $data['obs'] ?? null,
                     'ConfigId' => $data['config_id'] ?? $montado->ConfigId,
                     'InventSizeId' => $data['invent_size_id'] ?? $montado->InventSizeId,
@@ -304,11 +319,23 @@ class AtaDevolucionesController extends Controller
                     $devolucion->fill($payload);
                     $devolucion->save();
                 } else {
-                    $devolucion = AtaDevolucionesModel::create($payload);
+                    $devolucion = AtaDevolucionesModel::create([
+                        ...$payload,
+                        'AX' => 0,
+                    ]);
                 }
 
                 return [$devolucion, $disponibilidad];
             });
+        } catch (ValidationException $e) {
+            $errores = $e->errors();
+            $bloqueadoPorAx = array_key_exists('devolucion', $errores);
+
+            return response()->json([
+                'ok' => false,
+                'message' => collect($errores)->flatten()->first() ?? 'No se pudo validar la devolución.',
+                'bloqueado_ax' => $bloqueadoPorAx,
+            ], $bloqueadoPorAx ? 423 : 422);
         } catch (\Throwable $e) {
             Log::error('Error al registrar devolución de atadores', [
                 'ref_id' => $montado->Id,
@@ -325,9 +352,74 @@ class AtaDevolucionesController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Devolución guardada correctamente',
+            'message' => 'Devolución actualizada correctamente',
             'id' => $devolucion->Id,
             'disponibilidad' => $disponibilidad,
+        ]);
+    }
+
+    /**
+     * Elimina la devolución de un atado cuando todavía no ha sido enviada a AX.
+     */
+    public function destroy(Request $request): JsonResponse
+    {
+        if (! Auth::check()) {
+            return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
+        }
+
+        $data = $request->validate([
+            'ref_id' => ['required', 'integer'],
+        ]);
+
+        try {
+            $eliminada = DB::connection('sqlsrv')->transaction(function () use ($data) {
+                $devolucion = AtaDevolucionesModel::where('RefId', $data['ref_id'])
+                    ->orderByDesc('Id')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $devolucion) {
+                    return false;
+                }
+
+                if ($this->estaBloqueadaPorAx($devolucion)) {
+                    throw ValidationException::withMessages([
+                        'devolucion' => ['Esta devolución ya fue procesada en AX y no se puede eliminar.'],
+                    ]);
+                }
+
+                $devolucion->delete();
+
+                return true;
+            });
+        } catch (ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => collect($e->errors())->flatten()->first() ?? 'No se pudo eliminar la devolución.',
+                'bloqueado_ax' => true,
+            ], 423);
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar devolución de atadores', [
+                'ref_id' => $data['ref_id'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo eliminar la devolución.',
+            ], 500);
+        }
+
+        if (! $eliminada) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se encontró la devolución para eliminar.',
+            ], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Devolución eliminada correctamente.',
         ]);
     }
 
@@ -415,5 +507,29 @@ class AtaDevolucionesController extends Controller
             'kilos_disponibles' => max(0, $kilosIngresados - $kilosDevueltos),
             'metros_disponibles' => max(0, $metrosIngresados - $metrosDevueltos),
         ];
+    }
+
+    private function extraerLoteOriginal(?string $lote): ?string
+    {
+        $loteOriginal = trim((string) (preg_replace('/^DEV/i', '', trim((string) $lote)) ?? ''));
+
+        return $loteOriginal !== '' ? $loteOriginal : null;
+    }
+
+    private function formatearLoteDevolucion(?string $lote): ?string
+    {
+        $loteOriginal = $this->extraerLoteOriginal($lote);
+
+        return $loteOriginal !== null ? 'DEV'.$loteOriginal : null;
+    }
+
+    private function claveJulioYLote(?string $julio, ?string $lote): string
+    {
+        return mb_strtoupper(trim((string) $julio), 'UTF-8').'|'.mb_strtoupper(trim((string) $lote), 'UTF-8');
+    }
+
+    private function estaBloqueadaPorAx(?AtaDevolucionesModel $devolucion): bool
+    {
+        return (int) ($devolucion?->AX ?? 0) === 1;
     }
 }

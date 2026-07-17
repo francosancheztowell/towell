@@ -35,6 +35,7 @@
                 $item = $montadoTelas->first();
                 $esAutorizado = $item->Estatus === 'Autorizado';
                 $hayDevolucion = !empty($devolucionActual);
+                $devolucionBloqueadaPorAx = $hayDevolucion && (int) ($devolucionActual->AX ?? 0) === 1;
                 $fechaDevolucion = $hayDevolucion && $devolucionActual->FechaDevol
                     ? \Carbon\Carbon::parse($devolucionActual->FechaDevol)->format('Y-m-d')
                     : '';
@@ -356,11 +357,18 @@
                     <input type="checkbox" id="chkDevolucion" class="h-4 w-4 text-blue-600 rounded"
                         onchange="toggleDevolucion(this.checked, this)"
                         @if($hayDevolucion) checked @endif
-                        @if($esAutorizado) disabled @endif />
+                        @if($esAutorizado || $devolucionBloqueadaPorAx) disabled @endif />
                     <span class="text-base font-semibold text-gray-700">Devolución</span>
                 </label>
 
                 <div id="devolucionPanel" class="{{ $hayDevolucion ? '' : 'hidden' }} mt-4 border-t pt-4">
+                    <!-- @if($devolucionBloqueadaPorAx)
+                        <div class="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            Esta devolución ya fue procesada en AX (AX = 1) y está bloqueada para cambios.
+                        </div>
+                    @endif -->
+
+                    <fieldset class="m-0 min-w-0 border-0 p-0" @disabled($devolucionBloqueadaPorAx)>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
                         {{-- Fila 1: Telar | Ubicación | Cuenta | Lote --}}
                         <div>
@@ -382,13 +390,15 @@
                             <label for="dev_ubicacion" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Ubicación
                             </label>
-                            <select id="dev_ubicacion" required
+                            <input type="text" id="dev_ubicacion" list="dev_ubicaciones_sugeridas" autocomplete="off" required
+                                value="{{ $hayDevolucion ? $devolucionActual->Ubicacion : '' }}"
+                                placeholder="Escriba o seleccione una ubicación"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                <option value="">Seleccione</option>
+                            <datalist id="dev_ubicaciones_sugeridas">
                                 @if($hayDevolucion && $devolucionActual->Ubicacion)
-                                    <option value="{{ $devolucionActual->Ubicacion }}" selected>{{ $devolucionActual->Ubicacion }}</option>
+                                    <option value="{{ $devolucionActual->Ubicacion }}"></option>
                                 @endif
-                            </select>
+                            </datalist>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Cuenta</label>
@@ -408,9 +418,9 @@
                             <label for="dev_no_julio" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Julio
                             </label>
-                            <select id="dev_no_julio" {{-- onchange="actualizarDisponibilidadDevolucion()" --}} required
+                            <select id="dev_no_julio" required onchange="onCambioJulioDevolucion(this.value)"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                <option value="">{{ $hayDevolucion ? 'Seleccione' : 'Seleccione un telar' }}</option>
+                                <option value="">Seleccione un telar primero</option>
                                 @if($hayDevolucion && $devolucionActual->NoJulio)
                                     <option value="{{ $devolucionActual->NoJulio }}" selected>{{ $devolucionActual->NoJulio }}</option>
                                 @endif
@@ -477,12 +487,8 @@
 
                     {{-- Validación temporalmente pausada: <div id="dev_disponibilidad" class="hidden mt-4 rounded border px-3 py-2 text-sm" aria-live="polite"></div> --}}
 
-                    <div class="flex justify-end mt-4">
-                        <button type="button" id="btnGuardarDevolucion" onclick="guardarDevolucion()"
-                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <i class="fas fa-save mr-1"></i> {{ $hayDevolucion ? 'Actualizar Devolución' : 'Guardar Devolución' }}
-                        </button>
-                    </div>
+                    <div id="estadoAutoguardadoDevolucion" class="mt-4 text-right text-xs text-gray-500" aria-live="polite"></div>
+                    </fieldset>
                 </div>
             </div>
 
@@ -557,6 +563,7 @@
                 'id' => $devolucionActual->Id,
                 'no_julio' => $devolucionActual->NoJulio,
                 'ubicacion' => $devolucionActual->Ubicacion,
+                'bloqueada_por_ax' => $devolucionBloqueadaPorAx,
             ] : null) !!};
         @else
             const currentNoJulio = null;
@@ -569,6 +576,7 @@
             const devolucionActual = null;
         @endif
         let devolucionRegistrada = !!devolucionActual;
+        const devolucionBloqueadaPorAx = !!devolucionActual?.bloqueada_por_ax;
 
     // Información de actividades para validación
     const actividadesData = {!! json_encode($actividadesCatalogo->map(function ($act) use ($actividadesMontado) {
@@ -597,33 +605,23 @@
         let ubicacionesDevolucionCargadas = false;
 
         function cargarUbicacionesDevolucion() {
-            const select = document.getElementById('dev_ubicacion');
-            if (!select || ubicacionesDevolucionCargadas) return;
+            const input = document.getElementById('dev_ubicacion');
+            const sugerencias = document.getElementById('dev_ubicaciones_sugeridas');
+            if (!input || !sugerencias || ubicacionesDevolucionCargadas) return;
 
-            const valorPrevio = select.value;
-            select.disabled = true;
+            input.disabled = true;
 
             fetch('{{ route('atadores.devoluciones.ubicaciones') }}')
                 .then(r => r.json())
                 .then(res => {
                     if (res.ok && Array.isArray(res.ubicaciones)) {
-                        select.innerHTML = '<option value="">Seleccione</option>';
+                        sugerencias.innerHTML = '';
                         res.ubicaciones.forEach(ubi => {
                             const opt = document.createElement('option');
                             opt.value = ubi;
-                            opt.textContent = ubi;
-                            select.appendChild(opt);
+                            sugerencias.appendChild(opt);
                         });
                         ubicacionesDevolucionCargadas = true;
-                        if (valorPrevio) {
-                            if (![...select.options].some(opt => opt.value === valorPrevio)) {
-                                const opt = document.createElement('option');
-                                opt.value = valorPrevio;
-                                opt.textContent = `${valorPrevio} (registrada)`;
-                                select.appendChild(opt);
-                            }
-                            select.value = valorPrevio;
-                        }
                     } else {
                         Swal.fire({
                             icon: 'warning',
@@ -639,7 +637,7 @@
                         text: 'No se pudo conectar con TI-PRO para cargar las ubicaciones.'
                     });
                 })
-                .finally(() => { select.disabled = false; });
+                .finally(() => { input.disabled = false; });
         }
 
         // Cache en memoria de los julios ya consultados por telar (evita repetir
@@ -725,41 +723,79 @@
             }
         }
 
-        // Se dispara al cambiar el Telar en el panel de Devolución: recarga el
-        // select de "Julio" filtrando por ese telar + el mismo Tipo del atado actual.
+        function aplicarDatosJulioDevolucion(registro) {
+            if (!registro) return;
+
+            const setValor = (id, valor) => {
+                const el = document.getElementById(id);
+                if (el) el.value = valor ?? '';
+            };
+
+            setValor('dev_cuenta', registro.cuenta);
+            setValor('dev_calibre', registro.calibre);
+            setValor('dev_hilo', registro.hilo);
+            setValor('dev_lote', registro.lote);
+
+            const tipo = String(registro.tipo ?? '').trim();
+            const tipoInput = document.getElementById('dev_tipo');
+            if (tipoInput && tipo) {
+                if (![...tipoInput.options].some(opcion => opcion.value === tipo)) {
+                    const opcion = document.createElement('option');
+                    opcion.value = tipo;
+                    opcion.textContent = tipo;
+                    tipoInput.appendChild(opcion);
+                }
+
+                tipoInput.value = tipo;
+            }
+
+            programarAutoguardadoDevolucion();
+        }
+
+        function onCambioJulioDevolucion(julio) {
+            const telar = document.getElementById('dev_telar')?.value?.trim() || '';
+            const datos = juliosDevolucionCache[telar];
+            const valor = String(julio ?? '').trim();
+            if (!datos || !valor) return;
+
+            const registro = (datos.registros || []).find(item => String(item.julio ?? '').trim() === valor);
+            if (registro) aplicarDatosJulioDevolucion(registro);
+        }
+
+        function limpiarDatosJulioDevolucion() {
+            ['dev_cuenta', 'dev_calibre', 'dev_hilo', 'dev_lote'].forEach(id => {
+                const campo = document.getElementById(id);
+                if (campo) campo.value = '';
+            });
+
+            const tipo = document.getElementById('dev_tipo');
+            if (tipo) tipo.value = '';
+        }
+
+        // Se dispara al cambiar el Telar en el panel de Devolución: carga los
+        // Julios disponibles para que el usuario seleccione el correspondiente.
         function onCambioTelarDevolucion(telar) {
             const select = document.getElementById('dev_no_julio');
             if (select) {
                 select.value = '';
             }
+            limpiarDatosJulioDevolucion();
             limpiarDisponibilidadDevolucion();
-            cargarJuliosDevolucion(telar, { autoseleccionar: true });
+            cargarJuliosDevolucion(telar);
         }
 
-        function cargarJuliosDevolucion(telar, { autoseleccionar = false } = {}) {
+        function cargarJuliosDevolucion(telar) {
             const select = document.getElementById('dev_no_julio');
             if (!select) return;
 
             if (!telar) {
-                select.innerHTML = '<option value="">Seleccione un telar</option>';
+                select.innerHTML = '<option value="">Seleccione un telar primero</option>';
                 return;
             }
 
-            // Precarga Cuenta/Calibre/Hilo sugeridos del julio anterior (siguen
-            // siendo campos editables, solo se prellenan como punto de partida).
-            const precargarDatosJulio = (datos) => {
-                const setValor = (id, valor) => {
-                    const el = document.getElementById(id);
-                    if (el) el.value = valor ?? '';
-                };
-                setValor('dev_cuenta', datos.cuenta);
-                setValor('dev_calibre', datos.calibre);
-                setValor('dev_hilo', datos.hilo);
-            };
-
             const render = (datos) => {
-                const valorPrevio = select.value;
-                select.innerHTML = '<option value="">Seleccione</option>';
+                const valorPrevio = select.value.trim();
+                select.innerHTML = '<option value="">Seleccione un Julio</option>';
                 datos.julios.forEach(j => {
                     const opt = document.createElement('option');
                     opt.value = j;
@@ -767,17 +803,9 @@
                     select.appendChild(opt);
                 });
 
-                if (valorPrevio) {
-                    if (![...select.options].some(opt => opt.value === valorPrevio)) {
-                        const opt = document.createElement('option');
-                        opt.value = valorPrevio;
-                        opt.textContent = `${valorPrevio} (registrado)`;
-                        select.appendChild(opt);
-                    }
+                if (valorPrevio && [...select.options].some(opcion => opcion.value === valorPrevio)) {
                     select.value = valorPrevio;
-                } else if (autoseleccionar && datos.sugerido) {
-                    select.value = datos.sugerido;
-                    precargarDatosJulio(datos);
+                    onCambioJulioDevolucion(valorPrevio);
                 }
 
                 // Validación temporalmente pausada: actualizarDisponibilidadDevolucion();
@@ -789,7 +817,7 @@
             }
 
             select.disabled = true;
-            select.innerHTML = '<option value="">Cargando...</option>';
+            select.innerHTML = '<option value="">Cargando Julios...</option>';
 
             const params = new URLSearchParams({ telar });
             if (currentTipoAtado) params.set('tipo', currentTipoAtado);
@@ -805,11 +833,12 @@
                             cuenta: res.cuenta || null,
                             calibre: res.calibre || null,
                             hilo: res.hilo || null,
+                            registros: Array.isArray(res.registros) ? res.registros : [],
                         };
                         juliosDevolucionCache[telar] = datos;
                         render(datos);
                     } else {
-                        select.innerHTML = '<option value="">Seleccione</option>';
+                        select.innerHTML = '<option value="">Sin Julios disponibles</option>';
                         Swal.fire({
                             icon: 'warning',
                             title: 'Julios no disponibles',
@@ -818,186 +847,291 @@
                     }
                 })
                 .catch(() => {
-                    select.innerHTML = '<option value="">Seleccione</option>';
+                    select.innerHTML = '<option value="">No se pudieron cargar los Julios</option>';
                     Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo cargar los julios de ese telar.' });
                 })
                 .finally(() => { select.disabled = false; });
         }
 
-        // Mostrar/ocultar panel de Devolución según el check
-        function toggleDevolucion(checked, checkbox = null) {
+        let autoguardadoDevolucionTimeout = null;
+        let guardadoDevolucionEnCurso = false;
+        let guardadoDevolucionPendiente = false;
+        let eliminandoDevolucion = false;
+
+        function actualizarEstadoAutoguardadoDevolucion(texto, clase = 'text-gray-500') {
+            const estado = document.getElementById('estadoAutoguardadoDevolucion');
+            if (!estado) return;
+
+            estado.textContent = texto;
+            estado.className = `mt-4 text-right text-xs ${clase}`;
+        }
+
+        function valorDevolucion(id) {
+            const el = document.getElementById(id);
+            return el ? el.value.trim() : '';
+        }
+
+        function payloadDevolucion() {
+            const kilos = valorDevolucion('dev_kilos');
+            const metros = valorDevolucion('dev_metros');
+
+            return {
+                ref_id: currentRefId,
+                telar: valorDevolucion('dev_telar') || null,
+                no_julio: valorDevolucion('dev_no_julio') || null,
+                no_produccion: valorDevolucion('dev_lote') || currentNoOrden || null,
+                kilos: kilos !== '' ? parseFloat(kilos) : null,
+                metros: metros !== '' ? parseFloat(metros) : null,
+                ubicacion: valorDevolucion('dev_ubicacion') || null,
+                fecha_devol: valorDevolucion('dev_fecha') || null,
+                cuenta: valorDevolucion('dev_cuenta') || null,
+                calibre: valorDevolucion('dev_calibre') || null,
+                hilo: valorDevolucion('dev_hilo') || null,
+                tipo: valorDevolucion('dev_tipo') || null,
+                obs: valorDevolucion('dev_obs') || null,
+            };
+        }
+
+        async function sincronizarDevolucion({ mostrarError = true, permitirCrear = false } = {}) {
+            if (devolucionBloqueadaPorAx || eliminandoDevolucion || !currentRefId || (!devolucionRegistrada && !permitirCrear)) {
+                return false;
+            }
+
+            if (guardadoDevolucionEnCurso) {
+                guardadoDevolucionPendiente = true;
+                return false;
+            }
+
+            guardadoDevolucionEnCurso = true;
+            actualizarEstadoAutoguardadoDevolucion('Guardando cambios...', 'text-blue-600');
+
+            try {
+                const response = await fetch('{{ route('atadores.devoluciones.store') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify(payloadDevolucion())
+                });
+                const res = await response.json();
+
+                if (!response.ok || !res.ok) {
+                    actualizarEstadoAutoguardadoDevolucion('No se guardaron los cambios.', 'text-red-600');
+                    if (mostrarError) {
+                        Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo guardar la devolución.' });
+                    }
+                    return false;
+                }
+
+                devolucionRegistrada = true;
+                const checkbox = document.getElementById('chkDevolucion');
+                if (checkbox) checkbox.checked = true;
+                actualizarEstadoAutoguardadoDevolucion('Cambios guardados.', 'text-green-600');
+
+                return true;
+            } catch (_) {
+                actualizarEstadoAutoguardadoDevolucion('No se guardaron los cambios.', 'text-red-600');
+                if (mostrarError) {
+                    Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo conectar con el servidor.' });
+                }
+                return false;
+            } finally {
+                guardadoDevolucionEnCurso = false;
+                if (guardadoDevolucionPendiente) {
+                    guardadoDevolucionPendiente = false;
+                    programarAutoguardadoDevolucion(0);
+                }
+            }
+        }
+
+        function programarAutoguardadoDevolucion(retraso = 600) {
+            if (!devolucionRegistrada || devolucionBloqueadaPorAx || eliminandoDevolucion) return;
+
+            clearTimeout(autoguardadoDevolucionTimeout);
+            autoguardadoDevolucionTimeout = setTimeout(() => {
+                if (devolucionRegistrada && !eliminandoDevolucion) {
+                    void sincronizarDevolucion();
+                }
+            }, retraso);
+        }
+
+        async function esperarFinGuardadoDevolucion() {
+            while (guardadoDevolucionEnCurso) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        }
+
+        function prepararFormularioDevolucion() {
+            const setSiVacio = (id, valor) => {
+                const el = document.getElementById(id);
+                if (el && !el.value && valor != null) el.value = valor;
+            };
+
+            const telarSelect = document.getElementById('dev_telar');
+            if (telarSelect && !telarSelect.value && currentTelar) {
+                telarSelect.value = currentTelar;
+                if (telarSelect.value !== String(currentTelar)) {
+                    const opt = document.createElement('option');
+                    opt.value = currentTelar;
+                    opt.textContent = currentTelar;
+                    telarSelect.appendChild(opt);
+                    telarSelect.value = currentTelar;
+                }
+            }
+
+            setSiVacio('dev_lote', currentNoOrden ? ('DEV' + currentNoOrden) : null);
+            setSiVacio('dev_tipo', currentTipoAtado);
+            const fecha = document.getElementById('dev_fecha');
+            if (fecha && !fecha.value) {
+                fecha.value = new Date().toLocaleDateString('en-CA');
+            }
+        }
+
+        function cargarCatalogosDevolucion() {
+            cargarUbicacionesDevolucion();
+
+            const telar = document.getElementById('dev_telar')?.value;
+            if (telar) {
+                cargarJuliosDevolucion(telar);
+            }
+        }
+
+        function limpiarFormularioDevolucion() {
+            ['dev_ubicacion', 'dev_cuenta', 'dev_lote', 'dev_no_julio', 'dev_metros', 'dev_calibre', 'dev_kilos', 'dev_fecha', 'dev_hilo', 'dev_obs']
+                .forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+
+            const telar = document.getElementById('dev_telar');
+            if (telar) telar.value = '';
+
+            const tipo = document.getElementById('dev_tipo');
+            if (tipo) tipo.value = '';
+        }
+
+        async function eliminarDevolucion(checkbox, panel) {
+            const confirmacion = await Swal.fire({
+                icon: 'warning',
+                title: '¿Estás seguro de eliminar devolución?',
+                text: 'Esta acción eliminará los datos capturados de la devolución.',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#dc2626',
+            });
+
+            if (!confirmacion.isConfirmed) {
+                if (checkbox) checkbox.checked = true;
+                panel.classList.remove('hidden');
+                return;
+            }
+
+            eliminandoDevolucion = true;
+            clearTimeout(autoguardadoDevolucionTimeout);
+            guardadoDevolucionPendiente = false;
+            await esperarFinGuardadoDevolucion();
+
+            try {
+                const response = await fetch('{{ route('atadores.devoluciones.destroy') }}', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ ref_id: currentRefId })
+                });
+                const res = await response.json();
+
+                if (!response.ok || !res.ok) {
+                    if (checkbox) checkbox.checked = true;
+                    panel.classList.remove('hidden');
+                    Swal.fire({ icon: 'error', title: 'No se pudo eliminar', text: res.message || 'No se pudo eliminar la devolución.' });
+                    return;
+                }
+
+                devolucionRegistrada = false;
+                limpiarFormularioDevolucion();
+                panel.classList.add('hidden');
+                actualizarEstadoAutoguardadoDevolucion('');
+                Swal.fire({ icon: 'success', title: 'Devolución eliminada', timer: 1300, showConfirmButton: false });
+            } catch (_) {
+                if (checkbox) checkbox.checked = true;
+                panel.classList.remove('hidden');
+                Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo conectar con el servidor.' });
+            } finally {
+                eliminandoDevolucion = false;
+            }
+        }
+
+        // Crea la devolución al marcar el check, y permite eliminarla al desmarcarlo.
+        async function toggleDevolucion(checked, checkbox = null) {
             const panel = document.getElementById('devolucionPanel');
             if (!panel) return;
 
-            if (devolucionRegistrada && !checked) {
-                if (checkbox) {
-                    checkbox.checked = true;
-                }
+            if (devolucionBloqueadaPorAx) {
+                if (checkbox) checkbox.checked = true;
                 panel.classList.remove('hidden');
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Devolución registrada',
-                    text: 'Este atado ya tiene devolución registrada; no se puede desmarcar.'
-                });
                 return;
             }
 
-            panel.classList.toggle('hidden', !checked);
-
-            // Al abrir, prellenar campos informativos si están vacíos
-            if (checked) {
-                cargarUbicacionesDevolucion();
-
-                const setSiVacio = (id, valor) => {
-                    const el = document.getElementById(id);
-                    if (el && !el.value && valor != null) el.value = valor;
-                };
-
-                const telarSelect = document.getElementById('dev_telar');
-                if (telarSelect && !telarSelect.value && currentTelar) {
-                    telarSelect.value = currentTelar;
-                    // Si el telar actual no está en el catálogo, se agrega para no perder el dato.
-                    if (telarSelect.value !== String(currentTelar)) {
-                        const opt = document.createElement('option');
-                        opt.value = currentTelar;
-                        opt.textContent = currentTelar;
-                        telarSelect.appendChild(opt);
-                        telarSelect.value = currentTelar;
-                    }
-                }
-                if (telarSelect && telarSelect.value) {
-                    cargarJuliosDevolucion(telarSelect.value, { autoseleccionar: true });
+            if (!checked) {
+                if (!devolucionRegistrada) {
+                    panel.classList.add('hidden');
+                    return;
                 }
 
-                // Lote = "Dev" + NoProduccion (se guarda en la columna NoProduccion de AtaDevoluciones)
-                setSiVacio('dev_lote', currentNoOrden ? ('Dev' + currentNoOrden) : null);
-                setSiVacio('dev_tipo', currentTipoAtado);
-                const fecha = document.getElementById('dev_fecha');
-                if (fecha && !fecha.value) {
-                    fecha.value = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+                await eliminarDevolucion(checkbox, panel);
+                return;
+            }
+
+            panel.classList.remove('hidden');
+            prepararFormularioDevolucion();
+
+            if (!devolucionRegistrada) {
+                const creada = await sincronizarDevolucion({ permitirCrear: true });
+                if (!creada) {
+                    if (checkbox) checkbox.checked = false;
+                    panel.classList.add('hidden');
+                    return;
                 }
             }
+
+            cargarCatalogosDevolucion();
         }
 
-        function inicializarDevolucionExistente() {
-            const chk = document.getElementById('chkDevolucion');
-            if (!devolucionActual || !chk) {
-                return;
-            }
+        function inicializarAutoguardadoDevolucion() {
+            const campos = [
+                'dev_telar', 'dev_ubicacion', 'dev_cuenta', 'dev_no_julio', 'dev_metros',
+                'dev_calibre', 'dev_tipo', 'dev_kilos', 'dev_fecha', 'dev_hilo', 'dev_obs',
+            ];
 
-            chk.checked = true;
-            toggleDevolucion(true);
+            campos.forEach(id => {
+                const campo = document.getElementById(id);
+                if (!campo) return;
+
+                campo.addEventListener('input', () => programarAutoguardadoDevolucion());
+                campo.addEventListener('change', () => {
+                    if (id !== 'dev_telar') programarAutoguardadoDevolucion();
+                });
+            });
+        }
+
+        function inicializarDevolucion() {
+            inicializarAutoguardadoDevolucion();
+
+            const checkbox = document.getElementById('chkDevolucion');
+            if (!devolucionActual || !checkbox) return;
+
+            checkbox.checked = true;
+            void toggleDevolucion(true);
         }
 
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', inicializarDevolucionExistente);
+            document.addEventListener('DOMContentLoaded', inicializarDevolucion);
         } else {
-            inicializarDevolucionExistente();
-        }
-
-        async function guardarDevolucion() {
-            if (!currentRefId) {
-                Swal.fire({ icon: 'error', title: 'Sin atado', text: 'No hay un atado asociado para registrar la devolución.' });
-                return;
-            }
-
-            const val = (id) => {
-                const el = document.getElementById(id);
-                return el ? el.value.trim() : '';
-            };
-
-            const kilos = val('dev_kilos');
-            const metros = val('dev_metros');
-
-            const camposRequeridos = [
-                ['dev_telar', 'Telar'],
-                ['dev_ubicacion', 'Ubicación'],
-                ['dev_cuenta', 'Cuenta'],
-                ['dev_lote', 'Lote'],
-                ['dev_no_julio', 'Julio'],
-                ['dev_metros', 'Metros'],
-                ['dev_calibre', 'Calibre'],
-                ['dev_tipo', 'Tipo'],
-                ['dev_kilos', 'Kilos'],
-                ['dev_fecha', 'Fecha'],
-                ['dev_hilo', 'Hilo'],
-            ];
-
-            const faltantes = camposRequeridos
-                .filter(([id]) => val(id) === '')
-                .map(([, label]) => label);
-
-            if (faltantes.length > 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Campos obligatorios',
-                    text: 'Captura: ' + faltantes.join(', ') + '.'
-                });
-                return;
-            }
-
-            if (parseFloat(kilos) <= 0 || parseFloat(metros) <= 0) {
-                Swal.fire({ icon: 'warning', title: 'Valores inválidos', text: 'Kilos y Metros deben ser mayores a cero.' });
-                return;
-            }
-
-            /* VALIDACIÓN TEMPORALMENTE PAUSADA: disponibilidad por Julio, kg y metros.
-            const disponibilidad = await actualizarDisponibilidadDevolucion({ silencioso: false });
-            if (!disponibilidad) return;
-
-            if (parseFloat(kilos) > Number(disponibilidad.kilos_disponibles) + 0.0001 ||
-                parseFloat(metros) > Number(disponibilidad.metros_disponibles) + 0.0001) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Cantidad excedida',
-                    text: `Solo puede devolver hasta ${formatearCantidadDevolucion(disponibilidad.kilos_disponibles)} kg y ${formatearCantidadDevolucion(disponibilidad.metros_disponibles)} m.`
-                });
-                return;
-            }
-            */
-
-            const payload = {
-                ref_id: currentRefId,
-                telar: val('dev_telar') || null,
-                no_julio: val('dev_no_julio') || null,
-                no_produccion: currentNoOrden || null,
-                kilos: kilos !== '' ? parseFloat(kilos) : null,
-                metros: metros !== '' ? parseFloat(metros) : null,
-                ubicacion: val('dev_ubicacion') || null,
-                fecha_devol: val('dev_fecha') || null,
-                cuenta: val('dev_cuenta') || null,
-                calibre: val('dev_calibre') || null,
-                hilo: val('dev_hilo') || null,
-                tipo: val('dev_tipo') || null,
-                obs: val('dev_obs') || null,
-            };
-
-            const btn = document.getElementById('btnGuardarDevolucion');
-            if (btn) btn.disabled = true;
-
-            fetch('{{ route('atadores.devoluciones.store') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify(payload)
-            })
-                .then(r => r.json())
-                .then(res => {
-                    if (res.ok) {
-                        Swal.fire({ icon: 'success', title: 'Devolución guardada', timer: 1500, showConfirmButton: false });
-                        const chk = document.getElementById('chkDevolucion');
-                        devolucionRegistrada = true;
-                        if (chk) chk.checked = true;
-                        toggleDevolucion(true);
-                        // Validación temporalmente pausada: actualizarDisponibilidadDevolucion();
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'No se pudo registrar la devolución' });
-                    }
-                })
-                .catch(() => Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo conectar con el servidor.' }))
-                .finally(() => { if (btn) btn.disabled = false; });
+            inicializarDevolucion();
         }
 
         // Auto-guardado de observaciones
