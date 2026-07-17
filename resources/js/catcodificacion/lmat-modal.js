@@ -1232,6 +1232,7 @@ async function openLMatModal(context = {}) {
         `,
         width: '1360px',
         showConfirmButton: false,
+        allowOutsideClick: false,
         didOpen: () => {
             const tbodyLMat = document.querySelector('.swal2-html-container tbody');
             const pesoCrudoInput = document.getElementById('lmat-pesocrudo');
