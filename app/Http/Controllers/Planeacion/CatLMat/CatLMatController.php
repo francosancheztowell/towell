@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class CatLMatController extends Controller
 {
@@ -108,6 +109,13 @@ class CatLMatController extends Controller
             'luchaje' => 'nullable|integer',
             'codigoDibujo' => 'nullable|string|max:30',
             'actualizaLmat' => 'sometimes|boolean',
+            'pasadas' => 'sometimes|array',
+            'pasadas.PasadasTramaFondoC1' => 'sometimes|integer|min:0',
+            'pasadas.PasadasComb1' => 'sometimes|integer|min:0',
+            'pasadas.PasadasComb2' => 'sometimes|integer|min:0',
+            'pasadas.PasadasComb3' => 'sometimes|integer|min:0',
+            'pasadas.PasadasComb4' => 'sometimes|integer|min:0',
+            'pasadas.PasadasComb5' => 'sometimes|integer|min:0',
             'filas' => 'required|array|min:1',
             'filas.*.itemId' => 'required|string|max:60',
             'filas.*.configId' => 'required|string|max:60',
@@ -170,7 +178,20 @@ class CatLMatController extends Controller
                 if ($telarId !== '') {
                     $q->where('TelarId', $telarId);
                 }
-                $catCodificado = (clone $q)->first(['Luchaje', 'CodigoDibujo', 'BomId', 'BomName', 'ActualizaLmat']);
+                $catCodificado = (clone $q)->first([
+                    'Luchaje',
+                    'CodigoDibujo',
+                    'BomId',
+                    'BomName',
+                    'ActualizaLmat',
+                    'Total',
+                    'PasadasTramaFondoC1',
+                    'PasadasComb1',
+                    'PasadasComb2',
+                    'PasadasComb3',
+                    'PasadasComb4',
+                    'PasadasComb5',
+                ]);
                 $bomIdActual = strtoupper(trim((string) ($catCodificado?->BomId ?? '')));
                 $esEstand = str_starts_with($bomIdActual, 'ESTAND');
                 $bomIdResultado = $catCodificado?->BomId;
@@ -188,6 +209,47 @@ class CatLMatController extends Controller
                     }
                     $q->update($payloadCat);
                     $actualizaLmatResultado = $actualizaLmat;
+                }
+
+                // Las pasadas editables del modal pertenecen a la codificación de la orden.
+                // Solo se actualizan las claves presentes para no sobrescribir combinaciones ocultas.
+                $pasadasPermitidas = [
+                    'PasadasTramaFondoC1',
+                    'PasadasComb1',
+                    'PasadasComb2',
+                    'PasadasComb3',
+                    'PasadasComb4',
+                    'PasadasComb5',
+                ];
+                $pasadasPayload = [];
+                foreach ($pasadasPermitidas as $campoPasadas) {
+                    if (array_key_exists($campoPasadas, $data['pasadas'] ?? [])) {
+                        $pasadasPayload[$campoPasadas] = (int) $data['pasadas'][$campoPasadas];
+                    }
+                }
+                if ($pasadasPayload !== []) {
+                    $totalReferencia = (int) floor((float) ($catCodificado?->Total ?? 0));
+                    if ($totalReferencia <= 0) {
+                        $totalReferencia = array_sum(array_map(
+                            static fn (string $campo): int => (int) ($catCodificado?->{$campo} ?? 0),
+                            $pasadasPermitidas,
+                        ));
+                    }
+                    $totalPasadas = array_sum(array_map(
+                        static fn (string $campo): int => $pasadasPayload[$campo]
+                            ?? (int) ($catCodificado?->{$campo} ?? 0),
+                        $pasadasPermitidas,
+                    ));
+                    $minimoPasadas = (int) floor($totalReferencia * 0.70);
+                    $maximoPasadas = (int) floor($totalReferencia * 1.30);
+
+                    if ($totalReferencia > 0 && ($totalPasadas < $minimoPasadas || $totalPasadas > $maximoPasadas)) {
+                        throw ValidationException::withMessages([
+                            'pasadas' => "El total de Pasadas es {$totalPasadas}. Debe estar entre {$minimoPasadas} y {$maximoPasadas}.",
+                        ]);
+                    }
+
+                    $q->update($pasadasPayload);
                 }
 
                 // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados (aunque no se muestren en el modal).
@@ -287,6 +349,8 @@ class CatLMatController extends Controller
                 'bomName' => $bomNameResultado,
                 'actualizaLmat' => $actualizaLmatResultado,
             ]);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('CatLMatController::guardarLmat', ['exception' => $e, 'orden' => $data['orden'] ?? null]);
 

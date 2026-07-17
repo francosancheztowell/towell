@@ -77,6 +77,13 @@ final class MatrizCalibresServiceTest extends TestCase
             $table->string('BomName', 60)->nullable();
             $table->integer('Luchaje')->nullable();
             $table->string('CodigoDibujo', 30)->nullable();
+            $table->integer('Total')->nullable();
+            $table->integer('PasadasTramaFondoC1')->nullable();
+            $table->integer('PasadasComb1')->nullable();
+            $table->integer('PasadasComb2')->nullable();
+            $table->integer('PasadasComb3')->nullable();
+            $table->integer('PasadasComb4')->nullable();
+            $table->integer('PasadasComb5')->nullable();
         });
 
         Schema::connection('sqlsrv')->create('CatLMat', function (Blueprint $table): void {
@@ -90,6 +97,7 @@ final class MatrizCalibresServiceTest extends TestCase
             $table->string('ConfigId', 60)->nullable();
             $table->string('InventSizeId', 60)->nullable();
             $table->string('InventColorId', 60)->nullable();
+            $table->string('NombreColor', 60)->nullable();
             $table->string('InventLocationId', 60)->nullable();
             $table->float('Qty');
             $table->float('Porcentaje')->nullable();
@@ -531,6 +539,86 @@ final class MatrizCalibresServiceTest extends TestCase
             ->assertJsonValidationErrors('filas.0.itemId');
 
         $this->assertSame(0, DB::connection('sqlsrv')->table('CatLMat')->count());
+    }
+
+    public function test_guardar_lmat_actualiza_solo_las_pasadas_enviadas(): void
+    {
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => 'ORD-100',
+            'TelarId' => '305',
+            'PasadasTramaFondoC1' => 1200,
+            'PasadasComb1' => 80,
+            'PasadasComb2' => 60,
+            'PasadasComb3' => 40,
+        ]);
+        $payload = $this->payloadLMat('ITEM-A');
+        $payload['pasadas'] = [
+            'PasadasTramaFondoC1' => 1350,
+            'PasadasComb1' => 95,
+            'PasadasComb2' => 0,
+        ];
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payload)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $registro = DB::connection('sqlsrv')
+            ->table('CatCodificados')
+            ->where('OrdenTejido', 'ORD-100')
+            ->first();
+
+        $this->assertSame(1350, $registro->PasadasTramaFondoC1);
+        $this->assertSame(95, $registro->PasadasComb1);
+        $this->assertSame(0, $registro->PasadasComb2);
+        $this->assertSame(40, $registro->PasadasComb3);
+    }
+
+    public function test_guardar_lmat_limita_total_pasadas_a_mas_menos_treinta_por_ciento(): void
+    {
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => 'ORD-100',
+            'TelarId' => '305',
+            'Total' => 984,
+            'PasadasTramaFondoC1' => 800,
+            'PasadasComb1' => 184,
+        ]);
+        $payloadParaTotal = function (int $totalPasadas): array {
+            $payload = $this->payloadLMat('ITEM-A');
+            $payload['pasadas'] = [
+                'PasadasTramaFondoC1' => $totalPasadas,
+                'PasadasComb1' => 0,
+                'PasadasComb2' => 0,
+                'PasadasComb3' => 0,
+                'PasadasComb4' => 0,
+                'PasadasComb5' => 0,
+            ];
+
+            return $payload;
+        };
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payloadParaTotal(687))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('pasadas');
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payloadParaTotal(688))
+            ->assertOk();
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payloadParaTotal(1279))
+            ->assertOk();
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payloadParaTotal(1280))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('pasadas');
+
+        $this->assertSame(
+            1279,
+            (int) DB::connection('sqlsrv')->table('CatCodificados')->value('PasadasTramaFondoC1'),
+        );
     }
 
     public function test_guardar_y_actualizar_lmat_tambien_actualiza_la_equivalencia_global(): void
