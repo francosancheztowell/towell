@@ -778,13 +778,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const totalActual = calcularSuma();
+            const totalMinimo = Math.floor(base * 0.70);
             const totalMaximo = Math.floor(base * 1.30);
             const minimoCombinaciones = Math.ceil(base * 0.30);
             const totalCombinaciones = calcularSumaCombinaciones();
             const errores = [];
 
-            if (totalActual < base) {
-                errores.push(`El total de pasadas no puede ser menor al inicial (${base}).`);
+            if (totalActual < totalMinimo) {
+                errores.push(`El total de pasadas no puede ser menor a ${totalMinimo} (30% menos que ${base}).`);
             }
             if (totalActual > totalMaximo) {
                 errores.push(`El total de pasadas no puede superar ${totalMaximo} (30% adicional sobre ${base}).`);

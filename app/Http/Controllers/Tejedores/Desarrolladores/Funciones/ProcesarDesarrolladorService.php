@@ -974,7 +974,7 @@ class ProcesarDesarrolladorService
 
     /**
      * La configuración inicial de la orden define el rango válido de pasadas:
-     * el total puede crecer hasta 30% y las combinaciones deben conservar al menos 30%.
+     * el total puede variar hasta 30% y las combinaciones deben conservar al menos 30%.
      * Se calcula desde la orden bloqueada, nunca desde un valor enviado por el navegador.
      *
      * @param  array<string, mixed>  $pasadas
@@ -1033,12 +1033,13 @@ class ProcesarDesarrolladorService
             ]);
         }
 
+        $totalMinimo = (int) floor($totalBase * 0.70);
         $totalMaximo = (int) floor($totalBase * 1.30);
         $minimoCombinaciones = (int) ceil($totalBase * 0.30);
         $errores = [];
 
-        if ($totalActual < $totalBase) {
-            $errores[] = "El total de pasadas no puede ser menor al inicial ({$totalBase}).";
+        if ($totalActual < $totalMinimo) {
+            $errores[] = "El total de pasadas no puede ser menor a {$totalMinimo} (30% menos que {$totalBase}).";
         }
         if ($totalActual > $totalMaximo) {
             $errores[] = "El total de pasadas no puede superar {$totalMaximo} (30% adicional sobre {$totalBase}).";
