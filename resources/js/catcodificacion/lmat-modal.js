@@ -939,7 +939,7 @@ async function openLMatModal(context = {}) {
         // fila la trae cargarMaterialesFilaLMat vía AX/ConfigTable, por ItemId específico.
         // No mezclar aquí los ConfigId guardados de OTRAS filas: un config válido/vigente
         // para un artículo puede no serlo (o ni existir) para el artículo de otra fila.
-        config: ['ENTERO'],
+        config: [],
         tamano: Array.from(new Set([
             tamano,
             tamanoRizo,
