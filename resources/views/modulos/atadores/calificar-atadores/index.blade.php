@@ -375,8 +375,8 @@
                             <label for="dev_telar" class="block text-xs font-bold uppercase tracking-wide mb-1">
                                 Telar
                             </label>
-                            <select id="dev_telar" onchange="onCambioTelarDevolucion(this.value)" required
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                            <select id="dev_telar" onchange="onCambioTelarDevolucion(this.value)" required disabled
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none">
                                 <option value="">Seleccione</option>
                                 @if($hayDevolucion && $devolucionActual->NoTelarId && !($telaresCatalogo ?? collect())->contains($devolucionActual->NoTelarId))
                                     <option value="{{ $devolucionActual->NoTelarId }}" selected>{{ $devolucionActual->NoTelarId }}</option>
@@ -794,7 +794,9 @@
             }
 
             const render = (datos) => {
-                const valorPrevio = select.value.trim();
+                // Preservar el valor seleccionado actual o, en su defecto, el julio ya guardado en BD
+                const julioGuardado = devolucionActual?.no_julio != null ? String(devolucionActual.no_julio).trim() : '';
+                const valorPrevio = select.value.trim() || julioGuardado;
                 select.innerHTML = '<option value="">Seleccione un Julio</option>';
                 datos.julios.forEach(j => {
                     const opt = document.createElement('option');
@@ -803,7 +805,15 @@
                     select.appendChild(opt);
                 });
 
-                if (valorPrevio && [...select.options].some(opcion => opcion.value === valorPrevio)) {
+                // Si el julio guardado no viene en la lista AJAX, agregarlo para poder mostrarlo
+                if (valorPrevio && ![...select.options].some(opcion => String(opcion.value) === valorPrevio)) {
+                    const opt = document.createElement('option');
+                    opt.value = valorPrevio;
+                    opt.textContent = valorPrevio;
+                    select.appendChild(opt);
+                }
+
+                if (valorPrevio && [...select.options].some(opcion => String(opcion.value) === valorPrevio)) {
                     select.value = valorPrevio;
                     onCambioJulioDevolucion(valorPrevio);
                 }
@@ -982,6 +992,7 @@
 
             setSiVacio('dev_lote', currentNoOrden ? ('DEV' + currentNoOrden) : null);
             setSiVacio('dev_tipo', currentTipoAtado);
+            if (devolucionActual?.ubicacion) setSiVacio('dev_ubicacion', devolucionActual.ubicacion);
             const fecha = document.getElementById('dev_fecha');
             if (fecha && !fecha.value) {
                 fecha.value = new Date().toLocaleDateString('en-CA');
@@ -1313,9 +1324,20 @@
                 return;
             }
 
-            // Si hay una devolución registrada, debe tener metros y kilos capturados
+            // Si hay una devolución registrada, debe tener ubicación, metros y kilos capturados
             const chkDevolucion = document.getElementById('chkDevolucion');
             if (chkDevolucion && chkDevolucion.checked) {
+                const devUbicacion = valorDevolucion('dev_ubicacion');
+                if (devUbicacion === '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Ubicación pendiente',
+                        text: 'Falta capturar la ubicación de la devolución antes de terminar el atado.',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+
                 const devMetrosStr = valorDevolucion('dev_metros');
                 const devKilosStr = valorDevolucion('dev_kilos');
                 const devMetros = devMetrosStr !== '' ? parseFloat(devMetrosStr) : NaN;
