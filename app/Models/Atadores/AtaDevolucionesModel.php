@@ -35,7 +35,6 @@ class AtaDevolucionesModel extends Model
         'ConfigId',
         'InventSizeId',
         'InventColorId',
-        'integer',
         'Estatus',
         'NoTelarId',
         'LoteOriginal',
@@ -50,7 +49,6 @@ class AtaDevolucionesModel extends Model
         'InvTelasReservadaId' => 'integer',
         'AX' => 'integer',
         'FechaDevol' => 'date',
-        // 'Integrer' => 'integer',
     ];
 
     /**

@@ -207,24 +207,23 @@ class AtaDevolucionesController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $user = Auth::user();
-        if (! $user) {
+        if (! Auth::check()) {
             return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
         }
 
         $data = $request->validate([
             'ref_id' => ['required', 'integer'],
-            'telar' => ['required', 'string', 'max:10'],
-            'no_julio' => ['required', 'string', 'max:20'],
-            'no_produccion' => ['required', 'string', 'max:20'],
-            'kilos' => ['required', 'numeric', 'gt:0'],
-            'metros' => ['required', 'numeric', 'gt:0'],
-            'ubicacion' => ['required', 'string', 'max:10'],
-            'fecha_devol' => ['required', 'date'],
-            'cuenta' => ['required', 'string', 'max:10'],
-            'calibre' => ['required', 'string', 'max:10'],
-            'hilo' => ['required', 'string', 'max:20'],
-            'tipo' => ['required', 'string', 'max:5'],
+            'telar' => ['nullable', 'string', 'max:10'],
+            'no_julio' => ['nullable', 'string', 'max:20'],
+            'no_produccion' => ['nullable', 'string', 'max:20'],
+            'kilos' => ['nullable', 'numeric', 'min:0'],
+            'metros' => ['nullable', 'numeric', 'min:0'],
+            'ubicacion' => ['nullable', 'string', 'max:10'],
+            'fecha_devol' => ['nullable', 'date'],
+            'cuenta' => ['nullable', 'string', 'max:10'],
+            'calibre' => ['nullable', 'string', 'max:10'],
+            'hilo' => ['nullable', 'string', 'max:20'],
+            'tipo' => ['nullable', 'string', 'max:5'],
             'obs' => ['nullable', 'string', 'max:255'],
             'config_id' => ['nullable', 'string', 'max:10'],
             'invent_size_id' => ['nullable', 'string', 'max:10'],
@@ -236,8 +235,8 @@ class AtaDevolucionesController extends Controller
             return response()->json(['ok' => false, 'message' => 'No se encontró el atado asociado a la devolución'], 404);
         }
 
-        $kilos = $data['kilos'] ?? null;
-        $metros = $data['metros'] ?? null;
+        $kilos = $data['kilos'] ?? 0;
+        $metros = $data['metros'] ?? 0;
 
         // El "Lote" de la devolución se almacena en la columna NoProduccion con el
         // prefijo "DEV" seguido del número de orden (evitando duplicar el prefijo).
@@ -263,7 +262,7 @@ class AtaDevolucionesController extends Controller
 
                 if ($this->estaBloqueadaPorAx($devolucion)) {
                     throw ValidationException::withMessages([
-                        // 'devolucion' => ['Esta devolución ya fue procesada en AX y no se puede modificar.'],
+                        'devolucion' => ['Esta devolución ya fue procesada en AX y no se puede modificar.'],
                     ]);
                 }
 
@@ -296,20 +295,18 @@ class AtaDevolucionesController extends Controller
                     'RefId' => $montado->Id,
                     // Se conserva el vínculo ya existente mientras la validación está pausada.
                     'InvTelasReservadaId' => $devolucion?->InvTelasReservadaId,
-                    'NoTelarId' => $data['telar'],
+                    'NoTelarId' => $data['telar'] ?? $montado->NoTelarId,
                     'NoJulio' => $noJulio,
                     'NoProduccion' => $loteDev,
                     'LoteOriginal' => $loteOriginal,
-                    // Siempre 0 al registrar la devolución.
-                    'integer' => 0,
                     'Kilos' => $kilos,
                     'Metros' => $metros,
-                    'Ubicacion' => $data['ubicacion'],
+                    'Ubicacion' => $data['ubicacion'] ?? null,
                     'FechaDevol' => $data['fecha_devol'] ?? Carbon::now('America/Mexico_City')->toDateString(),
-                    'Cuenta' => $data['cuenta'],
-                    'Calibre' => $data['calibre'],
-                    'Hilo' => $data['hilo'],
-                    'Tipo' => $data['tipo'],
+                    'Cuenta' => $data['cuenta'] ?? null,
+                    'Calibre' => $data['calibre'] ?? null,
+                    'Hilo' => $data['hilo'] ?? null,
+                    'Tipo' => $data['tipo'] ?? $montado->Tipo,
                     'Obs' => $data['obs'] ?? null,
                     'ConfigId' => $data['config_id'] ?? $montado->ConfigId,
                     'InventSizeId' => $data['invent_size_id'] ?? $montado->InventSizeId,
@@ -355,9 +352,74 @@ class AtaDevolucionesController extends Controller
 
         return response()->json([
             'ok' => true,
-            'message' => 'Devolución guardada correctamente',
+            'message' => 'Devolución actualizada correctamente',
             'id' => $devolucion->Id,
             'disponibilidad' => $disponibilidad,
+        ]);
+    }
+
+    /**
+     * Elimina la devolución de un atado cuando todavía no ha sido enviada a AX.
+     */
+    public function destroy(Request $request): JsonResponse
+    {
+        if (! Auth::check()) {
+            return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
+        }
+
+        $data = $request->validate([
+            'ref_id' => ['required', 'integer'],
+        ]);
+
+        try {
+            $eliminada = DB::connection('sqlsrv')->transaction(function () use ($data) {
+                $devolucion = AtaDevolucionesModel::where('RefId', $data['ref_id'])
+                    ->orderByDesc('Id')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $devolucion) {
+                    return false;
+                }
+
+                if ($this->estaBloqueadaPorAx($devolucion)) {
+                    throw ValidationException::withMessages([
+                        'devolucion' => ['Esta devolución ya fue procesada en AX y no se puede eliminar.'],
+                    ]);
+                }
+
+                $devolucion->delete();
+
+                return true;
+            });
+        } catch (ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => collect($e->errors())->flatten()->first() ?? 'No se pudo eliminar la devolución.',
+                'bloqueado_ax' => true,
+            ], 423);
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar devolución de atadores', [
+                'ref_id' => $data['ref_id'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo eliminar la devolución.',
+            ], 500);
+        }
+
+        if (! $eliminada) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se encontró la devolución para eliminar.',
+            ], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Devolución eliminada correctamente.',
         ]);
     }
 
