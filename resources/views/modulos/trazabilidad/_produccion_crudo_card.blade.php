@@ -8,6 +8,16 @@
     $kgDia = $o['prodKgDia'] ?? ($o['programa']['prodKgDia'] ?? null);
     $avance = (float) ($o['avance'] ?? 0);
     $avanceBarra = min(100, max(0, $avance));
+    $soloFecha = $soloFecha ?? function (?string $fecha): ?string {
+        if (blank($fecha)) {
+            return null;
+        }
+        $partes = preg_split('/\s+/', trim($fecha), 2);
+
+        return $partes[0] ?? trim($fecha);
+    };
+    $fechaInicio = $soloFecha($o['programa']['fechaInicio'] ?? null);
+    $fechaFinal = $soloFecha($o['programa']['fechaFinal'] ?? null);
 @endphp
 
 <article class="prod-crudo-card {{ $esMultiTelar ? 'prod-crudo-card--multi' : '' }}"
@@ -31,27 +41,35 @@
 
     <div class="prod-crudo-card__stats">
         <div class="prod-crudo-card__stat">
-            <span>Programadas</span>
-            <strong>{{ number_format((float) ($o['programadas'] ?? 0)) }}</strong>
+            <span>Pzas programadas</span>
+            <strong>{{ number_format((int) round((int) ($o['programadas'] ?? 0))) }}</strong>
         </div>
         <div class="prod-crudo-card__stat">
-            <span>Producidas</span>
-            <strong>{{ number_format((float) ($o['producidasTotal'] ?? 0)) }} <small>pzas</small></strong>
+            <span>Pzas producidas</span>
+            <strong>{{ number_format((int) round((int) ($o['producidasTotal'] ?? 0))) }} </strong>
         </div>
         <div class="prod-crudo-card__stat">
-            <span>Peso total</span>
-            <strong>{{ number_format((float) ($o['pesoTotal'] ?? 0), 2) }} <small>kg</small></strong>
+            <span>Kg total</span>
+            <strong>{{ number_format((int) round((int) ($o['pesoTotal'] ?? 0))) }} </strong>
         </div>
     </div>
 
     <div class="prod-crudo-card__daily">
         <div>
+            <span>F. Inicio</span>
+            <strong>{{ $fechaInicio ?? '—' }}</strong>
+        </div>
+        <div>
+            <span>F. Final</span>
+            <strong>{{ $fechaFinal ?? '—' }}</strong>
+        </div>
+        <div>
             <span>Pzas/día</span>
-            <strong>{{ $pzasDia !== null ? number_format((float) $pzasDia) : '—' }}</strong>
+            <strong>{{ $pzasDia !== null ? number_format((int) round((int) $pzasDia)) : '—' }}</strong>
         </div>
         <div>
             <span>Kg/día</span>
-            <strong>{{ $kgDia !== null ? number_format((float) $kgDia, 2) : '—' }}</strong>
+            <strong>{{ $kgDia !== null ? number_format((int) round((int) $kgDia)) : '—' }}</strong>
         </div>
     </div>
 
@@ -67,15 +85,15 @@
             </thead>
             <tbody>
                 <tr>
-                    <th scope="row">Piezas</th>
+                    <th scope="row">Pzas</th>
                     @foreach ($o['telares'] as $telar)
-                        <td>{{ number_format((float) $telar['producidas']) }}</td>
+                        <td>{{ number_format((int) $telar['producidas']) }}</td>
                     @endforeach
                 </tr>
                 <tr>
-                    <th scope="row">Peso</th>
+                    <th scope="row">Kg</th>
                     @foreach ($o['telares'] as $telar)
-                        <td>{{ number_format((int) round((float) $telar['kg'])) }} <small>kg</small></td>
+                        <td>{{ number_format((int) round((float) $telar['kg'])) }} </td>
                     @endforeach
                 </tr>
             </tbody>

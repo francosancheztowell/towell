@@ -358,13 +358,8 @@ class TrazabilidadProduccionService
                     ];
                 })->all();
 
+                // Pzas producidas = siempre la suma de Pzas de la matriz (1 o N telares).
                 $producidasTraza = (float) collect($telares)->sum('producidas');
-                $producidasCanonica = (float) (
-                    $canonica['programa']['produccion']
-                    ?? $canonica['codificados']['produccion']
-                    ?? $canonica['producidas']
-                    ?? 0
-                );
                 $cantidadTelares = count($telares);
 
                 return array_merge($canonica, [
@@ -372,9 +367,7 @@ class TrazabilidadProduccionService
                     'telaresResumen' => implode(', ', array_column($telares, 'telarNumero')),
                     'cantidadTelares' => $cantidadTelares,
                     'esMultiTelar' => $cantidadTelares > 1,
-                    'producidasTotal' => $cantidadTelares > 1 && $producidasTraza > 0
-                        ? $producidasTraza
-                        : $producidasCanonica,
+                    'producidasTotal' => $producidasTraza,
                     'pesoTotal' => (float) collect($telares)->sum('kg'),
                 ]);
             })

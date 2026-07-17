@@ -47,6 +47,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
         Route::redirect('/pesosporrollos', '/planeacion/catalogos/pesos-rollos', 301);
         Route::redirect('/codificacionmodelos', '/planeacion/catalogos/codificacion-modelos', 301);
 
+        Route::get('/lista-de-materiales', [CatLMatController::class, 'listaMateriales'])->name('lmat.lista');
         Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares');
         Route::get('/eficiencia', [CatalagoEficienciaController::class, 'index'])->name('eficiencia');
         Route::get('/velocidad', [CatalagoVelocidadController::class, 'index'])->name('velocidad');
@@ -105,6 +106,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/lmat/api/colores', [CatLMatController::class, 'getColores'])->name('lmat.colores');
     Route::get('/lmat/api/catalogos-materiales', [CatLMatController::class, 'getCatalogosMateriales'])->name('lmat.catalogos-materiales');
     Route::get('/lmat/api/por-orden/{orden}', [CatLMatController::class, 'getLmatPorOrden'])->name('lmat.por-orden');
+    Route::get('/lmat/api/catcodificados-por-orden/{orden}', [CatLMatController::class, 'getRegistroCatCodificadosPorOrden'])->name('lmat.catcodificados-por-orden');
     Route::post('/lmat/api/guardar', [CatLMatController::class, 'guardarLmat'])->name('lmat.guardar');
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');

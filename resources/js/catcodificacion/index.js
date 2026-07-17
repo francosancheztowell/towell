@@ -24,6 +24,16 @@ import { openLMatModal } from './lmat-modal';
         ...pageConfig,
         dateColumns: ['FechaTejido', 'FechaCumplimiento', 'FechaCompromiso', 'FechaCreacion', 'FechaModificacion'],
         dateTimeColumns: ['FechaArranque', 'FechaFinaliza'],
+        timeColumns: ['HoraCreacion', 'HoraModificacion'],
+        // Columnas float/real en SQL Server: se muestran redondeadas a 1 decimal
+        decimalColumns: [
+            'Cantidad', 'Tra', 'CalibreTrama2', 'CalibreRizo', 'CalibreRizo2', 'CalibrePie', 'CalibrePie2',
+            'NoMarbete', 'CalTramaFondoC1', 'CalTramaFondoC12', 'CalibreComb1', 'CalibreComb12',
+            'CalibreComb2', 'CalibreComb22', 'CalibreComb3', 'CalibreComb32', 'CalibreComb4', 'CalibreComb42',
+            'CalibreComb5', 'CalibreComb52', 'Total', 'Pedido', 'Produccion', 'Saldos', 'EfiInicial',
+            'EfiFinal', 'DesperdicioTrama', 'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Densidad',
+            'TotalSegundas', 'PesoMuestra',
+        ],
     };
 
     const state = {
@@ -36,6 +46,9 @@ import { openLMatModal } from './lmat-modal';
         perPage: 500,
         total: CONFIG.totalRegistros || 0,
         loading: false,
+        fullLoaded: false, // el GET inicial trae solo 6 meses; al filtrar se carga todo
+        lmatFilterActive: false, // agrupar LMat: solo órdenes con lista de materiales
+
         selectedRowIndex: null, // Índice global de la fila seleccionada
     };
 
@@ -52,6 +65,16 @@ import { openLMatModal } from './lmat-modal';
         if (val == null || val === '') return '';
         const s = String(val).trim();
         if (!s) return '';
+
+        if (CONFIG.decimalColumns.includes(columnName)) {
+            const n = Number(s);
+            if (!Number.isNaN(n)) return String(Math.round(n * 10) / 10);
+        }
+
+        if (CONFIG.timeColumns.includes(columnName)) {
+            const mT = s.match(/^(\d{1,2}):(\d{2})/);
+            if (mT) return mT[1].padStart(2, '0') + ':' + mT[2];
+        }
 
         if (CONFIG.dateTimeColumns && CONFIG.dateTimeColumns.includes(columnName)) {
             const normalized = s.replace(' ', 'T');
@@ -541,22 +564,40 @@ import { openLMatModal } from './lmat-modal';
     }
 
     // El módulo L.Mat recibe únicamente el contexto necesario de esta pantalla.
-    function actualizarFilaTrasGuardarLMat({ bomId, bomName }) {
+    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat }) {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) return;
         const registro = state.filtered[state.selectedRowIndex];
         if (!registro) return;
 
-        registro.BomId = bomId;
-        registro.BomName = bomName;
+        registro.TieneLMat = 1;
+        if (actualizaLmat !== undefined && actualizaLmat !== null) {
+            registro.ActualizaLmat = actualizaLmat ? 1 : 0;
+        }
+        // Solo reflejar BomId/BomName en la grilla si el backend los actualizó (ESTAND + Act L.Mat).
+        if (updatedBom) {
+            registro.BomId = bomId;
+            registro.BomName = bomName;
+        }
 
         const tbody = $('#catcodificacion-body');
         const fila = tbody?.querySelector(`tr[data-index="${state.selectedRowIndex}"]`);
         if (!fila) return;
 
-        const celdaBomId = fila.querySelector('td[data-column="BomId"]');
-        const celdaBomName = fila.querySelector('td[data-column="BomName"]');
-        if (celdaBomId) celdaBomId.textContent = bomId;
-        if (celdaBomName) celdaBomName.textContent = bomName;
+        if (updatedBom) {
+            const celdaBomId = fila.querySelector('td[data-column="BomId"]');
+            const celdaBomName = fila.querySelector('td[data-column="BomName"]');
+            if (celdaBomId) celdaBomId.textContent = bomId;
+            if (celdaBomName) celdaBomName.textContent = bomName;
+        }
+
+        const celdaOrden = fila.querySelector('td[data-column="OrdenTejido"]');
+        if (celdaOrden && !celdaOrden.querySelector('.lmat-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'lmat-badge';
+            badge.textContent = 'LMat';
+            badge.title = 'Esta orden ya tiene lista de materiales en CatLMat';
+            celdaOrden.appendChild(badge);
+        }
     }
 
     function mostrarModalLMat() {
@@ -580,8 +621,11 @@ import { openLMatModal } from './lmat-modal';
 
         setLoading(true, 'Cargando datos...', '');
 
-        const url = forceRefresh
-            ? (CONFIG.apiUrl + (CONFIG.apiUrl.indexOf('?') !== -1 ? '&' : '?') + 'nocache=1')
+        const params = [];
+        if (state.fullLoaded) params.push('todo=1');
+        if (forceRefresh) params.push('nocache=1');
+        const url = params.length
+            ? (CONFIG.apiUrl + (CONFIG.apiUrl.indexOf('?') !== -1 ? '&' : '?') + params.join('&'))
             : CONFIG.apiUrl;
 
         try {
@@ -660,6 +704,16 @@ import { openLMatModal } from './lmat-modal';
             showToast('Error al cargar datos: ' + (error.message || 'Error desconocido'), 'error');
             setLoading(false);
         }
+    }
+
+    /**
+     * Garantiza que los filtros operen sobre el catálogo completo:
+     * la primera vez que se filtra, recarga con ?todo=1 (histórico incluido).
+     */
+    async function ensureFullData() {
+        if (state.fullLoaded || state.loading) return;
+        state.fullLoaded = true;
+        await loadData(false);
     }
 
     // =========================
@@ -758,6 +812,13 @@ import { openLMatModal } from './lmat-modal';
                 td.setAttribute('data-index', colIdx);
                 const value = row[col] ?? '';
                 td.textContent = formatDateOnly(value, col);
+                if (col === 'OrdenTejido' && (row.TieneLMat === 1 || row.TieneLMat === '1')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'lmat-badge';
+                    badge.textContent = 'LMat';
+                    badge.title = 'Esta orden ya tiene lista de materiales en CatLMat';
+                    td.appendChild(badge);
+                }
                 tr.appendChild(td);
             });
 
@@ -783,26 +844,18 @@ import { openLMatModal } from './lmat-modal';
 
         state.page = Math.min(state.page, totalPages);
 
-        const start = total ? (state.page - 1) * state.perPage + 1 : 0;
-        const end   = total ? Math.min(state.page * state.perPage, total) : 0;
-
         const currentEl    = $('#pagination-current');
         const totalPagesEl = $('#pagination-total-pages');
-        const startEl      = $('#pagination-start');
-        const endEl        = $('#pagination-end');
-        const totalEl      = $('#pagination-total');
 
         if (currentEl)    currentEl.textContent    = state.page;
         if (totalPagesEl) totalPagesEl.textContent = totalPages;
-        if (startEl)      startEl.textContent      = start.toLocaleString();
-        if (endEl)        endEl.textContent        = end.toLocaleString();
-        if (totalEl)      totalEl.textContent      = total.toLocaleString();
 
         const prev = $('#pagination-prev');
         const next = $('#pagination-next');
 
         if (prev) prev.disabled = state.page <= 1;
-        if (next) next.disabled = state.page >= totalPages;
+        // En la última página del set reciente, "Siguiente" sigue activo: carga el histórico
+        if (next) next.disabled = state.page >= totalPages && state.fullLoaded;
     }
 
     // =========================
@@ -869,6 +922,9 @@ import { openLMatModal } from './lmat-modal';
             if (hasFilter) {
                 html += '<button type="button" class="codificacion-header-icon" data-action="clear-filter" data-column="' + escapeHtml(field) + '" title="Quitar filtro"><i class="fas fa-filter"></i></button>';
             }
+            if (state.lmatFilterActive && field === 'OrdenTejido') {
+                html += '<button type="button" class="codificacion-header-icon" data-action="clear-lmat" title="Quitar agrupado LMat"><i class="fas fa-list"></i></button>';
+            }
             if (state.pinnedColumns.includes(idx)) {
                 html += '<button type="button" class="codificacion-header-icon" data-action="unpin" data-index="' + idx + '" title="Desfijar"><i class="fas fa-thumbtack"></i></button>';
             }
@@ -923,6 +979,11 @@ import { openLMatModal } from './lmat-modal';
             });
         }
 
+        // Agrupar LMat: solo órdenes con lista de materiales
+        if (state.lmatFilterActive) {
+            filtered = filtered.filter(row => row.TieneLMat === 1 || row.TieneLMat === '1');
+        }
+
         state.filtered = filtered;
 
         // Mantener ordenamiento por Id descendente (más nuevos primero)
@@ -944,7 +1005,7 @@ import { openLMatModal } from './lmat-modal';
         const counter = document.getElementById('filter-count');
         if (!counter) return;
 
-        const count = state.filtros.length + (state.filtrosPorColumna?.length || 0);
+        const count = state.filtros.length + (state.filtrosPorColumna?.length || 0) + (state.lmatFilterActive ? 1 : 0);
         if (count > 0) {
             counter.textContent = count;
             counter.classList.remove('hidden');
@@ -956,7 +1017,8 @@ import { openLMatModal } from './lmat-modal';
     /**
      * Acción rápida: filtrar solo registros con OrdCompartida y OrdCompartidaLider llenos.
      */
-    function aplicarAccionRapidaOrdCompartida() {
+    async function aplicarAccionRapidaOrdCompartida() {
+        await ensureFullData();
         if (!state.data.length) {
             showToast('Espera a que carguen los datos', 'warning');
             return;
@@ -986,7 +1048,35 @@ import { openLMatModal } from './lmat-modal';
         );
     }
 
-    function filtrarCodificacion() {
+    /**
+     * Agrupar LMat: mostrar solo las órdenes que ya tienen lista de materiales en CatLMat.
+     */
+    async function aplicarFiltroLMat() {
+        await ensureFullData();
+        if (!state.data.length) {
+            showToast('Espera a que carguen los datos', 'warning');
+            return;
+        }
+
+        state.lmatFilterActive = true;
+        aplicarFiltrosAND();
+
+        showToast(
+            state.filtered.length
+                ? state.filtered.length + ' orden(es) con lista de materiales'
+                : 'Ninguna orden tiene lista de materiales',
+            state.filtered.length ? 'success' : 'warning'
+        );
+    }
+
+    function quitarFiltroLMat() {
+        state.lmatFilterActive = false;
+        aplicarFiltrosAND();
+        showToast('Agrupado LMat quitado', 'info');
+    }
+
+    async function filtrarCodificacion() {
+        await ensureFullData();
         Swal.fire({
             html: `
                 <div class="text-left">
@@ -1084,6 +1174,7 @@ import { openLMatModal } from './lmat-modal';
                 document.getElementById('btn-clear-filters')?.addEventListener('click', () => {
                     state.filtros = [];
                     state.filtrosPorColumna = [];
+                    state.lmatFilterActive = false;
                     aplicarFiltrosAND();
                     state.page = 1;
                     renderPage();
@@ -1212,6 +1303,7 @@ import { openLMatModal } from './lmat-modal';
     function limpiarFiltrosCodificacion() {
         state.filtros = [];
         state.filtrosPorColumna = [];
+        state.lmatFilterActive = false;
         aplicarFiltrosAND();
         state.page = 1;
         renderPage();
@@ -1252,7 +1344,8 @@ import { openLMatModal } from './lmat-modal';
         menu.classList.remove('hidden');
     }
 
-    function openFilterModal(columnIndex, columnField) {
+    async function openFilterModal(columnIndex, columnField) {
+        await ensureFullData();
         const columnLabel = CONFIG.columnLabels[columnField] || columnField;
         const valueCounts = new Map();
         state.filtered.forEach(row => {
@@ -1337,10 +1430,18 @@ import { openLMatModal } from './lmat-modal';
         }
 
         if (next) {
-            next.addEventListener('click', () => {
+            next.addEventListener('click', async () => {
                 const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.perPage));
-                if (state.page < totalPages && !state.loading) {
+                if (state.loading) return;
+                if (state.page < totalPages) {
                     state.page++;
+                    renderPage();
+                } else if (!state.fullLoaded) {
+                    // Última página del set reciente: cargar el histórico y seguir avanzando
+                    const paginaActual = state.page;
+                    next.disabled = true;
+                    await ensureFullData();
+                    state.page = Math.min(paginaActual + 1, Math.max(1, Math.ceil(state.filtered.length / state.perPage)));
                     renderPage();
                 }
             });
@@ -1392,6 +1493,8 @@ import { openLMatModal } from './lmat-modal';
                         renderPage();
                         updateFilterCount();
                     }
+                } else if (action === 'clear-lmat') {
+                    quitarFiltroLMat();
                 } else if (action === 'unpin') {
                     const idx = parseInt(btn.getAttribute('data-index'), 10);
                     if (!Number.isNaN(idx)) {
@@ -1414,6 +1517,11 @@ import { openLMatModal } from './lmat-modal';
             const field = menuColumnField;
             hideContextMenu();
             if (idx != null && field) openFilterModal(idx, field);
+        });
+
+        $('#codificacionCtxLmat')?.addEventListener('click', () => {
+            hideContextMenu();
+            aplicarFiltroLMat();
         });
 
         $('#codificacionCtxFijar')?.addEventListener('click', () => {

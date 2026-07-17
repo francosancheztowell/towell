@@ -835,7 +835,10 @@ async function openLMatModal(context = {}) {
                 }
             }
 
-            if (!saved) return def;
+            // Al actualizar una L.Mat ya guardada, solo se muestran los componentes
+            // que realmente están en CatLMat: si un componente (rizo/pie/trama/C1..C5)
+            // no tiene fila guardada, no se reconstruye — se omite por completo.
+            if (!saved) return null;
 
             return {
                 ...def,
@@ -852,7 +855,7 @@ async function openLMatModal(context = {}) {
                     : String(def.porcentaje || '0.00').replace('%', '')) + '%',
                 desdeCatLMat: true,
             };
-        });
+        }).filter(Boolean);
 
         // Filas extra en CatLMat que no matchearon defaults (añadidas a mano).
         guardadoLMat.forEach((r, i) => {
@@ -904,10 +907,11 @@ async function openLMatModal(context = {}) {
                 .filter(Boolean),
         ])),
         // Config NO incluye Fibras de CatCodificados; esas van solo en columna Fibra.
-        config: Array.from(new Set([
-            'ENTERO',
-            ...articulos.map(f => f.config).filter(Boolean),
-        ].filter(Boolean).filter(sinHiloConfig))),
+        // Placeholder inicial solamente: la lista real (filtrada por TwVigente=1) de cada
+        // fila la trae cargarMaterialesFilaLMat vía AX/ConfigTable, por ItemId específico.
+        // No mezclar aquí los ConfigId guardados de OTRAS filas: un config válido/vigente
+        // para un artículo puede no serlo (o ni existir) para el artículo de otra fila.
+        config: ['ENTERO'],
         tamano: Array.from(new Set([
             tamano,
             tamanoRizo,
@@ -922,6 +926,13 @@ async function openLMatModal(context = {}) {
         ])),
     };
     const esActualizacionLMat = Array.isArray(guardadoLMat) && guardadoLMat.length > 0;
+    const bomIdActualCat = String(registroSeleccionado?.BomId ?? '').trim();
+    const esBomIdEstand = bomIdActualCat.toUpperCase().startsWith('ESTAND');
+    const actLmatInicial = registroSeleccionado?.ActualizaLmat === true
+        || registroSeleccionado?.ActualizaLmat === 1
+        || registroSeleccionado?.ActualizaLmat === '1'
+        || registroSeleccionado?.ActualizaLmat === null
+        || registroSeleccionado?.ActualizaLmat === undefined;
     const nombreInputAttrsLMat = esActualizacionLMat
         ? 'readonly disabled title="El nombre no se puede cambiar al actualizar"'
         : '';
@@ -933,6 +944,21 @@ async function openLMatModal(context = {}) {
         : 'inline-flex min-w-[150px] items-center justify-center gap-2 rounded bg-black px-6 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400';
     const guardarBtnIconLMat = esActualizacionLMat ? 'fas fa-edit' : 'fas fa-save';
     const guardarBtnLabelLMat = esActualizacionLMat ? 'Actualizar' : 'Guardar';
+    const actLmatCheckboxHtml = esBomIdEstand
+        ? `
+                        <div class="flex flex-col gap-0.5 justify-end">
+                            <label class="inline-flex min-h-[34px] items-center gap-2 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    id="lmat-act-lmat"
+                                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    ${actLmatInicial ? 'checked' : ''}
+                                >
+                                <span class="text-sm font-medium text-gray-700">Actualizar L.Mat</span>
+                            </label>
+                        </div>
+        `
+        : '';
     const pesoCrudoNumerico = Number(String(pesoCrudo ?? '').replace(',', '.')) || 0;
     const totalCantidad = pesoCrudoNumerico / 1000;
     const totalPorcentaje = articulos.reduce((total, item) => total + parseFloat(String(item.porcentaje || '0').replace('%', '')), 0);
@@ -1000,15 +1026,15 @@ async function openLMatModal(context = {}) {
         ].join(' ');
     }
 
-    function renderFilaEditableLMat(item = { articulo: '10.1', combinacion: '', items: '', pasadas: '', nombreColor: '', config: 'ENTERO', tamano: '', color: '1000', cantidad: 0 }) {
+    function renderFilaEditableLMat(item = { articulo: '10.1', combinacion: '', items: '', pasadas: '', nombreColor: '', config: '', tamano: '', color: '1000', cantidad: 0 }) {
         return `
             <tr class="border-b border-gray-100">
                 <td class="lmat-combinacion-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(item.combinacion || '')}</td>
                 <td class="lmat-items-cell px-3 py-2 font-medium tabular-nums text-gray-800">${escapeHtml(item.items || '')}</td>
                 <td class="lmat-pasadas-cell px-3 py-2 font-medium tabular-nums text-gray-800">${escapeHtml(item.pasadas || '')}</td>
                 <td class="px-3 py-2">${buildSelectLMat('articulo[]', item.articulo, opcionesSelectLMat.articulo)}</td>
-                <td class="px-3 py-2">${buildSelectLMat('tamano[]', item.tamano, opcionesSelectLMat.tamano)}</td>
                 <td class="px-3 py-2">${buildSelectLMat('config[]', item.config, opcionesSelectLMat.config)}</td>
+                <td class="px-3 py-2">${buildSelectLMat('tamano[]', item.tamano, opcionesSelectLMat.tamano)}</td>
                 <td class="px-3 py-2">
                     ${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}
                     <input type="hidden" class="lmat-nombre-color-input" value="${escapeAttr(item.nombreColor || '')}">
@@ -1016,10 +1042,9 @@ async function openLMatModal(context = {}) {
                 <td class="lmat-almacen-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
                 <td class="px-3 py-2">
                     <input
-                        type="number"
+                        type="text"
                         name="cantidad[]"
-                        step="0.0001"
-                        min="0"
+                        inputmode="decimal"
                         data-cantidad-raw="${escapeAttr(serializarCantidadRawLMat(item.cantidad))}"
                         class="lmat-cantidad-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                         value="${formatearCantidadLMat(item.cantidad)}"
@@ -1027,11 +1052,9 @@ async function openLMatModal(context = {}) {
                 </td>
                 <td class="px-3 py-2">
                     <input
-                        type="number"
+                        type="text"
                         name="porcentaje[]"
-                        step="0.01"
-                        min="0"
-                        max="100"
+                        inputmode="decimal"
                         class="lmat-porcentaje-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                         value="0.00"
                     >
@@ -1046,8 +1069,8 @@ async function openLMatModal(context = {}) {
             <td class="lmat-items-cell px-3 py-2 font-medium tabular-nums text-gray-800">${escapeHtml(item.items || '')}</td>
             <td class="lmat-pasadas-cell px-3 py-2 font-medium tabular-nums text-gray-800">${escapeHtml(item.pasadas || '')}</td>
             <td class="px-3 py-2">${renderPlanoOSelectLMat(item, 'articulo', 'articulo[]', opcionesSelectLMat.articulo)}</td>
-            <td class="px-3 py-2">${renderTamanoLMat(item)}</td>
             <td class="px-3 py-2">${renderConfigLMat(item)}</td>
+            <td class="px-3 py-2">${renderTamanoLMat(item)}</td>
             <td class="px-3 py-2">
                 ${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}
                 <input type="hidden" class="lmat-nombre-color-input" value="${escapeAttr(item.nombreColor || '')}">
@@ -1055,10 +1078,9 @@ async function openLMatModal(context = {}) {
             <td class="lmat-almacen-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
             <td class="px-3 py-2">
                 <input
-                    type="number"
+                    type="text"
                     name="cantidad[]"
-                    step="0.0001"
-                    min="0"
+                    inputmode="decimal"
                     data-cantidad-raw="${escapeAttr(serializarCantidadRawLMat(item.cantidad))}"
                     class="lmat-cantidad-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                     value="${formatearCantidadLMat(item.cantidad)}"
@@ -1066,11 +1088,9 @@ async function openLMatModal(context = {}) {
             </td>
             <td class="px-3 py-2">
                 <input
-                    type="number"
+                    type="text"
                     name="porcentaje[]"
-                    step="0.01"
-                    min="0"
-                    max="100"
+                    inputmode="decimal"
                     class="lmat-porcentaje-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                     value="${escapeAttr(formatearPorcentajeLMat(item.porcentaje))}"
                 >
@@ -1125,7 +1145,7 @@ async function openLMatModal(context = {}) {
                             >
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-x-3">
+                    <div class="grid grid-cols-2 ${esBomIdEstand ? 'lg:grid-cols-3' : ''} gap-x-3 gap-y-2">
                         <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-700">Nombre (20 caracteres)</span>
                             <input
@@ -1148,6 +1168,7 @@ async function openLMatModal(context = {}) {
                                 value="${escapeAttr(descripcionLMat)}"
                             >
                         </div>
+                        ${actLmatCheckboxHtml}
                     </div>
                 </div>
 
@@ -1159,8 +1180,8 @@ async function openLMatModal(context = {}) {
                                 <th class="px-3 py-2 text-left font-semibold">Calibre</th>
                                 <th class="px-3 py-2 text-right font-semibold">Pasadas</th>
                                 <th class="px-3 py-2 text-left font-semibold">Articulos</th>
-                                <th class="px-3 py-2 text-left font-semibold">Tamaño</th>
                                 <th class="px-3 py-2 text-left font-semibold">Config</th>
+                                <th class="px-3 py-2 text-left font-semibold">Tamaño</th>
                                 <th class="px-3 py-2 text-left font-semibold">Color</th>
                                 <th class="px-3 py-2 text-left font-semibold">Almacen</th>
                                 <th class="px-3 py-2 text-right font-semibold">Cantidad</th>
@@ -1211,6 +1232,7 @@ async function openLMatModal(context = {}) {
         `,
         width: '1360px',
         showConfirmButton: false,
+        allowOutsideClick: false,
         didOpen: () => {
             const tbodyLMat = document.querySelector('.swal2-html-container tbody');
             const pesoCrudoInput = document.getElementById('lmat-pesocrudo');
@@ -1229,6 +1251,56 @@ async function openLMatModal(context = {}) {
                 if (Number.isFinite(raw) && raw >= 0) return raw;
                 const visible = Number(String(input?.value ?? '').replace(',', '.'));
                 return Number.isFinite(visible) && visible >= 0 ? visible : 0;
+            };
+
+            /**
+             * Limita decimales al teclear (cantidad ≤ 4, porcentaje ≤ 2).
+             * No usa selectionStart/End sin null-check (Firefox en type=number).
+             */
+            const restringirDecimalesLMat = (input, maxDecimales) => {
+                if (!input || input.dataset.lmatDecimalesBound === '1') return;
+                input.dataset.lmatDecimalesBound = '1';
+
+                const valorConDecimalesLimitados = (valor) => {
+                    const texto = String(valor ?? '').replace(',', '.');
+                    if (texto === '' || texto === '.' || texto === '-') return texto;
+                    const match = texto.match(/^(-?\d*)(?:\.(\d*))?/);
+                    if (!match) return texto;
+                    const enteros = match[1] ?? '';
+                    const decimales = match[2];
+                    if (decimales === undefined) return enteros;
+                    return enteros + '.' + decimales.slice(0, maxDecimales);
+                };
+
+                input.addEventListener('beforeinput', (event) => {
+                    if (event.inputType?.startsWith('delete') || event.inputType === 'historyUndo' || event.inputType === 'historyRedo') {
+                        return;
+                    }
+                    const data = event.data;
+                    if (data == null) return;
+                    if (!/^[0-9.,]+$/.test(data)) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    const start = input.selectionStart;
+                    const end = input.selectionEnd;
+                    const actual = String(input.value ?? '');
+                    const siguiente = (start != null && end != null)
+                        ? actual.slice(0, start) + data + actual.slice(end)
+                        : actual + data;
+                    const limitado = valorConDecimalesLimitados(siguiente);
+                    if (limitado !== String(siguiente).replace(',', '.')) {
+                        event.preventDefault();
+                    }
+                });
+
+                input.addEventListener('input', () => {
+                    const limitado = valorConDecimalesLimitados(input.value);
+                    if (limitado !== String(input.value ?? '').replace(',', '.') && limitado !== input.value) {
+                        input.value = limitado;
+                    }
+                });
             };
 
             const asignarCantidadLMat = (input, cantidad) => {
@@ -1301,6 +1373,7 @@ async function openLMatModal(context = {}) {
                 document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
                     input.dataset.lmatConnected = '1';
+                    restringirDecimalesLMat(input, 4);
                     input.dataset.cantidadInicialRaw = input.dataset.cantidadRaw || '0';
                     input.dataset.cantidadInicialVisible = input.value;
                     input.addEventListener('input', () => {
@@ -1323,6 +1396,7 @@ async function openLMatModal(context = {}) {
                 document.querySelectorAll('.lmat-porcentaje-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
                     input.dataset.lmatConnected = '1';
+                    restringirDecimalesLMat(input, 2);
                     input.addEventListener('input', () => {
                         const porcentaje = Number(String(input.value || '0').replace(',', '.'));
                         const porcentajeValido = Number.isFinite(porcentaje) && porcentaje >= 0 ? porcentaje : 0;
@@ -1489,7 +1563,10 @@ async function openLMatModal(context = {}) {
                     const configVigente = configPreferido !== null
                         ? configInicial
                         : (configSelect?.value || configInicial);
-                    if (configSelect) setSelectOptionsLMat(configSelect, configsItem, configVigente);
+                    // Si AX no devuelve configs para este ItemId (p.ej. los códigos internos
+                    // JU-ENG-RI-C / JU-ENG-PI-C de Rizo/Pie no existen en AX), no dejar el
+                    // select vacío: conservar "ENTERO" como opción genérica seleccionable.
+                    if (configSelect) setSelectOptionsLMat(configSelect, configsItem.length ? configsItem : ['ENTERO'], configVigente);
                     if (tamanoSelect) setSelectOptionsLMat(tamanoSelect, tamanos, tamanoSelect.value);
                     // Color + Nombre color dependen del ItemId (Artículos) vía GET AX.
                     aplicarColoresAxFilaLMat(fila, colores, colorInicial);
@@ -1592,7 +1669,6 @@ async function openLMatModal(context = {}) {
             conectarInputsCantidadLMat();
             conectarInputsPorcentajeLMat();
             conectarSelectsSalidaMatrizLMat();
-            // conectarQuitarFilasLMat(); // Columna Acción oculta
             recalcularPorcentajesLMat();
 
             LMatMateriales.getCalibres().then((calibresDisponibles) => {
@@ -1836,6 +1912,9 @@ async function openLMatModal(context = {}) {
                 }
 
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const actLmatChecked = esBomIdEstand
+                    ? Boolean(document.getElementById('lmat-act-lmat')?.checked)
+                    : false;
                 setGuardarLmatLoading(true);
                 try {
                     const resp = await fetch('/planeacion/lmat/api/guardar', {
@@ -1855,13 +1934,19 @@ async function openLMatModal(context = {}) {
                                 ? Number(registroSeleccionado.Luchaje)
                                 : null,
                             codigoDibujo: String(registroSeleccionado?.CodigoDibujo ?? '').trim() || null,
+                            actualizaLmat: actLmatChecked,
                             filas: filasData,
                         }),
                     });
                     const json = await resp.json().catch(() => ({}));
                     if (resp.ok && json.success) {
-                        const bomIdGuardado = nombreInput?.value || '';
-                        const bomNameGuardado = document.getElementById('lmat-descripcion')?.value || '';
+                        const updatedBom = json.updatedBom === true;
+                        const bomIdGuardado = updatedBom
+                            ? (json.bomId ?? nombreInput?.value ?? '')
+                            : (json.bomId ?? bomIdActualCat);
+                        const bomNameGuardado = updatedBom
+                            ? (json.bomName ?? document.getElementById('lmat-descripcion')?.value ?? '')
+                            : (json.bomName ?? String(registroSeleccionado?.BomName ?? ''));
                         const baseMsg = esActualizacionLMat
                             ? (json.message || 'L.Mat actualizada.')
                             : (json.message || 'L.Mat guardada.');
@@ -1876,6 +1961,8 @@ async function openLMatModal(context = {}) {
                                 telarId: String(telarSeleccionado || ''),
                                 bomId: bomIdGuardado,
                                 bomName: bomNameGuardado,
+                                updatedBom,
+                                actualizaLmat: json.actualizaLmat,
                             });
                         } catch (error) {
                             console.error('No se pudo actualizar localmente la fila de Codificación', error);
