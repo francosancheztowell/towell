@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
-use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\OrdenFinalizadaAuditoria;
+use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
 use Carbon\Carbon;
@@ -22,7 +22,9 @@ use Illuminate\Validation\ValidationException;
 class ProcesarDesarrolladorService
 {
     protected MovimientoDesarrolladorService $movimientoService;
+
     protected NotificacionTelegramDesarrolladorService $telegramService;
+
     protected CatCodificadosDesarrolladorService $catCodificadosService;
 
     public function __construct(
@@ -69,6 +71,11 @@ class ProcesarDesarrolladorService
                     ->where('NoProduccion', $validated['NoProduccion'])
                     ->first();
 
+                $this->validarPasadasContraConfiguracionInicial(
+                    $validated['pasadas'] ?? [],
+                    $contextoOrigen['programa']
+                );
+
                 $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
                 $detallePayload = $this->aplicarDetalleDesdeRequest($detallePayload, $validated);
                 $pasadasPayload = $this->buildPasadasPayload($validated['pasadas'] ?? [], $ordenData);
@@ -100,7 +107,7 @@ class ProcesarDesarrolladorService
                     ? $registroCodificado->getAttribute('ClaveModelo')
                     : data_get($ordenData, 'TamanoClave');
 
-                if (!$contextoDestino['esCambioTelar']) {
+                if (! $contextoDestino['esCambioTelar']) {
                     $this->actualizarModeloDestinoSiCorresponde(
                         $claveModelo,
                         $contextoDestino['salonDestino'],
@@ -132,13 +139,13 @@ class ProcesarDesarrolladorService
                         ->orderByDesc('Id')
                         ->value('CodigoDibujo');
 
-                    if (!$codigoDibujoAnterior) {
+                    if (! $codigoDibujoAnterior) {
                         $codigoDibujoAnterior = $this->catCodificadosService->resolveCodigoDibujo(
                             (string) $validated['NoProduccion'],
                             (string) $contextoOrigen['telarOrigen']
                         );
                     }
-                    
+
                     $codigoDibujoAnterior = $this->normalizeCodigoDibujo($codigoDibujoAnterior, $contextoOrigen['telarOrigen']);
                 }
 
@@ -161,7 +168,7 @@ class ProcesarDesarrolladorService
             });
 
             $accion = $validated['accion'] ?? 'finalizar';
-            if ($accion === 'finalizar' && !empty($resultado['programa'])) {
+            if ($accion === 'finalizar' && ! empty($resultado['programa'])) {
                 /** @var ReqProgramaTejido $prog */
                 $prog = $resultado['programa'];
                 $ctx = $resultado['contexto'];
@@ -188,7 +195,7 @@ class ProcesarDesarrolladorService
                 }
             }
 
-            if (!empty($resultado['programa'])) {
+            if (! empty($resultado['programa'])) {
                 $this->enviarNotificacion(
                     $validated,
                     $resultado['programa'],
@@ -223,11 +230,11 @@ class ProcesarDesarrolladorService
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ocurrio un error: ' . $e->getMessage(),
+                    'message' => 'Ocurrio un error: '.$e->getMessage(),
                 ], 500);
             }
 
-            return back()->with('error', 'Ocurrio un error: ' . $e->getMessage())->withInput();
+            return back()->with('error', 'Ocurrio un error: '.$e->getMessage())->withInput();
         }
     }
 
@@ -308,7 +315,7 @@ class ProcesarDesarrolladorService
             $value = str_replace(',', '', trim($value));
         }
 
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             return $value;
         }
 
@@ -324,7 +331,7 @@ class ProcesarDesarrolladorService
             ->first();
 
         // Fila sin orden: buscar por registroId y asignar la orden nueva
-        if (!$programa && !empty($validated['registroId'])) {
+        if (! $programa && ! empty($validated['registroId'])) {
             $programa = ReqProgramaTejido::query()
                 ->where('Id', $validated['registroId'])
                 ->where('NoTelarId', $validated['NoTelarId'])
@@ -340,7 +347,7 @@ class ProcesarDesarrolladorService
             }
         }
 
-        if (!$programa) {
+        if (! $programa) {
             throw ValidationException::withMessages([
                 'NoProduccion' => 'No se encontro la orden seleccionada para el telar indicado.',
             ]);
@@ -392,7 +399,7 @@ class ProcesarDesarrolladorService
                 ->where('NoTelarId', $telarDestino)
                 ->exists();
 
-            if (!$existeDestino) {
+            if (! $existeDestino) {
                 $existeDestino = TelTelaresOperador::query()
                     ->where('NoTelarId', $telarDestino)
                     ->where(function ($query) use ($salonDestino) {
@@ -402,7 +409,7 @@ class ProcesarDesarrolladorService
                     ->exists();
             }
 
-            if (!$existeDestino) {
+            if (! $existeDestino) {
                 throw ValidationException::withMessages([
                     'TelarDestino' => 'El telar destino seleccionado no existe o no esta disponible.',
                 ]);
@@ -429,7 +436,7 @@ class ProcesarDesarrolladorService
         ?ReqModelosCodificados $modeloDestino,
         ?ReqProgramaTejido $ordenData = null
     ): ?CatCodificados {
-        $modeloCat = new CatCodificados();
+        $modeloCat = new CatCodificados;
         $columns = Schema::getColumnListing($modeloCat->getTable());
         $registro = $this->catCodificadosService->resolveCanonical((string) $validated['NoProduccion']);
         $fechasArranqueFinaliza = $this->buildFechasArranqueFinalizaPayload(
@@ -441,8 +448,8 @@ class ProcesarDesarrolladorService
         }
 
         $esNuevo = false;
-        if (!$registro) {
-            $registro = new CatCodificados();
+        if (! $registro) {
+            $registro = new CatCodificados;
             $esNuevo = true;
         }
 
@@ -450,52 +457,52 @@ class ProcesarDesarrolladorService
         $programaPayload = [];
         if ($esNuevo && $ordenData) {
             $programaPayload = [
-                'Nombre'          => $ordenData->NombreProducto,
-                'ClaveModelo'     => $ordenData->TamanoClave,
-                'ItemId'          => $ordenData->ItemId,
-                'InventSizeId'    => $ordenData->InventSizeId,
-                'FlogsId'         => $ordenData->FlogsId,
-                'NombreProyecto'  => $ordenData->NombreProyecto,
-                'CustName'        => $ordenData->CustName,
-                'Peine'           => $ordenData->Peine,
-                'Ancho'           => $ordenData->Ancho,
-                'Luchaje'         => $ordenData->Luchaje,
-                'P_crudo'         => $ordenData->PesoCrudo,
-                'DobladilloId'    => $ordenData->DobladilloId,
-                'MedidaPlano'     => $ordenData->MedidaPlano,
-                'CalibreRizo'     => $ordenData->CalibreRizo,
-                'CalibreRizo2'    => $ordenData->CalibreRizo2,
-                'CuentaRizo'      => $ordenData->CuentaRizo,
-                'FibraRizo'       => $ordenData->FibraRizo,
-                'CalibrePie'      => $ordenData->CalibrePie,
-                'CalibrePie2'     => $ordenData->CalibrePie2,
-                'CuentaPie'       => $ordenData->CuentaPie,
-                'FibraPie'        => $ordenData->FibraPie,
-                'VelocidadSTD'    => $ordenData->VelocidadSTD,
-                'EficienciaSTD'   => $ordenData->EficienciaSTD,
-                'NoTiras'         => $ordenData->NoTiras,
-                'Repeticiones'    => $ordenData->Repeticiones,
-                'Prioridad'       => $ordenData->Prioridad,
-                'MtsRollo'        => $ordenData->MtsRollo,
-                'PzasRollo'       => $ordenData->PzasRollo,
-                'TotalRollos'     => $ordenData->TotalRollos,
-                'TotalPzas'       => $ordenData->TotalPzas,
-                'CombinaTram'     => $ordenData->CombinaTram,
-                'BomId'           => $ordenData->BomId,
-                'BomName'         => $ordenData->BomName,
-                'CreaProd'        => $ordenData->CreaProd,
-                'Densidad'        => $ordenData->Densidad,
-                'HiloAX'          => $ordenData->HiloAX,
-                'ActualizaLmat'   => $ordenData->ActualizaLmat,
-                'PesoMuestra'     => $ordenData->PesoMuestra,
-                'OrdCompartida'   => $ordenData->OrdCompartida,
+                'Nombre' => $ordenData->NombreProducto,
+                'ClaveModelo' => $ordenData->TamanoClave,
+                'ItemId' => $ordenData->ItemId,
+                'InventSizeId' => $ordenData->InventSizeId,
+                'FlogsId' => $ordenData->FlogsId,
+                'NombreProyecto' => $ordenData->NombreProyecto,
+                'CustName' => $ordenData->CustName,
+                'Peine' => $ordenData->Peine,
+                'Ancho' => $ordenData->Ancho,
+                'Luchaje' => $ordenData->Luchaje,
+                'P_crudo' => $ordenData->PesoCrudo,
+                'DobladilloId' => $ordenData->DobladilloId,
+                'MedidaPlano' => $ordenData->MedidaPlano,
+                'CalibreRizo' => $ordenData->CalibreRizo,
+                'CalibreRizo2' => $ordenData->CalibreRizo2,
+                'CuentaRizo' => $ordenData->CuentaRizo,
+                'FibraRizo' => $ordenData->FibraRizo,
+                'CalibrePie' => $ordenData->CalibrePie,
+                'CalibrePie2' => $ordenData->CalibrePie2,
+                'CuentaPie' => $ordenData->CuentaPie,
+                'FibraPie' => $ordenData->FibraPie,
+                'VelocidadSTD' => $ordenData->VelocidadSTD,
+                'EficienciaSTD' => $ordenData->EficienciaSTD,
+                'NoTiras' => $ordenData->NoTiras,
+                'Repeticiones' => $ordenData->Repeticiones,
+                'Prioridad' => $ordenData->Prioridad,
+                'MtsRollo' => $ordenData->MtsRollo,
+                'PzasRollo' => $ordenData->PzasRollo,
+                'TotalRollos' => $ordenData->TotalRollos,
+                'TotalPzas' => $ordenData->TotalPzas,
+                'CombinaTram' => $ordenData->CombinaTram,
+                'BomId' => $ordenData->BomId,
+                'BomName' => $ordenData->BomName,
+                'CreaProd' => $ordenData->CreaProd,
+                'Densidad' => $ordenData->Densidad,
+                'HiloAX' => $ordenData->HiloAX,
+                'ActualizaLmat' => $ordenData->ActualizaLmat,
+                'PesoMuestra' => $ordenData->PesoMuestra,
+                'OrdCompartida' => $ordenData->OrdCompartida,
                 'OrdCompartidaLider' => $ordenData->OrdCompartidaLider,
                 'CategoriaCalidad' => $ordenData->CategoriaCalidad,
-                'FechaTejido'     => $ordenData->FechaInicio?->format('Y-m-d'),
-                'OrdPrincipal'    => $ordenData->OrdPrincipal,
-                'FechaArranque'   => null,
-                'FechaFinaliza'   => null,
-                'Cantidad'        => $ordenData->TotalPedido,
+                'FechaTejido' => $ordenData->FechaInicio?->format('Y-m-d'),
+                'OrdPrincipal' => $ordenData->OrdPrincipal,
+                'FechaArranque' => null,
+                'FechaFinaliza' => null,
+                'Cantidad' => $ordenData->TotalPedido,
             ];
         }
 
@@ -529,13 +536,13 @@ class ProcesarDesarrolladorService
         ], $fechasArranqueFinaliza, $detallePayload, $pasadasPayload);
 
         if ($modeloDestino) {
-            $payload['CuentaRizo']  = $modeloDestino->CuentaRizo  ?? null;
-            $payload['CuentaPie']   = $modeloDestino->CuentaPie   ?? null;
-            $payload['TipoRizo']    = $modeloDestino->TipoRizo    ?? null;
-            $payload['Tolerancia']  = $modeloDestino->Tolerancia  ?? null;
-            $payload['Clave']       = $modeloDestino->Clave       ?? null;
-            $payload['Vendedor']    = $modeloDestino->Vendedor    ?? null;
-            $payload['FlogsId']     = $modeloDestino->FlogsId     ?? ($ordenData->FlogsId ?? null);
+            $payload['CuentaRizo'] = $modeloDestino->CuentaRizo ?? null;
+            $payload['CuentaPie'] = $modeloDestino->CuentaPie ?? null;
+            $payload['TipoRizo'] = $modeloDestino->TipoRizo ?? null;
+            $payload['Tolerancia'] = $modeloDestino->Tolerancia ?? null;
+            $payload['Clave'] = $modeloDestino->Clave ?? null;
+            $payload['Vendedor'] = $modeloDestino->Vendedor ?? null;
+            $payload['FlogsId'] = $modeloDestino->FlogsId ?? ($ordenData->FlogsId ?? null);
         }
 
         // Rasurado viene de ReqProgramaTejido
@@ -544,13 +551,14 @@ class ProcesarDesarrolladorService
         }
 
         foreach ($payload as $column => $value) {
-            if (!in_array($column, $columns, true)) {
+            if (! in_array($column, $columns, true)) {
                 continue;
             }
             $registro->setAttribute($column, $value);
         }
 
         $registro->save();
+
         return $registro;
     }
 
@@ -621,7 +629,7 @@ class ProcesarDesarrolladorService
             return $modeloDestino;
         }
 
-        if (!$contextoDestino['esCambioTelar']) {
+        if (! $contextoDestino['esCambioTelar']) {
             return null;
         }
 
@@ -631,13 +639,13 @@ class ProcesarDesarrolladorService
             ->where('SalonTejidoId', $salonOrigen)
             ->first();
 
-        if (!$modeloOrigen) {
+        if (! $modeloOrigen) {
             $modeloOrigen = ReqModelosCodificados::query()
                 ->where('TamanoClave', $tamanoClave)
                 ->first();
         }
 
-        if (!$modeloOrigen) {
+        if (! $modeloOrigen) {
             return null;
         }
 
@@ -661,6 +669,7 @@ class ProcesarDesarrolladorService
         }
 
         $nuevoModelo->save();
+
         return $nuevoModelo;
     }
 
@@ -669,7 +678,7 @@ class ProcesarDesarrolladorService
         ?ReqModelosCodificados $modeloDestino,
         array $contextoDestino
     ): void {
-        if (!$contextoDestino['esCambioTelar']) {
+        if (! $contextoDestino['esCambioTelar']) {
             return;
         }
 
@@ -680,10 +689,10 @@ class ProcesarDesarrolladorService
             $contextoDestino['salonDestino']
         );
 
-        if (!is_null($nuevaEficiencia)) {
+        if (! is_null($nuevaEficiencia)) {
             $programaOrigen->EficienciaSTD = round((float) $nuevaEficiencia, 2);
         }
-        if (!is_null($nuevaVelocidad)) {
+        if (! is_null($nuevaVelocidad)) {
             $programaOrigen->VelocidadSTD = (float) $nuevaVelocidad;
         }
 
@@ -694,10 +703,10 @@ class ProcesarDesarrolladorService
         );
 
         if ($modeloDestino) {
-            if (!is_null($modeloDestino->CuentaRizo)) {
+            if (! is_null($modeloDestino->CuentaRizo)) {
                 $programaOrigen->CuentaRizo = (string) $modeloDestino->CuentaRizo;
             }
-            if (!is_null($modeloDestino->CuentaPie)) {
+            if (! is_null($modeloDestino->CuentaPie)) {
                 $programaOrigen->CuentaPie = (string) $modeloDestino->CuentaPie;
             }
         }
@@ -726,7 +735,7 @@ class ProcesarDesarrolladorService
             ->where('SalonTejidoId', $salonDestino)
             ->first();
 
-        if (!$registroModelo) {
+        if (! $registroModelo) {
             return;
         }
 
@@ -744,7 +753,7 @@ class ProcesarDesarrolladorService
 
         $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
         foreach ($payloadModelo as $column => $value) {
-            if (!in_array($column, $columnasModelo, true)) {
+            if (! in_array($column, $columnasModelo, true)) {
                 continue;
             }
             $registroModelo->setAttribute($column, $value);
@@ -759,7 +768,7 @@ class ProcesarDesarrolladorService
     ): Collection {
         $programas = collect();
 
-        if (!empty($programaInicial->OrdCompartida)) {
+        if (! empty($programaInicial->OrdCompartida)) {
             $programas = ReqProgramaTejido::query()
                 ->where('OrdCompartida', (int) $programaInicial->OrdCompartida)
                 ->lockForUpdate()
@@ -776,7 +785,7 @@ class ProcesarDesarrolladorService
             return collect([$programaInicial]);
         }
 
-        if (!$fuenteDatos) {
+        if (! $fuenteDatos) {
             return $programas;
         }
 
@@ -827,7 +836,7 @@ class ProcesarDesarrolladorService
         /** @var ReqProgramaTejido $programa */
         foreach ($programas as $programa) {
             foreach ($payloadPrograma as $column => $value) {
-                if (!in_array($column, $columnasPrograma, true)) {
+                if (! in_array($column, $columnasPrograma, true)) {
                     continue;
                 }
                 $programa->setAttribute($column, $value);
@@ -847,8 +856,8 @@ class ProcesarDesarrolladorService
     ): ?ReqProgramaTejido {
         $reprogramarValor = match ($accion) {
             'reprogramar_siguiente' => '1',
-            'reprogramar_final'     => '2',
-            default                 => null,
+            'reprogramar_final' => '2',
+            default => null,
         };
 
         if ($contextoDestino['esCambioTelar']) {
@@ -877,6 +886,7 @@ class ProcesarDesarrolladorService
         }
 
         $this->movimientoService->moverRegistroEnProceso($programaObjetivo, true);
+
         return ReqProgramaTejido::query()->where('Id', $programaObjetivo->Id)->first();
     }
 
@@ -890,7 +900,7 @@ class ProcesarDesarrolladorService
         $payload = $validated;
         $payload['NoTelarId'] = $contextoDestino['telarDestino'];
 
-        if (!empty($contextoDestino['esCambioTelar'])) {
+        if (! empty($contextoDestino['esCambioTelar'])) {
             $payload['CambioTelarActivo'] = true;
             $payload['NoTelarOrigen'] = $contextoDestino['telarOrigen'];
             $payload['SalonOrigen'] = $contextoDestino['salonOrigen'];
@@ -912,6 +922,7 @@ class ProcesarDesarrolladorService
 
         try {
             $horaFinalCarbon = Carbon::createFromFormat('H:i', $horaFinal);
+
             return Carbon::today()
                 ->setTimeFromTimeString($horaFinalCarbon->format('H:i'))
                 ->format('Y-m-d H:i:s');
@@ -931,15 +942,17 @@ class ProcesarDesarrolladorService
     {
         $pasadasPayload = [];
         if (count($pasadasFromRequest) > 0) {
-            foreach ($pasadasFromRequest as $key => $value) {
-                if ($value === null || $value === '') {
-                    continue;
-                }
-                if ($key === 'PasadasTrama') {
-                    $pasadasPayload['PasadasTramaFondoC1'] = (int) $value;
-                } else {
-                    $pasadasPayload[$key] = (int) $value;
-                }
+            $pasadasTrama = $pasadasFromRequest['PasadasTrama']
+                ?? $pasadasFromRequest['PasadasTramaFondoC1']
+                ?? null;
+            if ($pasadasTrama !== null && $pasadasTrama !== '') {
+                $pasadasPayload['PasadasTramaFondoC1'] = (int) $pasadasTrama;
+            }
+
+            for ($i = 1; $i <= 5; $i++) {
+                $campo = "PasadasComb{$i}";
+                $valor = $pasadasFromRequest[$campo] ?? null;
+                $pasadasPayload[$campo] = ($valor === null || $valor === '') ? null : (int) $valor;
             }
         } elseif ($ordenData) {
             $tramaValue = data_get($ordenData, 'PasadasTrama');
@@ -955,7 +968,88 @@ class ProcesarDesarrolladorService
                 $pasadasPayload[$field] = (int) $combValue;
             }
         }
+
         return $pasadasPayload;
+    }
+
+    /**
+     * La configuración inicial de la orden define el rango válido de pasadas:
+     * el total puede crecer hasta 30% y las combinaciones deben conservar al menos 30%.
+     * Se calcula desde la orden bloqueada, nunca desde un valor enviado por el navegador.
+     *
+     * @param  array<string, mixed>  $pasadas
+     */
+    private function validarPasadasContraConfiguracionInicial(array $pasadas, ?ReqProgramaTejido $ordenData): void
+    {
+        if (! $ordenData) {
+            throw ValidationException::withMessages([
+                'pasadas' => 'No se encontró la configuración inicial de pasadas para la orden seleccionada.',
+            ]);
+        }
+
+        $pasadasIniciales = [
+            data_get($ordenData, 'PasadasTrama') ?? data_get($ordenData, 'PasadasTramaFondoC1'),
+        ];
+        for ($i = 1; $i <= 5; $i++) {
+            $pasadasIniciales[] = data_get($ordenData, "PasadasComb{$i}");
+        }
+
+        $totalBase = array_sum(array_map(static function ($valor): int {
+            return is_numeric($valor) ? (int) $valor : 0;
+        }, $pasadasIniciales));
+
+        if ($totalBase < 1) {
+            throw ValidationException::withMessages([
+                'pasadas' => 'La orden no tiene una configuración inicial de pasadas válida.',
+            ]);
+        }
+
+        $totalActual = 0;
+        $totalCombinaciones = 0;
+        $tieneTrama = false;
+
+        foreach ($pasadas as $campo => $valor) {
+            if (! is_numeric($valor)) {
+                continue;
+            }
+
+            $pasadasFila = (int) $valor;
+            $totalActual += $pasadasFila;
+
+            if ($campo === 'PasadasTrama' || $campo === 'PasadasTramaFondoC1') {
+                $tieneTrama = true;
+
+                continue;
+            }
+
+            if (preg_match('/^PasadasComb[1-5]$/', (string) $campo)) {
+                $totalCombinaciones += $pasadasFila;
+            }
+        }
+
+        if (! $tieneTrama) {
+            throw ValidationException::withMessages([
+                'pasadas' => 'La trama de la orden es obligatoria.',
+            ]);
+        }
+
+        $totalMaximo = (int) floor($totalBase * 1.30);
+        $minimoCombinaciones = (int) ceil($totalBase * 0.30);
+        $errores = [];
+
+        if ($totalActual < $totalBase) {
+            $errores[] = "El total de pasadas no puede ser menor al inicial ({$totalBase}).";
+        }
+        if ($totalActual > $totalMaximo) {
+            $errores[] = "El total de pasadas no puede superar {$totalMaximo} (30% adicional sobre {$totalBase}).";
+        }
+        if ($totalCombinaciones < $minimoCombinaciones) {
+            $errores[] = "Las combinaciones deben acumular al menos {$minimoCombinaciones} pasadas (30% de {$totalBase}).";
+        }
+
+        if ($errores !== []) {
+            throw ValidationException::withMessages(['pasadas' => $errores]);
+        }
     }
 
     private function normalizeCodigoDibujo(?string $value, ?string $telarId = null): string
@@ -972,7 +1066,8 @@ class ProcesarDesarrolladorService
         }
 
         $suffix = $this->resolverSufijoCodigoPorTelar($telarId);
-        return $suffix === '' ? $normalized : ($normalized . '.' . $suffix);
+
+        return $suffix === '' ? $normalized : ($normalized.'.'.$suffix);
     }
 
     private function resolverSufijoCodigoPorTelar(?string $telarId): string
@@ -981,12 +1076,13 @@ class ProcesarDesarrolladorService
         if ($n >= 300) {
             return '';
         }
+
         return 'JC5';
     }
 
     private function buildDetallePayloadFromOrden($ordenData): array
     {
-        if (!$ordenData) {
+        if (! $ordenData) {
             return [];
         }
         $colorTrama = data_get($ordenData, 'ColorTrama') ?: data_get($ordenData, 'FibraTrama');
@@ -1047,6 +1143,22 @@ class ProcesarDesarrolladorService
             return $detallePayload;
         }
 
+        $slotsCombinacionEnviados = array_flip(array_filter(
+            $pasadasKeys,
+            static fn ($key): bool => preg_match('/^PasadasComb[1-5]$/', (string) $key) === 1
+        ));
+        for ($i = 1; $i <= 5; $i++) {
+            if (isset($slotsCombinacionEnviados["PasadasComb{$i}"])) {
+                continue;
+            }
+
+            $detallePayload["CalibreComb{$i}"] = null;
+            $detallePayload["CalibreComb{$i}2"] = null;
+            $detallePayload["FibraComb{$i}"] = null;
+            $detallePayload["CodColorC{$i}"] = null;
+            $detallePayload["NomColorC{$i}"] = null;
+        }
+
         $valor = static function (array $arr, int $i) {
             $v = $arr[$i] ?? null;
             $v = is_string($v) ? trim($v) : $v;
@@ -1079,6 +1191,8 @@ class ProcesarDesarrolladorService
                 }
                 if ($hilo !== null) {
                     $detallePayload['HiloAX'] = $hilo;
+                    $detallePayload['CalibreTrama2'] = $hilo;
+                    $detallePayload['CalTramaFondoC12'] = $hilo;
                 }
 
                 continue;
@@ -1098,6 +1212,9 @@ class ProcesarDesarrolladorService
                 if ($nombreColor !== null) {
                     $detallePayload["NomColorC{$n}"] = $nombreColor;
                 }
+                if ($hilo !== null) {
+                    $detallePayload["CalibreComb{$n}2"] = $hilo;
+                }
             }
         }
 
@@ -1106,7 +1223,7 @@ class ProcesarDesarrolladorService
 
     private function calcularMinutosCambio(?string $horaInicio, ?string $horaFinal): ?int
     {
-        if (!$horaInicio || !$horaFinal) {
+        if (! $horaInicio || ! $horaFinal) {
             return null;
         }
         try {
@@ -1115,6 +1232,7 @@ class ProcesarDesarrolladorService
             if ($final->lt($inicio)) {
                 $final->addDay();
             }
+
             return max(0, $inicio->diffInMinutes($final));
         } catch (Exception $e) {
             return null;

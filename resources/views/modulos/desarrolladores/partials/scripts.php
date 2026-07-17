@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ordenEnProcesoNombre: '',
         reprogramarOrden: null,
         reprogramarAccion: null,
-        contadorFilasNuevas: 0,
+        totalPasadasBase: null,
         omitirConfirmacionPasadas: false,
         originalTelarEnProceso: '',
         originalTelarEnProcesoNombre: '',
@@ -325,8 +325,14 @@ document.addEventListener('DOMContentLoaded', function () {
             errores.push('Selecciona un telar destino valido.');
         }
 
+        const erroresPasadas = Pasadas.obtenerErroresDeRango();
+        errores.push(...erroresPasadas);
+
         if (errores.length > 0) {
-            showValidationAlert('Faltan datos requeridos', errores);
+            showValidationAlert(
+                erroresPasadas.length > 0 ? 'Las pasadas no cumplen la configuración' : 'Faltan datos requeridos',
+                errores
+            );
             return false;
         }
 
@@ -751,6 +757,45 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 0);
         }
 
+        function calcularSumaCombinaciones() {
+            return getInputs()
+                .filter(inp => /pasadas\[PasadasComb[1-5]\]/.test(inp.name))
+                .reduce((sum, inp) => {
+                    const v = parseInt(inp.value, 10);
+                    return sum + (Number.isFinite(v) ? v : 0);
+                }, 0);
+        }
+
+        function fijarTotalBase() {
+            const sumaInicial = calcularSuma();
+            state.totalPasadasBase = sumaInicial > 0 ? sumaInicial : null;
+        }
+
+        function obtenerErroresDeRango() {
+            const base = state.totalPasadasBase;
+            if (!Number.isInteger(base) || base < 1) {
+                return ['No fue posible identificar las pasadas iniciales de la orden. Vuelve a seleccionar la orden.'];
+            }
+
+            const totalActual = calcularSuma();
+            const totalMaximo = Math.floor(base * 1.30);
+            const minimoCombinaciones = Math.ceil(base * 0.30);
+            const totalCombinaciones = calcularSumaCombinaciones();
+            const errores = [];
+
+            if (totalActual < base) {
+                errores.push(`El total de pasadas no puede ser menor al inicial (${base}).`);
+            }
+            if (totalActual > totalMaximo) {
+                errores.push(`El total de pasadas no puede superar ${totalMaximo} (30% adicional sobre ${base}).`);
+            }
+            if (totalCombinaciones < minimoCombinaciones) {
+                errores.push(`Las combinaciones deben acumular al menos ${minimoCombinaciones} pasadas (30% de ${base}).`);
+            }
+
+            return errores;
+        }
+
         function sincronizar() {
             if (!els.totalPasadasDibujo) return;
             const inputs = getInputs();
@@ -763,10 +808,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         function reset() {
+            state.totalPasadasBase = null;
             if (els.totalPasadasDibujo) els.totalPasadasDibujo.value = '';
         }
 
-        return { getInputs, calcularSuma, sincronizar, adjuntarListeners, reset };
+        return {
+            getInputs,
+            calcularSuma,
+            calcularSumaCombinaciones,
+            fijarTotalBase,
+            obtenerErroresDeRango,
+            sincronizar,
+            adjuntarListeners,
+            reset,
+        };
     })();
 
     // ── Fila de detalle (crear/eliminar/agregar) ──────────────────────────
@@ -777,8 +832,9 @@ document.addEventListener('DOMContentLoaded', function () {
         codColor = codColor || '';
         nombreColor = nombreColor || '';
         pasadas = pasadas || '';
-        pasadasKey = pasadasKey || ('nuevo_' + (state.contadorFilasNuevas++));
+        pasadasKey = pasadasKey || obtenerSiguienteSlotCombinacion();
         usarSelects = Boolean(usarSelects);
+        const esTrama = pasadasKey === 'PasadasTrama' || pasadasKey === 'PasadasTramaFondoC1';
 
         var inp = 'w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm';
         var svgDel = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
@@ -797,11 +853,15 @@ document.addEventListener('DOMContentLoaded', function () {
             : '<td class="px-4 py-2"><input type="text" name="detalle_codcolor[]" value="' + codColor + '" class="' + inp + '" placeholder="Cod Color"></td>';
         var nombreColorCell = '<td class="px-4 py-2"><input type="text" name="detalle_nombrecolor[]" value="' + nombreColor + '" class="' + selCls + '" placeholder="Nombre Color"' + selRdonly + '></td>';
         var pasadasCell = '<td class="px-4 py-2"><input type="number" name="pasadas[' + pasadasKey + ']" value="' + pasadas + '" min="1" step="1" required class="w-20 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0"></td>';
-        var accionesCell = '<td class="px-4 py-2 text-center"><button type="button" onclick="eliminarFilaDetalle(this)" class="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Eliminar fila">' + svgDel + '</button></td>';
+        var accionesCell = esTrama
+            ? '<td class="px-4 py-2 text-center text-xs text-gray-400">Trama</td>'
+            : '<td class="px-4 py-2 text-center"><button type="button" onclick="eliminarFilaDetalle(this)" class="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Eliminar combinación">' + svgDel + '</button></td>';
 
         var row = document.createElement('tr');
         row.className = 'hover:bg-gray-50 transition-colors fila-detalle';
         row.dataset.index = index;
+        row.dataset.pasadasKey = pasadasKey;
+        row.dataset.esTrama = esTrama ? 'true' : 'false';
         row.innerHTML = claveCell + hiloCell + fibraCell + codColorCell + nombreColorCell + pasadasCell + accionesCell;
 
         attachHiloInputListener(row.querySelector('input[name="detalle_hilo[]"]'));
@@ -813,12 +873,39 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     window.eliminarFilaDetalle = function (boton) {
-        boton.closest('tr')?.remove();
+        const fila = boton.closest('tr');
+        if (fila?.dataset.esTrama === 'true') {
+            Swal.fire({
+                icon: 'info',
+                title: 'La trama no se puede eliminar',
+                text: 'La primera fila corresponde a la trama de la orden.',
+                confirmButtonColor: '#2563eb',
+            });
+            return;
+        }
+
+        fila?.remove();
         Pasadas.sincronizar();
         if (!els.bodyDetallesOrden.querySelector('.fila-detalle')) {
             els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, 'No hay detalles. Usa el botón "Agregar Fila" para añadir.');
         }
     };
+
+    function obtenerSiguienteSlotCombinacion() {
+        const slotsUsados = new Set(
+            Array.from(els.bodyDetallesOrden?.querySelectorAll('.fila-detalle') ?? [])
+                .map(fila => fila.dataset.pasadasKey)
+        );
+
+        for (let indice = 1; indice <= 5; indice += 1) {
+            const slot = `PasadasComb${indice}`;
+            if (!slotsUsados.has(slot)) {
+                return slot;
+            }
+        }
+
+        return '';
+    }
 
     // ── Resumen CatCodificados ────────────────────────────────────────────
     function actualizarResumen(data) {
@@ -963,6 +1050,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!data.success) throw new Error('Error al cargar julios');
                 populateJulioSelect(els.selectJulioRizo, data.juliosRizo);
                 populateJulioSelect(els.selectJulioPie, data.juliosPie);
+                checkFormValidity();
             })
             .catch(() => {
                 resetJulioSelect(els.selectJulioRizo, 'Sin julios disponibles');
@@ -997,6 +1085,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         ));
                     });
                     Pasadas.adjuntarListeners();
+                    Pasadas.fijarTotalBase();
+                    checkFormValidity();
                 } else {
                     els.bodyDetallesOrden.innerHTML = emptyRowHtml(7, 'No se encontraron detalles para esta orden');
                     Pasadas.reset();
@@ -1015,7 +1105,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fetch(`/desarrolladores/catcodificados/${encodeURIComponent(telarId)}/${encodeURIComponent(noProduccion)}`)
             .then(r => r.json())
-            .then(data => { if (data.success && data.registro) { actualizarResumen(data.registro); prefillDesde(data.registro); } })
+            .then(data => {
+                if (data.success && data.registro) {
+                    actualizarResumen(data.registro);
+                    prefillDesde(data.registro);
+                }
+                checkFormValidity();
+            })
             .catch(e => console.error('Error al obtener datos registrados:', e));
     }
 
@@ -1227,7 +1323,18 @@ document.addEventListener('DOMContentLoaded', function () {
     els.btnAgregarFila?.addEventListener('click', function () {
         const filas = els.bodyDetallesOrden.querySelectorAll('.fila-detalle');
         if (els.bodyDetallesOrden.querySelector('td[colspan]')) els.bodyDetallesOrden.innerHTML = '';
-        const nuevaFila = crearFilaDetalle(filas.length, '', '', '', '', '', '', null, true);
+        const siguienteSlot = obtenerSiguienteSlotCombinacion();
+        if (!siguienteSlot) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Límite de combinaciones alcanzado',
+                text: 'La orden admite hasta cinco combinaciones además de la trama.',
+                confirmButtonColor: '#2563eb',
+            });
+            return;
+        }
+
+        const nuevaFila = crearFilaDetalle(filas.length, '', '', '', '', '', '', siguienteSlot, true);
         els.bodyDetallesOrden.appendChild(nuevaFila);
         const inputPasadas = nuevaFila.querySelector('input[name^="pasadas"]');
         inputPasadas?.addEventListener('input', Pasadas.sincronizar);
@@ -1239,16 +1346,6 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         if (!validarAntesDeEnviar()) {
             return;
-        }
-        if (state.omitirConfirmacionPasadas) {
-            state.omitirConfirmacionPasadas = false;
-        } else {
-            const suma = Pasadas.calcularSuma();
-            const total = parseInt(els.totalPasadasDibujo?.value ?? '0', 10);
-            if (suma > 0 && !(Number.isFinite(total) && total === suma)) {
-                els.modalPasadas?.classList.remove('hidden');
-                return;
-            }
         }
         enviarFormularioDetallado();
     });
