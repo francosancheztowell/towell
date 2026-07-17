@@ -939,7 +939,7 @@ async function openLMatModal(context = {}) {
         // fila la trae cargarMaterialesFilaLMat vía AX/ConfigTable, por ItemId específico.
         // No mezclar aquí los ConfigId guardados de OTRAS filas: un config válido/vigente
         // para un artículo puede no serlo (o ni existir) para el artículo de otra fila.
-        config: ['ENTERO'],
+        config: [],
         tamano: Array.from(new Set([
             tamano,
             tamanoRizo,
@@ -1806,7 +1806,10 @@ async function openLMatModal(context = {}) {
             conectarInputsPorcentajeLMat();
             conectarInputsPasadasLMat();
             conectarSelectsSalidaMatrizLMat();
-            recalcularPorcentajesLMat();
+            // Al editar una L.Mat ya guardada, respetar los Qty/Porcentaje tal cual están en
+            // CatLMat: recalcular aquí los sobreescribe con un valor distinto por el redondeo
+            // de Qty a 4 decimales, "descuadrando" el porcentaje mostrado vs. el guardado.
+            if (!guardadoLMat) recalcularPorcentajesLMat();
 
             LMatMateriales.getCalibres().then((calibresDisponibles) => {
                 document.querySelectorAll('select[name="articulo[]"]').forEach((sel) => {
