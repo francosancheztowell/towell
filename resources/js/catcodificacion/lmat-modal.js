@@ -1499,7 +1499,9 @@ async function openLMatModal(context = {}) {
                             const match = String(campo || '').match(/^PasadasComb([1-5])$/);
                             if (match) inputsCalculoLMat.pasadasComb[Number(match[1]) - 1] = pasadas;
                         }
-                        aplicarDiferenciaPasadasLMat();
+                        // Igual que PesoCrudo: en L.Mat ya guardada NO recalcular cantidades/%
+                        // (los Qty guardados van redondeados a 4 decimales y recalcular descuadra).
+                        if (!guardadoLMat) aplicarDiferenciaPasadasLMat();
                         actualizarTotalPasadasLMat();
                     });
                 });
