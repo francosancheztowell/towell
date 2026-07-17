@@ -564,6 +564,24 @@ async function openLMatModal(context = {}) {
     let nombreLMat = truncLmat(['TEJ', articulo].filter(Boolean).join(' '), 20);
     // Descripción: Nombre + CodigoDibujo (sin InventSizeId / tamaño).
     let descripcionLMat = truncLmat([articulo, codigoDibujo].filter(Boolean).join(' '), 60);
+    if (!guardadoLMat && itemId) {
+        // L.Mat nueva: precargar Nombre/Descrip de la última creada con el mismo ItemIdCrudo + InventSizeCrudo.
+        // Si no hay ninguna, quedan los concatenados de arriba.
+        try {
+            const respUltima = await fetch(
+                '/planeacion/lmat/api/ultima?itemIdCrudo=' + encodeURIComponent(itemId)
+                + '&inventSizeCrudo=' + encodeURIComponent(String(tamano ?? '').trim()),
+                { headers: { Accept: 'application/json' } },
+            );
+            const jsonUltima = await respUltima.json();
+            if (jsonUltima.success && jsonUltima.data) {
+                nombreLMat = truncLmat(jsonUltima.data.Nombre ?? nombreLMat, 20);
+                descripcionLMat = truncLmat(jsonUltima.data.Descrip ?? descripcionLMat, 60);
+            }
+        } catch (e) {
+            console.error('No se pudo cargar la última L.Mat por crudo', e);
+        }
+    }
     if (guardadoLMat) {
         // Recargar cabecera desde lo guardado (Nombre=BomId). Descripción se recalcula sin tamaño.
         nombreLMat = truncLmat(guardadoLMat[0].Nombre ?? nombreLMat, 20);

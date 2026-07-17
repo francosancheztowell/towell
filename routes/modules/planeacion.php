@@ -101,6 +101,7 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/lmat/api/matriz-calibre', [MatrizCalibresController::class, 'lookup'])->name('lmat.matriz-calibre');
     Route::post('/lmat/api/matriz-calibre/lote', [MatrizCalibresController::class, 'lookupBatch'])->name('lmat.matriz-calibre.lote');
     Route::get('/lmat/api/existe', [CatLMatController::class, 'existeLmat'])->name('lmat.existe');
+    Route::get('/lmat/api/ultima', [CatLMatController::class, 'getUltimaLmat'])->name('lmat.ultima');
     Route::get('/lmat/api/configs', [CatLMatController::class, 'getConfigs'])->name('lmat.configs');
     Route::get('/lmat/api/tamanos', [CatLMatController::class, 'getTamanos'])->name('lmat.tamanos');
     Route::get('/lmat/api/colores', [CatLMatController::class, 'getColores'])->name('lmat.colores');
