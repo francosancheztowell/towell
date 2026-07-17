@@ -596,7 +596,7 @@ async function openLMatModal(context = {}) {
         .replace(/>/g, '&gt;');
 
     // Cálculo Excel (curvas → pesos g → % → cantidad kg):
-    // Trama/Cn = SI(P>0, ((P*(Ancho+13)*curva_peine)/100)*0.59/Hilo, 0)
+    // Trama/Cn = SI(P>0, ((P*(Ancho+13/TL)*curva_peine)/100)*0.59/Hilo, 0)
     // Pie = (((Largo+Corte)*curva_luchaje/100)*0.59/HiloPie)*1.076*(CuentaPie/TL)
     // Rizo = PesoCrudo - (Pie+Trama+C1..C5)
     // Cantidad(kg) = peso_g / 1000 ; % = peso_g / PesoCrudo
@@ -653,7 +653,7 @@ async function openLMatModal(context = {}) {
         const curvaPeine = peine >= 50 ? 1.001 : 1.002;
         const pesoTramaCn = (pasadas, hilo) => {
             if (!(pasadas > 0) || !(hilo > 0) || !(tl > 0)) return 0;
-            return ((pasadas * (ancho + 13) * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
+            return ((pasadas * (ancho + 13 / tl) * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
         };
         const tramaG = pesoTramaCn(pasadasTrama, hiloTrama);
         const combG = pasadasComb.map((p, i) => pesoTramaCn(p, hiloComb[i]));
@@ -664,7 +664,8 @@ async function openLMatModal(context = {}) {
                 * (cuentaPie / tl);
         }
         const sumaSinRizo = pieG + tramaG + combG.reduce((a, b) => a + b, 0);
-        const rizoG = Math.max(0, pesoCrudoTotal - sumaSinRizo);
+        // Igual que el Excel (AX2): resta directa, sin tope en 0.
+        const rizoG = pesoCrudoTotal - sumaSinRizo;
         return { rizoG, pieG, tramaG, combG, pesoCrudoTotal };
     };
     const pesoACantidadYPorcentajeLMat = (pesoG, pesoCrudoTotal) => {
