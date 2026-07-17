@@ -325,14 +325,13 @@ document.addEventListener('DOMContentLoaded', function () {
             errores.push('Selecciona un telar destino valido.');
         }
 
-        const erroresPasadas = Pasadas.obtenerErroresDeRango();
-        errores.push(...erroresPasadas);
+        // Temporalmente desactivada: la producción de desarrolladores no restringe
+        // el total de pasadas ni el porcentaje acumulado de combinaciones.
+        // const erroresPasadas = Pasadas.obtenerErroresDeRango();
+        // errores.push(...erroresPasadas);
 
         if (errores.length > 0) {
-            showValidationAlert(
-                erroresPasadas.length > 0 ? 'Las pasadas no cumplen la configuración' : 'Faltan datos requeridos',
-                errores
-            );
+            showValidationAlert('Faltan datos requeridos', errores);
             return false;
         }
 

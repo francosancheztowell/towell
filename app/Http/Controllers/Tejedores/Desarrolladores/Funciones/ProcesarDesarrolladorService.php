@@ -71,10 +71,12 @@ class ProcesarDesarrolladorService
                     ->where('NoProduccion', $validated['NoProduccion'])
                     ->first();
 
-                $this->validarPasadasContraConfiguracionInicial(
-                    $validated['pasadas'] ?? [],
-                    $contextoOrigen['programa']
-                );
+                // Temporalmente desactivada: permitir producción sin restricciones de
+                // total de pasadas ni porcentaje acumulado de combinaciones.
+                // $this->validarPasadasContraConfiguracionInicial(
+                //     $validated['pasadas'] ?? [],
+                //     $contextoOrigen['programa']
+                // );
 
                 $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
                 $detallePayload = $this->aplicarDetalleDesdeRequest($detallePayload, $validated);
