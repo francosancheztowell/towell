@@ -1289,6 +1289,49 @@
 
 
         async function terminarAtado() {
+            // Validar que al menos una máquina esté marcada
+            const maquinasCheckboxes = Array.from(document.querySelectorAll('input[onchange*="toggleMaquina"]'));
+            if (maquinasCheckboxes.length === 0 || !maquinasCheckboxes.some(cb => cb.checked)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Máquinas pendientes',
+                    text: 'Debe marcar al menos una máquina antes de terminar el atado.',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            // Validar que todas las actividades estén marcadas
+            const actividadesCheckboxes = Array.from(document.querySelectorAll('input[onchange*="toggleActividad"]'));
+            if (actividadesCheckboxes.length === 0 || actividadesCheckboxes.some(cb => !cb.checked)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Actividades pendientes',
+                    text: 'Todas las actividades deben estar marcadas antes de terminar el atado.',
+                    confirmButtonText: 'Entendido'
+                });
+                return;
+            }
+
+            // Si hay una devolución registrada, debe tener metros y kilos capturados
+            const chkDevolucion = document.getElementById('chkDevolucion');
+            if (chkDevolucion && chkDevolucion.checked) {
+                const devMetrosStr = valorDevolucion('dev_metros');
+                const devKilosStr = valorDevolucion('dev_kilos');
+                const devMetros = devMetrosStr !== '' ? parseFloat(devMetrosStr) : NaN;
+                const devKilos = devKilosStr !== '' ? parseFloat(devKilosStr) : NaN;
+
+                if (isNaN(devMetros) || devMetros <= 0 || isNaN(devKilos) || devKilos <= 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Devolución incompleta',
+                        text: 'La devolución registrada debe tener Metros y Kilos capturados antes de terminar el atado.',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+            }
+
             // Validar que la merma (Merma Kg) esté capturada
             const mergaInput = document.getElementById('mergaKg');
             const mergaValorStr = mergaInput ? mergaInput.value.trim() : '';
