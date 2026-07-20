@@ -62,6 +62,7 @@ class ReqProgramaTejido extends Model
         'FechaCreacion', 'HoraCreacion', 'UsuarioCrea', 'FechaModificacion', 'HoraModificacion', 'UsuarioModifica',
         'OrdPrincipal',
         'FechaArranque', 'FechaFinaliza',
+        'IdRedbooth', 'NombreRedbooth',
     ];
 
     /**
@@ -70,6 +71,8 @@ class ReqProgramaTejido extends Model
      */
     protected $casts = [
         'EnProceso' => 'boolean',
+        'IdRedbooth' => 'integer',
+        'NombreRedbooth' => 'string',
         'Ultimo' => 'string',
         'CambioHilo' => 'string', // NVARCHAR(2)
 

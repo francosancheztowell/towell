@@ -10,8 +10,11 @@ class CatCodificados extends Model
     use HasFactory;
 
     protected $table = 'CatCodificados';
+
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     public $timestamps = false;
 
     public const COLUMNS = [
@@ -38,12 +41,15 @@ class CatCodificados extends Model
         'CategoriaCalidad', 'CustName',
         'PesoMuestra', 'OrdPrincipal',
         'FechaArranque', 'FechaFinaliza',
+        'IdRedbooth', 'NombreRedbooth',
     ];
 
     protected $fillable = self::COLUMNS;
 
     protected $casts = [
         'Id' => 'integer',
+        'IdRedbooth' => 'integer',
+        'NombreRedbooth' => 'string',
         'FechaTejido' => 'date',
         'FechaCumplimiento' => 'date',
         'FechaCompromiso' => 'date',

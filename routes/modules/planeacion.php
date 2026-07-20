@@ -22,6 +22,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoCalendariosCont
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoCatalogosController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoOperacionesController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\RedboothProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReimprimirOrdenesController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\RepasoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReqProgramaTejidoLineController;
@@ -185,6 +186,16 @@ Route::get('/modulo-codificación', [CatCodificacionController::class, 'index'])
 
 // Ruta GET para el index de programa-tejido (debe ir ANTES de las rutas con {id})
 Route::get('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'index'])->name('catalogos.req-programa-tejido');
+Route::get('/planeacion/programa-tejido/redbooth/proyectos', [RedboothProgramaTejidoController::class, 'projectOptions'])
+    ->name('programa-tejido.redbooth.proyectos');
+Route::post('/planeacion/programa-tejido/redbooth', [RedboothProgramaTejidoController::class, 'store'])
+    ->name('programa-tejido.redbooth.store');
+Route::get('/planeacion/programa-tejido/redbooth/{programa}', [RedboothProgramaTejidoController::class, 'show'])
+    ->whereNumber('programa')
+    ->name('programa-tejido.redbooth.show');
+Route::delete('/planeacion/programa-tejido/redbooth/{programa}', [RedboothProgramaTejidoController::class, 'destroy'])
+    ->whereNumber('programa')
+    ->name('programa-tejido.redbooth.destroy');
 
 // Rutas específicas de programa-tejido (sin parámetros dinámicos)
 Route::get('/planeacion/programa-tejido/liberar-ordenes', [LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');

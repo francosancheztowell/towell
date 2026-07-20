@@ -702,6 +702,18 @@
           window.open('{{ route("planeacion.catalogos.codificacion-modelos") }}', '_blank');
         });
 
+        // Redbooth - vincular la fila seleccionada.
+        qs('#contextMenuRedbooth')?.addEventListener('click', () => {
+          const row = menuRow || (window.selectedRowIndex != null
+            ? (window.allRows || qsa('.selectable-row', tbodyEl()))[window.selectedRowIndex]
+            : null);
+          const registroId = row?.getAttribute('data-id') || '';
+          hide();
+          if (typeof window.abrirModalRedboothProgramaTejido === 'function') {
+            window.abrirModalRedboothProgramaTejido({ registroId });
+          }
+        });
+
         // Repaso - abrir modal
         qs('#contextMenuRepaso')?.addEventListener('click', () => {
           const row = menuRow || (window.selectedRowIndex != null ? (window.allRows || qsa('.selectable-row', tbodyEl()))[window.selectedRowIndex] : null);

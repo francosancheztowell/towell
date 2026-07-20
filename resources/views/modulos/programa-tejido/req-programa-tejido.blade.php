@@ -236,6 +236,11 @@ document.addEventListener('DOMContentLoaded', function () {
 {{-- Modal Crear Repaso --}}
 @include('modulos.programa-tejido.modal.repaso')
 
+@unless($isMuestras ?? false)
+  {{-- Modal Redbooth: primer corte exclusivamente visual --}}
+  @include('modulos.programa-tejido.modal.redbooth')
+@endunless
+
 {{-- Permisos del módulo para menú contextual --}}
 @php
   $moduloPT = 'Programa Tejido';
@@ -288,6 +293,12 @@ document.addEventListener('DOMContentLoaded', function () {
     <i class="fas fa-code text-green-500"></i>
     <span>Modelos</span>
   </button>
+  @unless($isMuestras ?? false)
+  <button id="contextMenuRedbooth" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+    <i class="fas fa-comments text-red-500"></i>
+    <span>Redbooth</span>
+  </button>
+  @endunless
 
 </div>
 

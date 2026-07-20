@@ -67,6 +67,57 @@ final class RedboothService
         return $this->request($usuario)->get('/activities', $filters)->throw()->json();
     }
 
+    /**
+     * @param  array<string, bool|int|string>  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function tasks(Usuario $usuario, array $filters): array
+    {
+        return $this->request($usuario)->get('/tasks', $filters)->throw()->json();
+    }
+
+    /**
+     * @param  array<string, bool|int|string>  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function users(Usuario $usuario, array $filters): array
+    {
+        return $this->request($usuario)->get('/users', $filters)->throw()->json();
+    }
+
+    /**
+     * @param  array<string, int|string>  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function comments(Usuario $usuario, array $filters): array
+    {
+        return $this->request($usuario)->get('/comments', $filters)->throw()->json();
+    }
+
+    /**
+     * @param  array<string, bool|int|string>  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function files(Usuario $usuario, array $filters): array
+    {
+        return $this->request($usuario)->get('/files', $filters)->throw()->json();
+    }
+
+    public function fileDownloadUrl(Usuario $usuario, int $fileId): string
+    {
+        $response = $this->request($usuario)
+            ->withoutRedirecting()
+            ->get("/files/{$fileId}/download")
+            ->throw();
+        $location = trim((string) $response->header('Location'));
+
+        if ($location === '' || ! str_starts_with($location, 'https://')) {
+            throw new RuntimeException('Redbooth no devolvió una URL segura de descarga.');
+        }
+
+        return $location;
+    }
+
     public function disconnect(Usuario $usuario): void
     {
         RedboothCredential::query()

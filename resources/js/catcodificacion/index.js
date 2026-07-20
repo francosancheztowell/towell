@@ -767,6 +767,7 @@ import { openLMatModal } from './lmat-modal';
             const tr = document.createElement('tr');
             tr.className = 'cursor-pointer transition-colors';
             tr.dataset.index = globalIndex;
+            tr.dataset.catId = row.Id || '';
 
             // Verificar si esta fila está seleccionada
             const isSelected = state.selectedRowIndex === globalIndex;
@@ -1928,4 +1929,14 @@ import { openLMatModal } from './lmat-modal';
     window.revivirOrdenAlPrograma       = revivirOrdenAlPrograma;
     window.reimprimirOrdenSeleccionada  = reimprimirOrdenSeleccionada;
     window.abrirModalBalancear          = abrirModalBalancear;
+
+    window.addEventListener('redbooth:updated', (event) => {
+        if (event.detail?.source !== 'catcodificados') return;
+        const registroId = String(event.detail.registroId || '');
+        [...state.data, ...state.filtered].forEach((registro) => {
+            if (String(registro?.Id || '') !== registroId) return;
+            registro.IdRedbooth = event.detail.idRedbooth || null;
+            registro.NombreRedbooth = event.detail.nombreRedbooth || null;
+        });
+    });
 })();

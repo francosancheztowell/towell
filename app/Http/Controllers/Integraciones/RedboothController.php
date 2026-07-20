@@ -6,6 +6,9 @@ namespace App\Http\Controllers\Integraciones;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Integraciones\RedboothActivitiesRequest;
+use App\Http\Requests\Integraciones\RedboothCommentsRequest;
+use App\Http\Requests\Integraciones\RedboothFilesRequest;
+use App\Http\Requests\Integraciones\RedboothTasksRequest;
 use App\Models\Integraciones\RedboothCredential;
 use App\Models\Sistema\Usuario;
 use App\Services\Integraciones\RedboothService;
@@ -84,6 +87,54 @@ final class RedboothController extends Controller
         return response()->json($this->redbooth->activities(
             $this->usuario($request),
             $request->validated(),
+        ));
+    }
+
+    public function tasks(RedboothTasksRequest $request): JsonResponse
+    {
+        return response()->json($this->redbooth->tasks(
+            $this->usuario($request),
+            $request->validated(),
+        ));
+    }
+
+    public function comments(RedboothCommentsRequest $request): JsonResponse
+    {
+        return response()->json($this->redbooth->comments(
+            $this->usuario($request),
+            $request->validated(),
+        ));
+    }
+
+    public function files(RedboothFilesRequest $request): JsonResponse
+    {
+        return response()->json($this->redbooth->files(
+            $this->usuario($request),
+            $request->validated(),
+        ));
+    }
+
+    public function images(RedboothFilesRequest $request): JsonResponse
+    {
+        $files = $this->redbooth->files(
+            $this->usuario($request),
+            $request->validated(),
+        );
+
+        return response()->json(array_values(array_filter(
+            $files,
+            static fn (array $file): bool => str_starts_with(
+                strtolower((string) ($file['mime_type'] ?? '')),
+                'image/',
+            ),
+        )));
+    }
+
+    public function download(Request $request, int $fileId): RedirectResponse
+    {
+        return redirect()->away($this->redbooth->fileDownloadUrl(
+            $this->usuario($request),
+            $fileId,
         ));
     }
 

@@ -546,6 +546,7 @@
         @json($catcodificacionConfig)
     </script>
 
+    @include('catcodificacion.partials.redbooth')
     @vite('resources/js/catcodificacion/index.js')
     @include('catcodificacion.partials.excel-upload')
 @endsection
