@@ -55,15 +55,31 @@ class ProcesarDesarrolladorPasadasTest extends TestCase
         ]);
     }
 
+    public function test_acepta_total_hasta_treinta_por_ciento_menor(): void
+    {
+        // 1458 - 30% = 1020.6; al ser pasadas enteras, 1020 es el mínimo permitido.
+        $this->validarPasadas([
+            'PasadasTrama' => 582,
+            'PasadasComb1' => 300,
+            'PasadasComb2' => 138,
+        ], 1000, 300, 158);
+
+        $this->addToAssertionCount(1);
+    }
+
     /**
      * @param  array<string, int>  $pasadas
      */
-    private function validarPasadas(array $pasadas): void
-    {
+    private function validarPasadas(
+        array $pasadas,
+        int $pasadasTramaInicial = 408,
+        int $pasadasComb1Inicial = 98,
+        int $pasadasComb2Inicial = 96
+    ): void {
         $orden = new ReqProgramaTejido;
-        $orden->PasadasTrama = 408;
-        $orden->PasadasComb1 = 98;
-        $orden->PasadasComb2 = 96;
+        $orden->PasadasTrama = $pasadasTramaInicial;
+        $orden->PasadasComb1 = $pasadasComb1Inicial;
+        $orden->PasadasComb2 = $pasadasComb2Inicial;
 
         $catCodificadosService = new CatCodificadosDesarrolladorService;
         $service = new ProcesarDesarrolladorService(

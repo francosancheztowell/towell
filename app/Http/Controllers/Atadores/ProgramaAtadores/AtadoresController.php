@@ -914,6 +914,17 @@ class AtadoresController extends Controller
                 ], 422);
             }
 
+            // Si existe devolución asociada, el Julio es obligatorio (no puede ir NULL).
+            $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
+                ->orderByDesc('Id')
+                ->first();
+            if ($devolucion && trim((string) ($devolucion->NoJulio ?? '')) === '') {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'La devolución debe tener un Julio seleccionado antes de terminar el atado.',
+                ], 422);
+            }
+
             // Register current time as "hora de arranque" y cambiar estatus a 'Terminado'
             $commentsAta = $request->input('comments_ata', '');
             $ahora = Carbon::now();

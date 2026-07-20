@@ -325,14 +325,13 @@ document.addEventListener('DOMContentLoaded', function () {
             errores.push('Selecciona un telar destino valido.');
         }
 
-        const erroresPasadas = Pasadas.obtenerErroresDeRango();
-        errores.push(...erroresPasadas);
+        // Temporalmente desactivada: la producción de desarrolladores no restringe
+        // el total de pasadas ni el porcentaje acumulado de combinaciones.
+        // const erroresPasadas = Pasadas.obtenerErroresDeRango();
+        // errores.push(...erroresPasadas);
 
         if (errores.length > 0) {
-            showValidationAlert(
-                erroresPasadas.length > 0 ? 'Las pasadas no cumplen la configuración' : 'Faltan datos requeridos',
-                errores
-            );
+            showValidationAlert('Faltan datos requeridos', errores);
             return false;
         }
 
@@ -778,13 +777,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const totalActual = calcularSuma();
+            const totalMinimo = Math.floor(base * 0.70);
             const totalMaximo = Math.floor(base * 1.30);
             const minimoCombinaciones = Math.ceil(base * 0.30);
             const totalCombinaciones = calcularSumaCombinaciones();
             const errores = [];
 
-            if (totalActual < base) {
-                errores.push(`El total de pasadas no puede ser menor al inicial (${base}).`);
+            if (totalActual < totalMinimo) {
+                errores.push(`El total de pasadas no puede ser menor a ${totalMinimo} (30% menos que ${base}).`);
             }
             if (totalActual > totalMaximo) {
                 errores.push(`El total de pasadas no puede superar ${totalMaximo} (30% adicional sobre ${base}).`);
