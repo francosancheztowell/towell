@@ -84,6 +84,15 @@ final class MatrizCalibresServiceTest extends TestCase
             $table->integer('PasadasComb3')->nullable();
             $table->integer('PasadasComb4')->nullable();
             $table->integer('PasadasComb5')->nullable();
+            $table->float('Largo')->nullable();
+            $table->float('TramaAnchoPeine')->nullable();
+            $table->float('CalibrePie2')->nullable();
+            $table->float('CalTramaFondoC1')->nullable();
+            $table->float('CalibreComb12')->nullable();
+            $table->float('CalibreComb22')->nullable();
+            $table->float('CalibreComb32')->nullable();
+            $table->float('CalibreComb42')->nullable();
+            $table->float('CalibreComb52')->nullable();
         });
 
         Schema::connection('sqlsrv')->create('CatLMat', function (Blueprint $table): void {
@@ -572,6 +581,46 @@ final class MatrizCalibresServiceTest extends TestCase
         $this->assertSame(95, $registro->PasadasComb1);
         $this->assertSame(0, $registro->PasadasComb2);
         $this->assertSame(40, $registro->PasadasComb3);
+    }
+
+    public function test_guardar_lmat_persiste_parametros_editables_de_formula_en_catcodificados(): void
+    {
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => 'ORD-100',
+            'TelarId' => '305',
+            'Largo' => 160,
+            'TramaAnchoPeine' => null,
+            'CalibrePie2' => 12,
+            'CalTramaFondoC1' => 12,
+            'CalibreComb12' => 3,
+        ]);
+        $payload = $this->payloadLMat('ITEM-A');
+        $payload['formula'] = [
+            'Largo' => 165,
+            'TramaAnchoPeine' => 93,
+            'CalibrePie2' => 10,
+            'CalTramaFondoC1' => 10,
+            'CalibreComb12' => 10,
+            'CalibreComb22' => 3.5,
+        ];
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payload)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $registro = DB::connection('sqlsrv')
+            ->table('CatCodificados')
+            ->where('OrdenTejido', 'ORD-100')
+            ->first();
+
+        $this->assertEquals(165.0, $registro->Largo);
+        $this->assertEquals(93.0, $registro->TramaAnchoPeine);
+        $this->assertEquals(10.0, $registro->CalibrePie2);
+        $this->assertEquals(10.0, $registro->CalTramaFondoC1);
+        $this->assertEquals(10.0, $registro->CalibreComb12);
+        $this->assertEquals(3.5, $registro->CalibreComb22);
+        $this->assertNull($registro->CalibreComb32);
     }
 
     public function test_guardar_lmat_limita_total_pasadas_a_mas_menos_treinta_por_ciento(): void

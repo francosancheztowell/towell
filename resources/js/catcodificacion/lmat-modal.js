@@ -2210,6 +2210,40 @@ async function openLMatModal(context = {}) {
                     return;
                 }
 
+                const formulaData = {
+                    Largo: numLMat(largoInput?.value),
+                    TramaAnchoPeine: numLMat(anchoPeineInput?.value),
+                };
+                const calibreFieldPorRol = {
+                    pie: 'CalibrePie2',
+                    trama: 'CalTramaFondoC1',
+                    c1: 'CalibreComb12',
+                    c2: 'CalibreComb22',
+                    c3: 'CalibreComb32',
+                    c4: 'CalibreComb42',
+                    c5: 'CalibreComb52',
+                };
+                const formulaInvalidos = [];
+                if (!(formulaData.Largo > 0)) formulaInvalidos.push('Largo');
+                if (!(formulaData.TramaAnchoPeine > 0)) formulaInvalidos.push('Ancho peine');
+                document.querySelectorAll('.lmat-calibre-formula-input').forEach((input) => {
+                    const rol = String(input.dataset.calibreRol || '');
+                    const campo = calibreFieldPorRol[rol];
+                    const calibre = numLMat(input.value);
+                    if (!campo) return;
+                    if (!(calibre > 0)) {
+                        formulaInvalidos.push(`Calibre ${rol.toUpperCase()}`);
+                        input.classList.add('border-red-500', 'ring-1', 'ring-red-500');
+                        return;
+                    }
+                    input.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
+                    formulaData[campo] = calibre;
+                });
+                if (formulaInvalidos.length > 0) {
+                    showToast('Captura valores mayores a 0 en: ' + formulaInvalidos.join(', ') + '.', 'error');
+                    return;
+                }
+
                 if (filasSinArticulo.length > 0) {
                     showToast('Selecciona Artículos en: ' + filasSinArticulo.join(', ') + '. No se guardó ninguna fila.', 'error');
                     return;
@@ -2250,6 +2284,7 @@ async function openLMatModal(context = {}) {
                             codigoDibujo: String(registroSeleccionado?.CodigoDibujo ?? '').trim() || null,
                             actualizaLmat: actLmatChecked,
                             pasadas: pasadasData,
+                            formula: formulaData,
                             filas: filasData,
                         }),
                     });
@@ -2279,6 +2314,7 @@ async function openLMatModal(context = {}) {
                                 updatedBom,
                                 actualizaLmat: json.actualizaLmat,
                                 pasadas: pasadasData,
+                                formula: formulaData,
                             });
                         } catch (error) {
                             console.error('No se pudo actualizar localmente la fila de Codificación', error);

@@ -116,6 +116,16 @@ class CatLMatController extends Controller
             'pasadas.PasadasComb3' => 'sometimes|integer|min:0',
             'pasadas.PasadasComb4' => 'sometimes|integer|min:0',
             'pasadas.PasadasComb5' => 'sometimes|integer|min:0',
+            'formula' => 'sometimes|array',
+            'formula.Largo' => 'sometimes|numeric|gt:0',
+            'formula.TramaAnchoPeine' => 'sometimes|numeric|gt:0',
+            'formula.CalibrePie2' => 'sometimes|numeric|gt:0',
+            'formula.CalTramaFondoC1' => 'sometimes|numeric|gt:0',
+            'formula.CalibreComb12' => 'sometimes|numeric|gt:0',
+            'formula.CalibreComb22' => 'sometimes|numeric|gt:0',
+            'formula.CalibreComb32' => 'sometimes|numeric|gt:0',
+            'formula.CalibreComb42' => 'sometimes|numeric|gt:0',
+            'formula.CalibreComb52' => 'sometimes|numeric|gt:0',
             'filas' => 'required|array|min:1',
             'filas.*.itemId' => 'required|string|max:60',
             'filas.*.configId' => 'required|string|max:60',
@@ -250,6 +260,29 @@ class CatLMatController extends Controller
                     }
 
                     $q->update($pasadasPayload);
+                }
+
+                // Parámetros editables que alimentan las fórmulas del modal L.Mat.
+                // Se actualizan parcialmente para no borrar calibres de combinaciones ausentes.
+                $camposFormulaPermitidos = [
+                    'Largo',
+                    'TramaAnchoPeine',
+                    'CalibrePie2',
+                    'CalTramaFondoC1',
+                    'CalibreComb12',
+                    'CalibreComb22',
+                    'CalibreComb32',
+                    'CalibreComb42',
+                    'CalibreComb52',
+                ];
+                $formulaPayload = [];
+                foreach ($camposFormulaPermitidos as $campoFormula) {
+                    if (array_key_exists($campoFormula, $data['formula'] ?? [])) {
+                        $formulaPayload[$campoFormula] = (float) $data['formula'][$campoFormula];
+                    }
+                }
+                if ($formulaPayload !== []) {
+                    $q->update($formulaPayload);
                 }
 
                 // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados (aunque no se muestren en el modal).

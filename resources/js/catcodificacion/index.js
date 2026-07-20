@@ -564,7 +564,7 @@ import { openLMatModal } from './lmat-modal';
     }
 
     // El módulo L.Mat recibe únicamente el contexto necesario de esta pantalla.
-    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {} }) {
+    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {}, formula = {} }) {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) return;
         const registro = state.filtered[state.selectedRowIndex];
         if (!registro) return;
@@ -580,6 +580,17 @@ import { openLMatModal } from './lmat-modal';
         }
         Object.entries(pasadas).forEach(([campo, valor]) => {
             if (campo === 'PasadasTramaFondoC1' || /^PasadasComb[1-5]$/.test(campo)) {
+                registro[campo] = valor;
+            }
+        });
+        Object.entries(formula).forEach(([campo, valor]) => {
+            if (
+                campo === 'Largo'
+                || campo === 'TramaAnchoPeine'
+                || campo === 'CalibrePie2'
+                || campo === 'CalTramaFondoC1'
+                || /^CalibreComb[1-5]2$/.test(campo)
+            ) {
                 registro[campo] = valor;
             }
         });
