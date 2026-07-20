@@ -19,6 +19,7 @@ final class RedboothIntegrationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::clear();
 
         config([
             'database.connections.sqlsrv' => [
@@ -96,6 +97,25 @@ final class RedboothIntegrationTest extends TestCase
         $this->assertSame('access-secret', $credential->access_token);
         $this->assertNotSame('access-secret', $credential->getRawOriginal('access_token'));
         Http::assertSent(fn ($request): bool => $request['grant_type'] === 'authorization_code');
+    }
+
+    public function test_callback_accepts_cached_state_when_production_session_changes(): void
+    {
+        Cache::put('redbooth-oauth-state:'.hash('sha256', 'cached-state'), 7, now()->addMinutes(10));
+        Http::fake([
+            'https://redbooth.com/oauth2/token' => Http::response([
+                'access_token' => 'access-secret',
+                'refresh_token' => 'refresh-secret',
+                'expires_in' => 7200,
+            ]),
+        ]);
+
+        $this->actingAs($this->usuario())
+            ->get(route('redbooth.callback', ['code' => 'code-123', 'state' => 'cached-state']))
+            ->assertRedirect(route('redbooth.status'));
+
+        $this->assertDatabaseHas('RedboothCredentials', ['usuario_id' => 7], 'sqlsrv');
+        $this->assertSame(0, Cache::get('redbooth-oauth-state:'.hash('sha256', 'cached-state'), 0));
     }
 
     public function test_expired_token_is_refreshed_before_calling_me(): void

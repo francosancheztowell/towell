@@ -15,6 +15,7 @@ use App\Services\Integraciones\RedboothService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 final class RedboothController extends Controller
@@ -27,6 +28,11 @@ final class RedboothController extends Controller
     {
         $state = Str::random(64);
         $request->session()->put('redbooth_oauth_state', $state);
+        Cache::put(
+            $this->stateCacheKey($state),
+            (int) $this->usuario($request)->getKey(),
+            now()->addMinutes(10),
+        );
 
         return redirect()->away($this->redbooth->authorizationUrl($state));
     }
@@ -35,9 +41,15 @@ final class RedboothController extends Controller
     {
         $expectedState = (string) $request->session()->pull('redbooth_oauth_state', '');
         $receivedState = (string) $request->query('state', '');
+        $usuario = $this->usuario($request);
+        $cachedUserId = $receivedState !== ''
+            ? (int) Cache::pull($this->stateCacheKey($receivedState), 0)
+            : 0;
+        $validSessionState = $expectedState !== '' && hash_equals($expectedState, $receivedState);
+        $validCachedState = $cachedUserId > 0 && $cachedUserId === (int) $usuario->getKey();
 
         abort_unless(
-            $expectedState !== '' && hash_equals($expectedState, $receivedState),
+            $validSessionState || $validCachedState,
             403,
             'La respuesta OAuth de Redbooth no es válida.',
         );
@@ -53,7 +65,7 @@ final class RedboothController extends Controller
         ]);
 
         $this->redbooth->exchangeAuthorizationCode(
-            $this->usuario($request),
+            $usuario,
             $validated['code'],
         );
 
@@ -151,5 +163,10 @@ final class RedboothController extends Controller
         abort_unless($usuario instanceof Usuario, 401);
 
         return $usuario;
+    }
+
+    private function stateCacheKey(string $state): string
+    {
+        return 'redbooth-oauth-state:'.hash('sha256', $state);
     }
 }
