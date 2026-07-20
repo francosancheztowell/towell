@@ -408,7 +408,8 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Lote</label>
-                            <input type="text" id="dev_lote" readonly required
+                            {{-- readonly (no disabled): el valor debe poder leerse/actualizarse al cambiar Julio --}}
+                            <input type="text" id="dev_lote" readonly required tabindex="-1"
                                 value="{{ $hayDevolucion ? $devolucionActual->NoProduccion : '' }}"
                                 class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none" />
                         </div>
@@ -442,8 +443,8 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Tipo</label>
-                            <select id="dev_tipo" {{-- onchange="actualizarDisponibilidadDevolucion()" --}} required
-                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                            <select id="dev_tipo" disabled required
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none">
                                 <option value="">Seleccione</option>
                                 @if($hayDevolucion && $devolucionActual->Tipo && !in_array($devolucionActual->Tipo, ['Rizo', 'Pie'], true))
                                     <option value="{{ $devolucionActual->Tipo }}" selected>{{ $devolucionActual->Tipo }}</option>
@@ -734,7 +735,8 @@
             setValor('dev_cuenta', registro.cuenta);
             setValor('dev_calibre', registro.calibre);
             setValor('dev_hilo', registro.hilo);
-            setValor('dev_lote', registro.lote);
+            // Lote = DEV + NoProduccion del julio elegido (no del atado en calificación).
+            setValor('dev_lote', registro.lote ?? '');
 
             const tipo = String(registro.tipo ?? '').trim();
             const tipoInput = document.getElementById('dev_tipo');
@@ -749,14 +751,84 @@
                 tipoInput.value = tipo;
             }
 
+            bloquearCamposFijosDevolucion();
             programarAutoguardadoDevolucion();
         }
 
+        function bloquearCamposFijosDevolucion() {
+            // Telar y Tipo: disabled (select). Lote: solo readonly para que el
+            // valor siga actualizándose y enviándose al cambiar de Julio.
+            ['dev_telar', 'dev_tipo'].forEach((id) => {
+                const campo = document.getElementById(id);
+                if (!campo) return;
+                campo.disabled = true;
+                campo.classList.add('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
+                campo.classList.remove('focus:ring-2', 'focus:ring-blue-500');
+            });
+
+            const lote = document.getElementById('dev_lote');
+            if (lote) {
+                lote.readOnly = true;
+                lote.disabled = false;
+                lote.classList.add('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
+            }
+        }
+
+        function obtenerDatosJuliosDevolucionCache() {
+            const telar = document.getElementById('dev_telar')?.value?.trim()
+                || String(currentTelar ?? '').trim();
+            if (telar && juliosDevolucionCache[telar]) {
+                return juliosDevolucionCache[telar];
+            }
+
+            // Fallback: el select de telar va disabled y en algunos WebViews
+            // .value puede salir vacío; buscar en cualquier cache cargada.
+            return Object.values(juliosDevolucionCache).find(Boolean) || null;
+        }
+
         function onCambioJulioDevolucion(julio) {
-            const telar = document.getElementById('dev_telar')?.value?.trim() || '';
-            const datos = juliosDevolucionCache[telar];
             const valor = String(julio ?? '').trim();
-            if (!datos || !valor) return;
+
+            // Al deseleccionar, limpiar datos derivados del julio para no dejar
+            // basura en pantalla ni guardar un Julio NULL con Lote/Cuenta viejos.
+            if (!valor) {
+                limpiarDatosJulioDevolucion();
+                if (currentTipoAtado) {
+                    const tipo = document.getElementById('dev_tipo');
+                    if (tipo) {
+                        if (![...tipo.options].some(opcion => opcion.value === currentTipoAtado)) {
+                            const opcion = document.createElement('option');
+                            opcion.value = currentTipoAtado;
+                            opcion.textContent = currentTipoAtado;
+                            tipo.appendChild(opcion);
+                        }
+                        tipo.value = currentTipoAtado;
+                    }
+                }
+                bloquearCamposFijosDevolucion();
+                programarAutoguardadoDevolucion();
+                return;
+            }
+
+            const select = document.getElementById('dev_no_julio');
+            const opcion = select
+                ? [...select.options].find(opt => String(opt.value).trim() === valor)
+                : null;
+
+            // Preferir data-* de la opción (no depende del cache por telar).
+            if (opcion?.dataset?.lote) {
+                aplicarDatosJulioDevolucion({
+                    cuenta: opcion.dataset.cuenta || null,
+                    calibre: opcion.dataset.calibre || null,
+                    hilo: opcion.dataset.hilo || null,
+                    lote: opcion.dataset.lote || null,
+                    tipo: opcion.dataset.tipo || null,
+                });
+                return;
+            }
+
+            const datos = obtenerDatosJuliosDevolucionCache();
+            if (!datos) return;
 
             const registro = (datos.registros || []).find(item => String(item.julio ?? '').trim() === valor);
             if (registro) aplicarDatosJulioDevolucion(registro);
@@ -770,6 +842,8 @@
 
             const tipo = document.getElementById('dev_tipo');
             if (tipo) tipo.value = '';
+
+            bloquearCamposFijosDevolucion();
         }
 
         // Se dispara al cambiar el Telar en el panel de Devolución: carga los
@@ -781,49 +855,70 @@
             }
             limpiarDatosJulioDevolucion();
             limpiarDisponibilidadDevolucion();
-            cargarJuliosDevolucion(telar);
+            void cargarJuliosDevolucion(telar);
         }
 
         function cargarJuliosDevolucion(telar) {
             const select = document.getElementById('dev_no_julio');
-            if (!select) return;
+            if (!select) return Promise.resolve(null);
 
             if (!telar) {
                 select.innerHTML = '<option value="">Seleccione un telar primero</option>';
-                return;
+                return Promise.resolve(null);
             }
 
             const render = (datos) => {
-                // Preservar el valor seleccionado actual o, en su defecto, el julio ya guardado en BD
+                // Preservar julio ya guardado; si es devolución nueva, sugerir el
+                // penúltimo (el atado previo más reciente, distinto del actual).
                 const julioGuardado = devolucionActual?.no_julio != null ? String(devolucionActual.no_julio).trim() : '';
                 const valorPrevio = select.value.trim() || julioGuardado;
+                const sugerido = datos.sugerido != null ? String(datos.sugerido).trim() : '';
+                const valorASeleccionar = valorPrevio || sugerido;
+
+                const registrosPorJulio = {};
+                (datos.registros || []).forEach((registro) => {
+                    const clave = String(registro.julio ?? '').trim();
+                    if (clave) registrosPorJulio[clave] = registro;
+                });
+
                 select.innerHTML = '<option value="">Seleccione un Julio</option>';
                 datos.julios.forEach(j => {
                     const opt = document.createElement('option');
-                    opt.value = j;
-                    opt.textContent = j;
+                    const clave = String(j ?? '').trim();
+                    const registro = registrosPorJulio[clave] || null;
+                    opt.value = clave;
+                    opt.textContent = clave;
+                    if (registro) {
+                        if (registro.lote) opt.dataset.lote = String(registro.lote);
+                        if (registro.cuenta) opt.dataset.cuenta = String(registro.cuenta);
+                        if (registro.calibre) opt.dataset.calibre = String(registro.calibre);
+                        if (registro.hilo) opt.dataset.hilo = String(registro.hilo);
+                        if (registro.tipo) opt.dataset.tipo = String(registro.tipo);
+                    }
                     select.appendChild(opt);
                 });
 
                 // Si el julio guardado no viene en la lista AJAX, agregarlo para poder mostrarlo
-                if (valorPrevio && ![...select.options].some(opcion => String(opcion.value) === valorPrevio)) {
+                if (valorASeleccionar && ![...select.options].some(opcion => String(opcion.value) === valorASeleccionar)) {
                     const opt = document.createElement('option');
-                    opt.value = valorPrevio;
-                    opt.textContent = valorPrevio;
+                    opt.value = valorASeleccionar;
+                    opt.textContent = valorASeleccionar;
                     select.appendChild(opt);
                 }
 
-                if (valorPrevio && [...select.options].some(opcion => String(opcion.value) === valorPrevio)) {
-                    select.value = valorPrevio;
-                    onCambioJulioDevolucion(valorPrevio);
+                if (valorASeleccionar && [...select.options].some(opcion => String(opcion.value) === valorASeleccionar)) {
+                    select.value = valorASeleccionar;
+                    onCambioJulioDevolucion(valorASeleccionar);
                 }
 
+                bloquearCamposFijosDevolucion();
+
                 // Validación temporalmente pausada: actualizarDisponibilidadDevolucion();
+                return datos;
             };
 
             if (juliosDevolucionCache[telar]) {
-                render(juliosDevolucionCache[telar]);
-                return;
+                return Promise.resolve(render(juliosDevolucionCache[telar]));
             }
 
             select.disabled = true;
@@ -833,7 +928,7 @@
             if (currentTipoAtado) params.set('tipo', currentTipoAtado);
             if (currentRefId) params.set('exclude_id', currentRefId);
 
-            fetch('{{ route('atadores.devoluciones.julios') }}?' + params.toString())
+            return fetch('{{ route('atadores.devoluciones.julios') }}?' + params.toString())
                 .then(r => r.json())
                 .then(res => {
                     if (res.ok && Array.isArray(res.julios)) {
@@ -846,19 +941,21 @@
                             registros: Array.isArray(res.registros) ? res.registros : [],
                         };
                         juliosDevolucionCache[telar] = datos;
-                        render(datos);
-                    } else {
-                        select.innerHTML = '<option value="">Sin Julios disponibles</option>';
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Julios no disponibles',
-                            text: res.message || 'No se pudo cargar los julios atados de ese telar.'
-                        });
+                        return render(datos);
                     }
+
+                    select.innerHTML = '<option value="">Sin Julios disponibles</option>';
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Julios no disponibles',
+                        text: res.message || 'No se pudo cargar los julios atados de ese telar.'
+                    });
+                    return null;
                 })
                 .catch(() => {
                     select.innerHTML = '<option value="">No se pudieron cargar los Julios</option>';
                     Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo cargar los julios de ese telar.' });
+                    return null;
                 })
                 .finally(() => { select.disabled = false; });
         }
@@ -889,7 +986,7 @@
                 ref_id: currentRefId,
                 telar: valorDevolucion('dev_telar') || null,
                 no_julio: valorDevolucion('dev_no_julio') || null,
-                no_produccion: valorDevolucion('dev_lote') || currentNoOrden || null,
+                no_produccion: valorDevolucion('dev_lote') || null,
                 kilos: kilos !== '' ? parseFloat(kilos) : null,
                 metros: metros !== '' ? parseFloat(metros) : null,
                 ubicacion: valorDevolucion('dev_ubicacion') || null,
@@ -990,22 +1087,25 @@
                 }
             }
 
-            setSiVacio('dev_lote', currentNoOrden ? ('DEV' + currentNoOrden) : null);
-            setSiVacio('dev_tipo', currentTipoAtado);
+            // Lote y Tipo salen del julio previo sugerido, no del atado actual.
             if (devolucionActual?.ubicacion) setSiVacio('dev_ubicacion', devolucionActual.ubicacion);
             const fecha = document.getElementById('dev_fecha');
             if (fecha && !fecha.value) {
                 fecha.value = new Date().toLocaleDateString('en-CA');
             }
+
+            bloquearCamposFijosDevolucion();
         }
 
-        function cargarCatalogosDevolucion() {
+        async function cargarCatalogosDevolucion() {
             cargarUbicacionesDevolucion();
 
             const telar = document.getElementById('dev_telar')?.value;
             if (telar) {
-                cargarJuliosDevolucion(telar);
+                await cargarJuliosDevolucion(telar);
             }
+
+            bloquearCamposFijosDevolucion();
         }
 
         function limpiarFormularioDevolucion() {
@@ -1084,6 +1184,7 @@
             if (devolucionBloqueadaPorAx) {
                 if (checkbox) checkbox.checked = true;
                 panel.classList.remove('hidden');
+                bloquearCamposFijosDevolucion();
                 return;
             }
 
@@ -1100,6 +1201,10 @@
             panel.classList.remove('hidden');
             prepararFormularioDevolucion();
 
+            // Primero cargar julios y sugerir el penúltimo; luego crear/actualizar
+            // para no grabar el julio/lote del atado que se está calificando.
+            await cargarCatalogosDevolucion();
+
             if (!devolucionRegistrada) {
                 const creada = await sincronizarDevolucion({ permitirCrear: true });
                 if (!creada) {
@@ -1109,7 +1214,7 @@
                 }
             }
 
-            cargarCatalogosDevolucion();
+            bloquearCamposFijosDevolucion();
         }
 
         function inicializarAutoguardadoDevolucion() {
@@ -1131,6 +1236,7 @@
 
         function inicializarDevolucion() {
             inicializarAutoguardadoDevolucion();
+            bloquearCamposFijosDevolucion();
 
             const checkbox = document.getElementById('chkDevolucion');
             if (!devolucionActual || !checkbox) return;
@@ -1324,9 +1430,21 @@
                 return;
             }
 
-            // Si hay una devolución registrada, debe tener ubicación, metros y kilos capturados
+            // Si hay una devolución registrada, debe tener Julio, ubicación, metros y kilos
             const chkDevolucion = document.getElementById('chkDevolucion');
             if (chkDevolucion && chkDevolucion.checked) {
+                const devJulio = valorDevolucion('dev_no_julio');
+                if (devJulio === '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Julio pendiente',
+                        text: 'Debe seleccionar un Julio en la devolución antes de terminar el atado.',
+                        confirmButtonText: 'Entendido'
+                    });
+                    document.getElementById('dev_no_julio')?.focus();
+                    return;
+                }
+
                 const devUbicacion = valorDevolucion('dev_ubicacion');
                 if (devUbicacion === '') {
                     Swal.fire({

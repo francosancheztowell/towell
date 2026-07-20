@@ -238,9 +238,19 @@ class AtaDevolucionesController extends Controller
         $kilos = $data['kilos'] ?? 0;
         $metros = $data['metros'] ?? 0;
 
-        // El "Lote" de la devolución se almacena en la columna NoProduccion con el
-        // prefijo "DEV" seguido del número de orden (evitando duplicar el prefijo).
-        $ordenBase = trim((string) ($data['no_produccion'] ?? $montado->NoProduccion ?? ''));
+        // El lote debe corresponder al Julio elegido en el panel (atado previo),
+        // no al atado que se está calificando (ref_id).
+        $noJulio = isset($data['no_julio']) && trim((string) $data['no_julio']) !== ''
+            ? trim((string) $data['no_julio'])
+            : null;
+        $telarDevolucion = $data['telar'] ?? $montado->NoTelarId;
+        $tipoDevolucion = $data['tipo'] ?? $montado->Tipo;
+        $ordenDesdeJulio = $this->resolverOrdenDeJulioSeleccionado(
+            $noJulio,
+            $telarDevolucion,
+            $tipoDevolucion
+        );
+        $ordenBase = trim((string) ($ordenDesdeJulio ?? $data['no_produccion'] ?? ''));
         $loteOriginal = $this->extraerLoteOriginal($ordenBase);
         $loteDev = $this->formatearLoteDevolucion($ordenBase);
         if ($loteDev !== null && strlen($loteDev) > 20) {
@@ -249,9 +259,6 @@ class AtaDevolucionesController extends Controller
                 'message' => 'El lote de devolución excede los 20 caracteres permitidos.',
             ], 422);
         }
-
-        // LoteOriginal conserva el lote base usado para formar NoProduccion sin el prefijo "DEV".
-        $noJulio = $data['no_julio'] ?? $montado->NoJulio;
 
         try {
             [$devolucion, $disponibilidad] = DB::connection('sqlsrv')->transaction(function () use ($data, $montado, $noJulio, $loteDev, $loteOriginal, $kilos, $metros) {
@@ -514,6 +521,37 @@ class AtaDevolucionesController extends Controller
         $loteOriginal = trim((string) (preg_replace('/^DEV/i', '', trim((string) $lote)) ?? ''));
 
         return $loteOriginal !== '' ? $loteOriginal : null;
+    }
+
+    /**
+     * NoProduccion del atado finalizado que corresponde al Julio (y Telar/Tipo)
+     * elegido en el panel de devolución. Es la fuente correcta del Lote DEV*.
+     */
+    private function resolverOrdenDeJulioSeleccionado(mixed $noJulio, mixed $telar, mixed $tipo): ?string
+    {
+        $julio = trim((string) $noJulio);
+        $telarId = trim((string) $telar);
+        if ($julio === '' || $telarId === '') {
+            return null;
+        }
+
+        $query = AtaMontadoTelasModel::where('NoJulio', $julio)
+            ->where('NoTelarId', $telarId)
+            ->whereIn('Estatus', self::JULIO_ESTATUS_FINALIZADOS);
+
+        $tipoNorm = trim((string) $tipo);
+        if ($tipoNorm !== '') {
+            $query->where('Tipo', $tipoNorm);
+        }
+
+        $orden = $query->orderByDesc('Fecha')
+            ->orderByDesc('Turno')
+            ->orderByDesc('Id')
+            ->value('NoProduccion');
+
+        $orden = trim((string) $orden);
+
+        return $orden !== '' ? $orden : null;
     }
 
     private function formatearLoteDevolucion(?string $lote): ?string
