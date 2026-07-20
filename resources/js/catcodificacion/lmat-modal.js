@@ -596,7 +596,7 @@ async function openLMatModal(context = {}) {
         .replace(/>/g, '&gt;');
 
     // Cálculo Excel (curvas → pesos g → % → cantidad kg):
-    // Trama/Cn = SI(P>0, ((P*((AnchoPeine+13)/TL)*curva_peine)/100)*0.59/Hilo, 0)
+    // Trama/Cn = SI(P>0, ((P*(AnchoPeine+(13/TL))*curva_peine)/100)*0.59/Hilo, 0)
     // Pie = (((Largo+Corte)*curva_luchaje/100)*0.59/HiloPie)*1.076*(CuentaPie/TL)
     // Rizo = PesoCrudo - (Pie+Trama+C1..C5)
     // Cantidad(kg) = peso_g / 1000 ; % = peso_g / PesoCrudo
@@ -609,8 +609,8 @@ async function openLMatModal(context = {}) {
     const inputsCalculoLMat = {
         peine: numLMat(registroSeleccionado?.Peine),
         ancho: numLMat(registroSeleccionado?.Ancho),
-        // Excel usa el ancho EN PEINE total (col. TramaAnchoPeine ≈ 280), no el ancho
-        // de producto terminado (Ancho = 38): W = (anchoPeine + 13) / tiras.
+        // CatCodificados.TramaAnchoPeine ya contiene el ancho en peine POR TIRA
+        // (p. ej. 93 = 279 / 3). Excel usa W = H + (13 / NoTiras).
         anchoPeine: numLMat(registroSeleccionado?.TramaAnchoPeine),
         largo: numLMat(registroSeleccionado?.Largo),
         corte: numLMat(registroSeleccionado?.MedidaPlano),
@@ -619,9 +619,9 @@ async function openLMatModal(context = {}) {
         hiloPie: numLMat(registroSeleccionado?.CalibrePie2),
         cuentaPie: numLMat(registroSeleccionado?.CuentaPie),
         pasadasTrama: numLMat(registroSeleccionado?.PasadasTramaFondoC1),
-        // La Trama de Fondo usa el valor numérico de la columna "Hilo" de su
-        // propia sección (p. ej. CalTramaFondoC1=10.1, CalTramaFondoC12=10).
-        hiloTrama: numLMat(registroSeleccionado?.CalTramaFondoC12),
+        // En CatCodificados de producción, CalTramaFondoC1 contiene el divisor
+        // numérico (p. ej. 10) y CalTramaFondoC12 el código de hilo (p. ej. 10.1).
+        hiloTrama: numLMat(registroSeleccionado?.CalTramaFondoC1),
         pasadasComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`PasadasComb${n}`])),
         hiloComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`CalibreComb${n}2`])),
     };
@@ -649,7 +649,7 @@ async function openLMatModal(context = {}) {
     };
     const calcularPesosComponentesLMat = (pesoCrudoG, datosCalculo = inputsCalculoLMat) => {
         const pesoCrudoTotal = numLMat(pesoCrudoG);
-        const { peine, ancho, anchoPeine, largo, corte, luchaje, tl, hiloPie, cuentaPie, hiloTrama, hiloComb } = datosCalculo;
+        const { peine, anchoPeine, largo, corte, luchaje, tl, hiloPie, cuentaPie, hiloTrama, hiloComb } = datosCalculo;
         const pasadasTrama = numLMat(datosCalculo.pasadasTrama);
         const pasadasComb = Array.from(
             { length: 5 },
@@ -659,9 +659,10 @@ async function openLMatModal(context = {}) {
         const curvaPeine = peine >= 50 ? 1.001 : 1.002;
         const pesoTramaCn = (pasadas, hilo) => {
             if (!(pasadas > 0) || !(hilo > 0) || !(tl > 0)) return 0;
-            // W = (anchoPeine total + 13) / tiras, igual que el Excel. Si el registro no
-            // tiene TramaAnchoPeine, se cae al comportamiento anterior (Ancho + 13/tiras).
-            const anchoTira = anchoPeine > 0 ? (anchoPeine + 13) / tl : ancho + 13 / tl;
+            // No usar Ancho como fallback: es el ancho terminado y no sustituye al ancho
+            // en peine. Si falta TramaAnchoPeine, la fila queda sin cantidad calculada.
+            if (!(anchoPeine > 0)) return 0;
+            const anchoTira = anchoPeine + (13 / tl);
             return ((pasadas * anchoTira * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
         };
         const tramaG = pesoTramaCn(pasadasTrama, hiloTrama);
