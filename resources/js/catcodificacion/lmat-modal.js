@@ -619,7 +619,9 @@ async function openLMatModal(context = {}) {
         hiloPie: numLMat(registroSeleccionado?.CalibrePie2),
         cuentaPie: numLMat(registroSeleccionado?.CuentaPie),
         pasadasTrama: numLMat(registroSeleccionado?.PasadasTramaFondoC1),
-        hiloTrama: numLMat(registroSeleccionado?.CalibreTrama2),
+        // La Trama de Fondo usa el valor numérico de la columna "Hilo" de su
+        // propia sección (p. ej. CalTramaFondoC1=10.1, CalTramaFondoC12=10).
+        hiloTrama: numLMat(registroSeleccionado?.CalTramaFondoC12),
         pasadasComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`PasadasComb${n}`])),
         hiloComb: [1, 2, 3, 4, 5].map((n) => numLMat(registroSeleccionado?.[`CalibreComb${n}2`])),
     };
@@ -736,6 +738,7 @@ async function openLMatModal(context = {}) {
                 cantidad: pie.cantidad,
                 porcentaje: pie.porcentaje,
                 rol: 'pie',
+                calibreFormula: inputsCalculoLMat.hiloPie,
                 matriz: crearClaveMatrizLMat(
                     'PIE',
                     registroSeleccionado?.CalibrePie,
@@ -761,6 +764,7 @@ async function openLMatModal(context = {}) {
                 cantidad: trama.cantidad,
                 porcentaje: trama.porcentaje,
                 rol: 'trama',
+                calibreFormula: inputsCalculoLMat.hiloTrama,
                 matriz: crearClaveMatrizLMat(
                     'TRAMA',
                     registroSeleccionado?.Tra,
@@ -786,6 +790,7 @@ async function openLMatModal(context = {}) {
                 cantidad: comb.cantidad,
                 porcentaje: comb.porcentaje,
                 rol: 'c' + n,
+                calibreFormula: inputsCalculoLMat.hiloComb[n - 1],
                 matriz: crearClaveMatrizLMat(
                     'TRAMA',
                     registroSeleccionado?.[`CalibreComb${n}`],
@@ -1132,10 +1137,27 @@ async function openLMatModal(context = {}) {
         `;
     }
 
+    function renderCalibreFormulaLMat(item) {
+        if (!['pie', 'trama', 'c1', 'c2', 'c3', 'c4', 'c5'].includes(item.rol)) {
+            return escapeHtml(item.items || '');
+        }
+
+        return `
+            <input
+                type="text"
+                inputmode="decimal"
+                data-calibre-rol="${escapeAttr(item.rol)}"
+                title="Calibre de catálogo: ${escapeAttr(item.items || '')}"
+                class="lmat-calibre-formula-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                value="${escapeAttr(String(item.calibreFormula ?? ''))}"
+            >
+        `;
+    }
+
     const filas = articulos.map(item => `
         <tr class="border-b border-gray-100"${item.rol === 'rizo' || item.rol === 'pie' ? ` data-articulo-fijo="${escapeAttr(item.articulo)}"` : ''}${item.rol ? ` data-rol="${escapeAttr(item.rol)}"` : ''}${item.matriz ? ` ${atributosMatrizLMat(item)}` : ''}${item.desdeCatLMat && !item.matriz ? ' data-preservar-articulo="1"' : ''}>
             <td class="lmat-combinacion-cell px-3 py-2 font-medium text-gray-800">${escapeHtml(item.combinacion || '')}</td>
-            <td class="lmat-items-cell px-3 py-2 font-medium tabular-nums text-gray-800">${escapeHtml(item.items || '')}</td>
+            <td class="lmat-items-cell px-3 py-2 font-medium tabular-nums text-gray-800" data-calibre-informativo="${escapeAttr(item.items || '')}">${renderCalibreFormulaLMat(item)}</td>
             <td class="lmat-pasadas-cell px-3 py-2 font-medium tabular-nums text-gray-800">${renderPasadasLMat(item)}</td>
             <td class="px-3 py-2">${renderPlanoOSelectLMat(item, 'articulo', 'articulo[]', opcionesSelectLMat.articulo)}</td>
             <td class="px-3 py-2">${renderConfigLMat(item)}</td>
@@ -1590,6 +1612,27 @@ async function openLMatModal(context = {}) {
                 });
             };
 
+            const conectarInputsCalibreFormulaLMat = () => {
+                document.querySelectorAll('.lmat-calibre-formula-input').forEach((input) => {
+                    if (input.dataset.lmatConnected === '1') return;
+                    input.dataset.lmatConnected = '1';
+                    restringirDecimalesLMat(input, 4);
+                    input.addEventListener('input', () => {
+                        const calibre = numLMat(input.value);
+                        const rol = input.dataset.calibreRol;
+                        if (rol === 'pie') {
+                            inputsCalculoLMat.hiloPie = calibre;
+                        } else if (rol === 'trama') {
+                            inputsCalculoLMat.hiloTrama = calibre;
+                        } else {
+                            const match = String(rol || '').match(/^c([1-5])$/);
+                            if (match) inputsCalculoLMat.hiloComb[Number(match[1]) - 1] = calibre;
+                        }
+                        aplicarDiferenciaPasadasLMat();
+                    });
+                });
+            };
+
             const conectarInputsCantidadLMat = () => {
                 document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
@@ -1898,6 +1941,7 @@ async function openLMatModal(context = {}) {
             conectarInputsCantidadLMat();
             conectarInputsPorcentajeLMat();
             conectarInputsPasadasLMat();
+            conectarInputsCalibreFormulaLMat();
             conectarSelectsSalidaMatrizLMat();
             // Al editar una L.Mat ya guardada, respetar los Qty/Porcentaje tal cual están en
             // CatLMat: recalcular aquí los sobreescribe con un valor distinto por el redondeo
@@ -1907,7 +1951,8 @@ async function openLMatModal(context = {}) {
             LMatMateriales.getCalibres().then((calibresDisponibles) => {
                 document.querySelectorAll('select[name="articulo[]"]').forEach((sel) => {
                     const fila = sel.closest('tr');
-                    const itemsVal = (fila?.querySelector('.lmat-items-cell')?.textContent || '').trim();
+                    const itemsCell = fila?.querySelector('.lmat-items-cell');
+                    const itemsVal = String(itemsCell?.dataset?.calibreInformativo ?? itemsCell?.textContent ?? '').trim();
                     let valorSeleccionado = '';
                     let opcionesDisponibles = calibresDisponibles;
                     if (fila?.dataset?.preservarArticulo === '1' && sel.value) {
@@ -1966,6 +2011,7 @@ async function openLMatModal(context = {}) {
                 conectarInputsCantidadLMat();
                 conectarInputsPorcentajeLMat();
                 conectarInputsPasadasLMat();
+                conectarInputsCalibreFormulaLMat();
                 conectarSelectsSalidaMatrizLMat();
                 // conectarQuitarFilasLMat(); // Columna Acción oculta
                 recalcularPorcentajesLMat();
