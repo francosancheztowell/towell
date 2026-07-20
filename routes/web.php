@@ -18,4 +18,5 @@ Route::middleware(['auth'])->group(function () {
     require __DIR__ . '/modules/mantenimiento.php';
     require __DIR__ . '/modules/trazabilidad.php';
     require __DIR__ . '/modules/telegram.php';
+    require __DIR__ . '/modules/redbooth.php';
 });

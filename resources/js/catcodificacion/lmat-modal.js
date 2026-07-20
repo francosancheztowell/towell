@@ -1174,7 +1174,7 @@ async function openLMatModal(context = {}) {
                     <i class="fas fa-exclamation-triangle mr-1"></i> L.Mat ocupada — ya existe una con ese nombre.
                 </div>
                 <div class="mb-5 space-y-2">
-                    <div class="grid grid-cols-5 gap-x-3 gap-y-1">
+                    <div class="grid grid-cols-4 gap-x-3 gap-y-2 lg:grid-cols-8">
                         <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-700">Orden</span>
                             <span class="min-h-[30px] flex items-center border-b border-gray-200 text-sm">${orden}</span>
@@ -1193,6 +1193,24 @@ async function openLMatModal(context = {}) {
                                 class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-right tabular-nums text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                                 value="${escapeAttr(pesoCrudo)}"
                             >
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs font-semibold text-gray-700">No. tiras</span>
+                            <span class="min-h-[30px] flex items-center justify-end border-b border-gray-200 text-sm tabular-nums">
+                                ${escapeHtml(String(registroSeleccionado?.NoTiras ?? ''))}
+                            </span>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs font-semibold text-gray-700">Largo</span>
+                            <span class="min-h-[30px] flex items-center justify-end border-b border-gray-200 text-sm tabular-nums">
+                                ${escapeHtml(String(registroSeleccionado?.Largo ?? ''))}
+                            </span>
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs font-semibold text-gray-700">Ancho peine</span>
+                            <span class="min-h-[30px] flex items-center justify-end border-b border-gray-200 text-sm tabular-nums">
+                                ${escapeHtml(String(registroSeleccionado?.TramaAnchoPeine ?? ''))}
+                            </span>
                         </div>
                         <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-700">ItemId</span>
