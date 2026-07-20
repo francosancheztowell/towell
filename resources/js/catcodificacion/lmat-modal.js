@@ -640,17 +640,18 @@ async function openLMatModal(context = {}) {
     );
     const minimoPasadasLMat = Math.floor(totalPasadasReferenciaLMat * 0.70);
     const maximoPasadasLMat = Math.floor(totalPasadasReferenciaLMat * 1.30);
-    let pasadasReferenciaLMat = {
-        pasadasTrama: inputsCalculoLMat.pasadasTrama,
+    const inputsReferenciaLMat = {
+        ...inputsCalculoLMat,
         pasadasComb: [...inputsCalculoLMat.pasadasComb],
+        hiloComb: [...inputsCalculoLMat.hiloComb],
     };
-    const calcularPesosComponentesLMat = (pesoCrudoG, pasadasCalculo = inputsCalculoLMat) => {
+    const calcularPesosComponentesLMat = (pesoCrudoG, datosCalculo = inputsCalculoLMat) => {
         const pesoCrudoTotal = numLMat(pesoCrudoG);
-        const { peine, ancho, anchoPeine, largo, corte, luchaje, tl, hiloPie, cuentaPie, hiloTrama, hiloComb } = inputsCalculoLMat;
-        const pasadasTrama = numLMat(pasadasCalculo.pasadasTrama);
+        const { peine, ancho, anchoPeine, largo, corte, luchaje, tl, hiloPie, cuentaPie, hiloTrama, hiloComb } = datosCalculo;
+        const pasadasTrama = numLMat(datosCalculo.pasadasTrama);
         const pasadasComb = Array.from(
             { length: 5 },
-            (_, index) => numLMat(pasadasCalculo.pasadasComb?.[index]),
+            (_, index) => numLMat(datosCalculo.pasadasComb?.[index]),
         );
         const curvaLuchaje = luchaje >= 33 ? 1.083 : 1.055;
         const curvaPeine = peine >= 50 ? 1.001 : 1.002;
@@ -1202,15 +1203,25 @@ async function openLMatModal(context = {}) {
                         </div>
                         <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-700">Largo</span>
-                            <span class="min-h-[30px] flex items-center justify-end border-b border-gray-200 text-sm tabular-nums">
-                                ${escapeHtml(String(registroSeleccionado?.Largo ?? ''))}
-                            </span>
+                            <input
+                                type="number"
+                                id="lmat-largo"
+                                step="0.01"
+                                min="0"
+                                class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                value="${escapeAttr(String(registroSeleccionado?.Largo ?? ''))}"
+                            >
                         </div>
                         <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-700">Ancho peine</span>
-                            <span class="min-h-[30px] flex items-center justify-end border-b border-gray-200 text-sm tabular-nums">
-                                ${escapeHtml(String(registroSeleccionado?.TramaAnchoPeine ?? ''))}
-                            </span>
+                            <input
+                                type="number"
+                                id="lmat-ancho-peine"
+                                step="0.01"
+                                min="0"
+                                class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                value="${escapeAttr(String(registroSeleccionado?.TramaAnchoPeine ?? ''))}"
+                            >
                         </div>
                         <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-semibold text-gray-700">ItemId</span>
@@ -1329,6 +1340,8 @@ async function openLMatModal(context = {}) {
         didOpen: () => {
             const tbodyLMat = document.querySelector('.swal2-html-container tbody');
             const pesoCrudoInput = document.getElementById('lmat-pesocrudo');
+            const largoInput = document.getElementById('lmat-largo');
+            const anchoPeineInput = document.getElementById('lmat-ancho-peine');
             let totalPorcentajeActualLMat = totalPorcentajeRedondeado;
             let totalPasadasValidoLMat = true;
             let onPorcentajeActualizadoLMat = null;
@@ -1370,16 +1383,16 @@ async function openLMatModal(context = {}) {
 
             const cantidadesReferenciaPasadasLMat = {};
             const capturarReferenciaPasadasLMat = () => {
-                ['rizo', 'trama', 'c1', 'c2', 'c3', 'c4', 'c5'].forEach((rol) => {
+                ['rizo', 'pie', 'trama', 'c1', 'c2', 'c3', 'c4', 'c5'].forEach((rol) => {
                     const input = document.querySelector(
                         `.swal2-html-container tr[data-rol="${rol}"] .lmat-cantidad-input`,
                     );
                     if (input) cantidadesReferenciaPasadasLMat[rol] = obtenerCantidadRawLMat(input);
                 });
-                pasadasReferenciaLMat = {
-                    pasadasTrama: inputsCalculoLMat.pasadasTrama,
+                Object.assign(inputsReferenciaLMat, inputsCalculoLMat, {
                     pasadasComb: [...inputsCalculoLMat.pasadasComb],
-                };
+                    hiloComb: [...inputsCalculoLMat.hiloComb],
+                });
             };
             capturarReferenciaPasadasLMat();
 
@@ -1518,7 +1531,7 @@ async function openLMatModal(context = {}) {
             const aplicarDiferenciaPasadasLMat = () => {
                 const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
                 const pesosActuales = calcularPesosComponentesLMat(pesoCrudoActual);
-                const pesosReferencia = calcularPesosComponentesLMat(pesoCrudoActual, pasadasReferenciaLMat);
+                const pesosReferencia = calcularPesosComponentesLMat(pesoCrudoActual, inputsReferenciaLMat);
                 const aplicarDiferencia = (rol, pesoActualG, pesoReferenciaG) => {
                     if (!Object.prototype.hasOwnProperty.call(cantidadesReferenciaPasadasLMat, rol)) return;
                     const fila = document.querySelector(`.swal2-html-container tr[data-rol="${rol}"]`);
@@ -1531,6 +1544,7 @@ async function openLMatModal(context = {}) {
                 };
 
                 aplicarDiferencia('trama', pesosActuales.tramaG, pesosReferencia.tramaG);
+                aplicarDiferencia('pie', pesosActuales.pieG, pesosReferencia.pieG);
                 pesosActuales.combG.forEach((pesoG, index) => {
                     aplicarDiferencia(`c${index + 1}`, pesoG, pesosReferencia.combG[index]);
                 });
@@ -1626,6 +1640,14 @@ async function openLMatModal(context = {}) {
 
             // Al cambiar Peso Crudo, recalcular pesos (Rizo por diferencia) y porcentajes.
             pesoCrudoInput?.addEventListener('input', recalcularCantidadesDesdePesoCrudoLMat);
+            largoInput?.addEventListener('input', () => {
+                inputsCalculoLMat.largo = numLMat(largoInput.value);
+                aplicarDiferenciaPasadasLMat();
+            });
+            anchoPeineInput?.addEventListener('input', () => {
+                inputsCalculoLMat.anchoPeine = numLMat(anchoPeineInput.value);
+                aplicarDiferenciaPasadasLMat();
+            });
 
 
 
