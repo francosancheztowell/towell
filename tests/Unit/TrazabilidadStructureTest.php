@@ -26,12 +26,17 @@ class TrazabilidadStructureTest extends TestCase
     {
         $view = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
         $script = file_get_contents(resource_path('js/trazabilidad/index.js'));
+        $modal = file_get_contents(resource_path('views/modulos/programa-tejido/modal/redbooth.blade.php'));
 
         $this->assertStringContainsString('id="btn-redbooth"', $view);
         $this->assertStringContainsString("'redbooth' => route('trazabilidad.redbooth')", $view);
         $this->assertStringContainsString('abrirRedboothDelFlog', $script);
         $this->assertStringContainsString('RUTA_REDBOOTH', $script);
         $this->assertStringContainsString('window.abrirModalRedboothProgramaTejido', $script);
+        $this->assertStringContainsString('data?.primerVinculo', $script);
+        $this->assertStringContainsString('disponibles[0].flogAsignacion = flog', $script);
+        $this->assertStringNotContainsString("input: 'select'", $script);
+        $this->assertStringContainsString('payload.flog_asignacion = flogAsignacion', $modal);
         $this->assertStringNotContainsString("$('#btn-exportar').on('click'", $script);
     }
 

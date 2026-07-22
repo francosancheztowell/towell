@@ -50,6 +50,7 @@ final class RedboothIntegrationTest extends TestCase
             $table->id('Id');
             $table->string('NoProduccion', 60)->nullable();
             $table->string('NoTelarId', 60)->nullable();
+            $table->string('FlogsId', 100)->nullable();
             $table->integer('IdRedbooth')->nullable();
             $table->string('NombreRedbooth', 255)->nullable();
         });
@@ -57,8 +58,14 @@ final class RedboothIntegrationTest extends TestCase
             $table->id('Id');
             $table->string('OrdenTejido', 60)->nullable();
             $table->string('TelarId', 60)->nullable();
+            $table->string('FlogsId', 100)->nullable();
             $table->integer('IdRedbooth')->nullable();
             $table->string('NombreRedbooth', 255)->nullable();
+        });
+        Schema::connection('sqlsrv')->create('TrazaProduccion', function (Blueprint $table): void {
+            $table->id('Id');
+            $table->string('Flogs', 100)->nullable();
+            $table->string('Orden', 60)->nullable();
         });
     }
 
@@ -395,6 +402,64 @@ final class RedboothIntegrationTest extends TestCase
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
         ], 'sqlsrv');
+    }
+
+    public function test_trazabilidad_assigns_redbooth_to_all_flog_orders_when_none_is_linked(): void
+    {
+        $usuario = $this->usuario();
+        RedboothCredential::query()->create([
+            'usuario_id' => 7,
+            'access_token' => 'valid-token',
+            'refresh_token' => 'refresh-token',
+            'expires_at' => now()->addHour(),
+        ]);
+        $programaId = DB::connection('sqlsrv')->table('ReqProgramaTejido')->insertGetId([
+            'NoProduccion' => '51001',
+            'FlogsId' => 'FLOG-MASIVO',
+        ]);
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+            'NoProduccion' => '51002',
+            'FlogsId' => 'FLOG-MASIVO',
+        ]);
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            ['OrdenTejido' => '51001', 'FlogsId' => 'FLOG-MASIVO'],
+            ['OrdenTejido' => '51002', 'FlogsId' => 'FLOG-MASIVO'],
+        ]);
+        DB::connection('sqlsrv')->table('TrazaProduccion')->insert([
+            ['Flogs' => 'FLOG-MASIVO', 'Orden' => '51001'],
+            ['Flogs' => 'FLOG-MASIVO', 'Orden' => '51002'],
+        ]);
+        Http::fake([
+            'https://redbooth.com/api/3/tasks*' => Http::response([
+                ['id' => 62542504, 'name' => '1.ALPURA MB', 'deleted' => false],
+            ]),
+        ]);
+
+        $this->actingAs($usuario)
+            ->postJson(route('programa-tejido.redbooth.store'), [
+                'req_programa_tejido_id' => $programaId,
+                'redbooth_task_id' => 62542504,
+                'flog_asignacion' => 'FLOG-MASIVO',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('asignacionFlog', true)
+            ->assertJsonPath('ordenesActualizadas', 2)
+            ->assertJsonPath('programasActualizados', 2)
+            ->assertJsonPath('catCodificadosActualizados', 2);
+
+        $this->assertSame(
+            2,
+            DB::connection('sqlsrv')->table('ReqProgramaTejido')
+                ->where('IdRedbooth', 62542504)
+                ->count(),
+        );
+        $this->assertSame(
+            2,
+            DB::connection('sqlsrv')->table('CatCodificados')
+                ->where('IdRedbooth', 62542504)
+                ->count(),
+        );
     }
 
     public function test_programa_tejido_redbooth_viewer_returns_task_comments_and_files(): void

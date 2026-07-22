@@ -582,33 +582,9 @@ document.addEventListener('DOMContentLoaded', function () {
         window.abrirModalRedboothProgramaTejido({
             registroId,
             source: registro.source === 'catcodificados' ? 'catcodificados' : 'programa',
+            flogAsignacion: registro.flogAsignacion || '',
+            totalOrdenes: Number(registro.totalOrdenes || 0),
         });
-    }
-
-    async function seleccionarRegistroRedbooth(titulo, registros, etiqueta) {
-        if (registros.length === 1 || !window.Swal) {
-            abrirRegistroRedbooth(registros[0]);
-            return;
-        }
-
-        const opciones = Object.fromEntries(registros.map(function (registro, index) {
-            return [String(index), etiqueta(registro)];
-        }));
-        const seleccion = await window.Swal.fire({
-            icon: 'info',
-            title: titulo,
-            input: 'select',
-            inputOptions: opciones,
-            inputPlaceholder: 'Selecciona una opción',
-            showCancelButton: true,
-            confirmButtonText: 'Abrir Redbooth',
-            cancelButtonText: 'Cancelar',
-            inputValidator: value => value === '' ? 'Selecciona una opción.' : undefined,
-        });
-
-        if (seleccion.isConfirmed && registros[Number(seleccion.value)]) {
-            abrirRegistroRedbooth(registros[Number(seleccion.value)]);
-        }
     }
 
     async function abrirRedboothDelFlog() {
@@ -631,22 +607,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            const vinculosPorTarea = new Map();
-            ordenes.forEach(function (orden) {
-                (orden.vinculos || []).forEach(function (vinculo) {
-                    const key = String(vinculo.idRedbooth || '');
-                    if (!key || vinculosPorTarea.has(key)) return;
-                    vinculosPorTarea.set(key, { ...vinculo, orden: orden.orden });
-                });
-            });
-            const vinculos = Array.from(vinculosPorTarea.values());
-
-            if (vinculos.length) {
-                await seleccionarRegistroRedbooth(
-                    vinculos.length > 1 ? 'El Flog tiene varios vínculos de Redbooth' : 'Redbooth vinculado',
-                    vinculos,
-                    registro => `Orden ${registro.orden} · #${registro.idRedbooth} — ${registro.nombreRedbooth || 'Sin nombre'}`,
-                );
+            if (data?.primerVinculo) {
+                abrirRegistroRedbooth(data.primerVinculo);
                 return;
             }
 
@@ -656,11 +618,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            await seleccionarRegistroRedbooth(
-                disponibles.length > 1 ? 'Selecciona la orden que deseas vincular' : 'Vincular orden con Redbooth',
-                disponibles,
-                registro => `Orden ${registro.orden} · ${registro.source === 'catcodificados' ? 'CatCodificados' : 'Programa Tejido'}`,
-            );
+            disponibles[0].flogAsignacion = flog;
+            disponibles[0].totalOrdenes = disponibles.length;
+            abrirRegistroRedbooth(disponibles[0]);
         } catch (error) {
             window.Swal?.fire({
                 icon: 'error',

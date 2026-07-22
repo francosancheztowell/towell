@@ -22,6 +22,7 @@ final class SaveRedboothProgramaTejidoRequest extends FormRequest
             'req_programa_tejido_id' => ['required_unless:source,catcodificados', 'nullable', 'integer', 'min:1'],
             'cat_codificados_id' => ['required_if:source,catcodificados', 'nullable', 'integer', 'min:1'],
             'redbooth_task_id' => ['required', 'integer', 'min:1'],
+            'flog_asignacion' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
 }

@@ -10,6 +10,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\Usuario;
 use App\Services\Integraciones\RedboothService;
+use App\Services\Trazabilidad\TrazabilidadRedboothService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ final class RedboothProgramaTejidoController extends Controller
 
     public function __construct(
         private readonly RedboothService $redbooth,
+        private readonly TrazabilidadRedboothService $trazabilidadRedbooth,
     ) {}
 
     public function projectOptions(Request $request): JsonResponse
@@ -93,6 +95,42 @@ final class RedboothProgramaTejidoController extends Controller
         }
 
         $taskName = trim((string) $task['name']);
+        $flogAsignacion = trim((string) ($validated['flog_asignacion'] ?? ''));
+        if ($flogAsignacion !== '') {
+            $asignacion = $this->trazabilidadRedbooth->asignarTareaATodasSiNingunaTieneVinculo(
+                $flogAsignacion,
+                $taskId,
+                $taskName,
+            );
+
+            if (! $asignacion['asignado']) {
+                $vinculo = $asignacion['vinculoExistente'];
+                throw ValidationException::withMessages([
+                    'flog_asignacion' => sprintf(
+                        'La orden %s ya tiene el vínculo Redbooth #%d. Vuelve a abrir el botón para consultarlo.',
+                        (string) ($vinculo['orden'] ?? ''),
+                        (int) ($vinculo['idRedbooth'] ?? 0),
+                    ),
+                ]);
+            }
+            if ($asignacion['ordenesActualizadas'] === 0) {
+                throw ValidationException::withMessages([
+                    'flog_asignacion' => 'No se encontraron órdenes reconocidas para asignar el vínculo.',
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'idRedbooth' => $taskId,
+                'nombreRedbooth' => $taskName,
+                'asignacionFlog' => true,
+                'flog' => $flogAsignacion,
+                'ordenesActualizadas' => $asignacion['ordenesActualizadas'],
+                'programasActualizados' => $asignacion['programasActualizados'],
+                'catCodificadosActualizados' => $asignacion['catCodificadosActualizados'],
+            ]);
+        }
+
         $source = (string) ($validated['source'] ?? 'programa');
         $catCodificadosActualizados = DB::connection('sqlsrv')->transaction(function () use ($validated, $taskId, $taskName, $source): int {
             if ($source === 'catcodificados') {

@@ -157,6 +157,8 @@
   let programaId = null;
   let currentData = null;
   let selectInicializado = false;
+  let flogAsignacion = '';
+  let cantidadOrdenesAsignacion = 0;
 
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char]));
   const sanitizeRedboothHtml = (html, fallbackText = '') => {
@@ -356,12 +358,22 @@
       if (!response.ok) throw new Error(Object.values(data.errors||{}).flat().find(Boolean) || data.message || 'No se pudo consultar Redbooth.');
       currentData = data;
       if (data.linked) renderViewer(data);
-      else { byId('redboothTaskId').textContent='Redbooth'; byId('modalRedboothProgramaTejidoTitulo').textContent='Vincular tarea'; selectValue(null, null); setMode('editor'); }
+      else {
+        byId('redboothTaskId').textContent='Redbooth';
+        byId('modalRedboothProgramaTejidoTitulo').textContent='Vincular tarea';
+        byId('redboothTaskContext').textContent = flogAsignacion
+          ? 'La tarea se asignará a '+cantidadOrdenesAsignacion+' orden(es) del Flog '+flogAsignacion
+          : (recordSource === 'catcodificados' ? 'CatCodificados' : 'Programa de tejido');
+        selectValue(null, null);
+        setMode('editor');
+      }
     } catch (error) { setMode('editor'); window.Swal?.fire({icon:'error',title:'No se pudo cargar Redbooth',text:error.message}); }
   };
 
-  window.abrirModalRedboothProgramaTejido = ({registroId, source}={}) => {
+  window.abrirModalRedboothProgramaTejido = ({registroId, source, flogAsignacion: flogContexto, totalOrdenes}={}) => {
     recordSource = String(source || defaultRecordSource) === 'catcodificados' ? 'catcodificados' : 'programa';
+    flogAsignacion = String(flogContexto || '').trim();
+    cantidadOrdenesAsignacion = Number(totalOrdenes) || 0;
     programaId = Number(registroId)||null; currentData=null;
     if (!programaId) return;
     modal.classList.remove('hidden'); modal.classList.add('flex'); inicializarSelect(); loadDetail();
@@ -378,10 +390,17 @@
       const payload = recordSource === 'catcodificados'
         ? {source:'catcodificados',cat_codificados_id:programaId,redbooth_task_id:taskId}
         : {source:'programa',req_programa_tejido_id:programaId,redbooth_task_id:taskId};
+      if (flogAsignacion) payload.flog_asignacion = flogAsignacion;
       const response = await fetch(@json(route('programa-tejido.redbooth.store')),{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json','X-CSRF-TOKEN':csrf()},body:JSON.stringify(payload)});
       const data=await response.json().catch(()=>({}));
       if(!response.ok||data.success!==true) throw new Error(Object.values(data.errors||{}).flat().find(Boolean)||data.message||'No se pudo guardar.');
-      updateRow(data.idRedbooth,data.nombreRedbooth); await loadDetail();
+      updateRow(data.idRedbooth,data.nombreRedbooth);
+      if (data.asignacionFlog) {
+        window.notify?.success('Redbooth asignado a '+data.ordenesActualizadas+' orden(es) del Flog.');
+        flogAsignacion = '';
+        cantidadOrdenesAsignacion = 0;
+      }
+      await loadDetail();
     } catch(error) { window.Swal?.fire({icon:'error',title:'No se pudo guardar',text:error.message}); }
     finally { guardar.disabled=false; }
   });

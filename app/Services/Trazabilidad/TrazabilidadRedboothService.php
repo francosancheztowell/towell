@@ -8,11 +8,12 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Trazabilidad\TrazaProduccion;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 final class TrazabilidadRedboothService
 {
     /**
-     * @return array{flog:string,ordenes:array<int, array<string, mixed>>}
+     * @return array{flog:string,ordenes:array<int, array<string, mixed>>,primerVinculo:array<string, mixed>|null}
      */
     public function resolver(string $flog): array
     {
@@ -70,13 +71,74 @@ final class TrazabilidadRedboothService
             ->sort(SORT_NATURAL)
             ->values();
 
+        $ordenesResumidas = $ordenes
+            ->map(fn (string $orden): array => $this->resumirOrden($orden, $registros))
+            ->values()
+            ->all();
+
         return [
             'flog' => $flog,
-            'ordenes' => $ordenes
-                ->map(fn (string $orden): array => $this->resumirOrden($orden, $registros))
-                ->values()
-                ->all(),
+            'ordenes' => $ordenesResumidas,
+            'primerVinculo' => $this->primerVinculo($ordenesResumidas),
         ];
+    }
+
+    /**
+     * Asigna una tarea a todas las órdenes reconocidas del Flog únicamente cuando
+     * ninguna de ellas tiene ya un vínculo. Así se evita sobrescribir una tarea
+     * existente si dos usuarios operan el mismo Flog casi al mismo tiempo.
+     *
+     * @return array{asignado:bool,ordenesActualizadas:int,programasActualizados:int,catCodificadosActualizados:int,vinculoExistente:array<string, mixed>|null}
+     */
+    public function asignarTareaATodasSiNingunaTieneVinculo(
+        string $flog,
+        int $taskId,
+        string $taskName,
+    ): array {
+        return DB::connection('sqlsrv')->transaction(function () use ($flog, $taskId, $taskName): array {
+            $resolucion = $this->resolver($flog);
+            if (is_array($resolucion['primerVinculo'])) {
+                return [
+                    'asignado' => false,
+                    'ordenesActualizadas' => 0,
+                    'programasActualizados' => 0,
+                    'catCodificadosActualizados' => 0,
+                    'vinculoExistente' => $resolucion['primerVinculo'],
+                ];
+            }
+
+            $ordenes = collect($resolucion['ordenes'])
+                ->pluck('orden')
+                ->map(static fn (mixed $orden): string => trim((string) $orden))
+                ->filter()
+                ->unique()
+                ->values();
+            $programasActualizados = 0;
+            $catCodificadosActualizados = 0;
+
+            foreach ($ordenes->chunk(1000) as $lote) {
+                $programasActualizados += ReqProgramaTejido::query()
+                    ->whereIn('NoProduccion', $lote->all())
+                    ->update([
+                        'IdRedbooth' => $taskId,
+                        'NombreRedbooth' => $taskName,
+                    ]);
+                $catCodificadosActualizados += CatCodificados::query()
+                    ->whereIn('OrdenTejido', $lote->all())
+                    ->update([
+                        'IdRedbooth' => $taskId,
+                        'NombreRedbooth' => $taskName,
+                    ]);
+            }
+
+            return [
+                'asignado' => true,
+                'ordenesActualizadas' => $ordenes->count(),
+                'programasActualizados' => $programasActualizados,
+                'catCodificadosActualizados' => $catCodificadosActualizados,
+                'vinculoExistente' => null,
+            ];
+        });
     }
 
     /** @return Collection<int, ReqProgramaTejido> */
@@ -155,5 +217,24 @@ final class TrazabilidadRedboothService
             'registroId' => $objetivo['registroId'] ?? null,
             'vinculos' => $vinculos,
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $ordenes
+     * @return array<string, mixed>|null
+     */
+    private function primerVinculo(array $ordenes): ?array
+    {
+        foreach ($ordenes as $orden) {
+            foreach ((array) ($orden['vinculos'] ?? []) as $vinculo) {
+                if ((int) ($vinculo['idRedbooth'] ?? 0) <= 0) {
+                    continue;
+                }
+
+                return array_merge($vinculo, ['orden' => (string) ($orden['orden'] ?? '')]);
+            }
+        }
+
+        return null;
     }
 }
