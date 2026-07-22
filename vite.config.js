@@ -21,6 +21,8 @@ export default defineConfig({
         'resources/js/app.js',
         'resources/js/app-core.js',
         'resources/js/app-filters.js',
+        'resources/css/trazabilidad/index.css',
+        'resources/js/trazabilidad/index.js',
         'resources/js/catcodificacion/index.js',
         'resources/js/lmat-lista/index.js',
       ],

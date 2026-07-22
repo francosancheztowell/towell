@@ -42,7 +42,7 @@ class TrazabilidadMatrixService
      *
      * @param  array  $filtros  ['flog','articulo','tamano','color','nombrecolor','mes'(CSV de meses)]
      * @param  string  $metrica  'cantidad' (Material) o 'peso' (Kilos)
-     * @return array{fechas:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool, dropdown:bool} Dropdown = true si alguna área tiene desglose.
+     * @return array{fechas:array, columnasPeriodos:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool, dropdown:bool} Dropdown = true si alguna área tiene desglose.
      */
     public function build(array $filtros, string $metrica = 'cantidad'): array
     {
@@ -108,11 +108,17 @@ class TrazabilidadMatrixService
             $mesAnterior = $mesActual;
 
             return [
+                'clave' => $clave,
                 'label' => $c->format('d/m'),
                 'destacada' => $c->isWeekend(),
                 'nuevoMes' => $nuevoMes,
             ];
         })->all();
+
+        // La web presenta primero meses, después semanas y finalmente días.
+        // Cada columna conserva los índices de las fechas que resume para que el
+        // mismo arreglo de valores siga sirviendo también a la exportación diaria.
+        $columnasPeriodos = $this->construirColumnasPeriodos($clavesFechas);
 
         $posFecha = $clavesFechas->flip();
 
@@ -252,7 +258,88 @@ class TrazabilidadMatrixService
             $totales[$i] = $suma ? round($suma, $decimales) : null;
         }
 
-        return compact('fechas', 'areas', 'totales', 'info', 'metrica', 'decimales', 'hayFlog', 'dropdown');
+        return compact('fechas', 'columnasPeriodos', 'areas', 'totales', 'info', 'metrica', 'decimales', 'hayFlog', 'dropdown');
+    }
+
+    /**
+     * Construye las columnas jerárquicas de la matriz web en orden descendente:
+     * mes -> semana ISO -> día. Las semanas que cruzan de mes se mantienen dentro
+     * de su mes para que ningún día se duplique ni cambie de agrupación visual.
+     *
+     * @param  Collection<int, string>  $clavesFechas
+     * @return array<int, array{nivel:string, clave:string, mesClave:string, semanaClave:?string, label:string, subLabel:string, indices:array<int, int>, destacada:bool}>
+     */
+    private function construirColumnasPeriodos(Collection $clavesFechas): array
+    {
+        $items = $clavesFechas->values()->map(function (string $clave, int $indice): array {
+            $fecha = Carbon::parse($clave);
+
+            return [
+                'clave' => $clave,
+                'indice' => $indice,
+                'mesClave' => $fecha->format('Y-m'),
+                'semanaIso' => $fecha->format('o-W'),
+            ];
+        });
+
+        $columnas = [];
+        foreach ($items->groupBy('mesClave') as $mesClave => $itemsMes) {
+            $fechaMes = Carbon::parse($itemsMes->first()['clave']);
+            $indicesMes = $itemsMes->pluck('indice')->values()->all();
+            $cantidadDias = count($indicesMes);
+
+            $columnas[] = [
+                'nivel' => 'mes',
+                'clave' => (string) $mesClave,
+                'mesClave' => (string) $mesClave,
+                'semanaClave' => null,
+                'label' => ucfirst($fechaMes->copy()->locale('es')->translatedFormat('F Y')),
+                'subLabel' => $cantidadDias.' '.($cantidadDias === 1 ? 'día' : 'días'),
+                'indices' => $indicesMes,
+                'destacada' => false,
+            ];
+
+            foreach ($itemsMes->groupBy('semanaIso') as $semanaIso => $itemsSemana) {
+                $fechaSemana = Carbon::parse($itemsSemana->first()['clave']);
+                $inicioSemana = $fechaSemana->copy()->startOfWeek(Carbon::MONDAY);
+                $finSemana = $fechaSemana->copy()->endOfWeek(Carbon::SUNDAY);
+                $semanaClave = $mesClave.'-w'.$semanaIso;
+
+                if ($inicioSemana->isSameMonth($finSemana)) {
+                    $rangoSemana = $inicioSemana->format('d').'–'.$finSemana->copy()->locale('es')->translatedFormat('d M');
+                } else {
+                    $rangoSemana = $inicioSemana->copy()->locale('es')->translatedFormat('d M')
+                        .'–'.$finSemana->copy()->locale('es')->translatedFormat('d M');
+                }
+
+                $columnas[] = [
+                    'nivel' => 'semana',
+                    'clave' => $semanaClave,
+                    'mesClave' => (string) $mesClave,
+                    'semanaClave' => $semanaClave,
+                    'label' => 'Semana '.(int) $fechaSemana->format('W'),
+                    'subLabel' => str_replace('.', '', $rangoSemana),
+                    'indices' => $itemsSemana->pluck('indice')->values()->all(),
+                    'destacada' => false,
+                ];
+
+                foreach ($itemsSemana as $itemDia) {
+                    $fechaDia = Carbon::parse($itemDia['clave']);
+                    $columnas[] = [
+                        'nivel' => 'dia',
+                        'clave' => $itemDia['clave'],
+                        'mesClave' => (string) $mesClave,
+                        'semanaClave' => $semanaClave,
+                        'label' => $fechaDia->format('d/m'),
+                        'subLabel' => ucfirst(str_replace('.', '', $fechaDia->copy()->locale('es')->translatedFormat('D'))),
+                        'indices' => [$itemDia['indice']],
+                        'destacada' => $fechaDia->isWeekend(),
+                    ];
+                }
+            }
+        }
+
+        return $columnas;
     }
 
     /**

@@ -9,7 +9,7 @@ class TrazabilidadFlogsLayoutTest extends TestCase
     public function test_important_information_shares_a_row_with_special_notice_and_both_notes_scroll(): void
     {
         $view = file_get_contents(resource_path('views/modulos/trazabilidad/_flogs.blade.php'));
-        $styles = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+        $styles = file_get_contents(resource_path('css/trazabilidad/index.css'));
 
         $this->assertStringContainsString(
             'flog-cliente-grid__celda flog-cliente-grid__celda--info" role="gridcell"',

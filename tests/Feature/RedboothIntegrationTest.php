@@ -118,6 +118,25 @@ final class RedboothIntegrationTest extends TestCase
         $this->assertSame(0, Cache::get('redbooth-oauth-state:'.hash('sha256', 'cached-state'), 0));
     }
 
+    public function test_callback_accepts_missing_state_only_for_pending_authenticated_user(): void
+    {
+        Cache::put('redbooth-oauth-pending-user:7', hash('sha256', 'state-redbooth-omitted'), now()->addMinutes(10));
+        Http::fake([
+            'https://redbooth.com/oauth2/token' => Http::response([
+                'access_token' => 'access-secret',
+                'refresh_token' => 'refresh-secret',
+                'expires_in' => 7200,
+            ]),
+        ]);
+
+        $this->actingAs($this->usuario())
+            ->get(route('redbooth.callback', ['code' => 'code-without-state']))
+            ->assertRedirect(route('redbooth.status'));
+
+        $this->assertDatabaseHas('RedboothCredentials', ['usuario_id' => 7], 'sqlsrv');
+        $this->assertSame('', Cache::get('redbooth-oauth-pending-user:7', ''));
+    }
+
     public function test_expired_token_is_refreshed_before_calling_me(): void
     {
         Cache::clear();

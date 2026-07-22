@@ -63,8 +63,8 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         $this->assertStringNotContainsString('Origen', $html);
         $this->assertStringContainsString('prod-crudo-card__loom-matrix', $html);
         $this->assertSame(4, substr_count($html, 'data-loom-column'));
-        $this->assertStringContainsString('>Piezas<', $html);
-        $this->assertStringContainsString('>Peso<', $html);
+        $this->assertStringContainsString('>Pzas<', $html);
+        $this->assertStringContainsString('>Kg<', $html);
         $this->assertStringContainsString('Pzas/día', $html);
         $this->assertStringContainsString('Kg/día', $html);
         $this->assertStringContainsString('78.4%', $html);
@@ -92,7 +92,7 @@ class TrazabilidadProduccionGroupingTest extends TestCase
 
     public function test_production_layout_uses_four_card_columns_on_wide_screens(): void
     {
-        $content = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+        $content = file_get_contents(resource_path('css/trazabilidad/index.css'));
 
         $this->assertStringContainsString('@media (min-width: 1280px)', $content);
         $this->assertStringContainsString(
@@ -103,7 +103,7 @@ class TrazabilidadProduccionGroupingTest extends TestCase
 
     public function test_compact_cards_keep_readable_typography(): void
     {
-        $content = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+        $content = file_get_contents(resource_path('css/trazabilidad/index.css'));
 
         $this->assertStringContainsString('--prod-card-title-size: 1.125rem;', $content);
         $this->assertStringContainsString('--prod-card-meta-size: 0.75rem;', $content);
@@ -113,7 +113,7 @@ class TrazabilidadProduccionGroupingTest extends TestCase
 
     public function test_summary_card_keeps_normal_width_and_vertical_stats(): void
     {
-        $content = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+        $content = file_get_contents(resource_path('css/trazabilidad/index.css'));
 
         $summaryRule = $this->between($content, '.prod-resumen-crudo {', '}');
         $statsRule = $this->between($content, '.prod-resumen-crudo__stats {', '}');

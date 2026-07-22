@@ -27,10 +27,16 @@ final class RedboothController extends Controller
     public function connect(Request $request): RedirectResponse
     {
         $state = Str::random(64);
+        $usuarioId = (int) $this->usuario($request)->getKey();
         $request->session()->put('redbooth_oauth_state', $state);
         Cache::put(
             $this->stateCacheKey($state),
-            (int) $this->usuario($request)->getKey(),
+            $usuarioId,
+            now()->addMinutes(10),
+        );
+        Cache::put(
+            $this->pendingUserCacheKey($usuarioId),
+            hash('sha256', $state),
             now()->addMinutes(10),
         );
 
@@ -42,14 +48,18 @@ final class RedboothController extends Controller
         $expectedState = (string) $request->session()->pull('redbooth_oauth_state', '');
         $receivedState = (string) $request->query('state', '');
         $usuario = $this->usuario($request);
+        $usuarioId = (int) $usuario->getKey();
         $cachedUserId = $receivedState !== ''
             ? (int) Cache::pull($this->stateCacheKey($receivedState), 0)
             : 0;
+        $pendingStateHash = (string) Cache::pull($this->pendingUserCacheKey($usuarioId), '');
         $validSessionState = $expectedState !== '' && hash_equals($expectedState, $receivedState);
-        $validCachedState = $cachedUserId > 0 && $cachedUserId === (int) $usuario->getKey();
+        $validCachedState = $cachedUserId > 0 && $cachedUserId === $usuarioId;
+        $validPendingAuthorization = $pendingStateHash !== ''
+            && ($receivedState === '' || hash_equals($pendingStateHash, hash('sha256', $receivedState)));
 
         abort_unless(
-            $validSessionState || $validCachedState,
+            $validSessionState || $validCachedState || $validPendingAuthorization,
             403,
             'La respuesta OAuth de Redbooth no es válida.',
         );
@@ -168,5 +178,10 @@ final class RedboothController extends Controller
     private function stateCacheKey(string $state): string
     {
         return 'redbooth-oauth-state:'.hash('sha256', $state);
+    }
+
+    private function pendingUserCacheKey(int $usuarioId): string
+    {
+        return "redbooth-oauth-pending-user:{$usuarioId}";
     }
 }

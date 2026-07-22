@@ -8,14 +8,6 @@
     $programaTejidoModuleLabel = $isMuestras ? 'Muestras' : 'Programa';
     $programaTejidoModulePermission = 'Programa Tejido';
     $liberarOrdenesBase = $isMuestras ? '/planeacion/muestras' : '/planeacion/programa-tejido';
-    // Ocultar Paro solo en la sección Programa Urd-Eng (/programaurdeng y sus subrutas)
-    $showParoButton = !request()->routeIs('catalogos.req-programa-tejido')
-        && !$isMuestras
-        && !request()->routeIs('programa.urd.eng.*')
-        && !request()->routeIs('codificacion-modelos')
-        && !request()->routeIs('planeacion.alineacion.index')
-        && !request()->is('simulacion*');
-
     // Información del usuario
     $usuario = Auth::user();
     $fotoUrl = getFotoUsuarioUrl($usuario->foto ?? null);
@@ -28,6 +20,15 @@
         $modulos = $moduloService->getModulosPrincipalesPorUsuario(Auth::id());
         $tieneConfiguracion = $modulos->contains('nombre', 'Configuración');
     }
+
+    // Ocultar Paro solo en las secciones que no deben mostrar esta acción.
+    $showParoButton = !request()->routeIs('catalogos.req-programa-tejido')
+        && !$isMuestras
+        && !request()->routeIs('programa.urd.eng.*')
+        && !request()->routeIs('codificacion-modelos')
+        && !request()->routeIs('planeacion.alineacion.index')
+        && !request()->routeIs('trazabilidad.*')
+        && !request()->is('simulacion*');
 
     // Días para liberar órdenes
     $diasLiberarOrdenes = session('liberar_ordenes_dias', 10.999);

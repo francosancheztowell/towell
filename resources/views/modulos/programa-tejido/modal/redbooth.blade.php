@@ -151,7 +151,8 @@
   const showUrl = @json(route('programa-tejido.redbooth.show', ['programa' => '__ID__']));
   const deleteUrl = @json(route('programa-tejido.redbooth.destroy', ['programa' => '__ID__']));
   const fileDownloadUrl = @json(route('redbooth.files.download', ['fileId' => '__FILE_ID__']));
-  const recordSource = @json($redboothContext);
+  const defaultRecordSource = @json($redboothContext);
+  let recordSource = defaultRecordSource;
   const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
   let programaId = null;
   let currentData = null;
@@ -359,7 +360,8 @@
     } catch (error) { setMode('editor'); window.Swal?.fire({icon:'error',title:'No se pudo cargar Redbooth',text:error.message}); }
   };
 
-  window.abrirModalRedboothProgramaTejido = ({registroId}={}) => {
+  window.abrirModalRedboothProgramaTejido = ({registroId, source}={}) => {
+    recordSource = String(source || defaultRecordSource) === 'catcodificados' ? 'catcodificados' : 'programa';
     programaId = Number(registroId)||null; currentData=null;
     if (!programaId) return;
     modal.classList.remove('hidden'); modal.classList.add('flex'); inicializarSelect(); loadDetail();

@@ -5,6 +5,7 @@ namespace App\Services\Trazabilidad;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Trazabilidad\TrazaProduccion;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -31,6 +32,50 @@ class TrazabilidadProduccionService
     }
 
     /**
+     * Construye las mismas órdenes canónicas de las tarjetas de Crudo en formato tabla.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function buildTablaAvance(array $filtros): array
+    {
+        $mesesSel = $this->mesesSeleccionados($filtros);
+        $crudo = $this->buildCrudo(
+            $this->queryBase($filtros, $mesesSel, applyColor: false),
+            $mesesSel
+        );
+
+        return collect($crudo['ordenes'] ?? [])
+            ->map(function (array $orden): array {
+                $programa = $orden['programa'] ?? null;
+                $codificado = $orden['codificados'] ?? null;
+                $telarDigitos = preg_replace('/\D+/', '', (string) ($orden['telar'] ?? ''));
+                $telarNumero = ltrim($telarDigitos, '0');
+
+                return [
+                    'flog' => $orden['flog'] ?? '—',
+                    'tamano' => $orden['tamano'] ?? '—',
+                    'orden' => $orden['orden'] ?? '—',
+                    'telar' => $telarNumero !== '' ? $telarNumero : ($telarDigitos !== '' ? '0' : '—'),
+                    'enProceso' => (bool) ($orden['enProceso'] ?? false),
+                    'programado' => $programa
+                        ? ((float) ($programa['totalPzas'] ?? 0) ?: (float) ($programa['totalPedido'] ?? 0))
+                        : ((float) ($codificado['totalPzas'] ?? 0) ?: (float) ($codificado['pedido'] ?? 0)),
+                    'produccion' => $programa
+                        ? (float) ($programa['produccion'] ?? 0)
+                        : (float) ($codificado['produccion'] ?? 0),
+                    'pedido' => $programa
+                        ? (float) ($programa['totalPedido'] ?? 0)
+                        : (float) ($codificado['pedido'] ?? 0),
+                    'inicio' => $programa['fechaInicio'] ?? $codificado['fechaInicio'] ?? '—',
+                    'fin' => $programa['fechaFinal'] ?? $codificado['fechaFinal'] ?? '—',
+                    'fuente' => $orden['fuente'] ?? null,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array{ordenes: array, noEncontradas: array, resumen: array}
      */
     private function buildCrudo(callable $base, array $mesesSel): array
@@ -40,6 +85,8 @@ class TrazabilidadProduccionService
             ->selectRaw("
                 Orden,
                 Localidad,
+                MAX(Flogs) as flog,
+                MAX(Tamano) as tamano,
                 SUM(CASE WHEN NombreAlmacen = 'Crudo' THEN Cantidad ELSE 0 END) as cantidad_crudo,
                 SUM(CASE WHEN NombreAlmacen = 'Crudo' THEN Peso ELSE 0 END) as peso_crudo
             ")
@@ -102,12 +149,13 @@ class TrazabilidadProduccionService
                     'noProduccion' => $orden,
                     'salonTejidoId' => trim((string) ($p->SalonTejidoId ?? '')),
                     'totalPedido' => $totalPedido,
+                    'totalPzas' => (float) ($p->TotalPzas ?? 0),
                     'produccion' => $produccionBd,
                     'saldoPedido' => (float) ($p->SaldoPedido ?? 0),
                     'stdDia' => $stdDia,
                     'prodKgDia' => $prodKgDia,
-                    'fechaInicio' => filled($p->FechaInicio) ? formatearFecha($p->FechaInicio) : null,
-                    'fechaFinal' => filled($p->FechaFinal) ? formatearFecha($p->FechaFinal) : null,
+                    'fechaInicio' => $this->formatearSoloFecha($p->FechaInicio),
+                    'fechaFinal' => $this->formatearSoloFecha($p->FechaFinal),
                     'esOrdCompartida' => $esOrdCompartida,
                     'ordCompartida' => $esOrdCompartida ? (int) $ordCompartida : null,
                     'esLiderOrdCompartida' => (bool) $p->OrdCompartidaLider,
@@ -123,8 +171,11 @@ class TrazabilidadProduccionService
                     'telarId' => $telarOrden,
                     'ordenTejido' => $orden,
                     'pedido' => $pedido,
+                    'totalPzas' => (float) ($c->TotalPzas ?? 0),
                     'produccion' => $produccionCat,
                     'saldos' => (float) ($c->Saldos ?? 0),
+                    'fechaInicio' => $this->formatearSoloFecha($c->FechaArranque),
+                    'fechaFinal' => $this->formatearSoloFecha($c->FechaFinaliza),
                 ];
             }
 
@@ -190,6 +241,8 @@ class TrazabilidadProduccionService
 
             $baseCard = [
                 'orden' => $orden,
+                'flog' => trim((string) ($filasLocalidad->pluck('flog')->filter()->first() ?? '')),
+                'tamano' => trim((string) ($filasLocalidad->pluck('tamano')->filter()->first() ?? '')),
                 'fuente' => $fuente,
                 'estado' => $estado,
                 'meses' => $mesesPorOrden[$orden] ?? [],
@@ -507,6 +560,15 @@ class TrazabilidadProduccionService
         return $localidad !== '' ? $localidad : 'Sin telar';
     }
 
+    private function formatearSoloFecha(mixed $fecha): ?string
+    {
+        if (blank($fecha)) {
+            return null;
+        }
+
+        return Carbon::parse($fecha)->format('d/m/y');
+    }
+
     private function resumenVacio(): array
     {
         return [
@@ -550,7 +612,10 @@ class TrazabilidadProduccionService
                 CatCodificados::query()
                     ->whereIn('OrdenTejido', $lote->values()->all())
                     ->orderByDesc('Id')
-                    ->get(['OrdenTejido', 'TelarId', 'Pedido', 'Produccion', 'Saldos'])
+                    ->get([
+                        'OrdenTejido', 'TelarId', 'Pedido', 'Produccion', 'Saldos',
+                        'TotalPzas', 'FechaArranque', 'FechaFinaliza',
+                    ])
             );
         }
 

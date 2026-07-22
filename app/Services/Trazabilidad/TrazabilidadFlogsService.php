@@ -4,6 +4,8 @@ namespace App\Services\Trazabilidad;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class TrazabilidadFlogsService
 {
@@ -28,7 +30,10 @@ class TrazabilidadFlogsService
 
     /**
      * @return array{
+     *     estado: 'idle'|'not_found'|'error'|'ok',
      *     encontrado: bool,
+     *     errorTipo: string|null,
+     *     errorMensaje: string|null,
      *     general: array<string, mixed>,
      *     etiquetas: array<int, array<string, mixed>>,
      *     empaques: array<int, array<string, mixed>>,
@@ -37,17 +42,9 @@ class TrazabilidadFlogsService
      */
     public function build(?string $idFlog): array
     {
-        $vacio = [
-            'encontrado' => false,
-            'general' => [],
-            'etiquetas' => [],
-            'empaques' => [],
-            'lineas' => [],
-        ];
-
         $idFlog = trim((string) $idFlog);
         if ($idFlog === '') {
-            return $vacio;
+            return $this->resultadoVacio('idle');
         }
 
         try {
@@ -58,7 +55,7 @@ class TrazabilidadFlogsService
                 ->first();
 
             if (! $tabla) {
-                return $vacio;
+                return $this->resultadoVacio('not_found');
             }
 
             $cliente = $conn->table('dbo.TwFlogsCustomer')
@@ -79,8 +76,19 @@ class TrazabilidadFlogsService
                 ->where('IDFLOG', $idFlog)
                 ->orderBy('LINENUM')
                 ->get();
-        } catch (\Throwable) {
-            return $vacio;
+        } catch (Throwable $exception) {
+            $tipo = $this->clasificarError($exception);
+
+            Log::error('No se pudo consultar el Flog en TI.', [
+                'flog' => $idFlog,
+                'connection' => 'sqlsrv_ti',
+                'error_type' => $tipo,
+                'exception' => $exception::class,
+                'code' => $exception->getCode(),
+                'message' => $exception->getMessage(),
+            ]);
+
+            return $this->resultadoVacio('error', $tipo, $this->mensajeError($tipo));
         }
 
         $custAccount = $this->txt($cliente?->CUSTACCOUNT ?? $tabla->CUSTACCOUNT ?? null);
@@ -117,7 +125,10 @@ class TrazabilidadFlogsService
         ];
 
         return [
+            'estado' => 'ok',
             'encontrado' => true,
+            'errorTipo' => null,
+            'errorMensaje' => null,
             'general' => $general,
             'etiquetas' => $etiquetas->map(fn ($row) => [
                 'itemId' => $this->txt($row->ITEMID ?? null),
@@ -134,6 +145,47 @@ class TrazabilidadFlogsService
             ])->values()->all(),
             'lineas' => $lineas->map(fn ($row) => $this->mapearLineaFlog($row))->values()->all(),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function resultadoVacio(string $estado, ?string $errorTipo = null, ?string $errorMensaje = null): array
+    {
+        return [
+            'estado' => $estado,
+            'encontrado' => false,
+            'errorTipo' => $errorTipo,
+            'errorMensaje' => $errorMensaje,
+            'general' => [],
+            'etiquetas' => [],
+            'empaques' => [],
+            'lineas' => [],
+        ];
+    }
+
+    private function clasificarError(Throwable $exception): string
+    {
+        $mensaje = strtolower($exception->getMessage());
+
+        return match (true) {
+            str_contains($mensaje, 'login failed'), str_contains($mensaje, 'authentication') => 'authentication',
+            str_contains($mensaje, 'timeout'), str_contains($mensaje, 'timed out') => 'timeout',
+            str_contains($mensaje, 'invalid object'), str_contains($mensaje, 'invalid column') => 'schema',
+            str_contains($mensaje, 'server was not found'),
+            str_contains($mensaje, 'network-related'),
+            str_contains($mensaje, 'could not open a connection') => 'connection',
+            default => 'query',
+        };
+    }
+
+    private function mensajeError(string $tipo): string
+    {
+        return match ($tipo) {
+            'authentication' => 'TI rechazó las credenciales de conexión.',
+            'timeout' => 'TI tardó demasiado en responder.',
+            'schema' => 'La estructura de datos de TI no coincide con la esperada.',
+            'connection' => 'No fue posible establecer conexión con el servidor de TI.',
+            default => 'TI respondió con un error al consultar el Flog.',
+        };
     }
 
     /**

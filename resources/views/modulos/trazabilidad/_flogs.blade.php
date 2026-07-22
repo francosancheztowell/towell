@@ -3,6 +3,8 @@
     $etiquetas = $flogs['etiquetas'] ?? [];
     $empaques = $flogs['empaques'] ?? [];
     $encontrado = (bool) ($flogs['encontrado'] ?? false);
+    $estadoFlogs = $flogs['estado'] ?? ($encontrado ? 'ok' : 'not_found');
+    $errorMensaje = $flogs['errorMensaje'] ?? null;
     $hayFlogFiltro = filled($filtros['flog'] ?? null);
     $lineas = $flogs['lineas'] ?? [];
 
@@ -75,6 +77,15 @@
         </div>
         <p class="text-slate-800 text-base font-semibold">Selecciona un Flog para ver la información</p>
         <p class="text-slate-500 text-sm mt-1">Usa el filtro <strong>Flog</strong> en la barra superior.</p>
+    </div>
+@elseif ($estadoFlogs === 'error')
+    <div class="flog-card p-10 text-center border-red-300">
+        <div class="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-3">
+            <i class="fa-solid fa-server text-red-500 text-lg"></i>
+        </div>
+        <p class="text-red-700 text-base font-semibold">No fue posible consultar TI</p>
+        <p class="text-slate-600 text-sm mt-1">{{ $errorMensaje }}</p>
+        <p class="text-slate-400 text-xs mt-2">El incidente quedó registrado para diagnóstico.</p>
     </div>
 @elseif (! $encontrado)
     <div class="flog-card p-10 text-center border-amber-300">
