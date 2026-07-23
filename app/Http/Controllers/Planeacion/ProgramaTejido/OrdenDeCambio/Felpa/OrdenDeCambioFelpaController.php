@@ -1564,7 +1564,11 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->CombinaTram = $registro->CombinaTram ?? null;
             $catCodificado->BomId = $registro->BomId ?? null;
             $catCodificado->BomName = $registro->BomName ?? null;
-            $catCodificado->CreaProd = $registro->CreaProd ?? 1;
+            // CreaProd solo en alta. En update/reimpresión no tocarlo: AX lo baja a 0 al crear
+            // producción y reescribirlo a 1 (desde ReqProgramaTejido) lo vuelve a encolar.
+            if (! $catCodificado->exists) {
+                $catCodificado->CreaProd = $registro->CreaProd ?? 1;
+            }
             $catCodificado->HiloAX = $registro->HiloAX ?? null;
             $catCodificado->ActualizaLmat = $registro->ActualizaLmat ?? 0;
             $catCodificado->CategoriaCalidad = $registro->CategoriaCalidad ?? null;
