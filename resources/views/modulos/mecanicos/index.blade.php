@@ -306,6 +306,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const baseUrl = @json(url('/mecanicos/ordenes-trabajo'));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
+    const fechaActual = @json($fechaInicial);
     const operadores = @json($operadores);
     const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
     const state = { ordenes: [], orden: null, paros: [] };
@@ -443,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-4 py-3 text-center text-gray-700">${orden.lineas_count ?? orden.lineas?.length ?? 0}</td>
                 <td class="px-4 py-3">${statusBadge(orden.Estatus)}</td>
                 <td class="whitespace-nowrap px-4 py-3 text-right">
-                    <button type="button" data-action="detalle-orden" data-folio="${escapeHtml(orden.Folio)}" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100">Capturar</button>
+                    <button type="button" data-action="capturar-orden" data-folio="${escapeHtml(orden.Folio)}" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100">Capturar</button>
                 </td>
             </tr>
         `).join('');
@@ -528,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetearCabecera() {
         $('#form-cabecera').reset();
         $('#cabecera-folio').value = '';
-        $('#cabecera-fecha').value = $('#filtro-fecha').value || @json($fechaInicial);
+        $('#cabecera-fecha').value = fechaActual;
         $('#cabecera-estatus').value = 'Activo';
         $('#titulo-modal-cabecera').textContent = 'Nueva orden de trabajo';
         $('#subtitulo-modal-cabecera').textContent = 'El folio se asigna al guardar.';
@@ -571,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        $('#cabecera-fecha').value = $('#filtro-fecha').value || @json($fechaInicial);
+        $('#cabecera-fecha').value = fechaActual;
         $('#cabecera-telar').value = paro.MaquinaId || '';
         $('#cabecera-folio-paro').value = paro.Folio || '';
         $('#cabecera-falla').value = paro.Falla || '';
@@ -584,7 +585,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function limpiarCabeceraParaCapturaManual() {
         [
-            'cabecera-fecha',
             'cabecera-telar',
             'cabecera-folio-paro',
             'cabecera-falla',
@@ -596,6 +596,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ].forEach(id => {
             document.getElementById(id).value = '';
         });
+
+        $('#cabecera-fecha').value = fechaActual;
     }
 
     function llenarSelectOperadores() {
@@ -690,6 +692,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             cerrarModal(modalCabecera);
+
+            if (! folio) {
+                window.location.assign(`${baseUrl}/${encodeURIComponent(result.data.Folio)}/captura`);
+                return;
+            }
+
             await cargarOrdenes();
             notificar('success', result.message || 'Orden guardada correctamente.');
             await cargarDetalle(result.data.Folio);
@@ -731,8 +739,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     $('#tabla-ordenes').addEventListener('click', (event) => {
-        const button = event.target.closest('[data-action="detalle-orden"]');
-        if (button) cargarDetalle(button.dataset.folio);
+        const button = event.target.closest('[data-action="capturar-orden"]');
+        if (button) window.location.assign(`${baseUrl}/${encodeURIComponent(button.dataset.folio)}/captura`);
     });
 
     $('#tabla-lineas').addEventListener('click', async (event) => {
