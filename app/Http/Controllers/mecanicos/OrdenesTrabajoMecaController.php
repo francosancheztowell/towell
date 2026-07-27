@@ -8,8 +8,10 @@ use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use App\Models\Mecanicos\MecOrdenTrabajoLineModel;
 use App\Models\Mecanicos\MecOrdenTrabajoModel;
+use App\Models\Sistema\SSYSFoliosSecuencia;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,15 +22,29 @@ class OrdenesTrabajoMecaController extends Controller
 {
     private const MODULO_FOLIOS = 'Mecanicos';
 
+    private const PREFIJO_FOLIOS = 'MEC';
+
+    private const LONGITUD_CONSECUTIVO_FOLIOS = 5;
+
     public function index(): View
     {
-        $operadores = ManOperadoresMantenimiento::query()
-            ->orderBy('NomEmpl')
-            ->get(['CveEmpl', 'NomEmpl', 'Turno', 'Depto']);
-
         return view('modulos.mecanicos.index', [
             'fechaInicial' => now('America/Mexico_City')->toDateString(),
-            'operadores' => $operadores,
+            'operadores' => $this->operadoresMecanicos(),
+        ]);
+    }
+
+    public function captura(string $folio): View
+    {
+        $orden = MecOrdenTrabajoModel::query()
+            ->with(['lineas' => fn ($query) => $query->orderBy('Id')])
+            ->find($folio);
+
+        abort_unless($orden, 404);
+
+        return view('modulos.mecanicos.captura', [
+            'orden' => $orden,
+            'operadores' => $this->operadoresMecanicos(),
         ]);
     }
 
@@ -326,6 +342,13 @@ class OrdenesTrabajoMecaController extends Controller
         ];
     }
 
+    private function operadoresMecanicos(): Collection
+    {
+        return ManOperadoresMantenimiento::query()
+            ->orderBy('NomEmpl')
+            ->get(['CveEmpl', 'NomEmpl', 'Turno', 'Depto']);
+    }
+
     private function reglasLinea(): array
     {
         return [
@@ -406,7 +429,12 @@ class OrdenesTrabajoMecaController extends Controller
     private function siguienteFolio(): string
     {
         try {
-            $folio = trim(FolioHelper::obtenerSiguienteFolio(self::MODULO_FOLIOS, 5));
+            $this->asegurarSecuenciaFolios();
+
+            $folio = trim(FolioHelper::obtenerSiguienteFolio(
+                self::MODULO_FOLIOS,
+                self::LONGITUD_CONSECUTIVO_FOLIOS,
+            ));
         } catch (\Throwable $exception) {
             Log::error('No fue posible generar folio para orden de trabajo mecánica', [
                 'modulo_folios' => self::MODULO_FOLIOS,
@@ -425,6 +453,37 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         return $folio;
+    }
+
+    /**
+     * Crea la secuencia la primera vez que se use el módulo y la alinea con
+     * los folios MEC existentes para no reutilizar un folio anterior.
+     */
+    private function asegurarSecuenciaFolios(): void
+    {
+        DB::transaction(function (): void {
+            $secuencia = SSYSFoliosSecuencia::query()
+                ->where('modulo', self::MODULO_FOLIOS)
+                ->lockForUpdate()
+                ->first();
+
+            if ($secuencia !== null) {
+                return;
+            }
+
+            $ultimoFolio = (string) MecOrdenTrabajoModel::query()
+                ->where('Folio', 'like', self::PREFIJO_FOLIOS.'%')
+                ->orderByDesc('Folio')
+                ->value('Folio');
+
+            $consecutivoInicial = (int) substr($ultimoFolio, strlen(self::PREFIJO_FOLIOS));
+
+            SSYSFoliosSecuencia::create([
+                'modulo' => self::MODULO_FOLIOS,
+                'prefijo' => self::PREFIJO_FOLIOS,
+                'consecutivo' => $consecutivoInicial,
+            ]);
+        });
     }
 
     private function validarFolioParoDisponible(?string $folioParo, ?string $folioActual = null): void
