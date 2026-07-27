@@ -3,6 +3,10 @@
 use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
 use Illuminate\Support\Facades\Route;
 
+// Ruta configurada para el submódulo 1100 en SYSRoles.
+Route::get('/submodulos/1100/ordenes-de-trabajo', [OrdenesTrabajoMecaController::class, 'index'])
+    ->name('mecanicos.ordenes-trabajo.submodulo');
+
 Route::prefix('mecanicos/ordenes-trabajo')
     ->as('mecanicos.ordenes-trabajo.')
     ->group(function (): void {
