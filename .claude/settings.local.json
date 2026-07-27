@@ -49,7 +49,21 @@
       "PowerShell(Get-Content \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-Towell\\\\c13308eb-8e9d-4e4c-8721-a5683a9e626d\\\\scratchpad\\\\idx.php\" | php artisan tinker)",
       "Bash(php -l app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php)",
       "Bash(npx vite *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "PowerShell(composer require *)",
+      "PowerShell(Set-Content *)",
+      "PowerShell(php \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-Towell\\\\cf797905-3455-4cad-b0e1-e5e93172fc25\\\\scratchpad\\\\profile.php\")",
+      "PowerShell(Test-NetConnection *)",
+      "PowerShell(Select-String -Path storage/logs/laravel.log -Pattern 'ERROR' | Select-Object -Last 3 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(500, $_.Line.Length\\)\\) })",
+      "PowerShell(php artisan view:clear; php \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-Towell\\\\cf797905-3455-4cad-b0e1-e5e93172fc25\\\\scratchpad\\\\profile.php\")",
+      "PowerShell(Get-ChildItem storage/debugbar -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 5 | ForEach-Object { \"$\\($_.LastWriteTime.ToString\\('HH:mm:ss'\\)\\)  $\\($_.Name\\)  $\\([math]::Round\\($_.Length/1KB\\)\\)KB\" })",
+      "PowerShell($files = Get-ChildItem storage/debugbar -File | Sort-Object LastWriteTime -Descending | Select-Object -First 8; foreach \\($f in $files\\) { $j = Get-Content $f.FullName -Raw | ConvertFrom-Json; $uri = $j.__meta.uri; $dur = $j.time.duration_str; $mem = $j.memory.peak_usage_str; $nq = $j.queries.nb_statements; $qt = $j.queries.accumulated_duration_str; \"$\\($f.LastWriteTime.ToString\\('HH:mm:ss'\\)\\)  $dur  mem=$mem  queries=$nq \\($qt\\)  $uri\" })",
+      "PowerShell($j = Get-Content storage/debugbar/01KYB9ZY6NXNT0DTHJGS9M4YD6.json -Raw | ConvertFrom-Json; \"URI: $\\($j.__meta.uri\\)\"; \"Duracion: $\\($j.time.duration_str\\)  Memoria: $\\($j.memory.peak_usage_str\\)\"; \"\"; \"MEDIDAS:\"; $j.time.measures | ForEach-Object { \"{0,-40} {1}\" -f $_.label, $_.duration_str }; \"\"; \"QUERIES:\"; $j.queries.statements | Where-Object { $_.type -eq 'query' } | ForEach-Object { \"{0,8} | {1}\" -f $_.duration_str, $_.sql.Substring\\(0, [Math]::Min\\(120, $_.sql.Length\\)\\) })",
+      "PowerShell(php -r \"echo 'opcache.enable: ' . ini_get\\('opcache.enable'\\) . PHP_EOL; echo 'opcache loaded: ' . \\(extension_loaded\\('Zend OPcache'\\) ? 'SI' : 'NO'\\) . PHP_EOL; echo 'php: ' . PHP_VERSION . PHP_EOL; echo 'ini: ' . php_ini_loaded_file\\(\\) . PHP_EOL;\")",
+      "PowerShell(php -r \"$im = imagecreatetruecolor\\(200, 200\\); $bg = imagecolorallocate\\($im, 226, 232, 240\\); imagefill\\($im, 0, 0, $bg\\); $fg = imagecolorallocate\\($im, 100, 116, 139\\); imagefilledrectangle\\($im, 70, 60, 130, 110, $fg\\); imagefilledellipse\\($im, 100, 140, 90, 50, $fg\\); imagepng\\($im, 'C:/xampp/htdocs/Towell/public/images/fotos_modulos/default.png'\\);\" ; Test-Path public/images/fotos_modulos/default.png)",
+      "PowerShell(php \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-Towell\\\\cf797905-3455-4cad-b0e1-e5e93172fc25\\\\scratchpad\\\\mkpng.php\"; Test-Path public/images/fotos_modulos/default.png)",
+      "PowerShell(Select-String -Path C:\\\\xampp\\\\php\\\\php.ini -Pattern '^;?opcache\\\\.\\(validate_timestamps|revalidate_freq\\)' | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line\\)\" })",
+      "PowerShell($f = Get-ChildItem storage/debugbar -File | Sort-Object LastWriteTime -Descending | Where-Object { \\(Get-Content $_.FullName -Raw | ConvertFrom-Json\\).__meta.uri -eq '/planeacion/programa-tejido' } | Select-Object -First 1; $j = Get-Content $f.FullName -Raw | ConvertFrom-Json; \"Captura: $\\($f.LastWriteTime.ToString\\('HH:mm:ss'\\)\\)\"; $j.time.measures | Where-Object { $_.duration -gt 0.01 } | ForEach-Object { \"{0,-30} {1}\" -f $_.label, $_.duration_str }; \"\"; \"QUERIES:\"; $j.queries.statements | Where-Object { $_.type -eq 'query' } | ForEach-Object { \"{0,9} | {1}\" -f $_.duration_str, $_.sql.Substring\\(0, [Math]::Min\\(100, $_.sql.Length\\)\\) })"
     ]
   }
 }

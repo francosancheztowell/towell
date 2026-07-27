@@ -48,60 +48,11 @@
 @php
     // Si se proporciona módulo o moduleId, verificar permisos
     $hasPermission = true;
-    if ($moduleId || $module) {
-        $checkPermission = $checkPermission ?? true;
-        if ($checkPermission) {
-            // Si se proporciona moduleId, usarlo directamente
-            // Si solo se proporciona module (nombre), buscar el ID automáticamente
-            if ($moduleId) {
-                $moduleParam = $moduleId;
-            } elseif ($module) {
-                try {
-                    $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
-                    $moduleParam = $rol ? $rol->idrol : $module; // Fallback al nombre si no se encuentra
-                } catch (\Exception $e) {
-                    $moduleParam = $module; // Fallback al nombre en caso de error
-                }
-            } else {
-                $moduleParam = null;
-            }
-
-            if ($moduleParam) {
-                // Verificar SOLO 'modificar' (no usar 'crear' como fallback)
-                if (function_exists('userCan')) {
-                    $tienePermisoModificar = userCan('modificar', $moduleParam);
-                    
-                    // Además, verificar que el módulo esté activo (acceso = 1)
-                    $tieneAcceso = false;
-                    try {
-                        $userId = auth()->id();
-                        if ($userId) {
-                            $rolId = is_numeric($moduleParam) ? $moduleParam : null;
-                            if (!$rolId && $module) {
-                                $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
-                                $rolId = $rol ? $rol->idrol : null;
-                            }
-                            
-                            if ($rolId) {
-                                $permission = \App\Models\Sistema\SYSUsuariosRoles::where('idusuario', $userId)
-                                    ->where('idrol', $rolId)
-                                    ->first();
-                                
-                                $tieneAcceso = $permission && isset($permission->acceso) && $permission->acceso == 1;
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        // Si hay error, asumir que no tiene acceso
-                        $tieneAcceso = false;
-                    }
-                    
-                    // El usuario debe tener permiso de modificar Y acceso activo
-                    $hasPermission = $tienePermisoModificar && $tieneAcceso;
-                } else {
-                    $hasPermission = true;
-                }
-            }
-        }
+    // userCan acepta nombre o id de módulo y está memoizado por request (sin queries extra).
+    // Requiere 'modificar' Y 'acceso' activo, igual que la versión anterior.
+    if (($moduleId || $module) && ($checkPermission ?? true) && function_exists('userCan')) {
+        $moduleParam = $moduleId ?: $module;
+        $hasPermission = userCan('modificar', $moduleParam) && userCan('acceso', $moduleParam);
     }
 
     // Si tiene permisos y se proporcionó module/moduleId, habilitar el botón automáticamente

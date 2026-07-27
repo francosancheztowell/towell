@@ -108,12 +108,12 @@
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap min-w-[90px]">Tipo:</span>
                             @php
-                                $tipo = strtoupper(trim($orden->RizoPie));
+                                $tipo = strtoupper(trim($orden->RizoPie ?? ''));
                                 $isRizo = $tipo === 'RIZO';
                                 $isPie = $tipo === 'PIE';
                             @endphp
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $isRizo ? 'bg-rose-100 text-rose-700' : ($isPie ? 'bg-teal-100 text-teal-700' : 'bg-gray-200 text-gray-800') }}">
-                                {{ $orden->RizoPie }}
+                                {{ $orden->RizoPie ?? '-' }}
                             </span>
                     </div>
                     <div class="flex items-center gap-2">

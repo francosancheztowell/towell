@@ -47,54 +47,10 @@ trait HasUserPermissions
             return false;
         }
 
-        // Generar clave de cache
-        $cacheKey = "perm_{$userId}_{$action}_{$module}";
+        // Delegar al helper global memoizado (app/Helpers/permission-helpers.php)
+        $permission = \userPermissions($module, $userId);
 
-        if (isset(self::$permissionsCache[$cacheKey])) {
-            return self::$permissionsCache[$cacheKey];
-        }
-
-        try {
-            // Si $module es un número, asumimos que es un idrol directo
-            if (is_numeric($module)) {
-                $permission = SYSUsuariosRoles::where('idusuario', $userId)
-                    ->where('idrol', $module)
-                    ->first();
-            } else {
-                // Si es string, buscar por nombre del módulo
-                $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
-
-                if (!$rol) {
-                    self::$permissionsCache[$cacheKey] = false;
-                    return false;
-                }
-
-                $permission = SYSUsuariosRoles::where('idusuario', $userId)
-                    ->where('idrol', $rol->idrol)
-                    ->first();
-            }
-
-            if (!$permission) {
-                self::$permissionsCache[$cacheKey] = false;
-                return false;
-            }
-
-            // Verificar el permiso específico
-            $result = isset($permission->$action) && $permission->$action == 1;
-
-            self::$permissionsCache[$cacheKey] = $result;
-            return $result;
-
-        } catch (\Exception $e) {
-            Log::error('Error checking permission', [
-                'user_id' => $userId,
-                'action' => $action,
-                'module' => $module,
-                'error' => $e->getMessage()
-            ]);
-
-            return false;
-        }
+        return $permission !== null && isset($permission->$action) && $permission->$action == 1;
     }
 
     /**
@@ -112,31 +68,7 @@ trait HasUserPermissions
             return null;
         }
 
-        try {
-            if (is_numeric($module)) {
-                return SYSUsuariosRoles::where('idusuario', $userId)
-                    ->where('idrol', $module)
-                    ->first();
-            } else {
-                $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
-
-                if (!$rol) {
-                    return null;
-                }
-
-                return SYSUsuariosRoles::where('idusuario', $userId)
-                    ->where('idrol', $rol->idrol)
-                    ->first();
-            }
-                 } catch (\Exception $e) {
-             Log::error('Error getting user permissions', [
-                 'user_id' => $userId,
-                 'module' => $module,
-                 'error' => $e->getMessage()
-             ]);
-
-             return null;
-         }
+        return \userPermissions($module, $userId);
     }
 
     /**

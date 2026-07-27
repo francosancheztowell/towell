@@ -1860,6 +1860,7 @@ class LiberarOrdenesController extends Controller
             ->where('BT.TWINVENTSIZEID', $inventSizeId)
             ->where('BT.ITEMGROUPID', 'CRUDO')
             ->where('BT.TWSALON', $salon)
+            ->where('BT.Vigente', 1)
             ->orderBy('BT.BOMID')
             ->get()
             ->map(fn ($row) => [

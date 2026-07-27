@@ -49,11 +49,12 @@
     <div class="{{ $gridClasses }} {{ $gapClasses }} max-w-5xl mx-auto">
     @foreach ($modulosFiltrados->values() as $index => $modulo)
             @php
-                if (!empty($modulo['imagen'])) {
+                // Si el archivo no existe, usar fallback: un 404 de imagen bootea Laravel completo (~1s c/u)
+                if (!empty($modulo['imagen']) && file_exists(public_path('images/' . $imageFolder . '/' . $modulo['imagen']))) {
                     $relativeImagePath = 'images/' . $imageFolder . '/' . $modulo['imagen'];
                     $absoluteImagePath = public_path($relativeImagePath);
-                    $version = file_exists($absoluteImagePath) ? filemtime($absoluteImagePath) : null;
-                    $imagenUrl = asset($relativeImagePath) . ($version ? '?v=' . $version : '');
+                    $version = filemtime($absoluteImagePath);
+                    $imagenUrl = asset($relativeImagePath) . '?v=' . $version;
 
                     $pathInfo = pathinfo($relativeImagePath);
                     $webpRelativeImagePath = $pathInfo['dirname'] . '/' . $pathInfo['filename'] . '.webp';

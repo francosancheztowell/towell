@@ -45,28 +45,9 @@
 @php
     // Si se proporciona módulo o moduleId, verificar permisos
     $hasPermission = true;
-    if ($moduleId || $module) {
-        $checkPermission = $checkPermission ?? true;
-        if ($checkPermission) {
-            // Si se proporciona moduleId, usarlo directamente
-            // Si solo se proporciona module (nombre), buscar el ID automáticamente
-            if ($moduleId) {
-                $moduleParam = $moduleId;
-            } elseif ($module) {
-                try {
-                    $rol = \App\Models\Sistema\SYSRoles::where('modulo', $module)->first();
-                    $moduleParam = $rol ? $rol->idrol : $module; // Fallback al nombre si no se encuentra
-                } catch (\Exception $e) {
-                    $moduleParam = $module; // Fallback al nombre en caso de error
-                }
-            } else {
-                $moduleParam = null;
-            }
-
-            if ($moduleParam) {
-                $hasPermission = function_exists('userCan') ? userCan('crear', $moduleParam) : true;
-            }
-        }
+    // userCan acepta nombre o id de módulo y está memoizado por request (sin queries extra)
+    if (($moduleId || $module) && ($checkPermission ?? true) && function_exists('userCan')) {
+        $hasPermission = userCan('crear', $moduleId ?: $module);
     }
 @endphp
 
