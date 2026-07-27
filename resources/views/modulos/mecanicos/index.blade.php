@@ -37,17 +37,6 @@
                     </select>
                 </div>
 
-                <div class="sm:col-span-2 xl:col-span-2">
-                    <label for="filtro-buscar" class="mb-1 block text-xs font-medium text-gray-700">Buscar</label>
-                    <div class="flex gap-2">
-                        <input id="filtro-buscar" type="search" placeholder="Folio, telar, fallo, orden o folio de paro"
-                            class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        <button id="btn-limpiar-filtros" type="button" title="Limpiar filtros"
-                            class="rounded-md border border-gray-300 px-3 text-sm text-gray-700 transition hover:bg-gray-50">
-                            <i class="fas fa-eraser"></i>
-                        </button>
-                    </div>
-                </div>
             </div>
         </section>
 
@@ -528,8 +517,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 option.textContent = `${paro.Folio} · Telar ${paro.MaquinaId || '—'} · ${paro.Falla || 'Sin falla'}`;
                 select.appendChild(option);
             });
+
+            limpiarCabeceraParaCapturaManual();
         } catch (error) {
             select.innerHTML = '<option value="">No fue posible cargar paros activos</option>';
+            limpiarCabeceraParaCapturaManual();
         }
     }
 
@@ -574,8 +566,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function aplicarParoSeleccionado() {
         const paro = state.paros.find(item => String(item.Id) === $('#paro-activo').value);
-        if (! paro) return;
+        if (! paro) {
+            limpiarCabeceraParaCapturaManual();
+            return;
+        }
 
+        $('#cabecera-fecha').value = $('#filtro-fecha').value || @json($fechaInicial);
         $('#cabecera-telar').value = paro.MaquinaId || '';
         $('#cabecera-folio-paro').value = paro.Folio || '';
         $('#cabecera-falla').value = paro.Falla || '';
@@ -584,6 +580,22 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#cabecera-orden').value = paro.OrdenTrabajo || '';
         $('#cabecera-turno').value = paro.Turno || '';
         $('#cabecera-estatus').value = 'Activo';
+    }
+
+    function limpiarCabeceraParaCapturaManual() {
+        [
+            'cabecera-fecha',
+            'cabecera-telar',
+            'cabecera-folio-paro',
+            'cabecera-falla',
+            'cabecera-fecha-paro',
+            'cabecera-hora-paro',
+            'cabecera-estatus',
+            'cabecera-orden',
+            'cabecera-turno',
+        ].forEach(id => {
+            document.getElementById(id).value = '';
+        });
     }
 
     function llenarSelectOperadores() {
