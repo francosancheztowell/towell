@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Mecanicos;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class MecVerificaMaquinaModel extends Model
+class MecOrdenTrabajoModel extends Model
 {
     protected $connection = 'sqlsrv';
 
-    protected $table = 'MecVerificaMaquinaTable';
+    protected $table = 'MecOrdenTrabajoTable';
 
     protected $primaryKey = 'Folio';
 
@@ -40,6 +40,6 @@ class MecVerificaMaquinaModel extends Model
 
     public function lineas(): HasMany
     {
-        return $this->hasMany(MecVerificaMaquinaLineModel::class, 'Folio', 'Folio');
+        return $this->hasMany(MecOrdenTrabajoLineModel::class, 'Folio', 'Folio');
     }
 }
