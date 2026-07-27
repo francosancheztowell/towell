@@ -14,6 +14,7 @@ Route::prefix('mecanicos/ordenes-trabajo')
         Route::get('/registros', [OrdenesTrabajoMecaController::class, 'registros'])->name('registros');
         Route::get('/paros-activos', [OrdenesTrabajoMecaController::class, 'parosActivos'])->name('paros-activos');
         Route::post('/', [OrdenesTrabajoMecaController::class, 'store'])->name('store');
+        Route::get('/{folio}/captura', [OrdenesTrabajoMecaController::class, 'captura'])->name('captura');
         Route::get('/{folio}', [OrdenesTrabajoMecaController::class, 'show'])->name('show');
         Route::put('/{folio}', [OrdenesTrabajoMecaController::class, 'update'])->name('update');
         Route::delete('/{folio}', [OrdenesTrabajoMecaController::class, 'destroy'])->name('destroy');
