@@ -260,8 +260,10 @@ class AtaDevolucionesController extends Controller
             ], 422);
         }
 
+        $cveOperador = Auth::user()->numero_empleado ?? null;
+
         try {
-            [$devolucion, $disponibilidad] = DB::connection('sqlsrv')->transaction(function () use ($data, $montado, $noJulio, $loteDev, $loteOriginal, $kilos, $metros) {
+            [$devolucion, $disponibilidad] = DB::connection('sqlsrv')->transaction(function () use ($data, $montado, $noJulio, $loteDev, $loteOriginal, $kilos, $metros, $cveOperador) {
                 $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
                     ->orderByDesc('Id')
                     ->lockForUpdate()
@@ -320,6 +322,8 @@ class AtaDevolucionesController extends Controller
                     'InventColorId' => $data['invent_color_id'] ?? $montado->InventColorId,
                     // El Estatus queda ligado al del atado padre (AtaMontadoTelas) desde su creación.
                     'Estatus' => $montado->Estatus ?: 'Activo',
+                    // Clave del operador autenticado que registra/actualiza la devolución.
+                    'CveOperador' => $cveOperador,
                 ];
 
                 if ($devolucion) {
