@@ -11,8 +11,8 @@
         .subtitulo { font-size: 9px; color: #4b5563; margin: 0 0 8px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { border: 1px solid #d1d5db; padding: 1px 2px; text-align: center; overflow: hidden; word-wrap: break-word; }
-        thead th { background-color: #c6e0b4; color: #000; }
-        td.col-destacada { background-color: #ccecff; font-weight: bold; }
+        thead th { background-color: #d9ead3; color: #000; }
+        td.col-destacada { background-color: #ccffff; font-weight: bold; }
         td.col-blanca { background-color: #ffffff; }
     </style>
 </head>

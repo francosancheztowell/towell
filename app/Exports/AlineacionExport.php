@@ -12,12 +12,14 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Export de Alineación (programa de tejido en proceso).
  * Encabezado de 2 filas (grupos combinados: Crudo, Hilo, Cenefa Trama, Peso, Muestra),
  * columnas de Telar a Tolerancia en azul y negritas, logo Towell arriba.
+ * Impresión: oficio horizontal, ajustado a una hoja.
  *
  * @param  array<int, array<string, mixed>>  $items
  * @param  array<int, string>  $columnas
@@ -27,33 +29,48 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
 {
-    private const COLOR_HEADER = 'C6E0B4';
-    private const COLOR_COLUMNA_AZUL = 'CCECFF';
+    private const COLOR_HEADER = 'D9EAD3';
+    private const COLOR_COLUMNA_AZUL = 'CCFFFF';
     private const COLOR_COLUMNA_BLANCA = 'FFFFFF';
 
-    /**
-     * Anchos explícitos (unidades de caracter de Excel). No se usa autosize: con
-     * encabezados combinados (merge de 2 filas / colspan) el autosize de PhpSpreadsheet
-     * ignora el contenido de celdas fusionadas y calcula anchos incorrectos (Modelo
-     * queda angosto, columnas de un dígito quedan anchas).
-     */
-    private const ANCHO_MODELO = 60;
-    private const ANCHO_MUY_ANGOSTO = 6;
-    private const ANCHO_ANGOSTO = 8;
-    private const ANCHO_NORMAL = 14;
+    /** Margen (en caracteres) que se suma al contenido más largo de cada columna. */
+    private const ANCHO_MARGEN = 6;
+    private const ANCHO_MINIMO = 8;
 
-    private const COLUMNAS_MUY_ANGOSTAS = ['Tolerancia', 'RazSN'];
-    private const COLUMNAS_ANGOSTAS = [
-        'NoTelarId', 'CalibreRizo', 'Ancho', 'LargoCrudo', 'PesoCrudo',
-        'Luchaje', 'MedidaPlano', 'NoTiras', 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4',
-        'AnchoToalla', 'PesoGRM2', 'PesoMin', 'PesoMax', 'MuestraMin', 'MuestraMax',
-        'Produccion', 'SaldoPedido', 'DiasEficiencia',
+    private const FUENTE = 'Arial';
+    private const TAMANO_FUENTE_DEFAULT = 23;
+    private const TAMANOS_FUENTE = [
+        'NoTelarId' => 25,
+        'NoProduccion' => 25,
+        'FechaCambio' => 22,
+        'FechaCompromiso' => 22,
+        'ItemId' => 25,
+        'NombreProducto' => 27,
+        'Tolerancia' => 25,
     ];
 
+    /**
+     * Tamaños "de referencia" (los que ya daban el ancho de columna que gustó) usados
+     * solo para calcular el ancho, para que subir TAMANOS_FUENTE no ensanche columnas.
+     */
+    private const TAMANO_FUENTE_REFERENCIA_DEFAULT = 18;
+    private const TAMANOS_FUENTE_REFERENCIA = [
+        'NoTelarId' => 20,
+        'NoProduccion' => 20,
+        'FechaCambio' => 17,
+        'FechaCompromiso' => 17,
+        'ItemId' => 20,
+        'NombreProducto' => 22,
+        'Tolerancia' => 20,
+    ];
+
+    /** Alto de fila para datos: filas altas para que la tabla rellene más la hoja al imprimir. */
+    private const ALTURA_FILA_DATOS = 95.0;
+
     /** Fila donde empieza el encabezado de la tabla (deja espacio arriba para el logo). */
-    private const FILA_ENCABEZADO_1 = 4;
-    private const FILA_ENCABEZADO_2 = 5;
-    private const FILA_DATOS = 6;
+    private const FILA_ENCABEZADO_1 = 11;
+    private const FILA_ENCABEZADO_2 = 12;
+    private const FILA_DATOS = 13;
 
     public function __construct(
         private array $items,
@@ -85,7 +102,7 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
 
         $drawing = new Drawing();
         $drawing->setPath($this->rutaLogo);
-        $drawing->setHeight(50);
+        $drawing->setHeight(150);
         $drawing->setCoordinates('A1');
 
         return $drawing;
@@ -175,9 +192,9 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
 
-        // Bordes de toda la tabla (encabezado + datos)
+        // Bordes de toda la tabla (encabezado + datos), negros como los de Excel por defecto
         $sheet->getStyle("A{$fila1}:{$ultimaColumna}{$ultimaFila}")->applyFromArray([
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
         ]);
 
         // Columnas de Telar a Tolerancia: azul y negritas (encabezado y datos)
@@ -203,32 +220,62 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
         for ($col = 1; $col <= count($this->columnas); $col++) {
             $columna = $this->columnas[$col - 1];
             $letra = Coordinate::stringFromColumnIndex($col);
-            $sheet->getColumnDimension($letra)->setWidth($this->anchoColumna($columna));
-        }
+            $tamano = self::TAMANOS_FUENTE[$columna] ?? self::TAMANO_FUENTE_DEFAULT;
+            $tamanoReferencia = self::TAMANOS_FUENTE_REFERENCIA[$columna] ?? self::TAMANO_FUENTE_REFERENCIA_DEFAULT;
 
-        $indiceModelo = array_search('NombreProducto', $this->columnas, true);
-        if ($indiceModelo !== false) {
-            $letraModelo = Coordinate::stringFromColumnIndex($indiceModelo + 1);
-            $sheet->getStyle("{$letraModelo}{$fila2}:{$letraModelo}{$ultimaFilaDatos}")->applyFromArray([
-                'alignment' => ['wrapText' => true, 'vertical' => Alignment::VERTICAL_CENTER],
+            $sheet->getColumnDimension($letra)->setWidth($this->anchoColumna($columna, $tamanoReferencia));
+            $sheet->getStyle("{$letra}{$fila1}:{$letra}{$ultimaFilaDatos}")->applyFromArray([
+                'font' => ['name' => self::FUENTE, 'size' => $tamano],
             ]);
         }
 
+        for ($fila = self::FILA_DATOS; $fila <= $ultimaFilaDatos; $fila++) {
+            $sheet->getRowDimension($fila)->setRowHeight(self::ALTURA_FILA_DATOS);
+        }
+
         $sheet->freezePane('A'.self::FILA_DATOS);
+
+        $this->configurarImpresion($sheet, $ultimaColumna, $ultimaFila);
     }
 
-    private function anchoColumna(string $columna): int
+    /**
+     * Ancho = longitud del valor más largo de esa columna (encabezado y datos) + margen,
+     * escalado al tamaño de fuente de la columna (la unidad de ancho de Excel se basa en
+     * la fuente por defecto de 11pt; columnas con fuente más grande necesitan más ancho
+     * por caracter). No se usa autosize de PhpSpreadsheet: con encabezados combinados
+     * (merge de 2 filas / colspan) ignora el contenido de celdas fusionadas y calcula
+     * anchos incorrectos.
+     */
+    private function anchoColumna(string $columna, int $tamanoFuente): int
     {
-        if ($columna === 'NombreProducto') {
-            return self::ANCHO_MODELO;
-        }
-        if (in_array($columna, self::COLUMNAS_MUY_ANGOSTAS, true)) {
-            return self::ANCHO_MUY_ANGOSTO;
-        }
-        if (in_array($columna, self::COLUMNAS_ANGOSTAS, true)) {
-            return self::ANCHO_ANGOSTO;
+        $etiqueta = $this->subColumnLabels[$columna] ?? $this->columnLabels[$columna] ?? $columna;
+        $maxLargo = mb_strlen((string) $etiqueta);
+
+        foreach ($this->items as $item) {
+            $valor = (string) ($item[$columna] ?? '');
+            $maxLargo = max($maxLargo, mb_strlen($valor));
         }
 
-        return self::ANCHO_NORMAL;
+        $factorFuente = $tamanoFuente / 11;
+
+        return max(self::ANCHO_MINIMO, (int) ceil(($maxLargo + self::ANCHO_MARGEN) * $factorFuente));
+    }
+
+    /**
+     * Legal horizontal, ancho ajustado a 1 hoja (Excel calcula la escala automáticamente);
+     * el alto queda libre, así que si hay muchas filas continúa en más hojas hacia abajo
+     * en vez de encogerse también verticalmente.
+     */
+    private function configurarImpresion(Worksheet $sheet, string $ultimaColumna, int $ultimaFila): void
+    {
+        $pageSetup = $sheet->getPageSetup();
+        $pageSetup->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
+        $pageSetup->setPaperSize(PageSetup::PAPERSIZE_LEGAL);
+        $pageSetup->setFitToPage(true);
+        $pageSetup->setFitToWidth(1);
+        $pageSetup->setFitToHeight(0);
+        $pageSetup->setPrintArea("A1:{$ultimaColumna}{$ultimaFila}");
+
+        $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.4)->setRight(0.3);
     }
 }
