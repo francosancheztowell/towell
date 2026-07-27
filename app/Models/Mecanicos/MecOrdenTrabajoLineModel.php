@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Mecanicos;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class MecVerificaMaquinaLineModel extends Model
+class MecOrdenTrabajoLineModel extends Model
 {
     protected $connection = 'sqlsrv';
 
-    protected $table = 'MecVerificaMaquinaLine';
+    protected $table = 'MecOrdenTrabajoLine';
 
     protected $primaryKey = 'Id';
 
@@ -47,8 +47,8 @@ class MecVerificaMaquinaLineModel extends Model
         'Calificacion' => 'integer',
     ];
 
-    public function verificacion(): BelongsTo
+    public function ordenTrabajo(): BelongsTo
     {
-        return $this->belongsTo(MecVerificaMaquinaModel::class, 'Folio', 'Folio');
+        return $this->belongsTo(MecOrdenTrabajoModel::class, 'Folio', 'Folio');
     }
 }
