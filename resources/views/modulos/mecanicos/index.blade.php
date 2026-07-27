@@ -3,23 +3,23 @@
 @section('page-title', 'Órdenes de trabajo mecánicas')
 
 @section('content')
-<div class="w-full p-3 sm:p-4 md:p-6 lg:p-8">
-    <div class="mx-auto max-w-[96rem] space-y-4">
-        <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-5 md:p-6">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+<div class="w-full p-3 md:p-6 lg:p-8">
+    <div class="mx-auto max-w-7xl space-y-4">
+        <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+            <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                     <h1 class="text-xl font-bold text-gray-900 md:text-2xl">Órdenes de trabajo diarias</h1>
                     <p class="mt-1 text-sm text-gray-600">Registra las intervenciones de mecánicos por telar y falla.</p>
                 </div>
 
                 <button id="btn-nueva-orden" type="button"
-                    class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black sm:w-auto">
+                    class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black">
                     <i class="fas fa-plus"></i>
                     Nueva orden
                 </button>
             </div>
 
-            <div class="mt-5 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="mt-5 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 md:grid-cols-4">
                 <div>
                     <label for="filtro-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
                     <input id="filtro-fecha" type="date" value="{{ $fechaInicial }}"
@@ -37,15 +37,23 @@
                     </select>
                 </div>
 
+                <div class="md:col-span-2">
+                    <label for="filtro-buscar" class="mb-1 block text-xs font-medium text-gray-700">Buscar</label>
+                    <div class="flex gap-2">
+                        <input id="filtro-buscar" type="search" placeholder="Folio, telar, fallo, orden o folio de paro"
+                            class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                        <button id="btn-limpiar-filtros" type="button" title="Limpiar filtros"
+                            class="rounded-md border border-gray-300 px-3 text-sm text-gray-700 transition hover:bg-gray-50">
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
 
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div class="border-b border-gray-100 px-4 py-2 text-xs text-gray-500 lg:hidden">
-                <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para consultar todas las columnas.
-            </div>
-            <div class="max-w-full overflow-x-auto overscroll-x-contain" tabindex="0" aria-label="Tabla de órdenes de trabajo; desplázate horizontalmente para ver todas las columnas">
-                <table id="tabla-ordenes" class="min-w-[1100px] divide-y divide-gray-200 text-sm">
+            <div class="overflow-x-auto">
+                <table id="tabla-ordenes" class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
                             <th class="whitespace-nowrap px-4 py-3">Folio</th>
@@ -73,9 +81,9 @@
     </div>
 </div>
 
-<div id="modal-cabecera" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-2 sm:p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-cabecera">
-    <div class="flex max-h-[calc(100vh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)] md:max-w-4xl">
-        <div class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
+<div id="modal-cabecera" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-cabecera">
+    <div class="max-h-[95vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4">
             <div>
                 <h2 id="titulo-modal-cabecera" class="text-lg font-bold text-gray-900">Nueva orden de trabajo</h2>
                 <p id="subtitulo-modal-cabecera" class="mt-0.5 text-xs text-gray-500">El folio se asigna al guardar.</p>
@@ -83,7 +91,7 @@
             <button type="button" data-close-modal="modal-cabecera" class="rounded p-1 text-xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
         </div>
 
-        <form id="form-cabecera" class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
+        <form id="form-cabecera" class="p-5">
             <div class="mb-4 rounded-md border border-blue-100 bg-blue-50 p-3">
                 <label for="paro-activo" class="mb-1 block text-xs font-semibold text-blue-900">Tomar datos de un paro activo <span class="font-normal">(opcional)</span></label>
                 <select id="paro-activo" class="w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
@@ -151,8 +159,8 @@
                 </div>
             </div>
 
-            <div class="sticky bottom-0 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 pt-4 sm:-mx-5 sm:px-5">
-                <button id="btn-guardar-cabecera" type="submit" class="w-full rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black sm:w-auto">
+            <div class="mt-6 flex justify-end">
+                <button id="btn-guardar-cabecera" type="submit" class="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black">
                     Guardar orden
                 </button>
             </div>
@@ -160,9 +168,9 @@
     </div>
 </div>
 
-<div id="modal-detalle" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-2 sm:p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-detalle">
-    <div class="flex max-h-[calc(100vh-1rem)] w-full max-w-[96rem] flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)]">
-        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
+<div id="modal-detalle" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-detalle">
+    <div class="max-h-[95vh] w-full max-w-7xl overflow-y-auto rounded-lg bg-white shadow-2xl">
+        <div class="flex items-start justify-between gap-3 border-b border-gray-200 px-5 py-4">
             <div>
                 <h2 id="titulo-modal-detalle" class="text-lg font-bold text-gray-900">Detalle de orden</h2>
                 <p id="detalle-resumen" class="mt-1 text-sm text-gray-600"></p>
@@ -170,7 +178,7 @@
             <button type="button" data-close-modal="modal-detalle" class="rounded p-1 text-xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
         </div>
 
-        <div class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
+        <div class="p-5">
             <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-sm text-gray-600">Cada renglón representa la intervención de un mecánico.</p>
                 <div class="flex flex-wrap gap-2">
@@ -183,11 +191,8 @@
                 </div>
             </div>
 
-            <div class="mb-2 text-xs text-gray-500 lg:hidden">
-                <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para consultar todos los datos de cada intervención.
-            </div>
-            <div class="max-w-full overflow-x-auto overscroll-x-contain rounded-md border border-gray-200" tabindex="0" aria-label="Tabla de intervenciones; desplázate horizontalmente para ver todas las columnas">
-                <table id="tabla-lineas" class="min-w-[1260px] divide-y divide-gray-200 text-xs">
+            <div class="overflow-x-auto rounded-md border border-gray-200">
+                <table id="tabla-lineas" class="min-w-full divide-y divide-gray-200 text-xs">
                     <thead class="bg-gray-50 font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
                             <th class="px-3 py-3 text-left">Mecánico</th>
@@ -208,7 +213,7 @@
                 </table>
             </div>
 
-            <div class="sticky bottom-0 -mx-4 mt-5 flex justify-end border-t border-gray-200 bg-white px-4 pt-4 sm:-mx-5 sm:px-5">
+            <div class="mt-5 flex justify-end">
                 <button id="btn-eliminar-orden" type="button" class="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50">
                     <i class="fas fa-trash mr-1"></i> Eliminar orden
                 </button>
@@ -217,9 +222,9 @@
     </div>
 </div>
 
-<div id="modal-linea" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/50 p-2 sm:p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-linea">
-    <div class="flex max-h-[calc(100vh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)] md:max-w-4xl">
-        <div class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
+<div id="modal-linea" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-linea">
+    <div class="max-h-[95vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4">
             <div>
                 <h2 id="titulo-modal-linea" class="text-lg font-bold text-gray-900">Capturar intervención</h2>
                 <p id="subtitulo-modal-linea" class="mt-0.5 text-xs text-gray-500"></p>
@@ -227,7 +232,7 @@
             <button type="button" data-close-modal="modal-linea" class="rounded p-1 text-xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
         </div>
 
-        <form id="form-linea" class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
+        <form id="form-linea" class="p-5">
             <input id="linea-id" type="hidden">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
@@ -291,8 +296,8 @@
                 </div>
             </div>
 
-            <div class="sticky bottom-0 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 pt-4 sm:-mx-5 sm:px-5">
-                <button id="btn-guardar-linea" type="submit" class="w-full rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black sm:w-auto">
+            <div class="mt-6 flex justify-end">
+                <button id="btn-guardar-linea" type="submit" class="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black">
                     Guardar intervención
                 </button>
             </div>
@@ -306,7 +311,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const baseUrl = @json(url('/mecanicos/ordenes-trabajo'));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
-    const fechaActual = @json($fechaInicial);
     const operadores = @json($operadores);
     const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
     const state = { ordenes: [], orden: null, paros: [] };
@@ -444,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-4 py-3 text-center text-gray-700">${orden.lineas_count ?? orden.lineas?.length ?? 0}</td>
                 <td class="px-4 py-3">${statusBadge(orden.Estatus)}</td>
                 <td class="whitespace-nowrap px-4 py-3 text-right">
-                    <button type="button" data-action="capturar-orden" data-folio="${escapeHtml(orden.Folio)}" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100">Capturar</button>
+                    <button type="button" data-action="detalle-orden" data-folio="${escapeHtml(orden.Folio)}" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100">Capturar</button>
                 </td>
             </tr>
         `).join('');
@@ -518,18 +522,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 option.textContent = `${paro.Folio} · Telar ${paro.MaquinaId || '—'} · ${paro.Falla || 'Sin falla'}`;
                 select.appendChild(option);
             });
-
-            limpiarCabeceraParaCapturaManual();
         } catch (error) {
             select.innerHTML = '<option value="">No fue posible cargar paros activos</option>';
-            limpiarCabeceraParaCapturaManual();
         }
     }
 
     function resetearCabecera() {
         $('#form-cabecera').reset();
         $('#cabecera-folio').value = '';
-        $('#cabecera-fecha').value = fechaActual;
+        $('#cabecera-fecha').value = $('#filtro-fecha').value || @json($fechaInicial);
         $('#cabecera-estatus').value = 'Activo';
         $('#titulo-modal-cabecera').textContent = 'Nueva orden de trabajo';
         $('#subtitulo-modal-cabecera').textContent = 'El folio se asigna al guardar.';
@@ -567,12 +568,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function aplicarParoSeleccionado() {
         const paro = state.paros.find(item => String(item.Id) === $('#paro-activo').value);
-        if (! paro) {
-            limpiarCabeceraParaCapturaManual();
-            return;
-        }
+        if (! paro) return;
 
-        $('#cabecera-fecha').value = fechaActual;
         $('#cabecera-telar').value = paro.MaquinaId || '';
         $('#cabecera-folio-paro').value = paro.Folio || '';
         $('#cabecera-falla').value = paro.Falla || '';
@@ -581,23 +578,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#cabecera-orden').value = paro.OrdenTrabajo || '';
         $('#cabecera-turno').value = paro.Turno || '';
         $('#cabecera-estatus').value = 'Activo';
-    }
-
-    function limpiarCabeceraParaCapturaManual() {
-        [
-            'cabecera-telar',
-            'cabecera-folio-paro',
-            'cabecera-falla',
-            'cabecera-fecha-paro',
-            'cabecera-hora-paro',
-            'cabecera-estatus',
-            'cabecera-orden',
-            'cabecera-turno',
-        ].forEach(id => {
-            document.getElementById(id).value = '';
-        });
-
-        $('#cabecera-fecha').value = fechaActual;
     }
 
     function llenarSelectOperadores() {
@@ -692,12 +672,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             cerrarModal(modalCabecera);
-
-            if (! folio) {
-                window.location.assign(`${baseUrl}/${encodeURIComponent(result.data.Folio)}/captura`);
-                return;
-            }
-
             await cargarOrdenes();
             notificar('success', result.message || 'Orden guardada correctamente.');
             await cargarDetalle(result.data.Folio);
@@ -739,8 +713,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     $('#tabla-ordenes').addEventListener('click', (event) => {
-        const button = event.target.closest('[data-action="capturar-orden"]');
-        if (button) window.location.assign(`${baseUrl}/${encodeURIComponent(button.dataset.folio)}/captura`);
+        const button = event.target.closest('[data-action="detalle-orden"]');
+        if (button) cargarDetalle(button.dataset.folio);
     });
 
     $('#tabla-lineas').addEventListener('click', async (event) => {
