@@ -28,10 +28,9 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function index(): View
     {
-        return view('modulos.mecanicos.ordenes-trabajo.index', [
+        return view('modulos.mecanicos.index', [
             'fechaInicial' => now('America/Mexico_City')->toDateString(),
             'operadores' => $this->operadoresMecanicos(),
-            'puedeEditar' => userCan('modificar', 'Ordenes de Trabajo'),
         ]);
     }
 
@@ -43,7 +42,7 @@ class OrdenesTrabajoMecaController extends Controller
 
         abort_unless($orden, 404);
 
-        return view('modulos.mecanicos.ordenes-trabajo.captura', [
+        return view('modulos.mecanicos.captura', [
             'orden' => $orden,
             'operadores' => $this->operadoresMecanicos(),
         ]);
@@ -440,6 +439,12 @@ class OrdenesTrabajoMecaController extends Controller
                 self::MODULO_FOLIOS,
                 self::LONGITUD_CONSECUTIVO_FOLIOS,
             ));
+            $this->asegurarSecuenciaFolios();
+
+            $folio = trim(FolioHelper::obtenerSiguienteFolio(
+                self::MODULO_FOLIOS,
+                self::LONGITUD_CONSECUTIVO_FOLIOS,
+            ));
         } catch (\Throwable $exception) {
             Log::error('No fue posible generar folio para orden de trabajo mecánica', [
                 'modulo_folios' => self::MODULO_FOLIOS,
@@ -489,21 +494,6 @@ class OrdenesTrabajoMecaController extends Controller
                 'consecutivo' => $consecutivoInicial,
             ]);
         });
-    }
-
-    /**
-     * Garantiza el primer renglón vacío al crear la cabecera.
-     * Si el trigger de BD ya insertó la línea, no duplica.
-     */
-    private function asegurarLineaInicial(MecOrdenTrabajoModel $orden): void
-    {
-        if ($orden->lineas()->exists()) {
-            return;
-        }
-
-        MecOrdenTrabajoLineModel::create([
-            'Folio' => $orden->Folio,
-        ]);
     }
 
     private function validarFolioParoDisponible(?string $folioParo, ?string $folioActual = null): void
