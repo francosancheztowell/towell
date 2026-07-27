@@ -37,6 +37,7 @@ class AtaDevolucionesModel extends Model
         'InventColorId',
         'Estatus',
         'NoTelarId',
+        'CveOperador',
         'LoteOriginal',
         'InvTelasReservadaId',
         'AX',

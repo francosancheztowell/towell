@@ -11,7 +11,8 @@ class ModuloService
 {
     private const CACHE_TTL = 3600; // 1 hora
     // Versionado para evitar que el cache viejo conserve rutas fallback incorrectas (acentos, '/')
-    private const CACHE_PREFIX = 'modulos_v2';
+    // v3 invalida las entradas v2 que pudieron quedar vacías al crear módulos dinámicos.
+    private const CACHE_PREFIX = 'modulos_v3';
 
     /**
      * Método genérico para obtener módulos por nivel y usuario
@@ -207,10 +208,45 @@ class ModuloService
 
         Cache::forget("{$prefix}_principales_user_{$idusuario}");
 
-        $modulos = ['planeacion', 'tejido', 'urdido', 'engomado', 'atadores', 'tejedores', 'mantenimiento', 'programa-urd-eng', 'programaurdeng', 'configuracion'];
-        foreach ($modulos as $modulo) {
-            Cache::forget("{$prefix}_submodulos_{$modulo}_user_{$idusuario}");
+        // Los módulos nuevos se navegan normalmente con su orden (p. ej. /submodulos/1100).
+        // No basta con olvidar una lista fija de módulos conocidos: si la página se visitó
+        // antes de crear sus hijos, se conserva durante una hora una colección vacía.
+        $modulosPrincipales = SYSRoles::query()
+            ->where('Nivel', 1)
+            ->whereNull('Dependencia')
+            ->get(['orden', 'modulo', 'Ruta']);
+
+        foreach ($modulosPrincipales as $moduloPrincipal) {
+            foreach ($this->identificadoresModuloPrincipal($moduloPrincipal) as $identificador) {
+                Cache::forget("{$prefix}_submodulos_{$identificador}_user_{$idusuario}");
+                Cache::forget("{$prefix}_modulo_principal_{$identificador}");
+            }
         }
+
+        // Los submódulos de tercer nivel se almacenan con la dependencia en la llave.
+        SYSRoles::query()
+            ->where('Nivel', 2)
+            ->pluck('orden')
+            ->each(fn (string $orden) => Cache::forget("{$prefix}_nivel3_user_{$idusuario}_dep{$orden}"));
+    }
+
+    /**
+     * Devuelve las variantes que puede recibir la navegación para un módulo principal.
+     *
+     * @return array<int, string>
+     */
+    private function identificadoresModuloPrincipal(SYSRoles $modulo): array
+    {
+        $ruta = trim((string) $modulo->Ruta);
+        $nombre = trim((string) $modulo->modulo);
+
+        return array_values(array_unique(array_filter([
+            (string) $modulo->orden,
+            $nombre,
+            strtolower($nombre),
+            $ruta,
+            ltrim($ruta, '/'),
+        ], static fn (string $identificador): bool => $identificador !== '')));
     }
 
     /**
