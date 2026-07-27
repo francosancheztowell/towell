@@ -63,7 +63,12 @@
       "PowerShell(php -r \"$im = imagecreatetruecolor\\(200, 200\\); $bg = imagecolorallocate\\($im, 226, 232, 240\\); imagefill\\($im, 0, 0, $bg\\); $fg = imagecolorallocate\\($im, 100, 116, 139\\); imagefilledrectangle\\($im, 70, 60, 130, 110, $fg\\); imagefilledellipse\\($im, 100, 140, 90, 50, $fg\\); imagepng\\($im, 'C:/xampp/htdocs/Towell/public/images/fotos_modulos/default.png'\\);\" ; Test-Path public/images/fotos_modulos/default.png)",
       "PowerShell(php \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-Towell\\\\cf797905-3455-4cad-b0e1-e5e93172fc25\\\\scratchpad\\\\mkpng.php\"; Test-Path public/images/fotos_modulos/default.png)",
       "PowerShell(Select-String -Path C:\\\\xampp\\\\php\\\\php.ini -Pattern '^;?opcache\\\\.\\(validate_timestamps|revalidate_freq\\)' | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line\\)\" })",
-      "PowerShell($f = Get-ChildItem storage/debugbar -File | Sort-Object LastWriteTime -Descending | Where-Object { \\(Get-Content $_.FullName -Raw | ConvertFrom-Json\\).__meta.uri -eq '/planeacion/programa-tejido' } | Select-Object -First 1; $j = Get-Content $f.FullName -Raw | ConvertFrom-Json; \"Captura: $\\($f.LastWriteTime.ToString\\('HH:mm:ss'\\)\\)\"; $j.time.measures | Where-Object { $_.duration -gt 0.01 } | ForEach-Object { \"{0,-30} {1}\" -f $_.label, $_.duration_str }; \"\"; \"QUERIES:\"; $j.queries.statements | Where-Object { $_.type -eq 'query' } | ForEach-Object { \"{0,9} | {1}\" -f $_.duration_str, $_.sql.Substring\\(0, [Math]::Min\\(100, $_.sql.Length\\)\\) })"
+      "PowerShell($f = Get-ChildItem storage/debugbar -File | Sort-Object LastWriteTime -Descending | Where-Object { \\(Get-Content $_.FullName -Raw | ConvertFrom-Json\\).__meta.uri -eq '/planeacion/programa-tejido' } | Select-Object -First 1; $j = Get-Content $f.FullName -Raw | ConvertFrom-Json; \"Captura: $\\($f.LastWriteTime.ToString\\('HH:mm:ss'\\)\\)\"; $j.time.measures | Where-Object { $_.duration -gt 0.01 } | ForEach-Object { \"{0,-30} {1}\" -f $_.label, $_.duration_str }; \"\"; \"QUERIES:\"; $j.queries.statements | Where-Object { $_.type -eq 'query' } | ForEach-Object { \"{0,9} | {1}\" -f $_.duration_str, $_.sql.Substring\\(0, [Math]::Min\\(100, $_.sql.Length\\)\\) })",
+      "Bash(php -l app/Http/Controllers/Planeacion/Alineacion/AlineacionController.php)",
+      "Bash(php -l app/Models/Planeacion/ReqProgramaTejido.php)",
+      "Bash(printf '\\\\n@include\\('\\\\''planeacion.alineacion._styles'\\\\''\\)\\\\n\\\\n@include\\('\\\\''planeacion.alineacion._script'\\\\''\\)\\\\n@endsection\\\\n')",
+      "Bash(cp /tmp/index_head.blade.php resources/views/planeacion/alineacion/index.blade.php)",
+      "Bash(php -l app/Exports/AlineacionExport.php)"
     ]
   }
 }

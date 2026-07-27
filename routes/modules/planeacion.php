@@ -113,6 +113,8 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');
     Route::get('/alineacion/api/data', [AlineacionController::class, 'apiData'])->name('alineacion.api.data');
+    Route::get('/alineacion/export/excel', [AlineacionController::class, 'exportarExcel'])->name('alineacion.export.excel');
+    Route::get('/alineacion/export/pdf', [AlineacionController::class, 'exportarPdf'])->name('alineacion.export.pdf');
 
     // ====== RUTAS DE UTILERÍA ======
     Route::prefix('utileria')->name('utileria.')->group(function () {
