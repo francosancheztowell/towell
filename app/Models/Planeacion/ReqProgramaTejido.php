@@ -229,6 +229,23 @@ class ReqProgramaTejido extends Model
             ->orderBy('FechaInicio', 'asc'); // Fallback para registros sin Posicion
     }
 
+    /**
+     * Orden para Alineación: igual que scopeOrdenado() pero sin Posicion.
+     */
+    public function scopeOrdenadoAlineacion(Builder $q): Builder
+    {
+        return $q->orderByRaw("
+                CASE
+                    WHEN LTRIM(RTRIM(NoTelarId)) <> '' AND LTRIM(RTRIM(NoTelarId)) NOT LIKE '%[^0-9]%'
+                    THEN CAST(LTRIM(RTRIM(NoTelarId)) AS int)
+                    ELSE 2147483647
+                END ASC
+            ")
+            ->orderBy('NoTelarId')
+            ->orderBy('SalonTejidoId')
+            ->orderBy('FechaInicio', 'asc');
+    }
+
     public function scopeProgramadas(Builder $q): Builder
     {
         return $q->whereNotNull('FechaInicio')->whereNotNull('FechaFinal');
