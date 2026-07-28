@@ -5,7 +5,7 @@
         </div>
         <p class="text-slate-700 font-semibold">Selecciona al menos un filtro para ver la trazabilidad</p>
         <p class="text-slate-400 text-sm mt-1">
-            Puedes empezar por Artículo, Tamaño o Mes, y luego afinar con un Flog.
+            Puedes empezar por Flog, Artículo o Tamaño y combinar los filtros según lo necesites.
         </p>
     </div>
 @else

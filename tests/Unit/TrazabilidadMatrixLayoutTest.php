@@ -90,7 +90,7 @@ class TrazabilidadMatrixLayoutTest extends TestCase
             'totales' => [],
             'decimales' => 0,
         ])->render();
-        $script = file_get_contents(resource_path('js/trazabilidad/index.js'));
+        $script = file_get_contents(resource_path('js/trazabilidad/matrix-detail.ts'));
         $styles = file_get_contents(resource_path('css/trazabilidad/index.css'));
         preg_match('/#resultado \.traza-matriz-periodos \{([^}]*)\}/', $styles, $tableRule);
 
@@ -99,11 +99,57 @@ class TrazabilidadMatrixLayoutTest extends TestCase
         $this->assertStringContainsString('data-periodo-toggle="semana"', $view);
         $this->assertStringContainsString("'[data-expandir-periodos]'", $script);
         $this->assertStringContainsString("'[data-periodo-toggle]'", $script);
-        $this->assertStringContainsString('marcarSubtotalPeriodo', $script);
+        $this->assertStringContainsString('markSubtotal', $script);
         $this->assertStringContainsString('Subtotal mes', $view);
         $this->assertStringContainsString('Subtotal semana', $view);
         $this->assertStringContainsString('.traza-periodo-subtotal-abierto', $styles);
         $this->assertArrayHasKey(1, $tableRule);
         $this->assertStringNotContainsString('min-width: 100%;', $tableRule[1]);
+    }
+
+    public function test_article_color_rows_are_created_lazily_from_compact_metadata(): void
+    {
+        $view = view('modulos.trazabilidad.resumen._matriz_detalle', [
+            'columnasPeriodos' => [[
+                'nivel' => 'mes',
+                'clave' => '2026-07',
+                'mesClave' => '2026-07',
+                'semanaClave' => null,
+                'indices' => [0],
+                'destacada' => false,
+                'label' => 'Julio 2026',
+                'subLabel' => '1 día',
+            ]],
+            'hayFlog' => true,
+            'filtros' => ['flog' => 'F-100'],
+            'info' => null,
+            'areas' => [[
+                'nombre' => 'Crudo',
+                'label' => 'Crudo',
+                'dot' => '#94a3b8',
+                'text' => '#475569',
+                'tint' => '#eef2f7',
+                'valores' => [10],
+                'bgs' => ['#eef2f7'],
+                'detalles' => [[
+                    'articulo' => 'ART-OCULTO',
+                    'color' => 'AZUL',
+                    'total' => 10,
+                    'valores' => [10],
+                ]],
+            ]],
+            'totales' => [10],
+            'decimales' => 0,
+        ])->render();
+        $script = file_get_contents(resource_path('js/trazabilidad/matrix-detail.ts'));
+        $controller = file_get_contents(app_path('Http/Controllers/Trazabilidad/TrazabilidadDetailController.php'));
+
+        $this->assertStringContainsString('data-area-key="0"', $view);
+        $this->assertStringContainsString('(1)', $view);
+        $this->assertStringNotContainsString('ART-OCULTO', $view);
+        $this->assertStringContainsString('ensureDetailRows', $script);
+        $this->assertStringContainsString('buildDetailRow', $script);
+        $this->assertStringContainsString("'detalles' => array_map(", $controller);
+        $this->assertStringContainsString("'columnas' => array_map(", $controller);
     }
 }

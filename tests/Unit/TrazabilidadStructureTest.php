@@ -13,69 +13,112 @@ class TrazabilidadStructureTest extends TestCase
         $view = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
 
         $this->assertLessThan(100, count(file(resource_path('views/modulos/trazabilidad/index.blade.php'))));
-        $this->assertStringContainsString("@include('modulos.trazabilidad._filters')", $view);
+        $this->assertStringContainsString('<livewire:trazabilidad.index />', $view);
+        $this->assertStringContainsString('id="resultado-detalle"', $view);
         $this->assertStringContainsString("@include('modulos.trazabilidad._modal_rollos_maquina')", $view);
         $this->assertStringContainsString("@include('modulos.trazabilidad._modal_flog_imagen')", $view);
         $this->assertStringContainsString("@include('modulos.programa-tejido.modal.redbooth')", $view);
         $this->assertStringContainsString("@vite('resources/css/trazabilidad/index.css')", $view);
-        $this->assertStringContainsString("@vite('resources/js/trazabilidad/index.js')", $view);
+        $this->assertStringContainsString("@vite('resources/js/trazabilidad/index.ts')", $view);
         $this->assertStringNotContainsString('<style>', $view);
     }
 
     public function test_redbooth_button_resolves_the_selected_flog_orders(): void
     {
         $view = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
-        $script = file_get_contents(resource_path('js/trazabilidad/index.js'));
+        $script = file_get_contents(resource_path('js/trazabilidad/redbooth.ts'));
         $modal = file_get_contents(resource_path('views/modulos/programa-tejido/modal/redbooth.blade.php'));
 
         $this->assertStringContainsString('id="btn-redbooth"', $view);
         $this->assertStringContainsString("'redbooth' => route('trazabilidad.redbooth')", $view);
-        $this->assertStringContainsString('abrirRedboothDelFlog', $script);
-        $this->assertStringContainsString('RUTA_REDBOOTH', $script);
+        $this->assertStringContainsString('openForSelectedFlog', $script);
         $this->assertStringContainsString('window.abrirModalRedboothProgramaTejido', $script);
-        $this->assertStringContainsString('data?.primerVinculo', $script);
-        $this->assertStringContainsString('disponibles[0].flogAsignacion = flog', $script);
+        $this->assertStringContainsString('data.primerVinculo', $script);
+        $this->assertStringContainsString('flogAsignacion: flog', $script);
         $this->assertStringNotContainsString("input: 'select'", $script);
         $this->assertStringContainsString('payload.flog_asignacion = flogAsignacion', $modal);
-        $this->assertStringNotContainsString("$('#btn-exportar').on('click'", $script);
     }
 
     public function test_filters_are_preserved_in_browser_url(): void
     {
-        $script = file_get_contents(resource_path('js/trazabilidad/index.js'));
+        $component = file_get_contents(app_path('Livewire/Trazabilidad/Index.php'));
 
-        $this->assertStringContainsString('function sincronizarUrl(', $script);
-        $this->assertStringContainsString('query.set(campo, String(valor))', $script);
-        $this->assertStringNotContainsString("replaceState(null, '', RUTA)", $script);
+        $this->assertSame(6, substr_count($component, '#[Url('));
+        foreach (['$flog', '$articulo', '$tamano', '$color', '$mes', '$metrica'] as $property) {
+            $this->assertStringContainsString("public string {$property}", $component);
+        }
+        $this->assertStringNotContainsString('history.replaceState', $component);
     }
 
     public function test_back_to_summary_button_uses_blue_background_and_white_text(): void
     {
-        $script = file_get_contents(resource_path('js/trazabilidad/index.js'));
+        $view = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
 
-        $this->assertStringContainsString('data-volver-resumen', $script);
-        $this->assertStringContainsString('bg-blue-500', $script);
-        $this->assertStringContainsString('text-white', $script);
+        $this->assertStringContainsString('data-volver-resumen', $view);
+        $this->assertStringContainsString('bg-blue-500', $view);
+        $this->assertStringContainsString('text-white', $view);
     }
 
     public function test_initial_filters_do_not_render_the_color_control(): void
     {
-        $filters = file_get_contents(resource_path('views/modulos/trazabilidad/_filters.blade.php'));
+        $filters = file_get_contents(resource_path('views/livewire/trazabilidad/index.blade.php'));
         $result = file_get_contents(resource_path('views/modulos/trazabilidad/_resultado.blade.php'));
 
-        $this->assertStringNotContainsString('id="filtro-color"', $filters);
-        $this->assertStringNotContainsString('name="color"', $filters);
+        $this->assertStringContainsString('<input type="hidden" id="filtro-color"', $filters);
+        $this->assertStringNotContainsString('<label for="filtro-color"', $filters);
         $this->assertStringNotContainsString('Artículo, Tamaño, Color o Mes', $result);
     }
 
     public function test_metric_bar_and_badges_are_hidden_from_the_filter_form(): void
     {
-        $filters = file_get_contents(resource_path('views/modulos/trazabilidad/_filters.blade.php'));
+        $filters = file_get_contents(resource_path('views/livewire/trazabilidad/index.blade.php'));
 
         $this->assertStringNotContainsString('data-metrica=', $filters);
         $this->assertStringNotContainsString('id="resumen-conteos"', $filters);
         $this->assertStringNotContainsString('id="meses-badges"', $filters);
-        $this->assertStringContainsString('type="hidden" name="metrica"', $filters);
+        $this->assertStringContainsString('<input type="hidden" id="filtro-metrica"', $filters);
+    }
+
+    public function test_details_use_dedicated_get_endpoints_without_the_legacy_part_switch(): void
+    {
+        $routes = file_get_contents(base_path('routes/modules/trazabilidad.php'));
+        $loader = file_get_contents(resource_path('js/trazabilidad/detail-loader.ts'));
+        $controller = file_get_contents(app_path('Http/Controllers/Trazabilidad/TrazabilidadDetailController.php'));
+
+        foreach (['details.matrix', 'details.production', 'details.flog'] as $routeName) {
+            $this->assertStringContainsString("name('{$routeName}')", $routes);
+        }
+        foreach (['function matrix(', 'function production(', 'function flog('] as $method) {
+            $this->assertStringContainsString($method, $controller);
+        }
+        $this->assertStringContainsString('AbortController', $loader);
+        $this->assertStringContainsString('CACHE_TTL_MS', $loader);
+        $this->assertStringNotContainsString('part:', $loader);
+    }
+
+    public function test_frontend_entry_is_small_strict_typescript_and_delegates_behaviors(): void
+    {
+        $entryPath = resource_path('js/trazabilidad/index.ts');
+        $entry = file_get_contents($entryPath);
+        $tsconfig = file_get_contents(base_path('tsconfig.json'));
+
+        $this->assertLessThan(100, count(file($entryPath)));
+        foreach ([
+            './detail-loader',
+            './filter-selects',
+            './flog-image-viewer',
+            './matrix-detail',
+            './production-detail',
+            './redbooth',
+        ] as $module) {
+            $this->assertStringContainsString("from '{$module}'", $entry);
+        }
+        $this->assertStringContainsString('"strict": true', $tsconfig);
+        $this->assertFileDoesNotExist(resource_path('js/trazabilidad/index.js'));
+
+        $livewireView = file_get_contents(resource_path('views/livewire/trazabilidad/index.blade.php'));
+        $this->assertStringNotContainsString('<script>', $livewireView);
+        $this->assertStringNotContainsString('@script', $livewireView);
     }
 
     public function test_filtered_screen_renders_only_the_first_summary_section(): void

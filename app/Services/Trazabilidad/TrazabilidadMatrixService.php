@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
@@ -13,7 +15,7 @@ use Illuminate\Support\Collection;
  * Lógica compartida por el controlador (vista web) y la exportación a Excel,
  * para que ambos muestren exactamente lo mismo (mismas áreas, colores y heatmap).
  */
-class TrazabilidadMatrixService
+final class TrazabilidadMatrixService
 {
     /**
      * Áreas FIJAS de la matriz (filas), en orden. Colores pastel por área.
@@ -65,36 +67,64 @@ class TrazabilidadMatrixService
         $baseRollosConColor = fn () => $base()
             ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v));
 
-        // Tipo / Cliente / Agente: solo cuando hay un Flog específico.
-        $info = $hayFlog ? $base()->select('Tipo', 'Cliente', 'Agente')->first() : null;
-
-        // Agregación en SQL: una fila por (Fecha, NombreAlmacen) con la suma de la métrica.
-        $datos = $base()
-            ->selectRaw("Fecha, NombreAlmacen, SUM($columnaMetrica) as total")
+        // Desglose por artículo+color dentro de cada área (dropdown expandible por fila).
+        // Mapa [NombreAlmacen][articulo|color] => ['articulo','nombreArticulo','color','nombreColor','valores'=>[pos=>total]].
+        $detalleRaw = $base()
+            ->selectRaw("
+                Fecha,
+                NombreAlmacen,
+                Articulo,
+                NombreArticulo,
+                Color,
+                NombreColor,
+                MAX(Tipo) as tipo_info,
+                MAX(Cliente) as cliente_info,
+                MAX(Agente) as agente_info,
+                SUM($columnaMetrica) as total
+            ")
             ->whereNotNull('Fecha')
-            ->groupBy('Fecha', 'NombreAlmacen')
+            ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
             ->orderBy('Fecha')
             ->get();
 
-        // Rollos Teñido respeta el filtro de color; el resto de áreas no.
         if (filled($filtros['color'] ?? null)) {
-            $datosRollos = $baseRollosConColor()
+            $detalleRollos = $baseRollosConColor()
                 ->where('NombreAlmacen', 'Rollos Teñido')
-                ->selectRaw("Fecha, NombreAlmacen, SUM($columnaMetrica) as total")
+                ->selectRaw("
+                    Fecha,
+                    NombreAlmacen,
+                    Articulo,
+                    NombreArticulo,
+                    Color,
+                    NombreColor,
+                    MAX(Tipo) as tipo_info,
+                    MAX(Cliente) as cliente_info,
+                    MAX(Agente) as agente_info,
+                    SUM($columnaMetrica) as total
+                ")
                 ->whereNotNull('Fecha')
-                ->groupBy('Fecha', 'NombreAlmacen')
+                ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
                 ->orderBy('Fecha')
                 ->get();
 
-            $datos = $datos
+            $detalleRaw = $detalleRaw
                 ->reject(fn ($f) => ($f->NombreAlmacen ?? '') === 'Rollos Teñido')
-                ->concat($datosRollos)
+                ->concat($detalleRollos)
                 ->values();
         }
 
+        $infoRow = $detalleRaw->first();
+        $info = $hayFlog && $infoRow
+            ? (object) [
+                'Tipo' => $infoRow->tipo_info,
+                'Cliente' => $infoRow->cliente_info,
+                'Agente' => $infoRow->agente_info,
+            ]
+            : null;
+
         // --- Columnas (fechas distintas, ordenadas) ---
         $clavesFechas = $this->ordenarClavesFechas(
-            $datos->pluck('Fecha')->map(fn ($f) => Carbon::parse($f)->format('Y-m-d'))
+            $detalleRaw->pluck('Fecha')->map(fn ($f) => Carbon::parse($f)->format('Y-m-d'))
         );
 
         $mesAnterior = null;
@@ -119,42 +149,9 @@ class TrazabilidadMatrixService
         // Cada columna conserva los índices de las fechas que resume para que el
         // mismo arreglo de valores siga sirviendo también a la exportación diaria.
         $columnasPeriodos = $this->construirColumnasPeriodos($clavesFechas);
-
         $posFecha = $clavesFechas->flip();
-
-        // Mapa [NombreAlmacen][posFecha] => total.
         $valoresPorArea = [];
-        foreach ($datos as $fila) {
-            $area = $fila->NombreAlmacen ?? '';
-            $clave = Carbon::parse($fila->Fecha)->format('Y-m-d');
-            $pos = $posFecha[$clave];
-            $valoresPorArea[$area][$pos] = ($valoresPorArea[$area][$pos] ?? 0) + (float) $fila->total;
-        }
-
-        // Desglose por artículo+color dentro de cada área (dropdown expandible por fila).
-        // Mapa [NombreAlmacen][articulo|color] => ['articulo','nombreArticulo','color','nombreColor','valores'=>[pos=>total]].
         $detallePorArea = [];
-        $detalleRaw = $base()
-            ->selectRaw("Fecha, NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor, SUM($columnaMetrica) as total")
-            ->whereNotNull('Fecha')
-            ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
-            ->orderBy('Fecha')
-            ->get();
-
-        if (filled($filtros['color'] ?? null)) {
-            $detalleRollos = $baseRollosConColor()
-                ->where('NombreAlmacen', 'Rollos Teñido')
-                ->selectRaw("Fecha, NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor, SUM($columnaMetrica) as total")
-                ->whereNotNull('Fecha')
-                ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
-                ->orderBy('Fecha')
-                ->get();
-
-            $detalleRaw = $detalleRaw
-                ->reject(fn ($f) => ($f->NombreAlmacen ?? '') === 'Rollos Teñido')
-                ->concat($detalleRollos)
-                ->values();
-        }
 
         foreach ($detalleRaw as $fila) {
             $area = $fila->NombreAlmacen ?? '';
@@ -163,6 +160,7 @@ class TrazabilidadMatrixService
             if ($pos === null) {
                 continue;
             }
+            $valoresPorArea[$area][$pos] = ($valoresPorArea[$area][$pos] ?? 0) + (float) $fila->total;
             $ac = ($fila->Articulo ?? '').'|'.($fila->Color ?? '');
             if (! isset($detallePorArea[$area][$ac])) {
                 $detallePorArea[$area][$ac] = [

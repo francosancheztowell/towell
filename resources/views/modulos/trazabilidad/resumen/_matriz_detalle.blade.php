@@ -16,7 +16,7 @@
     };
 @endphp
 
-<div data-pane="trazabilidad">
+<div id="trazabilidad-matriz-detalle">
     <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 class="whitespace-nowrap text-xs font-bold text-slate-600 md:text-sm">
             Producción por día y área
@@ -114,7 +114,7 @@
                     @foreach ($areas as $idx => $area)
                         @php $expandible = !empty($area['detalles']); @endphp
                         <tr class="group transition-colors hover:bg-slate-50/40 {{ $expandible ? 'area-fila cursor-pointer select-none' : '' }}"
-                            @if ($expandible) data-area-key="{{ $idx }}" @endif>
+                            @if ($expandible) data-area-key="{{ $idx }}" data-area-dot="{{ $area['dot'] }}" @endif>
                             <td class="traza-col-area sticky left-0 z-20 w-[350px] border-b border-slate-100 bg-white px-3 py-3 group-hover:bg-slate-50"
                                 style="box-shadow: inset 4px 0 0 0 {{ $area['dot'] }}; border-right:2px solid #cbd5e1;">
                                 <span class="flex items-center gap-2">
@@ -164,44 +164,6 @@
                             @endforeach
                         </tr>
 
-                        @if ($expandible)
-                            @foreach ($area['detalles'] as $det)
-                                <tr class="detalle-fila hidden bg-slate-100" data-area-key="{{ $idx }}">
-                                    <td class="traza-col-area sticky left-0 z-20 w-[350px] border-b border-slate-300 bg-slate-200 px-3 py-1.5"
-                                        style="box-shadow: inset 4px 0 0 0 {{ $area['dot'] }}; border-right:2px solid #cbd5e1;">
-                                        <span class="flex flex-col pl-6 leading-tight">
-                                            <span class="whitespace-nowrap text-[11px] font-semibold text-slate-600">
-                                                {{ $det['articulo'] ?: '—' }}
-                                            </span>
-                                            <span class="whitespace-nowrap text-[10px] text-slate-400">
-                                                <i class="fa-solid fa-palette mr-0.5"></i>{{ $det['color'] ?: 'Sin color' }}
-                                            </span>
-                                        </span>
-                                    </td>
-
-                                    <td class="traza-col-total sticky left-[350px] z-[19] min-w-[72px] border-b border-r border-slate-200 bg-blue-50 px-2 py-1.5 text-center text-[12px] font-semibold text-slate-700 tabular-nums">
-                                        {{ $det['total'] ? number_format($det['total'], $decimales) : '—' }}
-                                    </td>
-
-                                    @foreach ($columnasPeriodos as $periodo)
-                                        @php $valorDetalle = $sumarPeriodo($det['valores'], $periodo['indices'], $decimales); @endphp
-                                        <td @class([
-                                                'traza-periodo-col border-b border-r border-slate-200 px-2 py-1.5 text-center text-[12px] tabular-nums',
-                                                'traza-periodo-col--mes font-bold text-slate-700' => $periodo['nivel'] === 'mes',
-                                                'traza-periodo-col--semana font-semibold text-slate-600' => $periodo['nivel'] === 'semana',
-                                                'traza-periodo-col--dia text-slate-600' => $periodo['nivel'] === 'dia',
-                                                'hidden' => $periodo['nivel'] !== 'mes',
-                                                'text-slate-300 select-none' => is_null($valorDetalle) || (float) $valorDetalle === 0.0,
-                                            ])
-                                            data-periodo-nivel="{{ $periodo['nivel'] }}"
-                                            data-mes-key="{{ $periodo['mesClave'] }}"
-                                            @if ($periodo['semanaClave']) data-semana-key="{{ $periodo['semanaClave'] }}" @endif>
-                                            {{ !is_null($valorDetalle) && (float) $valorDetalle !== 0.0 ? number_format($valorDetalle, $decimales) : '·' }}
-                                        </td>
-                                    @endforeach
-                                </tr>
-                            @endforeach
-                        @endif
                     @endforeach
                 </tbody>
 

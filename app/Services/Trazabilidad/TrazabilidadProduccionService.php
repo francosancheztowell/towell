@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Trazabilidad;
 
 use App\Models\Planeacion\Catalogos\CatCodificados;
-use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Trazabilidad\TrazaProduccion;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -15,6 +16,8 @@ use Illuminate\Support\Collection;
  */
 class TrazabilidadProduccionService
 {
+    public function __construct(private TrazabilidadProgramaLookupService $programLookup) {}
+
     /**
      * @param  array  $filtros  ['flog','articulo','tamano','color','mes'(CSV)]
      * @return array{crudo: array, rollosTenido: array}
@@ -80,34 +83,49 @@ class TrazabilidadProduccionService
      */
     private function buildCrudo(callable $base, array $mesesSel): array
     {
-        $rows = $base()
-            ->whereNotNull('Orden')->where('Orden', '<>', '')
-            ->selectRaw("
+        $rawRows = $base()
+            ->where('NombreAlmacen', 'Crudo')
+            ->whereNotNull('Orden')
+            ->where('Orden', '<>', '')
+            ->selectRaw('
                 Orden,
                 Localidad,
+                MONTH(Fecha) as mes,
                 MAX(Flogs) as flog,
                 MAX(Tamano) as tamano,
-                SUM(CASE WHEN NombreAlmacen = 'Crudo' THEN Cantidad ELSE 0 END) as cantidad_crudo,
-                SUM(CASE WHEN NombreAlmacen = 'Crudo' THEN Peso ELSE 0 END) as peso_crudo
-            ")
+                SUM(Cantidad) as cantidad_crudo,
+                SUM(Peso) as peso_crudo
+            ')
             ->groupBy('Orden', 'Localidad')
+            ->groupByRaw('MONTH(Fecha)')
             ->get();
 
-        if ($rows->isEmpty()) {
+        if ($rawRows->isEmpty()) {
             return ['ordenes' => [], 'noEncontradas' => [], 'resumen' => $this->resumenVacio()];
         }
 
         $nombresMeses = $this->nombresMesesCortos();
-        $mesesPorOrden = $base()
-            ->whereNotNull('Orden')->where('Orden', '<>', '')
-            ->whereNotNull('Fecha')
-            ->selectRaw('Orden, MONTH(Fecha) as mes')
-            ->distinct()
-            ->get()
+        $mesesPorOrden = $rawRows
             ->groupBy(fn ($r) => trim((string) $r->Orden))
             ->map(fn ($g) => $g->pluck('mes')->map(fn ($m) => (int) $m)
                 ->filter()->unique()->sort()->values()
                 ->map(fn ($m) => $nombresMeses[$m] ?? (string) $m)->all());
+
+        $rows = $rawRows
+            ->groupBy(fn ($row): string => trim((string) $row->Orden).'|'.trim((string) $row->Localidad))
+            ->map(static function (Collection $group): object {
+                $first = $group->first();
+
+                return (object) [
+                    'Orden' => $first->Orden,
+                    'Localidad' => $first->Localidad,
+                    'flog' => $group->pluck('flog')->filter()->first(),
+                    'tamano' => $group->pluck('tamano')->filter()->first(),
+                    'cantidad_crudo' => (float) $group->sum('cantidad_crudo'),
+                    'peso_crudo' => (float) $group->sum('peso_crudo'),
+                ];
+            })
+            ->values();
 
         $ordenes = $rows->pluck('Orden')->map(fn ($o) => trim((string) $o))
             ->filter()->unique()->values();
@@ -439,11 +457,13 @@ class TrazabilidadProduccionService
 
         $rollosBase = fn () => $base()->where('NombreAlmacen', $area);
 
-        $rows = $rollosBase()
-            ->whereNotNull('Orden')->where('Orden', '<>', '')
+        $rawRows = $rollosBase()
+            ->whereNotNull('Orden')
+            ->where('Orden', '<>', '')
             ->selectRaw('
                 Orden,
                 Localidad,
+                MONTH(Fecha) as mes,
                 MAX(Tipo) as tipo,
                 MAX(Articulo) as articulo,
                 MAX(NombreArticulo) as nombre_articulo,
@@ -453,23 +473,38 @@ class TrazabilidadProduccionService
                 SUM(Peso) as peso
             ')
             ->groupBy('Orden', 'Localidad')
+            ->groupByRaw('MONTH(Fecha)')
             ->get();
 
-        if ($rows->isEmpty()) {
+        if ($rawRows->isEmpty()) {
             return ['maquinas' => [], 'resumen' => ['maquinas' => 0, 'ordenes' => 0]];
         }
 
         $nombresMeses = $this->nombresMesesCortos();
-        $mesesPorClave = $rollosBase()
-            ->whereNotNull('Orden')->where('Orden', '<>', '')
-            ->whereNotNull('Fecha')
-            ->selectRaw('Orden, Localidad, MONTH(Fecha) as mes')
-            ->distinct()
-            ->get()
+        $mesesPorClave = $rawRows
             ->groupBy(fn ($r) => trim((string) $r->Orden).'|'.trim((string) $r->Localidad))
             ->map(fn ($g) => $g->pluck('mes')->map(fn ($m) => (int) $m)
                 ->filter()->unique()->sort()->values()
                 ->map(fn ($m) => $nombresMeses[$m] ?? (string) $m)->all());
+
+        $rows = $rawRows
+            ->groupBy(fn ($row): string => trim((string) $row->Orden).'|'.trim((string) $row->Localidad))
+            ->map(static function (Collection $group): object {
+                $first = $group->first();
+
+                return (object) [
+                    'Orden' => $first->Orden,
+                    'Localidad' => $first->Localidad,
+                    'tipo' => $group->pluck('tipo')->filter()->first(),
+                    'articulo' => $group->pluck('articulo')->filter()->first(),
+                    'nombre_articulo' => $group->pluck('nombre_articulo')->filter()->first(),
+                    'color' => $group->pluck('color')->filter()->first(),
+                    'nombre_color' => $group->pluck('nombre_color')->filter()->first(),
+                    'cantidad' => (float) $group->sum('cantidad'),
+                    'peso' => (float) $group->sum('peso'),
+                ];
+            })
+            ->values();
 
         $soloDigitos = fn ($t) => preg_replace('/\D/', '', (string) $t);
         $porMaquina = [];
@@ -580,28 +615,7 @@ class TrazabilidadProduccionService
 
     private function cargarProgramaPorOrdenes(Collection $ordenes): Collection
     {
-        $columnas = [
-            'NoProduccion', 'NoTelarId', 'SalonTejidoId',
-            'TotalPedido', 'Produccion', 'SaldoPedido', 'TotalPzas',
-            'StdDia', 'ProdKgDia', 'EnProceso',
-            'FechaInicio', 'FechaFinal',
-            'OrdCompartida', 'OrdCompartidaLider',
-        ];
-
-        $filas = collect();
-        foreach ($ordenes->chunk(1000) as $lote) {
-            $filas = $filas->concat(
-                ReqProgramaTejido::query()
-                    ->whereIn('NoProduccion', $lote->values()->all())
-                    ->orderByDesc('EnProceso')
-                    ->orderByDesc('Id')
-                    ->get($columnas)
-            );
-        }
-
-        return $filas
-            ->unique(fn ($r) => trim((string) $r->NoProduccion))
-            ->keyBy(fn ($r) => trim((string) $r->NoProduccion));
+        return $this->programLookup->forOrders($ordenes);
     }
 
     private function cargarCodificadosPorOrdenes(Collection $ordenes): Collection

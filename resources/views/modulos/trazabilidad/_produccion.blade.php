@@ -19,6 +19,7 @@
     };
 @endphp
 
+<div id="produccion-contenido">
 {{-- ===== Crudo ===== --}}
 <section class="prod-area prod-area--crudo mb-10" aria-labelledby="prod-titulo-crudo">
     <h3 id="prod-titulo-crudo" class="text-lg md:text-xl font-bold text-slate-800 mb-4">
@@ -120,3 +121,4 @@
         </div>
     @endif
 </section>
+</div>

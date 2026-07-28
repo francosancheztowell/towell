@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Trazabilidad;
 
-use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Trazabilidad\TrazaProduccion;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,27 +11,36 @@ use Illuminate\Support\Collection;
 
 class TrazabilidadResumenService
 {
-    public function __construct(private TrazabilidadMatrixService $matrixService) {}
+    public function __construct(
+        private TrazabilidadMatrixService $matrixService,
+        private TrazabilidadProgramaLookupService $programLookup,
+    ) {}
 
     /**
      * @param  array{flog?:mixed,articulo?:mixed,tamano?:mixed,color?:mixed,mes?:mixed}  $filtros
      * @return array<string, mixed>
      */
-    public function build(array $filtros): array
+    public function build(array $filtros, ?array $summaryValues = null): array
     {
         $query = $this->queryBase($filtros);
 
-        $flogs = $this->valoresUnicos(clone $query, 'Flogs');
-        $tamanos = $this->valoresUnicos(clone $query, 'Tamano');
-        $articulos = (clone $query)
-            ->whereNotNull('Articulo')
-            ->where('Articulo', '<>', '')
-            ->selectRaw("Articulo as codigo, MAX(NULLIF(LTRIM(RTRIM(NombreArticulo)), '')) as nombre")
-            ->groupBy('Articulo')
-            ->orderBy('Articulo')
-            ->get()
-            ->map(fn ($fila) => trim((string) $fila->codigo)
-                .(filled($fila->nombre) ? ' · '.trim((string) $fila->nombre) : ''));
+        if ($summaryValues === null) {
+            $flogs = $this->valoresUnicos(clone $query, 'Flogs');
+            $tamanos = $this->valoresUnicos(clone $query, 'Tamano');
+            $articulos = (clone $query)
+                ->whereNotNull('Articulo')
+                ->where('Articulo', '<>', '')
+                ->selectRaw("Articulo as codigo, MAX(NULLIF(LTRIM(RTRIM(NombreArticulo)), '')) as nombre")
+                ->groupBy('Articulo')
+                ->orderBy('Articulo')
+                ->get()
+                ->map(fn ($fila) => trim((string) $fila->codigo)
+                    .(filled($fila->nombre) ? ' · '.trim((string) $fila->nombre) : ''));
+        } else {
+            $flogs = collect($summaryValues['flogs'] ?? []);
+            $articulos = collect($summaryValues['articulos'] ?? []);
+            $tamanos = collect($summaryValues['tamanos'] ?? []);
+        }
 
         $ordenes = (clone $query)
             ->whereNotNull('Orden')
@@ -41,7 +51,7 @@ class TrazabilidadResumenService
             ->filter()
             ->values();
 
-        $programas = $this->programasPorOrden($ordenes);
+        $programas = $this->programLookup->forOrders($ordenes)->values();
         $fechaInicio = $programas->pluck('FechaInicio')->filter()->min();
         $fechaFin = $programas->pluck('FechaFinal')->filter()->max();
         $pedido = $programas->isNotEmpty()
@@ -108,29 +118,6 @@ class TrazabilidadResumenService
             ->pluck($columna)
             ->map(fn ($valor) => trim((string) $valor))
             ->filter()
-            ->values();
-    }
-
-    /** @return Collection<int, object> */
-    private function programasPorOrden(Collection $ordenes): Collection
-    {
-        $programas = collect();
-
-        foreach ($ordenes->chunk(1000) as $lote) {
-            $programas = $programas->concat(
-                ReqProgramaTejido::query()
-                    ->whereIn('NoProduccion', $lote->all())
-                    ->orderByDesc('EnProceso')
-                    ->orderByDesc('Id')
-                    ->get([
-                        'NoProduccion', 'TotalPedido', 'Produccion', 'SaldoPedido',
-                        'FechaInicio', 'FechaFinal',
-                    ])
-            );
-        }
-
-        return $programas
-            ->unique(fn ($programa) => trim((string) $programa->NoProduccion))
             ->values();
     }
 

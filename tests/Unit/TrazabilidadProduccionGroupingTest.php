@@ -75,7 +75,7 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         );
     }
 
-    public function test_single_loom_card_preserves_program_production_as_its_visible_total(): void
+    public function test_single_loom_card_uses_trace_production_as_its_visible_total(): void
     {
         $card = $this->card(telar: 'Telar 302', producidas: 500, kg: 225.5);
         $card['grupoKey'] = '36162_solo';
@@ -87,7 +87,7 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         $orders = $method->invoke(app(TrazabilidadProduccionService::class), [$card]);
 
         $this->assertFalse($orders[0]['esMultiTelar']);
-        $this->assertSame(450.0, $orders[0]['producidasTotal']);
+        $this->assertSame(500.0, $orders[0]['producidasTotal']);
     }
 
     public function test_production_layout_uses_four_card_columns_on_wide_screens(): void

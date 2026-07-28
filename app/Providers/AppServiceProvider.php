@@ -2,11 +2,11 @@
 
 namespace App\Providers;
 
-//use Illuminate\Support\ServiceProvider;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\AtaMontadoTelasObserver;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Services\Trazabilidad\TrazabilidadProgramaLookupService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -16,7 +16,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // El resumen y la tabla de avance comparten este catálogo durante la
+        // petición Livewire, sin conservar datos entre peticiones.
+        $this->app->scoped(TrazabilidadProgramaLookupService::class);
     }
 
     /**

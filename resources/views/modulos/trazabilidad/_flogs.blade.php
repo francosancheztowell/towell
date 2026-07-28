@@ -70,6 +70,7 @@
     $v = fn (?string $valor): string => filled($valor) ? $valor : '—';
 @endphp
 
+<div id="flogs-contenido">
 @if (! $hayFlogFiltro)
     <div class="flog-card p-10 text-center">
         <div class="mx-auto w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-3">
@@ -366,3 +367,4 @@
         </section>
     </div>
 @endif
+</div>

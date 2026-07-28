@@ -31,28 +31,39 @@
     @php
         $trazabilidadConfig = [
             'rutas' => [
-                'index' => route('trazabilidad.index'),
                 'redbooth' => route('trazabilidad.redbooth'),
-            ],
-            'mesesDisponibles' => $mesesDisponibles,
-            'hayFiltro' => $hayFiltro,
-            'hayFlog' => $hayFlog,
-            'produccionCargando' => (bool) ($produccionCargando ?? false),
-            'flogsCargando' => (bool) ($flogsCargando ?? false),
-            'conteosIniciales' => [
-                'articulo' => $opcionesArticulo->count(),
-                'tamano' => $opcionesTamano->count(),
-                'color' => $opcionesColor->count(),
+                'detalles' => [
+                    'trazabilidad' => route('trazabilidad.details.matrix'),
+                    'produccion' => route('trazabilidad.details.production'),
+                    'flogs' => route('trazabilidad.details.flog'),
+                ],
             ],
         ];
     @endphp
 
     <div class="w-full min-h-full px-1.5 md:px-2 py-3 trazabilidad-page">
-        @include('modulos.trazabilidad._filters')
+        <livewire:trazabilidad.index />
 
-        <div id="resultado">
-            @include('modulos.trazabilidad._resultado')
-        </div>
+        <section id="resultado-detalle" class="hidden space-y-4" aria-live="polite">
+            <header class="flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Detalle</p>
+                    <h2 class="text-xl font-bold text-slate-800" data-detalle-titulo></h2>
+                </div>
+                <button type="button" data-volver-resumen
+                        class="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-bold text-white hover:bg-blue-600">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Volver al resumen
+                </button>
+            </header>
+
+            <div data-detalle-cargando class="hidden rounded-2xl border border-blue-100 bg-white px-6 py-16 text-center shadow-sm">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-500"></i>
+                <p class="mt-3 text-sm font-semibold text-slate-600">Cargando detalle…</p>
+            </div>
+            <div data-detalle-error class="hidden rounded-2xl border border-red-200 bg-white px-6 py-12 text-center text-red-600"></div>
+            <div data-detalle-contenido></div>
+        </section>
 
         @include('modulos.trazabilidad._modal_rollos_maquina')
         @include('modulos.trazabilidad._modal_flog_imagen')
@@ -63,5 +74,5 @@
 @endsection
 
 @push('scripts')
-    @vite('resources/js/trazabilidad/index.js')
+    @vite('resources/js/trazabilidad/index.ts')
 @endpush
