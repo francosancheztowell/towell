@@ -27,7 +27,17 @@ class Show extends Component
 
     private const ESTATUS_AUTORIZADO = 'Autorizado';
 
-    public string $folio;
+    public string $folio = '';
+
+    public string $fecha = '';
+
+    public string $nomOperador = '';
+
+    public string|int|null $turnoRecibe = null;
+
+    public string $horaInicio = '';
+
+    public string $horaFin = '';
 
     /** Filtro de salón/máquina: '' = todos, Jacquard, Smith, KM */
     public string $filtroMaquina = '';
@@ -35,12 +45,6 @@ class Show extends Component
     public string $rangoDesde = '';
 
     public string $rangoHasta = '';
-
-    public bool $mostrarModalFinalizar = false;
-
-    public bool $mostrarModalIncompletos = false;
-
-    public bool $mostrarModalAutorizar = false;
 
     /** @var array<string, string> clave "telar|actividad" => valor */
     public array $valores = [];
@@ -51,13 +55,20 @@ class Show extends Component
     /** @var array<int, array{Orden: int, Actividad: string}> */
     public array $actividadesMap = [];
 
+    /** @var list<string> */
+    public array $todosTelarIds = [];
+
+    /** @var list<array{NoTelarId: string, Nombre: string|null, SalonTejidoId: string|null}> */
+    public array $telaresTodos = [];
+
+    /** @var array<string, int> */
+    public array $conteoPorMaquina = [];
+
     public string $estatus = self::ESTATUS_ACTIVO;
 
     public bool $puedeCapturarFlag = false;
 
     public bool $puedeFinalizarFlag = false;
-
-    public bool $puedeAutorizarFlag = false;
 
     public bool $esSupervisorFlag = false;
 
@@ -65,20 +76,34 @@ class Show extends Component
     {
         $this->authorizeAccess();
 
-        abort_unless(MecVerificaMaquinaModel::whereKey($folio)->exists(), 404);
+        $verificacion = MecVerificaMaquinaModel::query()
+            ->whereKey($folio)
+            ->first(['Folio', 'Fecha', 'TurnoRecibe', 'NomOperador', 'Estatus', 'HoraInicio', 'HoraFin']);
 
-        $this->folio = $folio;
+        abort_unless($verificacion !== null, 404);
+
+        $this->folio = (string) $verificacion->Folio;
+        $this->fecha = optional($verificacion->Fecha)->format('d/m/Y') ?? '—';
+        $this->nomOperador = (string) ($verificacion->NomOperador ?: '—');
+        $this->turnoRecibe = $verificacion->TurnoRecibe ?: '—';
+        $this->horaInicio = $verificacion->HoraInicio
+            ? substr((string) $verificacion->HoraInicio, 0, 5)
+            : '—';
+        $this->horaFin = $verificacion->HoraFin
+            ? substr((string) $verificacion->HoraFin, 0, 5)
+            : '—';
+        $this->estatus = (string) ($verificacion->Estatus ?: self::ESTATUS_ACTIVO);
+
         $this->esSupervisorFlag = $this->resolverEsSupervisor();
         $this->puedeCapturarFlag = userCan('crear', self::MODULO_PERMISO) || userCan('modificar', self::MODULO_PERMISO);
         $this->puedeFinalizarFlag = userCan('modificar', self::MODULO_PERMISO);
+
+        $this->cargarCatalogos();
         $this->cargarActividadesYValores();
-        $this->estatus = (string) (MecVerificaMaquinaModel::whereKey($folio)->value('Estatus') ?: self::ESTATUS_ACTIVO);
     }
 
     /**
-     * Guarda sin re-renderizar la vista completa (la UI se actualiza al instante con Alpine).
-     *
-     * @return float|string|null promedio actualizado de la actividad
+     * @return float|string|null
      */
     #[Renderless]
     public function capturar(string $noTelarId, int $actividadId, string $valor): float|string|null
@@ -109,61 +134,39 @@ class Show extends Component
         return $this->promedios[$nombreActividad] ?? '—';
     }
 
-    public function abrirModalFinalizar(): void
-    {
-        abort_unless($this->puedeFinalizarFlag, 403, 'No tienes permiso para finalizar esta verificación.');
-        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403, 'Solo se pueden finalizar folios Activos.');
-
-        $this->mostrarModalIncompletos = false;
-        $this->mostrarModalFinalizar = true;
-    }
-
-    public function confirmarFinalizar(): void
+    /**
+     * @return array{ok: bool, incompleto?: bool, estatus?: string, horaFin?: string}
+     */
+    #[Renderless]
+    public function confirmarFinalizar(): array
     {
         abort_unless($this->puedeFinalizarFlag, 403);
-
-        $this->mostrarModalFinalizar = false;
+        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403);
 
         if ($this->tieneCeldasIncompletas()) {
-            $this->mostrarModalIncompletos = true;
-
-            return;
+            return ['ok' => false, 'incompleto' => true];
         }
 
-        $this->finalizar();
+        return $this->ejecutarFinalizar();
     }
 
-    public function confirmarFinalizarConIncompletos(): void
+    /**
+     * @return array{ok: bool, estatus: string, horaFin: string}
+     */
+    #[Renderless]
+    public function confirmarFinalizarConIncompletos(): array
     {
         abort_unless($this->puedeFinalizarFlag, 403);
+        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403);
 
-        $this->mostrarModalIncompletos = false;
-        $this->finalizar();
+        return $this->ejecutarFinalizar();
     }
 
-    public function cancelarModales(): void
-    {
-        $this->mostrarModalFinalizar = false;
-        $this->mostrarModalIncompletos = false;
-        $this->mostrarModalAutorizar = false;
-    }
-
-    public function limpiarFiltrosTelares(): void
-    {
-        $this->filtroMaquina = '';
-        $this->rangoDesde = '';
-        $this->rangoHasta = '';
-    }
-
-    public function abrirModalAutorizar(): void
-    {
-        abort_unless($this->esSupervisorFlag, 403, 'Solo los supervisores pueden autorizar.');
-        abort_unless($this->estatus === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
-
-        $this->mostrarModalAutorizar = true;
-    }
-
-    public function autorizar(): void
+    /**
+     * @return array{ok: bool, estatus: string}
+     */
+    #[Renderless]
+    public function autorizar(): array
     {
         abort_unless($this->esSupervisorFlag, 403, 'Solo los supervisores pueden autorizar.');
         abort_unless($this->estatus === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
@@ -173,17 +176,22 @@ class Show extends Component
         ]);
 
         $this->estatus = self::ESTATUS_AUTORIZADO;
-        $this->mostrarModalAutorizar = false;
+
+        return [
+            'ok' => true,
+            'estatus' => $this->estatus,
+        ];
+    }
+
+    public function limpiarFiltrosTelares(): void
+    {
+        $this->filtroMaquina = '';
+        $this->rangoDesde = '';
+        $this->rangoHasta = '';
     }
 
     public function render(): View
     {
-        $verificacion = MecVerificaMaquinaModel::query()
-            ->whereKey($this->folio)
-            ->firstOrFail(['Folio', 'Fecha', 'TurnoRecibe', 'CveOperador', 'NomOperador', 'Estatus', 'HoraInicio', 'HoraFin']);
-
-        $this->estatus = (string) ($verificacion->Estatus ?: self::ESTATUS_ACTIVO);
-
         $telares = $this->telaresFiltrados();
         $actividades = collect($this->actividadesMap)
             ->map(fn (array $meta, int $id) => (object) [
@@ -191,24 +199,44 @@ class Show extends Component
                 'Orden' => $meta['Orden'],
                 'Actividad' => $meta['Actividad'],
             ])
-            ->sortBy(['Orden', 'Id'])
+            ->sortBy([
+                fn ($item) => $item->Orden,
+                fn ($item) => $item->Id,
+            ])
             ->values();
 
-        $conteoPorMaquina = $this->conteoPorMaquina();
-
         return view('livewire.mecanicos.verifica-maquina.show', [
-            'verificacion' => $verificacion,
             'telares' => $telares,
             'actividades' => $actividades,
             'valores' => $this->valores,
             'promedios' => $this->promedios,
-            'conteoPorMaquina' => $conteoPorMaquina,
-            'totalTelares' => (int) $conteoPorMaquina->sum(),
+            'conteoPorMaquina' => collect($this->conteoPorMaquina),
+            'totalTelares' => array_sum($this->conteoPorMaquina),
             'puedeCapturar' => $this->puedeCapturarFlag && $this->estatus === self::ESTATUS_ACTIVO,
             'puedeFinalizar' => $this->puedeFinalizarFlag && $this->estatus === self::ESTATUS_ACTIVO,
             'puedeAutorizar' => $this->esSupervisorFlag && $this->estatus === self::ESTATUS_TERMINADO,
             'esSoloLectura' => $this->estatus !== self::ESTATUS_ACTIVO,
         ]);
+    }
+
+    private function cargarCatalogos(): void
+    {
+        $telares = ReqTelares::query()
+            ->orderBy('NoTelarId')
+            ->get(['NoTelarId', 'Nombre', 'SalonTejidoId']);
+
+        $this->telaresTodos = $telares->map(fn ($telar) => [
+            'NoTelarId' => (string) $telar->NoTelarId,
+            'Nombre' => $telar->Nombre,
+            'SalonTejidoId' => $telar->SalonTejidoId,
+        ])->all();
+
+        $this->todosTelarIds = $telares->pluck('NoTelarId')->map(fn ($id) => (string) $id)->all();
+
+        $this->conteoPorMaquina = [];
+        foreach ($telares->groupBy('SalonTejidoId') as $salon => $grupo) {
+            $this->conteoPorMaquina[(string) $salon] = $grupo->count();
+        }
     }
 
     private function cargarActividadesYValores(): void
@@ -258,55 +286,39 @@ class Show extends Component
     }
 
     /**
-     * @return Collection<int, ReqTelares>
+     * @return Collection<int, object>
      */
     private function telaresFiltrados(): Collection
     {
-        $query = ReqTelares::query()->orderBy('NoTelarId');
-
-        if ($this->filtroMaquina !== '') {
-            $query->where('SalonTejidoId', $this->filtroMaquina);
-        }
-
-        $telares = $query->get(['NoTelarId', 'Nombre', 'SalonTejidoId']);
-
         $desde = is_numeric($this->rangoDesde) ? (int) $this->rangoDesde : null;
         $hasta = is_numeric($this->rangoHasta) ? (int) $this->rangoHasta : null;
 
-        if ($desde === null && $hasta === null) {
-            return $telares;
-        }
+        return collect($this->telaresTodos)
+            ->when($this->filtroMaquina !== '', fn (Collection $items) => $items->where('SalonTejidoId', $this->filtroMaquina))
+            ->when($desde !== null || $hasta !== null, function (Collection $items) use ($desde, $hasta) {
+                return $items->filter(function (array $telar) use ($desde, $hasta) {
+                    $numero = (int) $telar['NoTelarId'];
 
-        return $telares->filter(function ($telar) use ($desde, $hasta) {
-            $numero = (int) $telar->NoTelarId;
+                    if ($desde !== null && $numero < $desde) {
+                        return false;
+                    }
 
-            if ($desde !== null && $numero < $desde) {
-                return false;
-            }
+                    if ($hasta !== null && $numero > $hasta) {
+                        return false;
+                    }
 
-            if ($hasta !== null && $numero > $hasta) {
-                return false;
-            }
-
-            return true;
-        })->values();
+                    return true;
+                });
+            })
+            ->values()
+            ->map(fn (array $telar) => (object) $telar);
     }
 
-    private function conteoPorMaquina(): Collection
+    /**
+     * @return array{ok: bool, estatus: string, horaFin: string}
+     */
+    private function ejecutarFinalizar(): array
     {
-        return once(function () {
-            return ReqTelares::query()
-                ->selectRaw('SalonTejidoId, COUNT(*) as total')
-                ->groupBy('SalonTejidoId')
-                ->pluck('total', 'SalonTejidoId');
-        });
-    }
-
-    private function finalizar(): void
-    {
-        abort_unless($this->puedeFinalizarFlag, 403, 'No tienes permiso para finalizar esta verificación.');
-        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403, 'Solo se pueden finalizar folios Activos.');
-
         $horaFin = now('America/Mexico_City')->format('H:i:s');
 
         MecVerificaMaquinaModel::whereKey($this->folio)->update([
@@ -315,19 +327,24 @@ class Show extends Component
         ]);
 
         $this->estatus = self::ESTATUS_TERMINADO;
+        $this->horaFin = substr($horaFin, 0, 5);
+
+        return [
+            'ok' => true,
+            'estatus' => $this->estatus,
+            'horaFin' => $this->horaFin,
+        ];
     }
 
     private function tieneCeldasIncompletas(): bool
     {
-        $telares = ReqTelares::query()->pluck('NoTelarId');
-        $actividades = collect($this->actividadesMap)->pluck('Actividad');
-
-        if ($telares->isEmpty() || $actividades->isEmpty()) {
+        if ($this->todosTelarIds === [] || $this->actividadesMap === []) {
             return true;
         }
 
-        foreach ($actividades as $actividad) {
-            foreach ($telares as $noTelarId) {
+        foreach ($this->actividadesMap as $meta) {
+            $actividad = $meta['Actividad'];
+            foreach ($this->todosTelarIds as $noTelarId) {
                 $valor = $this->valores[$noTelarId.'|'.$actividad] ?? null;
                 if (! in_array($valor, self::VALORES_VALIDOS, true)) {
                     return true;
@@ -357,7 +374,11 @@ class Show extends Component
         }
 
         if (! $sysUsuario) {
-            return false;
+            // Fallback: algunos usuarios ya traen puesto/área en Auth::user()
+            $puesto = mb_strtolower(trim((string) ($user->puesto ?? '')));
+            $area = mb_strtolower(trim((string) ($user->area ?? '')));
+
+            return str_contains($puesto, 'supervisor') || str_contains($area, 'supervisor');
         }
 
         $puesto = mb_strtolower(trim((string) ($sysUsuario->puesto ?? '')));
