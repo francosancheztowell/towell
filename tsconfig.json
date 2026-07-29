@@ -12,7 +12,7 @@
         "skipLibCheck": true
     },
     "include": [
-        "resources/js/trazabilidad/**/*.ts"
+        "resources/js/trazabilidad/**/*.ts",
+        "resources/js/crudo/**/*.ts"
     ]
 }
-

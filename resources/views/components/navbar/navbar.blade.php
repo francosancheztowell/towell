@@ -28,6 +28,7 @@
         && !request()->routeIs('codificacion-modelos')
         && !request()->routeIs('planeacion.alineacion.index')
         && !request()->routeIs('trazabilidad.*')
+        && !request()->routeIs('crudo.*')
         && !request()->is('simulacion*');
 
     // Días para liberar órdenes

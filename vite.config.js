@@ -23,6 +23,8 @@ export default defineConfig({
         'resources/js/app-filters.js',
         'resources/css/trazabilidad/index.css',
         'resources/js/trazabilidad/index.ts',
+        'resources/css/crudo/dashboard.css',
+        'resources/js/crudo/dashboard.ts',
         'resources/js/catcodificacion/index.js',
         'resources/js/lmat-lista/index.js',
       ],

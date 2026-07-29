@@ -2,10 +2,14 @@
 
 namespace App\Providers;
 
+use App\Contracts\Crudo\CrudoDashboardProvider;
+use App\Contracts\Crudo\CrudoReadRepository;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\AtaMontadoTelasObserver;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Repositories\Crudo\SqlServerCrudoReadRepository;
+use App\Services\Crudo\CachedCrudoDashboardProvider;
 use App\Services\Trazabilidad\TrazabilidadProgramaLookupService;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,6 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(CrudoReadRepository::class, SqlServerCrudoReadRepository::class);
+        $this->app->bind(CrudoDashboardProvider::class, CachedCrudoDashboardProvider::class);
+
         // El resumen y la tabla de avance comparten este catálogo durante la
         // petición Livewire, sin conservar datos entre peticiones.
         $this->app->scoped(TrazabilidadProgramaLookupService::class);
