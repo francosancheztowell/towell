@@ -61,6 +61,40 @@ BEGIN
 END
 GO
 
+-- =============================================================================
+-- Índices de rendimiento
+-- =============================================================================
+
+-- Cada celda de la matriz hace un updateOrCreate por (Folio, NoTelarId, Actividad).
+-- Sin este índice esa búsqueda recorre la tabla completa en cada captura, y la
+-- carga del folio (WHERE Folio = ?) también. UNIQUE además impide capturar dos
+-- veces la misma celda, de lo que depende el conteo de celdas incompletas.
+-- INCLUDE (Valor, Orden) lo hace cubriente para la carga y para el AVG por actividad.
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.MecVerificaMaquinaLine')
+      AND name = 'UX_MecVerificaMaquinaLine_Folio_Telar_Actividad'
+)
+BEGIN
+    CREATE UNIQUE NONCLUSTERED INDEX UX_MecVerificaMaquinaLine_Folio_Telar_Actividad
+        ON dbo.MecVerificaMaquinaLine (Folio, NoTelarId, Actividad)
+        INCLUDE (Valor, Orden);
+END
+GO
+
+-- Listado de folios: filtra por Fecha (y Estatus) y ordena por Fecha/HoraInicio.
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.MecVerificaMaquinaTable')
+      AND name = 'IX_MecVerificaMaquinaTable_Fecha_HoraInicio'
+)
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_MecVerificaMaquinaTable_Fecha_HoraInicio
+        ON dbo.MecVerificaMaquinaTable (Fecha DESC, HoraInicio DESC)
+        INCLUDE (Estatus, TurnoRecibe, CveOperador, NomOperador, HoraFin);
+END
+GO
+
 -- Catálogo de actividades: ver create_MecActividades.sql (tabla dbo.MecActividades).
 -- El catálogo de telares reutiliza dbo.ReqTelares (App\Models\Planeacion\ReqTelares),
 -- no se crea tabla adicional para telares.

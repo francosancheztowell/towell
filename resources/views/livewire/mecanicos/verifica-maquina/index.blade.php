@@ -34,12 +34,17 @@
                         <th class="whitespace-nowrap px-4 py-3 text-center">Hr Fin</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 bg-white">
+                {{--
+                    Al hacer clic en cualquier parte del renglón se dispara el enlace
+                    con wire:navigate (navegación SPA). Antes se usaba
+                    window.location.href, que forzaba una recarga completa.
+                --}}
+                <tbody class="divide-y divide-gray-100 bg-white" x-data
+                    @click="if (! $event.target.closest('a')) $event.target.closest('tr')?.querySelector('.js-ir-folio')?.click()">
                     @forelse ($verificaciones as $verificacion)
-                        <tr class="cursor-pointer transition hover:bg-gray-50"
-                            onclick="window.location.href = '{{ route('mecanicos.estado-maquina.show', $verificacion->Folio) }}'">
+                        <tr class="cursor-pointer transition hover:bg-gray-50">
                             <td class="whitespace-nowrap px-4 py-3 font-semibold text-gray-900">
-                                <a href="{{ route('mecanicos.estado-maquina.show', $verificacion->Folio) }}" wire:navigate class="hover:underline">
+                                <a href="{{ route('mecanicos.estado-maquina.show', $verificacion->Folio) }}" wire:navigate class="js-ir-folio hover:underline">
                                     {{ $verificacion->Folio }}
                                 </a>
                             </td>

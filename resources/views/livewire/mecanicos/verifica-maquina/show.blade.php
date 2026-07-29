@@ -197,9 +197,7 @@
                         @foreach ($opcionesMaquina as $valor => $opcion)
                             <label
                                 class="flex cursor-pointer items-center justify-between rounded-lg border px-2.5 py-2 text-sm font-semibold transition"
-                                :class="filtroMaquina === @js($valor)
-                                    ? 'border-gray-900 bg-gray-900 text-white'
-                                    : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-400'"
+                                :class="filtroMaquina === @js($valor) ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-400'"
                             >
                                 <span class="inline-flex items-center gap-2">
                                     <input type="radio" x-model="filtroMaquina" value="{{ $valor }}" class="sr-only">
@@ -284,16 +282,6 @@
         </section>
 
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div class="flex flex-col gap-1 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                <div>
-                    <h2 class="font-bold text-gray-900">Telares y actividades</h2>
-                    <p class="mt-1 text-sm text-gray-600">Captura la calificación (1, 2 o 3) en los telares filtrados.</p>
-                </div>
-            </div>
-
-            <div class="border-b border-gray-100 px-4 py-2 text-xs text-gray-500">
-                <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para consultar los telares filtrados.
-            </div>
 
             {{--
                 wire:ignore: la matriz se pinta una sola vez y a partir de ahí la
