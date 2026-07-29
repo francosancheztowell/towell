@@ -14,31 +14,6 @@
                 </button>
             @endif
         </div>
-
-        <!-- <div class="mt-5 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div>
-                <label for="filtro-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
-                <input id="filtro-fecha" type="date" wire:model.live="fecha"
-                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-            </div>
-
-            <div>
-                <label for="filtro-estatus" class="mb-1 block text-xs font-medium text-gray-700">Estatus</label>
-                <select id="filtro-estatus" wire:model.live="estatus"
-                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                    <option value="">Todos</option>
-                    <option value="Activo">Activo</option>
-                    <option value="Terminado">Terminado</option>
-                </select>
-            </div>
-
-            <div class="flex items-end">
-                <button type="button" wire:click="limpiarFiltros"
-                    class="w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">
-                    Limpiar filtros
-                </button>
-            </div>
-        </div> -->
     </section>
 
     <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
