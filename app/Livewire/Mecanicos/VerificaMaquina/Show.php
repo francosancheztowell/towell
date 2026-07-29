@@ -10,7 +10,9 @@ use App\Models\Mecanicos\MecVerificaMaquinaModel;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSUsuario;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Renderless;
 use Livewire\Component;
 
 class Show extends Component
@@ -40,6 +42,25 @@ class Show extends Component
 
     public bool $mostrarModalAutorizar = false;
 
+    /** @var array<string, string> clave "telar|actividad" => valor */
+    public array $valores = [];
+
+    /** @var array<string, float|null> */
+    public array $promedios = [];
+
+    /** @var array<int, array{Orden: int, Actividad: string}> */
+    public array $actividadesMap = [];
+
+    public string $estatus = self::ESTATUS_ACTIVO;
+
+    public bool $puedeCapturarFlag = false;
+
+    public bool $puedeFinalizarFlag = false;
+
+    public bool $puedeAutorizarFlag = false;
+
+    public bool $esSupervisorFlag = false;
+
     public function mount(string $folio): void
     {
         $this->authorizeAccess();
@@ -47,35 +68,51 @@ class Show extends Component
         abort_unless(MecVerificaMaquinaModel::whereKey($folio)->exists(), 404);
 
         $this->folio = $folio;
+        $this->esSupervisorFlag = $this->resolverEsSupervisor();
+        $this->puedeCapturarFlag = userCan('crear', self::MODULO_PERMISO) || userCan('modificar', self::MODULO_PERMISO);
+        $this->puedeFinalizarFlag = userCan('modificar', self::MODULO_PERMISO);
+        $this->cargarActividadesYValores();
+        $this->estatus = (string) (MecVerificaMaquinaModel::whereKey($folio)->value('Estatus') ?: self::ESTATUS_ACTIVO);
     }
 
-    public function capturar(string $noTelarId, int $actividadId, string $valor): void
+    /**
+     * Guarda sin re-renderizar la vista completa (la UI se actualiza al instante con Alpine).
+     *
+     * @return float|string|null promedio actualizado de la actividad
+     */
+    #[Renderless]
+    public function capturar(string $noTelarId, int $actividadId, string $valor): float|string|null
     {
-        $this->authorizeAccess();
-        abort_unless($this->puedeCapturar(), 403, 'No tienes permiso para capturar esta verificación.');
-        abort_unless($this->estatusActual() === self::ESTATUS_ACTIVO, 403, 'Solo se pueden editar folios con estatus Activo.');
+        abort_unless($this->puedeCapturarFlag, 403, 'No tienes permiso para capturar esta verificación.');
+        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403, 'Solo se pueden editar folios con estatus Activo.');
         abort_unless(in_array($valor, self::VALORES_VALIDOS, true), 422, 'Valor inválido.');
+        abort_unless(isset($this->actividadesMap[$actividadId]), 404, 'Actividad no encontrada.');
 
-        $actividad = MecActividadesModel::findOrFail($actividadId);
+        $actividad = $this->actividadesMap[$actividadId];
+        $nombreActividad = $actividad['Actividad'];
 
         MecVerificaMaquinaLineModel::updateOrCreate(
             [
                 'Folio' => $this->folio,
                 'NoTelarId' => $noTelarId,
-                'Actividad' => $actividad->Actividad,
+                'Actividad' => $nombreActividad,
             ],
             [
-                'Orden' => $actividad->Orden,
+                'Orden' => $actividad['Orden'],
                 'Valor' => $valor,
             ],
         );
+
+        $this->valores[$noTelarId.'|'.$nombreActividad] = $valor;
+        $this->promedios[$nombreActividad] = $this->calcularPromedioActividad($nombreActividad);
+
+        return $this->promedios[$nombreActividad] ?? '—';
     }
 
     public function abrirModalFinalizar(): void
     {
-        $this->authorizeAccess();
-        abort_unless($this->puedeFinalizar(), 403, 'No tienes permiso para finalizar esta verificación.');
-        abort_unless($this->estatusActual() === self::ESTATUS_ACTIVO, 403, 'Solo se pueden finalizar folios Activos.');
+        abort_unless($this->puedeFinalizarFlag, 403, 'No tienes permiso para finalizar esta verificación.');
+        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403, 'Solo se pueden finalizar folios Activos.');
 
         $this->mostrarModalIncompletos = false;
         $this->mostrarModalFinalizar = true;
@@ -83,8 +120,7 @@ class Show extends Component
 
     public function confirmarFinalizar(): void
     {
-        $this->authorizeAccess();
-        abort_unless($this->puedeFinalizar(), 403);
+        abort_unless($this->puedeFinalizarFlag, 403);
 
         $this->mostrarModalFinalizar = false;
 
@@ -99,8 +135,7 @@ class Show extends Component
 
     public function confirmarFinalizarConIncompletos(): void
     {
-        $this->authorizeAccess();
-        abort_unless($this->puedeFinalizar(), 403);
+        abort_unless($this->puedeFinalizarFlag, 403);
 
         $this->mostrarModalIncompletos = false;
         $this->finalizar();
@@ -122,86 +157,110 @@ class Show extends Component
 
     public function abrirModalAutorizar(): void
     {
-        $this->authorizeAccess();
-        abort_unless($this->esSupervisor(), 403, 'Solo los supervisores pueden autorizar.');
-        abort_unless($this->estatusActual() === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
+        abort_unless($this->esSupervisorFlag, 403, 'Solo los supervisores pueden autorizar.');
+        abort_unless($this->estatus === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
 
         $this->mostrarModalAutorizar = true;
     }
 
     public function autorizar(): void
     {
-        $this->authorizeAccess();
-        abort_unless($this->esSupervisor(), 403, 'Solo los supervisores pueden autorizar.');
-        abort_unless($this->estatusActual() === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
+        abort_unless($this->esSupervisorFlag, 403, 'Solo los supervisores pueden autorizar.');
+        abort_unless($this->estatus === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
 
         MecVerificaMaquinaModel::whereKey($this->folio)->update([
             'Estatus' => self::ESTATUS_AUTORIZADO,
         ]);
 
+        $this->estatus = self::ESTATUS_AUTORIZADO;
         $this->mostrarModalAutorizar = false;
     }
 
     public function render(): View
     {
-        $verificacion = MecVerificaMaquinaModel::findOrFail($this->folio);
+        $verificacion = MecVerificaMaquinaModel::query()
+            ->whereKey($this->folio)
+            ->firstOrFail(['Folio', 'Fecha', 'TurnoRecibe', 'CveOperador', 'NomOperador', 'Estatus', 'HoraInicio', 'HoraFin']);
+
+        $this->estatus = (string) ($verificacion->Estatus ?: self::ESTATUS_ACTIVO);
 
         $telares = $this->telaresFiltrados();
+        $actividades = collect($this->actividadesMap)
+            ->map(fn (array $meta, int $id) => (object) [
+                'Id' => $id,
+                'Orden' => $meta['Orden'],
+                'Actividad' => $meta['Actividad'],
+            ])
+            ->sortBy(['Orden', 'Id'])
+            ->values();
 
-        $actividades = MecActividadesModel::query()
-            ->orderBy('Orden')
-            ->orderBy('Id')
-            ->get(['Id', 'Orden', 'Actividad']);
-
-        $lineas = MecVerificaMaquinaLineModel::query()
-            ->where('Folio', $this->folio)
-            ->get(['NoTelarId', 'Actividad', 'Valor']);
-
-        $valores = [];
-        foreach ($lineas as $linea) {
-            $valores[$linea->NoTelarId.'|'.$linea->Actividad] = $linea->Valor;
-        }
-
-        $promedios = [];
-        foreach ($actividades as $actividad) {
-            $valoresActividad = $lineas->where('Actividad', $actividad->Actividad)
-                ->pluck('Valor')
-                ->filter(fn ($valor) => is_numeric($valor))
-                ->map(fn ($valor) => (float) $valor);
-
-            $promedios[$actividad->Actividad] = $valoresActividad->isNotEmpty()
-                ? round($valoresActividad->avg(), 1)
-                : null;
-        }
-
-        $estatus = (string) ($verificacion->Estatus ?: self::ESTATUS_ACTIVO);
-        $esActivo = $estatus === self::ESTATUS_ACTIVO;
-        $esSupervisor = $this->esSupervisor();
-
-        $conteoPorMaquina = ReqTelares::query()
-            ->selectRaw('SalonTejidoId, COUNT(*) as total')
-            ->groupBy('SalonTejidoId')
-            ->pluck('total', 'SalonTejidoId');
+        $conteoPorMaquina = $this->conteoPorMaquina();
 
         return view('livewire.mecanicos.verifica-maquina.show', [
             'verificacion' => $verificacion,
             'telares' => $telares,
             'actividades' => $actividades,
-            'valores' => $valores,
-            'promedios' => $promedios,
+            'valores' => $this->valores,
+            'promedios' => $this->promedios,
             'conteoPorMaquina' => $conteoPorMaquina,
             'totalTelares' => (int) $conteoPorMaquina->sum(),
-            'puedeCapturar' => $this->puedeCapturar() && $esActivo,
-            'puedeFinalizar' => $this->puedeFinalizar() && $esActivo,
-            'puedeAutorizar' => $esSupervisor && $estatus === self::ESTATUS_TERMINADO,
-            'esSoloLectura' => ! $esActivo,
+            'puedeCapturar' => $this->puedeCapturarFlag && $this->estatus === self::ESTATUS_ACTIVO,
+            'puedeFinalizar' => $this->puedeFinalizarFlag && $this->estatus === self::ESTATUS_ACTIVO,
+            'puedeAutorizar' => $this->esSupervisorFlag && $this->estatus === self::ESTATUS_TERMINADO,
+            'esSoloLectura' => $this->estatus !== self::ESTATUS_ACTIVO,
         ]);
     }
 
+    private function cargarActividadesYValores(): void
+    {
+        $actividades = MecActividadesModel::query()
+            ->orderBy('Orden')
+            ->orderBy('Id')
+            ->get(['Id', 'Orden', 'Actividad']);
+
+        $this->actividadesMap = [];
+        foreach ($actividades as $actividad) {
+            $this->actividadesMap[(int) $actividad->Id] = [
+                'Orden' => (int) $actividad->Orden,
+                'Actividad' => (string) $actividad->Actividad,
+            ];
+        }
+
+        $lineas = MecVerificaMaquinaLineModel::query()
+            ->where('Folio', $this->folio)
+            ->get(['NoTelarId', 'Actividad', 'Valor']);
+
+        $this->valores = [];
+        foreach ($lineas as $linea) {
+            $this->valores[$linea->NoTelarId.'|'.$linea->Actividad] = (string) $linea->Valor;
+        }
+
+        $this->promedios = [];
+        foreach ($this->actividadesMap as $meta) {
+            $nombre = $meta['Actividad'];
+            $this->promedios[$nombre] = $this->calcularPromedioActividad($nombre);
+        }
+    }
+
+    private function calcularPromedioActividad(string $nombreActividad): ?float
+    {
+        $nums = [];
+        $sufijo = '|'.$nombreActividad;
+
+        foreach ($this->valores as $clave => $valor) {
+            if (! str_ends_with((string) $clave, $sufijo) || ! is_numeric($valor)) {
+                continue;
+            }
+            $nums[] = (float) $valor;
+        }
+
+        return $nums === [] ? null : round(array_sum($nums) / count($nums), 1);
+    }
+
     /**
-     * @return \Illuminate\Support\Collection<int, ReqTelares>
+     * @return Collection<int, ReqTelares>
      */
-    private function telaresFiltrados()
+    private function telaresFiltrados(): Collection
     {
         $query = ReqTelares::query()->orderBy('NoTelarId');
 
@@ -214,54 +273,63 @@ class Show extends Component
         $desde = is_numeric($this->rangoDesde) ? (int) $this->rangoDesde : null;
         $hasta = is_numeric($this->rangoHasta) ? (int) $this->rangoHasta : null;
 
-        if ($desde !== null || $hasta !== null) {
-            $telares = $telares->filter(function ($telar) use ($desde, $hasta) {
-                $numero = (int) $telar->NoTelarId;
-
-                if ($desde !== null && $numero < $desde) {
-                    return false;
-                }
-
-                if ($hasta !== null && $numero > $hasta) {
-                    return false;
-                }
-
-                return true;
-            })->values();
+        if ($desde === null && $hasta === null) {
+            return $telares;
         }
 
-        return $telares;
+        return $telares->filter(function ($telar) use ($desde, $hasta) {
+            $numero = (int) $telar->NoTelarId;
+
+            if ($desde !== null && $numero < $desde) {
+                return false;
+            }
+
+            if ($hasta !== null && $numero > $hasta) {
+                return false;
+            }
+
+            return true;
+        })->values();
+    }
+
+    private function conteoPorMaquina(): Collection
+    {
+        return once(function () {
+            return ReqTelares::query()
+                ->selectRaw('SalonTejidoId, COUNT(*) as total')
+                ->groupBy('SalonTejidoId')
+                ->pluck('total', 'SalonTejidoId');
+        });
     }
 
     private function finalizar(): void
     {
-        abort_unless($this->puedeFinalizar(), 403, 'No tienes permiso para finalizar esta verificación.');
-        abort_unless($this->estatusActual() === self::ESTATUS_ACTIVO, 403, 'Solo se pueden finalizar folios Activos.');
+        abort_unless($this->puedeFinalizarFlag, 403, 'No tienes permiso para finalizar esta verificación.');
+        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403, 'Solo se pueden finalizar folios Activos.');
+
+        $horaFin = now('America/Mexico_City')->format('H:i:s');
 
         MecVerificaMaquinaModel::whereKey($this->folio)->update([
             'Estatus' => self::ESTATUS_TERMINADO,
-            'HoraFin' => now('America/Mexico_City')->format('H:i:s'),
+            'HoraFin' => $horaFin,
         ]);
+
+        $this->estatus = self::ESTATUS_TERMINADO;
     }
 
     private function tieneCeldasIncompletas(): bool
     {
         $telares = ReqTelares::query()->pluck('NoTelarId');
-        $actividades = MecActividadesModel::query()->pluck('Actividad');
+        $actividades = collect($this->actividadesMap)->pluck('Actividad');
 
         if ($telares->isEmpty() || $actividades->isEmpty()) {
             return true;
         }
 
-        $lineasCompletas = MecVerificaMaquinaLineModel::query()
-            ->where('Folio', $this->folio)
-            ->whereIn('Valor', self::VALORES_VALIDOS)
-            ->get(['NoTelarId', 'Actividad'])
-            ->mapWithKeys(fn ($linea) => [$linea->NoTelarId.'|'.$linea->Actividad => true]);
-
         foreach ($actividades as $actividad) {
             foreach ($telares as $noTelarId) {
-                if (! isset($lineasCompletas[$noTelarId.'|'.$actividad])) {
+                $valor = $this->valores[$noTelarId.'|'.$actividad] ?? null;
+                if (! in_array($valor, self::VALORES_VALIDOS, true)) {
                     return true;
                 }
             }
@@ -270,24 +338,7 @@ class Show extends Component
         return false;
     }
 
-    private function estatusActual(): string
-    {
-        $estatus = MecVerificaMaquinaModel::whereKey($this->folio)->value('Estatus');
-
-        return (string) ($estatus ?: self::ESTATUS_ACTIVO);
-    }
-
-    private function puedeCapturar(): bool
-    {
-        return userCan('crear', self::MODULO_PERMISO) || userCan('modificar', self::MODULO_PERMISO);
-    }
-
-    private function puedeFinalizar(): bool
-    {
-        return userCan('modificar', self::MODULO_PERMISO);
-    }
-
-    private function esSupervisor(): bool
+    private function resolverEsSupervisor(): bool
     {
         $user = Auth::user();
         if (! $user) {

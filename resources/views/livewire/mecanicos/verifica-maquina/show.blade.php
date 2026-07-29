@@ -145,7 +145,12 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white">
                         @forelse ($actividades as $actividad)
-                            <tr wire:key="actividad-{{ $actividad->Id }}" class="hover:bg-gray-50">
+                            <tr
+                                wire:key="actividad-{{ $actividad->Id }}"
+                                class="hover:bg-gray-50"
+                                x-data="{ promedio: @js($promedios[$actividad->Actividad] ?? null) }"
+                                @set-promedio="promedio = $event.detail"
+                            >
                                 <td class="sticky left-0 z-20 min-w-80 max-w-md bg-white px-4 py-4">
                                     <span class="line-clamp-2 text-lg font-bold leading-snug text-gray-900" title="{{ $actividad->Actividad }}">
                                         {{ $actividad->Actividad }}
@@ -155,7 +160,7 @@
                                     @php $valorActual = $valores[$telar->NoTelarId.'|'.$actividad->Actividad] ?? null; @endphp
                                     <td class="relative px-2 py-2.5 text-center" wire:key="celda-{{ $actividad->Id }}-{{ $telar->NoTelarId }}">
                                         <div
-                                            x-data="{ open: false }"
+                                            x-data="{ open: false, valor: @js($valorActual) }"
                                             @keydown.escape.window="open = false"
                                             class="relative inline-flex justify-center"
                                         >
@@ -165,49 +170,53 @@
                                                 @click="open = !open"
                                                 aria-haspopup="listbox"
                                                 aria-label="Calificación telar {{ $telar->NoTelarId }} — {{ $actividad->Actividad }}"
-                                                @class([
-                                                    'inline-flex h-12 w-14 items-center justify-center gap-0.5 rounded-xl border-2 text-xl font-extrabold tabular-nums shadow-sm transition',
-                                                    'border-gray-900 bg-gray-900 text-white' => filled($valorActual),
-                                                    'border-gray-300 bg-white text-gray-400' => ! filled($valorActual),
-                                                    'cursor-not-allowed opacity-40' => ! $puedeCapturar,
-                                                    'cursor-pointer hover:scale-105 hover:border-gray-700' => $puedeCapturar,
-                                                ])
+                                                :class="{
+                                                    'border-gray-900 bg-gray-900 text-white': !!valor,
+                                                    'border-gray-300 bg-white text-gray-400': !valor,
+                                                    'cursor-not-allowed opacity-40': {{ $puedeCapturar ? 'false' : 'true' }},
+                                                    'cursor-pointer hover:scale-105 hover:border-gray-700': {{ $puedeCapturar ? 'true' : 'false' }}
+                                                }"
+                                                class="inline-flex h-12 w-14 items-center justify-center gap-0.5 rounded-xl border-2 text-xl font-extrabold tabular-nums shadow-sm transition"
                                             >
-                                                <span>{{ $valorActual ?: '—' }}</span>
+                                                <span x-text="valor || '—'"></span>
                                                 @if ($puedeCapturar)
                                                     <i class="fas fa-caret-down text-[10px] opacity-70"></i>
                                                 @endif
                                             </button>
 
-                                            <div
-                                                x-show="open"
-                                                x-cloak
-                                                x-transition.opacity.duration.100ms
-                                                @click.outside="open = false"
-                                                class="absolute left-1/2 top-full z-30 mt-1.5 w-16 -translate-x-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl"
-                                                role="listbox"
-                                            >
-                                                @foreach (['1', '2', '3'] as $opcion)
-                                                    <button
-                                                        type="button"
-                                                        role="option"
-                                                        wire:click="capturar('{{ $telar->NoTelarId }}', {{ $actividad->Id }}, '{{ $opcion }}')"
-                                                        @click="open = false"
-                                                        @class([
-                                                            'flex h-11 w-full items-center justify-center text-xl font-extrabold tabular-nums transition',
-                                                            'bg-gray-900 text-white' => $valorActual === $opcion,
-                                                            'text-gray-800 hover:bg-gray-100' => $valorActual !== $opcion,
-                                                        ])
-                                                    >{{ $opcion }}</button>
-                                                @endforeach
-                                            </div>
+                                            @if ($puedeCapturar)
+                                                <div
+                                                    x-show="open"
+                                                    x-cloak
+                                                    x-transition.opacity.duration.100ms
+                                                    @click.outside="open = false"
+                                                    class="absolute left-1/2 top-full z-30 mt-1.5 w-16 -translate-x-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl"
+                                                    role="listbox"
+                                                >
+                                                    @foreach (['1', '2', '3'] as $opcion)
+                                                        <button
+                                                            type="button"
+                                                            role="option"
+                                                            @click="
+                                                                valor = '{{ $opcion }}';
+                                                                open = false;
+                                                                $wire.capturar('{{ $telar->NoTelarId }}', {{ $actividad->Id }}, '{{ $opcion }}')
+                                                                    .then((p) => { $dispatch('set-promedio', p) })
+                                                                    .catch(() => {})
+                                                            "
+                                                            :class="valor === '{{ $opcion }}' ? 'bg-gray-900 text-white' : 'text-gray-800 hover:bg-gray-100'"
+                                                            class="flex h-11 w-full items-center justify-center text-xl font-extrabold tabular-nums transition"
+                                                        >{{ $opcion }}</button>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                     </td>
                                 @empty
                                     <td class="px-4 py-6 text-center text-sm text-gray-400">—</td>
                                 @endforelse
                                 <td class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800">
-                                    {{ $promedios[$actividad->Actividad] ?? '—' }}
+                                    <span x-text="promedio === null || promedio === undefined ? '—' : promedio"></span>
                                 </td>
                             </tr>
                         @empty
