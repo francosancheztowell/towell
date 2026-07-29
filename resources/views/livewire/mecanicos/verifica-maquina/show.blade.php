@@ -68,78 +68,55 @@
 
     {{-- Contenido principal --}}
     <div class="min-w-0 flex-1 space-y-4">
-        <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-5 md:p-6">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                    <a href="{{ route('mecanicos.estado-maquina.index') }}" wire:navigate class="inline-flex items-center gap-1 text-sm font-medium text-gray-600 transition hover:text-gray-900">
-                        <i class="fas fa-arrow-left"></i>
-                        Volver a Estado de máquina
-                    </a>
-                    <h1 class="mt-2 text-xl font-bold text-gray-900 md:text-2xl">Verificación de máquina</h1>
-                    <p class="mt-1 text-sm text-gray-600">Captura del 1 al 3 el estado de cada actividad por telar.</p>
-                </div>
-                <span class="inline-flex w-fit rounded-md bg-gray-900 px-3 py-2 text-sm font-bold text-white">Folio {{ $verificacion->Folio }}</span>
-            </div>
+        <section class="rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm sm:px-4">
+            @php $estatus = $verificacion->Estatus ?: 'Activo'; @endphp
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <h1 class="shrink-0 text-base font-bold text-gray-900">Verificación</h1>
+                <span class="inline-flex shrink-0 rounded bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">{{ $verificacion->Folio }}</span>
 
-            <dl class="mt-5 grid grid-cols-2 gap-3 border-t border-gray-100 pt-4 text-sm sm:grid-cols-3 xl:grid-cols-6">
-                <div>
-                    <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Fecha</dt>
-                    <dd class="mt-1 font-semibold text-gray-900">{{ optional($verificacion->Fecha)->format('d/m/Y') ?? '—' }}</dd>
+                <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+                    <span><span class="font-medium text-gray-400">Fecha</span> {{ optional($verificacion->Fecha)->format('d/m/Y') ?? '—' }}</span>
+                    <span class="hidden text-gray-300 sm:inline">|</span>
+                    <span class="truncate"><span class="font-medium text-gray-400">Mecánico</span> {{ $verificacion->NomOperador ?: '—' }}</span>
+                    <span class="hidden text-gray-300 sm:inline">|</span>
+                    <span><span class="font-medium text-gray-400">Turno</span> {{ $verificacion->TurnoRecibe ?: '—' }}</span>
+                    <span class="hidden text-gray-300 sm:inline">|</span>
+                    <span @class([
+                        'inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                        'bg-blue-100 text-blue-800' => $estatus === 'Activo',
+                        'bg-amber-100 text-amber-800' => $estatus === 'Terminado',
+                        'bg-green-100 text-green-800' => $estatus === 'Autorizado',
+                        'bg-gray-100 text-gray-700' => ! in_array($estatus, ['Activo', 'Terminado', 'Autorizado'], true),
+                    ])>{{ $estatus }}</span>
+                    <span class="hidden text-gray-300 sm:inline">|</span>
+                    <span><span class="font-medium text-gray-400">Inicio</span> {{ $verificacion->HoraInicio ? \Illuminate\Support\Str::of((string) $verificacion->HoraInicio)->substr(0, 5) : '—' }}</span>
+                    <span class="hidden text-gray-300 sm:inline">|</span>
+                    <span><span class="font-medium text-gray-400">Fin</span> {{ $verificacion->HoraFin ? \Illuminate\Support\Str::of((string) $verificacion->HoraFin)->substr(0, 5) : '—' }}</span>
                 </div>
-                <div>
-                    <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Mecánico</dt>
-                    <dd class="mt-1 font-semibold text-gray-900">{{ $verificacion->NomOperador ?: '—' }}</dd>
+
+                <div class="ml-auto flex shrink-0 items-center gap-1.5">
+                    @if ($puedeFinalizar)
+                        <button type="button" wire:click="abrirModalFinalizar"
+                            class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black">
+                            <i class="fas fa-check"></i>
+                            Finalizar
+                        </button>
+                    @endif
+                    @if ($puedeAutorizar)
+                        <button type="button" wire:click="abrirModalAutorizar"
+                            class="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-800">
+                            <i class="fas fa-user-check"></i>
+                            Autorizar
+                        </button>
+                    @endif
                 </div>
-                <div>
-                    <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Turno</dt>
-                    <dd class="mt-1 font-semibold text-gray-900">{{ $verificacion->TurnoRecibe ?: '—' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Estatus</dt>
-                    <dd class="mt-1">
-                        @php $estatus = $verificacion->Estatus ?: 'Activo'; @endphp
-                        <span @class([
-                            'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
-                            'bg-blue-100 text-blue-800' => $estatus === 'Activo',
-                            'bg-amber-100 text-amber-800' => $estatus === 'Terminado',
-                            'bg-green-100 text-green-800' => $estatus === 'Autorizado',
-                            'bg-gray-100 text-gray-700' => ! in_array($estatus, ['Activo', 'Terminado', 'Autorizado'], true),
-                        ])>{{ $estatus }}</span>
-                    </dd>
-                </div>
-                <div>
-                    <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Hr Inicio</dt>
-                    <dd class="mt-1 font-semibold text-gray-900">{{ $verificacion->HoraInicio ? \Illuminate\Support\Str::of((string) $verificacion->HoraInicio)->substr(0, 5) : '—' }}</dd>
-                </div>
-                <div>
-                    <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Hr Fin</dt>
-                    <dd class="mt-1 font-semibold text-gray-900">{{ $verificacion->HoraFin ? \Illuminate\Support\Str::of((string) $verificacion->HoraFin)->substr(0, 5) : '—' }}</dd>
-                </div>
-            </dl>
+            </div>
 
             @if ($esSoloLectura)
-                <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Este folio está en estatus <strong>{{ $verificacion->Estatus }}</strong>. Solo los folios <strong>Activo</strong> se pueden editar.
-                </div>
+                <p class="mt-2 text-[11px] text-amber-700">
+                    Folio en estatus <strong>{{ $verificacion->Estatus }}</strong>. Solo los <strong>Activo</strong> se pueden editar.
+                </p>
             @endif
-
-            <div class="mt-5 flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-4">
-                @if ($puedeFinalizar)
-                    <button type="button" wire:click="abrirModalFinalizar"
-                        class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black">
-                        <i class="fas fa-check"></i>
-                        Finalizar verificación
-                    </button>
-                @endif
-
-                @if ($puedeAutorizar)
-                    <button type="button" wire:click="abrirModalAutorizar"
-                        class="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800">
-                        <i class="fas fa-user-check"></i>
-                        Autorizar
-                    </button>
-                @endif
-            </div>
         </section>
 
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
