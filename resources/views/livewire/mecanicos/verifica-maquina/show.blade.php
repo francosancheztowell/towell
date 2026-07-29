@@ -1,76 +1,179 @@
+@php
+    // Datos mínimos que necesita Alpine para filtrar del lado del cliente.
+    $telaresAlpine = array_map(fn (array $telar) => [
+        'id' => $telar['NoTelarId'],
+        'salon' => $telar['SalonTejidoId'],
+    ], $telares);
+@endphp
+
 <div
     class="flex flex-row items-start gap-3 sm:gap-4"
     wire:key="verifica-maquina-show-{{ $folio }}"
     x-data="{
-        modalFinalizar: false,
-        modalIncompletos: false,
-        modalAutorizar: false,
-        procesando: false,
         estatus: @js($estatus),
         horaFin: @js($horaFin),
         puedeFinalizarFlag: @js($puedeFinalizarFlag),
         esSupervisorFlag: @js($esSupervisorFlag),
         puedeCapturarFlag: @js($puedeCapturarFlag),
-        get puedeCapturar() { return this.estatus === 'Activo' && this.puedeCapturarFlag; },
-        get puedeFinalizar() { return this.estatus === 'Activo' && this.puedeFinalizarFlag; },
-        get puedeAutorizar() { return this.estatus === 'Terminado' && this.esSupervisorFlag; },
-        get esSoloLectura() { return this.estatus !== 'Activo'; },
-        init() {
-            Alpine.store('vmCaptura', this);
-        },
+
+        modalFinalizar: false,
+        modalIncompletos: false,
+        modalAutorizar: false,
+        procesando: false,
+
+        telares: @js($telaresAlpine),
+        filtroMaquina: '',
+        rangoDesde: '',
+        rangoHasta: '',
+
+        menuAbierto: false,
+        menuTop: 0,
+        menuLeft: 0,
+        menuValor: null,
+        celdaActiva: null,
+
+        get puedeCapturar() { return this.estatus === 'Activo' && this.puedeCapturarFlag },
+        get puedeFinalizar() { return this.estatus === 'Activo' && this.puedeFinalizarFlag },
+        get puedeAutorizar() { return this.estatus === 'Terminado' && this.esSupervisorFlag },
+        get esSoloLectura() { return this.estatus !== 'Activo' },
+
         badgeClass() {
-            if (this.estatus === 'Activo') return 'bg-blue-100 text-blue-800';
-            if (this.estatus === 'Terminado') return 'bg-amber-100 text-amber-800';
-            if (this.estatus === 'Autorizado') return 'bg-green-100 text-green-800';
-            return 'bg-gray-100 text-gray-700';
+            if (this.estatus === 'Activo') return 'bg-blue-100 text-blue-800'
+            if (this.estatus === 'Terminado') return 'bg-amber-100 text-amber-800'
+            if (this.estatus === 'Autorizado') return 'bg-green-100 text-green-800'
+            return 'bg-gray-100 text-gray-700'
         },
+
+        coincide(telar) {
+            if (this.filtroMaquina !== '' && telar.salon !== this.filtroMaquina) return false
+            const numero = parseInt(telar.id, 10)
+            const desde = parseInt(this.rangoDesde, 10)
+            const hasta = parseInt(this.rangoHasta, 10)
+            if (!isNaN(desde) && numero < desde) return false
+            if (!isNaN(hasta) && numero > hasta) return false
+            return true
+        },
+
+        get visibles() { return this.telares.filter((telar) => this.coincide(telar)) },
+
+        /*
+         * Ocultar columnas reescribiendo una sola regla CSS es O(1) en el DOM:
+         * evita recorrer las ~1.1k celdas y evita un viaje al servidor.
+         */
+        aplicarFiltroColumnas() {
+            const ocultos = this.telares
+                .filter((telar) => !this.coincide(telar))
+                .map((telar) => '.vm-col-' + telar.id)
+            this.$refs.colStyle.textContent = ocultos.length ? ocultos.join(',') + '{display:none}' : ''
+        },
+
+        limpiarFiltros() {
+            this.filtroMaquina = ''
+            this.rangoDesde = ''
+            this.rangoHasta = ''
+        },
+
+        abrirMenu(event) {
+            const boton = event.target.closest('.vm-cell')
+            if (!boton || !this.puedeCapturar) return
+            if (this.menuAbierto && this.celdaActiva === boton) { this.menuAbierto = false; return }
+            this.celdaActiva = boton
+            this.menuValor = boton.dataset.v || null
+            const caja = boton.getBoundingClientRect()
+            this.menuLeft = caja.left + (caja.width / 2)
+            this.menuTop = caja.bottom + 6
+            this.menuAbierto = true
+        },
+
+        async elegir(valor) {
+            const boton = this.celdaActiva
+            if (!boton) return
+            this.menuAbierto = false
+
+            const anterior = boton.dataset.v || ''
+            // Pintado optimista: la celda responde al instante.
+            boton.dataset.v = valor
+            boton.textContent = valor
+            boton.classList.remove('vm-off')
+            boton.classList.add('vm-on')
+
+            try {
+                const promedio = await $wire.capturar(boton.dataset.t, parseInt(boton.dataset.a, 10), valor)
+                const celdaPromedio = this.$refs.matriz.querySelector('[data-prom=\'' + boton.dataset.a + '\']')
+                if (celdaPromedio) {
+                    celdaPromedio.textContent = (promedio === null || promedio === undefined) ? '—' : promedio
+                }
+            } catch (error) {
+                boton.dataset.v = anterior
+                boton.textContent = anterior || '—'
+                if (!anterior) {
+                    boton.classList.remove('vm-on')
+                    boton.classList.add('vm-off')
+                }
+            }
+        },
+
         aplicarFinalizado(res) {
-            if (!res || !res.ok) return;
-            this.estatus = res.estatus;
-            this.horaFin = res.horaFin || this.horaFin;
-            this.modalFinalizar = false;
-            this.modalIncompletos = false;
+            if (!res || !res.ok) return
+            this.estatus = res.estatus
+            this.horaFin = res.horaFin || this.horaFin
+            this.modalFinalizar = false
+            this.modalIncompletos = false
         },
+
         async onConfirmarFinalizar() {
-            if (this.procesando) return;
-            this.procesando = true;
+            if (this.procesando) return
+            this.procesando = true
             try {
-                const res = await $wire.confirmarFinalizar();
+                const res = await $wire.confirmarFinalizar()
                 if (res && res.incompleto) {
-                    this.modalFinalizar = false;
-                    this.modalIncompletos = true;
-                    return;
+                    this.modalFinalizar = false
+                    this.modalIncompletos = true
+                    return
                 }
-                this.aplicarFinalizado(res);
+                this.aplicarFinalizado(res)
             } finally {
-                this.procesando = false;
+                this.procesando = false
             }
         },
+
         async onConfirmarFinalizarIncompletos() {
-            if (this.procesando) return;
-            this.procesando = true;
+            if (this.procesando) return
+            this.procesando = true
             try {
-                const res = await $wire.confirmarFinalizarConIncompletos();
-                this.aplicarFinalizado(res);
+                this.aplicarFinalizado(await $wire.confirmarFinalizarConIncompletos())
             } finally {
-                this.procesando = false;
+                this.procesando = false
             }
         },
+
         async onAutorizar() {
-            if (this.procesando) return;
-            this.procesando = true;
+            if (this.procesando) return
+            this.procesando = true
             try {
-                const res = await $wire.autorizar();
+                const res = await $wire.autorizar()
                 if (res && res.ok) {
-                    this.estatus = res.estatus;
-                    this.modalAutorizar = false;
+                    this.estatus = res.estatus
+                    this.modalAutorizar = false
                 }
             } finally {
-                this.procesando = false;
+                this.procesando = false
             }
         }
     }"
+    x-effect="aplicarFiltroColumnas()"
 >
+    {{-- Estilos de celda declarados una vez: repetir utilidades en ~1.1k celdas infla el HTML. --}}
+    <style>
+        .vm-cell{display:inline-flex;align-items:center;justify-content:center;height:3rem;width:3.5rem;border-radius:.75rem;border-width:2px;border-style:solid;font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s,border-color .12s;cursor:pointer}
+        .vm-on{border-color:#111827;background:#111827;color:#fff}
+        .vm-off{border-color:#d1d5db;background:#fff;color:#9ca3af}
+        .vm-cell:hover{border-color:#374151;transform:scale(1.05)}
+        .vm-locked .vm-cell{cursor:not-allowed;opacity:.45}
+        .vm-locked .vm-cell:hover{border-color:inherit;transform:none}
+    </style>
+    <style x-ref="colStyle"></style>
+
     {{-- Barra lateral fija a la izquierda --}}
     <aside class="sticky top-3 z-20 w-52 shrink-0 self-start sm:w-56 md:w-60">
         <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
@@ -90,20 +193,20 @@
                             ];
                         @endphp
                         @foreach ($opcionesMaquina as $valor => $opcion)
-                            <label @class([
-                                'flex cursor-pointer items-center justify-between rounded-lg border px-2.5 py-2 text-sm font-semibold transition',
-                                'border-gray-900 bg-gray-900 text-white' => $filtroMaquina === $valor,
-                                'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-400' => $filtroMaquina !== $valor,
-                            ])>
+                            <label
+                                class="flex cursor-pointer items-center justify-between rounded-lg border px-2.5 py-2 text-sm font-semibold transition"
+                                :class="filtroMaquina === @js($valor)
+                                    ? 'border-gray-900 bg-gray-900 text-white'
+                                    : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-400'"
+                            >
                                 <span class="inline-flex items-center gap-2">
-                                    <input type="radio" wire:model.live="filtroMaquina" value="{{ $valor }}" class="sr-only">
+                                    <input type="radio" x-model="filtroMaquina" value="{{ $valor }}" class="sr-only">
                                     {{ $opcion['label'] }}
                                 </span>
-                                <span @class([
-                                    'rounded-full px-1.5 py-0.5 text-[11px] font-bold',
-                                    'bg-white/20 text-white' => $filtroMaquina === $valor,
-                                    'bg-white text-gray-600' => $filtroMaquina !== $valor,
-                                ])>{{ $opcion['count'] }}</span>
+                                <span
+                                    class="rounded-full px-1.5 py-0.5 text-[11px] font-bold"
+                                    :class="filtroMaquina === @js($valor) ? 'bg-white/20 text-white' : 'bg-white text-gray-600'"
+                                >{{ $opcion['count'] }}</span>
                             </label>
                         @endforeach
                     </div>
@@ -114,12 +217,12 @@
                     <div class="mt-2 grid grid-cols-1 gap-2">
                         <div>
                             <label for="rango-desde" class="mb-1 block text-[11px] font-medium text-gray-600">Desde</label>
-                            <input id="rango-desde" type="number" wire:model.live.debounce.400ms="rangoDesde" placeholder="201"
+                            <input id="rango-desde" type="number" x-model="rangoDesde" placeholder="201"
                                 class="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                         </div>
                         <div>
                             <label for="rango-hasta" class="mb-1 block text-[11px] font-medium text-gray-600">Hasta</label>
-                            <input id="rango-hasta" type="number" wire:model.live.debounce.400ms="rangoHasta" placeholder="215"
+                            <input id="rango-hasta" type="number" x-model="rangoHasta" placeholder="215"
                                 class="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                         </div>
                     </div>
@@ -127,10 +230,10 @@
                 </div>
 
                 <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2.5 py-2 text-center text-xs text-gray-600">
-                    Mostrando <span class="font-bold text-gray-900">{{ $telares->count() }}</span> telar(es)
+                    Mostrando <span class="font-bold text-gray-900" x-text="visibles.length"></span> telar(es)
                 </div>
 
-                <button type="button" wire:click="limpiarFiltrosTelares"
+                <button type="button" @click="limpiarFiltros()"
                     class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">
                     Limpiar filtros
                 </button>
@@ -189,109 +292,85 @@
             <div class="border-b border-gray-100 px-4 py-2 text-xs text-gray-500">
                 <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para consultar los telares filtrados.
             </div>
-            <div class="max-w-full overflow-x-auto overscroll-x-contain" tabindex="0" aria-label="Cuadrícula de verificación por telar y actividad; desplázate horizontalmente">
+
+            {{--
+                wire:ignore: la matriz se pinta una sola vez y a partir de ahí la
+                mantiene Alpine (captura optimista + filtros por CSS), así Livewire
+                nunca vuelve a diferenciar ~1.1k celdas.
+            --}}
+            <div
+                wire:ignore
+                x-ref="matriz"
+                :class="{ 'vm-locked': !puedeCapturar }"
+                class="max-w-full overflow-x-auto overscroll-x-contain"
+                tabindex="0"
+                aria-label="Cuadrícula de verificación por telar y actividad; desplázate horizontalmente"
+                @scroll="menuAbierto = false"
+            >
                 <table class="divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
                             <th class="sticky left-0 z-10 min-w-80 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm">Actividad</th>
-                            @forelse ($telares as $telar)
-                                <th class="min-w-[4.5rem] px-2.5 py-3.5 text-center text-sm" title="{{ $telar->Nombre }} ({{ $telar->SalonTejidoId }})">{{ $telar->NoTelarId }}</th>
-                            @empty
-                                <th class="px-4 py-3.5 text-center text-xs font-medium normal-case text-gray-400">Sin telares</th>
-                            @endforelse
+                            @foreach ($telares as $telar)
+                                <th class="vm-col-{{ $telar['NoTelarId'] }} min-w-[4.5rem] px-2.5 py-3.5 text-center text-sm" title="{{ $telar['Nombre'] }} ({{ $telar['SalonTejidoId'] }})">{{ $telar['NoTelarId'] }}</th>
+                            @endforeach
                             <th class="whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm">Todos los telares</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 bg-white">
+                    <tbody class="divide-y divide-gray-100 bg-white" @click="abrirMenu($event)">
                         @forelse ($actividades as $actividad)
-                            <tr
-                                wire:key="actividad-{{ $actividad->Id }}"
-                                class="hover:bg-gray-50"
-                                x-data="{ promedio: @js($promedios[$actividad->Actividad] ?? null) }"
-                                @set-promedio="promedio = $event.detail"
-                            >
+                            <tr class="hover:bg-gray-50">
                                 <td class="sticky left-0 z-20 min-w-80 max-w-md bg-white px-4 py-4">
-                                    <span class="line-clamp-2 text-lg font-bold leading-snug text-gray-900" title="{{ $actividad->Actividad }}">
-                                        {{ $actividad->Actividad }}
-                                    </span>
+                                    <span class="line-clamp-2 text-lg font-bold leading-snug text-gray-900" title="{{ $actividad['Actividad'] }}">{{ $actividad['Actividad'] }}</span>
                                 </td>
-                                @forelse ($telares as $telar)
-                                    @php $valorActual = $valores[$telar->NoTelarId.'|'.$actividad->Actividad] ?? null; @endphp
-                                    <td class="relative px-2 py-2.5 text-center" wire:key="celda-{{ $actividad->Id }}-{{ $telar->NoTelarId }}">
-                                        <div
-                                            x-data="{ open: false, valor: @js($valorActual) }"
-                                            @keydown.escape.window="open = false"
-                                            class="relative inline-flex justify-center"
-                                        >
-                                            <button
-                                                type="button"
-                                                @click="if (Alpine.store('vmCaptura').puedeCapturar) open = !open"
-                                                :disabled="!Alpine.store('vmCaptura').puedeCapturar"
-                                                aria-haspopup="listbox"
-                                                aria-label="Calificación telar {{ $telar->NoTelarId }} — {{ $actividad->Actividad }}"
-                                                :class="{
-                                                    'border-gray-900 bg-gray-900 text-white': !!valor,
-                                                    'border-gray-300 bg-white text-gray-400': !valor,
-                                                    'cursor-not-allowed opacity-40': !Alpine.store('vmCaptura').puedeCapturar,
-                                                    'cursor-pointer hover:scale-105 hover:border-gray-700': Alpine.store('vmCaptura').puedeCapturar
-                                                }"
-                                                class="inline-flex h-12 w-14 items-center justify-center gap-0.5 rounded-xl border-2 text-xl font-extrabold tabular-nums shadow-sm transition"
-                                            >
-                                                <span x-text="valor || '—'"></span>
-                                                <i x-show="Alpine.store('vmCaptura').puedeCapturar" class="fas fa-caret-down text-[10px] opacity-70"></i>
-                                            </button>
-
-                                            <div
-                                                x-show="open && Alpine.store('vmCaptura').puedeCapturar"
-                                                x-cloak
-                                                x-transition.opacity.duration.100ms
-                                                @click.outside="open = false"
-                                                class="absolute left-1/2 top-full z-30 mt-1.5 w-16 -translate-x-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl"
-                                                role="listbox"
-                                            >
-                                                @foreach (['1', '2', '3'] as $opcion)
-                                                    <button
-                                                        type="button"
-                                                        role="option"
-                                                        @click="
-                                                            valor = '{{ $opcion }}';
-                                                            open = false;
-                                                            $wire.capturar('{{ $telar->NoTelarId }}', {{ $actividad->Id }}, '{{ $opcion }}')
-                                                                .then((p) => { $dispatch('set-promedio', p) })
-                                                                .catch(() => {})
-                                                        "
-                                                        :class="valor === '{{ $opcion }}' ? 'bg-gray-900 text-white' : 'text-gray-800 hover:bg-gray-100'"
-                                                        class="flex h-11 w-full items-center justify-center text-xl font-extrabold tabular-nums transition"
-                                                    >{{ $opcion }}</button>
-                                                @endforeach
-                                            </div>
-                                        </div>
+                                @foreach ($telares as $telar)
+                                    @php $valorActual = $valores[$telar['NoTelarId'].'|'.$actividad['Actividad']] ?? ''; @endphp
+                                    <td class="vm-col-{{ $telar['NoTelarId'] }} px-2 py-2.5 text-center">
+                                        <button type="button"
+                                            class="vm-cell {{ $valorActual !== '' ? 'vm-on' : 'vm-off' }}"
+                                            data-t="{{ $telar['NoTelarId'] }}"
+                                            data-a="{{ $actividad['Id'] }}"
+                                            data-v="{{ $valorActual }}"
+                                            aria-label="Calificación telar {{ $telar['NoTelarId'] }} — {{ $actividad['Actividad'] }}"
+                                        >{{ $valorActual !== '' ? $valorActual : '—' }}</button>
                                     </td>
-                                @empty
-                                    <td class="px-4 py-6 text-center text-sm text-gray-400">—</td>
-                                @endforelse
-                                <td class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800">
-                                    <span x-text="promedio === null || promedio === undefined ? '—' : promedio"></span>
-                                </td>
+                                @endforeach
+                                <td data-prom="{{ $actividad['Id'] }}" class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800">{{ $promedios[$actividad['Actividad']] ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ max($telares->count(), 1) + 2 }}" class="px-4 py-10 text-center text-sm text-gray-500">No hay actividades configuradas en el catálogo.</td>
+                                <td colspan="{{ count($telares) + 2 }}" class="px-4 py-10 text-center text-sm text-gray-500">No hay actividades configuradas en el catálogo.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
 
-            @if ($telares->isEmpty())
-                <div class="px-4 py-8 text-center text-sm text-gray-500">
-                    No hay telares con los filtros seleccionados. Ajusta la máquina o el rango.
-                </div>
-            @endif
+            <div x-show="visibles.length === 0" x-cloak class="px-4 py-8 text-center text-sm text-gray-500">
+                No hay telares con los filtros seleccionados. Ajusta la máquina o el rango.
+            </div>
         </section>
     </div>
 
-    {{-- Modal: confirmar finalizar (Alpine, sin re-render Livewire) --}}
+    {{-- Menú de calificación compartido: uno solo para toda la matriz. --}}
+    <div
+        x-show="menuAbierto"
+        x-cloak
+        x-transition.opacity.duration.100ms
+        @click.outside="menuAbierto = false"
+        @keydown.escape.window="menuAbierto = false"
+        :style="'top:' + menuTop + 'px; left:' + menuLeft + 'px'"
+        class="fixed z-40 w-16 -translate-x-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl"
+        role="listbox"
+    >
+        @foreach (['1', '2', '3'] as $opcion)
+            <button type="button" role="option" @click="elegir('{{ $opcion }}')"
+                :class="menuValor === '{{ $opcion }}' ? 'bg-gray-900 text-white' : 'text-gray-800 hover:bg-gray-100'"
+                class="flex h-11 w-full items-center justify-center text-xl font-extrabold tabular-nums transition">{{ $opcion }}</button>
+        @endforeach
+    </div>
+
+    {{-- Modal: confirmar finalizar --}}
     <div x-show="modalFinalizar" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" @click.self="modalFinalizar = false">
         <div class="w-full max-w-md rounded-xl bg-white shadow-2xl" @click.stop>
             <div class="border-b border-gray-200 px-5 py-4">

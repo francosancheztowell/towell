@@ -72,7 +72,7 @@
       "Bash(timeout 180 php -d memory_limit=1024M /tmp/inspect_xlsx.php)",
       "Bash(php -d memory_limit=2048M \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\inspect_xlsx.php\")",
       "Bash(python3)",
-      "Bash(tasklist)"
+      "Bash(php artisan tinker '--execute= *)"
     ]
   }
 }
