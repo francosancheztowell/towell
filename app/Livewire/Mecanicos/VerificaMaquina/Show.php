@@ -10,11 +10,21 @@ use App\Models\Mecanicos\MecVerificaMaquinaModel;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSUsuario;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
 
+/**
+ * Captura del estado de máquina: matriz telares x actividades.
+ *
+ * Rendimiento: la matriz es de ~1.1k celdas, así que los catálogos y los
+ * valores capturados NO se declaran como propiedades públicas (Livewire
+ * serializa cada propiedad pública en el snapshot y la reenvía en cada
+ * petición). Se resuelven en render() y, para las acciones, se consultan
+ * directamente a la BD con queries puntuales. La vista filtra y pinta las
+ * celdas del lado del cliente, por lo que después del mount este componente
+ * no vuelve a renderizar: todas las acciones son #[Renderless].
+ */
 class Show extends Component
 {
     private const MODULO_PERMISO = 'Estado Maquina';
@@ -38,31 +48,6 @@ class Show extends Component
     public string $horaInicio = '';
 
     public string $horaFin = '';
-
-    /** Filtro de salón/máquina: '' = todos, Jacquard, Smith, KM */
-    public string $filtroMaquina = '';
-
-    public string $rangoDesde = '';
-
-    public string $rangoHasta = '';
-
-    /** @var array<string, string> clave "telar|actividad" => valor */
-    public array $valores = [];
-
-    /** @var array<string, float|null> */
-    public array $promedios = [];
-
-    /** @var array<int, array{Orden: int, Actividad: string}> */
-    public array $actividadesMap = [];
-
-    /** @var list<string> */
-    public array $todosTelarIds = [];
-
-    /** @var list<array{NoTelarId: string, Nombre: string|null, SalonTejidoId: string|null}> */
-    public array $telaresTodos = [];
-
-    /** @var array<string, int> */
-    public array $conteoPorMaquina = [];
 
     public string $estatus = self::ESTATUS_ACTIVO;
 
@@ -97,13 +82,10 @@ class Show extends Component
         $this->esSupervisorFlag = $this->resolverEsSupervisor();
         $this->puedeCapturarFlag = userCan('crear', self::MODULO_PERMISO) || userCan('modificar', self::MODULO_PERMISO);
         $this->puedeFinalizarFlag = userCan('modificar', self::MODULO_PERMISO);
-
-        $this->cargarCatalogos();
-        $this->cargarActividadesYValores();
     }
 
     /**
-     * @return float|string|null
+     * Guarda una celda y devuelve el promedio recalculado de la actividad.
      */
     #[Renderless]
     public function capturar(string $noTelarId, int $actividadId, string $valor): float|string|null
@@ -111,10 +93,11 @@ class Show extends Component
         abort_unless($this->puedeCapturarFlag, 403, 'No tienes permiso para capturar esta verificación.');
         abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403, 'Solo se pueden editar folios con estatus Activo.');
         abort_unless(in_array($valor, self::VALORES_VALIDOS, true), 422, 'Valor inválido.');
-        abort_unless(isset($this->actividadesMap[$actividadId]), 404, 'Actividad no encontrada.');
 
-        $actividad = $this->actividadesMap[$actividadId];
-        $nombreActividad = $actividad['Actividad'];
+        $actividad = MecActividadesModel::query()->find($actividadId, ['Id', 'Orden', 'Actividad']);
+        abort_unless($actividad !== null, 404, 'Actividad no encontrada.');
+
+        $nombreActividad = (string) $actividad->Actividad;
 
         MecVerificaMaquinaLineModel::updateOrCreate(
             [
@@ -123,15 +106,12 @@ class Show extends Component
                 'Actividad' => $nombreActividad,
             ],
             [
-                'Orden' => $actividad['Orden'],
+                'Orden' => (int) $actividad->Orden,
                 'Valor' => $valor,
             ],
         );
 
-        $this->valores[$noTelarId.'|'.$nombreActividad] = $valor;
-        $this->promedios[$nombreActividad] = $this->calcularPromedioActividad($nombreActividad);
-
-        return $this->promedios[$nombreActividad] ?? '—';
+        return $this->promedioActividad($nombreActividad) ?? '—';
     }
 
     /**
@@ -183,135 +163,117 @@ class Show extends Component
         ];
     }
 
-    public function limpiarFiltrosTelares(): void
-    {
-        $this->filtroMaquina = '';
-        $this->rangoDesde = '';
-        $this->rangoHasta = '';
-    }
-
     public function render(): View
     {
-        $telares = $this->telaresFiltrados();
-        $actividades = collect($this->actividadesMap)
-            ->map(fn (array $meta, int $id) => (object) [
-                'Id' => $id,
-                'Orden' => $meta['Orden'],
-                'Actividad' => $meta['Actividad'],
-            ])
-            ->sortBy([
-                fn ($item) => $item->Orden,
-                fn ($item) => $item->Id,
-            ])
-            ->values();
+        $telares = $this->telaresCatalogo();
+        $actividades = $this->actividadesCatalogo();
 
         return view('livewire.mecanicos.verifica-maquina.show', [
             'telares' => $telares,
             'actividades' => $actividades,
-            'valores' => $this->valores,
-            'promedios' => $this->promedios,
-            'conteoPorMaquina' => collect($this->conteoPorMaquina),
-            'totalTelares' => array_sum($this->conteoPorMaquina),
+            'valores' => $this->valoresCapturados(),
+            'promedios' => $this->promediosPorActividad(),
+            'conteoPorMaquina' => $this->conteoPorMaquina($telares),
+            'totalTelares' => count($telares),
             'puedeCapturar' => $this->puedeCapturarFlag && $this->estatus === self::ESTATUS_ACTIVO,
-            'puedeFinalizar' => $this->puedeFinalizarFlag && $this->estatus === self::ESTATUS_ACTIVO,
-            'puedeAutorizar' => $this->esSupervisorFlag && $this->estatus === self::ESTATUS_TERMINADO,
-            'esSoloLectura' => $this->estatus !== self::ESTATUS_ACTIVO,
         ]);
     }
 
-    private function cargarCatalogos(): void
+    /**
+     * @return list<array{NoTelarId: string, Nombre: string, SalonTejidoId: string}>
+     */
+    private function telaresCatalogo(): array
     {
-        $telares = ReqTelares::query()
+        return ReqTelares::query()
             ->orderBy('NoTelarId')
-            ->get(['NoTelarId', 'Nombre', 'SalonTejidoId']);
-
-        $this->telaresTodos = $telares->map(fn ($telar) => [
-            'NoTelarId' => (string) $telar->NoTelarId,
-            'Nombre' => $telar->Nombre,
-            'SalonTejidoId' => $telar->SalonTejidoId,
-        ])->all();
-
-        $this->todosTelarIds = $telares->pluck('NoTelarId')->map(fn ($id) => (string) $id)->all();
-
-        $this->conteoPorMaquina = [];
-        foreach ($telares->groupBy('SalonTejidoId') as $salon => $grupo) {
-            $this->conteoPorMaquina[(string) $salon] = $grupo->count();
-        }
-    }
-
-    private function cargarActividadesYValores(): void
-    {
-        $actividades = MecActividadesModel::query()
-            ->orderBy('Orden')
-            ->orderBy('Id')
-            ->get(['Id', 'Orden', 'Actividad']);
-
-        $this->actividadesMap = [];
-        foreach ($actividades as $actividad) {
-            $this->actividadesMap[(int) $actividad->Id] = [
-                'Orden' => (int) $actividad->Orden,
-                'Actividad' => (string) $actividad->Actividad,
-            ];
-        }
-
-        $lineas = MecVerificaMaquinaLineModel::query()
-            ->where('Folio', $this->folio)
-            ->get(['NoTelarId', 'Actividad', 'Valor']);
-
-        $this->valores = [];
-        foreach ($lineas as $linea) {
-            $this->valores[$linea->NoTelarId.'|'.$linea->Actividad] = (string) $linea->Valor;
-        }
-
-        $this->promedios = [];
-        foreach ($this->actividadesMap as $meta) {
-            $nombre = $meta['Actividad'];
-            $this->promedios[$nombre] = $this->calcularPromedioActividad($nombre);
-        }
-    }
-
-    private function calcularPromedioActividad(string $nombreActividad): ?float
-    {
-        $nums = [];
-        $sufijo = '|'.$nombreActividad;
-
-        foreach ($this->valores as $clave => $valor) {
-            if (! str_ends_with((string) $clave, $sufijo) || ! is_numeric($valor)) {
-                continue;
-            }
-            $nums[] = (float) $valor;
-        }
-
-        return $nums === [] ? null : round(array_sum($nums) / count($nums), 1);
+            ->get(['NoTelarId', 'Nombre', 'SalonTejidoId'])
+            ->map(fn ($telar) => [
+                'NoTelarId' => (string) $telar->NoTelarId,
+                'Nombre' => (string) $telar->Nombre,
+                'SalonTejidoId' => (string) $telar->SalonTejidoId,
+            ])
+            ->all();
     }
 
     /**
-     * @return Collection<int, object>
+     * @return list<array{Id: int, Actividad: string}>
      */
-    private function telaresFiltrados(): Collection
+    private function actividadesCatalogo(): array
     {
-        $desde = is_numeric($this->rangoDesde) ? (int) $this->rangoDesde : null;
-        $hasta = is_numeric($this->rangoHasta) ? (int) $this->rangoHasta : null;
+        return MecActividadesModel::query()
+            ->orderBy('Orden')
+            ->orderBy('Id')
+            ->get(['Id', 'Actividad'])
+            ->map(fn ($actividad) => [
+                'Id' => (int) $actividad->Id,
+                'Actividad' => (string) $actividad->Actividad,
+            ])
+            ->all();
+    }
 
-        return collect($this->telaresTodos)
-            ->when($this->filtroMaquina !== '', fn (Collection $items) => $items->where('SalonTejidoId', $this->filtroMaquina))
-            ->when($desde !== null || $hasta !== null, function (Collection $items) use ($desde, $hasta) {
-                return $items->filter(function (array $telar) use ($desde, $hasta) {
-                    $numero = (int) $telar['NoTelarId'];
+    /**
+     * @return array<string, string> clave "telar|actividad" => valor
+     */
+    private function valoresCapturados(): array
+    {
+        $valores = [];
 
-                    if ($desde !== null && $numero < $desde) {
-                        return false;
-                    }
+        foreach (MecVerificaMaquinaLineModel::query()
+            ->where('Folio', $this->folio)
+            ->get(['NoTelarId', 'Actividad', 'Valor']) as $linea) {
+            $valores[$linea->NoTelarId.'|'.$linea->Actividad] = (string) $linea->Valor;
+        }
 
-                    if ($hasta !== null && $numero > $hasta) {
-                        return false;
-                    }
+        return $valores;
+    }
 
-                    return true;
-                });
-            })
-            ->values()
-            ->map(fn (array $telar) => (object) $telar);
+    /**
+     * Promedio de cada actividad resuelto en un solo GROUP BY.
+     *
+     * @return array<string, float>
+     */
+    private function promediosPorActividad(): array
+    {
+        $promedios = [];
+
+        foreach (MecVerificaMaquinaLineModel::query()
+            ->where('Folio', $this->folio)
+            ->whereIn('Valor', self::VALORES_VALIDOS)
+            ->groupBy('Actividad')
+            ->selectRaw('Actividad, AVG(CAST(Valor AS FLOAT)) AS Promedio')
+            ->get() as $fila) {
+            $promedios[(string) $fila->Actividad] = round((float) $fila->Promedio, 1);
+        }
+
+        return $promedios;
+    }
+
+    private function promedioActividad(string $nombreActividad): ?float
+    {
+        $promedio = MecVerificaMaquinaLineModel::query()
+            ->where('Folio', $this->folio)
+            ->where('Actividad', $nombreActividad)
+            ->whereIn('Valor', self::VALORES_VALIDOS)
+            ->selectRaw('AVG(CAST(Valor AS FLOAT)) AS Promedio')
+            ->value('Promedio');
+
+        return $promedio === null ? null : round((float) $promedio, 1);
+    }
+
+    /**
+     * @param  list<array{NoTelarId: string, Nombre: string, SalonTejidoId: string}>  $telares
+     * @return array<string, int>
+     */
+    private function conteoPorMaquina(array $telares): array
+    {
+        $conteo = [];
+
+        foreach ($telares as $telar) {
+            $salon = $telar['SalonTejidoId'];
+            $conteo[$salon] = ($conteo[$salon] ?? 0) + 1;
+        }
+
+        return $conteo;
     }
 
     /**
@@ -336,23 +298,27 @@ class Show extends Component
         ];
     }
 
+    /**
+     * Compara las celdas capturadas contra el total esperado con un COUNT,
+     * en lugar de recorrer la matriz completa en PHP.
+     */
     private function tieneCeldasIncompletas(): bool
     {
-        if ($this->todosTelarIds === [] || $this->actividadesMap === []) {
+        $telares = array_column($this->telaresCatalogo(), 'NoTelarId');
+        $actividades = array_column($this->actividadesCatalogo(), 'Actividad');
+
+        if ($telares === [] || $actividades === []) {
             return true;
         }
 
-        foreach ($this->actividadesMap as $meta) {
-            $actividad = $meta['Actividad'];
-            foreach ($this->todosTelarIds as $noTelarId) {
-                $valor = $this->valores[$noTelarId.'|'.$actividad] ?? null;
-                if (! in_array($valor, self::VALORES_VALIDOS, true)) {
-                    return true;
-                }
-            }
-        }
+        $capturadas = MecVerificaMaquinaLineModel::query()
+            ->where('Folio', $this->folio)
+            ->whereIn('Valor', self::VALORES_VALIDOS)
+            ->whereIn('NoTelarId', $telares)
+            ->whereIn('Actividad', $actividades)
+            ->count();
 
-        return false;
+        return $capturadas < count($telares) * count($actividades);
     }
 
     private function resolverEsSupervisor(): bool
