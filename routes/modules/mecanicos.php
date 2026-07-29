@@ -1,11 +1,16 @@
-<?php
+﻿<?php
 
+use App\Http\Controllers\mecanicos\MecVerificaMaquinaController;
 use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
 use Illuminate\Support\Facades\Route;
 
 // Ruta configurada para el submódulo 1100 en SYSRoles.
 Route::get('/submodulos/1100/ordenes-de-trabajo', [OrdenesTrabajoMecaController::class, 'index'])
     ->name('mecanicos.ordenes-trabajo.submodulo');
+
+// Ruta configurada para el submódulo 1102 (Estado Maquina) en SYSRoles, dependiente de 1100.
+Route::get('/submodulos/1100/estado-maquina', [MecVerificaMaquinaController::class, 'index'])
+    ->name('mecanicos.estado-maquina.index');
 
 Route::prefix('mecanicos/ordenes-trabajo')
     ->as('mecanicos.ordenes-trabajo.')

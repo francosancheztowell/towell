@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\mecanicos;
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 
 class MecVerificaMaquinaLineController extends Controller
 {
