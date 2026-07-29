@@ -28,7 +28,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function index(): View
     {
-        return view('modulos.mecanicos.index', [
+        return view('modulos.mecanicos.ordenes-trabajo.index', [
             'fechaInicial' => now('America/Mexico_City')->toDateString(),
             'operadores' => $this->operadoresMecanicos(),
         ]);
@@ -42,7 +42,7 @@ class OrdenesTrabajoMecaController extends Controller
 
         abort_unless($orden, 404);
 
-        return view('modulos.mecanicos.captura', [
+        return view('modulos.mecanicos.ordenes-trabajo.captura', [
             'orden' => $orden,
             'operadores' => $this->operadoresMecanicos(),
         ]);
