@@ -44,11 +44,14 @@
                                 </a>
                             </td>
                             <td class="whitespace-nowrap px-4 py-3">
+                                @php $estatusFila = $verificacion->Estatus ?: 'Activo'; @endphp
                                 <span @class([
                                     'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
-                                    'bg-green-100 text-green-800' => $verificacion->Estatus === 'Terminado',
-                                    'bg-blue-100 text-blue-800' => $verificacion->Estatus !== 'Terminado',
-                                ])>{{ $verificacion->Estatus ?: 'Activo' }}</span>
+                                    'bg-blue-100 text-blue-800' => $estatusFila === 'Activo',
+                                    'bg-amber-100 text-amber-800' => $estatusFila === 'Terminado',
+                                    'bg-green-100 text-green-800' => $estatusFila === 'Autorizado',
+                                    'bg-gray-100 text-gray-700' => ! in_array($estatusFila, ['Activo', 'Terminado', 'Autorizado'], true),
+                                ])>{{ $estatusFila }}</span>
                             </td>
                             <td class="whitespace-nowrap px-4 py-3 text-gray-700">
                                 {{ optional($verificacion->Fecha)->format('d/m/Y') ?? '—' }}
