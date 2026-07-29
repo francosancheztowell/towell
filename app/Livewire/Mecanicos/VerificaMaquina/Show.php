@@ -27,6 +27,13 @@ class Show extends Component
 
     public string $folio;
 
+    /** Filtro de salón/máquina: '' = todos, Jacquard, Smith, KM */
+    public string $filtroMaquina = '';
+
+    public string $rangoDesde = '';
+
+    public string $rangoHasta = '';
+
     public bool $mostrarModalFinalizar = false;
 
     public bool $mostrarModalIncompletos = false;
@@ -106,6 +113,13 @@ class Show extends Component
         $this->mostrarModalAutorizar = false;
     }
 
+    public function limpiarFiltrosTelares(): void
+    {
+        $this->filtroMaquina = '';
+        $this->rangoDesde = '';
+        $this->rangoHasta = '';
+    }
+
     public function abrirModalAutorizar(): void
     {
         $this->authorizeAccess();
@@ -132,9 +146,7 @@ class Show extends Component
     {
         $verificacion = MecVerificaMaquinaModel::findOrFail($this->folio);
 
-        $telares = ReqTelares::query()
-            ->orderBy('NoTelarId')
-            ->get(['NoTelarId', 'Nombre']);
+        $telares = $this->telaresFiltrados();
 
         $actividades = MecActividadesModel::query()
             ->orderBy('Orden')
@@ -166,17 +178,59 @@ class Show extends Component
         $esActivo = $estatus === self::ESTATUS_ACTIVO;
         $esSupervisor = $this->esSupervisor();
 
+        $conteoPorMaquina = ReqTelares::query()
+            ->selectRaw('SalonTejidoId, COUNT(*) as total')
+            ->groupBy('SalonTejidoId')
+            ->pluck('total', 'SalonTejidoId');
+
         return view('livewire.mecanicos.verifica-maquina.show', [
             'verificacion' => $verificacion,
             'telares' => $telares,
             'actividades' => $actividades,
             'valores' => $valores,
             'promedios' => $promedios,
+            'conteoPorMaquina' => $conteoPorMaquina,
+            'totalTelares' => (int) $conteoPorMaquina->sum(),
             'puedeCapturar' => $this->puedeCapturar() && $esActivo,
             'puedeFinalizar' => $this->puedeFinalizar() && $esActivo,
             'puedeAutorizar' => $esSupervisor && $estatus === self::ESTATUS_TERMINADO,
             'esSoloLectura' => ! $esActivo,
         ]);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, ReqTelares>
+     */
+    private function telaresFiltrados()
+    {
+        $query = ReqTelares::query()->orderBy('NoTelarId');
+
+        if ($this->filtroMaquina !== '') {
+            $query->where('SalonTejidoId', $this->filtroMaquina);
+        }
+
+        $telares = $query->get(['NoTelarId', 'Nombre', 'SalonTejidoId']);
+
+        $desde = is_numeric($this->rangoDesde) ? (int) $this->rangoDesde : null;
+        $hasta = is_numeric($this->rangoHasta) ? (int) $this->rangoHasta : null;
+
+        if ($desde !== null || $hasta !== null) {
+            $telares = $telares->filter(function ($telar) use ($desde, $hasta) {
+                $numero = (int) $telar->NoTelarId;
+
+                if ($desde !== null && $numero < $desde) {
+                    return false;
+                }
+
+                if ($hasta !== null && $numero > $hasta) {
+                    return false;
+                }
+
+                return true;
+            })->values();
+        }
+
+        return $telares;
     }
 
     private function finalizar(): void
