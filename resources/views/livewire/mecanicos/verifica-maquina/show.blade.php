@@ -165,6 +165,8 @@
 >
     {{-- Estilos de celda declarados una vez: repetir utilidades en ~1.1k celdas infla el HTML. --}}
     <style>
+        .vm-td{padding:.625rem .5rem;text-align:center}
+        .vm-th{min-width:4.5rem;padding:.875rem .625rem;text-align:center;font-size:.875rem}
         .vm-cell{display:inline-flex;align-items:center;justify-content:center;height:3rem;width:3.5rem;border-radius:.75rem;border-width:2px;border-style:solid;font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s,border-color .12s;cursor:pointer}
         .vm-on{border-color:#111827;background:#111827;color:#fff}
         .vm-off{border-color:#d1d5db;background:#fff;color:#9ca3af}
@@ -307,35 +309,30 @@
                 aria-label="Cuadrícula de verificación por telar y actividad; desplázate horizontalmente"
                 @scroll="menuAbierto = false"
             >
+                {{--
+                    El markup de las ~1.1k celdas va compactado en una sola línea a
+                    propósito: la indentación de Blade por celda pesaba más que el
+                    propio contenido. Los botones no llevan aria-label porque la
+                    tabla expone encabezados con scope y el lector de pantalla ya
+                    anuncia telar + actividad al entrar en la celda.
+                --}}
                 <table class="divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
-                            <th class="sticky left-0 z-10 min-w-80 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm">Actividad</th>
-                            @foreach ($telares as $telar)
-                                <th class="vm-col-{{ $telar['NoTelarId'] }} min-w-[4.5rem] px-2.5 py-3.5 text-center text-sm" title="{{ $telar['Nombre'] }} ({{ $telar['SalonTejidoId'] }})">{{ $telar['NoTelarId'] }}</th>
-                            @endforeach
-                            <th class="whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm">Todos los telares</th>
+                            <th scope="col" class="sticky left-0 z-10 min-w-80 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm">Actividad</th>
+                            @foreach ($telares as $telar)<th scope="col" class="vm-col-{{ $telar['NoTelarId'] }} vm-th" title="{{ $telar['Nombre'] }} ({{ $telar['SalonTejidoId'] }})">{{ $telar['NoTelarId'] }}</th>@endforeach
+                            <th scope="col" class="whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm">Todos los telares</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white" @click="abrirMenu($event)">
                         @forelse ($actividades as $actividad)
+                            @php $nombreActividad = $actividad['Actividad']; @endphp
                             <tr class="hover:bg-gray-50">
-                                <td class="sticky left-0 z-20 min-w-80 max-w-md bg-white px-4 py-4">
-                                    <span class="line-clamp-2 text-lg font-bold leading-snug text-gray-900" title="{{ $actividad['Actividad'] }}">{{ $actividad['Actividad'] }}</span>
-                                </td>
-                                @foreach ($telares as $telar)
-                                    @php $valorActual = $valores[$telar['NoTelarId'].'|'.$actividad['Actividad']] ?? ''; @endphp
-                                    <td class="vm-col-{{ $telar['NoTelarId'] }} px-2 py-2.5 text-center">
-                                        <button type="button"
-                                            class="vm-cell {{ $valorActual !== '' ? 'vm-on' : 'vm-off' }}"
-                                            data-t="{{ $telar['NoTelarId'] }}"
-                                            data-a="{{ $actividad['Id'] }}"
-                                            data-v="{{ $valorActual }}"
-                                            aria-label="Calificación telar {{ $telar['NoTelarId'] }} — {{ $actividad['Actividad'] }}"
-                                        >{{ $valorActual !== '' ? $valorActual : '—' }}</button>
-                                    </td>
-                                @endforeach
-                                <td data-prom="{{ $actividad['Id'] }}" class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800">{{ $promedios[$actividad['Actividad']] ?? '—' }}</td>
+                                <th scope="row" class="sticky left-0 z-20 min-w-80 max-w-md bg-white px-4 py-4 text-left">
+                                    <span class="line-clamp-2 text-lg font-bold leading-snug text-gray-900" title="{{ $nombreActividad }}">{{ $nombreActividad }}</span>
+                                </th>
+                                @foreach ($telares as $telar)@php $v = $valores[$telar['NoTelarId'].'|'.$nombreActividad] ?? ''; @endphp<td class="vm-col-{{ $telar['NoTelarId'] }} vm-td"><button class="vm-cell {{ $v !== '' ? 'vm-on' : 'vm-off' }}" data-t="{{ $telar['NoTelarId'] }}" data-a="{{ $actividad['Id'] }}"@if ($v !== '') data-v="{{ $v }}"@endif>{{ $v !== '' ? $v : '—' }}</button></td>@endforeach
+                                <td data-prom="{{ $actividad['Id'] }}" class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800">{{ $promedios[$nombreActividad] ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>
