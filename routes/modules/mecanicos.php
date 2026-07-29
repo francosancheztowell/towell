@@ -12,7 +12,7 @@ Route::get('/submodulos/1100/ordenes-de-trabajo', [OrdenesTrabajoMecaController:
 
 // Ruta configurada para el submódulo 1102 (Estado Maquina) en SYSRoles, dependiente de 1100.
 Route::get('/submodulos/1100/estado-maquina', [MecVerificaMaquinaController::class, 'index'])
-    ->name('mecanicos.estado-maquina.index');
+    ->name('mecanicos.estado-maquina.submodulo');
 
 // CRUD actividades (registrar antes del grid de catálogos para evitar ambigüedad de path).
 // Alineado con SYSRoles 1104-1 → Ruta=/mecanicos/catalogos/actividades
