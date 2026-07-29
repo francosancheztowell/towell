@@ -1,4 +1,76 @@
-<div class="flex flex-row items-start gap-3 sm:gap-4" wire:key="verifica-maquina-show-{{ $verificacion->Folio }}">
+<div
+    class="flex flex-row items-start gap-3 sm:gap-4"
+    wire:key="verifica-maquina-show-{{ $folio }}"
+    x-data="{
+        modalFinalizar: false,
+        modalIncompletos: false,
+        modalAutorizar: false,
+        procesando: false,
+        estatus: @js($estatus),
+        horaFin: @js($horaFin),
+        puedeFinalizarFlag: @js($puedeFinalizarFlag),
+        esSupervisorFlag: @js($esSupervisorFlag),
+        puedeCapturarFlag: @js($puedeCapturarFlag),
+        get puedeCapturar() { return this.estatus === 'Activo' && this.puedeCapturarFlag; },
+        get puedeFinalizar() { return this.estatus === 'Activo' && this.puedeFinalizarFlag; },
+        get puedeAutorizar() { return this.estatus === 'Terminado' && this.esSupervisorFlag; },
+        get esSoloLectura() { return this.estatus !== 'Activo'; },
+        init() {
+            Alpine.store('vmCaptura', this);
+        },
+        badgeClass() {
+            if (this.estatus === 'Activo') return 'bg-blue-100 text-blue-800';
+            if (this.estatus === 'Terminado') return 'bg-amber-100 text-amber-800';
+            if (this.estatus === 'Autorizado') return 'bg-green-100 text-green-800';
+            return 'bg-gray-100 text-gray-700';
+        },
+        aplicarFinalizado(res) {
+            if (!res || !res.ok) return;
+            this.estatus = res.estatus;
+            this.horaFin = res.horaFin || this.horaFin;
+            this.modalFinalizar = false;
+            this.modalIncompletos = false;
+        },
+        async onConfirmarFinalizar() {
+            if (this.procesando) return;
+            this.procesando = true;
+            try {
+                const res = await $wire.confirmarFinalizar();
+                if (res && res.incompleto) {
+                    this.modalFinalizar = false;
+                    this.modalIncompletos = true;
+                    return;
+                }
+                this.aplicarFinalizado(res);
+            } finally {
+                this.procesando = false;
+            }
+        },
+        async onConfirmarFinalizarIncompletos() {
+            if (this.procesando) return;
+            this.procesando = true;
+            try {
+                const res = await $wire.confirmarFinalizarConIncompletos();
+                this.aplicarFinalizado(res);
+            } finally {
+                this.procesando = false;
+            }
+        },
+        async onAutorizar() {
+            if (this.procesando) return;
+            this.procesando = true;
+            try {
+                const res = await $wire.autorizar();
+                if (res && res.ok) {
+                    this.estatus = res.estatus;
+                    this.modalAutorizar = false;
+                }
+            } finally {
+                this.procesando = false;
+            }
+        }
+    }"
+>
     {{-- Barra lateral fija a la izquierda --}}
     <aside class="sticky top-3 z-20 w-52 shrink-0 self-start sm:w-56 md:w-60">
         <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
@@ -69,54 +141,41 @@
     {{-- Contenido principal --}}
     <div class="min-w-0 flex-1 space-y-4">
         <section class="rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm sm:px-4">
-            @php $estatus = $verificacion->Estatus ?: 'Activo'; @endphp
             <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <h1 class="shrink-0 text-base font-bold text-gray-900">Verificación</h1>
-                <span class="inline-flex shrink-0 rounded bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">{{ $verificacion->Folio }}</span>
+                <span class="inline-flex shrink-0 rounded bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">{{ $folio }}</span>
 
                 <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
-                    <span><span class="font-medium text-gray-400">Fecha</span> {{ optional($verificacion->Fecha)->format('d/m/Y') ?? '—' }}</span>
+                    <span><span class="font-medium text-gray-400">Fecha</span> {{ $fecha }}</span>
                     <span class="hidden text-gray-300 sm:inline">|</span>
-                    <span class="truncate"><span class="font-medium text-gray-400">Mecánico</span> {{ $verificacion->NomOperador ?: '—' }}</span>
+                    <span class="truncate"><span class="font-medium text-gray-400">Mecánico</span> {{ $nomOperador }}</span>
                     <span class="hidden text-gray-300 sm:inline">|</span>
-                    <span><span class="font-medium text-gray-400">Turno</span> {{ $verificacion->TurnoRecibe ?: '—' }}</span>
+                    <span><span class="font-medium text-gray-400">Turno</span> {{ $turnoRecibe }}</span>
                     <span class="hidden text-gray-300 sm:inline">|</span>
-                    <span @class([
-                        'inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                        'bg-blue-100 text-blue-800' => $estatus === 'Activo',
-                        'bg-amber-100 text-amber-800' => $estatus === 'Terminado',
-                        'bg-green-100 text-green-800' => $estatus === 'Autorizado',
-                        'bg-gray-100 text-gray-700' => ! in_array($estatus, ['Activo', 'Terminado', 'Autorizado'], true),
-                    ])>{{ $estatus }}</span>
+                    <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="badgeClass()" x-text="estatus"></span>
                     <span class="hidden text-gray-300 sm:inline">|</span>
-                    <span><span class="font-medium text-gray-400">Inicio</span> {{ $verificacion->HoraInicio ? \Illuminate\Support\Str::of((string) $verificacion->HoraInicio)->substr(0, 5) : '—' }}</span>
+                    <span><span class="font-medium text-gray-400">Inicio</span> {{ $horaInicio }}</span>
                     <span class="hidden text-gray-300 sm:inline">|</span>
-                    <span><span class="font-medium text-gray-400">Fin</span> {{ $verificacion->HoraFin ? \Illuminate\Support\Str::of((string) $verificacion->HoraFin)->substr(0, 5) : '—' }}</span>
+                    <span><span class="font-medium text-gray-400">Fin</span> <span x-text="horaFin"></span></span>
                 </div>
 
                 <div class="ml-auto flex shrink-0 items-center gap-1.5">
-                    @if ($puedeFinalizar)
-                        <button type="button" wire:click="abrirModalFinalizar"
-                            class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black">
-                            <i class="fas fa-check"></i>
-                            Finalizar
-                        </button>
-                    @endif
-                    @if ($puedeAutorizar)
-                        <button type="button" wire:click="abrirModalAutorizar"
-                            class="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-800">
-                            <i class="fas fa-user-check"></i>
-                            Autorizar
-                        </button>
-                    @endif
+                    <button type="button" x-show="puedeFinalizar" x-cloak @click="modalFinalizar = true"
+                        class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black">
+                        <i class="fas fa-check"></i>
+                        Finalizar
+                    </button>
+                    <button type="button" x-show="puedeAutorizar" x-cloak @click="modalAutorizar = true"
+                        class="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-800">
+                        <i class="fas fa-user-check"></i>
+                        Autorizar
+                    </button>
                 </div>
             </div>
 
-            @if ($esSoloLectura)
-                <p class="mt-2 text-[11px] text-amber-700">
-                    Folio en estatus <strong>{{ $verificacion->Estatus }}</strong>. Solo los <strong>Activo</strong> se pueden editar.
-                </p>
-            @endif
+            <p x-show="esSoloLectura" x-cloak class="mt-2 text-[11px] text-amber-700">
+                Folio en estatus <strong x-text="estatus"></strong>. Solo los <strong>Activo</strong> se pueden editar.
+            </p>
         </section>
 
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -166,50 +225,46 @@
                                         >
                                             <button
                                                 type="button"
-                                                @disabled(! $puedeCapturar)
-                                                @click="open = !open"
+                                                @click="if (Alpine.store('vmCaptura').puedeCapturar) open = !open"
+                                                :disabled="!Alpine.store('vmCaptura').puedeCapturar"
                                                 aria-haspopup="listbox"
                                                 aria-label="Calificación telar {{ $telar->NoTelarId }} — {{ $actividad->Actividad }}"
                                                 :class="{
                                                     'border-gray-900 bg-gray-900 text-white': !!valor,
                                                     'border-gray-300 bg-white text-gray-400': !valor,
-                                                    'cursor-not-allowed opacity-40': {{ $puedeCapturar ? 'false' : 'true' }},
-                                                    'cursor-pointer hover:scale-105 hover:border-gray-700': {{ $puedeCapturar ? 'true' : 'false' }}
+                                                    'cursor-not-allowed opacity-40': !Alpine.store('vmCaptura').puedeCapturar,
+                                                    'cursor-pointer hover:scale-105 hover:border-gray-700': Alpine.store('vmCaptura').puedeCapturar
                                                 }"
                                                 class="inline-flex h-12 w-14 items-center justify-center gap-0.5 rounded-xl border-2 text-xl font-extrabold tabular-nums shadow-sm transition"
                                             >
                                                 <span x-text="valor || '—'"></span>
-                                                @if ($puedeCapturar)
-                                                    <i class="fas fa-caret-down text-[10px] opacity-70"></i>
-                                                @endif
+                                                <i x-show="Alpine.store('vmCaptura').puedeCapturar" class="fas fa-caret-down text-[10px] opacity-70"></i>
                                             </button>
 
-                                            @if ($puedeCapturar)
-                                                <div
-                                                    x-show="open"
-                                                    x-cloak
-                                                    x-transition.opacity.duration.100ms
-                                                    @click.outside="open = false"
-                                                    class="absolute left-1/2 top-full z-30 mt-1.5 w-16 -translate-x-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl"
-                                                    role="listbox"
-                                                >
-                                                    @foreach (['1', '2', '3'] as $opcion)
-                                                        <button
-                                                            type="button"
-                                                            role="option"
-                                                            @click="
-                                                                valor = '{{ $opcion }}';
-                                                                open = false;
-                                                                $wire.capturar('{{ $telar->NoTelarId }}', {{ $actividad->Id }}, '{{ $opcion }}')
-                                                                    .then((p) => { $dispatch('set-promedio', p) })
-                                                                    .catch(() => {})
-                                                            "
-                                                            :class="valor === '{{ $opcion }}' ? 'bg-gray-900 text-white' : 'text-gray-800 hover:bg-gray-100'"
-                                                            class="flex h-11 w-full items-center justify-center text-xl font-extrabold tabular-nums transition"
-                                                        >{{ $opcion }}</button>
-                                                    @endforeach
-                                                </div>
-                                            @endif
+                                            <div
+                                                x-show="open && Alpine.store('vmCaptura').puedeCapturar"
+                                                x-cloak
+                                                x-transition.opacity.duration.100ms
+                                                @click.outside="open = false"
+                                                class="absolute left-1/2 top-full z-30 mt-1.5 w-16 -translate-x-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl"
+                                                role="listbox"
+                                            >
+                                                @foreach (['1', '2', '3'] as $opcion)
+                                                    <button
+                                                        type="button"
+                                                        role="option"
+                                                        @click="
+                                                            valor = '{{ $opcion }}';
+                                                            open = false;
+                                                            $wire.capturar('{{ $telar->NoTelarId }}', {{ $actividad->Id }}, '{{ $opcion }}')
+                                                                .then((p) => { $dispatch('set-promedio', p) })
+                                                                .catch(() => {})
+                                                        "
+                                                        :class="valor === '{{ $opcion }}' ? 'bg-gray-900 text-white' : 'text-gray-800 hover:bg-gray-100'"
+                                                        class="flex h-11 w-full items-center justify-center text-xl font-extrabold tabular-nums transition"
+                                                    >{{ $opcion }}</button>
+                                                @endforeach
+                                            </div>
                                         </div>
                                     </td>
                                 @empty
@@ -236,77 +291,71 @@
         </section>
     </div>
 
-    {{-- Modal: confirmar finalizar --}}
-    @if ($mostrarModalFinalizar)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" wire:click.self="cancelarModales">
-            <div class="w-full max-w-md rounded-xl bg-white shadow-2xl">
-                <div class="border-b border-gray-200 px-5 py-4">
-                    <h2 class="text-lg font-bold text-gray-900">Confirmar finalización</h2>
-                </div>
-                <div class="px-5 py-5">
-                    <p class="text-sm leading-relaxed text-gray-700">¿Está seguro que quieres finalizar este registro?</p>
-                </div>
-                <div class="flex flex-col-reverse gap-2 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-end">
-                    <button type="button" wire:click="cancelarModales"
-                        class="w-full rounded-md border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">
-                        No
-                    </button>
-                    <button type="button" wire:click="confirmarFinalizar"
-                        class="w-full rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black sm:w-auto">
-                        Sí
-                    </button>
-                </div>
+    {{-- Modal: confirmar finalizar (Alpine, sin re-render Livewire) --}}
+    <div x-show="modalFinalizar" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" @click.self="modalFinalizar = false">
+        <div class="w-full max-w-md rounded-xl bg-white shadow-2xl" @click.stop>
+            <div class="border-b border-gray-200 px-5 py-4">
+                <h2 class="text-lg font-bold text-gray-900">Confirmar finalización</h2>
+            </div>
+            <div class="px-5 py-5">
+                <p class="text-sm leading-relaxed text-gray-700">¿Está seguro que quieres finalizar este registro?</p>
+            </div>
+            <div class="flex flex-col-reverse gap-2 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-end">
+                <button type="button" @click="modalFinalizar = false" :disabled="procesando"
+                    class="w-full rounded-md border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">
+                    No
+                </button>
+                <button type="button" @click="onConfirmarFinalizar()" :disabled="procesando"
+                    class="w-full rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-60 sm:w-auto">
+                    <span x-text="procesando ? 'Finalizando…' : 'Sí'"></span>
+                </button>
             </div>
         </div>
-    @endif
+    </div>
 
     {{-- Modal: incompletos --}}
-    @if ($mostrarModalIncompletos)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" wire:click.self="cancelarModales">
-            <div class="w-full max-w-md rounded-xl bg-white shadow-2xl">
-                <div class="border-b border-amber-200 bg-amber-50 px-5 py-4">
-                    <h2 class="text-lg font-bold text-amber-900">Telares incompletos</h2>
-                </div>
-                <div class="px-5 py-5">
-                    <p class="text-sm leading-relaxed text-gray-700">
-                        Hay telares incompletos o que no se han llenado. ¿Está seguro de finalizar este registro?
-                    </p>
-                </div>
-                <div class="flex flex-col-reverse gap-2 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-end">
-                    <button type="button" wire:click="cancelarModales"
-                        class="w-full rounded-md border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">
-                        No
-                    </button>
-                    <button type="button" wire:click="confirmarFinalizarConIncompletos"
-                        class="w-full rounded-md bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 sm:w-auto">
-                        Sí, finalizar
-                    </button>
-                </div>
+    <div x-show="modalIncompletos" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" @click.self="modalIncompletos = false">
+        <div class="w-full max-w-md rounded-xl bg-white shadow-2xl" @click.stop>
+            <div class="border-b border-amber-200 bg-amber-50 px-5 py-4">
+                <h2 class="text-lg font-bold text-amber-900">Telares incompletos</h2>
+            </div>
+            <div class="px-5 py-5">
+                <p class="text-sm leading-relaxed text-gray-700">
+                    Hay telares incompletos o que no se han llenado. ¿Está seguro de finalizar este registro?
+                </p>
+            </div>
+            <div class="flex flex-col-reverse gap-2 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-end">
+                <button type="button" @click="modalIncompletos = false" :disabled="procesando"
+                    class="w-full rounded-md border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">
+                    No
+                </button>
+                <button type="button" @click="onConfirmarFinalizarIncompletos()" :disabled="procesando"
+                    class="w-full rounded-md bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60 sm:w-auto">
+                    <span x-text="procesando ? 'Finalizando…' : 'Sí, finalizar'"></span>
+                </button>
             </div>
         </div>
-    @endif
+    </div>
 
     {{-- Modal: autorizar --}}
-    @if ($mostrarModalAutorizar)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" wire:click.self="cancelarModales">
-            <div class="w-full max-w-md rounded-xl bg-white shadow-2xl">
-                <div class="border-b border-gray-200 px-5 py-4">
-                    <h2 class="text-lg font-bold text-gray-900">Autorizar verificación</h2>
-                </div>
-                <div class="px-5 py-5">
-                    <p class="text-sm leading-relaxed text-gray-700">¿Está seguro que quieres autorizar este registro?</p>
-                </div>
-                <div class="flex flex-col-reverse gap-2 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-end">
-                    <button type="button" wire:click="cancelarModales"
-                        class="w-full rounded-md border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">
-                        No
-                    </button>
-                    <button type="button" wire:click="autorizar"
-                        class="w-full rounded-md bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 sm:w-auto">
-                        Sí
-                    </button>
-                </div>
+    <div x-show="modalAutorizar" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3" role="dialog" aria-modal="true" @click.self="modalAutorizar = false">
+        <div class="w-full max-w-md rounded-xl bg-white shadow-2xl" @click.stop>
+            <div class="border-b border-gray-200 px-5 py-4">
+                <h2 class="text-lg font-bold text-gray-900">Autorizar verificación</h2>
+            </div>
+            <div class="px-5 py-5">
+                <p class="text-sm leading-relaxed text-gray-700">¿Está seguro que quieres autorizar este registro?</p>
+            </div>
+            <div class="flex flex-col-reverse gap-2 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-end">
+                <button type="button" @click="modalAutorizar = false" :disabled="procesando"
+                    class="w-full rounded-md border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">
+                    No
+                </button>
+                <button type="button" @click="onAutorizar()" :disabled="procesando"
+                    class="w-full rounded-md bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60 sm:w-auto">
+                    <span x-text="procesando ? 'Autorizando…' : 'Sí'"></span>
+                </button>
             </div>
         </div>
-    @endif
+    </div>
 </div>
