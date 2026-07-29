@@ -41,7 +41,10 @@ class Index extends Component
     {
         $this->authorizeAccess();
 
-        $this->fecha = now('America/Mexico_City')->toDateString();
+        // Solo default: si viene fecha en la URL (#[Url]) hay que respetarla.
+        if ($this->fecha === '') {
+            $this->fecha = now('America/Mexico_City')->toDateString();
+        }
     }
 
     public function abrirModal(): void
@@ -124,12 +127,23 @@ class Index extends Component
     public function render(): View
     {
         $verificaciones = MecVerificaMaquinaModel::query()
-            ->when($this->fecha !== '', fn ($query) => $query->whereDate('Fecha', $this->fecha))
+            // Fecha es DATE: comparar directo permite usar el índice. whereDate()
+            // envuelve la columna en un CAST y fuerza scan de tabla.
+            ->when($this->fecha !== '', fn ($query) => $query->where('Fecha', $this->fecha))
             ->when($this->estatus !== '', fn ($query) => $query->where('Estatus', $this->estatus))
             ->orderByDesc('Fecha')
             ->orderByDesc('HoraInicio')
             ->orderByDesc('Folio')
-            ->paginate(15);
+            ->paginate(15, [
+                'Folio',
+                'Fecha',
+                'TurnoRecibe',
+                'CveOperador',
+                'NomOperador',
+                'Estatus',
+                'HoraInicio',
+                'HoraFin',
+            ]);
 
         $usuario = Auth::user();
 
