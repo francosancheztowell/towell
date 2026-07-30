@@ -42,9 +42,15 @@ class MantenimientoParosControllerTest extends TestCase
             $table->string('NoTelarId')->nullable();
             $table->integer('EnProceso')->nullable();
         });
+
+        $schema->create('URDCatalogoMaquinas', function (Blueprint $table) {
+            $table->string('MaquinaId')->primary();
+            $table->string('Nombre')->nullable();
+            $table->string('Departamento');
+        });
     }
 
-    public function test_maquinas_de_calidad_muestra_todos_los_telares_disponibles(): void
+    public function test_maquinas_de_calidad_incluye_tejido_urdido_y_engomado(): void
     {
         $usuario = $this->createUsuario([
             'numero_empleado' => '1001',
@@ -87,6 +93,23 @@ class MantenimientoParosControllerTest extends TestCase
                 'Supervisor' => 0,
             ],
         ]);
+        \DB::connection('sqlsrv')->table('URDCatalogoMaquinas')->insert([
+            [
+                'MaquinaId' => 'Mc Coy 2',
+                'Nombre' => 'Mc Coy 2',
+                'Departamento' => 'Urdido',
+            ],
+            [
+                'MaquinaId' => 'WestPoint 2',
+                'Nombre' => 'WestPoint 2',
+                'Departamento' => 'Engomado',
+            ],
+            [
+                'MaquinaId' => 'OTRA-01',
+                'Nombre' => 'Otra máquina',
+                'Departamento' => 'Otro',
+            ],
+        ]);
 
         $controller = new MantenimientoParosController;
         $response = $controller->maquinas('Calidad');
@@ -94,8 +117,16 @@ class MantenimientoParosControllerTest extends TestCase
 
         $this->assertTrue($payload['success']);
         $this->assertSame(
-            ['T-01', 'T-02', 'T-03'],
+            ['T-01', 'T-02', 'T-03', 'Mc Coy 2', 'WestPoint 2'],
             collect($payload['data'])->pluck('MaquinaId')->all()
+        );
+        $this->assertSame(
+            ['Tejido', 'Tejido', 'Tejido', 'Urdido', 'Engomado'],
+            collect($payload['data'])->pluck('DepartamentoOrigen')->all()
+        );
+        $this->assertSame(
+            ['Calidad'],
+            collect($payload['data'])->pluck('Departamento')->unique()->values()->all()
         );
     }
 

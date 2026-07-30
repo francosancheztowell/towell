@@ -9,10 +9,10 @@
     data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}"
     wire:key="crudo-machine-{{ $machine['telar'] }}"
     wire:click="selectMachine(@js($machine['telar']))"
+    wire:loading.attr="disabled"
+    wire:target="selectMachine"
     aria-label="Abrir detalle del telar {{ $machine['telar'] }}, estado {{ $machine['stateLabel'] }}"
 >
-    <span class="crudo-machine-state-dot" aria-hidden="true"></span>
-
     <svg class="crudo-loom" viewBox="0 0 200 176" role="img" aria-hidden="true">
         <ellipse class="crudo-loom-floor" cx="100" cy="169" rx="87" ry="5" />
 
@@ -64,8 +64,8 @@
         </g>
     </svg>
 
-    <span class="crudo-machine-metric">{{ number_format((float) $machine['kilos'], 1) }} kg</span>
-    <span class="crudo-machine-quality">{{ number_format((float) $machine['qualityPercent'], 1) }}% calidad</span>
+    <span class="crudo-machine-quality">{{ number_format((float) $machine['qualityPercent']) }}%</span>
+    <span class="crudo-machine-metric">{{ number_format((float) $machine['kilos']) }} kg</span>
 
     <span class="crudo-machine-tooltip" role="tooltip">
         <strong>{{ $machine['name'] }}</strong>

@@ -29,6 +29,7 @@ final class CrudoDashboardServiceTest extends TestCase
         config()->set('crudo.salons', [
             'JACQUARD' => 'Jacquard',
         ]);
+        config()->set('crudo.catalog_cache_seconds', 0);
 
         $this->repository = new FakeCrudoReadRepository(
             headers: [
@@ -101,14 +102,15 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame('201', $data['machines'][0]['telar']);
         $this->assertSame(100.0, $data['machines'][0]['pieces']);
         $this->assertSame(5.0, $data['machines'][0]['seconds']);
-        $this->assertSame(4.0, $data['machines'][0]['kilos']);
+        $this->assertSame(40.0, $data['machines'][0]['kilos']);
         $this->assertSame(95.0, $data['machines'][0]['qualityPercent']);
         $this->assertSame('operating', $data['machines'][0]['state']);
         $this->assertSame('no_data', $data['machines'][1]['state']);
         $this->assertSame(100.0, $data['summary']['pieces']);
         $this->assertSame(5.0, $data['summary']['seconds']);
         $this->assertSame(95.0, $data['summary']['qualityPercent']);
-        $this->assertSame(['1001'], $this->repository->requestedHeaderIds);
+        $this->assertSame([], $this->repository->requestedHeaderIds);
+        $this->assertSame(1, $this->repository->aggregateCalls);
     }
 
     public function test_shift_filter_uses_the_matching_piece_column_and_defect_turn(): void
@@ -118,12 +120,28 @@ final class CrudoDashboardServiceTest extends TestCase
 
         $this->assertSame(60.0, $machine['pieces']);
         $this->assertSame(2.0, $machine['seconds']);
-        $this->assertSame(2.4, $machine['kilos']);
-        $this->assertCount(1, $machine['defects']);
-        $this->assertSame('01', $machine['defects'][0]['code']);
-        $this->assertSame(2.0, $machine['defects'][0]['quantity']);
-        $this->assertSame(60.0, $machine['captures'][0]['pieces']);
-        $this->assertSame(2.0, $machine['captures'][0]['seconds']);
+        $this->assertSame(24.0, $machine['kilos']);
+        $this->assertSame(['1001'], $this->repository->requestedHeaderIds);
+        // El snapshot compartido (build/buildRange) ya no arma defectos/capturas por
+        // telar — eso se pide aparte, en vivo, vía machineDetail() al abrir el modal.
+        $this->assertSame([], $machine['defects']);
+        $this->assertSame([], $machine['captures']);
+    }
+
+    public function test_machine_detail_builds_defects_and_captures_for_a_single_telar(): void
+    {
+        $detail = $this->service->machineDetail('201', $this->date(), $this->date(), '1');
+
+        $this->assertCount(1, $detail['defects']);
+        $this->assertSame('01', $detail['defects'][0]['code']);
+        $this->assertSame(2.0, $detail['defects'][0]['quantity']);
+        $this->assertSame(1, $detail['captureCount']);
+        $this->assertSame(24.0, $detail['kilos']);
+        $this->assertSame(1, $detail['defectLineCount']);
+        $this->assertSame('1001', $detail['captures'][0]['recId']);
+        $this->assertSame(1, $detail['captures'][0]['defectLineCount']);
+        $this->assertSame(60.0, $detail['captures'][0]['pieces']);
+        $this->assertSame(2.0, $detail['captures'][0]['seconds']);
     }
 
     private function date(): DateTimeImmutable
@@ -136,6 +154,8 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
 {
     /** @var list<int|string> */
     public array $requestedHeaderIds = [];
+
+    public int $aggregateCalls = 0;
 
     /**
      * @param  list<object>  $headers
@@ -153,6 +173,42 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
         return $this->headers;
     }
 
+    public function headersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        return $this->headers;
+    }
+
+    public function aggregateHeadersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        $this->aggregateCalls++;
+        $grouped = [];
+
+        foreach ($this->headers as $header) {
+            $telar = trim((string) $header->TELAR);
+            $grouped[$telar] ??= (object) [
+                'TELAR' => $telar,
+                'captureCount' => 0,
+                'pieces' => 0.0,
+                'seconds' => 0.0,
+                'kilos' => 0.0,
+            ];
+            $grouped[$telar]->captureCount++;
+            $grouped[$telar]->pieces += (float) $header->PIEZASTOTAL;
+            $grouped[$telar]->seconds += (float) $header->SEGUNDASTOTAL;
+            $grouped[$telar]->kilos += (float) $header->PESO;
+        }
+
+        return array_values($grouped);
+    }
+
+    public function headersForTelarInRange(string $telar, DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        return array_values(array_filter(
+            $this->headers,
+            static fn (object $header): bool => trim((string) $header->TELAR) === $telar,
+        ));
+    }
+
     public function defectsForHeaders(array $headerRecIds): array
     {
         $this->requestedHeaderIds = $headerRecIds;
@@ -163,5 +219,15 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
     public function machines(): array
     {
         return $this->machines;
+    }
+
+    public function activeParos(): array
+    {
+        return [];
+    }
+
+    public function activePrograms(array $telares): array
+    {
+        return [];
     }
 }

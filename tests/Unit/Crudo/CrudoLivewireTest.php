@@ -34,12 +34,18 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('crudo-navbar-toolbar', false)
             ->assertDontSee('crudo-toolbar', false)
             ->assertSee('JAC 201')
-            ->assertSee('95.0% calidad')
+            ->assertSee('95%')
             ->assertSee('crudo-loom-body', false)
             ->assertSee('crudo-loom-number-text', false)
             ->call('selectMachine', '201')
             ->assertSet('selectedTelar', '201')
+            ->assertSet('selectedMachineDetail.kilos', 40.0)
+            ->assertSee('crudo-modal-overview', false)
+            ->assertSee('crudo-modal-identity-card', false)
+            ->assertDontSee('crudo-modal-header', false)
             ->assertSee('Órdenes y turnos')
+            ->assertSee('1001')
+            ->assertSee('Peso captura (kg)')
             ->assertSee('ORD-100')
             ->assertSee('Error de trama')
             ->call('closeMachine')
@@ -55,6 +61,58 @@ final class CrudoLivewireTest extends TestCase
             ->assertDispatched('crudo-refrescado');
 
         $this->assertTrue($this->provider->forceRefreshSeen);
+    }
+
+    public function test_poll_performs_only_one_dashboard_read_per_livewire_action(): void
+    {
+        Livewire::test(TestableCrudoDashboard::class)
+            ->call('refreshDashboard')
+            ->assertDispatched('crudo-refrescado');
+
+        $this->assertSame(2, $this->provider->getCalls);
+    }
+
+    public function test_historical_and_range_views_do_not_keep_polling(): void
+    {
+        Livewire::test(TestableCrudoDashboard::class)
+            ->set('fecha', '2026-07-01')
+            ->assertDontSee('wire:poll.visible', false)
+            ->set('modo', 'rango')
+            ->assertDontSee('wire:poll.visible', false);
+    }
+
+    public function test_poll_refreshes_open_detail_and_preserves_the_last_detail_if_sql_fails(): void
+    {
+        $component = Livewire::test(TestableCrudoDashboard::class)
+            ->call('selectMachine', '201')
+            ->assertSet('selectedMachineDetail.kilos', 40.0);
+
+        $this->provider->failDetail = true;
+
+        $component
+            ->call('refreshDashboard')
+            ->assertSet('selectedMachineDetail.kilos', 40.0)
+            ->assertSet(
+                'selectedMachineDetailError',
+                'No fue posible actualizar el detalle. El resumen puede seguir mostrando el último dato disponible.',
+            )
+            ->assertSee('No fue posible actualizar el detalle');
+
+        $this->assertSame(2, $this->provider->detailCalls);
+    }
+
+    public function test_opening_and_closing_the_modal_does_not_force_a_synchronous_rebuild(): void
+    {
+        Livewire::test(TestableCrudoDashboard::class)
+            ->call('selectMachine', '201')
+            ->call('closeMachine');
+
+        // El primer render (mount) sí puede reconstruir; los renders disparados
+        // por selectMachine/closeMachine deben pedir allowRebuild=false.
+        $this->assertSame(
+            [true, false, false],
+            $this->provider->allowRebuildSeen,
+        );
     }
 
     /**
@@ -99,11 +157,15 @@ final class CrudoLivewireTest extends TestCase
                     'piecesT4' => 0.0,
                     'pieces' => 100.0,
                     'seconds' => 5.0,
+                    'defectLineCount' => 1,
                     'observations' => '',
                 ]],
                 'lastUpdatedAt' => now()->toIso8601String(),
+                'paro' => null,
+                'programa' => null,
             ]],
             'summary' => [
+                'paro' => 0,
                 'bad_quality' => 0,
                 'low_kilos' => 0,
                 'operating' => 1,
@@ -112,10 +174,13 @@ final class CrudoLivewireTest extends TestCase
                 'pieces' => 100.0,
                 'seconds' => 5.0,
                 'kilos' => 4.0,
+                'expectedKilos' => 3.0,
                 'qualityPercent' => 95.0,
+                'efficiencyPercent' => 100.0,
             ],
             'areas' => [[
                 'name' => 'Jacquard',
+                'paro' => 0,
                 'badQuality' => 0,
                 'lowKilos' => 0,
                 'operating' => 1,
@@ -133,6 +198,15 @@ final class FakeCrudoDashboardProvider implements CrudoDashboardProvider
 {
     public bool $forceRefreshSeen = false;
 
+    public int $getCalls = 0;
+
+    public bool $failDetail = false;
+
+    public int $detailCalls = 0;
+
+    /** @var list<bool> */
+    public array $allowRebuildSeen = [];
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -140,14 +214,64 @@ final class FakeCrudoDashboardProvider implements CrudoDashboardProvider
         private readonly array $data,
     ) {}
 
-    public function get(DateTimeImmutable $date, string $shift, bool $forceRefresh = false): array
-    {
+    public function get(
+        DateTimeImmutable $date,
+        string $shift,
+        bool $forceRefresh = false,
+        ?DateTimeImmutable $to = null,
+        bool $allowRebuild = true,
+    ): array {
+        $this->getCalls++;
+        $this->allowRebuildSeen[] = $allowRebuild;
         $this->forceRefreshSeen = $this->forceRefreshSeen || $forceRefresh;
 
         return [
             ...$this->data,
             'date' => $date->format('Y-m-d'),
             'shift' => $shift,
+        ];
+    }
+
+    public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to, string $shift): array
+    {
+        $this->detailCalls++;
+
+        if ($this->failDetail) {
+            throw new \RuntimeException('SQL no disponible');
+        }
+
+        foreach ($this->data['machines'] as $machine) {
+            if ($machine['telar'] === $telar) {
+                return [
+                    'captureCount' => $machine['captureCount'],
+                    'pieces' => $machine['pieces'],
+                    'seconds' => $machine['seconds'],
+                    'kilos' => 40.0,
+                    'qualityPercent' => $machine['qualityPercent'],
+                    'secondsPercent' => $machine['secondsPercent'],
+                    'orders' => $machine['orders'],
+                    'operators' => $machine['operators'],
+                    'lastUpdatedAt' => $machine['lastUpdatedAt'],
+                    'defectLineCount' => 1,
+                    'defects' => $machine['defects'],
+                    'captures' => $machine['captures'],
+                ];
+            }
+        }
+
+        return [
+            'captureCount' => 0,
+            'pieces' => 0.0,
+            'seconds' => 0.0,
+            'kilos' => 0.0,
+            'qualityPercent' => 0.0,
+            'secondsPercent' => 0.0,
+            'orders' => [],
+            'operators' => [],
+            'lastUpdatedAt' => null,
+            'defectLineCount' => 0,
+            'defects' => [],
+            'captures' => [],
         ];
     }
 }

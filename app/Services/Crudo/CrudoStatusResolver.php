@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Crudo;
 
 use App\Enums\Crudo\CrudoMachineState;
+use DateInterval;
 use DateTimeImmutable;
 
 final class CrudoStatusResolver
@@ -15,7 +16,12 @@ final class CrudoStatusResolver
         float $secondsPercent,
         float $kilos,
         float $expectedKilos,
+        bool $hasActiveParo = false,
     ): CrudoMachineState {
+        if ($hasActiveParo) {
+            return CrudoMachineState::Paro;
+        }
+
         if ($captureCount === 0 || $pieces <= 0) {
             return CrudoMachineState::NoData;
         }
@@ -31,32 +37,54 @@ final class CrudoStatusResolver
         return CrudoMachineState::Operating;
     }
 
+    /**
+     * Meta esperada entre $from y $to (inclusive). Para un solo día, deja $to en null.
+     * Los días futuros no cuentan; el día de hoy se prorratea por hora transcurrida
+     * solo cuando el turno es "todos" (un turno específico siempre pesa el día completo,
+     * ya que corresponde a un bloque de horas ya cerrado o en curso, no fraccionable por reloj).
+     */
     public function expectedKilos(
         string $salon,
-        DateTimeImmutable $date,
+        DateTimeImmutable $from,
         string $shift,
         DateTimeImmutable $now,
+        ?DateTimeImmutable $to = null,
     ): float {
         /** @var array<string, int|float> $targets */
         $targets = config('crudo.daily_kg_target', []);
         $dailyTarget = (float) ($targets[$salon] ?? $targets['Sin clasificar'] ?? 0);
 
-        if ($dailyTarget <= 0 || $date > $now->setTime(23, 59, 59)) {
+        if ($dailyTarget <= 0) {
+            return 0.0;
+        }
+
+        $today = $now->setTime(0, 0);
+        $cursor = $from->setTime(0, 0);
+        $lastDay = min(($to ?? $from)->setTime(0, 0), $today);
+
+        if ($cursor > $lastDay) {
             return 0.0;
         }
 
         if ($shift !== 'todos') {
-            return $dailyTarget / max(1, (int) config('crudo.turns_per_day', 4));
-        }
+            $days = (int) $cursor->diff($lastDay)->days + 1;
 
-        if ($date->format('Y-m-d') < $now->format('Y-m-d')) {
-            return $dailyTarget;
+            return ($dailyTarget / max(1, (int) config('crudo.turns_per_day', 4))) * $days;
         }
 
         $secondsElapsed = ((int) $now->format('H') * 3600)
             + ((int) $now->format('i') * 60)
             + (int) $now->format('s');
 
-        return $dailyTarget * min(1, max(0, $secondsElapsed / 86400));
+        $days = 0.0;
+        while ($cursor <= $lastDay) {
+            $days += $cursor->format('Y-m-d') === $today->format('Y-m-d')
+                ? min(1, max(0, $secondsElapsed / 86400))
+                : 1.0;
+
+            $cursor = $cursor->add(new DateInterval('P1D'));
+        }
+
+        return $dailyTarget * $days;
     }
 }

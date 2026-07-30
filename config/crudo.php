@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+$pollSeconds = max(5, (int) env('CRUDO_POLL_SECONDS', 15));
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -22,7 +24,11 @@ return [
         'lines' => env('CRUDO_LINES_TABLE', 'dbo.TWCRUDOLINE'),
         'machines' => env('CRUDO_MACHINES_TABLE', 'dbo.ReqTelares'),
         'sequence' => env('CRUDO_SEQUENCE_TABLE', 'dbo.InvSecuenciaTelares'),
+        'paros' => env('CRUDO_PAROS_TABLE', 'dbo.ManFallasParos'),
     ],
+
+    // Departamentos de Mantenimiento cuyos paros aplican a los telares de Crudo.
+    'paro_departments' => ['Calidad', 'Tejido'],
 
     'data_area_id' => env('CRUDO_DATA_AREA_ID', 'pro'),
 
@@ -31,11 +37,15 @@ return [
     | Actualización
     |--------------------------------------------------------------------------
     */
-    'poll_seconds' => max(5, (int) env('CRUDO_POLL_SECONDS', 10)),
-    'cache_fresh_seconds' => max(1, (int) env('CRUDO_CACHE_FRESH_SECONDS', 8)),
-    'cache_stale_seconds' => max(30, (int) env('CRUDO_CACHE_STALE_SECONDS', 120)),
-    'cache_lock_seconds' => max(5, (int) env('CRUDO_CACHE_LOCK_SECONDS', 15)),
+    'poll_seconds' => $pollSeconds,
+    'cache_fresh_seconds' => max(1, (int) env('CRUDO_CACHE_FRESH_SECONDS', $pollSeconds - 1)),
+    'cache_stale_seconds' => max(60, (int) env('CRUDO_CACHE_STALE_SECONDS', 300)),
+    'cache_lock_seconds' => max(15, (int) env('CRUDO_CACHE_LOCK_SECONDS', 60)),
+    'catalog_cache_seconds' => max(0, (int) env('CRUDO_CATALOG_CACHE_SECONDS', 300)),
     'line_query_chunk_size' => min(1000, max(100, (int) env('CRUDO_LINE_QUERY_CHUNK_SIZE', 700))),
+
+    // Tope del filtro por rango de fechas: acota captura + defectos consultados en una sola petición.
+    'max_range_days' => min(90, max(1, (int) env('CRUDO_MAX_RANGE_DAYS', 31))),
 
     /*
     |--------------------------------------------------------------------------

@@ -421,7 +421,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const departamentoSeleccionado = selectDepto.value;
         const maquinaSeleccionada = selectMaquina.value;
         if (departamentoSeleccionado && maquinaSeleccionada && !inputOrdenTrabajo.value) {
-            cargarOrdenTrabajo(departamentoSeleccionado, maquinaSeleccionada);
+            cargarOrdenTrabajo(
+                departamentoParaOrdenTrabajo(departamentoSeleccionado),
+                maquinaSeleccionada
+            );
         }
     });
 
@@ -446,13 +449,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Limpiar opciones existentes
                 selectMaquina.innerHTML = '<option value="">Seleccione una máquina</option>';
 
-                // Agregar máquinas
-                result.data.forEach(maquina => {
+                const crearOpcion = maquina => {
                     const option = document.createElement('option');
                     option.value = maquina.MaquinaId;
                     option.textContent = maquina.MaquinaId;
-                    selectMaquina.appendChild(option);
-                });
+                    option.dataset.departamentoOrigen = maquina.DepartamentoOrigen || departamento;
+
+                    return option;
+                };
+
+                const esCalidad = departamento.trim().toUpperCase() === 'CALIDAD';
+                const grupos = ['Tejido', 'Urdido', 'Engomado'];
+
+                if (esCalidad && result.data.some(maquina => maquina.DepartamentoOrigen)) {
+                    grupos.forEach(grupo => {
+                        const maquinasGrupo = result.data.filter(
+                            maquina => maquina.DepartamentoOrigen === grupo
+                        );
+                        if (maquinasGrupo.length === 0) return;
+
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = grupo;
+                        maquinasGrupo.forEach(maquina => optgroup.appendChild(crearOpcion(maquina)));
+                        selectMaquina.appendChild(optgroup);
+                    });
+                } else {
+                    result.data.forEach(maquina => selectMaquina.appendChild(crearOpcion(maquina)));
+                }
 
                 // Habilitar select de máquinas
                 selectMaquina.disabled = false;
@@ -464,6 +487,18 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error al cargar máquinas:', error);
             selectMaquina.innerHTML = '<option value="">Error al cargar máquinas</option>';
         }
+    }
+
+    function departamentoParaOrdenTrabajo(departamentoSeleccionado) {
+        if (departamentoSeleccionado.trim().toUpperCase() !== 'CALIDAD') {
+            return departamentoSeleccionado;
+        }
+
+        const origen = selectMaquina.selectedOptions[0]?.dataset.departamentoOrigen || '';
+
+        return origen === 'Urdido' || origen === 'Engomado'
+            ? origen
+            : departamentoSeleccionado;
     }
 
     // Cargar orden de trabajo sugerida por depto + máquina (ReqProgramaTejido en proceso)
@@ -546,7 +581,10 @@ document.addEventListener('DOMContentLoaded', function() {
             selectFalla.disabled = true;
             selectFalla.innerHTML = '<option value="">Seleccione primero un departamento</option>';
             // Cargar orden de trabajo sugerida
-            cargarOrdenTrabajo(departamentoSeleccionado, maquinaSeleccionada);
+            cargarOrdenTrabajo(
+                departamentoParaOrdenTrabajo(departamentoSeleccionado),
+                maquinaSeleccionada
+            );
         } else {
             // Si no hay máquina, deshabilitar campos siguientes
             selectTipoFalla.disabled = true;

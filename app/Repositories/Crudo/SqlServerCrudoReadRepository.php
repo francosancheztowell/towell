@@ -8,23 +8,65 @@ use App\Contracts\Crudo\CrudoReadRepository;
 use DateInterval;
 use DateTimeImmutable;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class SqlServerCrudoReadRepository implements CrudoReadRepository
 {
     public function headersForDate(DateTimeImmutable $date): array
     {
-        $from = $date->setTime(0, 0);
-        $to = $from->add(new DateInterval('P1D'));
+        return $this->headersForRange($date, $date);
+    }
+
+    public function headersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        return $this->queryHeaders($from, $to)->get()->all();
+    }
+
+    public function aggregateHeadersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        $start = $from->setTime(0, 0);
+        $end = $to->setTime(0, 0)->add(new DateInterval('P1D'));
 
         return $this->source()
             ->table($this->table('headers'))
             ->where('DATAAREAID', $this->dataAreaId())
-            ->where('TRANSDATE', '>=', $from->format('Y-m-d H:i:s'))
-            ->where('TRANSDATE', '<', $to->format('Y-m-d H:i:s'))
+            ->where('TRANSDATE', '>=', $start->format('Y-m-d H:i:s'))
+            ->where('TRANSDATE', '<', $end->format('Y-m-d H:i:s'))
+            ->groupBy('TELAR')
+            ->orderBy('TELAR')
+            ->selectRaw('
+                TELAR,
+                COUNT(*) AS captureCount,
+                SUM(COALESCE(PIEZASTOTAL, 0)) AS pieces,
+                SUM(COALESCE(SEGUNDASTOTAL, 0)) AS seconds,
+                SUM(COALESCE(PESO, 0)) AS kilos
+            ')
+            ->get()
+            ->all();
+    }
+
+    public function headersForTelarInRange(string $telar, DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        return $this->queryHeaders($from, $to)
+            ->where('TELAR', $telar)
+            ->get()
+            ->all();
+    }
+
+    private function queryHeaders(DateTimeImmutable $from, DateTimeImmutable $to): Builder
+    {
+        $start = $from->setTime(0, 0);
+        $end = $to->setTime(0, 0)->add(new DateInterval('P1D'));
+
+        return $this->source()
+            ->table($this->table('headers'))
+            ->where('DATAAREAID', $this->dataAreaId())
+            ->where('TRANSDATE', '>=', $start->format('Y-m-d H:i:s'))
+            ->where('TRANSDATE', '<', $end->format('Y-m-d H:i:s'))
             ->orderBy('TELAR')
             ->orderBy('RECID')
-            ->get([
+            ->select([
                 'RECID',
                 'PRODID',
                 'TRANSDATE',
@@ -41,8 +83,7 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
                 'OBSERVACIONES',
                 'MODIFIEDDATE',
                 'MODIFIEDTIME',
-            ])
-            ->all();
+            ]);
     }
 
     public function defectsForHeaders(array $headerRecIds): array
@@ -84,46 +125,75 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
 
     public function machines(): array
     {
-        $catalog = $this->catalog()
-            ->table($this->table('machines'))
-            ->whereIn('SalonTejidoId', config('crudo.catalog_salons', []))
-            ->orderBy('SalonTejidoId')
-            ->orderBy('NoTelarId')
+        // Un solo LEFT JOIN en vez de 2 queries. Si InvSecuenciaTelares llegara a tener
+        // más de una fila por telar (fan-out), nos quedamos con la primera y no
+        // duplicamos el telar en el catálogo.
+        $rows = $this->catalog()
+            ->table($this->table('machines').' as m')
+            ->leftJoin($this->table('sequence').' as s', 's.NoTelar', '=', 'm.NoTelarId')
+            ->whereIn('m.SalonTejidoId', config('crudo.catalog_salons', []))
+            ->orderBy('m.SalonTejidoId')
+            ->orderBy('m.NoTelarId')
             ->get([
-                'SalonTejidoId',
-                'NoTelarId',
-                'Nombre',
-                'Grupo',
+                'm.SalonTejidoId',
+                'm.NoTelarId',
+                'm.Nombre',
+                'm.Grupo',
+                's.Secuencia',
             ]);
 
-        $telars = $catalog
-            ->pluck('NoTelarId')
-            ->map(static fn (mixed $telar): string => trim((string) $telar))
-            ->filter()
-            ->values()
+        $machines = [];
+        foreach ($rows as $row) {
+            $telar = trim((string) $row->NoTelarId);
+            if ($telar === '' || isset($machines[$telar])) {
+                continue;
+            }
+
+            $machines[$telar] = [
+                'telar' => $telar,
+                'name' => trim((string) ($row->Nombre ?? '')) ?: 'Telar '.$telar,
+                'salon' => trim((string) ($row->SalonTejidoId ?? '')),
+                'group' => trim((string) ($row->Grupo ?? '')),
+                'sequence' => $row->Secuencia !== null ? (int) $row->Secuencia : null,
+            ];
+        }
+
+        return array_values($machines);
+    }
+
+    public function activeParos(): array
+    {
+        return $this->catalog()
+            ->table($this->table('paros'))
+            ->where('Estatus', 'Activo')
+            ->whereIn('Depto', config('crudo.paro_departments', ['Calidad', 'Tejido']))
+            ->orderByDesc('Fecha')
+            ->orderByDesc('Hora')
+            ->get([
+                'MaquinaId',
+                'Falla',
+                'Descripcion',
+                'NomEmpl',
+                'Fecha',
+                'Hora',
+                'Depto',
+            ])
             ->all();
+    }
 
-        $sequences = $telars === []
-            ? collect()
-            : $this->catalog()
-                ->table($this->table('sequence'))
-                ->whereIn('NoTelar', $telars)
-                ->get(['NoTelar', 'TipoTelar', 'Secuencia'])
-                ->keyBy(static fn (object $row): string => trim((string) $row->NoTelar));
+    public function activePrograms(array $telares): array
+    {
+        if ($telares === []) {
+            return [];
+        }
 
-        return $catalog
-            ->map(static function (object $row) use ($sequences): array {
-                $telar = trim((string) $row->NoTelarId);
-                $sequence = $sequences->get($telar);
-
-                return [
-                    'telar' => $telar,
-                    'name' => trim((string) ($row->Nombre ?? '')) ?: 'Telar '.$telar,
-                    'salon' => trim((string) ($row->SalonTejidoId ?? '')),
-                    'group' => trim((string) ($row->Grupo ?? '')),
-                    'sequence' => $sequence !== null ? (int) $sequence->Secuencia : null,
-                ];
-            })
+        return $this->catalog()
+            ->table((string) config('planeacion.programa_tejido_table', 'ReqProgramaTejido'))
+            ->where('EnProceso', 1)
+            ->whereIn('NoTelarId', $telares)
+            ->orderByDesc('FechaInicio')
+            ->orderByDesc('Id')
+            ->get(['NoTelarId', 'NombreProducto', 'NoProduccion'])
             ->all();
     }
 

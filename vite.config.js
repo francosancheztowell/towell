@@ -25,6 +25,8 @@ export default defineConfig({
         'resources/js/trazabilidad/index.ts',
         'resources/css/crudo/dashboard.css',
         'resources/js/crudo/dashboard.ts',
+        'resources/css/urd-eng/program-board.css',
+        'resources/js/urd-eng/program-board.ts',
         'resources/js/catcodificacion/index.js',
         'resources/js/lmat-lista/index.js',
       ],

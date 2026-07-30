@@ -60,6 +60,7 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::get('/capturadeformula', [EngProduccionFormulacionController::class, 'index'])->name('captura-formula');
 
     Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
+    Route::get('/programar-engomado/legacy', [ProgramarEngomadoController::class, 'legacy'])->name('programar.engomado.legacy');
     Route::get('/reimpresion-engomado', [ProgramarEngomadoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
     Route::get('/editar-ordenes-programadas', [EditarOrdenesEngomadoController::class, 'index'])->name('editar.ordenes.programadas');
     Route::post('/editar-ordenes-programadas/actualizar', [EditarOrdenesEngomadoController::class, 'actualizar'])->name('editar.ordenes.programadas.actualizar');

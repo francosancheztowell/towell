@@ -19,18 +19,37 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
         private CrudoDashboardService $dashboard,
     ) {}
 
-    public function get(DateTimeImmutable $date, string $shift, bool $forceRefresh = false): array
-    {
-        $cacheKey = sprintf('crudo:dashboard:%s:%s', $date->format('Y-m-d'), $shift);
+    public function get(
+        DateTimeImmutable $date,
+        string $shift,
+        bool $forceRefresh = false,
+        ?DateTimeImmutable $to = null,
+        bool $allowRebuild = true,
+    ): array {
+        $to ??= $date;
+        $cacheKey = sprintf(
+            'crudo:dashboard:%s:%s:%s',
+            $date->format('Y-m-d'),
+            $to->format('Y-m-d'),
+            $shift,
+        );
         $cached = Cache::get($cacheKey);
 
         if (! $forceRefresh && is_array($cached) && $this->isFresh($cached)) {
             return $this->withCacheState($cached, 'fresh');
         }
 
+        if (! $allowRebuild) {
+            if (is_array($cached)) {
+                return $this->withCacheState($cached, 'stale');
+            }
+
+            // Sin snapshot previo (primera carga): no hay nada que servir, hay que construirlo.
+        }
+
         $lock = Cache::lock(
             $cacheKey.':lock',
-            (int) config('crudo.cache_lock_seconds', 15),
+            (int) config('crudo.cache_lock_seconds', 60),
         );
 
         if (! $lock->get()) {
@@ -38,14 +57,15 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
                 return $this->withCacheState($cached, 'refreshing');
             }
 
-            return $this->waitForFirstSnapshot($lock, $cacheKey, $date, $shift);
+            return $this->waitForFirstSnapshot($lock, $cacheKey, $date, $to, $shift);
         }
 
         try {
-            return $this->rebuild($cacheKey, $date, $shift);
+            return $this->rebuild($cacheKey, $date, $to, $shift);
         } catch (Throwable $exception) {
             Log::error('No se pudo actualizar el tablero de Crudo.', [
                 'date' => $date->format('Y-m-d'),
+                'to' => $to->format('Y-m-d'),
                 'shift' => $shift,
                 'connection' => config('crudo.connections.source'),
                 'exception' => $exception::class,
@@ -68,6 +88,11 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
         }
     }
 
+    public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to, string $shift): array
+    {
+        return $this->dashboard->machineDetail($telar, $from, $to, $shift);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -75,15 +100,16 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
         Lock $lock,
         string $cacheKey,
         DateTimeImmutable $date,
+        DateTimeImmutable $to,
         string $shift,
     ): array {
         try {
-            return $lock->block(5, function () use ($cacheKey, $date, $shift): array {
+            return $lock->block(5, function () use ($cacheKey, $date, $to, $shift): array {
                 $cached = Cache::get($cacheKey);
 
                 return is_array($cached)
                     ? $this->withCacheState($cached, 'fresh')
-                    : $this->rebuild($cacheKey, $date, $shift);
+                    : $this->rebuild($cacheKey, $date, $to, $shift);
             });
         } catch (Throwable $exception) {
             throw new RuntimeException(
@@ -96,13 +122,13 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
     /**
      * @return array<string, mixed>
      */
-    private function rebuild(string $cacheKey, DateTimeImmutable $date, string $shift): array
+    private function rebuild(string $cacheKey, DateTimeImmutable $date, DateTimeImmutable $to, string $shift): array
     {
-        $data = $this->dashboard->build($date, $shift)->toArray();
+        $data = $this->dashboard->buildRange($date, $to, $shift)->toArray();
         Cache::put(
             $cacheKey,
             $data,
-            now()->addSeconds((int) config('crudo.cache_stale_seconds', 120)),
+            now()->addSeconds((int) config('crudo.cache_stale_seconds', 300)),
         );
 
         return $data;
@@ -120,7 +146,7 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
 
         try {
             return CarbonImmutable::parse($generatedAt)
-                ->diffInSeconds(now(), absolute: true) < (int) config('crudo.cache_fresh_seconds', 8);
+                ->diffInSeconds(now(), absolute: true) < (int) config('crudo.cache_fresh_seconds', 14);
         } catch (Throwable) {
             return false;
         }

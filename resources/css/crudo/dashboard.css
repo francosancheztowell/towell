@@ -174,6 +174,12 @@
     font-weight: 900;
 }
 
+.crudo-detail-panel-heading > .crudo-detail-count {
+    width: auto;
+    padding: 0 0.65rem;
+    white-space: nowrap;
+}
+
 .crudo-status-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -184,20 +190,25 @@
     --status: #94a3b8;
     --status-bg: #f1f5f9;
     display: grid;
-    grid-template-columns: 1.5rem minmax(0, 1fr);
+    grid-template-columns: 2rem minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 0.08rem 0.35rem;
+    gap: 0.1rem 0.4rem;
     align-items: center;
-    min-height: 3rem;
-    padding: 0.38rem 0.42rem;
+    min-height: 3.4rem;
+    padding: 0.45rem 0.5rem;
     border: 1px solid color-mix(in srgb, var(--status) 22%, white);
-    border-radius: 0.65rem;
+    border-radius: 0.7rem;
     background: var(--status-bg);
 }
 
+[data-state="paro"] {
+    --status: #dc2626;
+    --status-bg: #fef2f2;
+}
+
 [data-state="bad_quality"] {
-    --status: #e11d48;
-    --status-bg: #fff1f2;
+    --status: #2563eb;
+    --status-bg: #eff6ff;
 }
 
 [data-state="low_kilos"] {
@@ -218,20 +229,20 @@
 .crudo-status-icon {
     display: grid;
     grid-row: 1 / 3;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 2rem;
+    height: 2rem;
     place-items: center;
-    border-radius: 0.48rem;
+    border-radius: 0.55rem;
     background: #fff;
     color: var(--status);
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status) 18%, white);
 }
 
 .crudo-status-value {
     align-self: end;
     color: #0f172a;
-    font-size: 0.98rem;
+    font-size: 1.15rem;
     font-weight: 950;
     line-height: 1;
 }
@@ -244,7 +255,7 @@
 
 .crudo-status-copy strong {
     color: #1e293b;
-    font-size: 0.59rem;
+    font-size: 0.65rem;
     font-weight: 850;
     line-height: 1.15;
 }
@@ -260,46 +271,46 @@
 
 .crudo-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.35rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
 }
 
 .crudo-kpi-grid article {
     display: grid;
-    grid-template-columns: 1.5rem minmax(0, 1fr);
+    grid-template-columns: 2.6rem minmax(0, 1fr);
     grid-template-rows: auto auto;
     align-items: center;
-    min-height: 3.2rem;
+    min-height: 3.8rem;
     border: 1px solid #e2e8f0;
-    border-radius: 0.65rem;
+    border-radius: 0.85rem;
     background: #f8fafc;
-    padding: 0.4rem 0.45rem;
+    padding: 0.55rem 0.75rem;
 }
 
 .crudo-kpi-grid i {
     display: grid;
     grid-row: 1 / 3;
-    width: 1.35rem;
-    height: 1.35rem;
+    width: 2.3rem;
+    height: 2.3rem;
     place-items: center;
-    border-radius: 0.42rem;
+    border-radius: 0.6rem;
     background: #e0f2fe;
     color: #0284c7;
-    font-size: 0.62rem;
+    font-size: 1.05rem;
 }
 
 .crudo-kpi-grid strong {
     align-self: end;
     color: #0f172a;
-    font-size: 0.92rem;
+    font-size: 1.35rem;
     font-weight: 950;
-    line-height: 1.05;
+    line-height: 1.1;
 }
 
 .crudo-kpi-grid span {
     align-self: start;
     color: #64748b;
-    font-size: 0.57rem;
+    font-size: 0.72rem;
     font-weight: 750;
     line-height: 1.15;
 }
@@ -332,9 +343,9 @@
 .crudo-area-table th,
 .crudo-area-table td {
     border-bottom: 1px solid #e2e8f0;
-    padding: 0.36rem 0.28rem;
+    padding: 0.34rem 0.26rem;
     text-align: center;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
 }
 
 .crudo-area-table th:first-child,
@@ -343,16 +354,16 @@
 }
 
 .crudo-area-table th {
-    color: #64748b;
-    font-size: 0.58rem;
+    color: #334155;
+    font-size: 0.56rem;
     font-weight: 850;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
 .crudo-area-table td {
-    color: #334155;
-    font-weight: 750;
+    color: #1e293b;
+    font-weight: 800;
 }
 
 .crudo-floor {
@@ -469,7 +480,7 @@
     border: 1px solid color-mix(in srgb, var(--machine-accent) 32%, #cbd5e1);
     border-radius: 0.8rem;
     background: var(--status-bg);
-    padding: 0.5rem 0.3rem;
+    padding: 0.5rem 1.6rem;
     color: var(--machine-accent);
     outline: none;
     transition: box-shadow 160ms ease, transform 160ms ease, border-color 160ms ease;
@@ -477,7 +488,7 @@
 
 .crudo-machine-grid-physical .crudo-machine-card {
     min-height: 8.4rem;
-    padding: 0.35rem 0.25rem;
+    padding: 0.35rem 1.4rem;
 }
 
 .crudo-machine-card:hover,
@@ -486,6 +497,11 @@
     border-color: var(--machine-accent);
     box-shadow: 0 12px 25px color-mix(in srgb, var(--machine-accent) 17%, transparent);
     transform: translateY(-3px);
+}
+
+.crudo-machine-card:disabled {
+    cursor: wait;
+    opacity: 0.72;
 }
 
 .crudo-machine-card.is-changed {
@@ -570,19 +586,30 @@
     transform: scale(1.035);
 }
 
-.crudo-machine-metric {
-    margin-top: 0.15rem;
-    color: #334155;
-    font-size: 0.78rem;
+.crudo-machine-metric,
+.crudo-machine-quality {
+    position: absolute;
+    top: 50%;
+    margin: 0;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    white-space: nowrap;
     font-weight: 950;
     line-height: 1;
 }
 
 .crudo-machine-quality {
-    color: #64748b;
-    font-size: 0.54rem;
-    font-weight: 700;
-    line-height: 1.1;
+    left: 0.3rem;
+    transform: translateY(-50%) rotate(180deg);
+    color: #475569;
+    font-size: 1.4rem;
+}
+
+.crudo-machine-metric {
+    right: 0.3rem;
+    transform: translateY(-50%);
+    color: #334155;
+    font-size: 1.4rem;
 }
 
 .crudo-machine-tooltip {
@@ -713,8 +740,9 @@
 }
 
 .crudo-modal {
-    width: min(76rem, 96vw);
-    max-height: min(52rem, 92vh);
+    position: relative;
+    width: min(92rem, 98vw);
+    max-height: min(62rem, 95vh);
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 1.1rem;
@@ -722,132 +750,247 @@
     box-shadow: 0 30px 90px rgba(15, 23, 42, 0.4);
 }
 
-.crudo-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--status) 25%, #e2e8f0);
-    background: var(--status-bg);
-    padding: 0.85rem 1rem;
+.crudo-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 5;
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    place-items: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.65rem;
+    background: rgba(255, 255, 255, 0.94);
+    color: #475569;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
-.crudo-modal-header p {
-    color: #64748b;
-    font-size: 0.65rem;
-    font-weight: 750;
-}
-
-.crudo-modal-header h2 {
-    overflow: hidden;
+.crudo-modal-close:hover,
+.crudo-modal-close:focus-visible {
+    border-color: #94a3b8;
+    background: #fff;
     color: #0f172a;
-    font-size: 1.1rem;
+}
+
+.crudo-modal-overview {
+    display: grid;
+    grid-template-columns: minmax(18rem, 1.65fr) repeat(4, minmax(8.25rem, 0.75fr));
+    gap: 0.55rem;
+    margin-bottom: 0.55rem;
+}
+
+.crudo-modal-identity-card,
+.crudo-modal-kpi {
+    min-width: 0;
+    min-height: 4.75rem;
+    border: 1px solid #dbe5ee;
+    border-radius: 0.8rem;
+    background: #fff;
+}
+
+.crudo-modal-identity-card {
+    display: grid;
+    grid-template-columns: 2.65rem minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: center;
+    border-color: color-mix(in srgb, var(--status) 26%, #dbe5ee);
+    background: var(--status-bg);
+    padding: 0.6rem 0.65rem 0.6rem 0.7rem;
+}
+
+.crudo-modal-overview > .crudo-modal-kpi:last-child {
+    padding-right: 3rem;
+}
+
+.crudo-modal-location {
+    overflow: hidden;
+    color: #475569;
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.crudo-modal-identity-card h2 {
+    overflow: hidden;
+    margin-top: 0.05rem;
+    color: #0f172a;
+    font-size: 1.3rem;
+    line-height: 1.05;
     font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.crudo-modal-program {
+    overflow: hidden;
+    margin-top: 0.12rem;
+    color: #334155;
+    font-size: 0.7rem;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .crudo-modal-machine-icon {
     display: grid;
-    width: 2.6rem;
-    height: 2.6rem;
+    width: 2.65rem;
+    height: 2.65rem;
     flex: 0 0 auto;
     place-items: center;
-    border-radius: 0.75rem;
+    border-radius: 0.7rem;
     background: #fff;
     color: var(--status);
+    font-size: 1.1rem;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status) 18%, white);
 }
 
-.crudo-modal-header button {
+.crudo-modal-kpi {
     display: grid;
-    width: 2.25rem;
-    height: 2.25rem;
-    flex: 0 0 auto;
-    place-items: center;
-    border-radius: 0.65rem;
-    background: rgba(255, 255, 255, 0.75);
+    align-content: center;
+    padding: 0.55rem 0.65rem;
+}
+
+.crudo-modal-kpi > span {
     color: #475569;
-    font-size: 1rem;
-}
-
-.crudo-modal-header button:hover {
-    background: #fff;
-    color: #0f172a;
-}
-
-.crudo-modal-body {
-    max-height: calc(min(52rem, 92vh) - 4.5rem);
-    overflow: auto;
-    padding: 0.85rem;
-}
-
-.crudo-machine-detail-summary {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.6rem;
-    margin-bottom: 0.75rem;
-}
-
-.crudo-machine-detail-summary article {
-    display: grid;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.8rem;
-    background: #fff;
-    padding: 0.7rem 0.8rem;
-}
-
-.crudo-machine-detail-summary article > span {
-    color: #64748b;
-    font-size: 0.6rem;
-    font-weight: 850;
+    font-size: 0.66rem;
+    font-weight: 900;
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
 
-.crudo-machine-detail-summary strong {
-    margin-top: 0.15rem;
+.crudo-modal-kpi strong {
+    overflow: hidden;
+    margin-top: 0.08rem;
     color: #0f172a;
+    font-size: 1.25rem;
+    line-height: 1.15;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.crudo-modal-kpi .crudo-modal-state {
+    color: var(--status);
+    font-size: 0.95rem;
+}
+
+.crudo-modal-kpi small {
+    margin-top: 0.12rem;
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.15;
+    font-weight: 800;
+}
+
+.crudo-modal-body {
+    max-height: min(62rem, 95vh);
+    overflow: auto;
+    padding: 0.75rem;
+}
+
+.crudo-detail-error {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.55rem;
+    border: 1px solid #fde68a;
+    border-radius: 0.8rem;
+    background: #fffbeb;
+    padding: 0.65rem 0.75rem;
+    color: #92400e;
+    font-size: 0.82rem;
+    font-weight: 750;
+}
+
+.crudo-paro-alert {
+    display: grid;
+    grid-template-columns: 2.6rem minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+    margin-bottom: 0.55rem;
+    border: 1px solid #fecaca;
+    border-radius: 0.85rem;
+    background: #fef2f2;
+    padding: 0.7rem 0.8rem;
+    color: #7f1d1d;
+}
+
+.crudo-paro-alert > i {
+    display: grid;
+    width: 2.6rem;
+    height: 2.6rem;
+    place-items: center;
+    border-radius: 0.7rem;
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 1.2rem;
+}
+
+.crudo-paro-alert strong {
+    display: block;
     font-size: 1.05rem;
     font-weight: 950;
 }
 
-.crudo-machine-detail-summary strong[data-state] {
-    color: var(--status);
-    font-size: 0.8rem;
+.crudo-paro-alert p {
+    margin-top: 0.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
 }
 
-.crudo-machine-detail-summary small {
-    color: #64748b;
-    font-size: 0.61rem;
-    font-weight: 650;
+.crudo-paro-meta {
+    color: #9f1239;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
 }
 
 .crudo-modal-columns {
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(16rem, 0.8fr);
-    gap: 0.75rem;
+    gap: 0.55rem;
 }
 
 .crudo-detail-panel {
     min-width: 0;
-    padding: 0.8rem;
+    padding: 0.65rem;
+}
+
+.crudo-detail-panel-heading {
+    margin-bottom: 0.65rem;
+}
+
+.crudo-detail-panel-heading .crudo-eyebrow {
+    font-size: 0.68rem;
+}
+
+.crudo-detail-panel-heading h3 {
+    margin-top: 0.16rem;
+    font-size: 1.12rem;
+    line-height: 1.15;
+    font-weight: 950;
 }
 
 .crudo-detail-table th,
 .crudo-detail-table td {
     border-bottom: 1px solid #e2e8f0;
-    padding: 0.5rem 0.45rem;
-    color: #475569;
+    padding: 0.48rem 0.5rem;
+    color: #334155;
     text-align: right;
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     white-space: nowrap;
 }
 
 .crudo-detail-table th:first-child,
 .crudo-detail-table th:nth-child(2),
+.crudo-detail-table th:nth-child(3),
 .crudo-detail-table td:first-child,
-.crudo-detail-table td:nth-child(2) {
+.crudo-detail-table td:nth-child(2),
+.crudo-detail-table td:nth-child(3) {
     text-align: left;
 }
 
@@ -856,8 +999,8 @@
     top: 0;
     z-index: 2;
     background: #f8fafc;
-    color: #64748b;
-    font-size: 0.56rem;
+    color: #1e293b;
+    font-size: 0.7rem;
     font-weight: 900;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -870,7 +1013,7 @@
 
 .crudo-defect-list article {
     display: grid;
-    grid-template-columns: 2.1rem minmax(0, 1fr);
+    grid-template-columns: 2.75rem minmax(0, 1fr);
     gap: 0.55rem;
     align-items: center;
     border: 1px solid #e2e8f0;
@@ -881,13 +1024,14 @@
 
 .crudo-defect-list article > span {
     display: grid;
-    width: 2rem;
-    height: 2rem;
+    min-width: 2.75rem;
+    height: 2.3rem;
+    padding: 0 0.3rem;
     place-items: center;
     border-radius: 0.55rem;
     background: #ffe4e6;
     color: #be123c;
-    font-size: 0.7rem;
+    font-size: 0.9rem;
     font-weight: 950;
 }
 
@@ -897,12 +1041,12 @@
 
 .crudo-defect-list strong {
     color: #1e293b;
-    font-size: 0.68rem;
+    font-size: 0.85rem;
 }
 
 .crudo-defect-list small {
-    color: #64748b;
-    font-size: 0.59rem;
+    color: #475569;
+    font-size: 0.73rem;
 }
 
 .crudo-detail-empty,
@@ -939,7 +1083,8 @@
     font-size: 0.75rem;
 }
 
-.crudo-dashboard:fullscreen {
+.crudo-dashboard:fullscreen,
+:fullscreen .crudo-dashboard {
     overflow: auto;
     background: #eef3f7;
     padding: 1rem;
@@ -987,9 +1132,21 @@
 
     .crudo-sidebar,
     .crudo-salons-grid,
-    .crudo-modal-columns,
-    .crudo-machine-detail-summary {
+    .crudo-modal-columns {
         grid-template-columns: 1fr;
+    }
+
+    .crudo-modal-overview {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .crudo-modal-identity-card {
+        grid-column: 1 / -1;
+        padding-right: 3.5rem;
+    }
+
+    .crudo-modal-overview > .crudo-modal-kpi:last-child {
+        padding-right: 0.65rem;
     }
 
     .crudo-salon-smith {
@@ -1028,6 +1185,10 @@
         width: 100%;
         max-height: 94vh;
         border-radius: 1rem 1rem 0 0;
+    }
+
+    .crudo-modal-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 

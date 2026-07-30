@@ -76,6 +76,35 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertObjectNotHasProperty('UNUSED', $rows[0]);
     }
 
+    public function test_it_aggregates_the_dashboard_totals_by_machine_in_sql(): void
+    {
+        DB::connection('crudo_test_source')->table('TWCRUDOTABLE')->insert([
+            $this->header('1', '2026-07-28 08:00:00', '201'),
+            [
+                ...$this->header('2', '2026-07-28 09:00:00', '201'),
+                'PESO' => 25,
+                'PIEZASTOTAL' => 8,
+                'SEGUNDASTOTAL' => 2,
+            ],
+            $this->header('3', '2026-07-28 10:00:00', '202'),
+            $this->header('4', '2026-07-27 10:00:00', '201'),
+            [...$this->header('5', '2026-07-28 11:00:00', '201'), 'DATAAREAID' => 'oth'],
+        ]);
+
+        $rows = (new SqlServerCrudoReadRepository)
+            ->aggregateHeadersForRange(
+                new DateTimeImmutable('2026-07-28'),
+                new DateTimeImmutable('2026-07-28'),
+            );
+
+        $this->assertCount(2, $rows);
+        $this->assertSame('201', $rows[0]->TELAR);
+        $this->assertSame(2, (int) $rows[0]->captureCount);
+        $this->assertSame(18.0, (float) $rows[0]->pieces);
+        $this->assertSame(3.0, (float) $rows[0]->seconds);
+        $this->assertSame(65.0, (float) $rows[0]->kilos);
+    }
+
     public function test_it_loads_defects_by_header_id_instead_of_scanning_by_date(): void
     {
         DB::connection('crudo_test_source')->table('TWCRUDOLINE')->insert([
@@ -131,6 +160,27 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertSame('201', $machines[0]['telar']);
         $this->assertSame('JAC 201', $machines[0]['name']);
         $this->assertSame(7, $machines[0]['sequence']);
+    }
+
+    public function test_it_does_not_duplicate_a_machine_when_the_sequence_join_fans_out(): void
+    {
+        DB::connection('crudo_test_catalog')->table('ReqTelares')->insert([
+            [
+                'SalonTejidoId' => 'Jacquard',
+                'NoTelarId' => '201',
+                'Nombre' => 'JAC 201',
+                'Grupo' => 'Jacquard Smith',
+            ],
+        ]);
+        DB::connection('crudo_test_catalog')->table('InvSecuenciaTelares')->insert([
+            ['NoTelar' => '201', 'TipoTelar' => 'JACQUARD', 'Secuencia' => 7],
+            ['NoTelar' => '201', 'TipoTelar' => 'OTRO', 'Secuencia' => 99],
+        ]);
+
+        $machines = (new SqlServerCrudoReadRepository)->machines();
+
+        $this->assertCount(1, $machines);
+        $this->assertSame('201', $machines[0]['telar']);
     }
 
     private function createSchema(): void

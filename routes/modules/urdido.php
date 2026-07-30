@@ -53,6 +53,7 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
         ->name('configuracion.catalogos-maquinas');
 
     Route::get('/programar-urdido', [ProgramarUrdidoController::class, 'index'])->name('programar.urdido');
+    Route::get('/programar-urdido/legacy', [ProgramarUrdidoController::class, 'legacy'])->name('programar.urdido.legacy');
     Route::get('/programar-urdido/ordenes', [ProgramarUrdidoController::class, 'getOrdenes'])->name('programar.urdido.ordenes');
     Route::get('/programar-urdido/todas-ordenes', [ProgramarUrdidoController::class, 'getTodasOrdenes'])->name('programar.urdido.todas.ordenes');
     Route::get('/programar-urdido/verificar-en-proceso', [ProgramarUrdidoController::class, 'verificarOrdenEnProceso'])->name('programar.urdido.verificar.en.proceso');

@@ -58,9 +58,21 @@ class ProgramaPrioridadService
      */
     public function swapPriorities(string $modelClass, int $sourceId, int $targetId): void
     {
-        DB::transaction(function () use ($modelClass, $sourceId, $targetId) {
-            $source = $modelClass::findOrFail($sourceId);
-            $target = $modelClass::findOrFail($targetId);
+        $connection = (new $modelClass)->getConnectionName();
+
+        DB::connection($connection)->transaction(function () use ($modelClass, $sourceId, $targetId) {
+            $records = $modelClass::query()
+                ->whereIn('Id', [$sourceId, $targetId])
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('Id');
+
+            $source = $records->get($sourceId);
+            $target = $records->get($targetId);
+
+            if (! $source || ! $target) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException;
+            }
 
             $nextPriority = (int) ($modelClass::query()->max('Prioridad') ?? 0);
 
@@ -89,9 +101,22 @@ class ProgramaPrioridadService
      */
     public function bulkUpdatePriorities(string $modelClass, array $priorities): void
     {
-        DB::transaction(function () use ($modelClass, $priorities) {
+        $connection = (new $modelClass)->getConnectionName();
+
+        DB::connection($connection)->transaction(function () use ($modelClass, $priorities) {
+            $ids = collect($priorities)->pluck('id')->map(fn ($id): int => (int) $id)->all();
+            $models = $modelClass::query()
+                ->whereIn('Id', $ids)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('Id');
+
             foreach ($priorities as $item) {
-                $model = $modelClass::findOrFail($item['id']);
+                $model = $models->get((int) $item['id']);
+                if (! $model) {
+                    throw new \Illuminate\Database\Eloquent\ModelNotFoundException;
+                }
+
                 $model->Prioridad = $item['prioridad'];
                 $model->save();
             }
@@ -106,8 +131,9 @@ class ProgramaPrioridadService
     public function recalculatePriorities(Builder $query, callable $fallbackResolver): void
     {
         $ordered = $this->sortRecords($query->get(), $fallbackResolver);
+        $connection = $query->getModel()->getConnectionName();
 
-        DB::transaction(function () use ($ordered) {
+        DB::connection($connection)->transaction(function () use ($ordered) {
             foreach ($ordered as $index => $record) {
                 $record->Prioridad = $index + 1;
                 $record->save();

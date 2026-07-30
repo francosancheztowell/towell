@@ -9,6 +9,7 @@ use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Programas\ProgramaPrioridadService;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaRouteHelper;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,7 +38,12 @@ class ProgramarEngomadoController extends Controller
     /**
      * Mostrar la vista de programar engomado
      */
-    public function index()
+    public function index(): View
+    {
+        return $this->legacy();
+    }
+
+    public function legacy(): View
     {
         return view('modulos.engomado.programar-engomado', [
             'canEdit' => $this->usuarioPuedeEditar(),

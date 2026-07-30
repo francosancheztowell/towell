@@ -13,6 +13,8 @@ final readonly class CrudoMachineMetrics
      * @param  list<string>  $operators
      * @param  list<array<string, int|float|string>>  $defects
      * @param  list<array<string, int|float|string|null>>  $captures
+     * @param  array<string, string|null>|null  $paro
+     * @param  array<string, string|null>|null  $programa
      */
     public function __construct(
         public string $telar,
@@ -33,6 +35,8 @@ final readonly class CrudoMachineMetrics
         public array $defects,
         public array $captures,
         public ?string $lastUpdatedAt,
+        public ?array $paro = null,
+        public ?array $programa = null,
     ) {}
 
     /**
@@ -61,6 +65,8 @@ final readonly class CrudoMachineMetrics
             'defects' => $this->defects,
             'captures' => $this->captures,
             'lastUpdatedAt' => $this->lastUpdatedAt,
+            'paro' => $this->paro,
+            'programa' => $this->programa,
         ];
     }
 }

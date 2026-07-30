@@ -17,6 +17,7 @@ use App\Models\Urdido\URDCatalogoMaquina;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -107,7 +108,7 @@ class MantenimientoParosController extends Controller
      *
      * - Para Urdido / Engomado: catálogo URDCatalogoMaquina (todas las máquinas del depto).
      * - Para Atadores: catálogo AtaMaquinasModel.
-     * - Para Calidad: todos los telares disponibles en TelTelaresOperador.
+     * - Para Calidad: todos los telares disponibles, más máquinas de Urdido y Engomado.
      * - Para Tejedores / Trama / Desarrolladores / Supervisores: todos los telares asignados al usuario.
      * - Para Jacquard / Smith / Itema / Karl Mayer: máquinas asignadas al usuario
      *   autenticado en TelTelaresOperador, filtradas por salón.
@@ -149,23 +150,9 @@ class MantenimientoParosController extends Controller
 
             // Calidad debe ver todos los telares disponibles, sin filtrar por usuario.
             if ($depUpper === 'CALIDAD') {
-                $maquinas = TelTelaresOperador::query()
-                    ->select('NoTelarId as MaquinaId')
-                    ->whereNotNull('NoTelarId')
-                    ->distinct()
-                    ->orderBy('NoTelarId')
-                    ->get()
-                    ->map(function ($item) use ($departamento) {
-                        return [
-                            'MaquinaId' => $item->MaquinaId,
-                            'Nombre' => $item->MaquinaId,
-                            'Departamento' => $departamento,
-                        ];
-                    });
-
                 return response()->json([
                     'success' => true,
-                    'data' => $maquinas,
+                    'data' => $this->maquinasParaCalidad($departamento),
                 ]);
             }
 
@@ -240,6 +227,66 @@ class MantenimientoParosController extends Controller
                 'data' => [],
             ], 500);
         }
+    }
+
+    /**
+     * @return Collection<int, array{
+     *     MaquinaId: string,
+     *     Nombre: string,
+     *     Departamento: string,
+     *     DepartamentoOrigen: string
+     * }>
+     */
+    private function maquinasParaCalidad(string $departamento): Collection
+    {
+        $telares = TelTelaresOperador::query()
+            ->select('NoTelarId as MaquinaId')
+            ->whereNotNull('NoTelarId')
+            ->distinct()
+            ->get()
+            ->map(function ($item) use ($departamento): array {
+                $maquinaId = trim((string) $item->MaquinaId);
+
+                return [
+                    'MaquinaId' => $maquinaId,
+                    'Nombre' => $maquinaId,
+                    'Departamento' => $departamento,
+                    'DepartamentoOrigen' => 'Tejido',
+                ];
+            });
+
+        $urdidoEngomado = URDCatalogoMaquina::query()
+            ->whereIn('Departamento', ['Urdido', 'Engomado'])
+            ->get(['MaquinaId', 'Nombre', 'Departamento'])
+            ->map(function (URDCatalogoMaquina $item) use ($departamento): array {
+                $maquinaId = trim((string) $item->MaquinaId);
+                $origen = strcasecmp(trim((string) $item->Departamento), 'Engomado') === 0
+                    ? 'Engomado'
+                    : 'Urdido';
+
+                return [
+                    'MaquinaId' => $maquinaId,
+                    'Nombre' => trim((string) $item->Nombre) ?: $maquinaId,
+                    'Departamento' => $departamento,
+                    'DepartamentoOrigen' => $origen,
+                ];
+            });
+
+        $ordenGrupos = ['Tejido' => 0, 'Urdido' => 1, 'Engomado' => 2];
+
+        return $telares
+            ->concat($urdidoEngomado)
+            ->filter(fn (array $maquina): bool => $maquina['MaquinaId'] !== '')
+            ->unique(fn (array $maquina): string => mb_strtoupper($maquina['MaquinaId']))
+            ->sort(function (array $left, array $right) use ($ordenGrupos): int {
+                $grupo = ($ordenGrupos[$left['DepartamentoOrigen']] ?? 99)
+                    <=> ($ordenGrupos[$right['DepartamentoOrigen']] ?? 99);
+
+                return $grupo !== 0
+                    ? $grupo
+                    : strnatcasecmp($left['MaquinaId'], $right['MaquinaId']);
+            })
+            ->values();
     }
 
     /**

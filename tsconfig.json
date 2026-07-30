@@ -13,6 +13,7 @@
     },
     "include": [
         "resources/js/trazabilidad/**/*.ts",
-        "resources/js/crudo/**/*.ts"
+        "resources/js/crudo/**/*.ts",
+        "resources/js/urd-eng/**/*.ts"
     ]
 }
