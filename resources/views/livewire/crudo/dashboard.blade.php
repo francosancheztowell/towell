@@ -9,6 +9,11 @@
         ['key' => 'operating', 'label' => 'En operación', 'description' => 'Con captura y sin paro', 'icon' => 'fa-circle-check'],
         ['key' => 'no_data', 'label' => 'Sin datos', 'description' => 'Sin captura', 'icon' => 'fa-minus'],
     ];
+    $auditChecklist = [
+        '¿La alineación coincide con la orden?',
+        '¿El dibujo de Jacquard está bien definido?',
+        '¿Es correcta la identificación en el julio del lote de hilo y proveedor?',
+    ];
 @endphp
 
 <div
@@ -325,12 +330,30 @@
                             </div>
                         </article>
 
-                        <article class="crudo-modal-kpi">
+                        <article
+                            class="crudo-modal-kpi crudo-modal-status-card {{ $selectedMachine['paro'] ? 'has-paro' : '' }}"
+                            @if ($selectedMachine['paro'])
+                                title="{{ implode(' · ', array_filter([
+                                    $selectedMachine['paro']['falla'] ?? 'Paro reportado',
+                                    $selectedMachine['paro']['descripcion'] ?? null,
+                                    'Reportó: '.($selectedMachine['paro']['reportedBy'] ?? 'Sin registrar'),
+                                    'Desde: '.(trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar'),
+                                ])) }}"
+                            @endif
+                        >
                             <span>Estado</span>
                             <strong class="crudo-modal-state">
                                 <i class="fa-solid {{ $selectedMachine['stateIcon'] }}"></i>
                                 {{ $selectedMachine['stateLabel'] }}
                             </strong>
+                            @if ($selectedMachine['paro'])
+                                <small class="crudo-modal-paro-falla">
+                                    {{ $selectedMachine['paro']['falla'] ?? 'Paro reportado' }}
+                                </small>
+                                <small class="crudo-modal-paro-tiempo">
+                                    Desde {{ trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar' }}
+                                </small>
+                            @endif
                         </article>
                         <article class="crudo-modal-kpi">
                             <span>Producción</span>
@@ -354,22 +377,6 @@
                             <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                             <span>{{ $selectedMachineDetailError }}</span>
                         </div>
-                    @endif
-
-                    @if ($selectedMachine['paro'])
-                        <section class="crudo-paro-alert">
-                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                            <div>
-                                <strong>{{ $selectedMachine['paro']['falla'] ?? 'Paro reportado' }}</strong>
-                                @if ($selectedMachine['paro']['descripcion'])
-                                    <p>{{ $selectedMachine['paro']['descripcion'] }}</p>
-                                @endif
-                                <p class="crudo-paro-meta">
-                                    Reportó: {{ $selectedMachine['paro']['reportedBy'] ?? 'Sin registrar' }}
-                                    · Desde: {{ trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar' }}
-                                </p>
-                            </div>
-                        </section>
                     @endif
 
                     <div class="crudo-modal-columns">
@@ -452,6 +459,55 @@
                             </div>
                         </section>
                     </div>
+
+                    <section class="crudo-detail-panel crudo-audit-panel" wire:ignore>
+                        <div class="crudo-detail-panel-heading crudo-audit-heading">
+                            <div>
+                                <p class="crudo-eyebrow">Auditoría</p>
+                                <h3>Checklist de telares reincidentes de defectos</h3>
+                            </div>
+                            <span class="crudo-detail-count">{{ count($auditChecklist) }} puntos</span>
+                        </div>
+
+                        <fieldset class="crudo-audit-table">
+                            <legend class="sr-only">Evaluación del telar {{ $selectedMachine['name'] }}</legend>
+
+                            <div class="crudo-audit-row crudo-audit-header" aria-hidden="true">
+                                <span>Pregunta a auditar</span>
+                                <span>Bien <i class="fa-regular fa-circle-check"></i></span>
+                                <span>Mal <i class="fa-regular fa-circle-xmark"></i></span>
+                            </div>
+
+                            @foreach ($auditChecklist as $question)
+                                <div class="crudo-audit-row">
+                                    <p class="crudo-audit-question">
+                                        <strong>{{ $loop->iteration }}.</strong>
+                                        <span>{{ $question }}</span>
+                                    </p>
+
+                                    <label class="crudo-audit-option crudo-audit-option-good">
+                                        <input
+                                            type="radio"
+                                            name="crudo-audit-{{ $loop->iteration }}"
+                                            value="bien"
+                                            aria-label="Pregunta {{ $loop->iteration }}: Bien"
+                                        >
+                                        <span><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+                                    </label>
+
+                                    <label class="crudo-audit-option crudo-audit-option-bad">
+                                        <input
+                                            type="radio"
+                                            name="crudo-audit-{{ $loop->iteration }}"
+                                            value="mal"
+                                            aria-label="Pregunta {{ $loop->iteration }}: Mal"
+                                        >
+                                        <span><i class="fa-solid fa-xmark" aria-hidden="true"></i></span>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </fieldset>
+                    </section>
                 </div>
             </article>
         </div>

@@ -48,8 +48,37 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('Peso captura (kg)')
             ->assertSee('ORD-100')
             ->assertSee('Error de trama')
+            ->assertSee('Checklist de telares reincidentes de defectos')
+            ->assertSee('¿La alineación coincide con la orden?')
+            ->assertSee('¿El dibujo de Jacquard está bien definido?')
+            ->assertSee('¿Es correcta la identificación en el julio del lote de hilo y proveedor?')
+            ->assertSee('crudo-audit-table', false)
             ->call('closeMachine')
             ->assertSet('selectedTelar', null);
+    }
+
+    public function test_it_renders_an_active_stop_inside_the_compact_status_card(): void
+    {
+        $data = $this->dashboardData();
+        $data['machines'][0]['state'] = 'paro';
+        $data['machines'][0]['stateLabel'] = 'Paro';
+        $data['machines'][0]['stateIcon'] = 'fa-triangle-exclamation';
+        $data['machines'][0]['paro'] = [
+            'falla' => 'Falla mecánica',
+            'descripcion' => 'Se detuvo el telar para revisión.',
+            'reportedBy' => 'Calidad',
+            'since' => '31/07/2026 08:15',
+        ];
+
+        $this->provider = new FakeCrudoDashboardProvider($data);
+        $this->app->instance(CrudoDashboardProvider::class, $this->provider);
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->call('selectMachine', '201')
+            ->assertSee('crudo-modal-status-card has-paro', false)
+            ->assertSee('Falla mecánica')
+            ->assertSee('Desde 31/07/2026 08:15')
+            ->assertDontSee('crudo-paro-alert', false);
     }
 
     public function test_it_normalizes_shift_and_forces_refresh_on_manual_action(): void

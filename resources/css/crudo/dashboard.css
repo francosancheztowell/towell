@@ -887,6 +887,33 @@
     font-weight: 800;
 }
 
+.crudo-modal-status-card.has-paro {
+    align-content: start;
+    border-color: color-mix(in srgb, var(--status) 30%, #dbe5ee);
+    background: var(--status-bg);
+}
+
+.crudo-modal-status-card .crudo-modal-paro-falla,
+.crudo-modal-status-card .crudo-modal-paro-tiempo {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.crudo-modal-status-card .crudo-modal-paro-falla {
+    margin-top: 0.18rem;
+    color: #7f1d1d;
+    font-size: 0.74rem;
+    font-weight: 950;
+}
+
+.crudo-modal-status-card .crudo-modal-paro-tiempo {
+    margin-top: 0.04rem;
+    color: #9f1239;
+    font-size: 0.65rem;
+    font-weight: 750;
+}
+
 .crudo-modal-body {
     max-height: min(62rem, 95vh);
     overflow: auto;
@@ -905,48 +932,6 @@
     color: #92400e;
     font-size: 0.82rem;
     font-weight: 750;
-}
-
-.crudo-paro-alert {
-    display: grid;
-    grid-template-columns: 2.6rem minmax(0, 1fr);
-    gap: 0.75rem;
-    align-items: start;
-    margin-bottom: 0.55rem;
-    border: 1px solid #fecaca;
-    border-radius: 0.85rem;
-    background: #fef2f2;
-    padding: 0.7rem 0.8rem;
-    color: #7f1d1d;
-}
-
-.crudo-paro-alert > i {
-    display: grid;
-    width: 2.6rem;
-    height: 2.6rem;
-    place-items: center;
-    border-radius: 0.7rem;
-    background: #fee2e2;
-    color: #dc2626;
-    font-size: 1.2rem;
-}
-
-.crudo-paro-alert strong {
-    display: block;
-    font-size: 1.05rem;
-    font-weight: 950;
-}
-
-.crudo-paro-alert p {
-    margin-top: 0.2rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.crudo-paro-meta {
-    color: #9f1239;
-    font-size: 0.78rem !important;
-    font-weight: 700 !important;
 }
 
 .crudo-modal-columns {
@@ -1047,6 +1032,134 @@
 .crudo-defect-list small {
     color: #475569;
     font-size: 0.73rem;
+}
+
+.crudo-audit-panel {
+    margin-top: 0.55rem;
+}
+
+.crudo-audit-heading {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    justify-content: space-between;
+}
+
+.crudo-audit-table {
+    overflow: hidden;
+    border: 1px solid #dbe5ee;
+    border-radius: 0.75rem;
+}
+
+.crudo-audit-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 5.25rem 5.25rem;
+    min-height: 3.15rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.crudo-audit-row:first-of-type {
+    border-top: 0;
+}
+
+.crudo-audit-header {
+    min-height: 2.35rem;
+    background: #f8fafc;
+    color: #1e3a5f;
+    font-size: 0.7rem;
+    font-weight: 950;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.crudo-audit-header > span {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.65rem;
+}
+
+.crudo-audit-header > span:first-child {
+    justify-content: flex-start;
+}
+
+.crudo-audit-header > span:nth-child(2) {
+    color: #15803d;
+}
+
+.crudo-audit-header > span:nth-child(3) {
+    color: #dc2626;
+}
+
+.crudo-audit-question {
+    display: flex;
+    gap: 0.55rem;
+    align-items: center;
+    min-width: 0;
+    padding: 0.55rem 0.7rem;
+    color: #1e3a5f;
+    font-size: 0.82rem;
+    line-height: 1.3;
+    font-weight: 750;
+}
+
+.crudo-audit-question strong {
+    flex: 0 0 auto;
+    color: #0f172a;
+    font-weight: 950;
+}
+
+.crudo-audit-option {
+    position: relative;
+    display: grid;
+    cursor: pointer;
+    place-items: center;
+    border-left: 1px solid #e2e8f0;
+}
+
+.crudo-audit-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.crudo-audit-option > span {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    background: #fff;
+    font-size: 0.95rem;
+    opacity: 0.48;
+    transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+
+.crudo-audit-option-good {
+    color: #15803d;
+}
+
+.crudo-audit-option-bad {
+    color: #dc2626;
+}
+
+.crudo-audit-option:hover > span,
+.crudo-audit-option input:focus-visible + span {
+    opacity: 0.8;
+    transform: scale(1.06);
+}
+
+.crudo-audit-option input:checked + span {
+    background: currentColor;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);
+    opacity: 1;
+}
+
+.crudo-audit-option input:checked + span i {
+    color: #fff;
 }
 
 .crudo-detail-empty,
@@ -1189,6 +1302,21 @@
 
     .crudo-modal-overview {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .crudo-audit-row {
+        grid-template-columns: minmax(0, 1fr) 3.75rem 3.75rem;
+    }
+
+    .crudo-audit-header > span {
+        gap: 0.2rem;
+        padding-inline: 0.3rem;
+        font-size: 0.62rem;
+    }
+
+    .crudo-audit-question {
+        padding-inline: 0.55rem;
+        font-size: 0.76rem;
     }
 }
 

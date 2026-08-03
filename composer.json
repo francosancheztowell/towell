@@ -23,6 +23,7 @@
         "barryvdh/laravel-debugbar": "^4.4",
         "fakerphp/faker": "^1.23",
         "icanhazstring/composer-unused": "^0.9.6",
+        "larastan/larastan": "^3.10",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.13",
         "laravel/sail": "^1.41",
