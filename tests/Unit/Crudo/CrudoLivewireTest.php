@@ -54,9 +54,10 @@ final class CrudoLivewireTest extends TestCase
     {
         Livewire::test(TestableCrudoDashboard::class)
             ->call('refreshDashboard')
-            ->assertDispatched('crudo-refrescado');
+            ->assertNotDispatched('crudo-refrescado');
 
         $this->assertSame(2, $this->provider->getCalls);
+        $this->assertSame([false, false], $this->provider->allowRebuildSeen);
     }
 
     public function test_historical_and_range_views_do_not_keep_polling(): void
@@ -66,6 +67,24 @@ final class CrudoLivewireTest extends TestCase
             ->assertDontSee('wire:poll.visible', false)
             ->set('modo', 'rango')
             ->assertDontSee('wire:poll.visible', false);
+    }
+
+    public function test_summary_production_and_percentages_are_rendered_as_rounded_integers(): void
+    {
+        $data = $this->dashboardData();
+        $data['machines'][0]['kilos'] = 40.6;
+        $data['machines'][0]['qualityPercent'] = 94.6;
+        $data['summary']['kilos'] = 40.6;
+        $data['summary']['qualityPercent'] = 94.6;
+        $data['summary']['efficiencyPercent'] = 80.5;
+        $this->app->instance(CrudoDashboardProvider::class, new FakeCrudoDashboardProvider($data));
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->assertSee('>41 kg</span>', false)
+            ->assertSee('>95%</span>', false)
+            ->assertSee('<strong>41</strong>', false)
+            ->assertSee('<strong>95%</strong>', false)
+            ->assertSee('<strong>81%</strong>', false);
     }
 
     /**

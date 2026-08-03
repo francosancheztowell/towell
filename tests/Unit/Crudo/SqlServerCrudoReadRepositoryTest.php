@@ -213,6 +213,8 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
                 'NoProduccion' => 'ORD-PROG-201',
                 'TamanoClave' => 'MOD-201-GDE',
                 'ItemId' => 'AX-201',
+                'InventSizeId' => '100X200',
+                'FlogsId' => 'CE-FLOG-201',
                 'NombreProducto' => 'Producto de prueba',
                 'FechaInicio' => '2026-08-03 08:00:00',
                 'EnProceso' => 1,
@@ -223,6 +225,8 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
                 'NoProduccion' => 'OTRA-ORDEN',
                 'TamanoClave' => 'OTRO-MODELO',
                 'ItemId' => 'OTRO-AX',
+                'InventSizeId' => 'OTRO-TAM',
+                'FlogsId' => 'OTRO-FLOG',
                 'NombreProducto' => 'Otro producto',
                 'FechaInicio' => '2026-08-03 09:00:00',
                 'EnProceso' => 1,
@@ -235,6 +239,8 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertSame('ORD-PROG-201', $rows[0]->NoProduccion);
         $this->assertSame('MOD-201-GDE', $rows[0]->TamanoClave);
         $this->assertSame('AX-201', $rows[0]->ItemId);
+        $this->assertSame('100X200', $rows[0]->InventSizeId);
+        $this->assertSame('CE-FLOG-201', $rows[0]->FlogsId);
         $this->assertSame('Producto de prueba', $rows[0]->NombreProducto);
     }
 
@@ -303,6 +309,8 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
             $table->string('NoProduccion')->nullable();
             $table->string('TamanoClave')->nullable();
             $table->string('ItemId')->nullable();
+            $table->string('InventSizeId')->nullable();
+            $table->string('FlogsId')->nullable();
             $table->string('NombreProducto')->nullable();
             $table->dateTime('FechaInicio')->nullable();
             $table->boolean('EnProceso');

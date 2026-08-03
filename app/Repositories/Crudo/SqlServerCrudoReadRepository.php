@@ -216,6 +216,8 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
                 'NoProduccion',
                 'TamanoClave',
                 'ItemId',
+                'InventSizeId',
+                'FlogsId',
                 'NombreProducto',
             ])
             ->all();

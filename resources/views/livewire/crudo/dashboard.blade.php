@@ -165,7 +165,7 @@
                 <div class="crudo-kpi-grid">
                     <article>
                         <i class="fa-solid fa-weight-hanging"></i>
-                        <strong>{{ number_format((float) $summary['kilos'], 1) }}</strong>
+                        <strong>{{ number_format(round((float) $summary['kilos'])) }}</strong>
                         <span>Kilogramos</span>
                     </article>
                     <article>
@@ -175,12 +175,12 @@
                     </article>
                     <article>
                         <i class="fa-solid fa-shield-heart"></i>
-                        <strong>{{ number_format((float) $summary['qualityPercent'], 1) }}%</strong>
+                        <strong>{{ number_format(round((float) $summary['qualityPercent'])) }}%</strong>
                         <span>Calidad global</span>
                     </article>
                     <article>
                         <i class="fa-solid fa-gauge-high"></i>
-                        <strong>{{ number_format((float) $summary['efficiencyPercent'], 1) }}%</strong>
+                        <strong>{{ number_format(round((float) $summary['efficiencyPercent'])) }}%</strong>
                         <span>Eficiencia global</span>
                     </article>
                     <article>
@@ -193,7 +193,7 @@
                 <p class="crudo-rules-note">
                     <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
                     <span>
-                        Alerta desde {{ number_format($badQualityThreshold, 1) }}%
+                        Alerta desde {{ number_format(round((float) $badQualityThreshold)) }}%
                         · meta provisional 300 kg/día
                         @if ($modo === 'rango')
                             · rango máximo {{ $maxRangeDays }} días

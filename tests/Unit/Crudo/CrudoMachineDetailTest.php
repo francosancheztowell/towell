@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
+use App\Contracts\Crudo\CrudoFlogProvider;
 use App\Livewire\Crudo\MachineDetail;
 use DateTimeImmutable;
 use Livewire\Livewire;
@@ -14,13 +15,17 @@ final class CrudoMachineDetailTest extends TestCase
 {
     private FakeCrudoDashboardProviderForDetail $provider;
 
+    private FakeCrudoFlogProviderForDetail $flogProvider;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         config()->set('crudo.bad_quality_percent', 10);
         $this->provider = new FakeCrudoDashboardProviderForDetail($this->machineData());
+        $this->flogProvider = new FakeCrudoFlogProviderForDetail;
         $this->app->instance(CrudoDashboardProvider::class, $this->provider);
+        $this->app->instance(CrudoFlogProvider::class, $this->flogProvider);
     }
 
     public function test_it_opens_and_loads_machine_detail(): void
@@ -41,13 +46,21 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('Peso (kg)')
             ->assertSee('Error de trama')
             ->assertSee('Defectos registrados')
+            ->assertSee('Datos del Flog')
+            ->assertDontSee('crudo-eyebrow', false)
+            ->assertSee('CE-NOV25-LGONZ-F001399')
+            ->assertSee('C0001 Cliente de prueba')
+            ->assertSee('ART-100')
+            ->assertSee('100X200')
+            ->assertSee('Simulación')
+            ->assertSee('https://example.test/simulacion-ventas.jpg', false)
             ->assertSee('Agregar auditoría')
             ->assertSee('data-crudo-audit-toggle', false)
             ->assertSee('data-crudo-audit-content', false)
             ->assertSee('Defecto 1')
             ->assertSee('Defecto 5')
             ->assertSee('Cargando catálogo...')
-            ->assertSee('Selecciona hasta cinco defectos del catálogo de Calidad; son independientes de la consulta de producción superior.')
+            ->assertSee('Hasta cinco defectos del catálogo de Calidad.')
             ->assertDontSee('Agregar defecto')
             ->assertSee('crudo-defect-table', false)
             ->assertSee('Defectos consultados de producción y desglose por turno')
@@ -56,6 +69,8 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('T3')
             ->assertSee('T4')
             ->assertSee('Checklist de telares reincidentes de defectos')
+            ->assertSee('Bien / Mal')
+            ->assertSee('data-crudo-audit-result', false)
             ->assertSee('¿La alineación coincide con la orden?')
             ->assertSee('¿El dibujo de Jacquard está bien definido?')
             ->assertSee('¿Es correcta la identificación en el julio del lote de hilo y proveedor?')
@@ -65,7 +80,25 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('Observaciones de la auditoría')
             ->call('close')
             ->assertSet('selectedTelar', null)
+            ->assertSet('flogSummary', null)
             ->assertDontSee('crudo-modal-overview', false);
+
+        $this->assertSame(1, $this->flogProvider->calls);
+    }
+
+    public function test_checklist_results_start_empty_and_use_one_cyclic_control_per_question(): void
+    {
+        $component = Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+
+        $html = $component->html();
+        $resultControlCount = preg_match_all('/data-crudo-audit-result(?:\s|>)/', $html);
+
+        $this->assertSame(3, $resultControlCount);
+        $this->assertSame(3, substr_count($html, 'data-state="empty"'));
+        $this->assertSame(3, substr_count($html, 'data-crudo-audit-result-input'));
+        $this->assertStringContainsString('Pregunta 1: Sin evaluar', $html);
+        $this->assertStringNotContainsString('type="radio"', $html);
     }
 
     public function test_it_renders_exactly_five_quality_catalog_selects(): void
@@ -98,6 +131,23 @@ final class CrudoMachineDetailTest extends TestCase
         $this->assertMatchesRegularExpression('/data-crudo-save-stop\s+hidden/s', $html);
     }
 
+    public function test_red_stop_button_is_visible_only_while_the_checklist_is_expanded(): void
+    {
+        $component = Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+
+        $this->assertStringContainsString('hidden', $this->stopButtonTag($component->html()));
+
+        $component->call('toggleAudit');
+
+        $this->assertStringNotContainsString('hidden', $this->stopButtonTag($component->html()));
+        $this->assertStringContainsString('Guardar paro', $component->html());
+
+        $component->call('toggleAudit');
+
+        $this->assertStringContainsString('hidden', $this->stopButtonTag($component->html()));
+    }
+
     public function test_audit_disclosure_stays_open_across_refresh_until_hidden_or_modal_closed(): void
     {
         $component = Livewire::test(TestableCrudoMachineDetail::class)
@@ -121,6 +171,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSet('selectedTelar', null);
 
         $this->assertSame(2, $this->provider->detailCalls);
+        $this->assertSame(1, $this->flogProvider->calls);
     }
 
     public function test_program_order_is_in_the_title_and_model_key_is_next_to_ax_key(): void
@@ -130,6 +181,8 @@ final class CrudoMachineDetailTest extends TestCase
             'orden' => 'ORD-PROG-201',
             'claveModelo' => 'MOD-201-GDE',
             'itemId' => 'AX-201',
+            'inventSizeId' => '100X200',
+            'flogId' => 'CE-NOV25-LGONZ-F001399',
             'nombreProducto' => 'Producto de prueba',
         ];
 
@@ -151,18 +204,40 @@ final class CrudoMachineDetailTest extends TestCase
         $machine['stateLabel'] = 'Paro';
         $machine['stateIcon'] = 'fa-triangle-exclamation';
         $machine['paro'] = [
-            'falla' => 'Falla mecánica',
-            'descripcion' => 'Se detuvo el telar para revisión.',
+            'faultCode' => '62',
+            'falla' => 'REVERSA',
+            'descripcion' => 'REVERSA',
             'reportedBy' => 'Calidad',
-            'since' => '31/07/2026 08:15',
+            'since' => '29/07/2026 15:21',
         ];
 
         Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
             ->assertSee('crudo-modal-status-card has-paro', false)
-            ->assertSee('Falla mecánica')
-            ->assertSee('Desde 31/07/2026 08:15')
+            ->assertSee('REVERSA')
+            ->assertDontSee('>62<', false)
+            ->assertSee('Desde 29/07/2026 15:21')
+            ->assertDontSee('15:21:00')
             ->assertDontSee('crudo-paro-alert', false);
+    }
+
+    public function test_production_target_and_percentages_are_rounded_in_the_status_header(): void
+    {
+        $this->provider->detailKilos = 40.6;
+        $this->provider->detailQualityPercent = 94.6;
+        $this->provider->detailSecondsPercent = 5.4;
+        $machine = $this->machineData();
+        $machine['expectedKilos'] = 50.6;
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->assertSee('41 kg')
+            ->assertSee('Meta a esta hora')
+            ->assertSee('51 kg')
+            ->assertSee('95%')
+            ->assertSee('5% segundas')
+            ->assertDontSee('40.6 kg')
+            ->assertDontSee('94.6%');
     }
 
     public function test_jacquard_drawing_question_is_hidden_for_other_saloons(): void
@@ -255,6 +330,39 @@ final class CrudoMachineDetailTest extends TestCase
             'programa' => null,
         ];
     }
+
+    private function stopButtonTag(string $html): string
+    {
+        $matched = preg_match('/<button(?=[^>]*data-crudo-save-stop)[^>]*>/s', $html, $matches);
+
+        $this->assertSame(1, $matched, 'No se encontró el botón rojo de Guardar paro.');
+
+        return $matches[0];
+    }
+}
+
+final class FakeCrudoFlogProviderForDetail implements CrudoFlogProvider
+{
+    public int $calls = 0;
+
+    public function find(?array $program, array $purchBarcodes = []): array
+    {
+        $this->calls++;
+
+        return [
+            'status' => 'ok',
+            'source' => 'program_flog',
+            'flog' => 'CE-NOV25-LGONZ-F001399',
+            'client' => 'C0001 Cliente de prueba',
+            'clientAccount' => 'C0001',
+            'clientName' => 'Cliente de prueba',
+            'itemId' => 'ART-100',
+            'inventSizeId' => '100X200',
+            'simulationSalesUrl' => 'https://example.test/simulacion-ventas.jpg',
+            'simulationDesignUrl' => null,
+            'lineMatched' => true,
+        ];
+    }
 }
 
 final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvider
@@ -262,6 +370,12 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
     public bool $failDetail = false;
 
     public int $detailCalls = 0;
+
+    public float $detailKilos = 40.0;
+
+    public ?float $detailQualityPercent = null;
+
+    public ?float $detailSecondsPercent = null;
 
     /**
      * @param  array<string, mixed>  $machine
@@ -309,9 +423,9 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
             'captureCount' => $this->machine['captureCount'],
             'pieces' => $this->machine['pieces'],
             'seconds' => $this->machine['seconds'],
-            'kilos' => 40.0,
-            'qualityPercent' => $this->machine['qualityPercent'],
-            'secondsPercent' => $this->machine['secondsPercent'],
+            'kilos' => $this->detailKilos,
+            'qualityPercent' => $this->detailQualityPercent ?? $this->machine['qualityPercent'],
+            'secondsPercent' => $this->detailSecondsPercent ?? $this->machine['secondsPercent'],
             'orders' => $this->machine['orders'],
             'operators' => $this->machine['operators'],
             'lastUpdatedAt' => $this->machine['lastUpdatedAt'],

@@ -36,6 +36,8 @@ class Dashboard extends Component
 
     private bool $forceRefreshOnNextRender = false;
 
+    private bool $allowSynchronousRebuildOnNextRender = false;
+
     private CrudoDashboardProvider $provider;
 
     private CrudoAccess $access;
@@ -94,7 +96,9 @@ class Dashboard extends Component
 
     public function refreshDashboard(): void
     {
-        $this->dispatch('crudo-refrescado');
+        // El poll nunca debe bloquear la interfaz esperando SQL Server. Sirve el
+        // último snapshot y agenda la renovación después de enviar la respuesta.
+        $this->allowSynchronousRebuildOnNextRender = false;
     }
 
     public function refreshNow(): void
@@ -107,22 +111,26 @@ class Dashboard extends Component
     {
         $data = $this->loadDashboard(
             forceRefresh: $this->forceRefreshOnNextRender,
-            allowRebuild: true,
+            allowRebuild: $this->allowSynchronousRebuildOnNextRender,
         );
         $this->forceRefreshOnNextRender = false;
+        $this->allowSynchronousRebuildOnNextRender = false;
         $machines = is_array($data['machines'] ?? null) ? $data['machines'] : [];
+        $cacheState = (string) ($data['cacheState'] ?? 'unavailable');
 
         return view('livewire.crudo.dashboard', [
             'machines' => $machines,
             'summary' => $data['summary'] ?? $this->emptySummary(),
             'areas' => $data['areas'] ?? [],
             'generatedAt' => $data['generatedAt'] ?? null,
-            'cacheState' => $data['cacheState'] ?? 'unavailable',
+            'cacheState' => $cacheState,
             'sourceError' => $data['sourceError'] ?? null,
             'floorLayouts' => $this->floorLayout->arrange($machines),
             'shouldPoll' => $this->modo === 'dia'
                 && $this->rangeTo()->format('Y-m-d') === now(config('app.timezone'))->format('Y-m-d'),
-            'pollSeconds' => (int) config('crudo.poll_seconds', 15),
+            'pollSeconds' => in_array($cacheState, ['stale', 'refreshing'], true)
+                ? 2
+                : (int) config('crudo.poll_seconds', 15),
             'badQualityThreshold' => (float) config('crudo.bad_quality_percent', 10),
             'modo' => $this->modo,
             'maxRangeDays' => (int) config('crudo.max_range_days', 31),
@@ -137,7 +145,7 @@ class Dashboard extends Component
     /**
      * @return array<string, mixed>
      */
-    private function loadDashboard(bool $forceRefresh = false, bool $allowRebuild = true): array
+    private function loadDashboard(bool $forceRefresh = false, bool $allowRebuild = false): array
     {
         try {
             $data = $this->provider->get(

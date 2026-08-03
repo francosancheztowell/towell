@@ -39,8 +39,10 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
             return $this->withCacheState($cached, 'fresh');
         }
 
-        if (! $allowRebuild) {
+        if (! $forceRefresh && ! $allowRebuild) {
             if (is_array($cached)) {
+                $this->deferRebuild($cacheKey, $date, $to, $shift);
+
                 return $this->withCacheState($cached, 'stale');
             }
 
@@ -90,7 +92,59 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
 
     public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to, string $shift): array
     {
-        return $this->dashboard->machineDetail($telar, $from, $to, $shift);
+        $seconds = max(0, (int) config('crudo.detail_cache_seconds', 14));
+        if ($seconds === 0) {
+            return $this->dashboard->machineDetail($telar, $from, $to, $shift);
+        }
+
+        $key = sprintf(
+            'crudo:detail:%s:%s:%s:%s',
+            sha1(trim($telar)),
+            $from->format('Y-m-d'),
+            $to->format('Y-m-d'),
+            $shift,
+        );
+
+        return Cache::remember(
+            $key,
+            now()->addSeconds($seconds),
+            fn (): array => $this->dashboard->machineDetail($telar, $from, $to, $shift),
+        );
+    }
+
+    private function deferRebuild(
+        string $cacheKey,
+        DateTimeImmutable $date,
+        DateTimeImmutable $to,
+        string $shift,
+    ): void {
+        defer(
+            function () use ($cacheKey, $date, $to, $shift): void {
+                $lock = Cache::lock(
+                    $cacheKey.':lock',
+                    (int) config('crudo.cache_lock_seconds', 60),
+                );
+
+                if (! $lock->get()) {
+                    return;
+                }
+
+                try {
+                    $this->rebuild($cacheKey, $date, $to, $shift);
+                } catch (Throwable $exception) {
+                    Log::warning('No se pudo renovar Crudo después del poll.', [
+                        'date' => $date->format('Y-m-d'),
+                        'to' => $to->format('Y-m-d'),
+                        'shift' => $shift,
+                        'exception' => $exception::class,
+                        'message' => $exception->getMessage(),
+                    ]);
+                } finally {
+                    $lock->release();
+                }
+            },
+            name: 'crudo-dashboard-rebuild-'.sha1($cacheKey),
+        );
     }
 
     /**

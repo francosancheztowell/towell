@@ -25,6 +25,8 @@ return [
         'machines' => env('CRUDO_MACHINES_TABLE', 'dbo.ReqTelares'),
         'sequence' => env('CRUDO_SEQUENCE_TABLE', 'dbo.InvSecuenciaTelares'),
         'paros' => env('CRUDO_PAROS_TABLE', 'dbo.ManFallasParos'),
+        'flogs' => env('CRUDO_FLOGS_TABLE', 'dbo.TwFlogsTable'),
+        'flog_lines' => env('CRUDO_FLOG_LINES_TABLE', 'dbo.TwFlogsItemLine'),
     ],
 
     'data_area_id' => env('CRUDO_DATA_AREA_ID', 'pro'),
@@ -36,9 +38,13 @@ return [
     */
     'poll_seconds' => $pollSeconds,
     'cache_fresh_seconds' => max(1, (int) env('CRUDO_CACHE_FRESH_SECONDS', $pollSeconds - 1)),
-    'cache_stale_seconds' => max(60, (int) env('CRUDO_CACHE_STALE_SECONDS', 300)),
+    // El snapshot puede sobrevivir una hora: los polls lo renuevan en segundo
+    // plano, pero una visita después de varios minutos no vuelve a arrancar en frío.
+    'cache_stale_seconds' => max(60, (int) env('CRUDO_CACHE_STALE_SECONDS', 3600)),
     'cache_lock_seconds' => max(15, (int) env('CRUDO_CACHE_LOCK_SECONDS', 60)),
     'catalog_cache_seconds' => max(0, (int) env('CRUDO_CATALOG_CACHE_SECONDS', 300)),
+    'detail_cache_seconds' => max(0, (int) env('CRUDO_DETAIL_CACHE_SECONDS', $pollSeconds - 1)),
+    'flog_cache_seconds' => max(0, (int) env('CRUDO_FLOG_CACHE_SECONDS', 300)),
     'line_query_chunk_size' => min(1000, max(100, (int) env('CRUDO_LINE_QUERY_CHUNK_SIZE', 700))),
 
     // Tope del filtro por rango de fechas: acota captura + defectos consultados en una sola petición.

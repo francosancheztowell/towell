@@ -173,6 +173,8 @@ final class CrudoDashboardServiceTest extends TestCase
                 'NoProduccion' => 'ORD-PROG-201',
                 'TamanoClave' => 'MOD-201-GDE',
                 'ItemId' => 'AX-201',
+                'InventSizeId' => '100X200',
+                'FlogsId' => 'CE-FLOG-201',
                 'NombreProducto' => 'Producto de prueba',
             ],
         ];
@@ -184,8 +186,32 @@ final class CrudoDashboardServiceTest extends TestCase
             'orden' => 'ORD-PROG-201',
             'claveModelo' => 'MOD-201-GDE',
             'itemId' => 'AX-201',
+            'inventSizeId' => '100X200',
+            'flogId' => 'CE-FLOG-201',
             'nombreProducto' => 'Producto de prueba',
         ], $data['machines'][0]['programa']);
+    }
+
+    public function test_active_stop_uses_the_fault_name_and_formats_the_date_without_seconds(): void
+    {
+        $this->repository->paros = [
+            (object) [
+                'MaquinaId' => '201',
+                'Falla' => '62',
+                'Descripcion' => 'REVERSA',
+                'NomEmpl' => 'Operador de prueba',
+                'Fecha' => '2026-07-29',
+                'Hora' => '15:21:00',
+            ],
+        ];
+
+        $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
+        $machine = $this->service->build($today, 'todos')->toArray()['machines'][0];
+
+        $this->assertSame('62', $machine['paro']['faultCode']);
+        $this->assertSame('REVERSA', $machine['paro']['falla']);
+        $this->assertSame('29/07/2026 15:21', $machine['paro']['since']);
+        $this->assertStringNotContainsString(':00', $machine['paro']['since']);
     }
 
     private function date(): DateTimeImmutable
@@ -203,6 +229,9 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
 
     /** @var list<object> */
     public array $programs = [];
+
+    /** @var list<object> */
+    public array $paros = [];
 
     /**
      * @param  list<object>  $headers
@@ -270,7 +299,7 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
 
     public function activeParos(): array
     {
-        return [];
+        return $this->paros;
     }
 
     public function activePrograms(array $telares): array

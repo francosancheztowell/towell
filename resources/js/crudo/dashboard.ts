@@ -1,4 +1,4 @@
-type MachineSnapshot = Map<string, string>
+import { hidePendingDetail } from './pending-detail'
 
 type Machine = {
   telar: string
@@ -44,23 +44,19 @@ type QualityDefectOption = {
 
 const DASHBOARD_SELECTOR = '[data-crudo-dashboard]'
 const MACHINE_DATA_SELECTOR = '[data-crudo-machines-data]'
-const MACHINE_GRID_SELECTOR = '[data-crudo-machine-grid]'
 const MACHINE_SELECTOR = '[data-crudo-machine]'
 const RELATIVE_TIME_SELECTOR = '[data-crudo-relative-time]'
 const AUDIT_DEFECT_EDITOR_SELECTOR = '[data-crudo-audit-defects]'
 const AUDIT_CONTENT_SELECTOR = '[data-crudo-audit-content]'
 const QUALITY_DEFECT_SELECT_SELECTOR = '[data-crudo-quality-defect-select]'
+const PENDING_DETAIL_SELECTOR = '[data-crudo-detail-pending]'
 
 const formatInteger = (value: number): string => Math.round(value).toLocaleString('es-MX')
-const formatDecimal = (value: number, decimals: number = 1): string => {
-  const factor = 10 ** decimals
-  return (Math.round(value * factor) / factor).toLocaleString('es-MX', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })
-}
 
-let previousMachines: MachineSnapshot = new Map()
+let machinesByTelar = new Map<string, Machine>()
+let machineButtonsByTelar = new Map<string, HTMLElement>()
+let pendingMachineButton: HTMLElement | null = null
+let pendingDetailTimer: number | null = null
 let observedDashboard: HTMLElement | null = null
 let mutationObserver: MutationObserver | null = null
 let auditDefectObserver: MutationObserver | null = null
@@ -81,19 +77,9 @@ const parseMachinesJson = (): Machine[] => {
   }
 }
 
-const machineSnapshot = (machines: Machine[]): MachineSnapshot => {
-  const snapshot: MachineSnapshot = new Map()
-
-  machines.forEach((machine) => {
-    const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}`
-    snapshot.set(machine.telar, signature)
-  })
-
-  return snapshot
-}
-
 const findMachineButton = (telar: string): HTMLElement | null => {
-  return document.querySelector<HTMLElement>(`${MACHINE_SELECTOR}[data-telar="${CSS.escape(telar)}"]`)
+  return machineButtonsByTelar.get(telar)
+    ?? document.querySelector<HTMLElement>(`${MACHINE_SELECTOR}[data-telar="${CSS.escape(telar)}"]`)
 }
 
 const updateMachineCard = (machine: Machine): void => {
@@ -103,7 +89,9 @@ const updateMachineCard = (machine: Machine): void => {
   }
 
   const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}`
-  const previousSignature = button.dataset.signature
+  if (button.dataset.signature === signature) {
+    return
+  }
 
   button.dataset.state = machine.state
   button.dataset.signature = signature
@@ -116,7 +104,7 @@ const updateMachineCard = (machine: Machine): void => {
 
   const kilos = button.querySelector<HTMLElement>('[data-crudo-kilos]')
   if (kilos) {
-    kilos.textContent = `${formatDecimal(machine.kilos)} kg`
+    kilos.textContent = `${formatInteger(machine.kilos)} kg`
   }
 
   const name = button.querySelector<HTMLElement>('[data-crudo-name]')
@@ -128,25 +116,65 @@ const updateMachineCard = (machine: Machine): void => {
   if (tooltipMetrics) {
     tooltipMetrics.textContent = `${formatInteger(machine.pieces)} piezas · ${formatInteger(machine.seconds)} segundas`
   }
-
-  if (previousSignature !== signature) {
-    button.classList.remove('is-changed')
-    window.requestAnimationFrame(() => {
-      button.classList.add('is-changed')
-      window.setTimeout(() => button.classList.remove('is-changed'), 1000)
-    })
-  }
 }
 
 const updateDashboardCards = (): void => {
   const machines = parseMachinesJson()
-  const current = machineSnapshot(machines)
+  machinesByTelar = new Map(machines.map((machine) => [machine.telar, machine]))
+  machineButtonsByTelar = new Map(
+    Array.from(document.querySelectorAll<HTMLElement>(MACHINE_SELECTOR))
+      .map((button): [string, HTMLElement] => [button.dataset.telar ?? '', button])
+      .filter(([telar]) => telar !== ''),
+  )
 
   machines.forEach((machine) => {
     updateMachineCard(machine)
   })
+}
 
-  previousMachines = current
+const showPendingDetail = (machine: Machine, button: HTMLElement): void => {
+  const pending = document.querySelector<HTMLElement>(PENDING_DETAIL_SELECTOR)
+  if (!pending) {
+    return
+  }
+
+  pendingMachineButton?.removeAttribute('aria-busy')
+  pendingMachineButton = button
+  button.setAttribute('aria-busy', 'true')
+
+  const name = pending.querySelector<HTMLElement>('[data-crudo-detail-pending-name]')
+  if (name) {
+    name.textContent = `${machine.name} · ${machine.stateLabel}`
+  }
+
+  pending.hidden = false
+
+  if (pendingDetailTimer !== null) {
+    window.clearTimeout(pendingDetailTimer)
+  }
+
+  pendingDetailTimer = window.setTimeout(() => {
+    hidePendingDetail(pending)
+    pendingMachineButton?.removeAttribute('aria-busy')
+    pendingMachineButton = null
+    pendingDetailTimer = null
+  }, 10000)
+}
+
+const syncPendingDetail = (): void => {
+  const pending = document.querySelector<HTMLElement>(PENDING_DETAIL_SELECTOR)
+  if (!pending || !document.querySelector('[data-crudo-modal]')) {
+    return
+  }
+
+  hidePendingDetail(pending)
+  pendingMachineButton?.removeAttribute('aria-busy')
+  pendingMachineButton = null
+
+  if (pendingDetailTimer !== null) {
+    window.clearTimeout(pendingDetailTimer)
+    pendingDetailTimer = null
+  }
 }
 
 const updateRelativeTimes = (): void => {
@@ -203,16 +231,6 @@ const observeDashboard = (): void => {
       characterData: true,
       childList: true,
       subtree: true,
-    })
-  }
-
-  const machineGrid = document.querySelector<HTMLElement>(MACHINE_GRID_SELECTOR)
-  if (machineGrid) {
-    mutationObserver.observe(machineGrid, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['data-telar'],
     })
   }
 
@@ -355,12 +373,14 @@ const hydrateQualityDefectEditors = (): void => {
 
 const observeQualityDefectEditors = (): void => {
   hydrateQualityDefectEditors()
+  syncPendingDetail()
 
   if (auditDefectObserver || !document.body) {
     return
   }
 
   auditDefectObserver = new MutationObserver((mutations) => {
+    syncPendingDetail()
     if (mutations.some((mutation) => mutation.addedNodes.length > 0 || mutation.attributeName === 'hidden')) {
       hydrateQualityDefectEditors()
     }
@@ -374,22 +394,57 @@ const observeQualityDefectEditors = (): void => {
   })
 }
 
+const cycleAuditResult = (button: HTMLElement): void => {
+  const currentState = button.dataset.state
+  const nextState = currentState === 'empty'
+    ? 'good'
+    : currentState === 'good'
+      ? 'bad'
+      : 'empty'
+  const value = nextState === 'good' ? 'bien' : nextState === 'bad' ? 'mal' : ''
+  const label = nextState === 'good' ? 'Bien' : nextState === 'bad' ? 'Mal' : 'Sin evaluar'
+  const questionNumber = button.dataset.questionNumber || ''
+
+  button.dataset.state = nextState
+  button.setAttribute('aria-label', `Pregunta ${questionNumber}: ${label}`)
+
+  const resultLabel = button.querySelector<HTMLElement>('[data-crudo-audit-result-label]')
+  if (resultLabel) {
+    resultLabel.textContent = label
+  }
+
+  const resultInput = button.parentElement?.querySelector<HTMLInputElement>('[data-crudo-audit-result-input]')
+  if (resultInput) {
+    resultInput.value = value
+  }
+}
+
 document.addEventListener('click', (event) => {
   const target = event.target
   if (!(target instanceof Element)) {
     return
   }
 
+  const auditResultButton = target.closest<HTMLElement>('[data-crudo-audit-result]')
+  if (auditResultButton) {
+    cycleAuditResult(auditResultButton)
+    return
+  }
+
   const machineButton = target.closest<HTMLElement>(MACHINE_SELECTOR)
   if (machineButton) {
+    if (machineButton.getAttribute('aria-busy') === 'true') {
+      return
+    }
+
     const telar = machineButton.dataset.telar
     if (!telar) {
       return
     }
 
-    const machines = parseMachinesJson()
-    const machine = machines.find((candidate) => candidate.telar === telar)
+    const machine = machinesByTelar.get(telar)
     if (machine) {
+      showPendingDetail(machine, machineButton)
       window.dispatchEvent(
         new CustomEvent('open-crudo-detail', {
           detail: { telar, machine },
@@ -409,6 +464,21 @@ document.addEventListener('click', (event) => {
     }
   }
 })
+
+document.addEventListener('pointerdown', (event) => {
+  const target = event.target
+  if (!(target instanceof Element)) {
+    return
+  }
+
+  const backdrop = target.closest<HTMLElement>('[data-crudo-modal]')
+  const closesFromButton = Boolean(target.closest('[data-crudo-modal-close]'))
+  const closesFromBackdrop = backdrop !== null && target === backdrop
+
+  if (backdrop && (closesFromButton || closesFromBackdrop)) {
+    backdrop.classList.add('is-closing')
+  }
+}, { capture: true })
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') {
@@ -448,6 +518,9 @@ relativeTimeTimer = window.setInterval(updateRelativeTimes, 5000)
 window.addEventListener('beforeunload', () => {
   if (relativeTimeTimer !== null) {
     window.clearInterval(relativeTimeTimer)
+  }
+  if (pendingDetailTimer !== null) {
+    window.clearTimeout(pendingDetailTimer)
   }
   mutationObserver?.disconnect()
   auditDefectObserver?.disconnect()

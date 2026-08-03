@@ -51,6 +51,7 @@
                             <div class="crudo-skeleton-columns">
                                 <div class="crudo-skeleton-block" style="height: 14rem;"></div>
                                 <div class="crudo-skeleton-block" style="height: 14rem;"></div>
+                                <div class="crudo-skeleton-block" style="height: 14rem;"></div>
                             </div>
                         </div>
                     @endif
@@ -94,7 +95,6 @@
                             @if ($selectedMachine['paro'])
                                 title="{{ implode(' · ', array_filter([
                                     $selectedMachine['paro']['falla'] ?? 'Paro reportado',
-                                    $selectedMachine['paro']['descripcion'] ?? null,
                                     'Reportó: '.($selectedMachine['paro']['reportedBy'] ?? 'Sin registrar'),
                                     'Desde: '.(trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar'),
                                 ])) }}"
@@ -116,16 +116,16 @@
                         </article>
                         <article class="crudo-modal-kpi">
                             <span>Producción</span>
-                            <strong>{{ number_format((float) $selectedMachine['kilos'], 1) }} kg</strong>
+                            <strong>{{ number_format(round((float) $selectedMachine['kilos'])) }} kg</strong>
                             <small>
                                 {{ $turno === 'todos' ? 'Meta a esta hora' : 'Meta' }}
-                                {{ number_format((float) $selectedMachine['expectedKilos'], 1) }} kg
+                                {{ number_format(round((float) $selectedMachine['expectedKilos'])) }} kg
                             </small>
                         </article>
                         <article class="crudo-modal-kpi">
                             <span>Calidad</span>
-                            <strong>{{ number_format((float) $selectedMachine['qualityPercent'], 1) }}%</strong>
-                            <small>{{ number_format((float) $selectedMachine['secondsPercent'], 1) }}% segundas</small>
+                            <strong>{{ number_format(round((float) $selectedMachine['qualityPercent'])) }}%</strong>
+                            <small>{{ number_format(round((float) $selectedMachine['secondsPercent'])) }}% segundas</small>
                         </article>
                         <article class="crudo-modal-kpi">
                             <span>Piezas</span>
@@ -141,11 +141,10 @@
                         </div>
                     @endif
 
-                    <div class="crudo-modal-columns">
+                    <div class="crudo-production-detail-grid">
                         <section class="crudo-detail-panel">
                             <div class="crudo-detail-panel-heading">
                                 <div>
-                                    <p class="crudo-eyebrow">Capturas</p>
                                     <h3>Órdenes y turnos</h3>
                                 </div>
                                 <span>{{ $selectedMachine['captureCount'] }}</span>
@@ -180,7 +179,6 @@
                         <section class="crudo-detail-panel crudo-process-defects-panel">
                             <div class="crudo-detail-panel-heading">
                                 <div>
-                                    <p class="crudo-eyebrow">Producción</p>
                                     <h3>Defectos registrados</h3>
                                 </div>
                                 <span class="crudo-detail-count">
@@ -227,6 +225,97 @@
                                 </table>
                             </div>
                         </section>
+
+                        <section class="crudo-detail-panel crudo-flog-panel">
+                            <div class="crudo-detail-panel-heading">
+                                <div>
+                                    <h3>Datos del Flog</h3>
+                                </div>
+                                @if (($flogSummary['status'] ?? null) === 'ok')
+                                    <span class="crudo-detail-count">Vinculado</span>
+                                @endif
+                            </div>
+
+                            @if (($flogSummary['status'] ?? null) === 'ok')
+                                <dl class="crudo-flog-fields">
+                                    <div>
+                                        <dt>Flog</dt>
+                                        <dd>{{ $flogSummary['flog'] ?: '—' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Cliente</dt>
+                                        <dd title="{{ $flogSummary['client'] }}">
+                                            {{ $flogSummary['client'] ?: '—' }}
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt>Artículo</dt>
+                                        <dd>{{ $flogSummary['itemId'] ?: '—' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Tamaño</dt>
+                                        <dd>{{ $flogSummary['inventSizeId'] ?: '—' }}</dd>
+                                    </div>
+                                </dl>
+
+                                <div class="crudo-flog-simulations">
+                                    <p>Simulación</p>
+                                    <div class="crudo-flog-simulation-grid">
+                                        @foreach ([
+                                            ['label' => 'Ventas', 'url' => $flogSummary['simulationSalesUrl'] ?? null],
+                                            ['label' => 'Diseño', 'url' => $flogSummary['simulationDesignUrl'] ?? null],
+                                        ] as $simulation)
+                                            @if ($simulation['url'])
+                                                <a
+                                                    href="{{ $simulation['url'] }}"
+                                                    class="crudo-flog-simulation"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title="Abrir simulación de {{ strtolower($simulation['label']) }}"
+                                                >
+                                                    <img
+                                                        src="{{ $simulation['url'] }}"
+                                                        alt="Simulación de {{ strtolower($simulation['label']) }} del Flog {{ $flogSummary['flog'] }}"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        fetchpriority="low"
+                                                    >
+                                                    <span>{{ $simulation['label'] }}</span>
+                                                </a>
+                                            @endif
+                                        @endforeach
+
+                                        @if (empty($flogSummary['simulationSalesUrl']) && empty($flogSummary['simulationDesignUrl']))
+                                            <div class="crudo-flog-empty-simulation">
+                                                <i class="fa-regular fa-image" aria-hidden="true"></i>
+                                                <span>Sin simulación</span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                @if (! ($flogSummary['lineMatched'] ?? false))
+                                    <p class="crudo-flog-line-warning">
+                                        El Flog existe, pero no hay una línea inequívoca para este artículo, tamaño o rollo.
+                                    </p>
+                                @endif
+                            @elseif (($flogSummary['status'] ?? null) === 'error')
+                                <div class="crudo-flog-state is-error">
+                                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                    <p>No fue posible consultar TI_PRO en este momento.</p>
+                                </div>
+                            @elseif (($flogSummary['status'] ?? null) === 'not_found')
+                                <div class="crudo-flog-state">
+                                    <i class="fa-solid fa-link-slash" aria-hidden="true"></i>
+                                    <p>No se encontró un Flog para los datos de esta producción.</p>
+                                </div>
+                            @else
+                                <div class="crudo-flog-state">
+                                    <i class="fa-solid fa-link" aria-hidden="true"></i>
+                                    <p>Sin datos suficientes para relacionar el Flog.</p>
+                                </div>
+                            @endif
+                        </section>
                     </div>
 
                     <div class="crudo-audit-disclosure">
@@ -254,7 +343,6 @@
                         <section class="crudo-detail-panel crudo-audit-panel" wire:ignore>
                             <div class="crudo-detail-panel-heading">
                                 <div>
-                                    <p class="crudo-eyebrow">Auditoría</p>
                                     <h3>Checklist de telares reincidentes de defectos</h3>
                                 </div>
                                 <span class="crudo-detail-count">{{ count($visibleAuditChecklist) }} puntos</span>
@@ -265,8 +353,7 @@
 
                                 <div class="crudo-audit-row crudo-audit-header" aria-hidden="true">
                                     <span>Pregunta a auditar</span>
-                                    <span>Bien <i class="fa-regular fa-circle-check"></i></span>
-                                    <span>Mal <i class="fa-regular fa-circle-xmark"></i></span>
+                                    <span>Bien / Mal <i class="fa-solid fa-arrows-rotate"></i></span>
                                 </div>
 
                                 @foreach ($visibleAuditChecklist as $item)
@@ -276,25 +363,27 @@
                                             <span>{{ $item['question'] }}</span>
                                         </p>
 
-                                        <label class="crudo-audit-option crudo-audit-option-good">
-                                            <input
-                                                type="radio"
-                                                name="crudo-audit-{{ $loop->iteration }}"
-                                                value="bien"
-                                                aria-label="Pregunta {{ $loop->iteration }}: Bien"
+                                        <div class="crudo-audit-result-cell">
+                                            <button
+                                                type="button"
+                                                class="crudo-audit-result-button"
+                                                data-crudo-audit-result
+                                                data-state="empty"
+                                                data-question-number="{{ $loop->iteration }}"
+                                                aria-label="Pregunta {{ $loop->iteration }}: Sin evaluar"
+                                                title="Clic para cambiar: palomita, tache o vacío"
                                             >
-                                            <span><i class="fa-solid fa-check" aria-hidden="true"></i></span>
-                                        </label>
-
-                                        <label class="crudo-audit-option crudo-audit-option-bad">
+                                                <i class="fa-solid fa-check" aria-hidden="true"></i>
+                                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                                                <span class="sr-only" data-crudo-audit-result-label>Sin evaluar</span>
+                                            </button>
                                             <input
-                                                type="radio"
+                                                type="hidden"
                                                 name="crudo-audit-{{ $loop->iteration }}"
-                                                value="mal"
-                                                aria-label="Pregunta {{ $loop->iteration }}: Mal"
+                                                value=""
+                                                data-crudo-audit-result-input
                                             >
-                                            <span><i class="fa-solid fa-xmark" aria-hidden="true"></i></span>
-                                        </label>
+                                        </div>
                                     </div>
                                 @endforeach
                             </fieldset>
@@ -303,7 +392,7 @@
                                 <span>Obs.</span>
                                 <textarea
                                     name="crudo-audit-observations"
-                                    rows="3"
+                                    rows="2"
                                     maxlength="500"
                                     placeholder="Observaciones de la auditoría"
                                 ></textarea>
@@ -313,7 +402,6 @@
                         <section class="crudo-detail-panel crudo-audit-defects-panel" wire:ignore>
                             <div class="crudo-detail-panel-heading">
                                 <div>
-                                    <p class="crudo-eyebrow">Auditoría</p>
                                     <h3>Defectos encontrados</h3>
                                 </div>
                                 <span class="crudo-detail-count">Manual</span>
@@ -354,7 +442,7 @@
                                 </div>
 
                                 <p class="crudo-audit-defect-help">
-                                    Selecciona hasta cinco defectos del catálogo de Calidad; son independientes de la consulta de producción superior.
+                                    Hasta cinco defectos del catálogo de Calidad.
                                 </p>
                             </div>
                         </section>
@@ -376,7 +464,7 @@
                             type="button"
                             class="crudo-modal-action crudo-modal-action-stop"
                             data-crudo-save-stop
-                            hidden
+                            @if (! $auditExpanded) hidden @endif
                         >
                             <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                             <span>Guardar paro</span>

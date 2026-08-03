@@ -30,9 +30,9 @@ final readonly class CrudoDashboardService
     }
 
     /**
-     * Defectos y capturas individuales de UN telar — se piden en vivo (sin caché)
-     * solo cuando se abre su modal de detalle, en vez de cargarlas para los 39
-     * telares en cada snapshot compartido.
+     * Defectos y capturas individuales de UN telar. El proveedor decide si
+     * conserva este resultado unos segundos para absorber aperturas repetidas;
+     * no se carga para los 39 telares dentro del snapshot compartido.
      *
      * @return array<string, mixed>
      */
@@ -156,15 +156,44 @@ final readonly class CrudoDashboardService
                 continue;
             }
 
+            $faultCode = trim((string) ($row->Falla ?? '')) ?: null;
+            $faultName = trim((string) ($row->Descripcion ?? '')) ?: $faultCode;
+
             $paros[$telar] = [
                 'reportedBy' => trim((string) ($row->NomEmpl ?? '')) ?: null,
-                'falla' => trim((string) ($row->Falla ?? '')) ?: null,
-                'descripcion' => trim((string) ($row->Descripcion ?? '')) ?: null,
-                'since' => trim((string) ($row->Fecha ?? '')).' '.trim((string) ($row->Hora ?? '')),
+                'faultCode' => $faultCode,
+                'falla' => $faultName,
+                'descripcion' => $faultName,
+                'since' => $this->formatParoSince($row->Fecha ?? null, $row->Hora ?? null),
             ];
         }
 
         return $paros;
+    }
+
+    private function formatParoSince(mixed $date, mixed $time): ?string
+    {
+        $dateText = trim((string) ($date ?? ''));
+        $timeText = trim((string) ($time ?? ''));
+
+        if ($dateText === '' && $timeText === '') {
+            return null;
+        }
+
+        try {
+            $datePart = $dateText !== ''
+                ? CarbonImmutable::parse($dateText)->format('d/m/Y')
+                : '';
+        } catch (\Throwable) {
+            $datePart = preg_replace('/\s+\d{1,2}:\d{2}(?::\d{2})?.*$/', '', $dateText) ?? $dateText;
+        }
+
+        $timePart = '';
+        if (preg_match('/(\d{1,2}):(\d{2})/', $timeText, $matches) === 1) {
+            $timePart = str_pad($matches[1], 2, '0', STR_PAD_LEFT).':'.$matches[2];
+        }
+
+        return trim($datePart.' '.$timePart) ?: null;
     }
 
     /**
@@ -185,6 +214,8 @@ final readonly class CrudoDashboardService
                 'orden' => trim((string) ($row->NoProduccion ?? '')) ?: null,
                 'claveModelo' => trim((string) ($row->TamanoClave ?? '')) ?: null,
                 'itemId' => trim((string) ($row->ItemId ?? '')) ?: null,
+                'inventSizeId' => trim((string) ($row->InventSizeId ?? '')) ?: null,
+                'flogId' => trim((string) ($row->FlogsId ?? '')) ?: null,
                 'nombreProducto' => trim((string) ($row->NombreProducto ?? '')) ?: null,
             ];
         }

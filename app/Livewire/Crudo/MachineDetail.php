@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
+use App\Contracts\Crudo\CrudoFlogProvider;
 use App\Services\Crudo\CrudoStatusResolver;
 use DateInterval;
 use DateTimeImmutable;
@@ -50,16 +51,25 @@ class MachineDetail extends Component
 
     public ?string $detailError = null;
 
+    /** @var array<string, mixed>|null */
+    public ?array $flogSummary = null;
+
     public bool $auditExpanded = false;
 
     private CrudoDashboardProvider $provider;
 
     private CrudoStatusResolver $statusResolver;
 
-    public function boot(CrudoDashboardProvider $provider, CrudoStatusResolver $statusResolver): void
-    {
+    private CrudoFlogProvider $flogProvider;
+
+    public function boot(
+        CrudoDashboardProvider $provider,
+        CrudoStatusResolver $statusResolver,
+        CrudoFlogProvider $flogProvider,
+    ): void {
         $this->provider = $provider;
         $this->statusResolver = $statusResolver;
+        $this->flogProvider = $flogProvider;
     }
 
     public function mount(): void
@@ -79,6 +89,7 @@ class MachineDetail extends Component
         $this->detailError = null;
         $this->auditExpanded = false;
         $this->loadDetail();
+        $this->loadFlogSummary();
     }
 
     public function close(): void
@@ -87,6 +98,7 @@ class MachineDetail extends Component
         $this->machine = null;
         $this->detail = null;
         $this->detailError = null;
+        $this->flogSummary = null;
         $this->auditExpanded = false;
     }
 
@@ -185,6 +197,35 @@ class MachineDetail extends Component
         } catch (Throwable $exception) {
             report($exception);
             $this->detailError = 'No fue posible actualizar el detalle. El resumen puede seguir mostrando el último dato disponible.';
+        }
+    }
+
+    private function loadFlogSummary(): void
+    {
+        $program = $this->machine['programa'] ?? null;
+        $barcodes = array_values(array_filter(array_map(
+            static fn (array $capture): string => trim((string) ($capture['purchBarcode'] ?? '')),
+            $this->detail['captures'] ?? [],
+        )));
+
+        try {
+            $this->flogSummary = $this->flogProvider->find(
+                is_array($program) ? $program : null,
+                $barcodes,
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->flogSummary = [
+                'status' => 'error',
+                'source' => null,
+                'flog' => '',
+                'client' => '',
+                'itemId' => '',
+                'inventSizeId' => '',
+                'simulationSalesUrl' => null,
+                'simulationDesignUrl' => null,
+                'lineMatched' => false,
+            ];
         }
     }
 

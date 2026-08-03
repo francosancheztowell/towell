@@ -1,16 +1,8 @@
 @props(['machine'])
 
-<button
-    type="button"
-    class="crudo-machine-card group"
-    data-crudo-machine
-    data-telar="{{ $machine['telar'] }}"
-    data-state="{{ $machine['state'] }}"
-    data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}"
-    aria-label="Abrir detalle del telar {{ $machine['telar'] }}, estado {{ $machine['stateLabel'] }}"
->
-    <div>
-        <svg class="crudo-loom" viewBox="0 0 200 176" role="img" aria-hidden="true" data-crudo-loom-svg>
+@once
+    <svg class="crudo-loom-sprite" aria-hidden="true" focusable="false">
+        <symbol id="crudo-loom-symbol" viewBox="0 0 200 176">
             <ellipse class="crudo-loom-floor" cx="100" cy="169" rx="87" ry="5" />
 
             <g class="crudo-loom-body" stroke-linecap="round" stroke-linejoin="round">
@@ -52,6 +44,22 @@
             </g>
 
             <path class="crudo-loom-accent" d="M45 97h110M34 119h132M48 158h104" />
+        </symbol>
+    </svg>
+@endonce
+
+<button
+    type="button"
+    class="crudo-machine-card group"
+    data-crudo-machine
+    data-telar="{{ $machine['telar'] }}"
+    data-state="{{ $machine['state'] }}"
+    data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}"
+    aria-label="Abrir detalle del telar {{ $machine['telar'] }}, estado {{ $machine['stateLabel'] }}"
+>
+    <div>
+        <svg class="crudo-loom" viewBox="0 0 200 176" role="img" aria-hidden="true" data-crudo-loom-svg>
+            <use href="#crudo-loom-symbol" />
 
             <g class="crudo-loom-number">
                 <rect class="crudo-loom-number-badge" x="60" y="72" width="80" height="37" rx="8" />
@@ -62,8 +70,8 @@
         </svg>
     </div>
 
-    <span class="crudo-machine-quality" data-crudo-quality>{{ number_format((float) $machine['qualityPercent']) }}%</span>
-    <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format((float) $machine['kilos']) }} kg</span>
+    <span class="crudo-machine-quality" data-crudo-quality>{{ number_format(round((float) $machine['qualityPercent'])) }}%</span>
+    <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format(round((float) $machine['kilos'])) }} kg</span>
 
     <span class="crudo-machine-tooltip" role="tooltip">
         <strong data-crudo-name>{{ $machine['name'] }}</strong>

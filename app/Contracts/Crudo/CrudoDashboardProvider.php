@@ -22,7 +22,8 @@ interface CrudoDashboardProvider
     ): array;
 
     /**
-     * Defectos y capturas de un solo telar, en vivo (sin pasar por el snapshot cacheado).
+     * Defectos y capturas de un solo telar. La implementación puede usar una
+     * caché breve para absorber aperturas repetidas sin perder sensación de tiempo real.
      *
      * @return array<string, mixed>
      */
