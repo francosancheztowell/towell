@@ -1,52 +1,128 @@
 type MachineSnapshot = Map<string, string>
 
+type Machine = {
+  telar: string
+  name: string
+  salon: string
+  group: string
+  sequence: number | null
+  captureCount: number
+  pieces: number
+  seconds: number
+  kilos: number
+  qualityPercent: number
+  secondsPercent: number
+  expectedKilos: number
+  state: string
+  stateLabel: string
+  stateIcon: string
+  orders: string[]
+  operators: string[]
+  defects: Array<Record<string, unknown>>
+  captures: Array<Record<string, unknown>>
+  lastUpdatedAt: string | null
+  paro: Record<string, string | null> | null
+  programa: Record<string, string | null> | null
+}
+
 const DASHBOARD_SELECTOR = '[data-crudo-dashboard]'
+const MACHINE_DATA_SELECTOR = '[data-crudo-machines-data]'
+const MACHINE_GRID_SELECTOR = '[data-crudo-machine-grid]'
 const MACHINE_SELECTOR = '[data-crudo-machine]'
 const RELATIVE_TIME_SELECTOR = '[data-crudo-relative-time]'
+
+const formatInteger = (value: number): string => Math.round(value).toLocaleString('es-MX')
+const formatDecimal = (value: number, decimals: number = 1): string => {
+  const factor = 10 ** decimals
+  return (Math.round(value * factor) / factor).toLocaleString('es-MX', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+}
 
 let previousMachines: MachineSnapshot = new Map()
 let observedDashboard: HTMLElement | null = null
 let mutationObserver: MutationObserver | null = null
 let relativeTimeTimer: number | null = null
 
-const machineSnapshot = (root: ParentNode): MachineSnapshot => {
+const parseMachinesJson = (): Machine[] => {
+  const element = document.querySelector<HTMLScriptElement>(MACHINE_DATA_SELECTOR)
+  if (!element?.textContent) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(element.textContent) as Machine[]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const machineSnapshot = (machines: Machine[]): MachineSnapshot => {
   const snapshot: MachineSnapshot = new Map()
 
-  root.querySelectorAll<HTMLElement>(MACHINE_SELECTOR).forEach((machine) => {
-    const telar = machine.dataset.telar
-    const signature = machine.dataset.signature
-
-    if (telar && signature) {
-      snapshot.set(telar, signature)
-    }
+  machines.forEach((machine) => {
+    const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}`
+    snapshot.set(machine.telar, signature)
   })
 
   return snapshot
 }
 
-const highlightChanges = (root: HTMLElement): void => {
-  const current = machineSnapshot(root)
+const findMachineButton = (telar: string): HTMLElement | null => {
+  return document.querySelector<HTMLElement>(`${MACHINE_SELECTOR}[data-telar="${CSS.escape(telar)}"]`)
+}
 
-  if (previousMachines.size > 0) {
-    current.forEach((signature, telar) => {
-      if (previousMachines.get(telar) === signature) {
-        return
-      }
+const updateMachineCard = (machine: Machine): void => {
+  const button = findMachineButton(machine.telar)
+  if (!button) {
+    return
+  }
 
-      const machine = Array.from(root.querySelectorAll<HTMLElement>(MACHINE_SELECTOR))
-        .find((candidate) => candidate.dataset.telar === telar)
+  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}`
+  const previousSignature = button.dataset.signature
 
-      if (!machine) {
-        return
-      }
+  button.dataset.state = machine.state
+  button.dataset.signature = signature
+  button.setAttribute('aria-label', `Abrir detalle del telar ${machine.telar}, estado ${machine.stateLabel}`)
 
-      machine.classList.remove('is-changed')
-      window.requestAnimationFrame(() => {
-        machine.classList.add('is-changed')
-        window.setTimeout(() => machine.classList.remove('is-changed'), 1000)
-      })
+  const quality = button.querySelector<HTMLElement>('[data-crudo-quality]')
+  if (quality) {
+    quality.textContent = `${formatInteger(machine.qualityPercent)}%`
+  }
+
+  const kilos = button.querySelector<HTMLElement>('[data-crudo-kilos]')
+  if (kilos) {
+    kilos.textContent = `${formatDecimal(machine.kilos)} kg`
+  }
+
+  const name = button.querySelector<HTMLElement>('[data-crudo-name]')
+  if (name) {
+    name.textContent = machine.name
+  }
+
+  const tooltipMetrics = button.querySelector<HTMLElement>('[data-crudo-tooltip-metrics]')
+  if (tooltipMetrics) {
+    tooltipMetrics.textContent = `${formatInteger(machine.pieces)} piezas · ${formatInteger(machine.seconds)} segundas`
+  }
+
+  if (previousSignature !== signature) {
+    button.classList.remove('is-changed')
+    window.requestAnimationFrame(() => {
+      button.classList.add('is-changed')
+      window.setTimeout(() => button.classList.remove('is-changed'), 1000)
     })
   }
+}
+
+const updateDashboardCards = (): void => {
+  const machines = parseMachinesJson()
+  const current = machineSnapshot(machines)
+
+  machines.forEach((machine) => {
+    updateMachineCard(machine)
+  })
 
   previousMachines = current
 }
@@ -81,7 +157,8 @@ const observeDashboard = (): void => {
 
   mutationObserver?.disconnect()
   observedDashboard = dashboard
-  previousMachines = machineSnapshot(dashboard)
+
+  const dataElement = document.querySelector<HTMLScriptElement>(MACHINE_DATA_SELECTOR)
 
   let scheduled = false
   mutationObserver = new MutationObserver(() => {
@@ -93,19 +170,31 @@ const observeDashboard = (): void => {
     window.requestAnimationFrame(() => {
       scheduled = false
       if (observedDashboard) {
-        highlightChanges(observedDashboard)
+        updateDashboardCards()
         updateRelativeTimes()
       }
     })
   })
 
-  mutationObserver.observe(dashboard, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['data-signature', 'data-state'],
-  })
+  if (dataElement) {
+    mutationObserver.observe(dataElement, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    })
+  }
 
+  const machineGrid = document.querySelector<HTMLElement>(MACHINE_GRID_SELECTOR)
+  if (machineGrid) {
+    mutationObserver.observe(machineGrid, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-telar'],
+    })
+  }
+
+  updateDashboardCards()
   updateRelativeTimes()
 }
 
@@ -123,6 +212,27 @@ const toggleFullscreen = async (): Promise<void> => {
 document.addEventListener('click', (event) => {
   const target = event.target
   if (!(target instanceof Element)) {
+    return
+  }
+
+  const machineButton = target.closest<HTMLElement>(MACHINE_SELECTOR)
+  if (machineButton) {
+    const telar = machineButton.dataset.telar
+    if (!telar) {
+      return
+    }
+
+    const machines = parseMachinesJson()
+    const machine = machines.find((candidate) => candidate.telar === telar)
+    if (machine) {
+      window.dispatchEvent(
+        new CustomEvent('open-crudo-detail', {
+          detail: { telar, machine },
+          bubbles: true,
+        }),
+      )
+    }
+
     return
   }
 

@@ -7,12 +7,10 @@ namespace App\Livewire\Crudo;
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Services\Crudo\CrudoAccess;
 use App\Services\Crudo\CrudoFloorLayout;
-use App\Services\Crudo\CrudoStatusResolver;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Contracts\View\View;
-use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Throwable;
@@ -34,22 +32,7 @@ class Dashboard extends Component
     #[Url(except: 'todos')]
     public string $turno = 'todos';
 
-    public ?string $selectedTelar = null;
-
     public ?string $dataError = null;
-
-    #[Locked]
-    public ?array $selectedMachineDetail = null;
-
-    #[Locked]
-    public ?string $selectedMachineDetailError = null;
-
-    /**
-     * Evita forzar una reconstrucción síncrona del snapshot (que implica varias
-     * consultas a SQL Server) cuando la acción solo abre/cierra el modal de detalle
-     * — en ese caso basta con lo que ya haya en caché, aunque no esté "fresco".
-     */
-    private bool $skipRebuildOnNextRender = false;
 
     private bool $forceRefreshOnNextRender = false;
 
@@ -59,18 +42,14 @@ class Dashboard extends Component
 
     private CrudoFloorLayout $floorLayout;
 
-    private CrudoStatusResolver $statusResolver;
-
     public function boot(
         CrudoDashboardProvider $provider,
         CrudoAccess $access,
         CrudoFloorLayout $floorLayout,
-        CrudoStatusResolver $statusResolver,
     ): void {
         $this->provider = $provider;
         $this->access = $access;
         $this->floorLayout = $floorLayout;
-        $this->statusResolver = $statusResolver;
         $this->authorizeAccess();
     }
 
@@ -86,99 +65,52 @@ class Dashboard extends Component
     public function updatedFecha(): void
     {
         $this->fecha = $this->normalizeDate($this->fecha);
-        $this->clearSelectedMachine();
         $this->dataError = null;
     }
 
     public function updatedFechaInicio(): void
     {
         $this->fechaInicio = $this->normalizeDate($this->fechaInicio);
-        $this->clearSelectedMachine();
         $this->dataError = null;
     }
 
     public function updatedFechaFin(): void
     {
         $this->fechaFin = $this->normalizeDate($this->fechaFin);
-        $this->clearSelectedMachine();
         $this->dataError = null;
     }
 
     public function updatedModo(): void
     {
         $this->modo = $this->modo === 'rango' ? 'rango' : 'dia';
-        $this->clearSelectedMachine();
         $this->dataError = null;
     }
 
     public function updatedTurno(): void
     {
         $this->turno = $this->normalizeShift($this->turno);
-        $this->clearSelectedMachine();
         $this->dataError = null;
     }
 
     public function refreshDashboard(): void
     {
-        if ($this->selectedTelar !== null) {
-            $this->loadSelectedMachineDetail();
-        }
-
         $this->dispatch('crudo-refrescado');
     }
 
     public function refreshNow(): void
     {
         $this->forceRefreshOnNextRender = true;
-
-        if ($this->selectedTelar !== null) {
-            $this->loadSelectedMachineDetail();
-        }
-
         $this->dispatch('crudo-refrescado');
-    }
-
-    public function selectMachine(string $telar): void
-    {
-        $telar = mb_substr(trim($telar), 0, 20);
-        abort_unless($telar !== '', 422, 'Selecciona una máquina válida.');
-
-        $this->selectedTelar = $telar;
-        $this->skipRebuildOnNextRender = true;
-        $this->loadSelectedMachineDetail();
-    }
-
-    public function closeMachine(): void
-    {
-        $this->clearSelectedMachine();
-        $this->skipRebuildOnNextRender = true;
     }
 
     public function render(): View
     {
         $data = $this->loadDashboard(
             forceRefresh: $this->forceRefreshOnNextRender,
-            allowRebuild: ! $this->skipRebuildOnNextRender,
+            allowRebuild: true,
         );
-        $this->skipRebuildOnNextRender = false;
         $this->forceRefreshOnNextRender = false;
         $machines = is_array($data['machines'] ?? null) ? $data['machines'] : [];
-        $selectedMachine = null;
-
-        if ($this->selectedTelar !== null) {
-            foreach ($machines as $machine) {
-                if (($machine['telar'] ?? null) === $this->selectedTelar) {
-                    $selectedMachine = $machine;
-                    break;
-                }
-            }
-
-            if ($selectedMachine === null) {
-                $this->clearSelectedMachine();
-            } elseif ($this->selectedMachineDetail !== null) {
-                $selectedMachine = $this->overlaySelectedMachineDetail($selectedMachine);
-            }
-        }
 
         return view('livewire.crudo.dashboard', [
             'machines' => $machines,
@@ -187,7 +119,6 @@ class Dashboard extends Component
             'generatedAt' => $data['generatedAt'] ?? null,
             'cacheState' => $data['cacheState'] ?? 'unavailable',
             'sourceError' => $data['sourceError'] ?? null,
-            'selectedMachine' => $selectedMachine,
             'floorLayouts' => $this->floorLayout->arrange($machines),
             'shouldPoll' => $this->modo === 'dia'
                 && $this->rangeTo()->format('Y-m-d') === now(config('app.timezone'))->format('Y-m-d'),
@@ -290,77 +221,6 @@ class Dashboard extends Component
     private function normalizeShift(string $shift): string
     {
         return in_array($shift, ['todos', '1', '2', '3', '4'], true) ? $shift : 'todos';
-    }
-
-    private function loadSelectedMachineDetail(): void
-    {
-        if ($this->selectedTelar === null) {
-            return;
-        }
-
-        try {
-            $this->selectedMachineDetail = $this->provider->detail(
-                $this->selectedTelar,
-                $this->rangeFrom(),
-                $this->rangeTo(),
-                $this->turno,
-            );
-            $this->selectedMachineDetailError = null;
-        } catch (Throwable $exception) {
-            report($exception);
-            $this->selectedMachineDetailError = 'No fue posible actualizar el detalle. El resumen puede seguir mostrando el último dato disponible.';
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $machine
-     * @return array<string, mixed>
-     */
-    private function overlaySelectedMachineDetail(array $machine): array
-    {
-        $detailKeys = [
-            'captureCount',
-            'pieces',
-            'seconds',
-            'kilos',
-            'qualityPercent',
-            'secondsPercent',
-            'orders',
-            'operators',
-            'lastUpdatedAt',
-            'defectLineCount',
-            'defects',
-            'captures',
-        ];
-
-        foreach ($detailKeys as $key) {
-            if (array_key_exists($key, $this->selectedMachineDetail)) {
-                $machine[$key] = $this->selectedMachineDetail[$key];
-            }
-        }
-
-        $state = $this->statusResolver->resolve(
-            captureCount: (int) ($machine['captureCount'] ?? 0),
-            pieces: (float) ($machine['pieces'] ?? 0),
-            secondsPercent: (float) ($machine['secondsPercent'] ?? 0),
-            kilos: (float) ($machine['kilos'] ?? 0),
-            expectedKilos: (float) ($machine['expectedKilos'] ?? 0),
-            hasActiveParo: $machine['paro'] !== null,
-        );
-
-        $machine['state'] = $state->value;
-        $machine['stateLabel'] = $state->label();
-        $machine['stateIcon'] = $state->icon();
-        $machine['defectLineCount'] ??= 0;
-
-        return $machine;
-    }
-
-    private function clearSelectedMachine(): void
-    {
-        $this->selectedTelar = null;
-        $this->selectedMachineDetail = null;
-        $this->selectedMachineDetailError = null;
     }
 
     /**

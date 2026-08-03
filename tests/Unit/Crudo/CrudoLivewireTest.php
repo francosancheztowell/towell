@@ -23,7 +23,7 @@ final class CrudoLivewireTest extends TestCase
         $this->app->instance(CrudoDashboardProvider::class, $this->provider);
     }
 
-    public function test_it_renders_the_dashboard_and_machine_detail(): void
+    public function test_it_renders_the_dashboard(): void
     {
         Livewire::test(TestableCrudoDashboard::class)
             ->assertSee('Estado de máquinas')
@@ -36,80 +36,7 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('JAC 201')
             ->assertSee('95%')
             ->assertSee('crudo-loom-body', false)
-            ->assertSee('crudo-loom-number-text', false)
-            ->call('selectMachine', '201')
-            ->assertSet('selectedTelar', '201')
-            ->assertSet('selectedMachineDetail.kilos', 40.0)
-            ->assertSee('crudo-modal-overview', false)
-            ->assertSee('crudo-modal-identity-card', false)
-            ->assertDontSee('crudo-modal-header', false)
-            ->assertSee('Órdenes y turnos')
-            ->assertSee('PurchBarcode')
-            ->assertSee('PB-1001')
-            ->assertSee('Peso captura (kg)')
-            ->assertDontSee('<th>RECID</th>', false)
-            ->assertDontSee('<th>Orden</th>', false)
-            ->assertDontSee('<th>Líneas</th>', false)
-            ->assertSee('Error de trama')
-            ->assertSee('crudo-defect-table', false)
-            ->assertSee('Defectos encontrados y desglose por turno')
-            ->assertSee('<th>Defecto</th>', false)
-            ->assertDontSee('crudo-defect-total', false)
-            ->assertSee('T1')
-            ->assertSee('T2')
-            ->assertSee('T3')
-            ->assertSee('T4')
-            ->assertDontSee('crudo-defect-other', false)
-            ->assertDontSee('<th>S/T</th>', false)
-            ->assertSee('Checklist de telares reincidentes de defectos')
-            ->assertSee('¿La alineación coincide con la orden?')
-            ->assertSee('¿El dibujo de Jacquard está bien definido?')
-            ->assertSee('¿Es correcta la identificación en el julio del lote de hilo y proveedor?')
-            ->assertSee('crudo-audit-table', false)
-            ->call('closeMachine')
-            ->assertSet('selectedTelar', null);
-    }
-
-    public function test_it_renders_an_active_stop_inside_the_compact_status_card(): void
-    {
-        $data = $this->dashboardData();
-        $data['machines'][0]['state'] = 'paro';
-        $data['machines'][0]['stateLabel'] = 'Paro';
-        $data['machines'][0]['stateIcon'] = 'fa-triangle-exclamation';
-        $data['machines'][0]['paro'] = [
-            'falla' => 'Falla mecánica',
-            'descripcion' => 'Se detuvo el telar para revisión.',
-            'reportedBy' => 'Calidad',
-            'since' => '31/07/2026 08:15',
-        ];
-
-        $this->provider = new FakeCrudoDashboardProvider($data);
-        $this->app->instance(CrudoDashboardProvider::class, $this->provider);
-
-        Livewire::test(TestableCrudoDashboard::class)
-            ->call('selectMachine', '201')
-            ->assertSee('crudo-modal-status-card has-paro', false)
-            ->assertSee('Falla mecánica')
-            ->assertSee('Desde 31/07/2026 08:15')
-            ->assertDontSee('crudo-paro-alert', false);
-    }
-
-    public function test_jacquard_drawing_question_is_hidden_for_other_saloons(): void
-    {
-        $data = $this->dashboardData();
-        $data['machines'][0]['salon'] = 'Smith';
-        $data['machines'][0]['group'] = 'Smith';
-        $data['machines'][0]['name'] = 'SMI 201';
-
-        $this->provider = new FakeCrudoDashboardProvider($data);
-        $this->app->instance(CrudoDashboardProvider::class, $this->provider);
-
-        Livewire::test(TestableCrudoDashboard::class)
-            ->call('selectMachine', '201')
-            ->assertSee('2 puntos')
-            ->assertSee('¿La alineación coincide con la orden?')
-            ->assertDontSee('¿El dibujo de Jacquard está bien definido?')
-            ->assertSee('¿Es correcta la identificación en el julio del lote de hilo y proveedor?');
+            ->assertSee('crudo-loom-number-text', false);
     }
 
     public function test_it_normalizes_shift_and_forces_refresh_on_manual_action(): void
@@ -139,40 +66,6 @@ final class CrudoLivewireTest extends TestCase
             ->assertDontSee('wire:poll.visible', false)
             ->set('modo', 'rango')
             ->assertDontSee('wire:poll.visible', false);
-    }
-
-    public function test_poll_refreshes_open_detail_and_preserves_the_last_detail_if_sql_fails(): void
-    {
-        $component = Livewire::test(TestableCrudoDashboard::class)
-            ->call('selectMachine', '201')
-            ->assertSet('selectedMachineDetail.kilos', 40.0);
-
-        $this->provider->failDetail = true;
-
-        $component
-            ->call('refreshDashboard')
-            ->assertSet('selectedMachineDetail.kilos', 40.0)
-            ->assertSet(
-                'selectedMachineDetailError',
-                'No fue posible actualizar el detalle. El resumen puede seguir mostrando el último dato disponible.',
-            )
-            ->assertSee('No fue posible actualizar el detalle');
-
-        $this->assertSame(2, $this->provider->detailCalls);
-    }
-
-    public function test_opening_and_closing_the_modal_does_not_force_a_synchronous_rebuild(): void
-    {
-        Livewire::test(TestableCrudoDashboard::class)
-            ->call('selectMachine', '201')
-            ->call('closeMachine');
-
-        // El primer render (mount) sí puede reconstruir; los renders disparados
-        // por selectMachine/closeMachine deben pedir allowRebuild=false.
-        $this->assertSame(
-            [true, false, false],
-            $this->provider->allowRebuildSeen,
-        );
     }
 
     /**

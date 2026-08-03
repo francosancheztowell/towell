@@ -126,6 +126,24 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
 
     public function machines(): array
     {
+        $cacheSeconds = max(0, (int) config('crudo.catalog_cache_seconds', 300));
+
+        if ($cacheSeconds > 0) {
+            return cache()->remember(
+                'crudo.machines.catalog',
+                $cacheSeconds,
+                fn (): array => $this->fetchMachines(),
+            );
+        }
+
+        return $this->fetchMachines();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function fetchMachines(): array
+    {
         // Un solo LEFT JOIN en vez de 2 queries. Si InvSecuenciaTelares llegara a tener
         // más de una fila por telar (fan-out), nos quedamos con la primera y no
         // duplicamos el telar en el catálogo.
@@ -167,7 +185,6 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
         return $this->catalog()
             ->table($this->table('paros'))
             ->where('Estatus', 'Activo')
-            ->whereIn('Depto', config('crudo.paro_departments', ['Calidad', 'Tejido']))
             ->orderByDesc('Fecha')
             ->orderByDesc('Hora')
             ->get([

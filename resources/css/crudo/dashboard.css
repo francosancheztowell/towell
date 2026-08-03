@@ -111,6 +111,18 @@
     box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
 }
 
+.crudo-navbar-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    align-self: center;
+    margin-left: 0.15rem;
+    color: #0284c7;
+    font-size: 0.62rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
 .crudo-content-grid {
     display: grid;
     grid-template-columns: minmax(14.25rem, 15.5rem) minmax(0, 1fr);
@@ -990,24 +1002,38 @@
 }
 
 .crudo-defect-table-wrap {
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     border: 1px solid #e2e8f0;
     border-radius: 0.7rem;
 }
 
 .crudo-defect-table {
-    min-width: 30rem;
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
 }
 
 .crudo-defect-table th,
 .crudo-defect-table td {
+    padding-right: 0.25rem;
+    padding-left: 0.25rem;
     text-align: center;
 }
 
 .crudo-defect-table th:first-child,
 .crudo-defect-table td:first-child {
-    min-width: 15rem;
+    width: 40%;
+    min-width: 0;
     text-align: left;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.crudo-defect-table th:not(:first-child),
+.crudo-defect-table td:not(:first-child) {
+    width: 15%;
 }
 
 .crudo-defect-table tbody tr:last-child td {
@@ -1151,6 +1177,111 @@
 
 .crudo-audit-option input:checked + span i {
     color: #fff;
+}
+
+.crudo-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    margin-top: 0.55rem;
+    border-top: 1px solid #dbe5ee;
+    padding: 0.7rem 0.15rem 0.05rem;
+}
+
+.crudo-modal-action {
+    display: inline-flex;
+    min-height: 2.55rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.7rem;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.8rem;
+    line-height: 1;
+    font-weight: 900;
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.crudo-modal-action:hover {
+    transform: translateY(-1px);
+}
+
+.crudo-modal-action:focus-visible {
+    outline: 3px solid color-mix(in srgb, currentColor 24%, transparent);
+    outline-offset: 2px;
+}
+
+.crudo-modal-action-audit {
+    border-color: #166534;
+    background: #166534;
+    color: #fff;
+}
+
+.crudo-modal-action-audit:hover {
+    border-color: #14532d;
+    background: #14532d;
+    box-shadow: 0 0.35rem 0.8rem rgb(20 83 45 / 18%);
+}
+
+.crudo-modal-action-stop {
+    border-color: #fecaca;
+    background: #fff1f2;
+    color: #b91c1c;
+}
+
+.crudo-modal-action-stop:hover {
+    border-color: #fca5a5;
+    background: #ffe4e6;
+    box-shadow: 0 0.35rem 0.8rem rgb(185 28 28 / 12%);
+}
+
+.crudo-modal-skeleton {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    gap: 0.55rem;
+    align-content: start;
+    background: #f8fafc;
+    padding: 0.75rem;
+    pointer-events: none;
+}
+
+.crudo-modal-body-loading .crudo-modal-skeleton {
+    display: grid;
+}
+
+.crudo-skeleton-overview,
+.crudo-skeleton-columns {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.crudo-skeleton-overview {
+    grid-template-columns: minmax(18rem, 1.65fr) repeat(4, minmax(8.25rem, 0.75fr));
+    margin-bottom: 0.55rem;
+}
+
+.crudo-skeleton-columns {
+    grid-template-columns: minmax(0, 1.6fr) minmax(16rem, 0.8fr);
+}
+
+.crudo-skeleton-block {
+    border-radius: 0.8rem;
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+    background-size: 200% 100%;
+    animation: crudo-skeleton-shimmer 1.4s infinite linear;
+}
+
+@keyframes crudo-skeleton-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
 }
 
 .crudo-detail-empty,
@@ -1342,24 +1473,6 @@
         letter-spacing: 0.035em;
     }
 
-    .crudo-defect-table {
-        width: 100%;
-        min-width: 0;
-        table-layout: fixed;
-    }
-
-    .crudo-defect-table th:first-child,
-    .crudo-defect-table td:first-child {
-        width: 48%;
-        min-width: 0;
-        white-space: normal;
-    }
-
-    .crudo-defect-table th:not(:first-child),
-    .crudo-defect-table td:not(:first-child) {
-        width: 13%;
-    }
-
     .crudo-audit-panel {
         margin-top: 0.4rem;
     }
@@ -1485,6 +1598,18 @@
     .crudo-audit-question {
         padding-inline: 0.55rem;
         font-size: 0.76rem;
+    }
+
+    .crudo-modal-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.4rem;
+    }
+
+    .crudo-modal-action {
+        min-width: 0;
+        padding-inline: 0.5rem;
+        font-size: 0.74rem;
     }
 }
 

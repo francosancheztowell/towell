@@ -9,18 +9,6 @@
         ['key' => 'operating', 'label' => 'En operación', 'description' => 'Con captura y sin paro', 'icon' => 'fa-circle-check'],
         ['key' => 'no_data', 'label' => 'Sin datos', 'description' => 'Sin captura', 'icon' => 'fa-minus'],
     ];
-    $auditChecklist = [
-        ['question' => '¿La alineación coincide con la orden?', 'salon' => null],
-        ['question' => '¿El dibujo de Jacquard está bien definido?', 'salon' => 'Jacquard'],
-        ['question' => '¿Es correcta la identificación en el julio del lote de hilo y proveedor?', 'salon' => null],
-    ];
-    $isSelectedMachineJacquard = strcasecmp(
-        trim((string) ($selectedMachine['salon'] ?? '')),
-        'Jacquard',
-    ) === 0;
-    $visibleAuditChecklist = $isSelectedMachineJacquard
-        ? $auditChecklist
-        : [$auditChecklist[0], $auditChecklist[2]];
 @endphp
 
 <div
@@ -112,6 +100,16 @@
                     <span>Sin conexión</span>
                 @endif
             </div>
+
+            <span
+                class="crudo-navbar-loading"
+                wire:loading
+                wire:target="modo,fecha,fechaInicio,fechaFin,turno,refreshNow"
+                aria-label="Actualizando producción"
+            >
+                <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>
+                Actualizando
+            </span>
         </div>
     @endteleport
 
@@ -241,291 +239,58 @@
             </section>
         </aside>
 
-        <main class="crudo-floor" aria-label="Distribución de máquinas por salón">
-            <div class="crudo-salons-grid">
-                @foreach ($salonOrder as $salon)
-                    @php($salonLayout = $floorLayouts[$salon] ?? null)
-                    @continue($salonLayout === null || $salonLayout['count'] === 0)
+    <main class="crudo-floor" aria-label="Distribución de máquinas por salón">
+        <script
+            type="application/json"
+            id="crudo-machines-data"
+            data-crudo-machines-data
+        >@json($machines)</script>
 
-                    <section class="crudo-salon crudo-salon-{{ str($salon)->slug() }}">
-                        <header>
-                            <h2>Salón {{ $salonLabels[$salon] ?? $salon }}</h2>
-                            <span>{{ $salonLayout['count'] }} máquinas</span>
-                        </header>
-
-                        @if ($salonLayout['physical'])
-                            <div class="crudo-machine-grid crudo-machine-grid-physical">
-                                @foreach ($salonLayout['columns'] as $columnIndex => $machineColumn)
-                                    <div class="crudo-machine-column" data-column="{{ $columnIndex + 1 }}">
-                                        @foreach ($machineColumn as $machine)
-                                            <x-crudo.machine-card :machine="$machine" />
-                                        @endforeach
-                                    </div>
-                                @endforeach
-                            </div>
-                        @else
-                            <div class="crudo-machine-grid">
-                                @foreach ($salonLayout['columns'][0] as $machine)
-                                    <x-crudo.machine-card :machine="$machine" />
-                                @endforeach
-                            </div>
-                        @endif
-                    </section>
-                @endforeach
-            </div>
-
-            @if (count($machines) === 0 && ! $dataError)
-                <div class="crudo-empty-state">
-                    <i class="fa-solid fa-industry"></i>
-                    <h2>No hay máquinas configuradas</h2>
-                    <p>No se encontraron telares de Karl Mayer, Jacquard o Smith en el catálogo.</p>
-                </div>
-            @endif
-        </main>
-    </div>
-
-    <div
-        wire:loading.flex
-        wire:target="modo,fecha,fechaInicio,fechaFin,turno,refreshNow,selectMachine"
-        class="crudo-loading"
-        role="status"
-        aria-live="polite"
-    >
-        <span>
-            <i class="fa-solid fa-circle-notch fa-spin"></i>
-            Actualizando producción
-        </span>
-    </div>
-
-    @if ($selectedMachine)
         <div
-            class="crudo-modal-backdrop"
-            wire:click.self="closeMachine"
-            data-crudo-modal
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="crudo-machine-modal-title"
+            class="crudo-salons-grid"
+            wire:ignore
+            data-crudo-machine-grid
         >
-            <article class="crudo-modal">
-                <button
-                    type="button"
-                    class="crudo-modal-close"
-                    wire:click="closeMachine"
-                    data-crudo-modal-close
-                    aria-label="Cerrar detalle"
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+            @foreach ($salonOrder as $salon)
+                @php($salonLayout = $floorLayouts[$salon] ?? null)
+                @continue($salonLayout === null || $salonLayout['count'] === 0)
 
-                <div class="crudo-modal-body">
-                    <section class="crudo-modal-overview" data-state="{{ $selectedMachine['state'] }}">
-                        <article class="crudo-modal-identity-card">
-                            <span class="crudo-modal-machine-icon">
-                                <i class="fa-solid fa-industry"></i>
-                            </span>
-                            <div class="min-w-0">
-                                <p class="crudo-modal-location">
-                                    {{ $selectedMachine['salon'] }} · {{ $selectedMachine['group'] ?: 'Sin grupo' }}
-                                </p>
-                                <h2 id="crudo-machine-modal-title">{{ $selectedMachine['name'] }}</h2>
-                                @if ($selectedMachine['programa'])
-                                    <p class="crudo-modal-program">
-                                        {{ $selectedMachine['programa']['nombre'] ?? 'Sin nombre' }}
-                                        · Clave {{ $selectedMachine['programa']['clave'] ?? 'N/D' }}
-                                    </p>
-                                @endif
-                            </div>
-                        </article>
+                <section class="crudo-salon crudo-salon-{{ str($salon)->slug() }}">
+                    <header>
+                        <h2>Salón {{ $salonLabels[$salon] ?? $salon }}</h2>
+                        <span data-crudo-salon-count="{{ $salon }}">{{ $salonLayout['count'] }} máquinas</span>
+                    </header>
 
-                        <article
-                            class="crudo-modal-kpi crudo-modal-status-card {{ $selectedMachine['paro'] ? 'has-paro' : '' }}"
-                            @if ($selectedMachine['paro'])
-                                title="{{ implode(' · ', array_filter([
-                                    $selectedMachine['paro']['falla'] ?? 'Paro reportado',
-                                    $selectedMachine['paro']['descripcion'] ?? null,
-                                    'Reportó: '.($selectedMachine['paro']['reportedBy'] ?? 'Sin registrar'),
-                                    'Desde: '.(trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar'),
-                                ])) }}"
-                            @endif
-                        >
-                            <span>Estado</span>
-                            <strong class="crudo-modal-state">
-                                <i class="fa-solid {{ $selectedMachine['stateIcon'] }}"></i>
-                                {{ $selectedMachine['stateLabel'] }}
-                            </strong>
-                            @if ($selectedMachine['paro'])
-                                <small class="crudo-modal-paro-falla">
-                                    {{ $selectedMachine['paro']['falla'] ?? 'Paro reportado' }}
-                                </small>
-                                <small class="crudo-modal-paro-tiempo">
-                                    Desde {{ trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar' }}
-                                </small>
-                            @endif
-                        </article>
-                        <article class="crudo-modal-kpi">
-                            <span>Producción</span>
-                            <strong>{{ number_format((float) $selectedMachine['kilos'], 1) }} kg</strong>
-                            <small>Meta {{ number_format((float) $selectedMachine['expectedKilos'], 1) }} kg</small>
-                        </article>
-                        <article class="crudo-modal-kpi">
-                            <span>Calidad</span>
-                            <strong>{{ number_format((float) $selectedMachine['qualityPercent'], 1) }}%</strong>
-                            <small>{{ number_format((float) $selectedMachine['secondsPercent'], 1) }}% segundas</small>
-                        </article>
-                        <article class="crudo-modal-kpi">
-                            <span>Piezas</span>
-                            <strong>{{ number_format((float) $selectedMachine['pieces']) }}</strong>
-                            <small>{{ number_format((float) $selectedMachine['seconds']) }} segundas</small>
-                        </article>
-                    </section>
-
-                    @if ($selectedMachineDetailError)
-                        <div class="crudo-detail-error" role="alert">
-                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                            <span>{{ $selectedMachineDetailError }}</span>
-                        </div>
-                    @endif
-
-                    <div class="crudo-modal-columns">
-                        <section class="crudo-detail-panel">
-                            <div class="crudo-detail-panel-heading">
-                                <div>
-                                    <p class="crudo-eyebrow">Capturas</p>
-                                    <h3>Órdenes y turnos</h3>
-                                </div>
-                                <span>{{ $selectedMachine['captureCount'] }}</span>
-                            </div>
-
-                            <div class="overflow-auto">
-                                <table class="crudo-detail-table">
-                                    <thead>
-                                        <tr>
-                                            <th>PurchBarcode</th>
-                                            <th>Operador</th>
-                                            <th>Peso captura (kg)</th>
-                                            <th>Piezas</th>
-                                            <th>Seg.</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse ($selectedMachine['captures'] as $capture)
-                                            <tr>
-                                                <td>{{ $capture['purchBarcode'] ?: '—' }}</td>
-                                                <td>{{ $capture['operator'] }}</td>
-                                                <td>{{ number_format((float) $capture['weight'], 1) }}</td>
-                                                <td>{{ number_format((float) $capture['pieces']) }}</td>
-                                                <td>{{ number_format((float) $capture['seconds']) }}</td>
-                                            </tr>
-                                        @empty
-                                            <tr><td colspan="5">Sin capturas en el periodo seleccionado.</td></tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-
-                        <section class="crudo-detail-panel">
-                            <div class="crudo-detail-panel-heading">
-                                <div>
-                                    <p class="crudo-eyebrow">Calidad</p>
-                                    <h3>Defectos encontrados</h3>
-                                </div>
-                                <span class="crudo-detail-count">
-                                    {{ count($selectedMachine['defects']) }} tipos
-                                    · {{ $selectedMachine['defectLineCount'] ?? 0 }} líneas
-                                </span>
-                            </div>
-
-                            <div class="crudo-defect-table-wrap">
-                                <table class="crudo-detail-table crudo-defect-table">
-                                    <caption class="sr-only">
-                                        Defectos encontrados y desglose por turno
-                                    </caption>
-                                    <thead>
-                                        <tr>
-                                            <th>Defecto</th>
-                                            <th>T1</th>
-                                            <th>T2</th>
-                                            <th>T3</th>
-                                            <th>T4</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse ($selectedMachine['defects'] as $defect)
-                                            <tr>
-                                                <td class="font-bold text-slate-900">
-                                                    {{ $defect['description'] }}
-                                                </td>
-                                                @foreach (['1', '2', '3', '4'] as $defectTurn)
-                                                    <td>
-                                                        {{ number_format((float) ($defect['turns'][$defectTurn] ?? 0)) }}
-                                                    </td>
-                                                @endforeach
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td class="crudo-defect-empty" colspan="5">
-                                                    <i class="fa-solid fa-circle-check"></i>
-                                                    Sin defectos detallados en este periodo.
-                                                </td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    </div>
-
-                    <section class="crudo-detail-panel crudo-audit-panel" wire:ignore>
-                        <div class="crudo-detail-panel-heading crudo-audit-heading">
-                            <div>
-                                <p class="crudo-eyebrow">Auditoría</p>
-                                <h3>Checklist de telares reincidentes de defectos</h3>
-                            </div>
-                            <span class="crudo-detail-count">{{ count($visibleAuditChecklist) }} puntos</span>
-                        </div>
-
-                        <fieldset class="crudo-audit-table">
-                            <legend class="sr-only">Evaluación del telar {{ $selectedMachine['name'] }}</legend>
-
-                            <div class="crudo-audit-row crudo-audit-header" aria-hidden="true">
-                                <span>Pregunta a auditar</span>
-                                <span>Bien <i class="fa-regular fa-circle-check"></i></span>
-                                <span>Mal <i class="fa-regular fa-circle-xmark"></i></span>
-                            </div>
-
-                            @foreach ($visibleAuditChecklist as $item)
-                                <div class="crudo-audit-row">
-                                    <p class="crudo-audit-question">
-                                        <strong>{{ $loop->iteration }}.</strong>
-                                        <span>{{ $item['question'] }}</span>
-                                    </p>
-
-                                    <label class="crudo-audit-option crudo-audit-option-good">
-                                        <input
-                                            type="radio"
-                                            name="crudo-audit-{{ $loop->iteration }}"
-                                            value="bien"
-                                            aria-label="Pregunta {{ $loop->iteration }}: Bien"
-                                        >
-                                        <span><i class="fa-solid fa-check" aria-hidden="true"></i></span>
-                                    </label>
-
-                                    <label class="crudo-audit-option crudo-audit-option-bad">
-                                        <input
-                                            type="radio"
-                                            name="crudo-audit-{{ $loop->iteration }}"
-                                            value="mal"
-                                            aria-label="Pregunta {{ $loop->iteration }}: Mal"
-                                        >
-                                        <span><i class="fa-solid fa-xmark" aria-hidden="true"></i></span>
-                                    </label>
+                    @if ($salonLayout['physical'])
+                        <div class="crudo-machine-grid crudo-machine-grid-physical">
+                            @foreach ($salonLayout['columns'] as $columnIndex => $machineColumn)
+                                <div class="crudo-machine-column" data-column="{{ $columnIndex + 1 }}">
+                                    @foreach ($machineColumn as $machine)
+                                        <x-crudo.machine-card :machine="$machine" />
+                                    @endforeach
                                 </div>
                             @endforeach
-                        </fieldset>
-                    </section>
-                </div>
-            </article>
+                        </div>
+                    @else
+                        <div class="crudo-machine-grid">
+                            @foreach ($salonLayout['columns'][0] as $machine)
+                                <x-crudo.machine-card :machine="$machine" />
+                            @endforeach
+                        </div>
+                    @endif
+                </section>
+            @endforeach
         </div>
-    @endif
+
+        @if (count($machines) === 0 && ! $dataError)
+            <div class="crudo-empty-state">
+                <i class="fa-solid fa-industry"></i>
+                <h2>No hay máquinas configuradas</h2>
+                <p>No se encontraron telares de Karl Mayer, Jacquard o Smith en el catálogo.</p>
+            </div>
+        @endif
+    </main>
+</div>
+
+    <livewire:crudo.machine-detail />
 </div>
