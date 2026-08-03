@@ -8,7 +8,7 @@
 @endphp
 
 <div
-    class="flex flex-row items-start gap-3 sm:gap-4"
+    class="flex h-full min-h-0 flex-row items-start gap-3 sm:gap-4"
     wire:key="verifica-maquina-show-{{ $folio }}"
     x-data="{
         estatus: @js($estatus),
@@ -190,7 +190,7 @@
     <style x-ref="colStyle"></style>
 
     {{-- Barra lateral: selección de máquina y sus telares --}}
-    <aside class="sticky top-3 z-20 w-60 shrink-0 self-start sm:w-64 md:w-72">
+    <aside class="z-20 flex h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto sm:w-64 md:w-72">
         <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
             <h2 class="text-sm font-bold text-gray-900">Máquina</h2>
             <p class="mt-0.5 text-[11px] text-gray-500">Selecciona una máquina para elegir sus telares.</p>
@@ -255,8 +255,8 @@
     </aside>
 
     {{-- Contenido principal --}}
-    <div class="min-w-0 flex-1 space-y-4">
-        <section class="rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm sm:px-4">
+    <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col space-y-4">
+        <section class="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm sm:px-4">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <h1 class="shrink-0 text-base font-bold text-gray-900">Verificación</h1>
                 <span class="inline-flex shrink-0 rounded bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">{{ $folio }}</span>
@@ -300,20 +300,22 @@
             </p>
         </section>
 
-        <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
 
             {{--
                 wire:ignore: la matriz se pinta una sola vez y a partir de ahí la
                 mantiene Alpine (captura optimista + filtros por CSS), así Livewire
-                nunca vuelve a diferenciar ~1.1k celdas.
+                nunca vuelve a diferenciar ~1.1k celdas. La página nunca hace scroll:
+                solo este contenedor (las actividades) scrollea, en ambos ejes, con
+                encabezados sticky para no perder de vista telar/actividad.
             --}}
             <div
                 wire:ignore
                 x-ref="matriz"
                 :class="{ 'vm-modo-editar': maquinaAbierta !== '', 'vm-locked': !puedeEditarAhora }"
-                class="max-w-full overflow-x-auto overscroll-x-contain"
+                class="min-h-0 max-w-full flex-1 overflow-auto overscroll-contain"
                 tabindex="0"
-                aria-label="Cuadrícula de verificación por telar y actividad; desplázate horizontalmente"
+                aria-label="Cuadrícula de verificación por telar y actividad; desplázate para ver todas las filas y columnas"
             >
                 {{--
                     El markup de las ~1.1k celdas va compactado en una sola línea a
@@ -325,9 +327,9 @@
                 <table class="divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
-                            <th scope="col" class="sticky left-0 z-10 min-w-80 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm">Actividad</th>
-                            @foreach ($telares as $telar)<th scope="col" class="vm-col-{{ $telar['NoTelarId'] }} vm-th" title="{{ $telar['Nombre'] }} ({{ $telar['SalonTejidoId'] }})">{{ $telar['NoTelarId'] }}</th>@endforeach
-                            <th scope="col" class="whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm">Todos los telares</th>
+                            <th scope="col" class="sticky left-0 top-0 z-40 min-w-80 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm">Actividad</th>
+                            @foreach ($telares as $telar)<th scope="col" class="vm-col-{{ $telar['NoTelarId'] }} vm-th sticky top-0 z-30 bg-gray-50" title="{{ $telar['Nombre'] }} ({{ $telar['SalonTejidoId'] }})">{{ $telar['NoTelarId'] }}</th>@endforeach
+                            <th scope="col" class="sticky top-0 z-30 whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm">Todos los telares</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white" @click="onCeldaClick($event)">
